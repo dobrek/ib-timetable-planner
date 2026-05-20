@@ -1,0 +1,44 @@
+KK,Polish A,SL,1,4
+KK,Polish A,HL,,2
+MD,Polish A,SL,2,4
+SD,English A,SL,,4
+SD,English A,HL,,2
+SD,SSSTS,SL,,2
+SD,EE,,1,1
+SD,EE,,2,1
+SD,EE,,3,1
+MC,Biology,SL,,4
+MC,Biology,HL,,6
+AP,Math AI,SL,,4
+AP,Math AA,HL,1,6
+LB,Math AA,HL,2,6
+LB,Math AA,SL,,4
+PS,TOK,,3,2
+PS,TOK,,1,2
+PS,Psychology,SL,,4
+PS,Psychology,HL,,2
+JC,English B,HL,1,6
+MM,English B,HL,2,6
+MM,CAS,,1,1
+MM,CAS,,2,1
+MM,CAS,,3,1
+NR,Spanish B,AB,,4
+NR,Spanish B,SL,,2
+NR,Spanish B,SL+HL,,4
+NR,Spanish B,HL,,2
+KS,German B,AB,,2
+KS,German B,SL,,2
+KS,German B,AB+SL,,2
+AS,History,HL,,2
+AS,History,SL,,4
+IG,TOK,,2,2
+NE,Geography,HL,,2
+NE,Geography,SL,,4
+SA,BM,HL,,6
+SA,BM,SL,,4
+OT,Chemistry,HL,,2
+OT,Chemistry,SL,,4
+BS,Physics,HL,,2
+BS,Physics,SL,,4
+OS,Computer Science,SL,,4
+OS,Computer Science,HL,,2

@@ -1,76 +1,46 @@
-<!-- BEGIN @przeprogramowani/10x-cli -->
+# CLAUDE.md
 
-## 10xDevs AI Toolkit — Module 1, Lesson 2
+## Project
 
-Pick a starter and a stack for the PRD you wrote in Lesson 1, with the **stack chain**:
+`ib-schedule-planner` — interactive IB-school timetable planner. Full context in @context/foundation/prd.md and @context/foundation/tech-stack.md.
 
-```
-(/10x-init  →  /10x-shape  →  /10x-prd)  →  /10x-tech-stack-selector  →  (bootstrapper)
-```
+Stack: Astro 6 + React 19 on Cloudflare Workers (workerd), Supabase (Postgres) for persistence, Tailwind. Package manager: **pnpm 10.32.1**. Node: **22.14.0** (see `.node-version`).
 
-The PRD chain ships from Lesson 1 (re-included in this lesson so you can fix the PRD mid-flight). `/10x-tech-stack-selector` is the lesson's main topic; `/10x-bootstrapper` is the next link, taught in Lesson 3.
+## Commands
 
-### Task Router — Where to start
+- `pnpm dev` — Astro dev server (workerd runtime)
+- `pnpm build` — production build (CI gate)
+- `pnpm lint` / `pnpm lint:fix` — ESLint flat config
+- `pnpm format` — Prettier across the tree
+- `pnpm exec astro sync` — regenerate Astro content/env types; run before lint if you change content collections or env vars
 
-| Skill | Use it when |
-| --- | --- |
-| **Stack selection (lesson focus)** | |
-| `/10x-tech-stack-selector` | You have a PRD at `context/foundation/prd.md` and need to pick a starter. Opens with an explicit choice (take the recommended default for your `(product_type, language_family)` cell, or design your own), walks the follow-up question set when you design your own, applies four agent-friendly quality gates, reasons over the language-aware starter registry, and writes `context/foundation/tech-stack.md`. Optional `[path-to-prd]` argument lets you point at a non-default PRD location (e.g., `/10x-tech-stack-selector @context/foundation/prd-v2.md`); without it the skill defaults to `context/foundation/prd.md`. Use AFTER `/10x-prd`, BEFORE `/10x-bootstrapper`. |
-| **Re-run upstream if needed** | |
-| `/10x-init` / `/10x-shape` / `/10x-prd` | Bundled so you can fix the PRD mid-flight. If `/10x-tech-stack-selector` surfaces a gap (e.g., a Functional Requirement that forces a feature your recommended starter doesn't carry), re-run `/10x-prd` to amend the PRD before the stack pick. |
+No test runner is configured yet. Do not invent `pnpm test`.
 
-### How the chain hands off
+## Branch and CI
 
-- `/10x-tech-stack-selector` reads `context/foundation/prd.md` frontmatter (`product_type`, `target_scale`, `timeline_budget`) as priors. If the PRD is absent, it refuses with a one-sentence redirect to `/10x-shape` — no inline mini-PRD fallback.
-- The skill writes `context/foundation/tech-stack.md` with a 4-key frontmatter (`starter_id`, `package_manager`, `project_name`, `hints`) plus a one-paragraph `## Why this stack` body. The hand-off is intentionally minimal — bootstrapper does not parse rationale, only fields.
-- `/10x-bootstrapper` (Lesson 3) reads `tech-stack.md` and the registry to scaffold the project.
+- CI runs: `pnpm install --frozen-lockfile` → `astro sync` → `pnpm lint` → `pnpm build`. No deploy, no tests. Use the `/verify` skill to mirror this locally.
+- Commit style (from history): `chore: …`, `feat: …`, `fix: …` — lowercase scope, imperative subject, no period.
 
-### What tech-stack-selector captures (and what it does NOT)
+## Runtime caveats
 
-- **Captured**: starter pick (registry-shaped), language family, package manager (open string per ecosystem — `pnpm`, `uv`, `bundle`, `cargo`, etc.), team size, deployment target (drawn from the chosen starter's `deployment_defaults`), CI/CD provider + flow, bootstrapper confidence (`verified | first-class | best-effort`), path taken (standard | custom), self-check answers (custom path), quality override (set when the user proceeds with a starter that failed ≥1 agent-friendly gate), feature flags (auth/payments/realtime/AI/background-jobs).
-- **NOT captured (deliberate)**: strategic test plan, strategic deployment plan, strategic implementation decisions. Those are downstream of stack selection — a future technical-roadmap concern, not yet planned. Tech-stack-selector owns *framework-shaped* test/deploy/CI choices because those are inseparable from stack pick; what defers is the *strategic* layer ("we TDD on X surface", "preview environment per PR").
+Code runs on **Cloudflare Workers (workerd)** in both dev and prod. Do not use Node-only APIs (`fs`, `child_process`, `net`, native modules). Choose edge-compatible libraries.
 
-### The opening choice (load-bearing)
+## Domain
 
-The first question is an explicit choice — never silent. The skill names the recommended starter for your `(product_type, language_family)` cell up front and asks for explicit confirmation:
+- The validator's hard problem is the **two-cohort (Year 12 / Year 13) cross-cohort constraint model**. Don't reinvent it — read the PRD's placement-validation section and any existing solver under `src/lib/` before adding constraint logic.
+- Placement validation has a **<200ms budget** per drag-drop interaction.
+- **Supabase is the runtime source of truth** for catalog, students, teachers, and placements.
+- `/data/*.csv` are **reference fixtures** — canonical sample inputs for seeding and tests. They are not read at runtime.
 
-- **Standard path** — accept the recommended default. The skill skips the feature audit, team profile, tech preferences, and framework-variant questions; it asks only the deployment, CI/CD, and project-name questions. The hand-off records `path_taken: standard` under `hints`.
-- **Custom path** — design your own. The skill walks the full follow-up set (feature audit, team profile, tech preferences, deployment, CI/CD, framework variant), drills into a testing-runner question only when the chosen starter leaves it ambiguous, and closes with a 5-point readiness self-check (from prework lesson 4.1) before locking in. The hand-off records `path_taken: custom` and populates `self_check_answers`.
+## Layout
 
-The recommended-default-per-cell map is multi-language: web/JS and saas/JS both → 10x-astro-starter (the 10x-branded starter leads whenever it competes in a JS cell); api/JS → hono; api/Python → fastapi; web/Python → django; web/Ruby → rails; api/Go → go; api/Rust → axum; mobile/Dart → flutter; desktop/Rust → tauri; etc. Cells with no vetted default carry `<none>` and force the custom path.
+- `src/pages/` — Astro routes including `api/`
+- `src/components/` — React + Astro components
+- `src/lib/` — pure utilities and the constraint/validation core
+- `supabase/` — local Supabase config and migrations
+- `context/foundation/` — PRD, tech-stack, shape-notes; consumed by `/10x-*` skills, not by runtime code
+- `data/` — reference CSV fixtures
 
-### Quality gates (agent-friendly criteria)
+## Pre-commit
 
-Every starter card carries four booleans the LLM filters against:
-
-1. **Typed** — explicit types/schemas the agent can reason from without running the program.
-2. **Convention-based** — strong opinions on layout, routing, configuration.
-3. **Popular in training data** — assessed *per language family*, not globally (Django is popular within Python training data; Spring within Java; etc.).
-4. **Well-documented** — current, version-pinned, link-able docs.
-
-Candidates failing any gate are excluded from the unprompted recommendation set. If you explicitly name a failing starter as your preference, the skill challenges that pick — surfacing the strongest higher-criteria alternative AND the compensation path (CLAUDE.md instructions that patch the gaps) — and asks you to confirm or pivot. Confirming the known-friction pick records the override on the hand-off so bootstrapper can adjust.
-
-### Bootstrapper confidence
-
-Every recommendation surfaces `bootstrapper_confidence` verbatim — never silently elided:
-
-- **`verified`** — bootstrapper has been run end-to-end on this stack; scaffolding will be smooth.
-- **`first-class`** — registered with a valid CLI, expected to work but not battle-tested; expect mostly-smooth scaffolding with occasional manual steps.
-- **`best-effort`** — limited support; manual steps likely; expect friction (and bootstrapper's CLAUDE.md generation compensates with extra ecosystem-specific context).
-
-This is the heads-up before running `/10x-bootstrapper` so you know what to expect.
-
-### Foundation paths used by this lesson
-
-- `context/foundation/prd.md` — input (from Lesson 1)
-- `context/foundation/tech-stack.md` — output (the chain hand-off)
-- `context/foundation/lessons.md` — recurring rules & pitfalls
-- `docs/reference/contract-surfaces.md` — load-bearing names registry
-
-### Universal language
-
-The shipped skill carries no 10xDevs / cohort / certification references. The recommended-default registry is multi-language (JS, Python, Ruby, Java, Go, Rust, PHP, .NET, Dart) and the cohort's `10x-astro-starter` is one card in the JS+web cell — not "the" recommended path for everyone.
-
-Skills must not write to `context/archive/`. Archived changes are immutable; if a resolved target path starts with `context/archive/`, abort with: "This change is archived. Open a new change with `/10x-new` instead."
-
-<!-- END @przeprogramowani/10x-cli -->
+`lefthook` runs `eslint --fix` on staged `.ts/.tsx/.astro` and `prettier --write` on `.json/.css/.md`. Do not bypass it with `--no-verify`.

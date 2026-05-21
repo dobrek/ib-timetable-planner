@@ -63,12 +63,12 @@ Authors can keep multiple draft variants of one plan in parallel and switch betw
 
 - **Given** a plan author has signed in to a freshly seeded instance with no plans yet
 - **When** they:
-    - (a) create Year 1 and Year 2 students and choices via the UI (optionally seeded from CSV import),
-    - (b) populate the catalog with teachers, course assignments, availability rules, and course dependencies (overlap + merge),
-    - (c) create a plan, choose a slot-grid preset, and open a draft variant,
-    - (d) work on Year 1 first: drag compatible Year 1 groupings onto slots, accepting only drops the live validator marks valid, until all Year 1 slots required by the cohort are placed,
-    - (e) switch the variant to Year 2: drag Year 2 groupings onto slots under the additional constraint that teacher slots occupied in Year 1 are now unavailable,
-    - (f) cover all slots required by both cohorts' choices
+  - (a) create Year 1 and Year 2 students and choices via the UI (optionally seeded from CSV import),
+  - (b) populate the catalog with teachers, course assignments, availability rules, and course dependencies (overlap + merge),
+  - (c) create a plan, choose a slot-grid preset, and open a draft variant,
+  - (d) work on Year 1 first: drag compatible Year 1 groupings onto slots, accepting only drops the live validator marks valid, until all Year 1 slots required by the cohort are placed,
+  - (e) switch the variant to Year 2: drag Year 2 groupings onto slots under the additional constraint that teacher slots occupied in Year 1 are now unavailable,
+  - (f) cover all slots required by both cohorts' choices
 - **Then** the variant is collision-free for every student in both cohorts, every teacher across both cohorts, and every availability rule; the author can mark the variant as final; and the master-grid CSV export reflects the placed timetable with cohort distinguishable
 
 ### US-02: Parallel variants
@@ -90,6 +90,7 @@ Authors can keep multiple draft variants of one plan in parallel and switch betw
   > Socratic: Counter-argument considered: "level enum is too rigid." Resolution: stands — the (level, group-index) tuple matches the existing data shape and the IB programme structure. The IB Group attribute (Group 1–6) is captured as an Open Question.
 - FR-003: Author can declare course dependencies of two kinds: (a) **overlap** — two same-subject different-level courses that may share slot fragments (e.g., Polish A SL / Polish A HL); (b) **merge** — different-level groups taught together as one (e.g., German B AB+SL). Priority: must-have
   > Socratic: Counter-argument considered: "overlap and merge could be one unified concept." Resolution: kept separate — they have distinct semantics in collision rules (overlap = share fragments; merge = one combined slot). Unifying them risks losing the distinction.
+- FR-003A: Author can declare number of hours (1hour = slot) per week for given subject. Priority: must-have
 - FR-004: Author can manage teachers (create, edit, delete) and assign each teacher to one or more courses (where a course is the `(name, level, group-index)` triple from FR-002). Priority: must-have
   > Socratic: Counter-argument considered: "missing hours-per-week or preferred-time constraints." Resolution: kept minimal for MVP. Captured as Open Questions for downstream consideration.
 - FR-005: Author can declare teacher availability rules — slots a given teacher cannot be scheduled into. Priority: must-have
@@ -110,7 +111,7 @@ Authors can keep multiple draft variants of one plan in parallel and switch betw
   > Socratic: Counter-argument considered: "multi-variant could be demoted to nice-to-have." Resolution: stands — parallel what-if exploration is identified as a core need; cohort sequencing makes it more, not less, valuable.
 - FR-011: Author can place courses (or compatible course groupings) onto slots by drag-and-drop within the current cohort of the current variant, and can remove or move placements. Priority: must-have
   > Socratic: Counter-argument considered: "keyboard-only / click-to-place alternatives." Resolution: drag-and-drop is the stated UX premise ("like solving a puzzle"); alternatives captured as Open Question.
-- FR-012: On every drop, the app validates the placement against (a) student collisions, (b) teacher collisions within the current cohort, (c) teacher collisions against the *other cohort's fixed placements*, (d) teacher availability rules — and reports the outcome immediately in the UI. Priority: must-have
+- FR-012: On every drop, the app validates the placement against (a) student collisions, (b) teacher collisions within the current cohort, (c) teacher collisions against the _other cohort's fixed placements_, (d) teacher availability rules — and reports the outcome immediately in the UI. Priority: must-have
   > Socratic: Counter-argument considered: "block-invalid-drops vs. flag-and-allow." Resolution: deliberate ambiguity preserved here; resolution path is in Open Questions — both options are defensible, and the choice is worth deciding during design review.
 - FR-013: App computes ranked "compatible course groupings" from current catalog state (scoped to the current cohort) and exposes them as draggable building blocks alongside the grid. Priority: must-have
   > Socratic: Counter-argument considered: "defer ranking to v2." Resolution: kept — ranking is what makes the algorithm output usable; without it the author drowns in options.

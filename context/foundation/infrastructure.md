@@ -1,5 +1,5 @@
 ---
-project: ib-schedule-planner
+project: ib-timetable-planner
 researched_at: 2026-05-22
 recommended_platform: cloudflare-workers
 runner_up: netlify

@@ -1,7 +1,7 @@
 ---
 starter_id: 10x-astro-starter
 package_manager: pnpm
-project_name: ib-schedule-planner
+project_name: ib-timetable-planner
 hints:
   language_family: js
   team_size: solo

@@ -2,7 +2,7 @@
 bootstrapped_at: 2026-05-21T00:00:00Z
 starter_id: 10x-astro-starter
 starter_name: "10x Astro Starter (Astro + Supabase + Cloudflare)"
-project_name: ib-schedule-planner
+project_name: ib-timetable-planner
 language_family: js
 package_manager: pnpm
 cwd_strategy: git-clone
@@ -18,7 +18,7 @@ Verbatim copy of `context/foundation/tech-stack.md`:
 ```yaml
 starter_id: 10x-astro-starter
 package_manager: pnpm
-project_name: ib-schedule-planner
+project_name: ib-timetable-planner
 hints:
   language_family: js
   team_size: solo

@@ -1,4 +1,4 @@
-# Integration & Deployment Plan — ib-schedule-planner
+# Integration & Deployment Plan — ib-timetable-planner
 
 ## Context
 

@@ -1,5 +1,5 @@
 ---
-project: ib-schedule-planner
+project: ib-timetable-planner
 context_type: greenfield
 created: 2026-05-19
 updated: 2026-05-19
@@ -34,7 +34,7 @@ timeline_budget:
 
 **Cost today.** An existing standalone algorithm reads four CSV files (student–subject choices, teacher–subject assignments, subject overlaps, subject merges) and emits a ranked list of "course groupings that could be held in the same slot without collision". The author then opens that list in Excel and **manually drags those groupings onto a slot grid**. There is no automatic check that a placement is still valid as the grid fills up; collisions are caught visually, late, and re-doing a placement is expensive.
 
-**Insight.** The CSV+algorithm step already does the combinatorial work. The remaining work — placing pre-computed compatible groups on a slot grid — is *interactive, visual, and constraint-driven*, but is being done in a tool (Excel) that knows nothing about the constraints. A purpose-built editor with live validation would collapse the workflow.
+**Insight.** The CSV+algorithm step already does the combinatorial work. The remaining work — placing pre-computed compatible groups on a slot grid — is _interactive, visual, and constraint-driven_, but is being done in a tool (Excel) that knows nothing about the constraints. A purpose-built editor with live validation would collapse the workflow.
 
 ### Pain category
 
@@ -45,7 +45,7 @@ timeline_budget:
 ## User & Persona
 
 **Primary persona — Plan Author.**
-A teacher / admin at one IB-offering liceum who is responsible for producing the year's timetable. There are *a few* such authors at the school; they may work in parallel on different variants of the same plan before one is chosen as final.
+A teacher / admin at one IB-offering liceum who is responsible for producing the year's timetable. There are _a few_ such authors at the school; they may work in parallel on different variants of the same plan before one is chosen as final.
 
 - **Scope of users:** small (a few authors, one school) — not a multi-tenant SaaS.
 - **Parallel variants:** first-class — multiple draft plans can exist at once; one is eventually marked as final.
@@ -136,7 +136,7 @@ The existing CSV-driven algorithm (input directory `data/dp2/`, output `data/out
   > Socrates: Counter-argument considered: "multi-variant could be demoted to nice-to-have." Resolution: stands — the user has identified parallel what-if exploration as a core need; cohort sequencing makes it more, not less, valuable.
 - FR-011: Author can place courses (or compatible course groupings) onto slots by drag-and-drop within the current cohort of the current variant, and can remove or move placements. Priority: must-have
   > Socrates: Counter-argument considered: "keyboard-only / click-to-place alternatives." Resolution: drag-and-drop is the user's stated UX premise ("like solving a puzzle"); alternatives captured as Open Question.
-- FR-012: On every drop, the app validates the placement against (a) student collisions, (b) teacher collisions within the current cohort, (c) teacher collisions against the *other cohort's fixed placements*, (d) teacher availability rules — and reports the outcome immediately in the UI. Priority: must-have
+- FR-012: On every drop, the app validates the placement against (a) student collisions, (b) teacher collisions within the current cohort, (c) teacher collisions against the _other cohort's fixed placements_, (d) teacher availability rules — and reports the outcome immediately in the UI. Priority: must-have
   > Socrates: Counter-argument considered: "block-invalid-drops vs. flag-and-allow." Resolution: deliberate ambiguity preserved here; resolution path is in Open Questions — both options are defensible, the choice is UX-driven and worth deciding during PRD or design review.
 - FR-013: App computes ranked "compatible course groupings" from current catalog state (scoped to the current cohort) and exposes them as draggable building blocks alongside the grid. Priority: must-have
   > Socrates: Counter-argument considered: "defer ranking to v2." Resolution: kept — ranking (per the existing data/dp2-variants-2.csv score column) is what makes the algorithm output usable; without it the author drowns in options.

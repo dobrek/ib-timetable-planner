@@ -4,7 +4,7 @@
 
 `ib-schedule-planner` — interactive IB-school timetable planner. Full context in @context/foundation/prd.md and @context/foundation/tech-stack.md.
 
-Stack: Astro 6 + React 19 on Cloudflare Workers (workerd), Supabase (Postgres) for persistence, Tailwind. Package manager: **pnpm 10.32.1**. Node: **22.14.0** (see `.node-version`).
+Stack: Astro 6 + React 19 on Cloudflare Workers (workerd), Supabase (Postgres) for persistence, Tailwind. Package manager: **pnpm 10.32.1**. Node: **24.15.0** (see `.node-version`).
 
 ## Commands
 

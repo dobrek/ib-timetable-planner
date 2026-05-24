@@ -243,8 +243,20 @@ These are the infrastructure.md risk-register items that the deploy itself doesn
 ## Resolved values (fill during execution)
 
 - Supabase project ref: `hwmuiymhjgewtymymbmb`
-- Supabase region: `…`
-- Cloudflare account ID: `…`
-- Workers production URL: `…`
-- First deploy ID: `…`
-- Date of first production deploy: `…`
+- Supabase region: `Central EU (Frankfurt)`
+- Cloudflare account ID: `1230fda69283b481401344961d57d7dc`
+- Cloudflare workers.dev subdomain: `dobromir-kropielnicki.workers.dev`
+- Workers production URL: `https://ib-timetable-planner.dobromir-kropielnicki.workers.dev`
+- Custom domain (apex, via Custom Domain binding): `https://ib-timetable-planner.dev`
+- Wildcard subdomain route (`*.ib-timetable-planner.dev/*`): **removed 2026-05-24** — dormant (no subdomain DNS records). Re-add via dashboard if subdomains are needed later.
+- First deploy version ID: `880d497b-9093-4bdc-9f17-4c59c2fab5d5`
+- Date of first production deploy: `2026-05-24`
+
+## Outstanding follow-ups (not done in this pass)
+
+- **Phase 1.5 — Supabase Site URL.** Set Auth → URL Configuration → Site URL to `https://ib-timetable-planner.dobromir-kropielnicki.workers.dev` (and add the `ib-timetable-planner.dev` domain to Redirect URLs). Confirmation emails will contain a broken link until this is done. Manual dashboard step.
+- **Phase 3 — Schema baseline.** Deferred per the plan's edge-case clause. Auth-only smoke is sufficient for now. Revisit before the first feature that needs persistence (catalog tables: courses, teachers, students, placements, plans, variants). Use `pnpm exec supabase migration new initial_catalog` and ship with RLS enabled.
+- **Phase 4.2 — Scoped CI API token.** Account ID is captured; the scoped Cloudflare API token still needs to be created at https://dash.cloudflare.com/profile/api-tokens with `Account → Workers Scripts → Edit` + `Account → Account Settings → Read`, and stored as the GitHub Actions secret `CLOUDFLARE_API_TOKEN`. Also add `CLOUDFLARE_ACCOUNT_ID=1230fda69283b481401344961d57d7dc` and confirm `SUPABASE_URL` / `SUPABASE_KEY` repo secrets are the **hosted** values.
+- **Phase 6.5 — Browser smoke (signup → dashboard → signout).** Headless smoke (curl) passed: `/` 200, `/auth/signin` 200, `/dashboard` 302 → `/auth/signin`. End-to-end signup against the hosted project still needs a human pass through the UI.
+- **Phase 7.3 — Verify CI auto-deploy.** Once Phase 4.2 tokens are in GitHub, merge a no-op PR to `main` and confirm the `deploy` job in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs.
+- **Phase 8 — Backups + bundle-size monitor + compat-date hygiene.** Not started.

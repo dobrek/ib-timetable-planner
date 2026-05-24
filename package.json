@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "env:local": "cp .env/local.vars .env.local && cp .env/local.vars .dev.vars",
+    "env:prod": "cp .env/prod.vars .env.local && cp .env/prod.vars .dev.vars"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

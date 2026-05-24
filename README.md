@@ -1,174 +1,179 @@
-# 10x Astro Starter
+# IB Schedule Planner
 
-![](./public/template.png)
-
-A modern, opinionated starter template for building fast, accessible web applications.
+Interactive timetable planner for IB (International Baccalaureate) programmes. A plan author drags compatible course groupings onto a two-cohort slot grid with live, sub-200 ms constraint validation — replacing the current "algorithm output + manual spreadsheet" workflow.
 
 ## Tech Stack
 
-- [Astro](https://astro.build/) v6 - Modern web framework with server-first rendering
-- [React](https://react.dev/) v19 - UI library for interactive components
-- [TypeScript](https://www.typescriptlang.org/) v5 - Type-safe JavaScript
-- [Tailwind CSS](https://tailwindcss.com/) v4 - Utility-first CSS framework
-- [Supabase](https://supabase.com/) - Authentication and backend-as-a-service
-- [Cloudflare Workers](https://workers.cloudflare.com/) - Edge deployment runtime
+- [Astro](https://astro.build/) v6 — server-first framework with React islands
+- [React](https://react.dev/) v19 — interactive UI components (drag-and-drop grid, validation feedback)
+- [TypeScript](https://www.typescriptlang.org/) v6 — strict types across the codebase
+- [Tailwind CSS](https://tailwindcss.com/) v4 — utility-first styling
+- [Supabase](https://supabase.com/) — Postgres persistence + email/password auth
+- [Cloudflare Workers](https://workers.cloudflare.com/) — edge deployment runtime (workerd)
 
 ## Prerequisites
 
-- Node.js v22.14.0 (as specified in `.nvmrc`)
-- npm (comes with Node.js)
+- Node.js 24.15.0 (see `.node-version`)
+- [pnpm](https://pnpm.io/) 10.32.1 (declared in `packageManager`)
+- [Docker Desktop](https://www.docker.com/) — required by the local Supabase stack
 
 ## Getting Started
 
-1. Clone the repository:
+1. Install dependencies:
 
 ```bash
-git clone https://github.com/przeprogramowani/10x-astro-starter.git
-cd 10x-astro-starter
+pnpm install
 ```
 
-2. Install dependencies:
+2. Start the local Supabase stack (first run pulls Docker images):
 
 ```bash
-npm install
+pnpm exec supabase start
 ```
 
-3. Set up Supabase and configure environment variables — see [Supabase Configuration](#supabase-configuration) below.
-
-4. Create a `.dev.vars` file for local Cloudflare dev secrets:
+3. Copy the **Publishable** key printed by the CLI and create your env files:
 
 ```bash
-cp .env.example .dev.vars
+mkdir -p .env
+cat > .env/local.vars <<EOF
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_KEY=<Publishable key from supabase start>
+EOF
 ```
 
-5. Run the development server:
+4. Activate the local environment profile:
 
 ```bash
-npm run dev
+pnpm env:local
 ```
+
+5. Run the dev server:
+
+```bash
+pnpm dev
+```
+
+The app is served at `http://localhost:4321`. Local Supabase Studio is at `http://127.0.0.1:54323` and Mailpit (email capture) at `http://127.0.0.1:54324`.
 
 ## Available Scripts
 
-- `npm run dev` - Start development server (Cloudflare workerd runtime)
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint with type-checked rules
-- `npm run lint:fix` - Auto-fix ESLint issues
-- `npm run format` - Run Prettier
+| Script           | Description                                             |
+| ---------------- | ------------------------------------------------------- |
+| `pnpm dev`       | Start the Astro dev server (Cloudflare workerd runtime) |
+| `pnpm build`     | Production build                                        |
+| `pnpm preview`   | Preview the production build locally                    |
+| `pnpm lint`      | ESLint (flat config, type-checked)                      |
+| `pnpm lint:fix`  | Auto-fix lint issues                                    |
+| `pnpm format`    | Prettier across the tree                                |
+| `pnpm env:local` | Switch `.env.local` + `.dev.vars` to local Supabase     |
+| `pnpm env:prod`  | Switch `.env.local` + `.dev.vars` to hosted Supabase    |
 
 ## Project Structure
 
-```md
-.
-├── src/
-│ ├── layouts/ # Astro layouts
-│ ├── pages/ # Astro pages
-│ │ └── api/ # API endpoints
-│ ├── components/ # UI components (Astro & React)
-│ └── assets/ # Static assets
-├── public/ # Public assets
-├── wrangler.jsonc # Cloudflare Workers config
+```
+src/
+├── pages/          # Astro routes + API endpoints (src/pages/api/)
+├── components/     # React + Astro UI components
+├── layouts/        # Astro page layouts
+├── lib/            # Pure utilities, Supabase client, constraint/validation core
+└── styles/         # Global styles
+supabase/           # Local Supabase config, migrations
+data/               # Reference CSV fixtures (not read at runtime)
+context/            # Foundation docs (PRD, tech-stack, infrastructure, deploy plan)
+public/             # Static assets
+wrangler.jsonc      # Cloudflare Workers configuration
 ```
 
-## Supabase Configuration
+## Environment Profiles
 
-This project uses [Supabase](https://supabase.com/) for authentication. Environment variables are declared via Astro's `astro:env` schema and are treated as **server-only secrets** — they are never exposed to the client.
+The project uses two Supabase targets — **local** (default for development) and **hosted** (production / quick smoke tests). Profile files live in `.env/`:
 
-### First-time setup (local, no cloud project needed)
+- `.env/local.vars` — local Supabase (`127.0.0.1:54321`)
+- `.env/prod.vars` — hosted Supabase project
 
-Requires [Docker](https://www.docker.com/) and ~7 GB RAM.
-
-1. Create your `.env` file:
+Swap with a single command:
 
 ```bash
-cp .env.example .env
+pnpm env:local   # default dev loop
+pnpm env:prod    # read-only smoke against hosted Supabase
 ```
 
-2. Initialize the local Supabase project (creates a `supabase/` config folder):
-
-```bash
-npx supabase init
-```
-
-3. Start the local stack (downloads Docker images on first run):
-
-```bash
-npx supabase start
-```
-
-4. Copy the credentials printed by the CLI into your `.env` and `.dev.vars`:
-
-```
-SUPABASE_URL=http://127.0.0.1:54321
-SUPABASE_KEY=<anon key from CLI output>
-```
-
-5. To stop the stack when done:
-
-```bash
-npx supabase stop
-```
-
-The local Studio UI is available at `http://localhost:54323`.
-
-No database tables or migrations are required — this project uses Supabase Auth's built-in `auth.users` table only.
-
-### Using a cloud Supabase project instead
-
-If you prefer to use a hosted Supabase project, add these variables to your `.env` and `.dev.vars` files:
-
-| Variable       | Description                                                |
-| -------------- | ---------------------------------------------------------- |
-| `SUPABASE_URL` | Project URL from Supabase dashboard → Settings → API       |
-| `SUPABASE_KEY` | `anon` public key from Supabase dashboard → Settings → API |
-
-```
-SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_KEY=<anon-key>
-```
-
-### Email confirmation in local development
-
-By default Supabase requires email confirmation before a user can sign in. To skip this during local development:
-
-1. Open the Supabase dashboard for your project
-2. Go to **Authentication → Email → Confirm email**
-3. Toggle it **off**
-
-Users can then sign in immediately after sign-up without clicking a confirmation link.
-
-### Auth routes
-
-| Route                 | Description                                                             |
-| --------------------- | ----------------------------------------------------------------------- |
-| `/auth/signin`        | Email/password sign-in form                                             |
-| `/auth/signup`        | Email/password sign-up form                                             |
-| `/auth/confirm-email` | Post-signup "check your inbox" page                                     |
-| `/dashboard`          | Example protected page (redirects to `/auth/signin` if unauthenticated) |
-
-Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_ROUTES` array there to require authentication.
+Both scripts write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler dev`) so the two dev commands stay in sync. Always run `pnpm env:local` after a prod smoke test.
 
 ## Deployment
 
-This project deploys to [Cloudflare Workers](https://workers.cloudflare.com/).
+The app deploys to **Cloudflare Workers**. The full deployment plan is in [`context/changes/deployment/deploy-plan.md`](context/changes/deployment/deploy-plan.md).
 
-1. Build the project:
+- **Production URL:** <https://ib-timetable-planner.dobromir-kropielnicki.workers.dev>
+- **Custom domain:** <https://ib-timetable-planner.dev>
 
-```bash
-npm run build
-```
-
-2. Deploy with Wrangler:
+### Manual deploy
 
 ```bash
-npx wrangler deploy
+pnpm build
+pnpm exec wrangler deploy
 ```
 
-Set `SUPABASE_URL` and `SUPABASE_KEY` as secrets in your Cloudflare dashboard or via `npx wrangler secret put`.
+Production secrets (`SUPABASE_URL`, `SUPABASE_KEY`) are stored on the Worker via `pnpm exec wrangler secret put`.
 
-## CI
+### Rollback
 
-GitHub Actions runs lint + build on every push and PR to `master`. Configure `SUPABASE_URL` and `SUPABASE_KEY` as repository secrets in GitHub for the build step.
+```bash
+pnpm exec wrangler deployments list
+pnpm exec wrangler rollback <deployment-id>
+```
+
+## CI / CD
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`:
+
+1. **`ci` job** — `pnpm install --frozen-lockfile` → `astro sync` → `lint` → `build`
+2. **`deploy` job** — on push to `main` only, ships via `cloudflare/wrangler-action@v3`
+
+Required repository secrets:
+
+| Secret                  | Description                            |
+| ----------------------- | -------------------------------------- |
+| `SUPABASE_URL`          | Hosted Supabase project URL            |
+| `SUPABASE_KEY`          | Hosted Supabase Publishable (anon) key |
+| `CLOUDFLARE_API_TOKEN`  | Scoped token (Workers Scripts: Edit)   |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier          |
+
+## Supabase
+
+### Local development (default)
+
+Requires Docker. The local stack runs Postgres on `54322`, API on `54321`, Studio on `54323`, and Mailpit on `54324`.
+
+```bash
+pnpm exec supabase start    # boot the local stack
+pnpm exec supabase stop     # shut it down
+```
+
+### Hosted project
+
+| Detail      | Value                  |
+| ----------- | ---------------------- |
+| Project ref | `hwmuiymhjgewtymymbmb` |
+| Region      | Central EU (Frankfurt) |
+
+Link the CLI to the hosted project (one-time):
+
+```bash
+pnpm exec supabase login
+pnpm exec supabase link --project-ref hwmuiymhjgewtymymbmb
+```
+
+### Auth routes
+
+| Route                 | Description                                                     |
+| --------------------- | --------------------------------------------------------------- |
+| `/auth/signin`        | Email/password sign-in                                          |
+| `/auth/signup`        | Email/password sign-up                                          |
+| `/auth/confirm-email` | Post-signup confirmation page                                   |
+| `/dashboard`          | Protected page (redirects to `/auth/signin` if unauthenticated) |
+
+Route protection is handled in `src/middleware.ts`.
 
 ## License
 

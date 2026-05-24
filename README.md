@@ -34,8 +34,8 @@ pnpm exec supabase start
 3. Copy the **Publishable** key printed by the CLI and create your env files:
 
 ```bash
-mkdir -p .env
-cat > .env/local.vars <<EOF
+mkdir -p .envs
+cat > .envs/local.vars <<EOF
 SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_KEY=<Publishable key from supabase start>
 EOF
@@ -86,10 +86,10 @@ wrangler.jsonc      # Cloudflare Workers configuration
 
 ## Environment Profiles
 
-The project uses two Supabase targets — **local** (default for development) and **hosted** (production / quick smoke tests). Profile files live in `.env/`:
+The project uses two Supabase targets — **local** (default for development) and **hosted** (production / quick smoke tests). Profile files live in `.envs/`:
 
-- `.env/local.vars` — local Supabase (`127.0.0.1:54321`)
-- `.env/prod.vars` — hosted Supabase project
+- `.envs/local.vars` — local Supabase (`127.0.0.1:54321`)
+- `.envs/prod.vars` — hosted Supabase project
 
 Swap with a single command:
 

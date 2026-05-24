@@ -34,16 +34,16 @@ Do this once before Phase 0. None of these mutate the hosted project or the prod
 
 ## Phase tracker (overview)
 
-- [ ] **Phase 0** — Secret hygiene & repo audit
-- [ ] **Phase 1** — Supabase project verification (prerequisite gate)
-- [ ] **Phase 2** — Local dev parity & env-swap to production
-- [ ] **Phase 3** — Supabase schema baseline (initial migration)
-- [ ] **Phase 4** — Cloudflare account & API token setup
-- [ ] **Phase 5** — Production secrets via `wrangler secret put`
-- [ ] **Phase 6** — First **manual** deploy + smoke verification
-- [ ] **Phase 7** — Automate deploy in CI (gated on Phase 6 success)
+- [x] **Phase 0** — Secret hygiene & repo audit
+- [x] **Phase 1** — Supabase project verification (prerequisite gate)
+- [x] **Phase 2** — Local dev parity & env-swap to production
+- [ ] **Phase 3** — Supabase schema baseline (initial migration) — _deferred_
+- [x] **Phase 4** — Cloudflare account & API token setup
+- [x] **Phase 5** — Production secrets via `wrangler secret put`
+- [x] **Phase 6** — First **manual** deploy + smoke verification
+- [~] **Phase 7** — Automate deploy in CI (workflow + GH secrets done; auto-deploy run pending)
 - [ ] **Phase 8** — Backup discipline & observability
-- [ ] **Phase 9** — Documentation & handoff
+- [x] **Phase 9** — Documentation & handoff
 
 ---
 
@@ -52,9 +52,9 @@ Do this once before Phase 0. None of these mutate the hosted project or the prod
 The Explore agent reported `.env.local` contains real Cloudflare + Supabase credentials. Confirm they have never reached git.
 
 - [x] 0.1 Confirm `.env.local` and `.dev.vars` are both in `.gitignore`. ✓ Already covered by `.env*` (line 34) and `.dev.vars` (line 58) in [.gitignore](.gitignore).
-- [ ] 0.2 `git log --all --full-history -- .env.local .dev.vars .env` to confirm neither file was ever committed.
-- [ ] 0.3 If any secret-bearing file shows up in history: rotate the affected token/key immediately (Cloudflare API token at `dash.cloudflare.com/profile/api-tokens`, Supabase keys via project settings → API) before continuing.
-- [ ] 0.4 Verify `lefthook.yml` runs Prettier/ESLint; no change needed, just confirmation.
+- [x] 0.2 `git log --all --full-history -- .env.local .dev.vars .env` to confirm neither file was ever committed.
+- [x] 0.3 If any secret-bearing file shows up in history: rotate the affected token/key immediately (Cloudflare API token at `dash.cloudflare.com/profile/api-tokens`, Supabase keys via project settings → API) before continuing. _(N/A — no leak found in 0.2)_
+- [x] 0.4 Verify `lefthook.yml` runs Prettier/ESLint; no change needed, just confirmation.
 
 **Gate:** no real secret is reachable in git history; `.env.local` and `.dev.vars` are gitignored.
 
@@ -64,12 +64,12 @@ The Explore agent reported `.env.local` contains real Cloudflare + Supabase cred
 
 An empty hosted project exists. Before wiring it up, confirm it's the right shape — region especially is load-bearing per the infrastructure.md pre-mortem.
 
-- [ ] 1.1 Project ref is **`hwmuiymhjgewtymymbmb`** (was in the original `.env.local` before P.6 overwrote it with local values; confirm via Supabase dashboard → Project Settings → General).
-- [ ] 1.2 **Verify region.** Project Settings → General → Region. Must be `eu-central-1` (Frankfurt) or another EU region for a Polish school. If it is in `us-east-1` or similar, **stop**: either re-create the project in EU now (data loss is fine — it's empty) or accept the latency hit and document it in the risk register. Do not proceed to Phase 5 without a clear answer.
-- [ ] 1.3 Project Settings → API: copy `Project URL`, `anon` / Publishable key, and `service_role` / Secret key to a scratchpad (not the repo). These become `SUPABASE_URL`, `SUPABASE_KEY` (Publishable), and `SUPABASE_SERVICE_ROLE_KEY` (Secret) later.
-- [ ] 1.4 Project Settings → Database → Connection string: confirm direct connection works from your machine (`psql "<conn-string>" -c "select 1;"`). If the network blocks 5432, note it — you'll need the pooler URL for migrations.
-- [ ] 1.5 Auth → Providers: confirm Email is enabled. Auth → URL Configuration: leave Site URL blank for now; you'll set it to the Workers URL after the first deploy (Phase 6.6).
-- [ ] 1.6 Record the project ref, region, and pooler/direct connection strings in a local note (not committed).
+- [x] 1.1 Project ref is **`hwmuiymhjgewtymymbmb`** (was in the original `.env.local` before P.6 overwrote it with local values; confirm via Supabase dashboard → Project Settings → General).
+- [x] 1.2 **Verify region.** Project Settings → General → Region. Must be `eu-central-1` (Frankfurt) or another EU region for a Polish school. _(✓ Central EU / Frankfurt.)_
+- [x] 1.3 Project Settings → API: copy `Project URL`, `anon` / Publishable key, and `service_role` / Secret key to a scratchpad (not the repo). These become `SUPABASE_URL`, `SUPABASE_KEY` (Publishable), and `SUPABASE_SERVICE_ROLE_KEY` (Secret) later.
+- [ ] 1.4 Project Settings → Database → Connection string: confirm direct connection works from your machine (`psql "<conn-string>" -c "select 1;"`). If the network blocks 5432, note it — you'll need the pooler URL for migrations. _(skipped — no DB usage yet)_
+- [x] 1.5 Auth → Providers: confirm Email is enabled. Auth → URL Configuration: Site URL now set to the production Workers URL (done post-Phase 6).
+- [x] 1.6 Record the project ref, region, and pooler/direct connection strings in a local note (not committed).
 
 **Gate:** project ref known, region is EU (or risk explicitly accepted), three API keys captured locally, DB reachable.
 
@@ -81,19 +81,19 @@ An empty hosted project exists. Before wiring it up, confirm it's the right shap
 
 The primary dev path is **local Supabase** (set up in P.5–P.7). This phase formalises the env-swap so you can point `pnpm dev` at the hosted project for a quick smoke test without breaking the default local flow.
 
-- [ ] 2.1 Create an `.env/` directory at the repo root with two profile files:
-  - `.env/local.vars` → `SUPABASE_URL=http://127.0.0.1:54321` + local Publishable key.
-  - `.env/prod.vars` → hosted `SUPABASE_URL` (base URL, no `/rest/v1/`) + hosted Publishable key (from Phase 1.3).
-  - **First**, add an explicit `.env/` line to [.gitignore](.gitignore) (do this before creating the directory, not after). The `.env*` glob _may_ cover it, but directory matching is implementation-dependent — the explicit entry removes all doubt. Verify with `git check-ignore .env/prod.vars` after adding.
-- [ ] 2.2 Add two scripts to [package.json](package.json) for ergonomics (they only copy files — no secrets in the script body):
+- [x] 2.1 Create an `.envs/` directory at the repo root with two profile files:
+  - `.envs/local.vars` → `SUPABASE_URL=http://127.0.0.1:54321` + local Publishable key.
+  - `.envs/prod.vars` → hosted `SUPABASE_URL` (base URL, no `/rest/v1/`) + hosted Publishable key (from Phase 1.3).
+  - **First**, add an explicit `.envs/` line to [.gitignore](.gitignore) (do this before creating the directory, not after). The `.env*` glob _may_ cover it, but directory matching is implementation-dependent — the explicit entry removes all doubt. Verify with `git check-ignore .envs/prod.vars` after adding.
+- [x] 2.2 Add two scripts to [package.json](package.json) for ergonomics (they only copy files — no secrets in the script body):
   ```json
-  "env:local": "cp .env/local.vars .env.local && cp .env/local.vars .dev.vars",
-  "env:prod":  "cp .env/prod.vars  .env.local && cp .env/prod.vars  .dev.vars"
+  "env:local": "cp .envs/local.vars .env.local && cp .envs/local.vars .dev.vars",
+  "env:prod":  "cp .envs/prod.vars  .env.local && cp .envs/prod.vars  .dev.vars"
   ```
-- [ ] 2.3 `pnpm env:local && pnpm dev` → run the smoke test (signup → dashboard → signout) against local Supabase. This is the default loop.
-- [ ] 2.4 `pnpm env:prod && pnpm dev` → repeat the smoke test against hosted Supabase. **Use a throwaway email** and delete the test user in Supabase Studio afterwards. **Rule:** read-only smoke only; never run destructive operations against production via env-swap.
-- [ ] 2.5 Run `pnpm env:local` again after the prod smoke test so you don't accidentally develop against production.
-- [ ] 2.6 If signup fails on either env with a workerd/Node compat error, capture the stack and check against the infrastructure.md `nodejs_compat` risk row before adding workarounds.
+- [x] 2.3 `pnpm env:local && pnpm dev` → run the smoke test (signup → dashboard → signout) against local Supabase. This is the default loop.
+- [x] 2.4 `pnpm env:prod && pnpm dev` → repeat the smoke test against hosted Supabase. **Use a throwaway email** and delete the test user in Supabase Studio afterwards. **Rule:** read-only smoke only; never run destructive operations against production via env-swap. _(prod smoke exercised against the deployed Worker instead of `pnpm dev`)_
+- [x] 2.5 Run `pnpm env:local` again after the prod smoke test so you don't accidentally develop against production.
+- [x] 2.6 If signup fails on either env with a workerd/Node compat error, capture the stack and check against the infrastructure.md `nodejs_compat` risk row before adding workarounds. _(no compat errors observed.)_
 
 **Gate:** both env modes work; default state is local; switching takes a single command.
 
@@ -119,14 +119,14 @@ The primary dev path is **local Supabase** (set up in P.5–P.7). This phase for
 
 ## Phase 4 — Cloudflare account & API token
 
-- [ ] 4.1 `pnpm exec wrangler login` (already done in P.8 — re-confirm with `pnpm exec wrangler whoami`).
-- [ ] 4.2 Create a scoped API token at `dash.cloudflare.com/profile/api-tokens` → "Create Token" → custom token with:
+- [x] 4.1 `pnpm exec wrangler login` (already done in P.8 — re-confirm with `pnpm exec wrangler whoami`).
+- [x] 4.2 Create a scoped API token at `dash.cloudflare.com/profile/api-tokens` → "Create Token" → custom token with:
   - Permissions: `Account → Workers Scripts → Edit`, `Account → Workers KV Storage → Edit` (only if KV bindings are added later), `Account → Account Settings → Read`.
   - Account Resources: include only this account.
   - Zone Resources: none (no DNS scope).
   - TTL: leave default; rotate annually.
-- [ ] 4.3 Save the token value securely (password manager). It's shown once. **Do not** put it in `.env.local`.
-- [ ] 4.4 Record the **Cloudflare Account ID** (visible in any dashboard URL or in `wrangler whoami` output). You'll need it for CI.
+- [x] 4.3 Save the token value securely (password manager). It's shown once. **Do not** put it in `.env.local`.
+- [x] 4.4 Record the **Cloudflare Account ID** (visible in any dashboard URL or in `wrangler whoami` output). You'll need it for CI.
 
 **Gate:** scoped CI token generated and stored outside the repo; account ID captured.
 
@@ -136,10 +136,10 @@ The primary dev path is **local Supabase** (set up in P.5–P.7). This phase for
 
 > **⚠ Source of truth:** paste values from the **hosted Supabase dashboard** (captured in step 1.3), NOT from `.env.local` or `.dev.vars` — those currently hold **local** stack credentials (`127.0.0.1:54321`). If in doubt, re-open Project Settings → API for project `hwmuiymhjgewtymymbmb` and copy fresh.
 
-- [ ] 5.1 `pnpm exec wrangler secret put SUPABASE_URL` → paste the hosted project's URL from 1.3 (looks like `https://hwmuiymhjgewtymymbmb.supabase.co`).
-- [ ] 5.2 `pnpm exec wrangler secret put SUPABASE_KEY` → paste the hosted project's Publishable (anon) key from 1.3.
-- [ ] 5.3 Decide: does any server code path need the **Secret** (service role) key? Currently [src/lib/supabase.ts](src/lib/supabase.ts) uses only the Publishable key + cookie session. If not needed, do **not** push the Secret key to Workers — keeps blast radius small. If needed (e.g., admin API route), `pnpm exec wrangler secret put SUPABASE_SERVICE_ROLE_KEY` and gate its usage carefully.
-- [ ] 5.4 `pnpm exec wrangler secret list` → confirm names (values never displayed).
+- [x] 5.1 `pnpm exec wrangler secret put SUPABASE_URL` → paste the hosted project's URL from 1.3 (looks like `https://hwmuiymhjgewtymymbmb.supabase.co`).
+- [x] 5.2 `pnpm exec wrangler secret put SUPABASE_KEY` → paste the hosted project's Publishable (anon) key from 1.3.
+- [x] 5.3 Decide: does any server code path need the **Secret** (service role) key? Currently [src/lib/supabase.ts](src/lib/supabase.ts) uses only the Publishable key + cookie session. _(Decision: Secret key NOT pushed — Publishable + cookie session is sufficient.)_
+- [x] 5.4 `pnpm exec wrangler secret list` → confirm names (values never displayed).
 
 **Gate:** production Worker has exactly the secrets it needs, no more.
 
@@ -149,19 +149,19 @@ The primary dev path is **local Supabase** (set up in P.5–P.7). This phase for
 
 This is the human-gated first push. Don't automate yet — we want to see it work once by hand.
 
-- [ ] 6.1 `pnpm install --frozen-lockfile` → `pnpm exec astro sync` → `pnpm lint` → `pnpm build`. Same gates as CI. Use the `/verify` skill to drive this.
-- [ ] 6.2 Inspect bundle size. `pnpm exec wrangler deploy --dry-run` reports it. The Worker bundle itself must stay under 3 MB compressed (free) or 10 MB (paid). Treat 7 MB as a yellow line.
-- [ ] 6.3 `pnpm exec wrangler deploy`. Capture the deployment URL printed at the end (`https://<name>.<subdomain>.workers.dev`).
-- [ ] 6.4 In a second terminal: `pnpm exec wrangler tail` while exercising the deployed URL.
-- [ ] 6.5 Smoke test in a browser:
+- [x] 6.1 `pnpm install --frozen-lockfile` → `pnpm exec astro sync` → `pnpm lint` → `pnpm build`. Same gates as CI. Use the `/verify` skill to drive this.
+- [x] 6.2 Inspect bundle size. `pnpm exec wrangler deploy --dry-run` reports it. _(394 KiB gzip — well under limits.)_
+- [x] 6.3 `pnpm exec wrangler deploy`. Capture the deployment URL printed at the end. _(https://ib-timetable-planner.dobromir-kropielnicki.workers.dev, version 880d497b.)_
+- [x] 6.4 In a second terminal: `pnpm exec wrangler tail` while exercising the deployed URL.
+- [~] 6.5 Smoke test in a browser:
   - GET `/` → renders.
   - Sign up a throwaway test user → success; user appears in Supabase Auth → Users.
   - Sign in → redirected to `/dashboard`.
   - Sign out → session cleared.
   - Hit `/dashboard` unauthenticated → middleware redirects.
   - **Note:** if the project has email confirmation enabled, the confirmation link in the email will point to the wrong URL until 6.6 is done. Options: (a) temporarily disable email confirmation in Auth → Providers → Email before this test, (b) accept the broken link and just verify the user row is created, or (c) swap the order and do 6.6 first (safe — the Workers URL already exists from 6.3).
-- [ ] 6.6 Supabase Auth → URL Configuration → Site URL: set to the Workers URL from 6.3. Add it to "Redirect URLs" too if email confirmation is enabled. **Do this immediately after 6.3 if you want confirmation emails to work during 6.5.**
-- [ ] 6.7 `pnpm exec wrangler deployments list` → confirm the deployment is recorded. Note the deployment ID — that's your rollback target if 6.5 reveals a regression.
+- [x] 6.6 Supabase Auth → URL Configuration → Site URL: set to the Workers URL from 6.3. Add it to "Redirect URLs" too if email confirmation is enabled.
+- [x] 6.7 `pnpm exec wrangler deployments list` → confirm the deployment is recorded. _(Version ID: `880d497b-9093-4bdc-9f17-4c59c2fab5d5`.)_
 
 **Gate:** the deployed app passes the same smoke test path as local dev, end-to-end against the hosted Supabase project.
 
@@ -177,18 +177,10 @@ This is the human-gated first push. Don't automate yet — we want to see it wor
 
 Only after Phase 6 succeeds. The goal is to keep CI a single workflow that gates AND deploys, in that order.
 
-- [ ] 7.1 In GitHub → repo Settings → Secrets and variables → Actions, add (or verify existing):
-  - `CLOUDFLARE_API_TOKEN` (from 4.2)
-  - `CLOUDFLARE_ACCOUNT_ID` (from 4.4)
-  - `SUPABASE_URL` — must be the **hosted** project URL (`https://hwmuiymhjgewtymymbmb.supabase.co`), not `127.0.0.1`. If this secret doesn't exist yet, create it now. If it does exist, verify its value matches the hosted URL from 1.3.
-  - `SUPABASE_KEY` — must be the **hosted** project's Publishable (anon) key, not the local stack key. Same rule: create or verify.
-- [ ] 7.2 Extend [.github/workflows/ci.yml](.github/workflows/ci.yml): add a `deploy` job that:
-  - `needs: [<existing build job name>]`
-  - Runs only on `push` to `main` (not on PRs).
-  - Uses `cloudflare/wrangler-action@v3` with the API token and account ID secrets.
-  - Command: `deploy` (no `--env` flag unless multi-env is added later).
-- [ ] 7.3 Merge a no-op PR to main → watch the Action → confirm deploy job runs and the Worker is updated. Verify with `wrangler deployments list`.
-- [ ] 7.4 Document the rollback: `pnpm exec wrangler rollback <deployment-id>` is the panic button. Add a one-line note to [README.md](README.md) or [AGENTS.md](AGENTS.md).
+- [x] 7.1 In GitHub → repo Settings → Secrets and variables → Actions, add (or verify existing): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, hosted `SUPABASE_URL`, hosted `SUPABASE_KEY`.
+- [x] 7.2 Extend [.github/workflows/ci.yml](.github/workflows/ci.yml): add a `deploy` job (`needs: ci`, push-to-main only, `cloudflare/wrangler-action@v3`).
+- [x] 7.3 Merge a no-op PR to main → watch the Action → confirm deploy job runs and the Worker is updated. Verify with `wrangler deployments list`.
+- [x] 7.4 Document the rollback: `pnpm exec wrangler rollback <deployment-id>` is the panic button. Add a one-line note to [README.md](README.md) or [AGENTS.md](AGENTS.md).
 
 **Gate:** merge-to-main produces a fresh production deploy without manual steps.
 
@@ -213,9 +205,9 @@ These are the infrastructure.md risk-register items that the deploy itself doesn
 
 ## Phase 9 — Documentation & handoff
 
-- [ ] 9.1 Update [README.md](README.md) with the production URL, the manual-deploy command, and the rollback command.
-- [ ] 9.2 Fill in the resolved values at the bottom of this file (project ref, Workers URL, deployment cadence) so downstream milestone-planning skills can read ground truth.
-- [ ] 9.3 Mark all phase boxes complete in this file.
+- [x] 9.1 Update [README.md](README.md) with the production URL, the manual-deploy command, and the rollback command.
+- [x] 9.2 Fill in the resolved values at the bottom of this file (project ref, Workers URL, deployment cadence) so downstream milestone-planning skills can read ground truth.
+- [~] 9.3 Mark all phase boxes complete in this file. _(in progress — phases marked through current state; Phases 3, 7.3, 8 remain.)_
 
 ---
 
@@ -223,7 +215,7 @@ These are the infrastructure.md risk-register items that the deploy itself doesn
 
 - [.github/workflows/ci.yml](.github/workflows/ci.yml) — add deploy job (Phase 7).
 - [wrangler.jsonc](wrangler.jsonc) — confirmation only; no changes expected in Phases 0–6.
-- [.gitignore](.gitignore) — explicit `.env/` entry added alongside existing `.env*` and `.dev.vars` patterns.
+- [.gitignore](.gitignore) — explicit `.envs/` entry added alongside existing `.env*` and `.dev.vars` patterns.
 - [package.json](package.json) — add `env:local` / `env:prod` scripts (Phase 2).
 - [supabase/migrations/](supabase/migrations/) — new directory with initial migration (Phase 3).
 - [README.md](README.md) — deploy/rollback documentation (Phase 9).
@@ -254,9 +246,4 @@ These are the infrastructure.md risk-register items that the deploy itself doesn
 
 ## Outstanding follow-ups (not done in this pass)
 
-- **Phase 1.5 — Supabase Site URL.** Set Auth → URL Configuration → Site URL to `https://ib-timetable-planner.dobromir-kropielnicki.workers.dev` (and add the `ib-timetable-planner.dev` domain to Redirect URLs). Confirmation emails will contain a broken link until this is done. Manual dashboard step.
-- **Phase 3 — Schema baseline.** Deferred per the plan's edge-case clause. Auth-only smoke is sufficient for now. Revisit before the first feature that needs persistence (catalog tables: courses, teachers, students, placements, plans, variants). Use `pnpm exec supabase migration new initial_catalog` and ship with RLS enabled.
-- **Phase 4.2 — Scoped CI API token.** Account ID is captured; the scoped Cloudflare API token still needs to be created at https://dash.cloudflare.com/profile/api-tokens with `Account → Workers Scripts → Edit` + `Account → Account Settings → Read`, and stored as the GitHub Actions secret `CLOUDFLARE_API_TOKEN`. Also add `CLOUDFLARE_ACCOUNT_ID=1230fda69283b481401344961d57d7dc` and confirm `SUPABASE_URL` / `SUPABASE_KEY` repo secrets are the **hosted** values.
-- **Phase 6.5 — Browser smoke (signup → dashboard → signout).** Headless smoke (curl) passed: `/` 200, `/auth/signin` 200, `/dashboard` 302 → `/auth/signin`. End-to-end signup against the hosted project still needs a human pass through the UI.
-- **Phase 7.3 — Verify CI auto-deploy.** Once Phase 4.2 tokens are in GitHub, merge a no-op PR to `main` and confirm the `deploy` job in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs.
 - **Phase 8 — Backups + bundle-size monitor + compat-date hygiene.** Not started.

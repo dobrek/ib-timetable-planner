@@ -11,8 +11,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "prepare": "lefthook install",
-    "env:local": "cp .env/local.vars .env.local && cp .env/local.vars .dev.vars",
-    "env:prod": "cp .env/prod.vars .env.local && cp .env/prod.vars .dev.vars"
+    "env:local": "cp .envs/local.vars .env.local && cp .envs/local.vars .dev.vars",
+    "env:prod": "cp .envs/prod.vars .env.local && cp .envs/prod.vars .dev.vars"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

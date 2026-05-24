@@ -14,10 +14,13 @@
       "Bash(git stash *)",
       "Read",
       "Edit",
-      "Write"
+      "Write",
+      "Bash(awk '{print $9}')",
+      "Bash(mkdir -p /Users/dobrek/Projects/10xdev3/context/changes/*)"
     ],
     "deny": ["Bash(rm -rf *)"],
-    "ask": ["Bash(curl *)", "Bash(wget *)", "Bash(git push *)", "Bash(git push)"]
+    "ask": ["Bash(curl *)", "Bash(wget *)", "Bash(git push *)", "Bash(git push)"],
+    "additionalDirectories": ["/Users/dobrek/Projects/10xdev3/context/changes"]
   },
   "hooks": {
     "PostToolUse": [

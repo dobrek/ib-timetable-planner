@@ -1,7 +1,24 @@
 import { defineMiddleware } from "astro:middleware";
 import { createClient } from "@/lib/supabase";
 
-const PROTECTED_ROUTES = ["/dashboard"];
+// Deny-by-default: every route requires an authenticated session except the
+// paths below. Keep this allowlist tight — only the sign-in surface, the auth
+// API endpoints, and static/internal assets are reachable unauthenticated.
+const PUBLIC_PATHS = ["/auth/signin"];
+const PUBLIC_PREFIXES = [
+  "/api/auth/", // sign-in / sign-out endpoints
+  "/_", // Astro internals (e.g. /_astro/, /_image, /_server-islands)
+];
+
+function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_PATHS.includes(pathname)) return true;
+  if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true;
+  // Static files in public/ are served at the root with a file extension
+  // (e.g. /favicon.png). Allow any extension-bearing path so assets — including
+  // the CSS/JS the sign-in page needs — load without a session.
+  if (/\.[a-zA-Z0-9]+$/.test(pathname)) return true;
+  return false;
+}
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const supabase = createClient(context.request.headers, context.cookies);
@@ -15,10 +32,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.user = null;
   }
 
-  if (PROTECTED_ROUTES.some((route) => context.url.pathname.startsWith(route))) {
-    if (!context.locals.user) {
-      return context.redirect("/auth/signin");
-    }
+  if (!isPublicPath(context.url.pathname) && !context.locals.user) {
+    return context.redirect("/auth/signin");
   }
 
   return next();

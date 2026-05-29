@@ -228,30 +228,30 @@ No data migration. `config.toml` change requires a local stack restart to take e
 
 #### Automated
 
-- [x] 1.1 `pnpm exec astro sync` succeeds
-- [x] 1.2 Build passes with no unresolved imports (`pnpm build`)
-- [x] 1.3 Linting passes (`pnpm lint`)
-- [x] 1.4 No remaining references to removed routes in `src/` (grep clean)
+- [x] 1.1 `pnpm exec astro sync` succeeds — 35afce9
+- [x] 1.2 Build passes with no unresolved imports (`pnpm build`) — 35afce9
+- [x] 1.3 Linting passes (`pnpm lint`) — 35afce9
+- [x] 1.4 No remaining references to removed routes in `src/` (grep clean) — 35afce9
 
 #### Manual
 
-- [x] 1.5 Direct `POST` to Supabase `/auth/v1/signup` rejected after stack restart
-- [x] 1.6 `GET /auth/signup` returns 404
-- [x] 1.7 No "Sign up" links remain in signin page, Topbar, or Welcome
+- [x] 1.5 Direct `POST` to Supabase `/auth/v1/signup` rejected after stack restart — 35afce9
+- [x] 1.6 `GET /auth/signup` returns 404 — 35afce9
+- [x] 1.7 No "Sign up" links remain in signin page, Topbar, or Welcome — 35afce9
 
 ### Phase 2: Deny-by-default route protection
 
 #### Automated
 
-- [ ] 2.1 Build passes (`pnpm build`)
-- [ ] 2.2 Linting passes (`pnpm lint`)
+- [x] 2.1 Build passes (`pnpm build`)
+- [x] 2.2 Linting passes (`pnpm lint`)
 
 #### Manual
 
-- [ ] 2.3 Unauthenticated `GET /` redirects to `/auth/signin`
-- [ ] 2.4 Unauthenticated `GET /dashboard` redirects to `/auth/signin`
-- [ ] 2.5 `/auth/signin` and its static assets load while unauthenticated
-- [ ] 2.6 After sign-in, protected routes reachable; sign-out re-gates
+- [x] 2.3 Unauthenticated `GET /` redirects to `/auth/signin`
+- [x] 2.4 Unauthenticated `GET /dashboard` redirects to `/auth/signin`
+- [x] 2.5 `/auth/signin` and its static assets load while unauthenticated
+- [x] 2.6 After sign-in, protected routes reachable; sign-out re-gates
 
 ### Phase 3: Provisioning runbook & doc fixes
 

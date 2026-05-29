@@ -166,14 +166,14 @@ pnpm exec supabase link --project-ref hwmuiymhjgewtymymbmb
 
 ### Auth routes
 
-| Route                 | Description                                                     |
-| --------------------- | --------------------------------------------------------------- |
-| `/auth/signin`        | Email/password sign-in                                          |
-| `/auth/signup`        | Email/password sign-up                                          |
-| `/auth/confirm-email` | Post-signup confirmation page                                   |
-| `/dashboard`          | Protected page (redirects to `/auth/signin` if unauthenticated) |
+| Route          | Description                                                     |
+| -------------- | --------------------------------------------------------------- |
+| `/auth/signin` | Email/password sign-in                                          |
+| `/dashboard`   | Protected page (redirects to `/auth/signin` if unauthenticated) |
 
-Route protection is handled in `src/middleware.ts`.
+There is no self-service signup: accounts are provisioned manually. See [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md).
+
+Route protection is deny-by-default in `src/middleware.ts` — every route requires an authenticated session except the sign-in page, the `/api/auth/` endpoints, and static assets.
 
 ## License
 

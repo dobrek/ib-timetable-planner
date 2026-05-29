@@ -243,25 +243,25 @@ No data migration. `config.toml` change requires a local stack restart to take e
 
 #### Automated
 
-- [x] 2.1 Build passes (`pnpm build`)
-- [x] 2.2 Linting passes (`pnpm lint`)
+- [x] 2.1 Build passes (`pnpm build`) — 39933b9
+- [x] 2.2 Linting passes (`pnpm lint`) — 39933b9
 
 #### Manual
 
-- [x] 2.3 Unauthenticated `GET /` redirects to `/auth/signin`
-- [x] 2.4 Unauthenticated `GET /dashboard` redirects to `/auth/signin`
-- [x] 2.5 `/auth/signin` and its static assets load while unauthenticated
-- [x] 2.6 After sign-in, protected routes reachable; sign-out re-gates
+- [x] 2.3 Unauthenticated `GET /` redirects to `/auth/signin` — 39933b9
+- [x] 2.4 Unauthenticated `GET /dashboard` redirects to `/auth/signin` — 39933b9
+- [x] 2.5 `/auth/signin` and its static assets load while unauthenticated — 39933b9
+- [x] 2.6 After sign-in, protected routes reachable; sign-out re-gates — 39933b9
 
 ### Phase 3: Provisioning runbook & doc fixes
 
 #### Automated
 
-- [ ] 3.1 Runbook file exists (`docs/runbooks/author-provisioning.md`)
-- [ ] 3.2 Build still passes (`pnpm build`)
-- [ ] 3.3 No references to removed auth routes remain in docs (grep clean)
+- [x] 3.1 Runbook file exists (`docs/runbooks/author-provisioning.md`)
+- [x] 3.2 Build still passes (`pnpm build`)
+- [x] 3.3 No references to removed auth routes remain in docs (grep clean)
 
 #### Manual
 
-- [ ] 3.4 Author created in local Studio per runbook can sign in
-- [ ] 3.5 Hosted-closure steps spot-checked against current Supabase dashboard
+- [x] 3.4 Author created in local Studio per runbook can sign in
+- [x] 3.5 Hosted-closure steps spot-checked against current Supabase dashboard

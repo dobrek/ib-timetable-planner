@@ -257,11 +257,11 @@ No data migration. `config.toml` change requires a local stack restart to take e
 
 #### Automated
 
-- [x] 3.1 Runbook file exists (`docs/runbooks/author-provisioning.md`)
-- [x] 3.2 Build still passes (`pnpm build`)
-- [x] 3.3 No references to removed auth routes remain in docs (grep clean)
+- [x] 3.1 Runbook file exists (`docs/runbooks/author-provisioning.md`) — 88c456b
+- [x] 3.2 Build still passes (`pnpm build`) — 88c456b
+- [x] 3.3 No references to removed auth routes remain in docs (grep clean) — 88c456b
 
 #### Manual
 
-- [x] 3.4 Author created in local Studio per runbook can sign in
-- [x] 3.5 Hosted-closure steps spot-checked against current Supabase dashboard
+- [x] 3.4 Author created in local Studio per runbook can sign in — 88c456b
+- [x] 3.5 Hosted-closure steps spot-checked against current Supabase dashboard — 88c456b

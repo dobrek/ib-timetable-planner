@@ -14,9 +14,9 @@ function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true;
   // Static files in public/ are served at the root with a file extension
-  // (e.g. /favicon.png). Allow any extension-bearing path so assets — including
-  // the CSS/JS the sign-in page needs — load without a session.
-  if (/\.[a-zA-Z0-9]+$/.test(pathname)) return true;
+  // (e.g. /favicon.png). Only known asset extensions are exempted — keeps
+  // future extension-bearing routes (e.g. /api/export.csv) auth-gated.
+  if (/\.(css|js|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$/.test(pathname)) return true;
   return false;
 }
 
@@ -26,7 +26,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (supabase) {
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser();
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error("[middleware] auth.getUser failed:", error.message);
+    }
     context.locals.user = user ?? null;
   } else {
     context.locals.user = null;

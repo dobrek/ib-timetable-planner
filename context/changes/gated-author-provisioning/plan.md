@@ -81,7 +81,7 @@ Remove every part of the self-service signup surface and disable signup at the S
 
 **Intent**: Reject account creation at the auth backend so the gate can't be bypassed by calling the auth REST endpoint directly.
 
-**Contract**: Set `enable_signup = false` under `[auth]` (line 169) and `enable_signup = false` under `[auth.email]` (line 204). Leave `enable_anonymous_sign_ins` / `enable_confirmations` as-is.
+**Contract**: Set `enable_signup = false` under `[auth]` (line 169). Leave `[auth.email] enable_signup = true` — in GoTrue this flag controls whether the email provider is _enabled_, not whether signup is open; setting it `false` disables email sign-in entirely. The top-level `[auth] enable_signup` is the actual new-account gate. Leave `enable_anonymous_sign_ins` / `enable_confirmations` as-is.
 
 #### 2. Delete the signup surface
 

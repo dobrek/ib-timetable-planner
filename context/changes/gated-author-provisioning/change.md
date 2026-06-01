@@ -3,9 +3,9 @@ id: gated-author-provisioning
 title: Gated author provisioning (close open registration)
 roadmap_ref: F-01
 prd_refs: [FR-001, "NFR Data privacy", "Access Control"]
-status: implemented
+status: impl_reviewed
 created: 2026-05-29
-updated: 2026-05-29
+updated: 2026-06-01
 ---
 
 # Gated author provisioning

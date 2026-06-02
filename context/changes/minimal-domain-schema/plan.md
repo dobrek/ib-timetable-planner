@@ -509,30 +509,30 @@ filtering, and per-variant placement retrieval.
 
 #### Automated
 
-- [x] 1.1 Migration applies cleanly (`supabase db reset`)
-- [x] 1.2 Migration listed (`supabase migration list`)
-- [x] 1.3 All 12 tables exist (information_schema query)
-- [x] 1.4 RLS enabled on all 12 tables (pg_tables query)
-- [x] 1.5 Advisors clean (`supabase db advisors` — no `function_search_path_mutable` or `rls_disabled_in_public` errors)
+- [x] 1.1 Migration applies cleanly (`supabase db reset`) — 0133ae1
+- [x] 1.2 Migration listed (`supabase migration list`) — 0133ae1
+- [x] 1.3 All 12 tables exist (information_schema query) — 0133ae1
+- [x] 1.4 RLS enabled on all 12 tables (pg_tables query) — 0133ae1
+- [x] 1.5 Advisors clean (`supabase db advisors` — no `function_search_path_mutable` or `rls_disabled_in_public` errors) — 0133ae1
 
 #### Manual
 
-- [x] 1.6 Tables visible in Supabase Studio with correct columns/constraints
-- [x] 1.7 RLS probe: anon apikey + no JWT → `200 []`; valid authenticated JWT → rows returned
+- [x] 1.6 Tables visible in Supabase Studio with correct columns/constraints — 0133ae1
+- [x] 1.7 RLS probe: anon apikey + no JWT → `200 []`; valid authenticated JWT → rows returned — 0133ae1
 
 ### Phase 2: Type Generation & Client Wiring
 
 #### Automated
 
-- [ ] 2.1 Type file exists and is non-empty
-- [ ] 2.2 Build passes with typed client (`pnpm build`)
-- [ ] 2.3 Linting passes (`pnpm lint`)
-- [ ] 2.4 Astro sync succeeds (`pnpm exec astro sync`)
+- [x] 2.1 Type file exists and is non-empty
+- [x] 2.2 Build passes with typed client (`pnpm build`)
+- [x] 2.3 Linting passes (`pnpm lint`)
+- [x] 2.4 Astro sync succeeds (`pnpm exec astro sync`)
 
 #### Manual
 
-- [ ] 2.5 `.from('courses')` offers column autocomplete
-- [ ] 2.6 `Database` interface includes all 12 tables
+- [x] 2.5 `.from('courses')` offers column autocomplete
+- [x] 2.6 `Database` interface includes all 12 tables
 
 ### Phase 3: Seed Data from CSV Fixtures
 

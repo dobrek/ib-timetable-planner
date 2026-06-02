@@ -169,7 +169,7 @@ set search_path = ''` to satisfy the advisor.
 |---|-------|---------|-------------|---------------------|
 | 1 | `cohorts` | Year groups (DP Year 1, DP Year 2) | `id`, `name`, `created_at`, `updated_at` | `name UNIQUE` |
 | 2 | `teachers` | Teacher roster (shared across cohorts) | `id`, `code`, `full_name`, timestamps | `code UNIQUE` |
-| 3 | `courses` | Course catalog, cohort-scoped, with teacher | `id`, `cohort_id` FK, `teacher_id` FK (nullable), `name`, `level`, `group_index`, `hours_per_week`, timestamps | `UNIQUE(cohort_id, name, level, group_index)`, `hours_per_week > 0` |
+| 3 | `courses` | Course catalog, cohort-scoped, with teacher | `id`, `cohort_id` FK, `teacher_id` FK (nullable), `name`, `level`, `group_index`, `hours_per_week`, timestamps | `UNIQUE(cohort_id, name, level, group_index)`, `hours_per_week >= 0` (0 for merge-child courses; see Addenda) |
 | 4 | `course_overlaps` | Directed student-enrollment rule: dependent's students also attend base | `id`, `base_course_id` FK, `dependent_course_id` FK, `created_at` | `UNIQUE(base_course_id, dependent_course_id)` |
 | 5 | `course_merges` | Virtual combined session: parent groups children taught together | `id`, `parent_course_id` FK, `child_course_id` FK, `created_at` | `UNIQUE(parent_course_id, child_course_id)` |
 | 6 | `students` | Student roster, cohort-scoped | `id`, `cohort_id` FK, `full_name`, timestamps | — |
@@ -446,6 +446,36 @@ to the new file. No change expected — the config already references this path.
 **Implementation Note**: This is the final phase; after verification the change is ready to commit.
 
 ---
+
+## Addenda (post-implementation)
+
+- **Fixture edit — `data/dp1/teachers_subjects.csv` (commit 3fc9fd4).** Three course rows
+  were added: `KS,German B,SL,,2`, `KS,German B,AB,,2`, `NR,Spanish B,SL,,0`. dp1 students
+  pick "German B SL", "German B AB", and "Spanish B SL", but those courses existed in the
+  teacher fixture only as merge-parent composite levels (`AB+SL`, `AB+SL+HL`, …), so the
+  student choices had no standalone course to resolve to and tripped the phantom-course
+  guard. This **supersedes** the remediation wording at the phantom-course section above
+  ("back-filling the group index on the relevant student rows"): the missing data was
+  course *definitions* (teacher-side), not student group indices, so the fix added the
+  course rows rather than editing student rows. `Spanish B,SL,,0` is an intentional 0-hour
+  merge-child course — see the next addendum.
+- **`courses.hours_per_week` CHECK relaxed `> 0` → `>= 0`.** The contract table above
+  (`hours_per_week > 0`) was relaxed in the migration to `>= 0` to admit 0-hour merge-child
+  courses (a merge child is taught only within the merged parent session and carries no
+  standalone hours, e.g. `Spanish B SL` above). Negative hours remain disallowed.
+- **FK indexes (follow-up migration `20260602210903_add_fk_indexes.sql`).** The initial
+  migration left 7 FK columns unindexed (`students.cohort_id`, `plan_variants.plan_id`,
+  `course_overlaps.dependent_course_id`, `course_merges.child_course_id`,
+  `placements.course_id`, `placements.cohort_id`, `course_groupings.cohort_id`). Added in a
+  follow-up migration; the performance advisor now reports no issues.
+- **Accepted advisor WARN — `rls_policy_always_true` on all 12 tables.** `supabase db
+  advisors --type security` reports a WARN per table because the policies use
+  `USING (true) / WITH CHECK (true)` for write operations. This is the **intended**
+  single-school shared-workspace model (see the RLS section above) and is safe while
+  `enable_anonymous_sign_ins = false`. It is an accepted risk, not a regression — the
+  Phase 1 advisor criterion only required no `function_search_path_mutable` /
+  `rls_disabled_in_public` errors, both of which are clean. Revisit if multi-tenant
+  isolation or anonymous sign-ins are ever introduced (would require ownership predicates).
 
 ## Testing Strategy
 

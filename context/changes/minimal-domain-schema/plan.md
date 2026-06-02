@@ -524,32 +524,32 @@ filtering, and per-variant placement retrieval.
 
 #### Automated
 
-- [x] 2.1 Type file exists and is non-empty
-- [x] 2.2 Build passes with typed client (`pnpm build`)
-- [x] 2.3 Linting passes (`pnpm lint`)
-- [x] 2.4 Astro sync succeeds (`pnpm exec astro sync`)
+- [x] 2.1 Type file exists and is non-empty — 2f62531
+- [x] 2.2 Build passes with typed client (`pnpm build`) — 2f62531
+- [x] 2.3 Linting passes (`pnpm lint`) — 2f62531
+- [x] 2.4 Astro sync succeeds (`pnpm exec astro sync`) — 2f62531
 
 #### Manual
 
-- [x] 2.5 `.from('courses')` offers column autocomplete
-- [x] 2.6 `Database` interface includes all 12 tables
+- [x] 2.5 `.from('courses')` offers column autocomplete — 2f62531
+- [x] 2.6 `Database` interface includes all 12 tables — 2f62531
 
 ### Phase 3: Seed Data from CSV Fixtures
 
 #### Automated
 
-- [ ] 3.1 `supabase db reset` completes without errors (migration + seed)
-- [ ] 3.2 Both cohorts seeded (count = 2)
-- [ ] 3.3 Course count covers both cohorts
-- [ ] 3.4 Student count ≈ 61 (dp1 ~26 + dp2 ~35)
-- [ ] 3.5 Student choices count ≈ 513 (no silent join drops)
-- [ ] 3.6 Teachers deduplicated across cohorts
-- [ ] 3.7 Build still passes (`pnpm build`)
-- [ ] 3.12 Phantom-course guard: no `(cohort_id, name, level)` mixes group_index 0 and >0
+- [x] 3.1 `supabase db reset` completes without errors (migration + seed)
+- [x] 3.2 Both cohorts seeded (count = 2)
+- [x] 3.3 Course count covers both cohorts
+- [x] 3.4 Student count ≈ 61 (dp1 ~26 + dp2 ~35)
+- [x] 3.5 Student choices count ≈ 513 (no silent join drops)
+- [x] 3.6 Teachers deduplicated across cohorts
+- [x] 3.7 Build still passes (`pnpm build`)
+- [x] 3.12 Phantom-course guard: no `(cohort_id, name, level)` mixes group_index 0 and >0
 
 #### Manual
 
-- [ ] 3.8 Tables populated in Supabase Studio (both cohorts visible)
-- [ ] 3.9 Course rows have correct `hours_per_week` values matching `teachers_subjects.csv`
-- [ ] 3.10 Merge parent courses exist with correct `course_merges` links (including dp1 3-way)
-- [ ] 3.11 dp1 CAS/EE overlaps present with correct directionality
+- [x] 3.8 Tables populated in Supabase Studio (both cohorts visible)
+- [x] 3.9 Course rows have correct `hours_per_week` values matching `teachers_subjects.csv`
+- [x] 3.10 Merge parent courses exist with correct `course_merges` links (including dp1 3-way)
+- [x] 3.11 dp1 CAS/EE overlaps present with correct directionality

@@ -37,7 +37,9 @@ create table courses (
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
   constraint courses_unique unique (cohort_id, name, level, group_index),
-  constraint courses_hours_positive check (hours_per_week > 0)
+  -- 0 is valid: merge-child courses taught only within the merged parent session
+  -- carry no standalone hours. Negative hours remain disallowed.
+  constraint courses_hours_nonneg check (hours_per_week >= 0)
 );
 create index courses_cohort_idx on courses (cohort_id);
 create index courses_teacher_idx on courses (teacher_id);

@@ -7,6 +7,8 @@ BS,Physics,SL,,4
 IG,TOK,,2,2
 JC,English B,HL,1,6
 KK,Polish A,SL,1,4
+KS,German B,SL,,2
+KS,German B,AB,,2
 KS,German B,AB+SL,,4
 LB,Math AA,SL,,4
 MC,Biology,SL,,4
@@ -20,6 +22,7 @@ NR,Spanish B,AB+SL+HL,,2
 NR,Spanish B,AB,,2
 NR,Spanish B,SL+HL,,2
 NR,Spanish B,HL,,2
+NR,Spanish B,SL,,0
 OS,Computer Science,SL,,4
 OS,Computer Science,HL,,2
 OT,Chemistry,HL,,2

@@ -538,18 +538,18 @@ filtering, and per-variant placement retrieval.
 
 #### Automated
 
-- [x] 3.1 `supabase db reset` completes without errors (migration + seed)
-- [x] 3.2 Both cohorts seeded (count = 2)
-- [x] 3.3 Course count covers both cohorts
-- [x] 3.4 Student count ≈ 61 (dp1 ~26 + dp2 ~35)
-- [x] 3.5 Student choices count ≈ 513 (no silent join drops)
-- [x] 3.6 Teachers deduplicated across cohorts
-- [x] 3.7 Build still passes (`pnpm build`)
-- [x] 3.12 Phantom-course guard: no `(cohort_id, name, level)` mixes group_index 0 and >0
+- [x] 3.1 `supabase db reset` completes without errors (migration + seed) — 3fc9fd4
+- [x] 3.2 Both cohorts seeded (count = 2) — 3fc9fd4
+- [x] 3.3 Course count covers both cohorts — 3fc9fd4
+- [x] 3.4 Student count ≈ 61 (dp1 ~26 + dp2 ~35) — 3fc9fd4
+- [x] 3.5 Student choices count ≈ 513 (no silent join drops) — 3fc9fd4
+- [x] 3.6 Teachers deduplicated across cohorts — 3fc9fd4
+- [x] 3.7 Build still passes (`pnpm build`) — 3fc9fd4
+- [x] 3.12 Phantom-course guard: no `(cohort_id, name, level)` mixes group_index 0 and >0 — 3fc9fd4
 
 #### Manual
 
-- [x] 3.8 Tables populated in Supabase Studio (both cohorts visible)
-- [x] 3.9 Course rows have correct `hours_per_week` values matching `teachers_subjects.csv`
-- [x] 3.10 Merge parent courses exist with correct `course_merges` links (including dp1 3-way)
-- [x] 3.11 dp1 CAS/EE overlaps present with correct directionality
+- [x] 3.8 Tables populated in Supabase Studio (both cohorts visible) — 3fc9fd4
+- [x] 3.9 Course rows have correct `hours_per_week` values matching `teachers_subjects.csv` — 3fc9fd4
+- [x] 3.10 Merge parent courses exist with correct `course_merges` links (including dp1 3-way) — 3fc9fd4
+- [x] 3.11 dp1 CAS/EE overlaps present with correct directionality — 3fc9fd4

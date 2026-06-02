@@ -164,6 +164,40 @@ pnpm exec supabase login
 pnpm exec supabase link --project-ref hwmuiymhjgewtymymbmb
 ```
 
+### Database: migrations & seed
+
+Schema lives in `supabase/migrations/`. The dev seed (`supabase/seed.sql`) is a **generated artifact** — `scripts/gen-seed.mjs` transcodes the `data/dp1/` + `data/dp2/` CSV fixtures into inlined SQL. Both the script and its output are committed.
+
+**Local (default loop).** `db reset` recreates the database, applies every migration, then loads the seed:
+
+```bash
+pnpm exec supabase db reset            # migrations + seed, from scratch
+```
+
+If you changed a fixture under `data/dp1/` or `data/dp2/`, regenerate the seed first, then reset:
+
+```bash
+node scripts/gen-seed.mjs > supabase/seed.sql
+pnpm exec supabase db reset
+```
+
+The generator aborts loudly on data inconsistencies (e.g. phantom courses) and prints row-count stats to stderr. Add a new migration with:
+
+```bash
+pnpm exec supabase migration new <descriptive_name>
+```
+
+**Hosted.** Push **migrations only** — the seed is dev-only and is never applied to hosted:
+
+```bash
+pnpm exec supabase db push             # apply pending migrations to the linked project
+pnpm exec supabase db diff             # should report clean afterward
+```
+
+> After a push, verify table access. Supabase currently auto-grants `anon`/`authenticated` on new `public` tables, but the platform is moving to opt-in grants. If tables are unexpectedly unreachable, add `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;` and re-run `pnpm exec supabase db advisors`. RLS controls which rows are visible; grants control whether the table is reachable at all — both must be in place.
+
+**Rollback.** There is no production data to preserve yet. Prefer additive migrations (nullable new columns, no `DROP`); a code rollback does not undo an applied migration. To reset hosted state at this stage, drop and re-push.
+
 ### Auth routes
 
 | Route          | Description                                                     |

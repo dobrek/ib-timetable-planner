@@ -65,6 +65,8 @@ const astroConfig = tseslint.config({
   languageOptions: {
     parserOptions: {
       parser: tseslint.parser,
+      project: true,
+      projectService: false,
     },
   },
   rules: {
@@ -75,6 +77,7 @@ const astroConfig = tseslint.config({
 });
 
 export default tseslint.config(
+  { ignores: ["src/lib/database.types.ts", "scripts/"] },
   includeIgnoreFile(gitignorePath),
   baseConfig,
   reactConfig,

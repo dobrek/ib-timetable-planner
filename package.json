@@ -11,6 +11,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "prepare": "lefthook install",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "env:local": "cp .envs/local.vars .env.local && cp .envs/local.vars .dev.vars",
     "env:prod": "cp .envs/prod.vars .env.local && cp .envs/prod.vars .dev.vars"
   },
@@ -54,6 +57,8 @@
     "supabase": "^2.101.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.4",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.8",
     "wrangler": "^4.94.0"
   },
   "packageManager": "pnpm@10.32.1"

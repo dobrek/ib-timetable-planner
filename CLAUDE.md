@@ -13,10 +13,11 @@ Stack: Astro 6 + React 19 on Cloudflare Workers (workerd), Supabase (Postgres) f
 - `pnpm lint` / `pnpm lint:fix` — ESLint flat config
 - `pnpm format` — Prettier across the tree
 - `pnpm exec astro sync` — regenerate Astro content/env types; run before lint if you change content collections or env vars
+- `pnpm test` — Vitest unit suite (CI gate; pure, no DB required)
+- `pnpm test:watch` — Vitest in watch mode
+- `pnpm test:integration` — integration tests (requires local Supabase stack running)
 
 Env profiles live in `.envs/` and are swapped with `pnpm env:local` (default dev loop) / `pnpm env:prod` (smoke against hosted Supabase). Both scripts write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler dev`).
-
-No test runner is configured yet. Do not invent `pnpm test`.
 
 ## CLIs in use
 
@@ -28,7 +29,7 @@ For operations beyond the `pnpm` scripts above, reach for these CLIs (run via `p
 
 ## Branch and CI
 
-- CI runs: `pnpm install --frozen-lockfile` → `astro sync` → `pnpm lint` → `pnpm build`. No deploy, no tests. Use the `/verify` skill to mirror this locally.
+- CI runs: `pnpm install --frozen-lockfile` → `astro sync` → `pnpm lint` → `pnpm test` → `pnpm build`. Use the `/verify` skill to mirror this locally.
 - Commit style (from history): `chore: …`, `feat: …`, `fix: …` — lowercase scope, imperative subject, no period.
 
 ## Runtime caveats

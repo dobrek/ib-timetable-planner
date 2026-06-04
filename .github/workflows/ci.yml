@@ -24,6 +24,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpx astro sync
       - run: pnpm run lint
+      - run: pnpm run test
       - run: pnpm run build
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

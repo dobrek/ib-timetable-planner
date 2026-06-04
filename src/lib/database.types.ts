@@ -87,6 +87,7 @@ export type Database = {
       }
       course_groupings: {
         Row: {
+          catalog_hash: string | null
           cohort_id: string
           coverage_count: number
           created_at: string
@@ -95,6 +96,7 @@ export type Database = {
           score: number
         }
         Insert: {
+          catalog_hash?: string | null
           cohort_id: string
           coverage_count: number
           created_at?: string
@@ -103,6 +105,7 @@ export type Database = {
           score: number
         }
         Update: {
+          catalog_hash?: string | null
           cohort_id?: string
           coverage_count?: number
           created_at?: string
@@ -458,7 +461,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      replace_cohort_groupings: {
+        Args: {
+          p_catalog_hash: string
+          p_cohort_id: string
+          p_groupings: Json
+          p_plan_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

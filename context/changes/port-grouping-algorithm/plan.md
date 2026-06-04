@@ -414,31 +414,31 @@ Two additive migrations: (1) `course_groupings.catalog_hash` (nullable `text`); 
 
 #### Automated
 
-- [x] 1.1 Linting passes: `pnpm lint`
-- [x] 1.2 Type/build check passes: `pnpm build`
-- [x] 1.3 Unit + parity tests pass: `pnpm test` (collision/enumerate/score + golden ⊆ output)
-- [x] 1.4 Enumeration test asserts determinism and cap-exceeded throws
+- [x] 1.1 Linting passes: `pnpm lint` — f5c0fe5
+- [x] 1.2 Type/build check passes: `pnpm build` — f5c0fe5
+- [x] 1.3 Unit + parity tests pass: `pnpm test` (collision/enumerate/score + golden ⊆ output) — f5c0fe5
+- [x] 1.4 Enumeration test asserts determinism and cap-exceeded throws — f5c0fe5
 
 #### Manual
 
-- [x] 1.5 Spot-check high-coverage groupings against the golden file for plausibility
-- [x] 1.6 Enumeration completes on dp2 without hitting the cap; note largest per-seed variant count
+- [x] 1.5 Spot-check high-coverage groupings against the golden file for plausibility — f5c0fe5
+- [x] 1.6 Enumeration completes on dp2 without hitting the cap; note largest per-seed variant count — f5c0fe5
 
 ### Phase 2: Supabase integration & persistence
 
 #### Automated
 
-- [ ] 2.1 Both migrations apply cleanly on the local stack (`catalog_hash` column + `replace_cohort_groupings` function)
-- [ ] 2.2 `database.types.ts` regenerated and includes `catalog_hash` and the `replace_cohort_groupings` RPC signature
-- [ ] 2.3 Linting passes: `pnpm lint`
-- [ ] 2.4 Build passes: `pnpm build`
-- [ ] 2.5 Dual-adapter cross-check reports zero diffs: `pnpm test:integration`
+- [x] 2.1 Both migrations apply cleanly on the local stack (`catalog_hash` column + `replace_cohort_groupings` function)
+- [x] 2.2 `database.types.ts` regenerated and includes `catalog_hash` and the `replace_cohort_groupings` RPC signature
+- [x] 2.3 Linting passes: `pnpm lint`
+- [x] 2.4 Build passes: `pnpm build`
+- [x] 2.5 Dual-adapter cross-check reports zero diffs: `pnpm test:integration`
 
 #### Manual
 
-- [ ] 2.6 dp2 seed loads; row counts match the CSV fixtures
-- [ ] 2.7 `persistGroupings` populates `course_groupings` + members with correct coverage/score
-- [ ] 2.8 `course_overlaps` base/dependent direction confirmed correct via cross-check
+- [x] 2.6 dp2 seed loads; row counts match the CSV fixtures
+- [x] 2.7 `persistGroupings` populates `course_groupings` + members with correct coverage/score
+- [x] 2.8 `course_overlaps` base/dependent direction confirmed correct via cross-check
 
 ### Phase 3: Compute endpoint & guards
 

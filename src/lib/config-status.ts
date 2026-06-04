@@ -1,12 +1,12 @@
 import { SUPABASE_URL, SUPABASE_KEY } from "astro:env/server";
 
-export interface ConfigStatus {
+export type ConfigStatus = {
   name: string;
   configured: boolean;
   message: string;
   docsUrl?: string;
   docsLabel?: string;
-}
+};
 
 export const configStatuses: ConfigStatus[] = [
   {

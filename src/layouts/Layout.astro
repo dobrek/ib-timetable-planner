@@ -3,9 +3,9 @@ import "../styles/global.css";
 import Banner from "@/components/Banner.astro";
 import { missingConfigs } from "@/lib/config-status";
 
-interface Props {
+type Props = {
   title?: string;
-}
+};
 
 const { title = "10x Astro Starter" } = Astro.props;
 ---

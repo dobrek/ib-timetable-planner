@@ -5,9 +5,9 @@ import { PasswordToggle } from "@/components/auth/PasswordToggle";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { ServerError } from "@/components/auth/ServerError";
 
-interface Props {
+type Props = {
   serverError?: string | null;
-}
+};
 
 export default function SignInForm({ serverError }: Props) {
   const [email, setEmail] = useState("");

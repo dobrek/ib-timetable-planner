@@ -35,6 +35,15 @@ const baseConfig = tseslint.config({
     ],
     "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
     "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
+    "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+  },
+});
+
+const ambientDeclConfig = tseslint.config({
+  files: ["**/*.d.ts"],
+  rules: {
+    // .d.ts files may use interface for namespace augmentation (e.g. App.Locals)
+    "@typescript-eslint/consistent-type-definitions": "off",
   },
 });
 
@@ -77,9 +86,10 @@ const astroConfig = tseslint.config({
 });
 
 export default tseslint.config(
-  { ignores: ["src/lib/database.types.ts", "scripts/"] },
+  { ignores: ["src/lib/database.types.ts", "scripts/", "legacy-grouping-algorithm/"] },
   includeIgnoreFile(gitignorePath),
   baseConfig,
+  ambientDeclConfig,
   reactConfig,
   eslintPluginAstro.configs["flat/recommended"],
   ...eslintPluginAstro.configs["flat/jsx-a11y-recommended"],

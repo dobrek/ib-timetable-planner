@@ -2,11 +2,11 @@ import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 
-interface SubmitButtonProps {
+type SubmitButtonProps = {
   pendingText: string;
   icon: ReactNode;
   children: ReactNode;
-}
+};
 
 export function SubmitButton({ pendingText, icon, children }: SubmitButtonProps) {
   const { pending } = useFormStatus();

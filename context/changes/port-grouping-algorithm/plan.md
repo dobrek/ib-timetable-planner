@@ -399,11 +399,11 @@ Two additive migrations: (1) `course_groupings.catalog_hash` (nullable `text`); 
 
 #### Automated
 
-- [x] 0.1 Vitest installed and lockfile updated: `pnpm install`
-- [x] 0.2 Smoke test passes: `pnpm test`
-- [x] 0.3 `@/*` alias resolves inside tests
-- [x] 0.4 Linting passes on new config/test files: `pnpm lint`
-- [x] 0.5 Build still passes: `pnpm build`
+- [x] 0.1 Vitest installed and lockfile updated: `pnpm install` — 597847e
+- [x] 0.2 Smoke test passes: `pnpm test` — 597847e
+- [x] 0.3 `@/*` alias resolves inside tests — 597847e
+- [x] 0.4 Linting passes on new config/test files: `pnpm lint` — 597847e
+- [x] 0.5 Build still passes: `pnpm build` — 597847e
 
 #### Manual
 
@@ -414,15 +414,15 @@ Two additive migrations: (1) `course_groupings.catalog_hash` (nullable `text`); 
 
 #### Automated
 
-- [ ] 1.1 Linting passes: `pnpm lint`
-- [ ] 1.2 Type/build check passes: `pnpm build`
-- [ ] 1.3 Unit + parity tests pass: `pnpm test` (collision/enumerate/score + golden ⊆ output)
-- [ ] 1.4 Enumeration test asserts determinism and cap-exceeded throws
+- [x] 1.1 Linting passes: `pnpm lint`
+- [x] 1.2 Type/build check passes: `pnpm build`
+- [x] 1.3 Unit + parity tests pass: `pnpm test` (collision/enumerate/score + golden ⊆ output)
+- [x] 1.4 Enumeration test asserts determinism and cap-exceeded throws
 
 #### Manual
 
-- [ ] 1.5 Spot-check high-coverage groupings against the golden file for plausibility
-- [ ] 1.6 Enumeration completes on dp2 without hitting the cap; note largest per-seed variant count
+- [x] 1.5 Spot-check high-coverage groupings against the golden file for plausibility
+- [x] 1.6 Enumeration completes on dp2 without hitting the cap; note largest per-seed variant count
 
 ### Phase 2: Supabase integration & persistence
 

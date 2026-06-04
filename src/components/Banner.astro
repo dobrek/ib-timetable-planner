@@ -1,9 +1,9 @@
 ---
 type Variant = "info" | "warning" | "error";
 
-interface Props {
+type Props = {
   variant?: Variant;
-}
+};
 
 const { variant = "info" } = Astro.props;
 ---

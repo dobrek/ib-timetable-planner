@@ -428,32 +428,32 @@ Two additive migrations: (1) `course_groupings.catalog_hash` (nullable `text`); 
 
 #### Automated
 
-- [x] 2.1 Both migrations apply cleanly on the local stack (`catalog_hash` column + `replace_cohort_groupings` function)
-- [x] 2.2 `database.types.ts` regenerated and includes `catalog_hash` and the `replace_cohort_groupings` RPC signature
-- [x] 2.3 Linting passes: `pnpm lint`
-- [x] 2.4 Build passes: `pnpm build`
-- [x] 2.5 Dual-adapter cross-check reports zero diffs: `pnpm test:integration`
+- [x] 2.1 Both migrations apply cleanly on the local stack (`catalog_hash` column + `replace_cohort_groupings` function) — f491666
+- [x] 2.2 `database.types.ts` regenerated and includes `catalog_hash` and the `replace_cohort_groupings` RPC signature — f491666
+- [x] 2.3 Linting passes: `pnpm lint` — f491666
+- [x] 2.4 Build passes: `pnpm build` — f491666
+- [x] 2.5 Dual-adapter cross-check reports zero diffs: `pnpm test:integration` — f491666
 
 #### Manual
 
-- [x] 2.6 dp2 seed loads; row counts match the CSV fixtures
-- [x] 2.7 `persistGroupings` populates `course_groupings` + members with correct coverage/score
-- [x] 2.8 `course_overlaps` base/dependent direction confirmed correct via cross-check
+- [x] 2.6 dp2 seed loads; row counts match the CSV fixtures — f491666
+- [x] 2.7 `persistGroupings` populates `course_groupings` + members with correct coverage/score — f491666
+- [x] 2.8 `course_overlaps` base/dependent direction confirmed correct via cross-check — f491666
 
 ### Phase 3: Compute endpoint & guards
 
 #### Automated
 
-- [ ] 3.1 Linting passes: `pnpm lint`
-- [ ] 3.2 Build passes: `pnpm build`
-- [ ] 3.3 Unit suite still green: `pnpm test`
-- [ ] 3.4 Endpoint type-checks against `APIRoute` and the `Database` types
-- [ ] 3.5 Endpoint integration test passes (local stack): `pnpm test:integration`
+- [x] 3.1 Linting passes: `pnpm lint`
+- [x] 3.2 Build passes: `pnpm build`
+- [x] 3.3 Unit suite still green: `pnpm test`
+- [x] 3.4 Endpoint type-checks against `APIRoute` and the `Database` types
+- [x] 3.5 Endpoint integration test passes (local stack): `pnpm test:integration`
 
 #### Manual
 
-- [ ] 3.6 Authenticated `POST /api/grouping` returns ranked list and populates `course_groupings`
-- [ ] 3.7 Unauthenticated `/api/grouping` request blocked by middleware
-- [ ] 3.8 dp2 compute time measured and within the Workers CPU budget
-- [ ] 3.9 Incomplete-catalog run returns warnings and still computes
-- [ ] 3.10 `isGroupingStale` flips true after a catalog mutation and false after re-compute
+- [x] 3.6 Authenticated `POST /api/grouping` returns ranked list and populates `course_groupings`
+- [x] 3.7 Unauthenticated `/api/grouping` request blocked by middleware
+- [x] 3.8 dp2 compute time measured and within the Workers CPU budget
+- [x] 3.9 Incomplete-catalog run returns warnings and still computes
+- [x] 3.10 `isGroupingStale` flips true after a catalog mutation and false after re-compute

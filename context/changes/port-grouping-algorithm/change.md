@@ -1,9 +1,9 @@
 ---
 change_id: port-grouping-algorithm
 title: Port grouping algorithm
-status: implementing
+status: implemented
 created: 2026-06-04
-updated: 2026-06-04
+updated: 2026-06-05
 archived_at: null
 ---
 

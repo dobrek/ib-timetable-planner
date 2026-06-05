@@ -407,8 +407,8 @@ Two additive migrations: (1) `course_groupings.catalog_hash` (nullable `text`); 
 
 #### Manual
 
-- [ ] 0.6 CI run on a PR shows the `test` step green before `build`
-- [ ] 0.7 `CLAUDE.md` updated (no "no test runner"; lists test commands)
+- [x] 0.6 CI run on a PR shows the `test` step green before `build` — 597847e
+- [x] 0.7 `CLAUDE.md` updated (no "no test runner"; lists test commands) — 597847e
 
 ### Phase 1: Pure deterministic grouping core + golden parity gate
 
@@ -444,16 +444,16 @@ Two additive migrations: (1) `course_groupings.catalog_hash` (nullable `text`); 
 
 #### Automated
 
-- [x] 3.1 Linting passes: `pnpm lint`
-- [x] 3.2 Build passes: `pnpm build`
-- [x] 3.3 Unit suite still green: `pnpm test`
-- [x] 3.4 Endpoint type-checks against `APIRoute` and the `Database` types
-- [x] 3.5 Endpoint integration test passes (local stack): `pnpm test:integration`
+- [x] 3.1 Linting passes: `pnpm lint` — b159a3e
+- [x] 3.2 Build passes: `pnpm build` — b159a3e
+- [x] 3.3 Unit suite still green: `pnpm test` — b159a3e
+- [x] 3.4 Endpoint type-checks against `APIRoute` and the `Database` types — b159a3e
+- [x] 3.5 Endpoint integration test passes (local stack): `pnpm test:integration` — b159a3e
 
 #### Manual
 
-- [x] 3.6 Authenticated `POST /api/grouping` returns ranked list and populates `course_groupings`
-- [x] 3.7 Unauthenticated `/api/grouping` request blocked by middleware
-- [x] 3.8 dp2 compute time measured and within the Workers CPU budget
-- [x] 3.9 Incomplete-catalog run returns warnings and still computes
-- [x] 3.10 `isGroupingStale` flips true after a catalog mutation and false after re-compute
+- [x] 3.6 Authenticated `POST /api/grouping` returns ranked list and populates `course_groupings` — b159a3e
+- [x] 3.7 Unauthenticated `/api/grouping` request blocked by middleware — b159a3e
+- [x] 3.8 dp2 compute time measured and within the Workers CPU budget — b159a3e
+- [x] 3.9 Incomplete-catalog run returns warnings and still computes — b159a3e
+- [x] 3.10 `isGroupingStale` flips true after a catalog mutation and false after re-compute — b159a3e

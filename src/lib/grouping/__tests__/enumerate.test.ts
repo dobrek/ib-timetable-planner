@@ -42,6 +42,15 @@ describe("enumerateVariants", () => {
     expect(() => enumerateVariants(courses[0], courses, 0)).toThrow(/cap/i);
   });
 
+  it("throws on a dense clique before the traversal explodes (bounds nodes, not just results)", () => {
+    // 8 mutually-compatible courses: one distinct maximal set, but factorially many
+    // orderings. seen.size stays at 1, so the result cap never fires — the traversal
+    // node guard must. With cap=2 the node budget is 2*1000=2000, tripped well before
+    // the ~7! orderings are exhausted.
+    const clique = Array.from({ length: 8 }, (_, i) => course(`c${i}`, `t${i}`, [`s${i}`]));
+    expect(() => enumerateVariants(clique[0], clique, 2)).toThrow(/cap/i);
+  });
+
   it("returns a set with only the seed when all others conflict", () => {
     const seed = course("S", "t1", ["s1"]);
     const results = enumerateVariants(seed, [seed, course("X", "t1", ["s2"]), course("Y", null, ["s1"])], 100);

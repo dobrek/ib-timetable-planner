@@ -363,34 +363,34 @@ The validator is pure and per-cell (O(occupants²) over a handful of courses), r
 
 #### Automated
 
-- [x] 2.1 Astro types/route compile: `pnpm exec astro sync` then `pnpm build`
-- [x] 2.2 Linting passes: `pnpm lint`
+- [x] 2.1 Astro types/route compile: `pnpm exec astro sync` then `pnpm build` — af5616a
+- [x] 2.2 Linting passes: `pnpm lint` — af5616a
 
 #### Manual
 
-- [x] 2.3 `db reset` then `/plans/<seed-plan-id>` renders empty palette + "Compute groupings" button
-- [x] 2.4 Clicking the button computes, persists, reloads, palette shows Y1 grouping boxes
-- [x] 2.5 Unknown plan id returns 404 / redirect
-- [x] 2.6 Grid shows 10 periods × 5 days
+- [x] 2.3 `db reset` then `/plans/<seed-plan-id>` renders empty palette + "Compute groupings" button — af5616a
+- [x] 2.4 Clicking the button computes, persists, reloads, palette shows Y1 grouping boxes — af5616a
+- [x] 2.5 Unknown plan id returns 404 / redirect — af5616a
+- [x] 2.6 Grid shows 10 periods × 5 days — af5616a
 
 ### Phase 3: Drag-and-drop interaction (the drop)
 
 #### Automated
 
-- [ ] 3.1 Island compiles and builds: `pnpm build`
-- [ ] 3.2 Linting passes: `pnpm lint`
-- [ ] 3.3 Existing unit suite still green: `pnpm test`
+- [x] 3.1 Island compiles and builds: `pnpm build`
+- [x] 3.2 Linting passes: `pnpm lint`
+- [x] 3.3 Existing unit suite still green: `pnpm test`
 
 #### Manual
 
-- [ ] 3.4 Filtering by a leading course narrows the palette; clearing restores all
-- [ ] 3.5 Expanding a box and dragging one course onto a cell places a single chip
-- [ ] 3.6 Pulling a second course from the same box into the same cell places it alongside
-- [ ] 3.7 Dragging a placed chip to another cell moves it (and persists)
-- [ ] 3.8 Clicking the "×" on a placed chip removes it (and persists; click does not start a drag)
-- [ ] 3.9 Reloading shows the same placements (persistence round-trips)
-- [ ] 3.10 Dropping always lands — no snap-back or block
-- [ ] 3.11 The drop feels immediate (well under ≤200 ms perceived budget)
+- [x] 3.4 Filtering by a leading course narrows the palette; clearing restores all
+- [x] 3.5 Expanding a box and dragging one course onto a cell places a single chip
+- [x] 3.6 Pulling a second course from the same box into the same cell places it alongside
+- [x] 3.7 Dragging a placed chip to another cell moves it (and persists)
+- [x] 3.8 Clicking the "×" on a placed chip removes it (and persists; click does not start a drag)
+- [x] 3.9 Reloading shows the same placements (persistence round-trips)
+- [x] 3.10 Dropping always lands — no snap-back or block
+- [x] 3.11 The drop feels immediate (well under ≤200 ms perceived budget)
 
 ### Phase 4: Reactive validation + hours counter + collision UX
 

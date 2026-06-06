@@ -22,6 +22,7 @@
     "@astrojs/cloudflare": "^13.5.4",
     "@astrojs/react": "^5.0.5",
     "@astrojs/sitemap": "^3.7.2",
+    "@dnd-kit/dom": "0.4.0",
     "@dnd-kit/react": "0.4.0",
     "@eslint/config-helpers": "^0.6.0",
     "@radix-ui/react-slot": "^1.2.4",

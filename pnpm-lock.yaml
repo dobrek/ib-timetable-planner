@@ -23,6 +23,9 @@ importers:
       '@astrojs/sitemap':
         specifier: ^3.7.2
         version: 3.7.2
+      '@dnd-kit/dom':
+        specifier: 0.4.0
+        version: 0.4.0
       '@dnd-kit/react':
         specifier: 0.4.0
         version: 0.4.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)

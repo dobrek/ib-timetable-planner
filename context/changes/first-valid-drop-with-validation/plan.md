@@ -347,31 +347,31 @@ The validator is pure and per-cell (O(occupants²) over a handful of courses), r
 
 #### Automated
 
-- [x] 1.1 Dependency installs and lockfile pins exact version: `pnpm install --frozen-lockfile`
-- [x] 1.2 Astro env/types regenerate cleanly: `pnpm exec astro sync`
-- [x] 1.3 Unit tests for the payload validator pass: `pnpm test`
-- [x] 1.4 Linting passes: `pnpm lint`
-- [x] 1.5 Build passes: `pnpm build`
+- [x] 1.1 Dependency installs and lockfile pins exact version: `pnpm install --frozen-lockfile` — a7c4d52
+- [x] 1.2 Astro env/types regenerate cleanly: `pnpm exec astro sync` — a7c4d52
+- [x] 1.3 Unit tests for the payload validator pass: `pnpm test` — a7c4d52
+- [x] 1.4 Linting passes: `pnpm lint` — a7c4d52
+- [x] 1.5 Build passes: `pnpm build` — a7c4d52
 
 #### Manual
 
-- [x] 1.6 `POST /api/placements` with a valid body inserts a row
-- [x] 1.7 `DELETE /api/placements` removes the targeted row
-- [x] 1.8 Malformed body returns `400`; unconfigured Supabase returns `503`
+- [x] 1.6 `POST /api/placements` with a valid body inserts a row — a7c4d52
+- [x] 1.7 `DELETE /api/placements` removes the targeted row — a7c4d52
+- [x] 1.8 Malformed body returns `400`; unconfigured Supabase returns `503` — a7c4d52
 
 ### Phase 2: Planner route + data load + empty-state bootstrap
 
 #### Automated
 
-- [ ] 2.1 Astro types/route compile: `pnpm exec astro sync` then `pnpm build`
-- [ ] 2.2 Linting passes: `pnpm lint`
+- [x] 2.1 Astro types/route compile: `pnpm exec astro sync` then `pnpm build`
+- [x] 2.2 Linting passes: `pnpm lint`
 
 #### Manual
 
-- [ ] 2.3 `db reset` then `/plans/<seed-plan-id>` renders empty palette + "Compute groupings" button
-- [ ] 2.4 Clicking the button computes, persists, reloads, palette shows Y1 grouping boxes
-- [ ] 2.5 Unknown plan id returns 404 / redirect
-- [ ] 2.6 Grid shows 10 periods × 5 days
+- [x] 2.3 `db reset` then `/plans/<seed-plan-id>` renders empty palette + "Compute groupings" button
+- [x] 2.4 Clicking the button computes, persists, reloads, palette shows Y1 grouping boxes
+- [x] 2.5 Unknown plan id returns 404 / redirect
+- [x] 2.6 Grid shows 10 periods × 5 days
 
 ### Phase 3: Drag-and-drop interaction (the drop)
 

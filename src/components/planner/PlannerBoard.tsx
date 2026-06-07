@@ -8,6 +8,8 @@ import GroupingFilter from "@/components/planner/GroupingFilter";
 import PlannerGrid from "@/components/planner/PlannerGrid";
 import type { CellData, DragData, LocalPlacement, PlannerBoardProps } from "@/components/planner/types";
 import { createPlacement, deletePlacement } from "@/lib/planner/client";
+import { deriveCollisions } from "@/lib/planner/collisions";
+import { countIncompleteCourses, deriveHours } from "@/lib/planner/hours";
 
 /**
  * Planner island root. Owns local placement state (seeded from props) and the palette
@@ -17,7 +19,7 @@ import { createPlacement, deletePlacement } from "@/lib/planner/client";
  * derivations on top of this state.
  */
 export default function PlannerBoard(props: PlannerBoardProps) {
-  const { planId, variantId, cohortId, days, periods, groupings, names } = props;
+  const { planId, variantId, cohortId, days, periods, groupings, names, catalog } = props;
 
   const [placements, setPlacements] = useState<LocalPlacement[]>(props.placements);
   const [leadingCourseId, setLeadingCourseId] = useState<string | null>(null);
@@ -34,6 +36,14 @@ export default function PlannerBoard(props: PlannerBoardProps) {
     () => (leadingCourseId ? groupings.filter((g) => g.memberIds.includes(leadingCourseId)) : groupings),
     [groupings, leadingCourseId],
   );
+
+  // Reactive derivations over current placement state — recomputed on every change so a
+  // collision flag clears the moment a participant leaves, and hours track live. Pure
+  // and per-cell (O(occupants²)); no network on the validation path (≤200 ms budget).
+  const catalogById = useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
+  const collisions = useMemo(() => deriveCollisions(placements, catalogById), [placements, catalogById]);
+  const hours = useMemo(() => deriveHours(placements, catalog), [placements, catalog]);
+  const incompleteCount = useMemo(() => countIncompleteCourses(hours), [hours]);
 
   function addCourse(courseId: string, cell: CellData) {
     // placements_unique: a course sits at most once per cell — dropping a duplicate is a no-op.
@@ -115,44 +125,67 @@ export default function PlannerBoard(props: PlannerBoardProps) {
 
   return (
     <DragDropProvider plugins={PLUGINS} onDragEnd={handleDrop}>
-      <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
-        <aside data-slot="planner-palette" className="flex min-h-0 flex-col gap-3">
-          <div className="shrink-0">
-            <GroupingFilter groupings={groupings} names={names} value={leadingCourseId} onChange={setLeadingCourseId} />
-          </div>
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-            {visibleGroupings.map((grouping) => (
-              <GroupingBox key={grouping.id} grouping={grouping} names={names} />
-            ))}
-          </div>
-        </aside>
-
-        <div className="flex min-h-0 flex-col gap-3">
-          {error && (
-            <div
-              role="alert"
-              className="border-destructive/50 bg-destructive/10 text-destructive flex shrink-0 items-center justify-between rounded-md border px-3 py-2 text-sm"
-            >
-              <span>{error}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                }}
-                className="text-xs underline"
-              >
-                Dismiss
-              </button>
-            </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          data-slot="plan-summary"
+          data-incomplete={incompleteCount}
+          className="text-muted-foreground flex shrink-0 items-center gap-2 border-b px-6 py-2 text-sm"
+        >
+          {incompleteCount > 0 ? (
+            <span>
+              <span className="text-foreground font-medium tabular-nums">{incompleteCount}</span>{" "}
+              {incompleteCount === 1 ? "course" : "courses"} left to place
+            </span>
+          ) : (
+            <span className="text-foreground font-medium">All course hours placed</span>
           )}
-          <div className="min-h-0 flex-1 overflow-auto">
-            <PlannerGrid
-              days={days}
-              periods={periods}
-              placements={placements}
-              names={names}
-              onRemove={removePlacement}
-            />
+        </div>
+
+        <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
+          <aside data-slot="planner-palette" className="flex min-h-0 flex-col gap-3">
+            <div className="shrink-0">
+              <GroupingFilter
+                groupings={groupings}
+                names={names}
+                value={leadingCourseId}
+                onChange={setLeadingCourseId}
+              />
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              {visibleGroupings.map((grouping) => (
+                <GroupingBox key={grouping.id} grouping={grouping} names={names} hours={hours} />
+              ))}
+            </div>
+          </aside>
+
+          <div className="flex min-h-0 flex-col gap-3">
+            {error && (
+              <div
+                role="alert"
+                className="border-destructive/50 bg-destructive/10 text-destructive flex shrink-0 items-center justify-between rounded-md border px-3 py-2 text-sm"
+              >
+                <span>{error}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                  }}
+                  className="text-xs underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+            <div className="min-h-0 flex-1 overflow-auto">
+              <PlannerGrid
+                days={days}
+                periods={periods}
+                placements={placements}
+                names={names}
+                collisions={collisions}
+                onRemove={removePlacement}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -1,20 +1,21 @@
 import SlotCell from "@/components/planner/SlotCell";
 import type { LocalPlacement } from "@/components/planner/types";
+import { cellKey } from "@/lib/planner/collisions";
 
 type Props = {
   days: number;
   periods: number;
   placements: LocalPlacement[];
   names: Record<string, string>;
+  /** cellKey → set of course ids in collision for that cell. */
+  collisions: Map<string, Set<string>>;
   onRemove: (placementId: string) => void;
 };
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export const cellKey = (day: number, period: number): string => `${day}:${period}`;
-
 /** The 10×5 (period × day) slot grid. Each cell is a droppable; cells are multi-occupancy. */
-export default function PlannerGrid({ days, periods, placements, names, onRemove }: Props) {
+export default function PlannerGrid({ days, periods, placements, names, collisions, onRemove }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
   const byCell = groupByCell(placements, names);
@@ -33,7 +34,15 @@ export default function PlannerGrid({ days, periods, placements, names, onRemove
         ))}
 
         {periodList.map((period) => (
-          <PeriodRow key={period} period={period} days={dayList} byCell={byCell} names={names} onRemove={onRemove} />
+          <PeriodRow
+            key={period}
+            period={period}
+            days={dayList}
+            byCell={byCell}
+            names={names}
+            collisions={collisions}
+            onRemove={onRemove}
+          />
         ))}
       </div>
     </div>
@@ -45,12 +54,14 @@ function PeriodRow({
   days,
   byCell,
   names,
+  collisions,
   onRemove,
 }: {
   period: number;
   days: number[];
   byCell: Map<string, LocalPlacement[]>;
   names: Record<string, string>;
+  collisions: Map<string, Set<string>>;
   onRemove: (placementId: string) => void;
 }) {
   return (
@@ -65,6 +76,7 @@ function PeriodRow({
           period={period}
           occupants={byCell.get(cellKey(day, period)) ?? []}
           names={names}
+          conflicts={collisions.get(cellKey(day, period))}
           onRemove={onRemove}
         />
       ))}

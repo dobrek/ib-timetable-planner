@@ -377,34 +377,34 @@ The validator is pure and per-cell (O(occupants²) over a handful of courses), r
 
 #### Automated
 
-- [x] 3.1 Island compiles and builds: `pnpm build`
-- [x] 3.2 Linting passes: `pnpm lint`
-- [x] 3.3 Existing unit suite still green: `pnpm test`
+- [x] 3.1 Island compiles and builds: `pnpm build` — 4ed869d
+- [x] 3.2 Linting passes: `pnpm lint` — 4ed869d
+- [x] 3.3 Existing unit suite still green: `pnpm test` — 4ed869d
 
 #### Manual
 
-- [x] 3.4 Filtering by a leading course narrows the palette; clearing restores all
-- [x] 3.5 Expanding a box and dragging one course onto a cell places a single chip
-- [x] 3.6 Pulling a second course from the same box into the same cell places it alongside
-- [x] 3.7 Dragging a placed chip to another cell moves it (and persists)
-- [x] 3.8 Clicking the "×" on a placed chip removes it (and persists; click does not start a drag)
-- [x] 3.9 Reloading shows the same placements (persistence round-trips)
-- [x] 3.10 Dropping always lands — no snap-back or block
-- [x] 3.11 The drop feels immediate (well under ≤200 ms perceived budget)
+- [x] 3.4 Filtering by a leading course narrows the palette; clearing restores all — 4ed869d
+- [x] 3.5 Expanding a box and dragging one course onto a cell places a single chip — 4ed869d
+- [x] 3.6 Pulling a second course from the same box into the same cell places it alongside — 4ed869d
+- [x] 3.7 Dragging a placed chip to another cell moves it (and persists) — 4ed869d
+- [x] 3.8 Clicking the "×" on a placed chip removes it (and persists; click does not start a drag) — 4ed869d
+- [x] 3.9 Reloading shows the same placements (persistence round-trips) — 4ed869d
+- [x] 3.10 Dropping always lands — no snap-back or block — 4ed869d
+- [x] 3.11 The drop feels immediate (well under ≤200 ms perceived budget) — 4ed869d
 
 ### Phase 4: Reactive validation + hours counter + collision UX
 
 #### Automated
 
-- [ ] 4.1 Unit tests for the collision derivation pass: `pnpm test`
-- [ ] 4.2 Unit tests for the hours counter pass (incl. 0-hour merge-children): `pnpm test`
-- [ ] 4.3 Linting passes: `pnpm lint`
-- [ ] 4.4 Build passes: `pnpm build`
+- [x] 4.1 Unit tests for the collision derivation pass: `pnpm test`
+- [x] 4.2 Unit tests for the hours counter pass (incl. 0-hour merge-children): `pnpm test`
+- [x] 4.3 Linting passes: `pnpm lint`
+- [x] 4.4 Build passes: `pnpm build`
 
 #### Manual
 
-- [ ] 4.5 Two courses sharing a student (or teacher) in one cell flags both chips with the "collision" label
-- [ ] 4.6 Moving or removing one conflicting course clears the flag reactively (no reload)
-- [ ] 4.7 A collision-free multi-occupancy cell shows no flag
-- [ ] 4.8 Each course in the palette box shows correct "placed / required" hours, updating live
-- [ ] 4.9 Validation feedback is perceptibly immediate (≤200 ms feel)
+- [x] 4.5 Two courses sharing a student (or teacher) in one cell flags both chips with the "collision" label
+- [x] 4.6 Moving or removing one conflicting course clears the flag reactively (no reload)
+- [x] 4.7 A collision-free multi-occupancy cell shows no flag
+- [x] 4.8 Each course in the palette box shows correct "placed / required" hours, updating live
+- [x] 4.9 Validation feedback is perceptibly immediate (≤200 ms feel)

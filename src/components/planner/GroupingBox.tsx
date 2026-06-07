@@ -2,11 +2,14 @@ import { useState } from "react";
 import { useDraggable } from "@dnd-kit/react";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import type { CourseDrag, PlannerGrouping } from "@/components/planner/types";
+import type { HoursStat } from "@/lib/planner/hours";
 import { cn } from "@/lib/utils";
 
 type Props = {
   grouping: PlannerGrouping;
   names: Record<string, string>;
+  /** courseId → placed/required hours, recomputed on every placement change. */
+  hours: Map<string, HoursStat>;
 };
 
 /**
@@ -14,7 +17,7 @@ type Props = {
  * is individually draggable onto the grid — the box never drops as a unit (the course
  * is the unit of placement). Display names are resolved at the edge from `names`.
  */
-export default function GroupingBox({ grouping, names }: Props) {
+export default function GroupingBox({ grouping, names, hours }: Props) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -37,6 +40,7 @@ export default function GroupingBox({ grouping, names }: Props) {
               groupingId={grouping.id}
               courseId={courseId}
               name={names[courseId] ?? courseId}
+              hours={hours.get(courseId)}
             />
           ))}
         </ul>
@@ -45,7 +49,17 @@ export default function GroupingBox({ grouping, names }: Props) {
   );
 }
 
-function PaletteCourse({ groupingId, courseId, name }: { groupingId: string; courseId: string; name: string }) {
+function PaletteCourse({
+  groupingId,
+  courseId,
+  name,
+  hours,
+}: {
+  groupingId: string;
+  courseId: string;
+  name: string;
+  hours: HoursStat | undefined;
+}) {
   const { ref, isDragging } = useDraggable<CourseDrag>({
     id: `palette:${groupingId}:${courseId}`,
     data: { kind: "course", courseId },
@@ -63,6 +77,18 @@ function PaletteCourse({ groupingId, courseId, name }: { groupingId: string; cou
     >
       <GripVertical className="text-muted-foreground size-4" />
       <span className="truncate">{name}</span>
+      {hours && (
+        <span
+          data-slot="hours-counter"
+          title="Hours placed / required"
+          className={cn(
+            "ml-auto shrink-0 tabular-nums",
+            hours.placed === hours.required ? "text-muted-foreground" : "text-foreground",
+          )}
+        >
+          {hours.placed}/{hours.required}
+        </span>
+      )}
     </li>
   );
 }

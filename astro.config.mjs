@@ -19,6 +19,7 @@ import cloudflare from "@astrojs/cloudflare";
 function ssrPrebundleDeps() {
   return {
     name: "ssr-prebundle-deps",
+    /** @param {string} name */
     configEnvironment(name) {
       if (name === "client") return;
       return {

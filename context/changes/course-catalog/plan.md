@@ -341,17 +341,17 @@ None — zero schema change. The slice operates entirely on F-02's existing tabl
 
 #### Automated
 
-- [ ] 1.1 Dependencies install: `pnpm install`
-- [ ] 1.2 Single runtime Zod: `pnpm why zod` shows one 4.x reaching the app
-- [ ] 1.3 Type checking passes: `pnpm exec astro sync && pnpm exec astro check`
-- [ ] 1.4 Schema unit tests pass: `pnpm test`
-- [ ] 1.5 Linting passes: `pnpm lint`
-- [ ] 1.6 Production build passes: `pnpm build`
+- [x] 1.1 Dependencies install: `pnpm install`
+- [x] 1.2 Single runtime Zod: `pnpm why zod` shows one 4.x reaching the app
+- [x] 1.3 Type checking passes: `pnpm exec astro sync && pnpm exec astro check`
+- [x] 1.4 Schema unit tests pass: `pnpm test`
+- [x] 1.5 Linting passes: `pnpm lint`
+- [x] 1.6 Production build passes: `pnpm build`
 
 #### Manual
 
-- [ ] 1.7 `astro:actions` import resolves and the five actions are typed end-to-end
-- [ ] 1.8 No dev-server "Invalid hook call" regression after adding RHF
+- [x] 1.7 `astro:actions` import resolves and the five actions are typed end-to-end
+- [x] 1.8 No dev-server "Invalid hook call" regression after adding RHF
 
 ### Phase 2: Read path — cohort tabs + course list
 

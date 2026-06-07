@@ -1,0 +1,47 @@
+---
+import AppShellLayout from "@/layouts/AppShellLayout.astro";
+import { createClient } from "@/lib/supabase";
+
+// Local view model — project DB rows to just what this list needs (lessons rule #1).
+type PlanRow = { id: string; name: string };
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+const fetchPlans = async (client: NonNullable<typeof supabase>): Promise<PlanRow[]> => {
+  const { data, error } = await client.from("plans").select("id, name").order("name").limit(200);
+  if (error) throw new Error(`Plans lookup failed: ${error.message}`);
+  return data.map((row) => ({ id: row.id, name: row.name }));
+};
+
+// null = Supabase unavailable; [] = no plans yet.
+const plans = supabase ? await fetchPlans(supabase) : null;
+if (!plans) Astro.response.status = 503;
+---
+
+<AppShellLayout title="Plans">
+  <header class="mb-8">
+    <h1 class="text-foreground text-2xl font-semibold tracking-tight">Plans</h1>
+    <p class="text-muted-foreground mt-2 text-sm">Open a plan to edit its timetable.</p>
+  </header>
+
+  {
+    plans === null ? (
+      <p class="text-muted-foreground text-sm">Plans are unavailable — Supabase is not configured.</p>
+    ) : plans.length === 0 ? (
+      <p class="text-muted-foreground text-sm">No plans yet.</p>
+    ) : (
+      <ul class="space-y-2">
+        {plans.map((plan) => (
+          <li>
+            <a
+              href={`/plans/${plan.id}`}
+              class="border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground block rounded-lg border px-5 py-4 font-medium transition-colors"
+            >
+              {plan.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</AppShellLayout>

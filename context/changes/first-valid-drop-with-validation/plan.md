@@ -396,15 +396,15 @@ The validator is pure and per-cell (O(occupants²) over a handful of courses), r
 
 #### Automated
 
-- [x] 4.1 Unit tests for the collision derivation pass: `pnpm test`
-- [x] 4.2 Unit tests for the hours counter pass (incl. 0-hour merge-children): `pnpm test`
-- [x] 4.3 Linting passes: `pnpm lint`
-- [x] 4.4 Build passes: `pnpm build`
+- [x] 4.1 Unit tests for the collision derivation pass: `pnpm test` — 91efffb
+- [x] 4.2 Unit tests for the hours counter pass (incl. 0-hour merge-children): `pnpm test` — 91efffb
+- [x] 4.3 Linting passes: `pnpm lint` — 91efffb
+- [x] 4.4 Build passes: `pnpm build` — 91efffb
 
 #### Manual
 
-- [x] 4.5 Two courses sharing a student (or teacher) in one cell flags both chips with the "collision" label
-- [x] 4.6 Moving or removing one conflicting course clears the flag reactively (no reload)
-- [x] 4.7 A collision-free multi-occupancy cell shows no flag
-- [x] 4.8 Each course in the palette box shows correct "placed / required" hours, updating live
-- [x] 4.9 Validation feedback is perceptibly immediate (≤200 ms feel)
+- [x] 4.5 Two courses sharing a student (or teacher) in one cell flags both chips with the "collision" label — 91efffb
+- [x] 4.6 Moving or removing one conflicting course clears the flag reactively (no reload) — 91efffb
+- [x] 4.7 A collision-free multi-occupancy cell shows no flag — 91efffb
+- [x] 4.8 Each course in the palette box shows correct "placed / required" hours, updating live — 91efffb
+- [x] 4.9 Validation feedback is perceptibly immediate (≤200 ms feel) — 91efffb

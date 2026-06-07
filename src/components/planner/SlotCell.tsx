@@ -1,5 +1,7 @@
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { TriangleAlert, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cellKey } from "@/lib/planner/collisions";
 import type { CellData, LocalPlacement, PlacementDrag } from "@/components/planner/types";
 import { cn } from "@/lib/utils";
@@ -82,17 +84,20 @@ function PlacedChip({
     >
       <span className="truncate">{name}</span>
       {conflicted && (
-        <span
+        <Badge
+          variant="destructive"
           data-slot="collision-badge"
           title="Collision: shares a student or teacher with another course in this slot"
-          className="text-destructive inline-flex items-center gap-0.5 font-medium"
+          className="gap-0.5 px-1 py-0"
         >
-          <TriangleAlert className="size-4" />
+          <TriangleAlert className="size-3" />
           <span className="sr-only sm:not-sr-only">collision</span>
-        </span>
+        </Badge>
       )}
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
         data-slot="remove-placement"
         aria-label={`Remove ${name}`}
         disabled={placement.pending}
@@ -104,10 +109,10 @@ function PlacedChip({
           // Keep the click from starting a drag on the chip.
           event.stopPropagation();
         }}
-        className="hover:bg-destructive/20 ml-auto rounded p-0.5 disabled:opacity-50"
+        className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive ml-auto size-5 rounded"
       >
         <X className="size-4" />
-      </button>
+      </Button>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PlannerGrouping } from "@/components/planner/types";
-import { cn } from "@/lib/utils";
 
 type Props = {
   groupings: PlannerGrouping[];
@@ -8,6 +8,9 @@ type Props = {
   value: string | null;
   onChange: (courseId: string | null) => void;
 };
+
+/** Sentinel for the cleared filter — Radix Select reserves "" for the placeholder. */
+const ALL = "__all__";
 
 /**
  * Leading-course filter: pick a course and the palette shows only groupings whose
@@ -19,26 +22,27 @@ export default function GroupingFilter({ groupings, names, value, onChange }: Pr
   const courses = useMemo(() => leadingCourseOptions(groupings, names), [groupings, names]);
 
   return (
-    <label className="flex flex-col gap-1 text-sm" data-slot="grouping-filter">
+    <div className="flex flex-col gap-1 text-sm" data-slot="grouping-filter">
       <span className="text-muted-foreground font-medium">Leading course</span>
-      <select
-        className={cn(
-          "bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none",
-          "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        )}
-        value={value ?? ""}
-        onChange={(event) => {
-          onChange(event.target.value || null);
+      <Select
+        value={value ?? ALL}
+        onValueChange={(next) => {
+          onChange(next === ALL ? null : next);
         }}
       >
-        <option value="">All groupings</option>
-        {courses.map((course) => (
-          <option key={course.id} value={course.id}>
-            {course.name}
-          </option>
-        ))}
-      </select>
-    </label>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All groupings</SelectItem>
+          {courses.map((course) => (
+            <SelectItem key={course.id} value={course.id}>
+              {course.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

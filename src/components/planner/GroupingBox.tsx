@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useDraggable } from "@dnd-kit/react";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { CourseDrag, PlannerGrouping } from "@/components/planner/types";
 import type { HoursStat } from "@/lib/planner/hours";
 import { cn } from "@/lib/utils";
@@ -22,16 +23,17 @@ export default function GroupingBox({ grouping, names, hours }: Props) {
 
   return (
     <div data-slot="grouping-box" className="rounded-lg border">
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={() => {
           setExpanded((value) => !value);
         }}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium"
+        className="h-auto w-full justify-start gap-2 px-3 py-2 text-sm font-medium"
       >
         {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         <span>{grouping.memberIds.length} courses</span>
-      </button>
+      </Button>
       {expanded && (
         <ul className="space-y-1 px-2 pb-2">
           {grouping.memberIds.map((courseId) => (

@@ -34,9 +34,20 @@ export const POST: APIRoute = async (context) => {
       .single();
 
     // The same course-hour already sits in this cell (placements_unique). Idempotent
-    // by intent — surface as a benign conflict, not a 500.
+    // by intent: load and return the existing row so the client reconciles its optimistic
+    // id against a placement that is in fact persisted — never a rollback, never a 500.
     if (error?.code === UNIQUE_VIOLATION) {
-      return json({ error: "Placement already exists in this cell" }, 409);
+      const { data: existing, error: lookupError } = await supabase
+        .from("placements")
+        .select()
+        .eq("variant_id", variantId)
+        .eq("cohort_id", cohortId)
+        .eq("course_id", courseId)
+        .eq("day", day)
+        .eq("period", period)
+        .single();
+      if (lookupError) throw new Error(`Failed to load existing placement: ${lookupError.message}`);
+      return json({ placement: existing }, 200);
     }
     if (error) throw new Error(`Failed to insert placement: ${error.message}`);
 

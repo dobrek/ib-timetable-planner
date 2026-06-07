@@ -386,7 +386,7 @@ const choices2 = emitChoices(dp2Data.studentRows, studentId2, courseId2, dp2Data
 out.push(inserts("student_choices", ["id", "student_id", "course_id"], [...choices1, ...choices2]));
 
 // plans + plan_variants
-out.push(inserts("plans", ["id", "name", "slot_grid_preset"], [[q(planId), q("Seed Plan"), q("5x8")]]));
+out.push(inserts("plans", ["id", "name", "slot_grid_preset"], [[q(planId), q("Seed Plan"), q("5x10")]]));
 out.push(
   inserts("plan_variants", ["id", "plan_id", "name", "is_final"], [[q(variantId), q(planId), q("Draft 1"), "false"]]),
 );

@@ -4,6 +4,7 @@ import type { GroupingCourse, GroupingResult, GroupingVariant } from "./types";
 
 export type { GroupingCourse, GroupingResult, GroupingVariant } from "./types";
 export type { ComputeWarning } from "./types";
+export { EnumerationCapError } from "./enumerate";
 
 const DEFAULT_CAP = 10_000;
 

@@ -1,0 +1,35 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import PlannerBoard from "@/components/planner/PlannerBoard";
+import { createClient } from "@/lib/supabase";
+import { loadPlannerData, type PlannerPageResult } from "@/lib/planner/load";
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+const result: PlannerPageResult = supabase
+  ? await loadPlannerData(supabase, Astro.params.id)
+  : { kind: "unavailable", message: "Supabase is not configured" };
+
+if (result.kind === "not-found") Astro.response.status = 404;
+else if (result.kind === "unavailable") Astro.response.status = 503;
+---
+
+{
+  result.kind === "ok" ? (
+    <Layout title={result.planName}>
+      <main class="flex h-screen flex-col">
+        <header class="shrink-0 border-b px-6 py-4">
+          <h1 class="text-lg font-semibold">{result.planName}</h1>
+        </header>
+        <PlannerBoard {...result.props} client:load />
+      </main>
+    </Layout>
+  ) : (
+    <Layout title={result.kind === "not-found" ? "Plan not found" : "Unavailable"}>
+      <main class="flex min-h-screen items-center justify-center p-6 text-center">
+        <p class="text-muted-foreground">
+          {result.kind === "not-found" ? "This plan does not exist." : result.message}
+        </p>
+      </main>
+    </Layout>
+  )
+}

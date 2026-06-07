@@ -722,7 +722,7 @@ INSERT INTO student_choices (id, student_id, course_id) VALUES
   ('5e399579-9383-42c3-8ccc-75465ee81dd6', 'b1d92198-14d5-49ba-a10c-5518a53ac7f1', '4d760e81-df05-489e-9b8c-5ced3b2429c8');
 
 INSERT INTO plans (id, name, slot_grid_preset) VALUES
-  ('b0c03e8e-59bf-4e1c-9f69-fa3bf1ec5249', 'Seed Plan', '5x8');
+  ('b0c03e8e-59bf-4e1c-9f69-fa3bf1ec5249', 'Seed Plan', '5x10');
 
 INSERT INTO plan_variants (id, plan_id, name, is_final) VALUES
   ('9a5dccba-bf15-402b-ba62-3811f6158dda', 'b0c03e8e-59bf-4e1c-9f69-fa3bf1ec5249', 'Draft 1', false);

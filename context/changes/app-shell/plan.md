@@ -236,29 +236,29 @@ No data or schema changes. Deletions (`Welcome.astro`, `Topbar.astro`, marketing
 
 #### Automated
 
-- [x] 1.1 Lint passes: `pnpm lint`
-- [x] 1.2 Type/content sync clean + build: `pnpm exec astro sync && pnpm build`
-- [x] 1.3 No hardcoded color utilities in new files (grep guard)
+- [x] 1.1 Lint passes: `pnpm lint` — 47047ad
+- [x] 1.2 Type/content sync clean + build: `pnpm exec astro sync && pnpm build` — 47047ad
+- [x] 1.3 No hardcoded color utilities in new files (grep guard) — 47047ad
 
 #### Manual
 
-- [x] 1.4 `/dashboard` shows the sidebar shell with all five nav items + user email/sign-out
-- [x] 1.5 Active nav item highlighted with `aria-current="page"`
-- [x] 1.6 Footer sign-out works (returns to `/auth/signin`)
-- [x] 1.7 Dashboard renders in light + dark with no palette colors
+- [x] 1.4 `/dashboard` shows the sidebar shell with all five nav items + user email/sign-out — 47047ad
+- [x] 1.5 Active nav item highlighted with `aria-current="page"` — 47047ad
+- [x] 1.6 Footer sign-out works (returns to `/auth/signin`) — 47047ad
+- [x] 1.7 Dashboard renders in light + dark with no palette colors — 47047ad
 
 ### Phase 2: Section stubs
 
 #### Automated
 
-- [ ] 2.1 Lint passes: `pnpm lint`
-- [ ] 2.2 Build passes: `pnpm build`
-- [ ] 2.3 No hardcoded color utilities in stubs (grep guard)
+- [x] 2.1 Lint passes: `pnpm lint`
+- [x] 2.2 Build passes: `pnpm build`
+- [x] 2.3 No hardcoded color utilities in stubs (grep guard)
 
 #### Manual
 
-- [ ] 2.4 `/courses`, `/teachers`, `/students` each load in the shell with correct active item
-- [ ] 2.5 No nav link 404s; sidebar persists across navigation
+- [x] 2.4 `/courses`, `/teachers`, `/students` each load in the shell with correct active item
+- [x] 2.5 No nav link 404s; sidebar persists across navigation
 
 ### Phase 3: Plans entry + marketing removal
 

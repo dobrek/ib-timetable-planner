@@ -1,8 +1,9 @@
 ---
-import Welcome from "@/components/Welcome.astro";
-import Layout from "@/layouts/Layout.astro";
+// The app is authenticated-only; / has no marketing page. Authenticated users are sent to
+// the home; unauthenticated hits are already intercepted by middleware → /auth/signin.
+// Redirect via Astro.response (302 + Location) rather than `return Astro.redirect(...)`:
+// a top-level frontmatter `return` crashes @typescript-eslint/no-misused-promises, so the
+// repo sets the response directly instead (same pattern as plans/[id].astro's status codes).
+Astro.response.status = 302;
+Astro.response.headers.set("Location", "/dashboard");
 ---
-
-<Layout>
-  <Welcome />
-</Layout>

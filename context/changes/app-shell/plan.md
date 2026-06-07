@@ -251,29 +251,29 @@ No data or schema changes. Deletions (`Welcome.astro`, `Topbar.astro`, marketing
 
 #### Automated
 
-- [x] 2.1 Lint passes: `pnpm lint`
-- [x] 2.2 Build passes: `pnpm build`
-- [x] 2.3 No hardcoded color utilities in stubs (grep guard)
+- [x] 2.1 Lint passes: `pnpm lint` — da917a8
+- [x] 2.2 Build passes: `pnpm build` — da917a8
+- [x] 2.3 No hardcoded color utilities in stubs (grep guard) — da917a8
 
 #### Manual
 
-- [x] 2.4 `/courses`, `/teachers`, `/students` each load in the shell with correct active item
-- [x] 2.5 No nav link 404s; sidebar persists across navigation
+- [x] 2.4 `/courses`, `/teachers`, `/students` each load in the shell with correct active item — da917a8
+- [x] 2.5 No nav link 404s; sidebar persists across navigation — da917a8
 
 ### Phase 3: Plans entry + marketing removal
 
 #### Automated
 
-- [ ] 3.1 Lint passes: `pnpm lint`
-- [ ] 3.2 Build passes: `pnpm build`
-- [ ] 3.3 Tests pass: `pnpm test`
-- [ ] 3.4 No dangling references to removed components (grep guard)
-- [ ] 3.5 No hardcoded color utilities in `src/pages/plans/index.astro` (grep guard)
+- [x] 3.1 Lint passes: `pnpm lint`
+- [x] 3.2 Build passes: `pnpm build`
+- [x] 3.3 Tests pass: `pnpm test`
+- [x] 3.4 No dangling references to removed components (grep guard)
+- [x] 3.5 No hardcoded color utilities in `src/pages/plans/index.astro` (grep guard)
 
 #### Manual
 
-- [ ] 3.6 `/plans` lists seeded plans; each opens `/plans/[id]`
-- [ ] 3.7 Planner header has a working "Back to Plans" link
-- [ ] 3.8 Sign-in lands on `/dashboard`
-- [ ] 3.9 `/` redirects: authenticated → `/dashboard`, unauthenticated → `/auth/signin`
-- [ ] 3.10 Marketing page gone; no references to deleted components
+- [x] 3.6 `/plans` lists seeded plans; each opens `/plans/[id]`
+- [x] 3.7 Planner header has a working "Back to Plans" link
+- [x] 3.8 Sign-in lands on `/dashboard`
+- [x] 3.9 `/` redirects: authenticated → `/dashboard`, unauthenticated → `/auth/signin`
+- [x] 3.10 Marketing page gone; no references to deleted components

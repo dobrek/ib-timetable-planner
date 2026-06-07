@@ -264,16 +264,16 @@ No data or schema changes. Deletions (`Welcome.astro`, `Topbar.astro`, marketing
 
 #### Automated
 
-- [x] 3.1 Lint passes: `pnpm lint`
-- [x] 3.2 Build passes: `pnpm build`
-- [x] 3.3 Tests pass: `pnpm test`
-- [x] 3.4 No dangling references to removed components (grep guard)
-- [x] 3.5 No hardcoded color utilities in `src/pages/plans/index.astro` (grep guard)
+- [x] 3.1 Lint passes: `pnpm lint` — 26b1c1e
+- [x] 3.2 Build passes: `pnpm build` — 26b1c1e
+- [x] 3.3 Tests pass: `pnpm test` — 26b1c1e
+- [x] 3.4 No dangling references to removed components (grep guard) — 26b1c1e
+- [x] 3.5 No hardcoded color utilities in `src/pages/plans/index.astro` (grep guard) — 26b1c1e
 
 #### Manual
 
-- [x] 3.6 `/plans` lists seeded plans; each opens `/plans/[id]`
-- [x] 3.7 Planner header has a working "Back to Plans" link
-- [x] 3.8 Sign-in lands on `/dashboard`
-- [x] 3.9 `/` redirects: authenticated → `/dashboard`, unauthenticated → `/auth/signin`
-- [x] 3.10 Marketing page gone; no references to deleted components
+- [x] 3.6 `/plans` lists seeded plans; each opens `/plans/[id]` — 26b1c1e
+- [x] 3.7 Planner header has a working "Back to Plans" link — 26b1c1e
+- [x] 3.8 Sign-in lands on `/dashboard` — 26b1c1e
+- [x] 3.9 `/` redirects: authenticated → `/dashboard`, unauthenticated → `/auth/signin` — 26b1c1e
+- [x] 3.10 Marketing page gone; no references to deleted components — 26b1c1e

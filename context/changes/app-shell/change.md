@@ -1,7 +1,7 @@
 ---
 change_id: app-shell
 title: Authenticated app shell & navigation convention
-status: implementing
+status: implemented
 created: 2026-06-07
 updated: 2026-06-07
 archived_at: null

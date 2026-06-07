@@ -220,6 +220,12 @@ Shell is pure SSR with zero added client JS (no island, no hydration), so no run
 
 No data or schema changes. Deletions (`Welcome.astro`, `Topbar.astro`, marketing `index.astro` body) are safe — `Topbar` is only used by `Welcome`, and `Welcome` only by `index`. The auth pages and planner internals are untouched.
 
+## Addenda
+
+> Scope discovered during implementation, accepted in `/10x-impl-review` (2026-06-07).
+
+- **Theme toggle (relaxes "no client JS" for the shell).** The shell adds a footer light/dark toggle button (`AppShellLayout.astro`) backed by a minimal `is:inline` click handler that toggles `.dark` and persists to `localStorage`, plus a no-flash bootstrap script in `Layout.astro` that applies the persisted/system theme before first paint. This is the one deliberate exception to the "Pure Astro/SSR, no client JS" constraint above — it was added because relying solely on OS `prefers-color-scheme` gave no in-app override. Kept small and self-contained; no island/hydration. Future shell work should still default to zero client JS unless similarly justified.
+
 ## References
 
 - Research: `context/changes/app-shell/research.md` (Decisions section: nav pattern, cohort placement, home, route convention, label)

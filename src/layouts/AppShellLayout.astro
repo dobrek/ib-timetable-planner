@@ -35,8 +35,8 @@ const isActive = (href: string) =>
                 class:list={[
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-primary/10 hover:text-sidebar-foreground",
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 ]}
               >
                 <Icon size={18} aria-hidden="true" />
@@ -56,7 +56,7 @@ const isActive = (href: string) =>
             type="button"
             id="theme-toggle"
             aria-label="Toggle theme"
-            class="text-sidebar-foreground/80 hover:bg-sidebar-primary/10 hover:text-sidebar-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors"
+            class="text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors"
           >
             <span class="dark:hidden"><Moon size={16} aria-hidden="true" /></span>
             <span class="hidden dark:block"><Sun size={16} aria-hidden="true" /></span>
@@ -65,7 +65,7 @@ const isActive = (href: string) =>
         <form method="POST" action="/api/auth/signout">
           <button
             type="submit"
-            class="border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-primary/10 hover:text-sidebar-foreground w-full cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors"
+            class="border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground w-full cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors"
           >
             Sign out
           </button>

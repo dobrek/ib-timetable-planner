@@ -8,7 +8,7 @@ type PlanRow = { id: string; name: string };
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 const fetchPlans = async (client: NonNullable<typeof supabase>): Promise<PlanRow[]> => {
-  const { data, error } = await client.from("plans").select("id, name").order("name");
+  const { data, error } = await client.from("plans").select("id, name").order("name").limit(200);
   if (error) throw new Error(`Plans lookup failed: ${error.message}`);
   return data.map((row) => ({ id: row.id, name: row.name }));
 };

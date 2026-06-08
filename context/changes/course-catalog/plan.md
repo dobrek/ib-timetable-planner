@@ -373,33 +373,33 @@ None — zero schema change. The slice operates entirely on F-02's existing tabl
 
 #### Automated
 
-- [x] 3.1 Type checking passes: `pnpm exec astro check`
-- [x] 3.2 Linting passes: `pnpm lint`
-- [x] 3.3 Build passes: `pnpm build`
-- [x] 3.4 Tests pass: `pnpm test`
+- [x] 3.1 Type checking passes: `pnpm exec astro check` — 2a23afd
+- [x] 3.2 Linting passes: `pnpm lint` — 2a23afd
+- [x] 3.3 Build passes: `pnpm build` — 2a23afd
+- [x] 3.4 Tests pass: `pnpm test` — 2a23afd
 
 #### Manual
 
-- [x] 3.5 Create a course → appears in the correct cohort tab
-- [x] 3.6 Edit a course → changes persist after refresh
-- [x] 3.7 Duplicate `(name, level, group)` → friendly field error, no crash
-- [x] 3.8 Delete → confirm dialog names cascade; row disappears
-- [x] 3.9 Invalid input (incl. no teacher selected) → inline field errors; nothing sent
-- [x] 3.10 Merge rows non-editable; forced action against one is rejected server-side
+- [x] 3.5 Create a course → appears in the correct cohort tab — 2a23afd
+- [x] 3.6 Edit a course → changes persist after refresh — 2a23afd
+- [x] 3.7 Duplicate `(name, level, group)` → friendly field error, no crash — 2a23afd
+- [x] 3.8 Delete → confirm dialog names cascade; row disappears — 2a23afd
+- [x] 3.9 Invalid input (incl. no teacher selected) → inline field errors; nothing sent — 2a23afd
+- [x] 3.10 Merge rows non-editable; forced action against one is rejected server-side — 2a23afd
 
 ### Phase 4: Overlaps authoring
 
 #### Automated
 
-- [ ] 4.1 Type checking passes: `pnpm exec astro check`
-- [ ] 4.2 Linting passes: `pnpm lint`
-- [ ] 4.3 Build passes: `pnpm build`
-- [ ] 4.4 Tests pass: `pnpm test`
+- [x] 4.1 Type checking passes: `pnpm exec astro check`
+- [x] 4.2 Linting passes: `pnpm lint`
+- [x] 4.3 Build passes: `pnpm build`
+- [x] 4.4 Tests pass: `pnpm test`
 
 #### Manual
 
-- [ ] 4.5 Add an overlap between two same-cohort courses → shows on the dependent
-- [ ] 4.6 Self-overlap attempt blocked with a clear message
-- [ ] 4.7 Duplicate overlap attempt blocked (no duplicate row)
-- [ ] 4.8 Remove an overlap → disappears after refresh
-- [ ] 4.9 Merge-involved and cross-cohort courses not offered as overlap targets
+- [x] 4.5 Add an overlap between two same-cohort courses → shows on the dependent
+- [x] 4.6 Self-overlap attempt blocked with a clear message
+- [x] 4.7 Duplicate overlap attempt blocked (no duplicate row)
+- [x] 4.8 Remove an overlap → disappears after refresh
+- [x] 4.9 Merge-involved and cross-cohort courses not offered as overlap targets

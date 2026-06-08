@@ -4,7 +4,7 @@ title: Course catalog
 status: implementing
 created: 2026-06-07
 updated: 2026-06-08
-last_note: "P3 done (create/edit/delete via RHF+Actions). Refinements per review: level is optional free text (empty → 'none', shown as — in the list); hoursPerWeek floor relaxed to >=0 (DB-aligned); group options 0–3; list sorted by name; autoComplete=off on form/search inputs; cursor-pointer added at the DS level (button/tabs/select/dropdown/command). 3.10 title kept verbatim but superseded — merged rows are editable (see P2 deviation)."
+last_note: "P4 done (overlap authoring). Overlap edits update island state in-memory (dialog stays open, no reload); list shows a clickable 'Overlap: <full label>' badge (opens the manager); 'Hide merged' filter toggle added. 4.9 deviation accepted by user: overlap picker excludes self + already-linked + cross-cohort, but does NOT exclude merged parents (consistent with merge-deferral). DS cursor-pointer also added to the Dialog close (X). All phases implemented."
 archived_at: null
 ---
 
@@ -30,3 +30,10 @@ The plan framed the form as strictly atomic-course authoring. Manual review redi
 - The course list is **sorted by name** (was `group_index` then `name`) for findability.
 - `autoComplete="off"` on the form and its text/search inputs (auth inputs keep autofill).
 - `cursor-pointer` added at the **design-system level** to `button`, `tabs`, `select`, `dropdown-menu`, and `command` primitives.
+
+### Phase 4 deviations — overlaps UX (user-directed)
+
+- **No page reload on overlap add/remove**: the plan wired `navigate(currentPath)` after each mutation, but that closed the dialog. Instead the island holds `courses` in state and overlap edits update it **in-memory** (the mutation is still persisted via the action), so the dialog stays open and the list updates live. Create/edit/delete still use `navigate()`.
+- **Overlap indicator**: courses with overlaps show a clickable `Overlap: <full label>` badge beside the name (full label = name + level + group via `formatCourseLabel`); clicking it opens the overlap manager. (Iterated from an earlier count+tooltip design per review.)
+- **"Hide merged" filter toggle** added next to the teacher filter.
+- **4.9 accepted deviation**: the overlap-base picker excludes self, already-linked, and cross-cohort courses, but does **not** exclude composite merge parents — consistent with the merge-deferral decision (the plan's 4.9 wanted merge-involved excluded). User accepted.

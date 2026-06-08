@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link2, MoreHorizontal, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,8 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
 import CourseFormDialog from "@/components/courses/CourseFormDialog";
+import CourseOverlaps from "@/components/courses/CourseOverlaps";
 import DeleteCourseDialog from "@/components/courses/DeleteCourseDialog";
 import { TeacherFilter } from "@/components/courses/TeacherFilter";
+import { formatCourseLabel } from "@/components/courses/labels";
 import { filterCourses } from "@/components/courses/useCourseFilters";
 import type { CohortTab, CourseRow, TeacherOption } from "@/components/courses/types";
 
@@ -28,25 +30,39 @@ const GROUP_LABELS: Record<number, string> = { 0: "—", 1: "Group 1", 2: "Group
 
 /**
  * Catalog island: cross-cohort course list as Year 1 / Year 2 tabs with a teacher
- * multi-select filter, plus create/edit/delete via dialogs (overlap authoring lands in
- * Phase 4). Composite merge parents carry a "Merged" badge beside the name but remain
- * fully editable (merge-specific constraints are deferred to the merge-builder slice).
+ * multi-select filter, a hide-merged toggle, plus create/edit/delete and overlap
+ * authoring via dialogs. Composite merge parents carry a "Merged" badge beside the name
+ * but remain fully editable (merge-specific constraints are deferred to the merge-builder
+ * slice). Overlap edits update in-memory so the catalog stays live without a page reload.
  * Tokens only (lessons rule #2).
  */
-export default function CourseCatalog({ cohorts, courses, teachers }: CourseCatalogProps) {
+export default function CourseCatalog({ cohorts, courses: initialCourses, teachers }: CourseCatalogProps) {
+  // Local copy so overlap add/remove reflect immediately (no full-page refresh). Create/
+  // edit/delete still navigate() to re-run the server load, which re-seeds this state.
+  const [courses, setCourses] = useState(initialCourses);
   const [activeCohortId, setActiveCohortId] = useState(cohorts[0]?.id ?? "");
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
+  const [hideMerged, setHideMerged] = useState(false);
   const [formState, setFormState] = useState<{ open: boolean; course: CourseRow | null }>({
     open: false,
     course: null,
   });
   const [deleteTarget, setDeleteTarget] = useState<CourseRow | null>(null);
+  const [overlapTargetId, setOverlapTargetId] = useState<string | null>(null);
+
+  const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
+  const overlapCourse = overlapTargetId !== null ? (coursesById.get(overlapTargetId) ?? null) : null;
 
   const openCreate = () => {
     setFormState({ open: true, course: null });
   };
   const openEdit = (course: CourseRow) => {
     setFormState({ open: true, course });
+  };
+  const updateOverlaps = (courseId: string, nextOverlaps: string[]) => {
+    setCourses((current) =>
+      current.map((course) => (course.id === courseId ? { ...course, overlaps: nextOverlaps } : course)),
+    );
   };
 
   return (
@@ -62,7 +78,19 @@ export default function CourseCatalog({ cohorts, courses, teachers }: CourseCata
         </Button>
       </header>
 
-      <TeacherFilter teachers={teachers} selectedIds={selectedTeacherIds} onChange={setSelectedTeacherIds} />
+      <div className="flex flex-wrap items-center gap-2">
+        <TeacherFilter teachers={teachers} selectedIds={selectedTeacherIds} onChange={setSelectedTeacherIds} />
+        <Button
+          variant={hideMerged ? "default" : "outline"}
+          size="sm"
+          aria-pressed={hideMerged}
+          onClick={() => {
+            setHideMerged((value) => !value);
+          }}
+        >
+          Hide merged
+        </Button>
+      </div>
 
       <Tabs value={activeCohortId} onValueChange={setActiveCohortId}>
         <TabsList>
@@ -74,10 +102,18 @@ export default function CourseCatalog({ cohorts, courses, teachers }: CourseCata
         </TabsList>
 
         {cohorts.map((cohort) => {
-          const rows = filterCourses(courses, cohort.id, selectedTeacherIds);
+          const rows = filterCourses(courses, cohort.id, selectedTeacherIds, hideMerged);
           return (
             <TabsContent key={cohort.id} value={cohort.id}>
-              <CourseTable rows={rows} onEdit={openEdit} onDelete={setDeleteTarget} />
+              <CourseTable
+                rows={rows}
+                coursesById={coursesById}
+                onEdit={openEdit}
+                onManageOverlaps={(course) => {
+                  setOverlapTargetId(course.id);
+                }}
+                onDelete={setDeleteTarget}
+              />
             </TabsContent>
           );
         })}
@@ -99,6 +135,14 @@ export default function CourseCatalog({ cohorts, courses, teachers }: CourseCata
           if (!open) setDeleteTarget(null);
         }}
       />
+      <CourseOverlaps
+        course={overlapCourse}
+        courses={courses}
+        onOverlapsChange={updateOverlaps}
+        onOpenChange={(open) => {
+          if (!open) setOverlapTargetId(null);
+        }}
+      />
       <Toaster />
     </div>
   );
@@ -106,11 +150,13 @@ export default function CourseCatalog({ cohorts, courses, teachers }: CourseCata
 
 type CourseTableProps = {
   rows: CourseRow[];
+  coursesById: Map<string, CourseRow>;
   onEdit: (course: CourseRow) => void;
+  onManageOverlaps: (course: CourseRow) => void;
   onDelete: (course: CourseRow) => void;
 };
 
-function CourseTable({ rows, onEdit, onDelete }: CourseTableProps) {
+function CourseTable({ rows, coursesById, onEdit, onManageOverlaps, onDelete }: CourseTableProps) {
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No courses match the current filter.</p>;
   }
@@ -132,9 +178,10 @@ function CourseTable({ rows, onEdit, onDelete }: CourseTableProps) {
           {rows.map((row) => (
             <TableRow key={row.id}>
               <TableCell className="font-medium">
-                <span className="flex items-center gap-2">
+                <span className="flex flex-wrap items-center gap-2">
                   {row.name}
                   {row.isMerged && <Badge variant="secondary">Merged</Badge>}
+                  <OverlapBadge row={row} coursesById={coursesById} onManageOverlaps={onManageOverlaps} />
                 </span>
               </TableCell>
               <TableCell>{row.level === "none" ? "—" : row.level}</TableCell>
@@ -142,7 +189,7 @@ function CourseTable({ rows, onEdit, onDelete }: CourseTableProps) {
               <TableCell className="text-right">{row.hours}</TableCell>
               <TableCell>{row.teacherLabel ?? "—"}</TableCell>
               <TableCell className="text-right">
-                <CourseRowActions row={row} onEdit={onEdit} onDelete={onDelete} />
+                <CourseRowActions row={row} onEdit={onEdit} onManageOverlaps={onManageOverlaps} onDelete={onDelete} />
               </TableCell>
             </TableRow>
           ))}
@@ -152,14 +199,53 @@ function CourseTable({ rows, onEdit, onDelete }: CourseTableProps) {
   );
 }
 
+/**
+ * Names the base course(s) this course's students also attend; hidden when there are none.
+ * Clicking opens the overlap manager for the row.
+ */
+function OverlapBadge({
+  row,
+  coursesById,
+  onManageOverlaps,
+}: {
+  row: CourseRow;
+  coursesById: Map<string, CourseRow>;
+  onManageOverlaps: (course: CourseRow) => void;
+}) {
+  if (row.overlaps.length === 0) return null;
+  const labels = row.overlaps.map((id) => {
+    const base = coursesById.get(id);
+    return base ? formatCourseLabel(base) : "Unknown course";
+  });
+  return (
+    <Badge
+      asChild
+      variant="outline"
+      className="hover:bg-accent hover:text-accent-foreground cursor-pointer gap-1 font-normal"
+    >
+      <button
+        type="button"
+        onClick={() => {
+          onManageOverlaps(row);
+        }}
+        aria-label={`Manage overlaps for ${row.name}`}
+      >
+        <Link2 className="size-3" aria-hidden="true" />
+        Overlap: {labels.join(", ")}
+      </button>
+    </Badge>
+  );
+}
+
 type CourseRowActionsProps = {
   row: CourseRow;
   onEdit: (course: CourseRow) => void;
+  onManageOverlaps: (course: CourseRow) => void;
   onDelete: (course: CourseRow) => void;
 };
 
-/** Per-row kebab — present on every course. "Manage overlaps" is wired in Phase 4. */
-function CourseRowActions({ row, onEdit, onDelete }: CourseRowActionsProps) {
+/** Per-row kebab — present on every course. */
+function CourseRowActions({ row, onEdit, onManageOverlaps, onDelete }: CourseRowActionsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -175,7 +261,13 @@ function CourseRowActions({ row, onEdit, onDelete }: CourseRowActionsProps) {
         >
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>Manage overlaps</DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            onManageOverlaps(row);
+          }}
+        >
+          Manage overlaps
+        </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
           onSelect={() => {

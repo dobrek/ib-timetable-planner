@@ -17,7 +17,7 @@ type CatalogData = {
 const cohortLabel = (index: number) => `Year ${index + 1}`;
 
 const fetchCatalog = async (client: NonNullable<typeof supabase>): Promise<CatalogData> => {
-  const [cohortsRes, coursesRes, teachersRes, mergesRes] = await Promise.all([
+  const [cohortsRes, coursesRes, teachersRes, mergesRes, overlapsRes] = await Promise.all([
     client.from("cohorts").select("id, name").order("name"),
     client
       .from("courses")
@@ -26,19 +26,28 @@ const fetchCatalog = async (client: NonNullable<typeof supabase>): Promise<Catal
       .limit(500),
     client.from("teachers").select("id, code, full_name").order("code").limit(500),
     client.from("course_merges").select("parent_course_id"),
+    client.from("course_overlaps").select("base_course_id, dependent_course_id"),
   ]);
 
-  for (const res of [cohortsRes, coursesRes, teachersRes, mergesRes]) {
+  for (const res of [cohortsRes, coursesRes, teachersRes, mergesRes, overlapsRes]) {
     if (res.error) throw new Error(`Catalog lookup failed: ${res.error.message}`);
   }
 
   const teacherLabel = new Map((teachersRes.data ?? []).map((t) => [t.id, t.full_name ?? t.code] as const));
 
   // Only the composite merge *parent* (the virtual combined session, e.g. "German B AB+SL")
-  // renders read-only. Its atomic children (German B AB, German B SL) stay editable courses.
+  // carries the "Merged" badge. Its atomic children (German B AB, German B SL) are plain courses.
   const mergeParentIds = new Set<string>();
   for (const m of mergesRes.data ?? []) {
     mergeParentIds.add(m.parent_course_id);
+  }
+
+  // dependent course id → its base-course ids (this course's students also attend those bases).
+  const overlapsByDependent = new Map<string, string[]>();
+  for (const o of overlapsRes.data ?? []) {
+    const bases = overlapsByDependent.get(o.dependent_course_id) ?? [];
+    bases.push(o.base_course_id);
+    overlapsByDependent.set(o.dependent_course_id, bases);
   }
 
   return {
@@ -53,6 +62,7 @@ const fetchCatalog = async (client: NonNullable<typeof supabase>): Promise<Catal
       teacherId: c.teacher_id,
       teacherLabel: c.teacher_id ? (teacherLabel.get(c.teacher_id) ?? null) : null,
       isMerged: mergeParentIds.has(c.id),
+      overlaps: overlapsByDependent.get(c.id) ?? [],
     })),
     teachers: (teachersRes.data ?? []).map((t) => ({ id: t.id, label: t.full_name ?? t.code })),
   };

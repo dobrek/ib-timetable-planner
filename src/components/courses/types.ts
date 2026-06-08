@@ -4,7 +4,11 @@
  * opaque ids, display labels resolved at the edge, never the raw `Database` row shape.
  */
 
-/** One course row in the catalog table. `isMerged` rows render read-only (no edit/delete/overlap). */
+/**
+ * One course row in the catalog table. `isMerged` flags a composite merge parent (display
+ * badge only). `overlaps` are the base-course ids this course depends on — its students
+ * also attend those base courses (directed `course_overlaps`, this row is the dependent).
+ */
 export type CourseRow = {
   id: string;
   cohortId: string;
@@ -15,6 +19,7 @@ export type CourseRow = {
   teacherId: string | null;
   teacherLabel: string | null;
   isMerged: boolean;
+  overlaps: string[];
 };
 
 /** A cohort presented as a tab. `label` is the school-year display ("Year 1" / "Year 2"). */

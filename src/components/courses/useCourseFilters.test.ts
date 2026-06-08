@@ -12,6 +12,7 @@ const row = (id: string, cohortId: string, teacherId: string | null): CourseRow 
   teacherId,
   teacherLabel: teacherId,
   isMerged: false,
+  overlaps: [],
 });
 
 const courses: CourseRow[] = [row("a", "c1", "t1"), row("b", "c1", "t2"), row("c", "c2", "t1"), row("d", "c1", null)];
@@ -33,9 +34,15 @@ describe("filterCourses", () => {
     expect(filterCourses(courses, "c1", ["t1"]).some((r) => r.id === "d")).toBe(false);
   });
 
+  it("drops merged courses when hideMerged is set", () => {
+    const withMerged: CourseRow[] = [...courses, { ...row("e", "c1", "t1"), isMerged: true }];
+    expect(filterCourses(withMerged, "c1", [], true).map((r) => r.id)).toEqual(["a", "b", "d"]);
+    expect(filterCourses(withMerged, "c1", [], false).map((r) => r.id)).toEqual(["a", "b", "d", "e"]);
+  });
+
   it("does not mutate its inputs", () => {
     const snapshot = JSON.stringify(courses);
-    filterCourses(courses, "c1", ["t1"]);
+    filterCourses(courses, "c1", ["t1"], true);
     expect(JSON.stringify(courses)).toBe(snapshot);
   });
 });

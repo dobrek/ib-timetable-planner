@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Combine, Link2, MoreHorizontal, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import MergeManageDialog from "@/components/courses/MergeManageDialog";
 import { TeacherFilter } from "@/components/courses/TeacherFilter";
 import { formatCourseLabel } from "@/components/courses/labels";
 import { filterCourses } from "@/components/courses/useCourseFilters";
+import { readFilterParams, toFilterSearch } from "@/components/courses/filterParams";
 import type { CohortTab, CourseRow, TeacherOption } from "@/components/courses/types";
 
 type CourseCatalogProps = {
@@ -45,6 +46,30 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
   const [activeCohortId, setActiveCohortId] = useState(cohorts[0]?.id ?? "");
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [hideMerged, setHideMerged] = useState(false);
+  // Filters start at defaults (matching SSR), then seed from the URL on the client. Until then
+  // we don't mirror back, so the initial default render can't clobber a bookmarked URL.
+  const [filtersReady, setFiltersReady] = useState(false);
+
+  // Seed filter state from the URL once on mount (unknown ids fall back to defaults). The
+  // island is server-rendered with defaults, so reading window in a lazy initializer would
+  // cause a hydration mismatch — seeding after mount is the SSR-safe pattern here.
+  useEffect(() => {
+    const filters = readFilterParams(window.location.search, cohorts, teachers);
+    /* eslint-disable react-hooks/set-state-in-effect -- client-only URL state, seeded after the SSR-matching first render */
+    setActiveCohortId(filters.cohortId);
+    setSelectedTeacherIds(filters.teacherIds);
+    setHideMerged(filters.hideMerged);
+    setFiltersReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [cohorts, teachers]);
+
+  // Mirror filters into the URL so a post-mutation navigate(pathname + search) preserves them.
+  useEffect(() => {
+    if (!filtersReady) return;
+    const search = toFilterSearch({ cohortId: activeCohortId, teacherIds: selectedTeacherIds, hideMerged });
+    const url = window.location.pathname + (search ? `?${search}` : "");
+    window.history.replaceState(window.history.state, "", url);
+  }, [filtersReady, activeCohortId, selectedTeacherIds, hideMerged]);
   const [formState, setFormState] = useState<{ open: boolean; course: CourseRow | null }>({
     open: false,
     course: null,

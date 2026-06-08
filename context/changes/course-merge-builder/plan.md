@@ -387,26 +387,26 @@ No new hot path. The merge query gains one column (`child_course_id`) within the
 
 #### Automated
 
-- [x] 4.1 Type checking / sync passes: `pnpm exec astro sync`
-- [x] 4.2 Linting passes: `pnpm lint`
-- [x] 4.3 Build passes: `pnpm build`
+- [x] 4.1 Type checking / sync passes: `pnpm exec astro sync` — fd380bf
+- [x] 4.2 Linting passes: `pnpm lint` — fd380bf
+- [x] 4.3 Build passes: `pnpm build` — fd380bf
 
 #### Manual
 
-- [x] 4.4 "Manage merge" appears only on merged rows; the dialog lists the correct children
-- [x] 4.5 Editing hours updates the parent and survives reload; grouping reflects the new hours
-- [x] 4.6 Dissolve removes the parent row and its links; the atomic children remain
+- [x] 4.4 "Manage merge" appears only on merged rows; the dialog lists the correct children — fd380bf
+- [x] 4.5 Editing hours updates the parent and survives reload; grouping reflects the new hours — fd380bf
+- [x] 4.6 Dissolve removes the parent row and its links; the atomic children remain — fd380bf
 
 ### Phase 5: Catalog filter-state persistence
 
 #### Automated
 
-- [ ] 5.1 Type checking / sync passes: `pnpm exec astro sync`
-- [ ] 5.2 Linting passes: `pnpm lint`
-- [ ] 5.3 Build passes: `pnpm build`
+- [x] 5.1 Type checking / sync passes: `pnpm exec astro sync`
+- [x] 5.2 Linting passes: `pnpm lint`
+- [x] 5.3 Build passes: `pnpm build`
 
 #### Manual
 
-- [ ] 5.4 Cohort tab, teacher filter, and hide-merged persist after create/edit/delete/merge
-- [ ] 5.5 A bookmarked/shared filtered `/courses?…` URL opens with that filter state applied
-- [ ] 5.6 Unknown ids in the URL fall back to defaults without error
+- [x] 5.4 Cohort tab, teacher filter, and hide-merged persist after create/edit/delete/merge
+- [x] 5.5 A bookmarked/shared filtered `/courses?…` URL opens with that filter state applied
+- [x] 5.6 Unknown ids in the URL fall back to defaults without error

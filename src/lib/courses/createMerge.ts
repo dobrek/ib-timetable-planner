@@ -68,7 +68,14 @@ export const createMerge = async (supabase: Supabase, input: MergeInput) => {
       }
     },
     deleteParent: async (parent) => {
-      await supabase.from("courses").delete().eq("id", parent.id);
+      const { error } = await supabase.from("courses").delete().eq("id", parent.id);
+      if (error) {
+        // Double fault: the link insert failed AND its compensating cleanup failed,
+        // leaving an orphan parent. Surface it for tracing — the original link error
+        // is still rethrown to the caller by writeMergeAtomic.
+        // eslint-disable-next-line no-console
+        console.error(`[createMerge] orphan parent ${parent.id} left after failed cleanup: ${error.message}`);
+      }
     },
   });
 };

@@ -25,7 +25,7 @@ const fetchCatalog = async (client: NonNullable<typeof supabase>): Promise<Catal
       .order("name")
       .limit(500),
     client.from("teachers").select("id, code, full_name").order("code").limit(500),
-    client.from("course_merges").select("parent_course_id").limit(500),
+    client.from("course_merges").select("parent_course_id, child_course_id").limit(500),
     client.from("course_overlaps").select("base_course_id, dependent_course_id").limit(500),
   ]);
 
@@ -38,8 +38,13 @@ const fetchCatalog = async (client: NonNullable<typeof supabase>): Promise<Catal
   // Only the composite merge *parent* (the virtual combined session, e.g. "German B AB+SL")
   // carries the "Merged" badge. Its atomic children (German B AB, German B SL) are plain courses.
   const mergeParentIds = new Set<string>();
+  // parent course id → its child course ids (so the manage dialog can list them).
+  const childIdsByParent = new Map<string, string[]>();
   for (const m of mergesRes.data ?? []) {
     mergeParentIds.add(m.parent_course_id);
+    const children = childIdsByParent.get(m.parent_course_id) ?? [];
+    children.push(m.child_course_id);
+    childIdsByParent.set(m.parent_course_id, children);
   }
 
   // dependent course id → its base-course ids (this course's students also attend those bases).
@@ -62,6 +67,7 @@ const fetchCatalog = async (client: NonNullable<typeof supabase>): Promise<Catal
       teacherId: c.teacher_id,
       teacherLabel: c.teacher_id ? (teacherLabel.get(c.teacher_id) ?? null) : null,
       isMerged: mergeParentIds.has(c.id),
+      mergeChildIds: childIdsByParent.get(c.id) ?? [],
       overlaps: overlapsByDependent.get(c.id) ?? [],
     })),
     teachers: (teachersRes.data ?? []).map((t) => ({ id: t.id, label: t.full_name ?? t.code })),

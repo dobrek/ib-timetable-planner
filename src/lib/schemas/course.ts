@@ -58,7 +58,22 @@ export const mergeInput = z.object({
   cohortId: z.uuid(),
 });
 
+export const deleteCourseInput = z.object({ id: z.uuid() });
+
+export const deleteOverlapInput = z.object({ baseCourseId: z.uuid(), dependentCourseId: z.uuid() });
+
+export const dissolveMergeInput = z.object({ parentCourseId: z.uuid() });
+
+export const updateMergeHoursInput = z.object({
+  parentCourseId: z.uuid(),
+  hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
+});
+
 export type CourseInput = z.infer<typeof courseInput>;
 export type UpdateCourseInput = z.infer<typeof updateCourseInput>;
 export type OverlapInput = z.infer<typeof overlapInput>;
 export type MergeInput = z.infer<typeof mergeInput>;
+export type DeleteCourseInput = z.infer<typeof deleteCourseInput>;
+export type DeleteOverlapInput = z.infer<typeof deleteOverlapInput>;
+export type DissolveMergeInput = z.infer<typeof dissolveMergeInput>;
+export type UpdateMergeHoursInput = z.infer<typeof updateMergeHoursInput>;

@@ -1,10 +1,24 @@
 import { ActionError, defineAction, type ActionAPIContext } from "astro:actions";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase";
-import { courseInput, overlapInput, updateCourseInput } from "@/lib/schemas/course";
-
-/** PostgREST surfaces a Postgres unique-constraint violation with this SQLSTATE. */
-const UNIQUE_VIOLATION = "23505";
+import { DomainError } from "@/lib/errors";
+import {
+  courseInput,
+  deleteCourseInput,
+  deleteOverlapInput,
+  dissolveMergeInput,
+  mergeInput,
+  overlapInput,
+  updateCourseInput,
+  updateMergeHoursInput,
+} from "@/lib/schemas/course";
+import { createCourse } from "@/lib/courses/createCourse";
+import { updateCourse } from "@/lib/courses/updateCourse";
+import { deleteCourse } from "@/lib/courses/deleteCourse";
+import { createOverlap } from "@/lib/courses/createOverlap";
+import { deleteOverlap } from "@/lib/courses/deleteOverlap";
+import { createMerge } from "@/lib/courses/createMerge";
+import { dissolveMerge } from "@/lib/courses/dissolveMerge";
+import { updateMergeHours } from "@/lib/courses/updateMergeHours";
 
 type Supabase = NonNullable<ReturnType<typeof createClient>>;
 
@@ -27,142 +41,96 @@ function requireSupabase(context: ActionAPIContext): Supabase {
   return supabase;
 }
 
-const DUPLICATE_COURSE_MESSAGE = "A course with this name, level, and group already exists in this cohort.";
+/**
+ * Run a domain function and translate its framework-free `DomainError` into Astro's
+ * `ActionError` (codes are a 1:1 subset). Non-domain throws propagate unchanged.
+ */
+async function runDomain<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof DomainError) {
+      throw new ActionError({ code: error.code, message: error.message });
+    }
+    throw error;
+  }
+}
 
-// NOTE: Merge involvement does NOT gate mutations this slice. Both composite parents and
-// their atomic children are freely editable (name, hours, teacher, …); the "Merged" badge
-// is display-only. Merge-specific edit/delete/overlap constraints are deferred to the
-// merge-builder slice, where the hours/direction invariant gets settled.
+// NOTE: Merge involvement does NOT gate the atomic-course mutations this slice. Both
+// composite parents and their atomic children are freely editable (name, hours, teacher, …)
+// via createCourse/updateCourse; the "Merged" badge is display-only. The merge-specific
+// actions author/edit/dissolve the composite parent.
 
 export const server = {
   createCourse: defineAction({
     input: courseInput,
-    handler: async (input, context) => {
+    handler: (input, context) => {
       requireSession(context);
       const supabase = requireSupabase(context);
-
-      const { data, error } = await supabase
-        .from("courses")
-        .insert({
-          cohort_id: input.cohortId,
-          teacher_id: input.teacherId,
-          name: input.name,
-          level: input.level,
-          group_index: input.groupIndex,
-          hours_per_week: input.hoursPerWeek,
-        })
-        .select()
-        .single();
-
-      if (error?.code === UNIQUE_VIOLATION) {
-        throw new ActionError({ code: "CONFLICT", message: DUPLICATE_COURSE_MESSAGE });
-      }
-      if (error) {
-        throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: `Failed to create course: ${error.message}` });
-      }
-      return data;
+      return runDomain(() => createCourse(supabase, input));
     },
   }),
 
   updateCourse: defineAction({
     input: updateCourseInput,
-    handler: async (input, context) => {
+    handler: (input, context) => {
       requireSession(context);
       const supabase = requireSupabase(context);
-
-      const { data, error } = await supabase
-        .from("courses")
-        .update({
-          cohort_id: input.cohortId,
-          teacher_id: input.teacherId,
-          name: input.name,
-          level: input.level,
-          group_index: input.groupIndex,
-          hours_per_week: input.hoursPerWeek,
-        })
-        .eq("id", input.id)
-        .select()
-        .single();
-
-      if (error?.code === UNIQUE_VIOLATION) {
-        throw new ActionError({ code: "CONFLICT", message: DUPLICATE_COURSE_MESSAGE });
-      }
-      if (error) {
-        throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: `Failed to update course: ${error.message}` });
-      }
-      return data;
+      return runDomain(() => updateCourse(supabase, input));
     },
   }),
 
   deleteCourse: defineAction({
-    input: z.object({ id: z.uuid() }),
-    handler: async (input, context) => {
+    input: deleteCourseInput,
+    handler: (input, context) => {
       requireSession(context);
       const supabase = requireSupabase(context);
-
-      const { error } = await supabase.from("courses").delete().eq("id", input.id);
-      if (error) {
-        throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: `Failed to delete course: ${error.message}` });
-      }
-      return { ok: true as const };
+      return runDomain(() => deleteCourse(supabase, input));
     },
   }),
 
   createOverlap: defineAction({
     input: overlapInput,
-    handler: async (input, context) => {
+    handler: (input, context) => {
       requireSession(context);
       const supabase = requireSupabase(context);
-
-      // Both courses must belong to the same cohort — overlaps are within a school year.
-      const { data: courses, error: lookupError } = await supabase
-        .from("courses")
-        .select("id, cohort_id")
-        .in("id", [input.baseCourseId, input.dependentCourseId]);
-      if (lookupError) {
-        throw new ActionError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: `Course lookup failed: ${lookupError.message}`,
-        });
-      }
-      if (courses.length !== 2) {
-        throw new ActionError({ code: "NOT_FOUND", message: "One or both courses no longer exist." });
-      }
-      if (courses[0].cohort_id !== courses[1].cohort_id) {
-        throw new ActionError({ code: "BAD_REQUEST", message: "Overlapping courses must be in the same cohort." });
-      }
-
-      const { data, error } = await supabase
-        .from("course_overlaps")
-        .insert({ base_course_id: input.baseCourseId, dependent_course_id: input.dependentCourseId })
-        .select()
-        .single();
-
-      if (error?.code === UNIQUE_VIOLATION) {
-        throw new ActionError({ code: "CONFLICT", message: "This overlap already exists." });
-      }
-      if (error) {
-        throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: `Failed to create overlap: ${error.message}` });
-      }
-      return data;
+      return runDomain(() => createOverlap(supabase, input));
     },
   }),
 
   deleteOverlap: defineAction({
-    input: z.object({ baseCourseId: z.uuid(), dependentCourseId: z.uuid() }),
-    handler: async (input, context) => {
+    input: deleteOverlapInput,
+    handler: (input, context) => {
       requireSession(context);
       const supabase = requireSupabase(context);
+      return runDomain(() => deleteOverlap(supabase, input));
+    },
+  }),
 
-      const { error } = await supabase
-        .from("course_overlaps")
-        .delete()
-        .eq("base_course_id", input.baseCourseId)
-        .eq("dependent_course_id", input.dependentCourseId);
-      if (error) {
-        throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: `Failed to delete overlap: ${error.message}` });
-      }
-      return { ok: true as const };
+  createMerge: defineAction({
+    input: mergeInput,
+    handler: (input, context) => {
+      requireSession(context);
+      const supabase = requireSupabase(context);
+      return runDomain(() => createMerge(supabase, input));
+    },
+  }),
+
+  dissolveMerge: defineAction({
+    input: dissolveMergeInput,
+    handler: (input, context) => {
+      requireSession(context);
+      const supabase = requireSupabase(context);
+      return runDomain(() => dissolveMerge(supabase, input));
+    },
+  }),
+
+  updateMergeHours: defineAction({
+    input: updateMergeHoursInput,
+    handler: (input, context) => {
+      requireSession(context);
+      const supabase = requireSupabase(context);
+      return runDomain(() => updateMergeHours(supabase, input));
     },
   }),
 };

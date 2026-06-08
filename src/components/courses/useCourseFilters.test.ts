@@ -12,6 +12,7 @@ const row = (id: string, cohortId: string, teacherId: string | null): CourseRow 
   teacherId,
   teacherLabel: teacherId,
   isMerged: false,
+  mergeChildIds: [],
   overlaps: [],
 });
 

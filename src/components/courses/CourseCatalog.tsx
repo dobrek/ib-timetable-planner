@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link2, MoreHorizontal, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Combine, Link2, MoreHorizontal, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,9 +14,12 @@ import { Toaster } from "@/components/ui/sonner";
 import CourseFormDialog from "@/components/courses/CourseFormDialog";
 import CourseOverlaps from "@/components/courses/CourseOverlaps";
 import DeleteCourseDialog from "@/components/courses/DeleteCourseDialog";
+import MergeBuilderDialog from "@/components/courses/MergeBuilderDialog";
+import MergeManageDialog from "@/components/courses/MergeManageDialog";
 import { TeacherFilter } from "@/components/courses/TeacherFilter";
 import { formatCourseLabel } from "@/components/courses/labels";
 import { filterCourses } from "@/components/courses/useCourseFilters";
+import { readFilterParams, toFilterSearch } from "@/components/courses/filterParams";
 import type { CohortTab, CourseRow, TeacherOption } from "@/components/courses/types";
 
 type CourseCatalogProps = {
@@ -43,15 +46,42 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
   const [activeCohortId, setActiveCohortId] = useState(cohorts[0]?.id ?? "");
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [hideMerged, setHideMerged] = useState(false);
+  // Filters start at defaults (matching SSR), then seed from the URL on the client. Until then
+  // we don't mirror back, so the initial default render can't clobber a bookmarked URL.
+  const [filtersReady, setFiltersReady] = useState(false);
+
+  // Seed filter state from the URL once on mount (unknown ids fall back to defaults). The
+  // island is server-rendered with defaults, so reading window in a lazy initializer would
+  // cause a hydration mismatch — seeding after mount is the SSR-safe pattern here.
+  useEffect(() => {
+    const filters = readFilterParams(window.location.search, cohorts, teachers);
+    /* eslint-disable react-hooks/set-state-in-effect -- client-only URL state, seeded after the SSR-matching first render */
+    setActiveCohortId(filters.cohortId);
+    setSelectedTeacherIds(filters.teacherIds);
+    setHideMerged(filters.hideMerged);
+    setFiltersReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [cohorts, teachers]);
+
+  // Mirror filters into the URL so a post-mutation navigate(pathname + search) preserves them.
+  useEffect(() => {
+    if (!filtersReady) return;
+    const search = toFilterSearch({ cohortId: activeCohortId, teacherIds: selectedTeacherIds, hideMerged });
+    const url = window.location.pathname + (search ? `?${search}` : "");
+    window.history.replaceState(window.history.state, "", url);
+  }, [filtersReady, activeCohortId, selectedTeacherIds, hideMerged]);
   const [formState, setFormState] = useState<{ open: boolean; course: CourseRow | null }>({
     open: false,
     course: null,
   });
   const [deleteTarget, setDeleteTarget] = useState<CourseRow | null>(null);
   const [overlapTargetId, setOverlapTargetId] = useState<string | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeManageTargetId, setMergeManageTargetId] = useState<string | null>(null);
 
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
   const overlapCourse = overlapTargetId !== null ? (coursesById.get(overlapTargetId) ?? null) : null;
+  const mergeManageCourse = mergeManageTargetId !== null ? (coursesById.get(mergeManageTargetId) ?? null) : null;
 
   const openCreate = () => {
     setFormState({ open: true, course: null });
@@ -72,10 +102,22 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Courses</h1>
           <p className="text-muted-foreground mt-1 text-sm">Manage the cross-cohort course catalog.</p>
         </div>
-        <Button className="gap-2" onClick={openCreate}>
-          <Plus aria-hidden="true" />
-          New course
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              setMergeOpen(true);
+            }}
+          >
+            <Combine aria-hidden="true" />
+            New merge
+          </Button>
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus aria-hidden="true" />
+            New course
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -112,6 +154,9 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
                 onManageOverlaps={(course) => {
                   setOverlapTargetId(course.id);
                 }}
+                onManageMerge={(course) => {
+                  setMergeManageTargetId(course.id);
+                }}
                 onDelete={setDeleteTarget}
               />
             </TabsContent>
@@ -143,6 +188,20 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
           if (!open) setOverlapTargetId(null);
         }}
       />
+      <MergeBuilderDialog
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        courses={courses}
+        teachers={teachers}
+        cohortId={activeCohortId}
+      />
+      <MergeManageDialog
+        course={mergeManageCourse}
+        courses={courses}
+        onOpenChange={(open) => {
+          if (!open) setMergeManageTargetId(null);
+        }}
+      />
       <Toaster />
     </div>
   );
@@ -153,10 +212,11 @@ type CourseTableProps = {
   coursesById: Map<string, CourseRow>;
   onEdit: (course: CourseRow) => void;
   onManageOverlaps: (course: CourseRow) => void;
+  onManageMerge: (course: CourseRow) => void;
   onDelete: (course: CourseRow) => void;
 };
 
-function CourseTable({ rows, coursesById, onEdit, onManageOverlaps, onDelete }: CourseTableProps) {
+function CourseTable({ rows, coursesById, onEdit, onManageOverlaps, onManageMerge, onDelete }: CourseTableProps) {
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No courses match the current filter.</p>;
   }
@@ -189,7 +249,13 @@ function CourseTable({ rows, coursesById, onEdit, onManageOverlaps, onDelete }: 
               <TableCell className="text-right">{row.hours}</TableCell>
               <TableCell>{row.teacherLabel ?? "—"}</TableCell>
               <TableCell className="text-right">
-                <CourseRowActions row={row} onEdit={onEdit} onManageOverlaps={onManageOverlaps} onDelete={onDelete} />
+                <CourseRowActions
+                  row={row}
+                  onEdit={onEdit}
+                  onManageOverlaps={onManageOverlaps}
+                  onManageMerge={onManageMerge}
+                  onDelete={onDelete}
+                />
               </TableCell>
             </TableRow>
           ))}
@@ -241,11 +307,12 @@ type CourseRowActionsProps = {
   row: CourseRow;
   onEdit: (course: CourseRow) => void;
   onManageOverlaps: (course: CourseRow) => void;
+  onManageMerge: (course: CourseRow) => void;
   onDelete: (course: CourseRow) => void;
 };
 
-/** Per-row kebab — present on every course. */
-function CourseRowActions({ row, onEdit, onManageOverlaps, onDelete }: CourseRowActionsProps) {
+/** Per-row kebab — present on every course. "Manage merge" shows only on composite parents. */
+function CourseRowActions({ row, onEdit, onManageOverlaps, onManageMerge, onDelete }: CourseRowActionsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -268,6 +335,15 @@ function CourseRowActions({ row, onEdit, onManageOverlaps, onDelete }: CourseRow
         >
           Manage overlaps
         </DropdownMenuItem>
+        {row.isMerged && (
+          <DropdownMenuItem
+            onSelect={() => {
+              onManageMerge(row);
+            }}
+          >
+            Manage merge
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           variant="destructive"
           onSelect={() => {

@@ -19,6 +19,8 @@ export type CourseRow = {
   teacherId: string | null;
   teacherLabel: string | null;
   isMerged: boolean;
+  /** Child course ids when this row is a composite merge parent; empty otherwise. */
+  mergeChildIds: string[];
   overlaps: string[];
 };
 

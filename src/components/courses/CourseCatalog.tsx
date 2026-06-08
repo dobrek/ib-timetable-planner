@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link2, MoreHorizontal, Plus } from "lucide-react";
+import { Combine, Link2, MoreHorizontal, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/sonner";
 import CourseFormDialog from "@/components/courses/CourseFormDialog";
 import CourseOverlaps from "@/components/courses/CourseOverlaps";
 import DeleteCourseDialog from "@/components/courses/DeleteCourseDialog";
+import MergeBuilderDialog from "@/components/courses/MergeBuilderDialog";
 import { TeacherFilter } from "@/components/courses/TeacherFilter";
 import { formatCourseLabel } from "@/components/courses/labels";
 import { filterCourses } from "@/components/courses/useCourseFilters";
@@ -49,6 +50,7 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
   });
   const [deleteTarget, setDeleteTarget] = useState<CourseRow | null>(null);
   const [overlapTargetId, setOverlapTargetId] = useState<string | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
   const overlapCourse = overlapTargetId !== null ? (coursesById.get(overlapTargetId) ?? null) : null;
@@ -72,10 +74,22 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Courses</h1>
           <p className="text-muted-foreground mt-1 text-sm">Manage the cross-cohort course catalog.</p>
         </div>
-        <Button className="gap-2" onClick={openCreate}>
-          <Plus aria-hidden="true" />
-          New course
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              setMergeOpen(true);
+            }}
+          >
+            <Combine aria-hidden="true" />
+            New merge
+          </Button>
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus aria-hidden="true" />
+            New course
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -142,6 +156,13 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
         onOpenChange={(open) => {
           if (!open) setOverlapTargetId(null);
         }}
+      />
+      <MergeBuilderDialog
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        courses={courses}
+        teachers={teachers}
+        cohortId={activeCohortId}
       />
       <Toaster />
     </div>

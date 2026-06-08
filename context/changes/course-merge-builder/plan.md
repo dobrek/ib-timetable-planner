@@ -357,31 +357,31 @@ No new hot path. The merge query gains one column (`child_course_id`) within the
 
 #### Automated
 
-- [x] 2.1 Type checking / sync passes: `pnpm exec astro sync`
-- [x] 2.2 Linting passes: `pnpm lint`
-- [x] 2.3 Build passes: `pnpm build`
+- [x] 2.1 Type checking / sync passes: `pnpm exec astro sync` — e24adb6
+- [x] 2.2 Linting passes: `pnpm lint` — e24adb6
+- [x] 2.3 Build passes: `pnpm build` — e24adb6
 
 #### Manual
 
-- [x] 2.4 `createMerge` with 2 valid children creates a 0-choice composite parent + links; grouping includes it as a virtual course with no code change
-- [x] 2.5 A unit test of the `writeMergeAtomic` seam (stubbed `insertLinks` throws) proves the parent is deleted — a link failure leaves no orphan parent row
-- [x] 2.6 `dissolveMerge` removes the parent and its links; children remain
-- [x] 2.7 `updateMergeHours` changes the parent's hours and grouping reflects it
+- [x] 2.4 `createMerge` with 2 valid children creates a 0-choice composite parent + links; grouping includes it as a virtual course with no code change — e24adb6
+- [x] 2.5 A unit test of the `writeMergeAtomic` seam (stubbed `insertLinks` throws) proves the parent is deleted — a link failure leaves no orphan parent row — e24adb6
+- [x] 2.6 `dissolveMerge` removes the parent and its links; children remain — e24adb6
+- [x] 2.7 `updateMergeHours` changes the parent's hours and grouping reflects it — e24adb6
 
 ### Phase 3: Merge builder dialog (create)
 
 #### Automated
 
-- [ ] 3.1 Type checking / sync passes: `pnpm exec astro sync`
-- [ ] 3.2 Linting passes: `pnpm lint`
-- [ ] 3.3 Build passes: `pnpm build`
+- [x] 3.1 Type checking / sync passes: `pnpm exec astro sync`
+- [x] 3.2 Linting passes: `pnpm lint`
+- [x] 3.3 Build passes: `pnpm build`
 
 #### Manual
 
-- [ ] 3.4 Selecting 2 valid children shows correct derived name + level + teacher; Confirm creates the merge and the badged parent appears
-- [ ] 3.5 Mismatched teacher / mismatched name / duplicate level / <2 children shows inline error and disables Confirm
-- [ ] 3.6 Composite merge parents are excluded from the candidate picker
-- [ ] 3.7 3-way merge (`AB+SL+HL`) derives and persists correctly
+- [x] 3.4 Selecting 2 valid children shows correct derived name + level + teacher; Confirm creates the merge and the badged parent appears
+- [x] 3.5 Mismatched teacher / mismatched name / duplicate level / <2 children shows inline error and disables Confirm
+- [x] 3.6 Composite merge parents are excluded from the candidate picker
+- [x] 3.7 3-way merge (`AB+SL+HL`) derives and persists correctly
 
 ### Phase 4: Manage merge (edit hours + dissolve)
 

@@ -1,10 +1,10 @@
 ---
 change_id: course-catalog
 title: Course catalog
-status: implemented
+status: impl_reviewed
 created: 2026-06-07
 updated: 2026-06-08
-last_note: "P4 done (overlap authoring). Overlap edits update island state in-memory (dialog stays open, no reload); list shows a clickable 'Overlap: <full label>' badge (opens the manager); 'Hide merged' filter toggle added. 4.9 deviation accepted by user: overlap picker excludes self + already-linked + cross-cohort, but does NOT exclude merged parents (consistent with merge-deferral). DS cursor-pointer also added to the Dialog close (X). All phases implemented."
+last_note: "Impl review (full plan): APPROVED, all dimensions PASS, gate green (83 tests, build, lint, astro check). 3 low-impact observations, all fixed during triage — F1 defensive .limit(500) on course_merges/overlaps reads; F2 detokenized shadcn literals (text-white→text-destructive-foreground, bg-black/50→bg-overlay; added the tokens to global.css; recorded as a lesson); F3 plan cross-ref for the DS cursor-pointer touch to pre-existing primitives. Report: reviews/impl-review.md."
 archived_at: null
 ---
 

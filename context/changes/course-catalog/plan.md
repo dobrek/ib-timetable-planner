@@ -96,7 +96,7 @@ Install the CRUD stack, scaffold the shadcn primitives, define the shared Zod sc
 
 **Intent**: Add the UI primitives the catalog needs; they are token-based (new-york + Tailwind v4) and satisfy lessons rule #2 out of the box.
 
-**Contract**: Add `input`, `label`, `form`, `dialog`, `alert-dialog`, `table`, `tabs`, `popover`, `command`, `dropdown-menu`, `sonner`. (`select`, `button`, `badge` already exist.) Use the project's shadcn invocation (`components.json` is configured). `popover` + `command` compose the teacher multi-select; `dropdown-menu` is the per-row kebab actions menu; `sonner` provides success toasts (mount its `<Toaster>` once in the island).
+**Contract**: Add `input`, `label`, `form`, `dialog`, `alert-dialog`, `table`, `tabs`, `popover`, `command`, `dropdown-menu`, `sonner`. (`select`, `button`, `badge` already exist; the pre-existing `select`/`button`/`dropdown-menu`/`command` are touched only for the DS-level `cursor-pointer` addition — see `change.md` Phase 3 deviations.) Use the project's shadcn invocation (`components.json` is configured). `popover` + `command` compose the teacher multi-select; `dropdown-menu` is the per-row kebab actions menu; `sonner` provides success toasts (mount its `<Toaster>` once in the island).
 
 #### 3. Shared Zod schemas
 

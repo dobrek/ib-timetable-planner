@@ -25,8 +25,8 @@ const fetchCatalog = async (client: NonNullable<typeof supabase>): Promise<Catal
       .order("name")
       .limit(500),
     client.from("teachers").select("id, code, full_name").order("code").limit(500),
-    client.from("course_merges").select("parent_course_id"),
-    client.from("course_overlaps").select("base_course_id, dependent_course_id"),
+    client.from("course_merges").select("parent_course_id").limit(500),
+    client.from("course_overlaps").select("base_course_id, dependent_course_id").limit(500),
   ]);
 
   for (const res of [cohortsRes, coursesRes, teachersRes, mergesRes, overlapsRes]) {

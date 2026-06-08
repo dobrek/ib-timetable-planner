@@ -29,24 +29,10 @@ function requireSupabase(context: ActionAPIContext): Supabase {
 
 const DUPLICATE_COURSE_MESSAGE = "A course with this name, level, and group already exists in this cohort.";
 
-/**
- * Defense in depth: the UI hides edit/delete/overlap affordances on merge-involved courses,
- * but the action enforces it too. Rejects if ANY of the given course ids appears as a
- * parent or child in `course_merges`.
- */
-async function assertNotMergeInvolved(supabase: Supabase, courseIds: string[]): Promise<void> {
-  const { data, error } = await supabase
-    .from("course_merges")
-    .select("parent_course_id, child_course_id")
-    .or([`parent_course_id.in.(${courseIds.join(",")})`, `child_course_id.in.(${courseIds.join(",")})`].join(","))
-    .limit(1);
-  if (error) {
-    throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: `Merge lookup failed: ${error.message}` });
-  }
-  if (data.length > 0) {
-    throw new ActionError({ code: "FORBIDDEN", message: "Merge-involved courses cannot be modified here." });
-  }
-}
+// NOTE: Merge involvement does NOT gate mutations this slice. Both composite parents and
+// their atomic children are freely editable (name, hours, teacher, …); the "Merged" badge
+// is display-only. Merge-specific edit/delete/overlap constraints are deferred to the
+// merge-builder slice, where the hours/direction invariant gets settled.
 
 export const server = {
   createCourse: defineAction({
@@ -83,7 +69,6 @@ export const server = {
     handler: async (input, context) => {
       requireSession(context);
       const supabase = requireSupabase(context);
-      await assertNotMergeInvolved(supabase, [input.id]);
 
       const { data, error } = await supabase
         .from("courses")
@@ -114,7 +99,6 @@ export const server = {
     handler: async (input, context) => {
       requireSession(context);
       const supabase = requireSupabase(context);
-      await assertNotMergeInvolved(supabase, [input.id]);
 
       const { error } = await supabase.from("courses").delete().eq("id", input.id);
       if (error) {
@@ -129,7 +113,6 @@ export const server = {
     handler: async (input, context) => {
       requireSession(context);
       const supabase = requireSupabase(context);
-      await assertNotMergeInvolved(supabase, [input.baseCourseId, input.dependentCourseId]);
 
       // Both courses must belong to the same cohort — overlaps are within a school year.
       const { data: courses, error: lookupError } = await supabase

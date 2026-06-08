@@ -341,33 +341,33 @@ None — zero schema change. The slice operates entirely on F-02's existing tabl
 
 #### Automated
 
-- [x] 1.1 Dependencies install: `pnpm install`
-- [x] 1.2 Single runtime Zod: `pnpm why zod` shows one 4.x reaching the app
-- [x] 1.3 Type checking passes: `pnpm exec astro sync && pnpm exec astro check`
-- [x] 1.4 Schema unit tests pass: `pnpm test`
-- [x] 1.5 Linting passes: `pnpm lint`
-- [x] 1.6 Production build passes: `pnpm build`
+- [x] 1.1 Dependencies install: `pnpm install` — 805c79a
+- [x] 1.2 Single runtime Zod: `pnpm why zod` shows one 4.x reaching the app — 805c79a
+- [x] 1.3 Type checking passes: `pnpm exec astro sync && pnpm exec astro check` — 805c79a
+- [x] 1.4 Schema unit tests pass: `pnpm test` — 805c79a
+- [x] 1.5 Linting passes: `pnpm lint` — 805c79a
+- [x] 1.6 Production build passes: `pnpm build` — 805c79a
 
 #### Manual
 
-- [x] 1.7 `astro:actions` import resolves and the five actions are typed end-to-end
-- [x] 1.8 No dev-server "Invalid hook call" regression after adding RHF
+- [x] 1.7 `astro:actions` import resolves and the five actions are typed end-to-end — 805c79a
+- [x] 1.8 No dev-server "Invalid hook call" regression after adding RHF — 805c79a
 
 ### Phase 2: Read path — cohort tabs + course list
 
 #### Automated
 
-- [ ] 2.1 Type checking passes: `pnpm exec astro check`
-- [ ] 2.2 Linting passes: `pnpm lint`
-- [ ] 2.3 Build passes: `pnpm build`
-- [ ] 2.4 Existing tests still pass: `pnpm test`
+- [x] 2.1 Type checking passes: `pnpm exec astro check`
+- [x] 2.2 Linting passes: `pnpm lint`
+- [x] 2.3 Build passes: `pnpm build`
+- [x] 2.4 Existing tests still pass: `pnpm test`
 
 #### Manual
 
-- [ ] 2.5 `/courses` lists seeded courses; Year 1 / Year 2 tabs switch the list
-- [ ] 2.6 Teacher filter narrows rows; clearing restores all
-- [ ] 2.7 Merge-parent rows tagged "Merged" with no edit/delete
-- [ ] 2.8 Supabase-down → 503; empty cohort → empty state; no hardcoded colors
+- [x] 2.5 `/courses` lists seeded courses; Year 1 / Year 2 tabs switch the list
+- [x] 2.6 Teacher filter narrows rows; clearing restores all
+- [x] 2.7 Merge-parent rows tagged "Merged" with no edit/delete
+- [x] 2.8 Supabase-down → 503; empty cohort → empty state; no hardcoded colors
 
 ### Phase 3: Mutations — create / edit / delete atomic courses
 

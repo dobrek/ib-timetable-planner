@@ -345,13 +345,13 @@ No new hot path. The merge query gains one column (`child_course_id`) within the
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass: `pnpm test`
-- [ ] 1.2 Type checking / sync passes: `pnpm exec astro sync`
-- [ ] 1.3 Linting passes: `pnpm lint`
+- [x] 1.1 Unit tests pass: `pnpm test`
+- [x] 1.2 Type checking / sync passes: `pnpm exec astro sync`
+- [x] 1.3 Linting passes: `pnpm lint`
 
 #### Manual
 
-- [ ] 1.4 `deriveMergeParent` produces `AB+SL` order-independently and rejects duplicate levels, mixed cohorts, mismatched names, and mismatched/missing teachers with the correct reason
+- [x] 1.4 `deriveMergeParent` produces `AB+SL` order-independently and rejects duplicate levels, mixed cohorts, mismatched names, and mismatched/missing teachers with the correct reason
 
 ### Phase 2: Server mutation + read-path projection
 

@@ -45,6 +45,20 @@ export const overlapInput = z
     path: ["baseCourseId"],
   });
 
+/**
+ * Authoritative input contract for `createMerge`, shared between the action gate and
+ * the builder dialog's resolver. Carries only the raw author inputs; the parent's
+ * derived fields (name, level, teacher) are computed server-side from the children
+ * (via `deriveMergeParent`) to prevent client spoofing. `cohortId` is carried only to
+ * assert against the children-derived cohort — never trusted as the parent's cohort.
+ */
+export const mergeInput = z.object({
+  childCourseIds: z.array(z.uuid()).min(2, "Select at least 2 courses to merge"),
+  hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
+  cohortId: z.uuid(),
+});
+
 export type CourseInput = z.infer<typeof courseInput>;
 export type UpdateCourseInput = z.infer<typeof updateCourseInput>;
 export type OverlapInput = z.infer<typeof overlapInput>;
+export type MergeInput = z.infer<typeof mergeInput>;

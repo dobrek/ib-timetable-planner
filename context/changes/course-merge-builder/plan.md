@@ -401,12 +401,12 @@ No new hot path. The merge query gains one column (`child_course_id`) within the
 
 #### Automated
 
-- [x] 5.1 Type checking / sync passes: `pnpm exec astro sync`
-- [x] 5.2 Linting passes: `pnpm lint`
-- [x] 5.3 Build passes: `pnpm build`
+- [x] 5.1 Type checking / sync passes: `pnpm exec astro sync` — 95dec03
+- [x] 5.2 Linting passes: `pnpm lint` — 95dec03
+- [x] 5.3 Build passes: `pnpm build` — 95dec03
 
 #### Manual
 
-- [x] 5.4 Cohort tab, teacher filter, and hide-merged persist after create/edit/delete/merge
-- [x] 5.5 A bookmarked/shared filtered `/courses?…` URL opens with that filter state applied
-- [x] 5.6 Unknown ids in the URL fall back to defaults without error
+- [x] 5.4 Cohort tab, teacher filter, and hide-merged persist after create/edit/delete/merge — 95dec03
+- [x] 5.5 A bookmarked/shared filtered `/courses?…` URL opens with that filter state applied — 95dec03
+- [x] 5.6 Unknown ids in the URL fall back to defaults without error — 95dec03

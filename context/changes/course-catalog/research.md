@@ -9,6 +9,7 @@ tags: [research, codebase, crud, catalog, astro-actions, supabase, conventions]
 status: complete
 last_updated: 2026-06-07
 last_updated_by: Dobromir Kropielnicki
+last_updated_note: "Follow-up 2: investigated the 'school year' model gap — whether an entity should group the two cohorts — and how 'courses for this school year' (cross-cohort list) should surface in the catalog. Verdict: no new entity (PRD is single-snapshot); 'school year' = the implicit cohort pair; catalog gets a cross-cohort view."
 ---
 
 # Research: S-02 Course Catalog — conventions & technology for the first CRUD feature
@@ -162,3 +163,125 @@ These were settled with the user during research and should flow straight into `
 4. **IB Group attribute (PRD Q4 / roadmap S-02 Unknown):** ~~add now or defer?~~ **RESOLVED 2026-06-07 — defer to v2** (keeps S-02 zero-migration). Owner: user.
 5. **List vs page-per-entity UX:** single `/courses` table with create/edit `<Dialog>` (recommended), or separate routes? Owner: user/design. (Lean: single page + dialogs; confirm in `/10x-plan`.)
 6. **Merge-parent presentation in the list:** how to group/tag a merge parent relative to its members so composite-level rows don't read as oddballs. Owner: design. (Open sub-point, not a blocker.)
+
+---
+
+## Follow-up Research 2026-06-07T21:45+0200 — reconcile with landed app-shell
+
+**Trigger:** the original research was written at `09fb5ff` (before the shell existed). The **app-shell change has since landed** — PR #16, commit `637a4a2` (`feat(app-shell): authenticated app shell & navigation convention`). This follow-up re-verifies every S-02 assumption against current `HEAD` and **retires the stale "no shared nav shell" findings**. Two agents read the live files; results below.
+
+### What app-shell changed for S-02 (the new integration contract)
+
+S-02 is now **even smaller** than before: the page scaffold, route, nav entry, auth gate, and theming all already exist. S-02 is purely *fill in the `/courses` body + add the mutation/form stack*. Concretely:
+
+- **`/courses` route + stub already exists.** `src/pages/courses.astro` is a 10-line placeholder that **already wraps `AppShellLayout title="Courses"`** with a token-based `<header>` and the copy *"Course management is coming in S-02."* (`courses.astro:5-9`). This is the file S-02 expands — **not a greenfield page**. `teachers.astro`/`students.astro` are byte-identical-shaped stubs (the repeatable catalog-page pattern).
+- **Shell is opt-in by wrapping, server-rendered, zero-JS.** `src/layouts/AppShellLayout.astro` takes a single optional `title?: string` (`:6-10`), exposes **one default `<slot/>`** centered at `max-w-5xl px-8 py-10` (`:76-79`), and derives everything else internally: user email from `Astro.locals.user` (`:11`), active-nav from `Astro.url.pathname` with **prefix matching** so `/courses` *and* a future `/courses/:id` both highlight "Courses" automatically (`:12-16`). It hydrates **nothing** — any S-02 CRUD interactivity must be its own React island with `client:*` (precedent: `[id].astro:35` `<PlannerBoard client:load />`).
+- **Nav is a typed single-source-of-truth — do NOT edit it.** `src/lib/nav.ts` defines `type NavItem = { href; label; icon: LucideIcon }` and `NAV_ITEMS` already contains `{ /courses, "Courses", BookOpen }` (`nav.ts:13`). The dashboard renders its section cards from this same list, so the Home→Courses link already works. **S-02 touches neither `nav.ts` nor `AppShellLayout`.**
+- **Auth is automatic.** `src/middleware.ts` is deny-by-default; `/courses` is not allowlisted, so unauth → redirect `/auth/signin` (`:40-42`). **No per-page auth check needed.** Post-signin now lands on `/dashboard` (`api/auth/signin.ts:19`).
+- **Theming inherited for free.** No-flash init lives in `Layout.astro:20-26`; the toggle is inline in `AppShellLayout:55-63,84-89`. Using the shell gives both — S-02 writes zero theme code.
+- **There is now a real list-page precedent to copy: `src/pages/plans/index.astro`.** It is the template for the courses list — local row view-model (`type PlanRow = { id; name }`, `:6`), `createClient(Astro.request.headers, Astro.cookies)` (`:8`), a typed fetch helper that **throws on error**, and the **`null` (→ 503 "unavailable") vs `[]` (→ "empty") discriminated render** (`:10-46`), all with semantic tokens. This **strengthens the original Open Q5 lean** (single `/courses` page + dialogs): the read path is already a solved, in-repo pattern. (`[id].astro` shows the detail variant but deliberately uses the thin `Layout`, not the shell.)
+- **`dashboard.astro` was rebuilt token-based** (no hardcoded colors; cards driven by `NAV_ITEMS`) — and `Topbar.astro` + `Welcome.astro` were **deleted**. So the original research's references to `Topbar.astro` as "the only nav component" and `dashboard.astro` as a token-violating dead-end stub are **obsolete**; the new shell files are the positive examples.
+
+### Open questions now resolved by app-shell
+
+- **Q2 (cohort selection in this slice) — RESOLVED.** Cohort is **page-local**, not global: the data model forbids a shell-level switch (a plan/variant spans both cohorts on one grid). Catalog screens get a **per-page cohort picker**; teachers get none. S-02's `/courses` page therefore needs to introduce a **minimal in-page cohort picker** (the 2 seed cohorts) to scope `courses.cohort_id` — there is still **no cohort-selection UI anywhere in the repo**, so S-02 builds the first one. (Decided in `app-shell/research.md` §D + Decision 2.)
+- **Cohort label — RESOLVED → "Year 1 / Year 2"** (match PRD/roadmap, not CLAUDE.md's "Year 12/13"; not the seed's "Diploma Programme Year 1/2"). Use this copy in the picker. (`app-shell/research.md` Decision 5.)
+- **Q5 (list vs page-per-entity) — lean reinforced:** single `/courses` table + create/edit `<Dialog>`, using the `plans/index.astro` read pattern. Still confirm in `/10x-plan`.
+
+### Re-verified UNCHANGED since 09fb5ff (app-shell touched none of these)
+
+`git show --stat 637a4a2` includes **no** `package.json`, `pnpm-lock.yaml`, `supabase/migrations/*`, `src/components/ui/*`, `src/components/auth/*`, `src/actions/*`, `src/lib/schemas/*`, `src/lib/database.types.ts`, or `src/lib/supabase.ts`. So all four original dimensions stand:
+
+- **Deps still to add:** `zod`, `react-hook-form`, `@hookform/resolvers` are **not installed** (absent from `package.json` and, for the latter two, absent from `pnpm-lock.yaml` entirely). Astro is **`6.3.7`**, which bundles **`zod@4.4.3`** at runtime (confirmed via `@astrojs/sitemap` + astro snapshot importers) — so `astro/zod` is **Zod 4**, validating the pinned `zod@^4.4.3` / `@hookform/resolvers@^5.4` decision. The stray `zod@3.25.76` remains **dev-only** (via `eslint-plugin-react-compiler`), never reaching the worker bundle.
+- **shadcn surface unchanged:** still only `button`, `select`, `badge` (+ `LibBadge.astro`) in `src/components/ui/`. Still missing `input`/`label`/`dialog`/`table`/`form`/`textarea`/`checkbox`. `components.json` = new-york, Tailwind v4 (CSS-first, empty `config`), `baseColor: neutral`, lucide.
+- **Schema unchanged:** `courses(... level text not null, group_index smallint, hours_per_week smallint ...)` at `20260602185012_minimal_domain_schema.sql:29-43`; `course_overlaps`/`course_merges` intact; **no DB enums** anywhere; `Enums` block in `database.types.ts:474-476` still empty. No new course-touching migration landed. → **S-02 stays zero-migration.**
+- **Mutation layer unchanged:** `src/actions/`, `src/lib/schemas/`, `src/lib/api.ts` **do not exist yet** (S-02 creates them); S-01 routes `api/placements.ts` + `api/grouping.ts` still present. The per-request `createServerClient<Database>` factory (`supabase.ts:6-25`) and `courses` Row/Insert/Update types are unchanged.
+- **Auth-form token violations unchanged:** `FormField.tsx`/`SubmitButton.tsx`/`ServerError.tsx` still hardcode colors (`text-blue-100/80`, `bg-purple-600`, `border-red-500/30`, …). The original "do not copy verbatim" caution stands — but now the **shell files (`AppShellLayout`, rebuilt `dashboard.astro`) are better token-correct exemplars** than the old planner-component references.
+
+### Net effect on the plan
+
+The CRUD-convention decision (Astro Actions + Zod 4 + RHF + shadcn `<Table>`/`<Dialog>`), the `level`/`group_index` app-enum decision, the merge-builder UX, and zero-migration all **stand verbatim**. App-shell only *shrinks* S-02's surface and *removes* friction: the page, route, nav, auth, theming, and a list-read precedent are now done. The two genuinely new plan inputs from this revisit are (1) **build the per-page cohort picker** ("Year 1 / Year 2") to scope `courses.cohort_id`, and (2) **expand the existing `courses.astro` stub** rather than create a page — wrapping content in `AppShellLayout`'s single slot and following `plans/index.astro` for the read path.
+
+**Follow-up code references:**
+- `src/layouts/AppShellLayout.astro:6-16,52-63,76-89` — props/slot, active-nav prefix match, user email, theme toggle
+- `src/lib/nav.ts:4-17` — `NavItem` type + `NAV_ITEMS` (Courses entry at `:13`)
+- `src/pages/courses.astro:5-9` — the S-02 stub to expand
+- `src/pages/dashboard.astro:6,19-30` — token-based home, cards from `NAV_ITEMS`
+- `src/pages/plans/index.astro:6-46` — Supabase list read + null/empty discriminated states (courses-list template)
+- `src/middleware.ts:7-21,40-42`, `src/pages/api/auth/signin.ts:19` — auto auth gate + post-signin `/dashboard`
+- `context/changes/app-shell/research.md` §D + Decisions 2 & 5 — cohort page-local + "Year 1/Year 2" label
+
+---
+
+## Follow-up Research 2 — 2026-06-07 (git_commit 637a4a2) — the "school year" model gap
+
+**Trigger (user):** *"Courses belong to a cohort (OK), we can have many cohorts (OK), and there's a logical relation between two cohorts — but there's no entity to spin those up. Let's name it a 'school year'. As a user I'd like to see the list of courses I need to take care of in this school year, which covers two cohorts."*
+
+The observation is **factually correct about the schema**, but it points at two different concerns that must be separated before deciding anything. Three read-only agents (PRD/temporal-scope, full `cohort` blast-radius, "how cohorts get spun up today") were spawned; findings below.
+
+### The schema reality (confirmed)
+
+`cohorts` is a **flat table** — `id`, `name unique`, timestamps (`20260602185012_minimal_domain_schema.sql:6-14`). **Nothing links the two cohort rows.** Five tables carry a `cohort_id` FK (`courses:31`, `students:71`, `placements:119`, `course_groupings:134`, plus the `replace_cohort_groupings` RPC param). `plans`/`plan_variants`/`teachers` are cohort-agnostic. The two cohorts exist **only** because `scripts/gen-seed.mjs:268-271` hardcodes exactly two rows — `"Diploma Programme Year 1"` / `"Diploma Programme Year 2"` — with **no pairing field**, **no creation UI**, and the pairing is **implicit by name sort** (`load.ts:34-40` does `.order("name").limit(1)` to grab "Year 1"). So the user is right: nothing "spins up" or pairs the cohorts.
+
+### Two different "spanning" concepts (the key reframing)
+
+The word "school year" is being asked to do two unrelated jobs. They have different answers:
+
+1. **Planning scope — already solved, and it is the `plan`.** The unit that genuinely "spins two cohorts" is the **plan/variant**: `placements`/`course_groupings` are keyed `(variant_id, cohort_id, …)`, so one variant holds Y1 **and** Y2 side-by-side on one grid, and the validator's whole job is the **cross-cohort** teacher constraint (a Y1-busy teacher blocks the same Y2 slot). PRD names this explicitly: *"A plan spans two cohorts"* (`prd.md:109`, FR-009); *"each variant captures placements for both cohorts"* (`prd.md:110`, FR-010). **A "school year" entity is not needed to make planning span two cohorts — the plan already does.**
+
+2. **Catalog scope — a read/view concern, no entity required.** "The courses I need to take care of this school year" = **the union of both cohorts' courses**. Today `courses.cohort_id` is mandatory, and the app-shell decision gave the catalog a *single-cohort picker*. The user's ask is simply: don't force me into one cohort — show me **both cohorts' courses together**, grouped/filterable by Year. That is a query + a default, not a new table.
+
+### PRD verdict on temporal scope — single snapshot, no rollover
+
+The PRD scopes the product to **one school-year snapshot**, rebuilt from scratch each year — there is **no** rollover / promotion / archiving / multi-year modeling, and **no** open question even asking for it:
+
+- *"reach for this product at the start of each school year … the timetable has to be (re)built **from scratch**"* (`prd.md:29`, `shape-notes.md:33`).
+- *"take **a fresh school year** … produce a complete … variant covering **both cohorts**"* (`prd.md:37`).
+- Scale is per-single-year: *"one IB year, ~50–150 students, ~30–60 courses"* (`prd.md:128`).
+- Zero occurrences of intake/rollover/promote/year-over-year across `prd.md`, `roadmap.md`, `shape-notes.md`. The only future-scope axis raised is multi-**school** tenancy (Q12), not multi-**year**.
+- No `school_years`/`academic_years` table exists or is proposed; the data-model lists in `roadmap.md:88` have none.
+
+**Consequence:** within the product as scoped, there is **exactly one** "school year" = the **single pair of cohorts that exists**. "Courses for this school year" is therefore unambiguous: *all courses across both seeded cohorts.*
+
+### Model-design options (entity vs. derived)
+
+| Option | What it is | Migration | Fit to PRD | Verdict |
+|---|---|---|---|---|
+| **A — No entity; "school year" = the cohort pair (the whole catalog)** | "School year" stays a UI label. Catalog unions courses across all (both) cohorts; create still sets `cohort_id`. | **Zero** | Matches single-snapshot scope exactly | **✅ Recommended** |
+| **B — `school_years` table + `cohorts.school_year_id` FK** | First-class year entity; a year has 2 cohorts; enables rollover/archive/multi-year. | New table + FK + regen types + seed + planner-load filter | **Speculative** — no requirement drives it; YAGNI vs. an explicitly "rebuild from scratch" PRD | Defer (clean future path) |
+| **C — Pair cohorts via self-FK / `cohort_pairs`** | Each cohort points at its sibling. | Migration | Awkward; encodes "exactly 2" in a fragile way | ❌ Reject |
+| **D — `plans.school_year` text label** | Put a year identity where the spanning unit already lives (the plan). | Tiny (nullable text column) | Plausible later, but conflates "a plan" (many per year) with "the year" | Optional, not now |
+
+**Why B is well-isolated but still wrong-for-now:** the blast-radius agent confirmed adding `school_years` is clean — the **core algorithms do not change** (grouping/collision/validation are per-cohort and year-agnostic; the cross-cohort constraint is *within* a year, between Y1 and Y2). It would touch only the schema, generated types, `gen-seed.mjs`, and `planner/load.ts`'s cohort selection. So **if** rollover ever enters scope, B is the sanctioned migration and it is low-risk. But nothing today requires it, and introducing it now adds a picker layer and speculative structure against a PRD that says "fresh / from scratch each year." **Record B as the deferred path; don't build it.**
+
+### Recommended catalog design (the user-facing half, equal weight)
+
+Reconciles with the app-shell "per-page cohort picker" decision by **softening the picker into a filter**:
+
+- **Default the `/courses` page to a cross-cohort view** — list *all* courses, **grouped by cohort** ("Year 1" / "Year 2" section headers, labels per app-shell Decision 5), or a segmented filter **`All · Year 1 · Year 2`** defaulting to **All**. This *is* "the courses I take care of this school year." The read pattern follows `plans/index.astro:6-46` (Supabase list read + null→503 / []→empty states), just without the `.eq("cohort_id", …)` narrowing (or with it only when a filter is active).
+- **Create/edit still requires a cohort** — `courses.cohort_id` is `NOT NULL`, so the create dialog keeps a required Year 1 / Year 2 selector (this is the only place the picker is mandatory). The Zod schema in `src/lib/schemas/` gains a `cohortId` field.
+- **No schema change, no new entity** — the cross-cohort list is a union/group of the existing rows. Merge parents and overlaps already live within a cohort and render under their cohort's section.
+- **Fix the fragile cohort lookup as a byproduct:** the catalog must fetch *both* cohorts (`select id, name from cohorts order by name`) and map names → "Year 1/2", instead of the `.limit(1)` name-sort hack in `load.ts`. Treat "the cohorts that exist" as the year's set — do **not** hardcode 2 beyond what the seed already implies.
+
+### Decisions (proposed — confirm in `/10x-plan`)
+
+1. **No `school_years` entity in S-02 (or the MVP).** "School year" is the implicit pair of cohorts that exists; the product is single-snapshot per PRD. The spanning *planning* unit is already the `plan`. → **Zero-migration stays intact.**
+2. **Catalog `/courses` defaults to a cross-cohort view** (all courses, grouped/filterable by Year 1 / Year 2). The app-shell "per-page cohort picker" becomes a **filter**, not a mandatory gate; the **create dialog** keeps a required cohort selector (FK is NOT NULL).
+3. **Deferred future path recorded:** if year-over-year rollover ever enters scope, add a `school_years` table + `cohorts.school_year_id` FK (Option B) — it is well-isolated (no algorithm impact; touches schema, types, seed, `planner/load.ts` only). Until a requirement exists, do not build it.
+4. **Stop relying on alphabetical cohort sort** for "which cohort": load both cohorts by name and map to the Year 1/Year 2 labels.
+
+### Open questions
+
+1. **Cross-cohort list presentation:** grouped sections (Y1 / Y2 headers) vs. one flat table with a `Cohort` column vs. segmented `All·Y1·Y2` filter. Lean: grouped sections + an `All` default. Owner: design / `/10x-plan`.
+2. **Does "many cohorts" ever mean >2 in one year?** PRD assumes exactly two (Y1/Y2). If a school could run, e.g., a pre-DP year, that reopens Option B. Treat as out of scope unless the user says otherwise.
+
+### Follow-up 2 code references
+
+- `supabase/migrations/20260602185012_minimal_domain_schema.sql:6-14` — flat `cohorts` table, no pairing field
+- `…:31,71,119,134` — the five `cohort_id` FKs (courses, students, placements, course_groupings + RPC)
+- `scripts/gen-seed.mjs:268-271` — the two hardcoded cohort names; seed-only, no creation UI
+- `src/lib/planner/load.ts:34-40` — fragile `.order("name").limit(1)` "Year 1" selection (S-01 scope cut)
+- `context/foundation/prd.md:29,37,109,110,128` — single-snapshot scope; plan spans two cohorts
+- `context/foundation/roadmap.md:88` — data-model table list (no year entity)
+- `src/pages/plans/index.astro:6-46` — list-read pattern to mirror for the courses list
+- `context/changes/app-shell/research.md` Decisions 2 & 5 — per-page cohort picker + "Year 1/Year 2" label (now softened to a filter)

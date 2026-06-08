@@ -357,35 +357,35 @@ None — zero schema change. The slice operates entirely on F-02's existing tabl
 
 #### Automated
 
-- [x] 2.1 Type checking passes: `pnpm exec astro check`
-- [x] 2.2 Linting passes: `pnpm lint`
-- [x] 2.3 Build passes: `pnpm build`
-- [x] 2.4 Existing tests still pass: `pnpm test`
+- [x] 2.1 Type checking passes: `pnpm exec astro check` — 830eead
+- [x] 2.2 Linting passes: `pnpm lint` — 830eead
+- [x] 2.3 Build passes: `pnpm build` — 830eead
+- [x] 2.4 Existing tests still pass: `pnpm test` — 830eead
 
 #### Manual
 
-- [x] 2.5 `/courses` lists seeded courses; Year 1 / Year 2 tabs switch the list
-- [x] 2.6 Teacher filter narrows rows; clearing restores all
-- [x] 2.7 Merge-parent rows tagged "Merged" with no edit/delete
-- [x] 2.8 Supabase-down → 503; empty cohort → empty state; no hardcoded colors
+- [x] 2.5 `/courses` lists seeded courses; Year 1 / Year 2 tabs switch the list — 830eead
+- [x] 2.6 Teacher filter narrows rows; clearing restores all — 830eead
+- [x] 2.7 Merge-parent rows tagged "Merged" with no edit/delete — 830eead
+- [x] 2.8 Supabase-down → 503; empty cohort → empty state; no hardcoded colors — 830eead
 
 ### Phase 3: Mutations — create / edit / delete atomic courses
 
 #### Automated
 
-- [ ] 3.1 Type checking passes: `pnpm exec astro check`
-- [ ] 3.2 Linting passes: `pnpm lint`
-- [ ] 3.3 Build passes: `pnpm build`
-- [ ] 3.4 Tests pass: `pnpm test`
+- [x] 3.1 Type checking passes: `pnpm exec astro check`
+- [x] 3.2 Linting passes: `pnpm lint`
+- [x] 3.3 Build passes: `pnpm build`
+- [x] 3.4 Tests pass: `pnpm test`
 
 #### Manual
 
-- [ ] 3.5 Create a course → appears in the correct cohort tab
-- [ ] 3.6 Edit a course → changes persist after refresh
-- [ ] 3.7 Duplicate `(name, level, group)` → friendly field error, no crash
-- [ ] 3.8 Delete → confirm dialog names cascade; row disappears
-- [ ] 3.9 Invalid input (incl. no teacher selected) → inline field errors; nothing sent
-- [ ] 3.10 Merge rows non-editable; forced action against one is rejected server-side
+- [x] 3.5 Create a course → appears in the correct cohort tab
+- [x] 3.6 Edit a course → changes persist after refresh
+- [x] 3.7 Duplicate `(name, level, group)` → friendly field error, no crash
+- [x] 3.8 Delete → confirm dialog names cascade; row disappears
+- [x] 3.9 Invalid input (incl. no teacher selected) → inline field errors; nothing sent
+- [x] 3.10 Merge rows non-editable; forced action against one is rejected server-side
 
 ### Phase 4: Overlaps authoring
 

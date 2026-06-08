@@ -22,7 +22,6 @@ const fetchCatalog = async (client: NonNullable<typeof supabase>): Promise<Catal
     client
       .from("courses")
       .select("id, cohort_id, name, level, group_index, hours_per_week, teacher_id")
-      .order("group_index")
       .order("name")
       .limit(500),
     client.from("teachers").select("id, code, full_name").order("code").limit(500),

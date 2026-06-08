@@ -26,20 +26,28 @@ describe("courseInput", () => {
     expect(courseInput.safeParse({ ...validCourse, name: "   " }).success).toBe(false);
   });
 
-  it("rejects an invalid level", () => {
-    expect(courseInput.safeParse({ ...validCourse, level: "AB+SL" }).success).toBe(false);
+  it("accepts a composite (merge-parent) level as free text", () => {
+    expect(courseInput.safeParse({ ...validCourse, level: "AB+SL" }).success).toBe(true);
+  });
+
+  it('normalizes an empty/blank level to "none"', () => {
+    expect(courseInput.parse({ ...validCourse, level: "  " }).level).toBe("none");
   });
 
   it("rejects an out-of-range group index", () => {
-    expect(courseInput.safeParse({ ...validCourse, groupIndex: 3 }).success).toBe(false);
+    expect(courseInput.safeParse({ ...validCourse, groupIndex: 4 }).success).toBe(false);
+  });
+
+  it("accepts group index 3", () => {
+    expect(courseInput.safeParse({ ...validCourse, groupIndex: 3 }).success).toBe(true);
   });
 
   it("accepts the 0 group-index sentinel (none)", () => {
     expect(courseInput.safeParse({ ...validCourse, groupIndex: 0 }).success).toBe(true);
   });
 
-  it("rejects hoursPerWeek = 0 (merge-child sentinel, not authorable)", () => {
-    expect(courseInput.safeParse({ ...validCourse, hoursPerWeek: 0 }).success).toBe(false);
+  it("accepts hoursPerWeek = 0 (merge-child sentinel, DB-aligned)", () => {
+    expect(courseInput.safeParse({ ...validCourse, hoursPerWeek: 0 }).success).toBe(true);
   });
 
   it("rejects negative hoursPerWeek", () => {

@@ -44,7 +44,7 @@ export function TeacherFilter({ teachers, selectedIds, onChange }: TeacherFilter
         </PopoverTrigger>
         <PopoverContent className="w-64 p-0" align="start">
           <Command>
-            <CommandInput placeholder="Search teachers…" />
+            <CommandInput placeholder="Search teachers…" autoComplete="off" />
             <CommandList>
               <CommandEmpty>No teachers found.</CommandEmpty>
               <CommandGroup>

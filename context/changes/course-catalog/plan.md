@@ -391,15 +391,15 @@ None — zero schema change. The slice operates entirely on F-02's existing tabl
 
 #### Automated
 
-- [x] 4.1 Type checking passes: `pnpm exec astro check`
-- [x] 4.2 Linting passes: `pnpm lint`
-- [x] 4.3 Build passes: `pnpm build`
-- [x] 4.4 Tests pass: `pnpm test`
+- [x] 4.1 Type checking passes: `pnpm exec astro check` — 42643cd
+- [x] 4.2 Linting passes: `pnpm lint` — 42643cd
+- [x] 4.3 Build passes: `pnpm build` — 42643cd
+- [x] 4.4 Tests pass: `pnpm test` — 42643cd
 
 #### Manual
 
-- [x] 4.5 Add an overlap between two same-cohort courses → shows on the dependent
-- [x] 4.6 Self-overlap attempt blocked with a clear message
-- [x] 4.7 Duplicate overlap attempt blocked (no duplicate row)
-- [x] 4.8 Remove an overlap → disappears after refresh
-- [x] 4.9 Merge-involved and cross-cohort courses not offered as overlap targets
+- [x] 4.5 Add an overlap between two same-cohort courses → shows on the dependent — 42643cd
+- [x] 4.6 Self-overlap attempt blocked with a clear message — 42643cd
+- [x] 4.7 Duplicate overlap attempt blocked (no duplicate row) — 42643cd
+- [x] 4.8 Remove an overlap → disappears after refresh — 42643cd
+- [x] 4.9 Merge-involved and cross-cohort courses not offered as overlap targets — 42643cd

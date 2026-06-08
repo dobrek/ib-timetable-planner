@@ -1,7 +1,7 @@
 ---
 change_id: course-catalog
 title: Course catalog
-status: implementing
+status: implemented
 created: 2026-06-07
 updated: 2026-06-08
 last_note: "P4 done (overlap authoring). Overlap edits update island state in-memory (dialog stays open, no reload); list shows a clickable 'Overlap: <full label>' badge (opens the manager); 'Hide merged' filter toggle added. 4.9 deviation accepted by user: overlap picker excludes self + already-linked + cross-cohort, but does NOT exclude merged parents (consistent with merge-deferral). DS cursor-pointer also added to the Dialog close (X). All phases implemented."

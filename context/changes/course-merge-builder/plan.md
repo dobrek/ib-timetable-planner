@@ -372,30 +372,30 @@ No new hot path. The merge query gains one column (`child_course_id`) within the
 
 #### Automated
 
-- [x] 3.1 Type checking / sync passes: `pnpm exec astro sync`
-- [x] 3.2 Linting passes: `pnpm lint`
-- [x] 3.3 Build passes: `pnpm build`
+- [x] 3.1 Type checking / sync passes: `pnpm exec astro sync` — 79fbbac
+- [x] 3.2 Linting passes: `pnpm lint` — 79fbbac
+- [x] 3.3 Build passes: `pnpm build` — 79fbbac
 
 #### Manual
 
-- [x] 3.4 Selecting 2 valid children shows correct derived name + level + teacher; Confirm creates the merge and the badged parent appears
-- [x] 3.5 Mismatched teacher / mismatched name / duplicate level / <2 children shows inline error and disables Confirm
-- [x] 3.6 Composite merge parents are excluded from the candidate picker
-- [x] 3.7 3-way merge (`AB+SL+HL`) derives and persists correctly
+- [x] 3.4 Selecting 2 valid children shows correct derived name + level + teacher; Confirm creates the merge and the badged parent appears — 79fbbac
+- [x] 3.5 Mismatched teacher / mismatched name / duplicate level / <2 children shows inline error and disables Confirm — 79fbbac
+- [x] 3.6 Composite merge parents are excluded from the candidate picker — 79fbbac
+- [x] 3.7 3-way merge (`AB+SL+HL`) derives and persists correctly — 79fbbac
 
 ### Phase 4: Manage merge (edit hours + dissolve)
 
 #### Automated
 
-- [ ] 4.1 Type checking / sync passes: `pnpm exec astro sync`
-- [ ] 4.2 Linting passes: `pnpm lint`
-- [ ] 4.3 Build passes: `pnpm build`
+- [x] 4.1 Type checking / sync passes: `pnpm exec astro sync`
+- [x] 4.2 Linting passes: `pnpm lint`
+- [x] 4.3 Build passes: `pnpm build`
 
 #### Manual
 
-- [ ] 4.4 "Manage merge" appears only on merged rows; the dialog lists the correct children
-- [ ] 4.5 Editing hours updates the parent and survives reload; grouping reflects the new hours
-- [ ] 4.6 Dissolve removes the parent row and its links; the atomic children remain
+- [x] 4.4 "Manage merge" appears only on merged rows; the dialog lists the correct children
+- [x] 4.5 Editing hours updates the parent and survives reload; grouping reflects the new hours
+- [x] 4.6 Dissolve removes the parent row and its links; the atomic children remain
 
 ### Phase 5: Catalog filter-state persistence
 

@@ -1,16 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Combine, Link2, MoreHorizontal, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Toaster } from "@/components/ui/sonner";
+import { Badge } from "@/shared/ui";
+import { Button } from "@/shared/ui";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui";
+import { Toaster } from "@/shared/ui";
 import CourseFormDialog from "@/components/courses/CourseFormDialog";
 import CourseOverlaps from "@/components/courses/CourseOverlaps";
 import DeleteCourseDialog from "@/components/courses/DeleteCourseDialog";

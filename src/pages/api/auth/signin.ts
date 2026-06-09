@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@/shared/api";
 
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();

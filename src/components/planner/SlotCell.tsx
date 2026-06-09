@@ -1,10 +1,10 @@
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { TriangleAlert, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/shared/ui";
+import { Button } from "@/shared/ui";
 import { cellKey } from "@/lib/planner/collisions";
 import type { CellData, LocalPlacement, PlacementDrag } from "@/components/planner/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/cn";
 
 type Props = {
   day: number;

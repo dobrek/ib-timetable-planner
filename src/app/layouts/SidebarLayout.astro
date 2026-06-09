@@ -1,6 +1,6 @@
 ---
-import Layout from "@/layouts/Layout.astro";
-import { NAV_ITEMS } from "@/lib/nav";
+import BaseLayout from "./BaseLayout.astro";
+import { NAV_ITEMS } from "@/shared/config";
 import { Sun, Moon } from "lucide-react";
 
 type Props = {
@@ -16,7 +16,7 @@ const isActive = (href: string) =>
   href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 ---
 
-<Layout title={title}>
+<BaseLayout title={title}>
   <div class="bg-background text-foreground flex h-screen">
     <aside class="border-sidebar-border bg-sidebar text-sidebar-foreground flex w-60 shrink-0 flex-col border-r">
       <div class="border-sidebar-border border-b px-5 py-4">
@@ -79,7 +79,7 @@ const isActive = (href: string) =>
       </div>
     </main>
   </div>
-</Layout>
+</BaseLayout>
 
 <script is:inline>
   document.getElementById("theme-toggle")?.addEventListener("click", () => {

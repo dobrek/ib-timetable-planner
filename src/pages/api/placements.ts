@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@/shared/api";
 import { validatePlacementDelete, validatePlacementInsert } from "@/lib/placements/validate";
 
 /** PostgREST surfaces a Postgres unique-constraint violation with this SQLSTATE. */

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui";
 
 type SubmitButtonProps = {
   pendingText: string;

@@ -14,18 +14,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@/shared/ui";
+import { Button } from "@/shared/ui";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
+import { Input } from "@/shared/ui";
 import { updateMergeHoursInput, type UpdateMergeHoursInput } from "@/lib/schemas/course";
 import { formatCourseLabel } from "@/components/courses/labels";
 import type { CourseRow } from "@/components/courses/types";

@@ -2,10 +2,10 @@ import { useState } from "react";
 import { actions } from "astro:actions";
 import { toast } from "sonner";
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { Button } from "@/shared/ui";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
+import { cn } from "@/shared/lib/cn";
 import { formatCourseLabel } from "@/components/courses/labels";
 import type { CourseRow } from "@/components/courses/types";
 

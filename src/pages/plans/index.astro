@@ -1,6 +1,6 @@
 ---
-import AppShellLayout from "@/layouts/AppShellLayout.astro";
-import { createClient } from "@/lib/supabase";
+import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
+import { createClient } from "@/shared/api";
 
 // Local view model — project DB rows to just what this list needs (lessons rule #1).
 type PlanRow = { id: string; name: string };

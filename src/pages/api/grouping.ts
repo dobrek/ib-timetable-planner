@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@/shared/api";
 import { loadCohortCourses } from "@/lib/grouping/adapters/supabase";
 import { computeGroupings, EnumerationCapError } from "@/lib/grouping";
 import { computeCatalogHash, persistGroupings } from "@/lib/grouping/persist";

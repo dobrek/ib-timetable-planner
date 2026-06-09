@@ -11,7 +11,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/shared/ui";
 import type { CourseRow } from "@/components/courses/types";
 
 type DeleteCourseDialogProps = {

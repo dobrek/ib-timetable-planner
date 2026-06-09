@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/database.types";
+import type { Database } from "@/shared/api";
 import type { PlannerBoardProps, PlannerGrouping, PlannerPlacement } from "@/components/planner/types";
 import { loadCohortCourses } from "@/lib/grouping/adapters/supabase";
 import { parseGridPreset } from "@/lib/planner/grid";

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createMerge } from "./createMerge";
 import { dissolveMerge } from "./dissolveMerge";
 import { updateMergeHours } from "./updateMergeHours";
-import { DomainError } from "../errors";
+import { DomainError } from "@/shared/lib/errors";
 import type { Supabase } from "./shared";
 
 type QueryResult = { data: unknown; error: { code?: string; message: string } | null };

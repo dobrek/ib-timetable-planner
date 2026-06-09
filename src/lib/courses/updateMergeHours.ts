@@ -1,5 +1,5 @@
 import type { UpdateMergeHoursInput } from "../schemas/course";
-import { DomainError } from "../errors";
+import { DomainError } from "@/shared/lib/errors";
 import { assertMergeParent } from "./assertMergeParent";
 import type { Supabase } from "./shared";
 

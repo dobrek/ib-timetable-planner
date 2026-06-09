@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useDraggable } from "@dnd-kit/react";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui";
 import type { CourseDrag, PlannerGrouping } from "@/components/planner/types";
 import type { HoursStat } from "@/lib/planner/hours";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/cn";
 
 type Props = {
   grouping: PlannerGrouping;

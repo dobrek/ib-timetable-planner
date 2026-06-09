@@ -86,7 +86,7 @@ const astroConfig = tseslint.config({
 });
 
 export default tseslint.config(
-  { ignores: ["src/lib/database.types.ts", "scripts/", "legacy-grouping-algorithm/"] },
+  { ignores: ["src/shared/api/database.types.ts", "scripts/", "legacy-grouping-algorithm/"] },
   includeIgnoreFile(gitignorePath),
   baseConfig,
   ambientDeclConfig,

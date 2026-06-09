@@ -1,5 +1,5 @@
 import type { DeleteCourseInput } from "../schemas/course";
-import { DomainError } from "../errors";
+import { DomainError } from "@/shared/lib/errors";
 import type { Supabase } from "./shared";
 
 /** Delete a course by id (its merge/overlap links cascade via FK). */

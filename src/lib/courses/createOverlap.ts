@@ -1,5 +1,5 @@
 import type { OverlapInput } from "../schemas/course";
-import { DomainError } from "../errors";
+import { DomainError } from "@/shared/lib/errors";
 import { UNIQUE_VIOLATION, type Supabase } from "./shared";
 
 /** Create a directed course overlap, enforcing both courses share a cohort. */

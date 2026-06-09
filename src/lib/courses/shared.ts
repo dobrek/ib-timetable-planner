@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../database.types";
+import type { Database } from "@/shared/api";
 
 /**
  * The typed Supabase client the course domain functions operate on. A type-only import

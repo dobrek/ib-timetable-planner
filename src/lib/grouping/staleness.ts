@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../database.types";
+import type { Database } from "@/shared/api";
 import { loadCohortCourses } from "./adapters/supabase";
 import { computeCatalogHash } from "./persist";
 

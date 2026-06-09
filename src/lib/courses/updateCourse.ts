@@ -1,5 +1,5 @@
 import type { UpdateCourseInput } from "../schemas/course";
-import { DomainError } from "../errors";
+import { DomainError } from "@/shared/lib/errors";
 import { DUPLICATE_COURSE_MESSAGE, UNIQUE_VIOLATION, type Supabase } from "./shared";
 
 /** Update an existing atomic course by id. */

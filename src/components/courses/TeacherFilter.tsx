@@ -1,9 +1,9 @@
 import { Check, ListFilter, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/shared/ui";
+import { Button } from "@/shared/ui";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/shared/ui";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui";
+import { cn } from "@/shared/lib/cn";
 import type { TeacherOption } from "@/components/courses/types";
 
 type TeacherFilterProps = {

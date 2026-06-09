@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../../database.types";
+import type { Database } from "@/shared/api";
 import type { ComputeWarning, GroupingCourse } from "../types";
 import { unique } from "../utils";
 

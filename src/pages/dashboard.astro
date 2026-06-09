@@ -1,6 +1,6 @@
 ---
-import AppShellLayout from "@/layouts/AppShellLayout.astro";
-import { NAV_ITEMS } from "@/lib/nav";
+import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
+import { NAV_ITEMS } from "@/shared/config";
 
 const { user } = Astro.locals;
 const sections = NAV_ITEMS.filter((item) => item.href !== "/dashboard");

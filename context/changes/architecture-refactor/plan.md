@@ -567,22 +567,22 @@ Execute Track B: revise the `lessons.md` rule, migrate the `placements` and `gro
 
 #### Automated
 
-- [ ] 1.1 steiger installed as devDep
-- [ ] 1.2 shared/ui/ segment created with barrel, all shadcn + Banner + LibBadge moved
-- [ ] 1.3 shared/api/ segment created with barrel, supabase + database.types moved
-- [ ] 1.4 shared/lib/ segment created with barrel, cn + errors + config-status + actions helpers moved
-- [ ] 1.5 shared/config/ segment created with barrel, nav.ts moved
-- [ ] 1.6 app/layouts/ created, layouts moved and renamed
-- [ ] 1.7 app/styles/ created, global.css moved
-- [ ] 1.8 All ~35 consumer imports updated, zero old-path imports remain
-- [ ] 1.9 Build passes: `pnpm build`
-- [ ] 1.10 Tests pass: `pnpm test`
-- [ ] 1.11 Lint passes: `pnpm lint`
+- [x] 1.1 steiger installed as devDep — 00a8801
+- [x] 1.2 shared/ui/ segment created with barrel, all shadcn + Banner + LibBadge moved — 00a8801
+- [x] 1.3 shared/api/ segment created with barrel, supabase + database.types moved — 00a8801
+- [x] 1.4 shared/lib/ segment created with barrel, cn + errors + config-status + actions helpers moved — 00a8801
+- [x] 1.5 shared/config/ segment created with barrel, nav.ts moved — 00a8801
+- [x] 1.6 app/layouts/ created, layouts moved and renamed — 00a8801
+- [x] 1.7 app/styles/ created, global.css moved — 00a8801
+- [x] 1.8 All ~35 consumer imports updated, zero old-path imports remain — 00a8801
+- [x] 1.9 Build passes: `pnpm build` — 00a8801
+- [x] 1.10 Tests pass: `pnpm test` — 00a8801
+- [x] 1.11 Lint passes: `pnpm lint` — 00a8801
 
 #### Manual
 
-- [ ] 1.12 App loads, navigation works, theme renders
-- [ ] 1.13 Full page smoke test (dashboard, courses, plans, sign-in)
+- [x] 1.12 App loads, navigation works, theme renders — 00a8801
+- [x] 1.13 Full page smoke test (dashboard, courses, plans, sign-in) — 00a8801
 
 ### Phase 2: Entities
 

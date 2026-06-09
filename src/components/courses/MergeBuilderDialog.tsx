@@ -5,24 +5,17 @@ import { actions, isInputError } from "astro:actions";
 import { navigate } from "astro:transitions/client";
 import { toast } from "sonner";
 import { Check, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/shared/ui";
+import { Button } from "@/shared/ui";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/shared/ui";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
+import { Input } from "@/shared/ui";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui";
 import { mergeInput, type MergeInput } from "@/lib/schemas/course";
 import { deriveMergeParent, mergeReasonMessage } from "@/lib/courses/merge";
 import { formatCourseLabel } from "@/components/courses/labels";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/cn";
 import type { CourseRow, TeacherOption } from "@/components/courses/types";
 
 type MergeBuilderDialogProps = {

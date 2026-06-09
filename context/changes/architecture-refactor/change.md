@@ -1,7 +1,7 @@
 ---
 change_id: architecture-refactor
 title: Architecture refactor
-status: planned
+status: implementing
 created: 2026-06-08
 updated: 2026-06-09
 archived_at: null

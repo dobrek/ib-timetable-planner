@@ -1,4 +1,4 @@
-import { DomainError } from "../errors";
+import { DomainError } from "@/shared/lib/errors";
 import type { Supabase } from "./shared";
 
 /**

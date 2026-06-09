@@ -4,18 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { actions, isInputError } from "astro:actions";
 import { navigate } from "astro:transitions/client";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/shared/ui";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
+import { Input } from "@/shared/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
 import { courseInput, type CourseInput } from "@/lib/schemas/course";
 import type { CohortTab, CourseRow, TeacherOption } from "@/components/courses/types";
 

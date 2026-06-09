@@ -1,5 +1,5 @@
 import { defineMiddleware } from "astro:middleware";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@/shared/api";
 
 // Deny-by-default: every route requires an authenticated session except the
 // paths below. Keep this allowlist tight — only the sign-in surface, the auth

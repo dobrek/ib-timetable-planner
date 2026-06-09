@@ -1,0 +1,10 @@
+---
+type Props = { kind: "not-found" | "unavailable"; message?: string };
+const { kind, message } = Astro.props;
+---
+
+<main class="flex min-h-screen items-center justify-center p-6 text-center">
+  <p class="text-muted-foreground">
+    {kind === "not-found" ? "This plan does not exist." : message}
+  </p>
+</main>

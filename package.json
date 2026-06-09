@@ -9,6 +9,7 @@
     "astro": "astro",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "steiger": "steiger src --fail-on-warnings",
     "format": "prettier --write .",
     "prepare": "lefthook install",
     "test": "vitest run",
@@ -50,6 +51,7 @@
   "devDependencies": {
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
+    "@feature-sliced/steiger-plugin": "^0.6.0",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-astro": "^1.7.0",
@@ -62,6 +64,7 @@
     "prettier": "^3.8.3",
     "prettier-plugin-astro": "0.14.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "steiger": "^0.5.13",
     "supabase": "^2.101.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.4",

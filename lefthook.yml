@@ -6,6 +6,10 @@ pre-commit:
       glob: "*.{ts,tsx,astro}"
       stage_fixed: true
 
+    - name: steiger
+      run: pnpm run steiger
+      glob: "src/**/*.{ts,tsx,astro}"
+
     - name: format
       run: pnpm exec prettier --write {staged_files}
       glob: "*.{json,css,md}"

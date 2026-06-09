@@ -1,0 +1,21 @@
+---
+import Layout from "@/app/layouts/BaseLayout.astro";
+import PlanDetailPage from "./PlanDetailPage.astro";
+import PlanDetailError from "./PlanDetailError.astro";
+import type { PlannerPageResult } from "@/_pages/plan-detail/api";
+
+type Props = { result: PlannerPageResult };
+const { result } = Astro.props;
+---
+
+{
+  result.kind === "ok" ? (
+    <Layout title={result.planName}>
+      <PlanDetailPage planName={result.planName} boardProps={result.props} />
+    </Layout>
+  ) : (
+    <Layout title={result.kind === "not-found" ? "Plan not found" : "Unavailable"}>
+      <PlanDetailError kind={result.kind} message={result.kind === "unavailable" ? result.message : undefined} />
+    </Layout>
+  )
+}

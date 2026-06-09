@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
 import { Input } from "@/shared/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
-import { courseInput, type CourseInput } from "@/entities/course";
-import type { CohortTab, CourseRow } from "@/entities/course";
+import { courseInput, type CourseInput } from "@/_pages/courses/model/schemas";
+import type { CohortTab, CourseRow } from "@/_pages/courses/model/course";
 import type { TeacherOption } from "@/entities/teacher";
 
 type CourseFormDialogProps = {

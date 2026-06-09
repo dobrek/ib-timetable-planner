@@ -1,10 +1,10 @@
-import type { CohortTab } from "@/entities/course";
+import type { CohortTab } from "./course";
 import type { TeacherOption } from "@/entities/teacher";
 
 /**
  * Catalog filter state mirrored into the URL query so a post-mutation
  * `navigate(pathname + search)` preserves the cohort tab, teacher filter, and
- * hide-merged toggle. Pure projections — `useCourseFilters` does the actual filtering.
+ * hide-merged toggle. Pure projections — `filterCourses` does the actual filtering.
  */
 export type CatalogFilters = {
   cohortId: string;

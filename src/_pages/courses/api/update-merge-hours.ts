@@ -1,10 +1,10 @@
-import type { UpdateMergeHoursInput } from "@/entities/course";
+import type { SupabaseClient } from "@/shared/api";
+import type { UpdateMergeHoursInput } from "../model/schemas";
 import { DomainError } from "@/shared/lib/errors";
-import { assertMergeParent } from "@/entities/course";
-import type { Supabase } from "./shared";
+import { assertMergeParent } from "./assert-merge-parent";
 
 /** Update a composite merge parent's authored weekly hours. Guarded to merge parents only. */
-export const updateMergeHours = async (supabase: Supabase, input: UpdateMergeHoursInput) => {
+export const updateMergeHours = async (supabase: SupabaseClient, input: UpdateMergeHoursInput) => {
   await assertMergeParent(supabase, input.parentCourseId);
 
   const { data, error } = await supabase

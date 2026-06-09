@@ -1,14 +1,16 @@
-import type { MergeInput } from "@/entities/course";
-import { deriveMergeParent, mergeReasonMessage, writeMergeAtomic } from "@/entities/course";
+import type { SupabaseClient } from "@/shared/api";
+import type { MergeInput } from "../model/schemas";
+import { deriveMergeParent, mergeReasonMessage } from "../model/merge";
 import { DomainError } from "@/shared/lib/errors";
-import { DUPLICATE_COURSE_MESSAGE, UNIQUE_VIOLATION, type Supabase } from "./shared";
+import { DUPLICATE_COURSE_MESSAGE, UNIQUE_VIOLATION } from "./constants";
+import { writeMergeAtomic } from "./write-merge-atomic";
 
 /**
  * Authoritative create-merge gate. Loads the selected children, re-runs `deriveMergeParent`
  * server-side (never trusting the client), inserts the composite parent then its links, and
  * compensates by deleting the parent if the link insert fails (no orphan parent).
  */
-export const createMerge = async (supabase: Supabase, input: MergeInput) => {
+export const createMerge = async (supabase: SupabaseClient, input: MergeInput) => {
   const { data: childRows, error: lookupError } = await supabase
     .from("courses")
     .select("id, cohort_id, name, level, teacher_id")

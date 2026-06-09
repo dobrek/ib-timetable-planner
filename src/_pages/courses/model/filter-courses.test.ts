@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { filterCourses } from "./useCourseFilters";
-import type { CourseRow } from "@/entities/course";
+import { filterCourses } from "./filter-courses";
+import type { CourseRow } from "./course";
 
 const row = (id: string, cohortId: string, teacherId: string | null): CourseRow => ({
   id,

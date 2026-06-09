@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createMerge } from "./createMerge";
-import { dissolveMerge } from "./dissolveMerge";
-import { updateMergeHours } from "./updateMergeHours";
+import { createMerge } from "./create-merge";
+import { dissolveMerge } from "./dissolve-merge";
+import { updateMergeHours } from "./update-merge-hours";
 import { DomainError } from "@/shared/lib/errors";
-import type { Supabase } from "./shared";
+import type { SupabaseClient } from "@/shared/api";
 
 type QueryResult = { data: unknown; error: { code?: string; message: string } | null };
 
@@ -54,7 +54,7 @@ const fakeSupabase = (responses: Record<string, QueryResult>) => {
     };
     return builder;
   };
-  const client = { from } as unknown as Supabase;
+  const client = { from } as unknown as SupabaseClient;
   return { client, used };
 };
 

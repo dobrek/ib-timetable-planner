@@ -1,9 +1,10 @@
-import type { OverlapInput } from "@/entities/course";
+import type { SupabaseClient } from "@/shared/api";
+import type { OverlapInput } from "../model/schemas";
 import { DomainError } from "@/shared/lib/errors";
-import { UNIQUE_VIOLATION, type Supabase } from "./shared";
+import { UNIQUE_VIOLATION } from "./constants";
 
 /** Create a directed course overlap, enforcing both courses share a cohort. */
-export const createOverlap = async (supabase: Supabase, input: OverlapInput) => {
+export const createOverlap = async (supabase: SupabaseClient, input: OverlapInput) => {
   // Both courses must belong to the same cohort — overlaps are within a school year.
   const { data: courses, error: lookupError } = await supabase
     .from("courses")

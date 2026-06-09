@@ -1,9 +1,9 @@
-import type { DeleteOverlapInput } from "@/entities/course";
+import type { SupabaseClient } from "@/shared/api";
+import type { DeleteOverlapInput } from "../model/schemas";
 import { DomainError } from "@/shared/lib/errors";
-import type { Supabase } from "./shared";
 
 /** Delete a directed course overlap by its (base, dependent) pair. */
-export const deleteOverlap = async (supabase: Supabase, input: DeleteOverlapInput) => {
+export const deleteOverlap = async (supabase: SupabaseClient, input: DeleteOverlapInput) => {
   const { error } = await supabase
     .from("course_overlaps")
     .delete()

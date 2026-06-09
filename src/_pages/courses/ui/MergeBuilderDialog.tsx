@@ -12,14 +12,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
 import { Input } from "@/shared/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui";
-import {
-  deriveMergeParent,
-  formatCourseLabel,
-  mergeInput,
-  mergeReasonMessage,
-  type MergeInput,
-} from "@/entities/course";
-import type { CourseRow } from "@/entities/course";
+import { formatCourseLabel } from "@/_pages/courses/lib/labels";
+import { deriveMergeParent, mergeReasonMessage } from "@/_pages/courses/model/merge";
+import { mergeInput, type MergeInput } from "@/_pages/courses/model/schemas";
+import type { CourseRow } from "@/_pages/courses/model/course";
 import type { TeacherOption } from "@/entities/teacher";
 import { cn } from "@/shared/lib/cn";
 

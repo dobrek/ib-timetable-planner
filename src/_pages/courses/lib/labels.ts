@@ -1,4 +1,4 @@
-import type { CourseRow } from "./types";
+import type { CourseRow } from "../model/course";
 
 /**
  * Human-readable course label: name, plus level (unless "none") and group (unless 0).

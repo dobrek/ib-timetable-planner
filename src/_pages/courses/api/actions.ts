@@ -9,15 +9,15 @@ import {
   overlapInput,
   updateCourseInput,
   updateMergeHoursInput,
-} from "@/entities/course";
-import { createCourse } from "./createCourse";
-import { updateCourse } from "./updateCourse";
-import { deleteCourse } from "./deleteCourse";
-import { createOverlap } from "./createOverlap";
-import { deleteOverlap } from "./deleteOverlap";
-import { createMerge } from "./createMerge";
-import { dissolveMerge } from "./dissolveMerge";
-import { updateMergeHours } from "./updateMergeHours";
+} from "../model/schemas";
+import { createCourse } from "./create-course";
+import { updateCourse } from "./update-course";
+import { deleteCourse } from "./delete-course";
+import { createOverlap } from "./create-overlap";
+import { deleteOverlap } from "./delete-overlap";
+import { createMerge } from "./create-merge";
+import { dissolveMerge } from "./dissolve-merge";
+import { updateMergeHours } from "./update-merge-hours";
 
 // NOTE: Merge involvement does NOT gate the atomic-course mutations this slice. Both
 // composite parents and their atomic children are freely editable (name, hours, teacher, …)

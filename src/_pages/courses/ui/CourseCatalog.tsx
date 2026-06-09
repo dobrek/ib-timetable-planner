@@ -12,10 +12,10 @@ import DeleteCourseDialog from "./DeleteCourseDialog";
 import MergeBuilderDialog from "./MergeBuilderDialog";
 import MergeManageDialog from "./MergeManageDialog";
 import { TeacherFilter } from "./TeacherFilter";
-import { formatCourseLabel } from "@/entities/course";
-import { filterCourses } from "@/_pages/courses/model/useCourseFilters";
-import { readFilterParams, toFilterSearch } from "@/_pages/courses/model/filterParams";
-import type { CohortTab, CourseRow } from "@/entities/course";
+import { formatCourseLabel } from "@/_pages/courses/lib/labels";
+import { filterCourses } from "@/_pages/courses/model/filter-courses";
+import { readFilterParams, toFilterSearch } from "@/_pages/courses/model/filter-params";
+import type { CohortTab, CourseRow } from "@/_pages/courses/model/course";
 import type { TeacherOption } from "@/entities/teacher";
 
 type CourseCatalogProps = {

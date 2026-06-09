@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { actions } from "astro:actions";
+import { useMemo, useState } from "react";
+import { createOverlap, deleteOverlap } from "@/_pages/courses/api/course-client";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { Button } from "@/shared/ui";
@@ -14,6 +14,7 @@ type CourseOverlapsProps = {
   course: CourseRow | null;
   /** All courses (resolves base-course labels and the candidate base list). */
   courses: CourseRow[];
+  coursesById: Map<string, CourseRow>;
   /** Apply an overlap change to the island's in-memory state (keeps the dialog open). */
   onOverlapsChange: (courseId: string, nextOverlaps: string[]) => void;
   onOpenChange: (open: boolean) => void;
@@ -26,12 +27,24 @@ type CourseOverlapsProps = {
  * Mutations update island state in place (no page reload) so the dialog stays open across
  * repeated edits. Tokens only (lessons rule #2).
  */
-export default function CourseOverlaps({ course, courses, onOverlapsChange, onOpenChange }: CourseOverlapsProps) {
+export default function CourseOverlaps({
+  course,
+  courses,
+  coursesById,
+  onOverlapsChange,
+  onOpenChange,
+}: CourseOverlapsProps) {
   return (
     <Dialog open={course !== null} onOpenChange={onOpenChange}>
       <DialogContent>
         {course && (
-          <OverlapsBody key={course.id} course={course} courses={courses} onOverlapsChange={onOverlapsChange} />
+          <OverlapsBody
+            key={course.id}
+            course={course}
+            courses={courses}
+            coursesById={coursesById}
+            onOverlapsChange={onOverlapsChange}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -41,48 +54,13 @@ export default function CourseOverlaps({ course, courses, onOverlapsChange, onOp
 type OverlapsBodyProps = {
   course: CourseRow;
   courses: CourseRow[];
+  coursesById: Map<string, CourseRow>;
   onOverlapsChange: (courseId: string, nextOverlaps: string[]) => void;
 };
 
-function OverlapsBody({ course, courses, onOverlapsChange }: OverlapsBodyProps) {
-  const [selectedBaseId, setSelectedBaseId] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const byId = new Map(courses.map((c) => [c.id, c]));
-  const linkedBases = course.overlaps.map((id) => byId.get(id)).filter((c): c is CourseRow => c !== undefined);
-
-  const candidates = courses.filter(
-    (c) => c.cohortId === course.cohortId && c.id !== course.id && !course.overlaps.includes(c.id),
-  );
-
-  const handleAdd = async () => {
-    if (!selectedBaseId) return;
-    setBusy(true);
-    const { error } = await actions.createOverlap({ baseCourseId: selectedBaseId, dependentCourseId: course.id });
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    onOverlapsChange(course.id, [...course.overlaps, selectedBaseId]);
-    setSelectedBaseId("");
-    toast.success("Overlap added");
-  };
-
-  const handleRemove = async (baseCourseId: string) => {
-    setBusy(true);
-    const { error } = await actions.deleteOverlap({ baseCourseId, dependentCourseId: course.id });
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    onOverlapsChange(
-      course.id,
-      course.overlaps.filter((id) => id !== baseCourseId),
-    );
-    toast.success("Overlap removed");
-  };
+function OverlapsBody({ course, courses, coursesById, onOverlapsChange }: OverlapsBodyProps) {
+  const { selectedBaseId, setSelectedBaseId, busy, linkedBases, candidates, addOverlap, removeOverlap } =
+    useOverlapActions(course, courses, coursesById, onOverlapsChange);
 
   return (
     <>
@@ -110,7 +88,7 @@ function OverlapsBody({ course, courses, onOverlapsChange }: OverlapsBodyProps) 
                     size="icon"
                     aria-label={`Remove overlap with ${base.name}`}
                     disabled={busy}
-                    onClick={() => void handleRemove(base.id)}
+                    onClick={() => void removeOverlap(base.id)}
                   >
                     <X aria-hidden="true" />
                   </Button>
@@ -136,7 +114,7 @@ function OverlapsBody({ course, courses, onOverlapsChange }: OverlapsBodyProps) 
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={() => void handleAdd()} disabled={busy || !selectedBaseId}>
+          <Button onClick={() => void addOverlap()} disabled={busy || !selectedBaseId}>
             Add
           </Button>
         </div>
@@ -147,4 +125,53 @@ function OverlapsBody({ course, courses, onOverlapsChange }: OverlapsBodyProps) 
       </div>
     </>
   );
+}
+
+function useOverlapActions(
+  course: CourseRow,
+  courses: CourseRow[],
+  coursesById: Map<string, CourseRow>,
+  onOverlapsChange: (courseId: string, nextOverlaps: string[]) => void,
+) {
+  const [selectedBaseId, setSelectedBaseId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const linkedBases = course.overlaps.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);
+
+  const candidates = useMemo(
+    () =>
+      courses.filter((c) => c.cohortId === course.cohortId && c.id !== course.id && !course.overlaps.includes(c.id)),
+    [courses, course],
+  );
+
+  const addOverlap = async () => {
+    if (!selectedBaseId) return;
+    setBusy(true);
+    const { error } = await createOverlap({ baseCourseId: selectedBaseId, dependentCourseId: course.id });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    onOverlapsChange(course.id, [...course.overlaps, selectedBaseId]);
+    setSelectedBaseId("");
+    toast.success("Overlap added");
+  };
+
+  const removeOverlap = async (baseCourseId: string) => {
+    setBusy(true);
+    const { error } = await deleteOverlap({ baseCourseId, dependentCourseId: course.id });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    onOverlapsChange(
+      course.id,
+      course.overlaps.filter((id) => id !== baseCourseId),
+    );
+    toast.success("Overlap removed");
+  };
+
+  return { selectedBaseId, setSelectedBaseId, busy, linkedBases, candidates, addOverlap, removeOverlap };
 }

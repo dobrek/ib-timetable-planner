@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { actions, isInputError } from "astro:actions";
+import { dissolveMerge, updateMergeHours } from "@/_pages/courses/api/course-client";
+import { isInputError } from "astro:actions";
 import { navigate } from "astro:transitions/client";
 import { toast } from "sonner";
 import {
@@ -19,20 +20,18 @@ import { Button } from "@/shared/ui";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
 import { Input } from "@/shared/ui";
+import { toNumberOrUndefined } from "@/_pages/courses/lib/coerce";
 import { formatCourseLabel } from "@/_pages/courses/lib/labels";
 import { updateMergeHoursInput, type UpdateMergeHoursInput } from "@/_pages/courses/model/schemas";
 import type { CourseRow } from "@/_pages/courses/model/course";
+import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
 
 type MergeManageDialogProps = {
   /** The composite merge parent being managed, or null when closed. */
   course: CourseRow | null;
-  /** All courses (resolves the child labels from `course.mergeChildIds`). */
-  courses: CourseRow[];
+  coursesById: Map<string, CourseRow>;
   onOpenChange: (open: boolean) => void;
 };
-
-/** Empty number field → undefined so the resolver reports "required" rather than NaN. */
-const toNumberOrUndefined = (raw: string): number | undefined => (raw === "" ? undefined : Number(raw));
 
 /**
  * Manage an existing composite merge parent: list its (read-only) children, edit the
@@ -40,11 +39,11 @@ const toNumberOrUndefined = (raw: string): number | undefined => (raw === "" ? u
  * pattern naming the consequence (parent + links removed, atomic children kept). Both
  * actions `navigate()` on success. Tokens only (lessons rule #2).
  */
-export default function MergeManageDialog({ course, courses, onOpenChange }: MergeManageDialogProps) {
+export default function MergeManageDialog({ course, coursesById, onOpenChange }: MergeManageDialogProps) {
   return (
     <Dialog open={course !== null} onOpenChange={onOpenChange}>
       <DialogContent>
-        {course && <ManageBody key={course.id} course={course} courses={courses} onOpenChange={onOpenChange} />}
+        {course && <ManageBody key={course.id} course={course} coursesById={coursesById} onOpenChange={onOpenChange} />}
       </DialogContent>
     </Dialog>
   );
@@ -52,55 +51,14 @@ export default function MergeManageDialog({ course, courses, onOpenChange }: Mer
 
 type ManageBodyProps = {
   course: CourseRow;
-  courses: CourseRow[];
+  coursesById: Map<string, CourseRow>;
   onOpenChange: (open: boolean) => void;
 };
 
-function ManageBody({ course, courses, onOpenChange }: ManageBodyProps) {
-  const [isDissolving, setIsDissolving] = useState(false);
-
-  const byId = new Map(courses.map((c) => [c.id, c]));
-  const children = course.mergeChildIds.map((id) => byId.get(id)).filter((c): c is CourseRow => c !== undefined);
-
-  const form = useForm<UpdateMergeHoursInput>({
-    resolver: zodResolver(updateMergeHoursInput),
-    mode: "onTouched",
-    defaultValues: { parentCourseId: course.id, hoursPerWeek: course.hours },
-  });
-
-  const onSubmit = async (values: UpdateMergeHoursInput) => {
-    const { error } = await actions.updateMergeHours(values);
-    if (error) {
-      if (isInputError(error)) {
-        for (const [field, messages] of Object.entries(error.fields)) {
-          if (messages.length > 0) {
-            form.setError(field as keyof UpdateMergeHoursInput, { message: messages[0] });
-          }
-        }
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-
-    toast.success("Merge hours updated");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
-
-  const handleDissolve = async () => {
-    setIsDissolving(true);
-    const { error } = await actions.dissolveMerge({ parentCourseId: course.id });
-    setIsDissolving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    toast.success("Merge deleted");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
+function ManageBody({ course, coursesById, onOpenChange }: ManageBodyProps) {
+  const { form, onSubmit } = useMergeHoursForm(course, onOpenChange);
+  const { dissolve, isDissolving } = useDissolve(course.id, onOpenChange);
+  const children = course.mergeChildIds.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);
 
   return (
     <>
@@ -139,7 +97,6 @@ function ManageBody({ course, courses, onOpenChange }: ManageBodyProps) {
                     type="number"
                     min={0}
                     autoComplete="off"
-                    // Keep the input controlled with "" before entry (a plain ?? is type-pruned).
                     value={Number.isFinite(field.value) ? field.value : ""}
                     onBlur={field.onBlur}
                     name={field.name}
@@ -174,7 +131,7 @@ function ManageBody({ course, courses, onOpenChange }: ManageBodyProps) {
                   <AlertDialogAction
                     onClick={(event) => {
                       event.preventDefault();
-                      void handleDissolve();
+                      void dissolve();
                     }}
                     disabled={isDissolving}
                   >
@@ -192,4 +149,50 @@ function ManageBody({ course, courses, onOpenChange }: ManageBodyProps) {
       </Form>
     </>
   );
+}
+
+function useMergeHoursForm(course: CourseRow, onOpenChange: (open: boolean) => void) {
+  const form = useForm<UpdateMergeHoursInput>({
+    resolver: zodResolver(updateMergeHoursInput),
+    mode: "onTouched",
+    defaultValues: { parentCourseId: course.id, hoursPerWeek: course.hours },
+  });
+
+  const onSubmit = async (values: UpdateMergeHoursInput) => {
+    const { error } = await updateMergeHours(values);
+    if (error) {
+      if (isInputError(error)) {
+        applyActionFieldErrors(error, form.setError);
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+
+    toast.success("Merge hours updated");
+    onOpenChange(false);
+    await navigate(window.location.pathname + window.location.search);
+  };
+
+  return { form, onSubmit };
+}
+
+function useDissolve(courseId: string, onOpenChange: (open: boolean) => void) {
+  const [isDissolving, setIsDissolving] = useState(false);
+
+  const dissolve = async () => {
+    setIsDissolving(true);
+    const { error } = await dissolveMerge({ parentCourseId: courseId });
+    setIsDissolving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Merge deleted");
+    onOpenChange(false);
+    await navigate(window.location.pathname + window.location.search);
+  };
+
+  return { dissolve, isDissolving };
 }

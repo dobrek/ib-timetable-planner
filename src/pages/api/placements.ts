@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@/shared/api";
-import { validatePlacementDelete, validatePlacementInsert } from "@/lib/placements/validate";
+import { validatePlacementDelete, validatePlacementInsert } from "@/_pages/plan-detail/model/validate";
 
 /** PostgREST surfaces a Postgres unique-constraint violation with this SQLSTATE. */
 const UNIQUE_VIOLATION = "23505";

@@ -609,23 +609,23 @@ Execute Track B: revise the `lessons.md` rule, migrate the `placements` and `gro
 
 #### Automated
 
-- [ ] 3.1 _pages/plan-detail/ created with api/, ui/, model/ segments
-- [ ] 3.2 _pages/courses/ created with api/, ui/, model/ segments
-- [ ] 3.3 _pages/plans-list/ created with api/, ui/ segments
-- [ ] 3.4 _pages/dashboard/ created with ui/ segment
-- [ ] 3.5 _pages/sign-in/ created with ui/ segment
-- [ ] 3.6 All src/pages/*.astro files are thin routing shells (<25 lines)
-- [ ] 3.7 src/actions/index.ts is a thin composition barrel
-- [ ] 3.8 All consumer imports updated, zero old-path imports remain
-- [ ] 3.9 Build passes: `pnpm build`
-- [ ] 3.10 Tests pass: `pnpm test`
-- [ ] 3.11 Lint passes: `pnpm lint`
+- [x] 3.1 _pages/plan-detail/ created with api/, ui/, model/ segments — a51792b
+- [x] 3.2 _pages/courses/ created with api/, ui/, model/ segments — a51792b
+- [x] 3.3 _pages/plans-list/ created with api/, ui/ segments — a51792b
+- [x] 3.4 _pages/dashboard/ created with ui/ segment — a51792b
+- [x] 3.5 _pages/sign-in/ created with ui/ segment — a51792b
+- [x] 3.6 All src/pages/*.astro files are thin routing shells (<25 lines) — a51792b
+- [x] 3.7 src/actions/index.ts is a thin composition barrel — a51792b
+- [x] 3.8 All consumer imports updated, zero old-path imports remain — a51792b
+- [x] 3.9 Build passes: `pnpm build` — a51792b
+- [x] 3.10 Tests pass: `pnpm test` — a51792b
+- [x] 3.11 Lint passes: `pnpm lint` — a51792b
 
 #### Manual
 
-- [ ] 3.12 Full app navigation works
-- [ ] 3.13 All CRUD operations work (courses, overlaps, merges)
-- [ ] 3.14 Planner drag-drop and grouping computation work
+- [x] 3.12 Full app navigation works — a51792b
+- [x] 3.13 All CRUD operations work (courses, overlaps, merges) — a51792b
+- [x] 3.14 Planner drag-drop and grouping computation work — a51792b
 
 ### Phase 4: Cleanup & Verification
 

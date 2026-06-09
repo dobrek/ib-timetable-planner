@@ -1,0 +1,28 @@
+---
+import PlannerBoard from "./PlannerBoard";
+import type { PlannerBoardProps } from "@/_pages/plan-detail/model/types";
+import { ArrowLeft } from "lucide-react";
+
+type Props = {
+  planName: string;
+  boardProps: PlannerBoardProps;
+};
+
+const { planName, boardProps } = Astro.props;
+---
+
+<main class="flex h-screen flex-col">
+  <header class="flex shrink-0 items-center gap-2 border-b px-6 py-3">
+    <a
+      href="/plans"
+      aria-label="Back to Plans"
+      class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm transition-colors"
+    >
+      <ArrowLeft size={16} aria-hidden="true" />
+      Plans
+    </a>
+    <span class="text-muted-foreground/50" aria-hidden="true">/</span>
+    <h1 class="text-lg font-semibold">{planName}</h1>
+  </header>
+  <PlannerBoard {...boardProps} client:load />
+</main>

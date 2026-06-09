@@ -1,8 +1,7 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@/shared/api";
-import { loadCohortCourses } from "@/lib/grouping/adapters/supabase";
+import { loadCohortCourses, computeCatalogHash, persistGroupings } from "@/_pages/plan-detail/api";
 import { computeGroupings, EnumerationCapError } from "@/entities/grouping";
-import { computeCatalogHash, persistGroupings } from "@/lib/grouping/persist";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

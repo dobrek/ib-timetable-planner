@@ -1,35 +1,8 @@
 ---
 import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
-import { NAV_ITEMS } from "@/shared/config";
-
-const { user } = Astro.locals;
-const sections = NAV_ITEMS.filter((item) => item.href !== "/dashboard");
+import DashboardPage from "@/_pages/dashboard/ui/DashboardPage.astro";
 ---
 
 <AppShellLayout title="Home">
-  <header class="mb-8">
-    <h1 class="text-foreground text-2xl font-semibold tracking-tight">Welcome back</h1>
-    <p class="text-muted-foreground mt-1 text-sm">
-      Signed in as <span class="text-foreground font-medium">{user?.email}</span>
-    </p>
-  </header>
-
-  <div class="grid gap-4 sm:grid-cols-2">
-    {
-      sections.map((item) => {
-        const Icon = item.icon;
-        return (
-          <a
-            href={item.href}
-            class="border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground flex items-center gap-4 rounded-lg border p-5 transition-colors"
-          >
-            <span class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
-              <Icon size={20} aria-hidden="true" />
-            </span>
-            <span class="font-medium">{item.label}</span>
-          </a>
-        );
-      })
-    }
-  </div>
+  <DashboardPage />
 </AppShellLayout>

@@ -29,7 +29,7 @@ For operations beyond the `pnpm` scripts above, reach for these CLIs (run via `p
 
 ## Branch and CI
 
-- CI runs: `pnpm install --frozen-lockfile` → `astro sync` → `pnpm lint` → `pnpm test` → `pnpm build`. Use the `/verify` skill to mirror this locally.
+- CI runs: `pnpm install --frozen-lockfile` → `astro sync` → `pnpm lint` → `pnpm steiger` → `pnpm test` → `pnpm build`. Use the `/verify` skill to mirror this locally.
 - Commit style (from history): `chore: …`, `feat: …`, `fix: …` — lowercase scope, imperative subject, no period.
 
 ## Runtime caveats

@@ -6,7 +6,12 @@
  */
 
 /** A subset of Astro's `ActionError` codes — the ones the domain layer raises. */
-export type DomainErrorCode = "BAD_REQUEST" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_SERVER_ERROR";
+export type DomainErrorCode =
+  | "BAD_REQUEST"
+  | "NOT_FOUND"
+  | "CONFLICT"
+  | "UNPROCESSABLE_CONTENT"
+  | "INTERNAL_SERVER_ERROR";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

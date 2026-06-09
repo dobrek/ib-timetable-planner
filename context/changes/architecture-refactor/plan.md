@@ -644,20 +644,20 @@ Execute Track B: revise the `lessons.md` rule, migrate the `placements` and `gro
 
 #### Automated
 
-- [ ] 5.1 lessons.md updated with unified Actions rule
-- [ ] 5.2 Placement Actions created and wired
-- [ ] 5.3 Grouping Action created and wired
-- [ ] 5.4 Actions barrel updated with new action groups
-- [ ] 5.5 Obsolete files deleted (API routes, client.ts)
-- [ ] 5.6 Auth DS compliance fixed (zero palette colors in auth components)
-- [ ] 5.7 Build passes: `pnpm build`
-- [ ] 5.8 Tests pass: `pnpm test`
-- [ ] 5.9 Lint passes: `pnpm lint`
-- [ ] 5.10 Steiger clean: `pnpm dlx steiger src`
+- [x] 5.1 lessons.md updated with unified Actions rule
+- [x] 5.2 Placement Actions created and wired
+- [x] 5.3 Grouping Action created and wired
+- [x] 5.4 Actions barrel updated with new action groups
+- [x] 5.5 Obsolete files deleted (API routes, client.ts)
+- [x] 5.6 Auth DS compliance fixed (zero palette colors in auth components)
+- [x] 5.7 Build passes: `pnpm build`
+- [x] 5.8 Tests pass: `pnpm test`
+- [x] 5.9 Lint passes: `pnpm lint`
+- [x] 5.10 Steiger clean: `pnpm dlx steiger src`
 
 #### Manual
 
-- [ ] 5.11 Planner placement works end-to-end (add, move, remove)
-- [ ] 5.12 Grouping computation works from empty state
-- [ ] 5.13 Sign-in form renders correctly in light and dark themes
-- [ ] 5.14 Sign-out flow works
+- [x] 5.11 Planner placement works end-to-end (add, move, remove)
+- [x] 5.12 Grouping computation works from empty state
+- [x] 5.13 Sign-in form renders correctly in light and dark themes
+- [x] 5.14 Sign-out flow works

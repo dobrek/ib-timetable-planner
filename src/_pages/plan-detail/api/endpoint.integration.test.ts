@@ -1,18 +1,15 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
-import { loadCohortCourses } from "./supabase";
-import { computeGroupings } from "@/entities/grouping";
-import { computeCatalogHash, persistGroupings } from "./persist";
+import { computeAndPersistGroupings } from "./grouping-compute";
 import { isGroupingStale } from "./staleness";
 
 // Exercises the full compute path against the seeded dp2 catalog with the
 // service_role/secret client (bypasses RLS for setup + assertions). The Astro
-// route (src/pages/api/grouping.ts) couples to astro:env, so we drive the same
-// composition the handler runs (load → compute → hash → persist) rather than the
-// HTTP layer. Faithful end-to-end RLS coverage through the real middleware is
-// deferred to the Module 3 testing work, per scope. Skips when the env/stack is
-// unavailable.
+// Action couples to astro:env, so we drive the same domain function the handler
+// runs (load → compute → hash → persist) rather than the HTTP layer. Faithful
+// end-to-end RLS coverage through the real middleware is deferred to the Module 3
+// testing work, per scope. Skips when the env/stack is unavailable.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -21,7 +18,7 @@ const HASH_RE = /^[0-9a-f]{64}$/;
 
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
-(hasEnv ? describe : describe.skip)("compute endpoint path (dp2)", () => {
+(hasEnv ? describe : describe.skip)("computeGroupings action path (dp2)", () => {
   let supabase: SupabaseClient<Database>;
   let planId: string | null = null;
   let cohortId: string | null = null;
@@ -42,12 +39,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       return;
     }
 
-    // Mirror the handler composition.
-    const { courses, names, warnings } = await loadCohortCourses(supabase, cohortId);
-    const results = computeGroupings(courses);
-    const catalogHash = await computeCatalogHash(courses);
-    await persistGroupings(supabase, { planId, cohortId, catalogHash, results });
-    const response = { groupings: results, names: Object.fromEntries(names), catalogHash, warnings };
+    const response = await computeAndPersistGroupings(supabase, { planId, cohortId });
 
     // Response shape: ranked, id-keyed, hashed.
     expect(response.catalogHash).toMatch(HASH_RE);
@@ -76,7 +68,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       .select("id, catalog_hash")
       .eq("plan_id", planId)
       .eq("cohort_id", cohortId);
-    expect((rows ?? []).every((r) => r.catalog_hash === catalogHash)).toBe(true);
+    expect((rows ?? []).every((r) => r.catalog_hash === response.catalogHash)).toBe(true);
 
     // Count members via the FK relationship — a 491-element .in() filter would
     // overflow the request URL.

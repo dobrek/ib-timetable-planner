@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { actions } from "astro:actions";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/shared/ui";
 
@@ -8,8 +9,8 @@ type Props = {
 };
 
 /**
- * Empty-state for a plan with no persisted `course_groupings` yet. POSTs to the
- * existing `/api/grouping` to compute + persist the palette, then reloads so the
+ * Empty-state for a plan with no persisted `course_groupings` yet. Calls the
+ * computeGroupings Action to compute + persist the palette, then reloads so the
  * board renders from the freshly-persisted rows (single render path). Scoped strictly
  * to the empty state — re-compute and staleness UI are S-06.
  */
@@ -21,15 +22,8 @@ export default function ComputeGroupingsEmptyState({ planId, cohortId }: Props) 
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/grouping", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ planId, cohortId }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? `Compute failed (${response.status})`);
-      }
+      const { error: actionError } = await actions.computeGroupings({ planId, cohortId });
+      if (actionError) throw new Error(actionError.message);
       location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error computing groupings");

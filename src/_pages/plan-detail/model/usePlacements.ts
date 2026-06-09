@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { actions } from "astro:actions";
 import type { CellData } from "./types";
 import type { LocalPlacement, PlannerPlacement } from "@/entities/placement";
-import { createPlacement, deletePlacement } from "./client";
 
 type UsePlacementsArgs = { variantId: string; cohortId: string };
 
@@ -94,6 +94,23 @@ export function usePlacements(initial: PlannerPlacement[], { variantId, cohortId
   }
 
   return { placements, error, addCourse, movePlacement, removePlacement, clearError };
+}
+
+async function createPlacement(args: {
+  variantId: string;
+  cohortId: string;
+  courseId: string;
+  day: number;
+  period: number;
+}): Promise<PlannerPlacement> {
+  const { data, error } = await actions.createPlacement(args);
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function deletePlacement(id: string): Promise<void> {
+  const { error } = await actions.deletePlacement({ id });
+  if (error) throw new Error(error.message);
 }
 
 const occupiesCell = (placements: LocalPlacement[], courseId: string, cell: CellData): boolean =>

@@ -1,5 +1,5 @@
-import type { GroupingCourse } from "@/lib/grouping/types";
-import type { PlannerPlacement } from "@/components/planner/types";
+import type { GroupingCourse } from "@/entities/grouping";
+import type { PlannerPlacement } from "@/entities/placement";
 
 /** Placed-vs-required hours for one course. */
 export type HoursStat = { placed: number; required: number };

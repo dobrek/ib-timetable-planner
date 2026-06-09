@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui";
-import type { CourseRow } from "@/components/courses/types";
+import type { CourseRow } from "@/entities/course";
 
 type DeleteCourseDialogProps = {
   /** The course pending deletion, or null when closed. */

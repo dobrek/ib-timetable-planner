@@ -3,7 +3,8 @@ import { TriangleAlert, X } from "lucide-react";
 import { Badge } from "@/shared/ui";
 import { Button } from "@/shared/ui";
 import { cellKey } from "@/lib/planner/collisions";
-import type { CellData, LocalPlacement, PlacementDrag } from "@/components/planner/types";
+import type { CellData, PlacementDrag } from "@/components/planner/types";
+import type { LocalPlacement } from "@/entities/placement";
 import { cn } from "@/shared/lib/cn";
 
 type Props = {

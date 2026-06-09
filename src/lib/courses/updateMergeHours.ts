@@ -1,6 +1,6 @@
-import type { UpdateMergeHoursInput } from "../schemas/course";
+import type { UpdateMergeHoursInput } from "@/entities/course";
 import { DomainError } from "@/shared/lib/errors";
-import { assertMergeParent } from "./assertMergeParent";
+import { assertMergeParent } from "@/entities/course";
 import type { Supabase } from "./shared";
 
 /** Update a composite merge parent's authored weekly hours. Guarded to merge parents only. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { scoreVariant } from "../score";
-import type { GroupingCourse } from "../types";
+import { scoreVariant } from "./score";
+import type { GroupingCourse } from "./types";
 
 const course = (id: string, hours: number, studentKeys: string[]): GroupingCourse => ({
   id,

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { groupBy, unique } from "../utils";
-import type { GroupingCourse } from "../types";
+import type { GroupingCourse } from "@/entities/grouping";
+import { groupBy, unique } from "@/entities/grouping";
 
 export const loadFixtureCourses = (dir: string): GroupingCourse[] => {
   const studentRows = parseCSV(join(dir, "students_subjects.csv"));

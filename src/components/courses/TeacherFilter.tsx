@@ -4,7 +4,7 @@ import { Button } from "@/shared/ui";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/shared/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui";
 import { cn } from "@/shared/lib/cn";
-import type { TeacherOption } from "@/components/courses/types";
+import type { TeacherOption } from "@/entities/teacher";
 
 type TeacherFilterProps = {
   teachers: readonly TeacherOption[];

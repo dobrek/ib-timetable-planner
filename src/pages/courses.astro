@@ -2,7 +2,8 @@
 import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
 import CourseCatalog from "@/components/courses/CourseCatalog";
 import { createClient } from "@/shared/api";
-import type { CohortTab, CourseRow, TeacherOption } from "@/components/courses/types";
+import type { CohortTab, CourseRow } from "@/entities/course";
+import type { TeacherOption } from "@/entities/teacher";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 

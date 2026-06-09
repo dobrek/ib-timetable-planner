@@ -19,9 +19,12 @@ import { Button } from "@/shared/ui";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
 import { Input } from "@/shared/ui";
-import { updateMergeHoursInput, type UpdateMergeHoursInput } from "@/lib/schemas/course";
-import { formatCourseLabel } from "@/components/courses/labels";
-import type { CourseRow } from "@/components/courses/types";
+import {
+  formatCourseLabel,
+  updateMergeHoursInput,
+  type CourseRow,
+  type UpdateMergeHoursInput,
+} from "@/entities/course";
 
 type MergeManageDialogProps = {
   /** The composite merge parent being managed, or null when closed. */

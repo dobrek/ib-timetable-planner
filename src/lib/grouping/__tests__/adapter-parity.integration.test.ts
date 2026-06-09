@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
-import type { GroupingCourse } from "../types";
+import type { GroupingCourse } from "@/entities/grouping";
 import { loadCohortCourses } from "../adapters/supabase";
 import { loadFixtureCourses } from "../adapters/fixture.node";
 

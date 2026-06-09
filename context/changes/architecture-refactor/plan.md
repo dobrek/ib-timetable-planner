@@ -588,22 +588,22 @@ Execute Track B: revise the `lessons.md` rule, migrate the `placements` and `gro
 
 #### Automated
 
-- [ ] 2.1 entities/course/ created with model/ and barrel
-- [ ] 2.2 entities/teacher/ created with model/ and barrel
-- [ ] 2.3 entities/placement/ created with model/ and barrel
-- [ ] 2.4 entities/grouping/ created with model/ and barrel, pure compute moved
-- [ ] 2.5 entities/plan/ created with model/ and barrel
-- [ ] 2.6 entities/student/ stub created
-- [ ] 2.7 All consumer imports updated, zero upward imports remain
-- [ ] 2.8 Build passes: `pnpm build`
-- [ ] 2.9 Tests pass: `pnpm test`
-- [ ] 2.10 Lint passes: `pnpm lint`
+- [x] 2.1 entities/course/ created with model/ and barrel — b2335cd
+- [x] 2.2 entities/teacher/ created with model/ and barrel — b2335cd
+- [x] 2.3 entities/placement/ created with model/ and barrel — b2335cd
+- [x] 2.4 entities/grouping/ created with model/ and barrel, pure compute moved — b2335cd
+- [x] 2.5 entities/plan/ created with model/ and barrel — b2335cd
+- [x] 2.6 entities/student/ stub created — b2335cd
+- [x] 2.7 All consumer imports updated, zero upward imports remain — b2335cd
+- [x] 2.8 Build passes: `pnpm build` — b2335cd
+- [x] 2.9 Tests pass: `pnpm test` — b2335cd
+- [x] 2.10 Lint passes: `pnpm lint` — b2335cd
 
 #### Manual
 
-- [ ] 2.11 Courses page loads, filtering works
-- [ ] 2.12 Planner board loads, drag-drop works
-- [ ] 2.13 Course dialogs (create, merge, overlap) work
+- [x] 2.11 Courses page loads, filtering works — b2335cd
+- [x] 2.12 Planner board loads, drag-drop works — b2335cd
+- [x] 2.13 Course dialogs (create, merge, overlap) work — b2335cd
 
 ### Phase 3: Pages & Actions Barrel
 

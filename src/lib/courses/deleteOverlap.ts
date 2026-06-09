@@ -1,4 +1,4 @@
-import type { DeleteOverlapInput } from "../schemas/course";
+import type { DeleteOverlapInput } from "@/entities/course";
 import { DomainError } from "@/shared/lib/errors";
 import type { Supabase } from "./shared";
 

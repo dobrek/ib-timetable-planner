@@ -1,4 +1,4 @@
-import type { OverlapInput } from "../schemas/course";
+import type { OverlapInput } from "@/entities/course";
 import { DomainError } from "@/shared/lib/errors";
 import { UNIQUE_VIOLATION, type Supabase } from "./shared";
 

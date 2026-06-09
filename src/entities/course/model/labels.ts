@@ -1,4 +1,4 @@
-import type { CourseRow } from "@/components/courses/types";
+import type { CourseRow } from "./types";
 
 /**
  * Human-readable course label: name, plus level (unless "none") and group (unless 0).

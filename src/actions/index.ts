@@ -9,7 +9,7 @@ import {
   overlapInput,
   updateCourseInput,
   updateMergeHoursInput,
-} from "@/lib/schemas/course";
+} from "@/entities/course";
 import { createCourse } from "@/lib/courses/createCourse";
 import { updateCourse } from "@/lib/courses/updateCourse";
 import { deleteCourse } from "@/lib/courses/deleteCourse";

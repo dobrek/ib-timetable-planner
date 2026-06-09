@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useDraggable } from "@dnd-kit/react";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import { Button } from "@/shared/ui";
-import type { CourseDrag, PlannerGrouping } from "@/components/planner/types";
+import type { CourseDrag } from "@/components/planner/types";
+import type { PlannerGrouping } from "@/entities/grouping";
 import type { HoursStat } from "@/lib/planner/hours";
 import { cn } from "@/shared/lib/cn";
 

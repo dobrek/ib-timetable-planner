@@ -1,4 +1,4 @@
-import type { CourseInput } from "../schemas/course";
+import type { CourseInput } from "@/entities/course";
 import { DomainError } from "@/shared/lib/errors";
 import { DUPLICATE_COURSE_MESSAGE, UNIQUE_VIOLATION, type Supabase } from "./shared";
 

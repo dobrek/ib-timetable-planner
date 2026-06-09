@@ -12,11 +12,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
 import { Input } from "@/shared/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui";
-import { mergeInput, type MergeInput } from "@/lib/schemas/course";
-import { deriveMergeParent, mergeReasonMessage } from "@/lib/courses/merge";
-import { formatCourseLabel } from "@/components/courses/labels";
+import {
+  deriveMergeParent,
+  formatCourseLabel,
+  mergeInput,
+  mergeReasonMessage,
+  type MergeInput,
+} from "@/entities/course";
+import type { CourseRow } from "@/entities/course";
+import type { TeacherOption } from "@/entities/teacher";
 import { cn } from "@/shared/lib/cn";
-import type { CourseRow, TeacherOption } from "@/components/courses/types";
 
 type MergeBuilderDialogProps = {
   open: boolean;

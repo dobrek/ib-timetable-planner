@@ -2,10 +2,6 @@ import { enumerateVariants } from "./enumerate";
 import { scoreVariant } from "./score";
 import type { GroupingCourse, GroupingResult, GroupingVariant } from "./types";
 
-export type { GroupingCourse, GroupingResult, GroupingVariant } from "./types";
-export type { ComputeWarning } from "./types";
-export { EnumerationCapError } from "./enumerate";
-
 const DEFAULT_CAP = 10_000;
 
 export const computeGroupings = (courses: GroupingCourse[], opts?: { cap?: number }): GroupingResult[] => {

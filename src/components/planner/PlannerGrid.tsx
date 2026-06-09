@@ -1,5 +1,5 @@
 import SlotCell from "@/components/planner/SlotCell";
-import type { LocalPlacement } from "@/components/planner/types";
+import type { LocalPlacement } from "@/entities/placement";
 import { cellKey } from "@/lib/planner/collisions";
 
 type Props = {

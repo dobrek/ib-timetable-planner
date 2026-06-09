@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cellKey, deriveCollisions } from "../collisions";
-import type { GroupingCourse } from "@/lib/grouping/types";
-import type { PlannerPlacement } from "@/components/planner/types";
+import type { GroupingCourse } from "@/entities/grouping";
+import type { PlannerPlacement } from "@/entities/placement";
 
 const course = (id: string, teacherKey: string | null, studentKeys: string[]): GroupingCourse => ({
   id,

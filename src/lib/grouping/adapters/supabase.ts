@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/shared/api";
-import type { ComputeWarning, GroupingCourse } from "../types";
-import { unique } from "../utils";
+import type { ComputeWarning, GroupingCourse } from "@/entities/grouping";
+import { unique } from "@/entities/grouping";
 
 type Supabase = SupabaseClient<Database>;
 

@@ -1,27 +1,7 @@
-import type { GroupingCourse } from "@/lib/grouping/types";
+import type { GroupingCourse, PlannerGrouping } from "@/entities/grouping";
+import type { PlannerPlacement } from "@/entities/placement";
 
-/** A palette hint box: a deduped member-set read from `course_groupings`. */
-export type PlannerGrouping = {
-  id: string;
-  memberIds: string[];
-  coverageCount: number;
-  score: number;
-};
-
-/** One placed course-hour. `id` may be a temporary client id until the POST reconciles. */
-export type PlannerPlacement = {
-  id: string;
-  courseId: string;
-  day: number;
-  period: number;
-};
-
-/**
- * A placement in island-local state. `pending` is true while an optimistic row's
- * server id has not yet reconciled — move/remove are gated until it clears so a
- * DELETE never targets a temporary id.
- */
-export type LocalPlacement = PlannerPlacement & { pending?: boolean };
+export type { PlannerGrouping, PlannerPlacement };
 
 /** Drag payload carried on the draggable's `data`. Identity is opaque ids — never names. */
 export type CourseDrag = { kind: "course"; courseId: string };

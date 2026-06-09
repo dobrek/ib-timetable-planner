@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { courseInput, overlapInput, updateCourseInput } from "./course";
+import { courseInput, overlapInput, updateCourseInput } from "./schemas";
 
 const UUID_A = "11111111-1111-4111-8111-111111111111";
 const UUID_B = "22222222-2222-4222-8222-222222222222";

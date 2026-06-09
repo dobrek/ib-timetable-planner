@@ -23,3 +23,11 @@ export type ComputeWarning = {
   kind: "no-teacher" | "no-students" | "zero-hours";
   message: string;
 };
+
+/** A palette hint box: a deduped member-set read from `course_groupings`. */
+export type PlannerGrouping = {
+  id: string;
+  memberIds: string[];
+  coverageCount: number;
+  score: number;
+};

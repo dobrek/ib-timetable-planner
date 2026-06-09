@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { loadCohortCourses } from "../adapters/supabase";
-import { computeGroupings } from "../index";
+import { computeGroupings } from "@/entities/grouping";
 import { computeCatalogHash, persistGroupings } from "../persist";
 import { isGroupingStale } from "../staleness";
 

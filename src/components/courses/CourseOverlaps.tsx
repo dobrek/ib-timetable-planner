@@ -6,8 +6,7 @@ import { Button } from "@/shared/ui";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
 import { cn } from "@/shared/lib/cn";
-import { formatCourseLabel } from "@/components/courses/labels";
-import type { CourseRow } from "@/components/courses/types";
+import { formatCourseLabel, type CourseRow } from "@/entities/course";
 
 type CourseOverlapsProps = {
   /** The dependent course whose overlaps are being managed, or null when closed. */

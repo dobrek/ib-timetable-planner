@@ -29,9 +29,3 @@ export type CohortTab = {
   id: string;
   label: string;
 };
-
-/** A selectable teacher for the multi-select filter and the create/edit form. */
-export type TeacherOption = {
-  id: string;
-  label: string;
-};

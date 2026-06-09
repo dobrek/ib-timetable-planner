@@ -1,4 +1,4 @@
-import type { PlannerPlacement } from "@/components/planner/types";
+import type { PlannerPlacement } from "@/entities/placement";
 
 type CreateArgs = { variantId: string; cohortId: string; courseId: string; day: number; period: number };
 

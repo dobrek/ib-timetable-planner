@@ -1,4 +1,4 @@
-import type { DeleteCourseInput } from "../schemas/course";
+import type { DeleteCourseInput } from "@/entities/course";
 import { DomainError } from "@/shared/lib/errors";
 import type { Supabase } from "./shared";
 

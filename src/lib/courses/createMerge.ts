@@ -1,6 +1,6 @@
-import type { MergeInput } from "../schemas/course";
+import type { MergeInput } from "@/entities/course";
+import { deriveMergeParent, mergeReasonMessage, writeMergeAtomic } from "@/entities/course";
 import { DomainError } from "@/shared/lib/errors";
-import { deriveMergeParent, mergeReasonMessage, writeMergeAtomic } from "./merge";
 import { DUPLICATE_COURSE_MESSAGE, UNIQUE_VIOLATION, type Supabase } from "./shared";
 
 /**

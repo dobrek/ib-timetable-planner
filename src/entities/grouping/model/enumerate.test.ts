@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { enumerateVariants } from "../enumerate";
-import type { GroupingCourse } from "../types";
+import { enumerateVariants } from "./enumerate";
+import type { GroupingCourse } from "./types";
 
 const course = (id: string, teacherKey: string | null, studentKeys: string[]): GroupingCourse => ({
   id,

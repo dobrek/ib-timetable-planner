@@ -1,4 +1,4 @@
-import type { CourseRow } from "@/components/courses/types";
+import type { CourseRow } from "@/entities/course";
 
 /**
  * Pure catalog filter: narrow to the active cohort's rows, optionally drop composite

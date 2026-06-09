@@ -1,6 +1,6 @@
-import type { DissolveMergeInput } from "../schemas/course";
+import type { DissolveMergeInput } from "@/entities/course";
 import { DomainError } from "@/shared/lib/errors";
-import { assertMergeParent } from "./assertMergeParent";
+import { assertMergeParent } from "@/entities/course";
 import type { Supabase } from "./shared";
 
 /**

@@ -12,10 +12,11 @@ import DeleteCourseDialog from "@/components/courses/DeleteCourseDialog";
 import MergeBuilderDialog from "@/components/courses/MergeBuilderDialog";
 import MergeManageDialog from "@/components/courses/MergeManageDialog";
 import { TeacherFilter } from "@/components/courses/TeacherFilter";
-import { formatCourseLabel } from "@/components/courses/labels";
+import { formatCourseLabel } from "@/entities/course";
 import { filterCourses } from "@/components/courses/useCourseFilters";
 import { readFilterParams, toFilterSearch } from "@/components/courses/filterParams";
-import type { CohortTab, CourseRow, TeacherOption } from "@/components/courses/types";
+import type { CohortTab, CourseRow } from "@/entities/course";
+import type { TeacherOption } from "@/entities/teacher";
 
 type CourseCatalogProps = {
   cohorts: CohortTab[];

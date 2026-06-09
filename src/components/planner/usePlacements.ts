@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { CellData, LocalPlacement, PlannerPlacement } from "@/components/planner/types";
+import type { CellData } from "@/components/planner/types";
+import type { LocalPlacement, PlannerPlacement } from "@/entities/placement";
 import { createPlacement, deletePlacement } from "@/lib/planner/client";
 
 type UsePlacementsArgs = { variantId: string; cohortId: string };

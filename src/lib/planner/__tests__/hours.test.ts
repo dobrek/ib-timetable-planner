@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { countIncompleteCourses, deriveHours } from "../hours";
-import type { GroupingCourse } from "@/lib/grouping/types";
-import type { PlannerPlacement } from "@/components/planner/types";
+import type { GroupingCourse } from "@/entities/grouping";
+import type { PlannerPlacement } from "@/entities/placement";
 
 const course = (id: string, hours: number): GroupingCourse => ({ id, teacherKey: "t", studentKeys: ["s"], hours });
 

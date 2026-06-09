@@ -631,14 +631,14 @@ Execute Track B: revise the `lessons.md` rule, migrate the `placements` and `gro
 
 #### Automated
 
-- [ ] 4.1 src/components/, src/layouts/, src/lib/, src/styles/ deleted
-- [ ] 4.2 No __tests__/ subdirectories remain
-- [ ] 4.3 Steiger clean: `pnpm dlx steiger src` (zero errors)
-- [ ] 4.4 Full CI gate passes: install → astro sync → lint → test → build
+- [x] 4.1 src/components/, src/layouts/, src/lib/, src/styles/ deleted
+- [x] 4.2 No __tests__/ subdirectories remain
+- [x] 4.3 Steiger clean: `pnpm dlx steiger src` (zero errors)
+- [x] 4.4 Full CI gate passes: install → astro sync → lint → test → build
 
 #### Manual
 
-- [ ] 4.5 Full app smoke test: every page, every CRUD operation, planner drag-drop
+- [x] 4.5 Full app smoke test: every page, every CRUD operation, planner drag-drop
 
 ### Phase 5: Behavioral Changes
 

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
-import type { PlannerGrouping } from "@/entities/grouping";
+import type { PlannerGrouping } from "@/_pages/plan-detail/model/grouping";
 
 type Props = {
   groupings: PlannerGrouping[];

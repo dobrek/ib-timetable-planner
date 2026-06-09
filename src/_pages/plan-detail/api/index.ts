@@ -1,5 +1,5 @@
 export { loadPlannerData, type PlannerPageResult } from "./load";
-export { loadCohortCourses, type CohortCatalog } from "./supabase";
+export { loadCohortCourses, type CohortCatalog } from "./load-cohort-catalog";
 export { computeCatalogHash, persistGroupings, type CatalogSnapshot } from "./persist";
 export { isGroupingStale } from "./staleness";
 export {

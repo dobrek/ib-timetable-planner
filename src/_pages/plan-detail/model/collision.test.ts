@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hasIntersection } from "./collision";
-import type { GroupingCourse } from "./types";
+import type { GroupingCourse } from "./grouping";
 
 const course = (id: string, teacherKey: string | null, studentKeys: string[]): GroupingCourse => ({
   id,

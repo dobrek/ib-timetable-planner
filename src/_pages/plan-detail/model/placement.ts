@@ -12,3 +12,9 @@ export type PlannerPlacement = {
  * DELETE never targets a temporary id.
  */
 export type LocalPlacement = PlannerPlacement & { pending?: boolean };
+
+export const occupiesCell = (
+  placements: LocalPlacement[],
+  courseId: string,
+  cell: { day: number; period: number },
+): boolean => placements.some((p) => p.courseId === courseId && p.day === cell.day && p.period === cell.period);

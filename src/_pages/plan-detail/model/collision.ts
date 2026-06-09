@@ -1,4 +1,4 @@
-import type { GroupingCourse } from "./types";
+import type { GroupingCourse } from "./grouping";
 
 export const hasIntersection = (course: GroupingCourse, list: GroupingCourse[]): boolean => {
   if (list.some((item) => item.id === course.id)) return true;

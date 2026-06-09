@@ -1,7 +1,5 @@
-import type { GroupingCourse, PlannerGrouping } from "@/entities/grouping";
-import type { PlannerPlacement } from "@/entities/placement";
-
-export type { PlannerGrouping, PlannerPlacement };
+import type { GroupingCourse, PlannerGrouping } from "./grouping";
+import type { PlannerPlacement } from "./placement";
 
 /** Drag payload carried on the draggable's `data`. Identity is opaque ids — never names. */
 export type CourseDrag = { kind: "course"; courseId: string };

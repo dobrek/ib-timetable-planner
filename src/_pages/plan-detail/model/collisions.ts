@@ -1,6 +1,6 @@
-import type { GroupingCourse } from "@/entities/grouping";
-import { hasIntersection } from "@/entities/grouping";
-import type { PlannerPlacement } from "@/entities/placement";
+import type { GroupingCourse } from "./grouping";
+import { hasIntersection } from "./collision";
+import type { PlannerPlacement } from "./placement";
 
 /** Canonical `(day, period)` cell identity, shared by the grid, droppables, and the collision map. */
 export const cellKey = (day: number, period: number): string => `${day}:${period}`;

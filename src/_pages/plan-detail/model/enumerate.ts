@@ -1,5 +1,5 @@
 import { hasIntersection } from "./collision";
-import type { GroupingCourse } from "./types";
+import type { GroupingCourse } from "./grouping";
 
 // Thrown when either cap (distinct results or traversal nodes) is crossed. The
 // endpoint branches on this type to return 422 — never match on the message text.

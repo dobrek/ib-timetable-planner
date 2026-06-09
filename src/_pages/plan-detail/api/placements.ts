@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PlannerPlacement } from "@/entities/placement";
+import type { PlannerPlacement } from "@/_pages/plan-detail/model/placement";
 import type { SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 

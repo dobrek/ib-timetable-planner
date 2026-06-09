@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import GroupingBox from "./GroupingBox";
 import GroupingFilter from "./GroupingFilter";
-import type { PlannerGrouping } from "@/entities/grouping";
+import type { PlannerGrouping } from "@/_pages/plan-detail/model/grouping";
 import type { HoursStat } from "@/_pages/plan-detail/model/hours";
 
 type PlannerPaletteProps = {

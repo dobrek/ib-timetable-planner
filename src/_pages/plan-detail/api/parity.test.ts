@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { computeGroupings } from "@/entities/grouping";
-import { loadFixtureCourses } from "./fixture.node";
+import { computeGroupings } from "@/_pages/plan-detail/model/compute-groupings";
+import { loadFixtureCourses } from "./__fixtures__/cohort-catalog.node";
 
 type GoldenRow = {
   coverageCount: number;

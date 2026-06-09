@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/shared/api";
-import type { GroupingCourse, GroupingResult } from "@/entities/grouping";
+import type { GroupingCourse, GroupingResult } from "@/_pages/plan-detail/model/grouping";
 
 type Supabase = SupabaseClient<Database>;
 

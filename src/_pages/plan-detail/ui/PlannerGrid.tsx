@@ -1,5 +1,5 @@
 import SlotCell from "./SlotCell";
-import type { LocalPlacement } from "@/entities/placement";
+import type { LocalPlacement } from "@/_pages/plan-detail/model/placement";
 import { cellKey } from "@/_pages/plan-detail/model/collisions";
 
 type Props = {

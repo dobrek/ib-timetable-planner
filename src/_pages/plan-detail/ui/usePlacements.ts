@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { actions } from "astro:actions";
-import type { CellData } from "./types";
-import type { LocalPlacement, PlannerPlacement } from "@/entities/placement";
+import { createPlacement, deletePlacement } from "@/_pages/plan-detail/api/placement-client";
+import type { CellData } from "@/_pages/plan-detail/model/drag";
+import { occupiesCell, type LocalPlacement, type PlannerPlacement } from "@/_pages/plan-detail/model/placement";
 
 type UsePlacementsArgs = { variantId: string; cohortId: string };
 
@@ -95,26 +95,6 @@ export function usePlacements(initial: PlannerPlacement[], { variantId, cohortId
 
   return { placements, error, addCourse, movePlacement, removePlacement, clearError };
 }
-
-async function createPlacement(args: {
-  variantId: string;
-  cohortId: string;
-  courseId: string;
-  day: number;
-  period: number;
-}): Promise<PlannerPlacement> {
-  const { data, error } = await actions.createPlacement(args);
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-async function deletePlacement(id: string): Promise<void> {
-  const { error } = await actions.deletePlacement({ id });
-  if (error) throw new Error(error.message);
-}
-
-const occupiesCell = (placements: LocalPlacement[], courseId: string, cell: CellData): boolean =>
-  placements.some((p) => p.courseId === courseId && p.day === cell.day && p.period === cell.period);
 
 const messageOf = (err: unknown): string =>
   err instanceof Error ? err.message : "Unexpected error persisting placement";

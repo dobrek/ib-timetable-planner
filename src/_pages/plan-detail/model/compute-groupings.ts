@@ -1,6 +1,6 @@
 import { enumerateVariants } from "./enumerate";
 import { scoreVariant } from "./score";
-import type { GroupingCourse, GroupingResult, GroupingVariant } from "./types";
+import type { GroupingCourse, GroupingResult, GroupingVariant } from "./grouping";
 
 const DEFAULT_CAP = 10_000;
 

@@ -1,4 +1,4 @@
-import type { GroupingCourse, GroupingVariant } from "./types";
+import type { GroupingCourse, GroupingVariant } from "./grouping";
 
 export const scoreVariant = (set: GroupingCourse[], seed: GroupingCourse): GroupingVariant => {
   const maxHours = Math.max(...set.map((c) => c.hours));

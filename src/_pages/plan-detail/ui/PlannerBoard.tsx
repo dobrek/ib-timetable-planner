@@ -7,8 +7,8 @@ import ErrorBanner from "./ErrorBanner";
 import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
-import type { CellData, DragData, PlannerBoardProps } from "@/_pages/plan-detail/model/types";
-import { usePlacements } from "@/_pages/plan-detail/model/usePlacements";
+import type { CellData, DragData, PlannerBoardProps } from "@/_pages/plan-detail/model/drag";
+import { usePlacements } from "./usePlacements";
 import { deriveCollisions } from "@/_pages/plan-detail/model/collisions";
 import { countIncompleteCourses, deriveHours } from "@/_pages/plan-detail/model/hours";
 

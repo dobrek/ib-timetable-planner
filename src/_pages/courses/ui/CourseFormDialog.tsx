@@ -1,19 +1,37 @@
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { actions, isInputError } from "astro:actions";
-import { navigate } from "astro:transitions/client";
-import { toast } from "sonner";
-import { Button } from "@/shared/ui";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
-import { Input } from "@/shared/ui";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
+import { toNumberOrUndefined } from "@/_pages/courses/lib/coerce";
+import { createCourse, updateCourse } from "@/_pages/courses/api/course-client";
+import type { CohortTab, CourseRow, TeacherOption } from "@/_pages/courses/model/course";
 import { courseInput, type CourseInput } from "@/_pages/courses/model/schemas";
-import type { CohortTab, CourseRow } from "@/_pages/courses/model/course";
-import type { TeacherOption } from "@/_pages/courses/model/course";
+import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { isInputError } from "astro:actions";
+import { navigate } from "astro:transitions/client";
+import { useEffect } from "react";
+import { useForm, type DefaultValues } from "react-hook-form";
+import { toast } from "sonner";
 
-type CourseFormDialogProps = {
+type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cohorts: CohortTab[];
@@ -24,96 +42,15 @@ type CourseFormDialogProps = {
   defaultCohortId: string;
 };
 
-const GROUP_OPTIONS = [
-  { value: 0, label: "None" },
-  { value: 1, label: "Group 1" },
-  { value: 2, label: "Group 2" },
-  { value: 3, label: "Group 3" },
-] as const;
-
-/** Empty number field → undefined so the resolver reports "required" rather than NaN. */
-const toNumberOrUndefined = (raw: string): number | undefined => (raw === "" ? undefined : Number(raw));
-
-/** Coerce a stored group_index to one of the authorable options (defaults to 0 / none). */
-const toGroupIndex = (value: number): 0 | 1 | 2 | 3 => (value === 1 || value === 2 || value === 3 ? value : 0);
-
 /**
  * Create/edit an atomic course. The shared `courseInput` schema drives both client
  * validation (RHF `zodResolver`, `mode: "onTouched"`) and the server action gate, so
  * field errors surface inline first and server `isInputError` mapping backs them up.
  * Tokens only (lessons rule #2).
  */
-export default function CourseFormDialog({
-  open,
-  onOpenChange,
-  cohorts,
-  teachers,
-  course,
-  defaultCohortId,
-}: CourseFormDialogProps) {
-  const form = useForm<CourseInput>({
-    resolver: zodResolver(courseInput),
-    mode: "onTouched",
-    defaultValues: {
-      name: "",
-      level: "",
-      groupIndex: 0,
-      hoursPerWeek: undefined,
-      cohortId: defaultCohortId,
-      teacherId: undefined,
-    },
-  });
-
-  // Re-seed whenever the dialog opens (create defaults, or the row being edited).
-  useEffect(() => {
-    if (!open) return;
-    form.reset(
-      course
-        ? {
-            name: course.name,
-            level: course.level,
-            groupIndex: toGroupIndex(course.groupIndex),
-            hoursPerWeek: course.hours,
-            cohortId: course.cohortId,
-            teacherId: course.teacherId ?? undefined,
-          }
-        : {
-            name: "",
-            level: "",
-            groupIndex: 0,
-            hoursPerWeek: undefined,
-            cohortId: defaultCohortId,
-            teacherId: undefined,
-          },
-    );
-  }, [open, course, defaultCohortId, form]);
-
+export default function CourseFormDialog({ open, onOpenChange, cohorts, teachers, course, defaultCohortId }: Props) {
+  const { form, onSubmit } = useCourseForm(open, course, defaultCohortId, onOpenChange);
   const noTeachers = teachers.length === 0;
-
-  const onSubmit = async (values: CourseInput) => {
-    const { error } = course
-      ? await actions.updateCourse({ ...values, id: course.id })
-      : await actions.createCourse(values);
-
-    if (error) {
-      if (isInputError(error)) {
-        for (const [field, messages] of Object.entries(error.fields)) {
-          if (messages.length > 0) {
-            form.setError(field as keyof CourseInput, { message: messages[0] });
-          }
-        }
-      } else if (error.code === "CONFLICT") {
-        form.setError("name", { message: error.message });
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-
-    toast.success(course ? "Course updated" : "Course created");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,8 +104,6 @@ export default function CourseFormDialog({
                         type="number"
                         min={0}
                         autoComplete="off"
-                        // field.value is typed number but is undefined/NaN before entry — keep the
-                        // input controlled with "" in those cases (a plain ?? would be type-pruned).
                         value={Number.isFinite(field.value) ? field.value : ""}
                         onBlur={field.onBlur}
                         name={field.name}
@@ -291,3 +226,72 @@ export default function CourseFormDialog({
     </Dialog>
   );
 }
+
+function useCourseForm(
+  open: boolean,
+  course: CourseRow | null,
+  defaultCohortId: string,
+  onOpenChange: (open: boolean) => void,
+) {
+  const form = useForm<CourseInput>({
+    resolver: zodResolver(courseInput),
+    mode: "onTouched",
+    defaultValues: emptyCourseInputValues(defaultCohortId),
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    form.reset(course ? courseInputValues(course) : emptyCourseInputValues(defaultCohortId));
+  }, [open, course, defaultCohortId, form]);
+
+  const onSubmit = async (values: CourseInput) => {
+    const { error } = course ? await updateCourse({ ...values, id: course.id }) : await createCourse(values);
+
+    if (error) {
+      if (isInputError(error)) {
+        applyActionFieldErrors(error, form.setError);
+      } else if (error.code === "CONFLICT") {
+        form.setError("name", { message: error.message });
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+
+    toast.success(course ? "Course updated" : "Course created");
+    onOpenChange(false);
+    await navigate(window.location.pathname + window.location.search);
+  };
+
+  return { form, onSubmit };
+}
+
+const courseInputValues = (course: CourseRow): DefaultValues<CourseInput> => {
+  return {
+    name: course.name,
+    level: course.level,
+    groupIndex: toGroupIndex(course.groupIndex),
+    hoursPerWeek: course.hours,
+    teacherId: course.teacherId ?? undefined,
+    cohortId: course.cohortId,
+  };
+};
+
+const emptyCourseInputValues = (cohortId: string): DefaultValues<CourseInput> => ({
+  name: "",
+  level: "",
+  groupIndex: 0,
+  hoursPerWeek: undefined,
+  teacherId: undefined,
+  cohortId,
+});
+
+const GROUP_OPTIONS = [
+  { value: 0, label: "None" },
+  { value: 1, label: "Group 1" },
+  { value: 2, label: "Group 2" },
+  { value: 3, label: "Group 3" },
+] as const;
+
+/** Coerce a stored group_index to one of the authorable options (defaults to 0 / none). */
+const toGroupIndex = (value: number): 0 | 1 | 2 | 3 => (value === 1 || value === 2 || value === 3 ? value : 0);

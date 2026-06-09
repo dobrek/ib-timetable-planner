@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { actions } from "astro:actions";
+import { deleteCourse } from "@/_pages/courses/api/course-client";
 import { navigate } from "astro:transitions/client";
 import { toast } from "sonner";
 import {
@@ -25,23 +25,7 @@ type DeleteCourseDialogProps = {
  * Deleting a course removes everything that references it.
  */
 export default function DeleteCourseDialog({ course, onOpenChange }: DeleteCourseDialogProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleConfirm = async () => {
-    if (!course) return;
-    setIsDeleting(true);
-    const { error } = await actions.deleteCourse({ id: course.id });
-    setIsDeleting(false);
-
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    toast.success("Course deleted");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
+  const { confirm, isDeleting } = useDeleteCourse(course?.id, onOpenChange);
 
   return (
     <AlertDialog open={course !== null} onOpenChange={onOpenChange}>
@@ -58,7 +42,7 @@ export default function DeleteCourseDialog({ course, onOpenChange }: DeleteCours
           <AlertDialogAction
             onClick={(event) => {
               event.preventDefault();
-              void handleConfirm();
+              void confirm();
             }}
             disabled={isDeleting}
           >
@@ -68,4 +52,26 @@ export default function DeleteCourseDialog({ course, onOpenChange }: DeleteCours
       </AlertDialogContent>
     </AlertDialog>
   );
+}
+
+function useDeleteCourse(courseId: string | undefined, onOpenChange: (open: boolean) => void) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const confirm = async () => {
+    if (!courseId) return;
+    setIsDeleting(true);
+    const { error } = await deleteCourse({ id: courseId });
+    setIsDeleting(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Course deleted");
+    onOpenChange(false);
+    await navigate(window.location.pathname + window.location.search);
+  };
+
+  return { confirm, isDeleting };
 }

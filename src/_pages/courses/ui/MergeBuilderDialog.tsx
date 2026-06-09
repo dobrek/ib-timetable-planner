@@ -1,35 +1,54 @@
-import { useEffect, useMemo } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { actions, isInputError } from "astro:actions";
-import { navigate } from "astro:transitions/client";
-import { toast } from "sonner";
-import { Check, X } from "lucide-react";
-import { Badge } from "@/shared/ui";
-import { Button } from "@/shared/ui";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/shared/ui";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
-import { Input } from "@/shared/ui";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui";
+import { createMerge } from "@/_pages/courses/api/course-client";
+import { toNumberOrUndefined } from "@/_pages/courses/lib/coerce";
 import { formatCourseLabel } from "@/_pages/courses/lib/labels";
+import type { CourseRow, TeacherOption } from "@/_pages/courses/model/course";
 import { deriveMergeParent, mergeReasonMessage } from "@/_pages/courses/model/merge";
 import { mergeInput, type MergeInput } from "@/_pages/courses/model/schemas";
-import type { CourseRow } from "@/_pages/courses/model/course";
-import type { TeacherOption } from "@/_pages/courses/model/course";
+import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
 import { cn } from "@/shared/lib/cn";
+import {
+  Badge,
+  Button,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/ui";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { isInputError } from "astro:actions";
+import { navigate } from "astro:transitions/client";
+import { Check, X } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 
 type MergeBuilderDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   courses: CourseRow[];
+  coursesById: Map<string, CourseRow>;
   teachers: TeacherOption[];
   /** The active cohort the merge is scoped to. */
   cohortId: string;
 };
-
-/** Empty number field → undefined so the resolver reports "required" rather than NaN. */
-const toNumberOrUndefined = (raw: string): number | undefined => (raw === "" ? undefined : Number(raw));
 
 /**
  * Author a new composite merge for the active cohort. Reuses the popover+command
@@ -43,64 +62,18 @@ export default function MergeBuilderDialog({
   open,
   onOpenChange,
   courses,
+  coursesById,
   teachers,
   cohortId,
 }: MergeBuilderDialogProps) {
-  const form = useForm<MergeInput>({
-    resolver: zodResolver(mergeInput),
-    mode: "onTouched",
-    defaultValues: { childCourseIds: [], hoursPerWeek: undefined, cohortId },
-  });
-
-  // Re-seed whenever the dialog opens or the active cohort changes.
-  useEffect(() => {
-    if (!open) return;
-    form.reset({ childCourseIds: [], hoursPerWeek: undefined, cohortId });
-  }, [open, cohortId, form]);
-
-  // Candidate children: atomic courses in the active cohort (a composite parent can't be a child).
-  const candidates = useMemo(
-    () => courses.filter((course) => course.cohortId === cohortId && !course.isMerged),
-    [courses, cohortId],
+  const { form, onSubmit, candidates, selectedChildren, derivation, teacherLabelById } = useMergeBuilder(
+    open,
+    courses,
+    coursesById,
+    teachers,
+    cohortId,
+    onOpenChange,
   );
-  const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
-  const teacherLabelById = useMemo(() => new Map(teachers.map((teacher) => [teacher.id, teacher.label])), [teachers]);
-
-  const selectedIds = useWatch({ control: form.control, name: "childCourseIds" });
-  const selectedChildren = selectedIds
-    .map((id) => coursesById.get(id))
-    .filter((course): course is CourseRow => Boolean(course));
-  const derivation = deriveMergeParent(
-    selectedChildren.map((course) => ({
-      id: course.id,
-      name: course.name,
-      level: course.level,
-      cohortId: course.cohortId,
-      teacherId: course.teacherId,
-    })),
-  );
-
-  const onSubmit = async (values: MergeInput) => {
-    const { error } = await actions.createMerge(values);
-    if (error) {
-      if (isInputError(error)) {
-        for (const [field, messages] of Object.entries(error.fields)) {
-          if (messages.length > 0) {
-            form.setError(field as keyof MergeInput, { message: messages[0] });
-          }
-        }
-      } else if (error.code === "CONFLICT" || error.code === "BAD_REQUEST") {
-        form.setError("childCourseIds", { message: error.message });
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-
-    toast.success("Merge created");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -224,7 +197,6 @@ export default function MergeBuilderDialog({
                       type="number"
                       min={0}
                       autoComplete="off"
-                      // Keep the input controlled with "" before entry (a plain ?? is type-pruned).
                       value={Number.isFinite(field.value) ? field.value : ""}
                       onBlur={field.onBlur}
                       name={field.name}
@@ -258,4 +230,64 @@ export default function MergeBuilderDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function useMergeBuilder(
+  open: boolean,
+  courses: CourseRow[],
+  coursesById: Map<string, CourseRow>,
+  teachers: TeacherOption[],
+  cohortId: string,
+  onOpenChange: (open: boolean) => void,
+) {
+  const form = useForm<MergeInput>({
+    resolver: zodResolver(mergeInput),
+    mode: "onTouched",
+    defaultValues: { childCourseIds: [], hoursPerWeek: undefined, cohortId },
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    form.reset({ childCourseIds: [], hoursPerWeek: undefined, cohortId });
+  }, [open, cohortId, form]);
+
+  const candidates = useMemo(
+    () => courses.filter((course) => course.cohortId === cohortId && !course.isMerged),
+    [courses, cohortId],
+  );
+  const teacherLabelById = useMemo(() => new Map(teachers.map((teacher) => [teacher.id, teacher.label])), [teachers]);
+
+  const selectedIds = useWatch({ control: form.control, name: "childCourseIds" });
+  const selectedChildren = selectedIds
+    .map((id) => coursesById.get(id))
+    .filter((course): course is CourseRow => Boolean(course));
+  const derivation = deriveMergeParent(
+    selectedChildren.map((course) => ({
+      id: course.id,
+      name: course.name,
+      level: course.level,
+      cohortId: course.cohortId,
+      teacherId: course.teacherId,
+    })),
+  );
+
+  const onSubmit = async (values: MergeInput) => {
+    const { error } = await createMerge(values);
+    if (error) {
+      if (isInputError(error)) {
+        applyActionFieldErrors(error, form.setError);
+      } else if (error.code === "CONFLICT" || error.code === "BAD_REQUEST") {
+        form.setError("childCourseIds", { message: error.message });
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+
+    toast.success("Merge created");
+    onOpenChange(false);
+    await navigate(window.location.pathname + window.location.search);
+  };
+
+  return { form, onSubmit, candidates, selectedChildren, derivation, teacherLabelById };
 }

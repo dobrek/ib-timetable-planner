@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@/shared/api";
 import type { CohortTab, CourseRow } from "../model/course";
-import type { TeacherOption } from "@/entities/teacher";
+import type { TeacherOption } from "@/_pages/courses/model/course";
 
 export type CatalogData = {
   cohorts: CohortTab[];

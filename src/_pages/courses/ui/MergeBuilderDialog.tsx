@@ -16,7 +16,7 @@ import { formatCourseLabel } from "@/_pages/courses/lib/labels";
 import { deriveMergeParent, mergeReasonMessage } from "@/_pages/courses/model/merge";
 import { mergeInput, type MergeInput } from "@/_pages/courses/model/schemas";
 import type { CourseRow } from "@/_pages/courses/model/course";
-import type { TeacherOption } from "@/entities/teacher";
+import type { TeacherOption } from "@/_pages/courses/model/course";
 import { cn } from "@/shared/lib/cn";
 
 type MergeBuilderDialogProps = {

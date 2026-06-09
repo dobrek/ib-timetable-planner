@@ -16,7 +16,7 @@ import { formatCourseLabel } from "@/_pages/courses/lib/labels";
 import { filterCourses } from "@/_pages/courses/model/filter-courses";
 import { readFilterParams, toFilterSearch } from "@/_pages/courses/model/filter-params";
 import type { CohortTab, CourseRow } from "@/_pages/courses/model/course";
-import type { TeacherOption } from "@/entities/teacher";
+import type { TeacherOption } from "@/_pages/courses/model/course";
 
 type CourseCatalogProps = {
   cohorts: CohortTab[];

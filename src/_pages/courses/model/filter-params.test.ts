@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFilterParams, toFilterSearch } from "./filter-params";
 import type { CohortTab } from "./course";
-import type { TeacherOption } from "@/entities/teacher";
+import type { TeacherOption } from "@/_pages/courses/model/course";
 
 const cohorts: CohortTab[] = [
   { id: "cohort-1", label: "Year 1" },

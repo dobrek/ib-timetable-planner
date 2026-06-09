@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/shared/api";
 import type { PlannerGrouping } from "@/_pages/plan-detail/model/grouping";
-import { parseGridPreset } from "@/entities/plan";
+import { parseGridPreset } from "@/_pages/plan-detail/model/grid";
 import type { PlannerPlacement } from "@/_pages/plan-detail/model/placement";
 import type { PlannerBoardProps } from "@/_pages/plan-detail/model/drag";
 import { loadCohortCourses } from "./load-cohort-catalog";

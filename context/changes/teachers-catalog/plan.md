@@ -351,34 +351,34 @@ No concerns at current scale (18 teachers, ~60 courses). The loader performs a s
 
 #### Automated
 
-- [ ] 1.1 Type checking passes after model types + schemas + filter logic
-- [ ] 1.2 Unit tests pass for filter-teachers
-- [ ] 1.3 Unit tests pass for filter-params
-- [ ] 1.4 Unit tests pass for schemas
+- [x] 1.1 Type checking passes after model types + schemas + filter logic
+- [x] 1.2 Unit tests pass for filter-teachers
+- [x] 1.3 Unit tests pass for filter-params
+- [x] 1.4 Unit tests pass for schemas
 
 ### Phase 2: API Layer
 
 #### Automated
 
-- [ ] 2.1 Type checking passes after loader + handlers + actions + client + barrel registration
-- [ ] 2.2 Build passes with teacher actions registered
+- [x] 2.1 Type checking passes after loader + handlers + actions + client + barrel registration
+- [x] 2.2 Build passes with teacher actions registered
 
 #### Manual
 
-- [ ] 2.3 Teacher CRUD actions respond correctly via Astro dev tools
+- [x] 2.3 Teacher CRUD actions respond correctly via Astro dev tools
 
 ### Phase 3: UI + Page Wiring
 
 #### Automated
 
-- [ ] 3.1 Type checking passes
-- [ ] 3.2 Lint passes
-- [ ] 3.3 Build passes
-- [ ] 3.4 Unit tests pass
+- [x] 3.1 Type checking passes
+- [x] 3.2 Lint passes
+- [x] 3.3 Build passes
+- [x] 3.4 Unit tests pass
 
 #### Manual
 
-- [ ] 3.5 Table renders with seed data, badges, hours
-- [ ] 3.6 CRUD operations work end-to-end (create, duplicate error, edit, delete with impact)
-- [ ] 3.7 Filters work (text search + year toggle)
-- [ ] 3.8 Empty states display correctly (—, 0h)
+- [x] 3.5 Table renders with seed data, badges, hours
+- [x] 3.6 CRUD operations work end-to-end (create, duplicate error, edit, delete with impact)
+- [x] 3.7 Filters work (text search + year toggle)
+- [x] 3.8 Empty states display correctly (—, 0h)

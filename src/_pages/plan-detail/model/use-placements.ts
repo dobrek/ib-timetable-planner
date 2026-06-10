@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { createPlacement, deletePlacement } from "@/_pages/plan-detail/api/placement-client";
-import type { CellData } from "@/_pages/plan-detail/model/drag";
+import { createPlacement, deletePlacement } from "../api/placement-client";
+import type { CellData } from "./drag";
 import {
   addOptimistic,
   addReconcile,
@@ -13,8 +13,8 @@ import {
   removeOptimistic,
   removeRollback,
   removeTarget,
-} from "@/_pages/plan-detail/model/placement-transitions";
-import type { LocalPlacement, PlannerPlacement } from "@/_pages/plan-detail/model/placement";
+} from "./placement-transitions";
+import type { LocalPlacement, PlannerPlacement } from "./placement";
 
 type UsePlacementsArgs = { variantId: string; cohortId: string };
 

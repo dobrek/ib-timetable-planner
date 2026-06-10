@@ -17,13 +17,13 @@ describe("createPlacementInput", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts grid bounds (day 1..5, period 1..10)", () => {
+  it("accepts grid bounds (day 1..7, period 1..12 — the DB check constraints)", () => {
     expect(
       createPlacementInput.safeParse({ variantId: UUID_A, cohortId: UUID_B, courseId: UUID_C, day: 1, period: 1 })
         .success,
     ).toBe(true);
     expect(
-      createPlacementInput.safeParse({ variantId: UUID_A, cohortId: UUID_B, courseId: UUID_C, day: 5, period: 10 })
+      createPlacementInput.safeParse({ variantId: UUID_A, cohortId: UUID_B, courseId: UUID_C, day: 7, period: 12 })
         .success,
     ).toBe(true);
   });
@@ -31,7 +31,8 @@ describe("createPlacementInput", () => {
   it.each([
     ["variantId", { variantId: "not-a-uuid", cohortId: UUID_B, courseId: UUID_C, day: 3, period: 7 }],
     ["day below range", { variantId: UUID_A, cohortId: UUID_B, courseId: UUID_C, day: 0, period: 7 }],
-    ["period above range", { variantId: UUID_A, cohortId: UUID_B, courseId: UUID_C, day: 3, period: 11 }],
+    ["day above range", { variantId: UUID_A, cohortId: UUID_B, courseId: UUID_C, day: 8, period: 7 }],
+    ["period above range", { variantId: UUID_A, cohortId: UUID_B, courseId: UUID_C, day: 3, period: 13 }],
   ])("rejects invalid %s", (_label, body) => {
     expect(createPlacementInput.safeParse(body).success).toBe(false);
   });

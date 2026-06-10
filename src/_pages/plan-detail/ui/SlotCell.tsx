@@ -2,9 +2,9 @@ import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { TriangleAlert, X } from "lucide-react";
 import { Badge } from "@/shared/ui";
 import { Button } from "@/shared/ui";
-import { cellKey } from "@/_pages/plan-detail/model/collisions";
-import type { CellData, PlacementDrag } from "@/_pages/plan-detail/model/drag";
-import type { LocalPlacement } from "@/_pages/plan-detail/model/placement";
+import { cellKey } from "../model/collisions";
+import type { CellData, PlacementDrag } from "../model/drag";
+import type { LocalPlacement } from "../model/placement";
 import { cn } from "@/shared/lib/cn";
 
 type Props = {

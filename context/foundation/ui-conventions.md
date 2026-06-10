@@ -121,6 +121,15 @@ export const courseActions = {
 
 `Result<T, E>` (shared/lib) is the one discriminated-union style. Loaders return `LoaderResult<T> = Result<T, "unavailable">` via `withSupabase(client, fetch)`; pages branch on `result.ok`. Parallel reads are checked with `assertNoQueryErrors(label, results)`. Boundary rule: `Result` models *expected absence* (e.g. unconfigured Supabase); domain failures **throw `DomainError`** — never wrap those in `Result`.
 
+**Detail-page variant.** When a page needs more expected-absence states than `LoaderResult` carries (e.g. not-found vs. message-bearing unavailable), keep the `Result` shape and widen only the error channel; the loader accepts `SupabaseClient | null` and owns the unconfigured branch itself:
+
+```ts
+export type PlannerPageError = { kind: "not-found" } | { kind: "unavailable"; message: string };
+export type PlannerPageResult = Result<PlannerData, PlannerPageError>;
+```
+
+The page stays a straight call plus a status-code branch on `result.error.kind` — never a bespoke `kind: "ok" | …` union.
+
 ## URL-synced filters
 
 `useUrlSyncedFilters(initial, parse, serialize)` (shared/lib) owns the seed-from-URL / mirror-to-URL machine. Each slice contributes only its pure codec in `model/filter-params.ts` and a thin `model/use-catalog-filters.ts` wrapper. `parse`/`serialize` must be referentially stable (module-level or `useCallback`).
@@ -176,11 +185,10 @@ The courses slice uses custom hooks + RHF for forms. Overlap edits use in-memory
 
 ## Applicability to `plan-detail`
 
-| Current | Target |
-| --- | --- |
-| `ui/usePlacements.ts` | Move to `model/use-placements.ts`; extract guards/transitions to `model/placement-transitions.ts`; hook orchestrates async persistence over pure functions |
-| Inline derivations in `PlannerBoard` | Private `useCollisions` and `useHours` hooks (one per independent flow); orchestrator wires them to children |
-| Dialog / action patterns | Apply same per-flow private hooks when dialogs gain similar complexity |
-| `api/placement-client.ts` | Align with typed `{ error }` pattern when touched; keep throw-on-error only where drag-drop needs it |
+Applied (June 2026): hooks live in `model/` with pure transitions (`use-placements.ts` over `placement-transitions.ts`), private `useCollisions`/`useHours` in `PlannerBoard`, within-slice relative imports, trimmed `api/index.ts` barrel (loader + actions only), the `Result` detail-page loader above, grid bounds single-sourced in `model/grid.ts` (`GRID_BOUNDS`, mirroring the DB checks), and a palette-local leading-course filter hook.
 
-When refactoring `plan-detail`, mirror this structure before introducing new abstractions.
+Remaining deltas, for when the code is next touched:
+
+- `api/grouping-client.ts` returns an ad-hoc `{ error: string | undefined }` — align with the `callAction` `{ error }` shape, and swap `location.reload()` for `refreshPage()`.
+- `api/placement-client.ts` stays throw-on-error **by design**: the optimistic reconcile needs `data`, which `callAction` discards.
+- `loadCohortCourses` / `computeAndPersistGroupings` compute `warnings` nothing surfaces yet — wire them up or drop them when S-06 lands.

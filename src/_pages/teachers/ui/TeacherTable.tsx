@@ -1,12 +1,22 @@
-import { MoreHorizontal, Plus } from "lucide-react";
-import { Badge } from "@/shared/ui";
-import { Button } from "@/shared/ui";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/ui";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
 import { formatAssignmentBadgeLabel } from "@/_pages/teachers/lib/labels";
 import type { CourseAssignment, TeacherRow } from "@/_pages/teachers/model/teacher";
+import {
+  Badge,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/ui";
+import { MoreHorizontal, Plus } from "lucide-react";
 
-type TeacherTableProps = {
+type Props = {
   rows: TeacherRow[];
   totalCount: number;
   cohortIds: { y1: string; y2: string };
@@ -15,31 +25,7 @@ type TeacherTableProps = {
   onCreateFirst: () => void;
 };
 
-function sortTeachers(rows: readonly TeacherRow[]): TeacherRow[] {
-  return [...rows].sort((a, b) => {
-    const nameA = a.fullName?.toLowerCase() ?? "\uffff";
-    const nameB = b.fullName?.toLowerCase() ?? "\uffff";
-    if (nameA !== nameB) return nameA.localeCompare(nameB);
-    return a.code.localeCompare(b.code);
-  });
-}
-
-function cohortHours(assignments: readonly CourseAssignment[], cohortId: string): number {
-  return assignments.filter((a) => a.cohortId === cohortId).reduce((sum, a) => sum + a.hours, 0);
-}
-
-function cohortAssignments(assignments: readonly CourseAssignment[], cohortId: string): CourseAssignment[] {
-  return assignments.filter((a) => a.cohortId === cohortId);
-}
-
-export default function TeacherTable({
-  rows,
-  totalCount,
-  cohortIds,
-  onEdit,
-  onDelete,
-  onCreateFirst,
-}: TeacherTableProps) {
+export default function TeacherTable({ rows, totalCount, cohortIds, onEdit, onDelete, onCreateFirst }: Props) {
   if (totalCount === 0) {
     return (
       <div className="py-12 text-center">
@@ -55,8 +41,6 @@ export default function TeacherTable({
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No teachers match the current filter.</p>;
   }
-
-  const sorted = sortTeachers(rows);
 
   return (
     <div className="border-border overflow-hidden rounded-lg border">
@@ -74,9 +58,7 @@ export default function TeacherTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sorted.map((row) => {
-            const y1Assignments = cohortAssignments(row.assignments, cohortIds.y1);
-            const y2Assignments = cohortAssignments(row.assignments, cohortIds.y2);
+          {sortTeachers(rows).map((row) => {
             const y1h = cohortHours(row.assignments, cohortIds.y1);
             const y2h = cohortHours(row.assignments, cohortIds.y2);
 
@@ -85,11 +67,11 @@ export default function TeacherTable({
                 <TableCell className="font-medium">{row.code}</TableCell>
                 <TableCell>{row.fullName ?? "—"}</TableCell>
                 <TableCell>
-                  <AssignmentBadges assignments={y1Assignments} />
+                  <AssignmentBadges assignments={cohortAssignments(row.assignments, cohortIds.y1)} />
                 </TableCell>
                 <TableCell className="text-right">{y1h}</TableCell>
                 <TableCell>
-                  <AssignmentBadges assignments={y2Assignments} />
+                  <AssignmentBadges assignments={cohortAssignments(row.assignments, cohortIds.y2)} />
                 </TableCell>
                 <TableCell className="text-right">{y2h}</TableCell>
                 <TableCell className="text-right">{y1h + y2h}</TableCell>
@@ -154,4 +136,21 @@ function TeacherRowActions({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function sortTeachers(rows: readonly TeacherRow[]): TeacherRow[] {
+  return [...rows].sort((a, b) => {
+    const nameA = a.fullName?.toLowerCase() ?? "\uffff";
+    const nameB = b.fullName?.toLowerCase() ?? "\uffff";
+    if (nameA !== nameB) return nameA.localeCompare(nameB);
+    return a.code.localeCompare(b.code);
+  });
+}
+
+function cohortHours(assignments: readonly CourseAssignment[], cohortId: string): number {
+  return assignments.filter((a) => a.cohortId === cohortId).reduce((sum, a) => sum + a.hours, 0);
+}
+
+function cohortAssignments(assignments: readonly CourseAssignment[], cohortId: string): CourseAssignment[] {
+  return assignments.filter((a) => a.cohortId === cohortId);
 }

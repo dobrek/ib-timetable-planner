@@ -22,6 +22,11 @@ export const deleteTeacherInput = z.object({
   id: z.uuid(),
 });
 
+/** Raw form field shape before Zod transforms (e.g. optional `fullName`). */
+export type TeacherFormValues = {
+  code: string;
+  fullName?: string;
+};
 export type TeacherInput = z.infer<typeof teacherInput>;
 export type UpdateTeacherInput = z.infer<typeof updateTeacherInput>;
 export type DeleteTeacherInput = z.infer<typeof deleteTeacherInput>;

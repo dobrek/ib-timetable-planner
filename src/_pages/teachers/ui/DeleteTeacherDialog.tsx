@@ -14,21 +14,26 @@ import {
 } from "@/shared/ui";
 import type { TeacherRow } from "@/_pages/teachers/model/teacher";
 
-type DeleteTeacherDialogProps = {
+type Props = {
   /** The teacher pending deletion, or null when closed. */
   teacher: TeacherRow | null;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
 };
 
 /**
  * Confirms a destructive delete and names the assignment cascade impact.
  */
-export default function DeleteTeacherDialog({ teacher, onOpenChange }: DeleteTeacherDialogProps) {
-  const { confirm, isDeleting } = useDeleteTeacher(teacher?.id, onOpenChange);
+export default function DeleteTeacherDialog({ teacher, onClose }: Props) {
+  const { confirm, isDeleting } = useDeleteTeacher(teacher?.id, onClose);
   const assignmentCount = teacher?.assignments.length ?? 0;
 
   return (
-    <AlertDialog open={teacher !== null} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={teacher !== null}
+      onOpenChange={() => {
+        onClose();
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {teacher?.code}?</AlertDialogTitle>
@@ -55,7 +60,7 @@ export default function DeleteTeacherDialog({ teacher, onOpenChange }: DeleteTea
   );
 }
 
-function useDeleteTeacher(teacherId: string | undefined, onOpenChange: (open: boolean) => void) {
+function useDeleteTeacher(teacherId: string | undefined, closeDialog: () => void) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const confirm = async () => {
@@ -70,7 +75,7 @@ function useDeleteTeacher(teacherId: string | undefined, onOpenChange: (open: bo
     }
 
     toast.success("Teacher deleted");
-    onOpenChange(false);
+    closeDialog();
     await navigate(window.location.pathname + window.location.search);
   };
 

@@ -371,14 +371,14 @@ No concerns at current scale (18 teachers, ~60 courses). The loader performs a s
 
 #### Automated
 
-- [x] 3.1 Type checking passes
-- [x] 3.2 Lint passes
-- [x] 3.3 Build passes
-- [x] 3.4 Unit tests pass
+- [x] 3.1 Type checking passes — 9f2808c
+- [x] 3.2 Lint passes — 9f2808c
+- [x] 3.3 Build passes — 9f2808c
+- [x] 3.4 Unit tests pass — 9f2808c
 
 #### Manual
 
-- [x] 3.5 Table renders with seed data, badges, hours
-- [x] 3.6 CRUD operations work end-to-end (create, duplicate error, edit, delete with impact)
-- [x] 3.7 Filters work (text search + year toggle)
-- [x] 3.8 Empty states display correctly (—, 0h)
+- [x] 3.5 Table renders with seed data, badges, hours — 9f2808c
+- [x] 3.6 CRUD operations work end-to-end (create, duplicate error, edit, delete with impact) — 9f2808c
+- [x] 3.7 Filters work (text search + year toggle) — 9f2808c
+- [x] 3.8 Empty states display correctly (—, 0h) — 9f2808c

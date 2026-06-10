@@ -1,6 +1,6 @@
 import { createTeacher, updateTeacher } from "@/_pages/teachers/api/teacher-client";
-import type { TeacherRow } from "@/_pages/teachers/model/teacher";
 import { teacherInput, type TeacherInput } from "@/_pages/teachers/model/schemas";
+import type { TeacherRow } from "@/_pages/teachers/model/teacher";
 import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
 import {
   Button,
@@ -22,12 +22,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { isInputError } from "astro:actions";
 import { navigate } from "astro:transitions/client";
 import { useEffect } from "react";
-import { useForm, type DefaultValues } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 
 type Props = {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   /** The row to edit, or null to create. */
   teacher: TeacherRow | null;
 };
@@ -36,11 +36,16 @@ type Props = {
  * Create/edit a teacher. The shared `teacherInput` schema drives both client validation
  * (RHF `zodResolver`, `mode: "onTouched"`) and the server action gate.
  */
-export default function TeacherFormDialog({ open, onOpenChange, teacher }: Props) {
-  const { form, onSubmit } = useTeacherForm(open, teacher, onOpenChange);
+export default function TeacherFormDialog({ open, teacher, onClose }: Props) {
+  const { form, onSubmit } = useTeacherForm(open, teacher, onClose);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={() => {
+        onClose();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{teacher ? "Edit teacher" : "New teacher"}</DialogTitle>
@@ -72,7 +77,7 @@ export default function TeacherFormDialog({ open, onOpenChange, teacher }: Props
                 <FormItem>
                   <FormLabel>Full name (optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Alice Parker" autoComplete="off" {...field} value={field.value ?? ""} />
+                    <Input placeholder="e.g. Alice Parker" autoComplete="off" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -89,9 +94,9 @@ export default function TeacherFormDialog({ open, onOpenChange, teacher }: Props
   );
 }
 
-function useTeacherForm(open: boolean, teacher: TeacherRow | null, onOpenChange: (open: boolean) => void) {
+function useTeacherForm(open: boolean, teacher: TeacherRow | null, closeDialog: () => void) {
   const form = useForm<TeacherInput>({
-    resolver: zodResolver(teacherInput),
+    resolver: zodResolver(teacherInput) as Resolver<TeacherInput>,
     mode: "onTouched",
     defaultValues: emptyTeacherInputValues(),
   });
@@ -116,19 +121,19 @@ function useTeacherForm(open: boolean, teacher: TeacherRow | null, onOpenChange:
     }
 
     toast.success(teacher ? "Teacher updated" : "Teacher created");
-    onOpenChange(false);
+    closeDialog();
     await navigate(window.location.pathname + window.location.search);
   };
 
   return { form, onSubmit };
 }
 
-const teacherInputValues = (teacher: TeacherRow): DefaultValues<TeacherInput> => ({
+const teacherInputValues = (teacher: TeacherRow): TeacherInput => ({
   code: teacher.code,
-  fullName: teacher.fullName ?? undefined,
+  fullName: teacher.fullName ?? "",
 });
 
-const emptyTeacherInputValues = (): DefaultValues<TeacherInput> => ({
+const emptyTeacherInputValues = (): TeacherInput => ({
   code: "",
-  fullName: undefined,
+  fullName: "",
 });

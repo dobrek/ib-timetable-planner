@@ -11,7 +11,7 @@ import DeleteTeacherDialog from "./DeleteTeacherDialog";
 import TeacherFormDialog from "./TeacherFormDialog";
 import TeacherTable from "./TeacherTable";
 
-type TeacherCatalogProps = {
+type Props = {
   teachers: TeacherRow[];
   cohortIds: { y1: string; y2: string };
 };
@@ -26,7 +26,7 @@ const YEAR_OPTIONS: { value: YearFilter; label: string }[] = [
  * Teacher catalog island: flat table with Y1/Y2 assignment columns, text+year filters,
  * and create/edit/delete via dialogs. Assignments are read-only (authored on /courses).
  */
-export default function TeacherCatalog({ teachers, cohortIds }: TeacherCatalogProps) {
+export default function TeacherCatalog({ teachers, cohortIds }: Props) {
   const filters = useCatalogFilters();
   const dialogs = useCatalogDialogs();
   const rows = filterTeachers(teachers, filters.query, filters.year, cohortIds);
@@ -81,19 +81,8 @@ export default function TeacherCatalog({ teachers, cohortIds }: TeacherCatalogPr
         onCreateFirst={dialogs.openCreate}
       />
 
-      <TeacherFormDialog
-        open={dialogs.formOpen}
-        onOpenChange={(open) => {
-          if (!open) dialogs.closeForm();
-        }}
-        teacher={dialogs.formTeacher}
-      />
-      <DeleteTeacherDialog
-        teacher={dialogs.deleteTarget}
-        onOpenChange={(open) => {
-          if (!open) dialogs.closeDelete();
-        }}
-      />
+      <TeacherFormDialog open={dialogs.formOpen} onClose={dialogs.closeForm} teacher={dialogs.formTeacher} />
+      <DeleteTeacherDialog teacher={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
       <Toaster />
     </div>
   );

@@ -85,7 +85,9 @@ export default function TeacherFormDialog({ open, teacher, onClose }: Props) {
             />
 
             <DialogFooter>
-              <Button type="submit">{teacher ? "Save changes" : "Create teacher"}</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {teacher ? "Save changes" : "Create teacher"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

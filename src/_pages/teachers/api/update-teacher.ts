@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@/shared/api";
 import type { UpdateTeacherInput } from "../model/schemas";
 import { DomainError } from "@/shared/lib/errors";
-import { DUPLICATE_TEACHER_MESSAGE, UNIQUE_VIOLATION } from "./constants";
+import { DUPLICATE_TEACHER_MESSAGE, NOT_FOUND_ROW, UNIQUE_VIOLATION } from "./constants";
 
 /** Update a teacher's code and/or full_name by id. */
 export const updateTeacher = async (supabase: SupabaseClient, input: UpdateTeacherInput) => {
@@ -17,6 +17,9 @@ export const updateTeacher = async (supabase: SupabaseClient, input: UpdateTeach
 
   if (error?.code === UNIQUE_VIOLATION) {
     throw new DomainError("CONFLICT", DUPLICATE_TEACHER_MESSAGE);
+  }
+  if (error?.code === NOT_FOUND_ROW) {
+    throw new DomainError("NOT_FOUND", "Teacher not found.");
   }
   if (error) {
     throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to update teacher: ${error.message}`);

@@ -351,10 +351,10 @@ No concerns at current scale (18 teachers, ~60 courses). The loader performs a s
 
 #### Automated
 
-- [x] 1.1 Type checking passes after model types + schemas + filter logic
-- [x] 1.2 Unit tests pass for filter-teachers
-- [x] 1.3 Unit tests pass for filter-params
-- [x] 1.4 Unit tests pass for schemas
+- [x] 1.1 Type checking passes after model types + schemas + filter logic — 3d0f5f9
+- [x] 1.2 Unit tests pass for filter-teachers — 3d0f5f9
+- [x] 1.3 Unit tests pass for filter-params — 3d0f5f9
+- [x] 1.4 Unit tests pass for schemas — 3d0f5f9
 
 ### Phase 2: API Layer
 

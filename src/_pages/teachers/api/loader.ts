@@ -1,11 +1,11 @@
-import type { SupabaseClient } from "@/shared/api";
+import { toOrderedCohorts, type CohortOption, type SupabaseClient } from "@/shared/api";
 import { groupBy } from "@/shared/lib/collections";
 import { assertNoQueryErrors, withSupabase, type LoaderResult } from "@/shared/lib/loaders";
 import type { TeacherRow } from "../model/teacher";
 
 export type TeacherCatalogData = {
   teachers: TeacherRow[];
-  cohortIds: { y1: string; y2: string };
+  cohorts: CohortOption[];
 };
 
 export type TeacherCatalogResult = LoaderResult<TeacherCatalogData>;
@@ -32,10 +32,6 @@ const fetchTeacherCatalog = async (client: SupabaseClient): Promise<TeacherCatal
   ]);
   assertNoQueryErrors("Teacher catalog", [cohortsRes, teachersRes, coursesRes]);
 
-  const cohorts = cohortsRes.data ?? [];
-  const y1 = cohorts[0]?.id ?? "";
-  const y2 = cohorts[1]?.id ?? "";
-
   const assignedCourses = (coursesRes.data ?? []).filter((course) => course.teacher_id !== null);
   const assignmentsByTeacher = groupBy(assignedCourses, (course) => course.teacher_id);
 
@@ -53,5 +49,5 @@ const fetchTeacherCatalog = async (client: SupabaseClient): Promise<TeacherCatal
     })),
   }));
 
-  return { teachers, cohortIds: { y1, y2 } };
+  return { teachers, cohorts: toOrderedCohorts(cohortsRes.data ?? []) };
 };

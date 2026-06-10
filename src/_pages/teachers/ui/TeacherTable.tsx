@@ -1,5 +1,5 @@
-import { formatAssignmentBadgeLabel } from "@/_pages/teachers/lib/labels";
-import type { CourseAssignment, TeacherRow } from "@/_pages/teachers/model/teacher";
+import { MoreHorizontal, Plus } from "lucide-react";
+import type { CohortOption } from "@/shared/api";
 import {
   Badge,
   Button,
@@ -14,18 +14,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { formatAssignmentBadgeLabel } from "../lib/labels";
+import { sortTeachers } from "../model/sort-teachers";
+import type { CourseAssignment, TeacherRow } from "../model/teacher";
 
 type Props = {
   rows: TeacherRow[];
   totalCount: number;
-  cohortIds: { y1: string; y2: string };
+  /** Ordered cohorts; the table is structurally two-cohort (Y1/Y2 columns). */
+  cohorts: CohortOption[];
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
   onCreateFirst: () => void;
 };
 
-export default function TeacherTable({ rows, totalCount, cohortIds, onEdit, onDelete, onCreateFirst }: Props) {
+export default function TeacherTable({ rows, totalCount, cohorts, onEdit, onDelete, onCreateFirst }: Props) {
   if (totalCount === 0) {
     return (
       <div className="py-12 text-center">
@@ -41,6 +44,9 @@ export default function TeacherTable({ rows, totalCount, cohortIds, onEdit, onDe
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No teachers match the current filter.</p>;
   }
+
+  const y1Id = cohorts[0]?.id;
+  const y2Id = cohorts[1]?.id;
 
   return (
     <div className="border-border overflow-hidden rounded-lg border">
@@ -59,19 +65,19 @@ export default function TeacherTable({ rows, totalCount, cohortIds, onEdit, onDe
         </TableHeader>
         <TableBody>
           {sortTeachers(rows).map((row) => {
-            const y1h = cohortHours(row.assignments, cohortIds.y1);
-            const y2h = cohortHours(row.assignments, cohortIds.y2);
+            const y1h = cohortHours(row.assignments, y1Id);
+            const y2h = cohortHours(row.assignments, y2Id);
 
             return (
               <TableRow key={row.id}>
                 <TableCell className="font-medium">{row.code}</TableCell>
                 <TableCell>{row.fullName ?? "—"}</TableCell>
                 <TableCell>
-                  <AssignmentBadges assignments={cohortAssignments(row.assignments, cohortIds.y1)} />
+                  <AssignmentBadges assignments={cohortAssignments(row.assignments, y1Id)} />
                 </TableCell>
                 <TableCell className="text-right">{y1h}</TableCell>
                 <TableCell>
-                  <AssignmentBadges assignments={cohortAssignments(row.assignments, cohortIds.y2)} />
+                  <AssignmentBadges assignments={cohortAssignments(row.assignments, y2Id)} />
                 </TableCell>
                 <TableCell className="text-right">{y2h}</TableCell>
                 <TableCell className="text-right">{y1h + y2h}</TableCell>
@@ -138,19 +144,10 @@ function TeacherRowActions({
   );
 }
 
-function sortTeachers(rows: readonly TeacherRow[]): TeacherRow[] {
-  return [...rows].sort((a, b) => {
-    const nameA = a.fullName?.toLowerCase() ?? "\uffff";
-    const nameB = b.fullName?.toLowerCase() ?? "\uffff";
-    if (nameA !== nameB) return nameA.localeCompare(nameB);
-    return a.code.localeCompare(b.code);
-  });
+function cohortHours(assignments: readonly CourseAssignment[], cohortId: string | undefined): number {
+  return cohortAssignments(assignments, cohortId).reduce((sum, a) => sum + a.hours, 0);
 }
 
-function cohortHours(assignments: readonly CourseAssignment[], cohortId: string): number {
-  return assignments.filter((a) => a.cohortId === cohortId).reduce((sum, a) => sum + a.hours, 0);
-}
-
-function cohortAssignments(assignments: readonly CourseAssignment[], cohortId: string): CourseAssignment[] {
+function cohortAssignments(assignments: readonly CourseAssignment[], cohortId: string | undefined): CourseAssignment[] {
   return assignments.filter((a) => a.cohortId === cohortId);
 }

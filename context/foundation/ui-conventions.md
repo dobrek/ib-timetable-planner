@@ -1,6 +1,6 @@
 # UI conventions
 
-Conventions established by the courses module refactor (`src/_pages/courses/`). Use as input when planning similar work in other page slices (e.g. `plan-detail`).
+Conventions established by the courses module refactor (`src/_pages/courses/`). Use as input when planning similar work in other page slices.
 
 ## Design goals
 

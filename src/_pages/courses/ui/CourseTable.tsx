@@ -1,12 +1,22 @@
-import { Link2, MoreHorizontal } from "lucide-react";
-import { Badge } from "@/shared/ui";
-import { Button } from "@/shared/ui";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/ui";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
 import { formatCourseLabel } from "@/_pages/courses/lib/labels";
 import type { CourseRow } from "@/_pages/courses/model/course";
+import {
+  Badge,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/ui";
+import { Link2, MoreHorizontal } from "lucide-react";
 
-type CourseTableProps = {
+type Props = {
   rows: CourseRow[];
   coursesById: Map<string, CourseRow>;
   onEdit: (course: CourseRow) => void;
@@ -18,14 +28,7 @@ type CourseTableProps = {
 /** IB group index → display label. 0 is the "none" sentinel. */
 const GROUP_LABELS: Record<number, string> = { 0: "—", 1: "Group 1", 2: "Group 2", 3: "Group 3" };
 
-export default function CourseTable({
-  rows,
-  coursesById,
-  onEdit,
-  onManageOverlaps,
-  onManageMerge,
-  onDelete,
-}: CourseTableProps) {
+export default function CourseTable({ rows, coursesById, onEdit, onManageOverlaps, onManageMerge, onDelete }: Props) {
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No courses match the current filter.</p>;
   }
@@ -114,11 +117,7 @@ function OverlapBadge({
 
 type CourseRowActionsProps = {
   row: CourseRow;
-  onEdit: (course: CourseRow) => void;
-  onManageOverlaps: (course: CourseRow) => void;
-  onManageMerge: (course: CourseRow) => void;
-  onDelete: (course: CourseRow) => void;
-};
+} & Pick<Props, "onEdit" | "onManageOverlaps" | "onManageMerge" | "onDelete">;
 
 /** Per-row kebab — present on every course. "Manage merge" shows only on composite parents. */
 function CourseRowActions({ row, onEdit, onManageOverlaps, onManageMerge, onDelete }: CourseRowActionsProps) {

@@ -1,22 +1,19 @@
-import { useState } from "react";
+import type { CohortTab, CourseRow, TeacherOption } from "@/_pages/courses/model/course";
+import { filterCourses } from "@/_pages/courses/model/filter-courses";
+import { useCatalogDialogs } from "@/_pages/courses/model/use-catalog-dialogs";
+import { useCatalogFilters } from "@/_pages/courses/model/use-catalog-filters";
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Toaster } from "@/shared/ui";
 import { Combine, Plus } from "lucide-react";
-import { Button } from "@/shared/ui";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui";
-import { Toaster } from "@/shared/ui";
+import { useState } from "react";
 import CourseFormDialog from "./CourseFormDialog";
 import CourseOverlaps from "./CourseOverlaps";
 import CourseTable from "./CourseTable";
 import DeleteCourseDialog from "./DeleteCourseDialog";
 import MergeBuilderDialog from "./MergeBuilderDialog";
 import MergeManageDialog from "./MergeManageDialog";
-import { TeacherFilter } from "./TeacherFilter";
-import { filterCourses } from "@/_pages/courses/model/filter-courses";
-import { useCatalogDialogs } from "@/_pages/courses/model/use-catalog-dialogs";
-import { useCatalogFilters } from "@/_pages/courses/model/use-catalog-filters";
-import type { CohortTab, CourseRow } from "@/_pages/courses/model/course";
-import type { TeacherOption } from "@/_pages/courses/model/course";
+import TeacherFilter from "./TeacherFilter";
 
-type CourseCatalogProps = {
+type Props = {
   cohorts: CohortTab[];
   courses: CourseRow[];
   teachers: TeacherOption[];
@@ -30,7 +27,7 @@ type CourseCatalogProps = {
  * slice). Overlap edits update in-memory so the catalog stays live without a page reload.
  * Tokens only (lessons rule #2).
  */
-export default function CourseCatalog({ cohorts, courses: initialCourses, teachers }: CourseCatalogProps) {
+export default function CourseCatalog({ cohorts, courses: initialCourses, teachers }: Props) {
   const [courses, setCourses] = useState(initialCourses);
   const filters = useCatalogFilters(cohorts, teachers);
   const dialogs = useCatalogDialogs(courses, setCourses);

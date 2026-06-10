@@ -1,22 +1,31 @@
-import { Check, ListFilter, X } from "lucide-react";
-import { Badge } from "@/shared/ui";
-import { Button } from "@/shared/ui";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/shared/ui";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui";
-import { cn } from "@/shared/lib/cn";
 import type { TeacherOption } from "@/_pages/courses/model/course";
+import { cn } from "@/shared/lib/cn";
+import {
+  Badge,
+  Button,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/ui";
+import { Check, ListFilter, X } from "lucide-react";
 
-type TeacherFilterProps = {
+type Props = {
   teachers: readonly TeacherOption[];
   selectedIds: readonly string[];
   onChange: (ids: string[]) => void;
 };
 
 /**
- * Searchable multi-select over teachers. Empty selection = show all. Selected teachers
+ * Searchable multi-select   over teachers. Empty selection = show all. Selected teachers
  * appear as removable badge chips beside the trigger. Token-styled (lessons rule #2).
  */
-export function TeacherFilter({ teachers, selectedIds, onChange }: TeacherFilterProps) {
+export default function TeacherFilter({ teachers, selectedIds, onChange }: Props) {
   const selected = new Set(selectedIds);
 
   const toggle = (id: string) => {

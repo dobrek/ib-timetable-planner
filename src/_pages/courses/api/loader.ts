@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
+import { toOrderedCohorts, type SupabaseClient } from "@/shared/api";
 import { groupBy } from "@/shared/lib/collections";
 import { assertNoQueryErrors, withSupabase, type LoaderResult } from "@/shared/lib/loaders";
 import type { CohortTab, CourseRow, TeacherOption } from "../model/course";
@@ -14,10 +14,6 @@ export type CatalogResult = LoaderResult<CatalogData>;
 /** Load the courses catalog for the page island. Unavailable when the client is null. */
 export const loadCatalog = (supabase: SupabaseClient | null): Promise<CatalogResult> =>
   withSupabase(supabase, fetchCatalog);
-
-// Cohort order is naive (alphabetical name → first = Year 1). Stable for the two seed
-// names; the future cohort-CRUD slice replaces it with an explicit ordinal (see plan).
-const cohortLabel = (index: number) => `Year ${index + 1}`;
 
 const fetchCatalog = async (client: SupabaseClient): Promise<CatalogData> => {
   const [cohortsRes, coursesRes, teachersRes, mergesRes, overlapsRes] = await Promise.all([
@@ -42,7 +38,7 @@ const fetchCatalog = async (client: SupabaseClient): Promise<CatalogData> => {
   const overlapsByDependent = groupBy(overlapsRes.data ?? [], (o) => o.dependent_course_id);
 
   return {
-    cohorts: (cohortsRes.data ?? []).map((c, index) => ({ id: c.id, label: cohortLabel(index) })),
+    cohorts: toOrderedCohorts(cohortsRes.data ?? []),
     courses: (coursesRes.data ?? []).map((c) => ({
       id: c.id,
       cohortId: c.cohort_id,

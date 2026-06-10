@@ -1,7 +1,9 @@
+import type { CohortOption } from "@/shared/api";
+
 /**
  * View-models assembled server-side in `courses.astro` and handed to the catalog island.
- * Projections of the generated DB rows (lessons: "domain projection") — identity stays as
- * opaque ids, display labels resolved at the edge, never the raw `Database` row shape.
+ * Projections of the generated DB rows — identity stays as opaque ids, display labels
+ * resolved at the edge, never the raw `Database` row shape.
  */
 
 /**
@@ -25,10 +27,7 @@ export type CourseRow = {
 };
 
 /** A cohort presented as a tab. `label` is the school-year display ("Year 1" / "Year 2"). */
-export type CohortTab = {
-  id: string;
-  label: string;
-};
+export type CohortTab = CohortOption;
 
 /** A selectable teacher for the multi-select filter and the create/edit form. */
 export type TeacherOption = {

@@ -1,35 +1,36 @@
 import { Plus } from "lucide-react";
-import { Button } from "@/shared/ui";
-import { Input } from "@/shared/ui";
-import { Toaster } from "@/shared/ui";
-import { filterTeachers } from "@/_pages/teachers/model/filter-teachers";
-import type { YearFilter } from "@/_pages/teachers/model/filter-teachers";
-import { useCatalogDialogs } from "@/_pages/teachers/model/use-catalog-dialogs";
-import { useCatalogFilters } from "@/_pages/teachers/model/use-catalog-filters";
-import type { TeacherRow } from "@/_pages/teachers/model/teacher";
+import type { CohortOption } from "@/shared/api";
+import { Button, Input, Toaster } from "@/shared/ui";
+import { filterTeachers, type YearFilter } from "../model/filter-teachers";
+import { useCatalogDialogs } from "../model/use-catalog-dialogs";
+import { useCatalogFilters } from "../model/use-catalog-filters";
+import type { TeacherRow } from "../model/teacher";
 import DeleteTeacherDialog from "./DeleteTeacherDialog";
 import TeacherFormDialog from "./TeacherFormDialog";
 import TeacherTable from "./TeacherTable";
 
 type Props = {
   teachers: TeacherRow[];
-  cohortIds: { y1: string; y2: string };
+  /** Ordered cohorts ("Year 1" first); the year filter and table columns are positional. */
+  cohorts: CohortOption[];
 };
-
-const YEAR_OPTIONS: { value: YearFilter; label: string }[] = [
-  { value: "all", label: "All years" },
-  { value: "y1", label: "Year 1" },
-  { value: "y2", label: "Year 2" },
-];
 
 /**
  * Teacher catalog island: flat table with Y1/Y2 assignment columns, text+year filters,
  * and create/edit/delete via dialogs. Assignments are read-only (authored on /courses).
  */
-export default function TeacherCatalog({ teachers, cohortIds }: Props) {
+export default function TeacherCatalog({ teachers, cohorts }: Props) {
   const filters = useCatalogFilters();
   const dialogs = useCatalogDialogs();
-  const rows = filterTeachers(teachers, filters.query, filters.year, cohortIds);
+  const rows = filterTeachers(teachers, filters.query, filters.year, cohorts);
+
+  const yearOptions: { value: YearFilter; label: string }[] = [
+    { value: "all", label: "All years" },
+    ...cohorts.slice(0, 2).map((cohort, index) => ({
+      value: index === 0 ? "y1" : "y2",
+      label: cohort.label,
+    })),
+  ];
 
   return (
     <div className="space-y-6">
@@ -56,7 +57,7 @@ export default function TeacherCatalog({ teachers, cohortIds }: Props) {
           aria-label="Search teachers"
         />
         <div className="flex items-center gap-1" role="group" aria-label="Filter by year">
-          {YEAR_OPTIONS.map((option) => (
+          {yearOptions.map((option) => (
             <Button
               key={option.value}
               variant={filters.year === option.value ? "default" : "outline"}
@@ -75,7 +76,7 @@ export default function TeacherCatalog({ teachers, cohortIds }: Props) {
       <TeacherTable
         rows={rows}
         totalCount={teachers.length}
-        cohortIds={cohortIds}
+        cohorts={cohorts}
         onEdit={dialogs.openEdit}
         onDelete={dialogs.openDelete}
         onCreateFirst={dialogs.openCreate}

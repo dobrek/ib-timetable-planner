@@ -29,3 +29,10 @@
 - **Problem**: Stock shadcn CLI output contains literal colors — `text-white` on `destructive` variants and `bg-black/50` modal scrims — that bypass the token system and violate the semantic-tokens rule. The theme can't be driven from `global.css` alone and light/dark can drift, even though the *authored* component code was token-clean.
 - **Rule**: When adding shadcn primitives, audit the generated output for literal/palette colors and detokenize before committing: `text-white` → `text-destructive-foreground`, `bg-black/50` scrims → a `bg-overlay` token. If the token is missing, add it to `global.css` (`:root` + `.dark` + the `@theme inline` `--color-*` map) first. Never leave literal colors even in vendored primitives. See the semantic-theme-tokens rule above.
 - **Applies to**: implement, impl-review
+
+## Catalog CRUD integration tests belong in the test harness
+
+- **Context**: Plan Testing Strategy sections for catalog slices (`courses`, `teachers`) that list CRUD integration tests.
+- **Problem**: Plan Testing Strategy lists teacher CRUD integration tests (create→read→update→delete, SET NULL cascade). No dedicated integration test file exists; Phase 2.3 marked complete via manual verification only.
+- **Rule**: When a plan's Testing Strategy lists integration tests for catalog CRUD, implement them in the integration test harness before marking integration success criteria complete. Manual sign-off alone is insufficient unless the plan explicitly defers integration tests to a follow-up change.
+- **Applies to**: implement, impl-review

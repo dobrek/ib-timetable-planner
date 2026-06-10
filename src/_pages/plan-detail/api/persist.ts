@@ -1,8 +1,7 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Json } from "@/shared/api";
-import type { GroupingCourse, GroupingResult } from "@/_pages/plan-detail/model/grouping";
+import type { Json, SupabaseClient } from "@/shared/api";
+import type { GroupingCourse, GroupingResult } from "../model/grouping";
 
-type Supabase = SupabaseClient<Database>;
+type Supabase = SupabaseClient;
 
 /** The catalog fingerprint that drives S-06 out-of-date detection. */
 export type CatalogSnapshot = GroupingCourse[];

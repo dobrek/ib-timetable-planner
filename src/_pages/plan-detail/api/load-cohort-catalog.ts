@@ -1,9 +1,8 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/shared/api";
-import type { ComputeWarning, GroupingCourse } from "@/_pages/plan-detail/model/grouping";
+import type { SupabaseClient } from "@/shared/api";
 import { unique } from "@/shared/lib/collections";
+import type { ComputeWarning, GroupingCourse } from "../model/grouping";
 
-type Supabase = SupabaseClient<Database>;
+type Supabase = SupabaseClient;
 
 export type CohortCatalog = {
   courses: GroupingCourse[];

@@ -1,33 +1,27 @@
+import { useState } from "react";
 import GroupingBox from "./GroupingBox";
 import GroupingFilter from "./GroupingFilter";
-import type { PlannerGrouping } from "@/_pages/plan-detail/model/grouping";
-import type { HoursStat } from "@/_pages/plan-detail/model/hours";
+import type { PlannerGrouping } from "../model/grouping";
+import type { HoursStat } from "../model/hours";
 
 type PlannerPaletteProps = {
   groupings: PlannerGrouping[];
   names: Record<string, string>;
   hours: Map<string, HoursStat>;
-  leadingCourseId: string | null;
-  onLeadingChange: (courseId: string | null) => void;
 };
 
 /**
  * The palette aside: a leading-course filter over a scrollable list of grouping hint
- * boxes. The membership filter is purely a rendering concern, so it lives here.
+ * boxes. The filter is purely a rendering concern — nothing outside the palette reads
+ * it — so both the selection state and the membership filter live here.
  */
-export default function PlannerPalette({
-  groupings,
-  names,
-  hours,
-  leadingCourseId,
-  onLeadingChange,
-}: PlannerPaletteProps) {
-  const visibleGroupings = leadingCourseId ? groupings.filter((g) => g.memberIds.includes(leadingCourseId)) : groupings;
+export default function PlannerPalette({ groupings, names, hours }: PlannerPaletteProps) {
+  const { leadingCourseId, setLeadingCourseId, visibleGroupings } = useLeadingFilter(groupings);
 
   return (
     <aside data-slot="planner-palette" className="flex min-h-0 flex-col gap-3">
       <div className="shrink-0">
-        <GroupingFilter groupings={groupings} names={names} value={leadingCourseId} onChange={onLeadingChange} />
+        <GroupingFilter groupings={groupings} names={names} value={leadingCourseId} onChange={setLeadingCourseId} />
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {visibleGroupings.map((grouping) => (
@@ -36,4 +30,12 @@ export default function PlannerPalette({
       </div>
     </aside>
   );
+}
+
+function useLeadingFilter(groupings: PlannerGrouping[]) {
+  const [leadingCourseId, setLeadingCourseId] = useState<string | null>(null);
+  const visibleGroupings = leadingCourseId
+    ? groupings.filter((grouping) => grouping.memberIds.includes(leadingCourseId))
+    : groupings;
+  return { leadingCourseId, setLeadingCourseId, visibleGroupings };
 }

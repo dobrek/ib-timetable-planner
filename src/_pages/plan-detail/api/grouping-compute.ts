@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { computeGroupings } from "@/_pages/plan-detail/model/compute-groupings";
-import { EnumerationCapError } from "@/_pages/plan-detail/model/enumerate";
+import { computeGroupings } from "../model/compute-groupings";
+import { EnumerationCapError } from "../model/enumerate";
 import type { SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 import { computeCatalogHash, persistGroupings } from "./persist";

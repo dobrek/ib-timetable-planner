@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { computeGroupings } from "@/_pages/plan-detail/model/compute-groupings";
+import { computeGroupings } from "../model/compute-groupings";
 import { loadFixtureCourses } from "./__fixtures__/cohort-catalog.node";
 
 type GoldenRow = {

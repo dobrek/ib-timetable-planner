@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { PlannerPlacement } from "@/_pages/plan-detail/model/placement";
+import { GRID_BOUNDS } from "../model/grid";
+import type { PlannerPlacement } from "../model/placement";
 import type { SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 import { UNIQUE_VIOLATION } from "@/shared/lib/postgrest";
@@ -10,8 +11,8 @@ export const createPlacementInput = z.object({
   variantId: z.uuid(),
   cohortId: z.uuid(),
   courseId: z.uuid(),
-  day: z.int().min(1).max(5),
-  period: z.int().min(1).max(10),
+  day: z.int().min(1).max(GRID_BOUNDS.maxDays),
+  period: z.int().min(1).max(GRID_BOUNDS.maxPeriods),
 });
 
 export const deletePlacementInput = z.object({

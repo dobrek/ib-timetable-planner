@@ -1,29 +1,34 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/shared/api";
-import type { PlannerGrouping } from "@/_pages/plan-detail/model/grouping";
-import { parseGridPreset } from "@/_pages/plan-detail/model/grid";
-import type { PlannerPlacement } from "@/_pages/plan-detail/model/placement";
-import type { PlannerBoardProps } from "@/_pages/plan-detail/model/drag";
+import type { SupabaseClient } from "@/shared/api";
+import { assertNoQueryErrors } from "@/shared/lib/loaders";
+import { err, ok, type Result } from "@/shared/lib/result";
+import type { PlannerBoardProps } from "../model/drag";
+import { parseGridPreset } from "../model/grid";
+import type { PlannerGrouping } from "../model/grouping";
+import type { PlannerPlacement } from "../model/placement";
 import { loadCohortCourses } from "./load-cohort-catalog";
-
-type Supabase = SupabaseClient<Database>;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type PlannerPageResult =
-  | { kind: "ok"; planName: string; props: PlannerBoardProps }
-  | { kind: "not-found" }
-  | { kind: "unavailable"; message: string };
+export type PlannerData = { planName: string; props: PlannerBoardProps };
+
+/** Expected absences: a missing plan vs. a misconfigured/empty environment. */
+export type PlannerPageError = { kind: "not-found" } | { kind: "unavailable"; message: string };
+
+export type PlannerPageResult = Result<PlannerData, PlannerPageError>;
 
 /**
  * Assemble everything the planner island needs for one plan: the grid dimensions,
  * the Year-1 cohort, the single variant, the palette hints, persisted placements, and
- * the validation catalog. Returns a discriminated result so the page can set the right
- * HTTP status without top-level `return`s in Astro frontmatter (which trips a
- * type-checked-lint bug). Genuine DB failures throw and surface as a 500.
+ * the validation catalog. Returns a `Result` so the page can set the right HTTP status
+ * without top-level `return`s in Astro frontmatter (which trips a type-checked-lint
+ * bug). Genuine DB failures throw and surface as a 500.
  */
-export const loadPlannerData = async (supabase: Supabase, id: string | undefined): Promise<PlannerPageResult> => {
-  if (!id || !UUID_RE.test(id)) return { kind: "not-found" };
+export const loadPlannerData = async (
+  supabase: SupabaseClient | null,
+  id: string | undefined,
+): Promise<PlannerPageResult> => {
+  if (!supabase) return err({ kind: "unavailable", message: "Supabase is not configured" });
+  if (!id || !UUID_RE.test(id)) return err({ kind: "not-found" });
 
   const { data: plan, error: planError } = await supabase
     .from("plans")
@@ -31,7 +36,7 @@ export const loadPlannerData = async (supabase: Supabase, id: string | undefined
     .eq("id", id)
     .maybeSingle();
   if (planError) throw new Error(`Plan lookup failed: ${planError.message}`);
-  if (!plan) return { kind: "not-found" };
+  if (!plan) return err({ kind: "not-found" });
 
   // S-01 is single-cohort: the Year-1 cohort (sorts before Year-2 by name).
   const { data: cohort, error: cohortError } = await supabase
@@ -41,7 +46,7 @@ export const loadPlannerData = async (supabase: Supabase, id: string | undefined
     .limit(1)
     .maybeSingle();
   if (cohortError) throw new Error(`Cohort lookup failed: ${cohortError.message}`);
-  if (!cohort) return { kind: "unavailable", message: "No cohort configured" };
+  if (!cohort) return err({ kind: "unavailable", message: "No cohort configured" });
 
   // The single seeded variant for this plan.
   const { data: variant, error: variantError } = await supabase
@@ -52,7 +57,7 @@ export const loadPlannerData = async (supabase: Supabase, id: string | undefined
     .limit(1)
     .maybeSingle();
   if (variantError) throw new Error(`Variant lookup failed: ${variantError.message}`);
-  if (!variant) return { kind: "unavailable", message: "Plan has no variant" };
+  if (!variant) return err({ kind: "unavailable", message: "Plan has no variant" });
 
   const { days, periods } = parseGridPreset(plan.slot_grid_preset);
 
@@ -69,25 +74,23 @@ export const loadPlannerData = async (supabase: Supabase, id: string | undefined
       .eq("cohort_id", cohort.id),
     loadCohortCourses(supabase, cohort.id),
   ]);
-  if (groupingsResult.error) throw new Error(`Groupings lookup failed: ${groupingsResult.error.message}`);
-  if (placementsResult.error) throw new Error(`Placements lookup failed: ${placementsResult.error.message}`);
+  assertNoQueryErrors("Planner board", [groupingsResult, placementsResult]);
 
-  const groupings: PlannerGrouping[] = groupingsResult.data.map((row) => ({
+  const groupings: PlannerGrouping[] = (groupingsResult.data ?? []).map((row) => ({
     id: row.id,
     coverageCount: row.coverage_count,
     score: row.score,
     memberIds: row.course_grouping_members.map((member) => member.course_id),
   }));
 
-  const placements: PlannerPlacement[] = placementsResult.data.map((row) => ({
+  const placements: PlannerPlacement[] = (placementsResult.data ?? []).map((row) => ({
     id: row.id,
     courseId: row.course_id,
     day: row.day,
     period: row.period,
   }));
 
-  return {
-    kind: "ok",
+  return ok({
     planName: plan.name,
     props: {
       planId: plan.id,
@@ -100,5 +103,5 @@ export const loadPlannerData = async (supabase: Supabase, id: string | undefined
       placements,
       catalog: catalog.courses,
     },
-  };
+  });
 };

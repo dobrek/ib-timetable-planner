@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/shared/ui";
-import { computeGroupings } from "@/_pages/plan-detail/api/grouping-client";
+import { computeGroupings } from "../api/grouping-client";
 
 type Props = {
   planId: string;

@@ -1,9 +1,8 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/shared/api";
+import type { SupabaseClient } from "@/shared/api";
 import { loadCohortCourses } from "./load-cohort-catalog";
 import { computeCatalogHash } from "./persist";
 
-type Supabase = SupabaseClient<Database>;
+type Supabase = SupabaseClient;
 
 /**
  * The out-of-date primitive S-06 surfaces in the UI (no UI here). Computes the

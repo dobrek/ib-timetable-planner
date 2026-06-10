@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
@@ -7,12 +7,12 @@ import ErrorBanner from "./ErrorBanner";
 import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
-import type { CellData, DragData, PlannerBoardProps } from "@/_pages/plan-detail/model/drag";
-import { deriveCollisions } from "@/_pages/plan-detail/model/collisions";
-import type { GroupingCourse } from "@/_pages/plan-detail/model/grouping";
-import { countIncompleteCourses, deriveHours } from "@/_pages/plan-detail/model/hours";
-import type { LocalPlacement } from "@/_pages/plan-detail/model/placement";
-import { usePlacements } from "@/_pages/plan-detail/model/use-placements";
+import type { CellData, DragData, PlannerBoardProps } from "../model/drag";
+import { deriveCollisions } from "../model/collisions";
+import type { GroupingCourse } from "../model/grouping";
+import { countIncompleteCourses, deriveHours } from "../model/hours";
+import type { LocalPlacement } from "../model/placement";
+import { usePlacements } from "../model/use-placements";
 
 /**
  * Planner island root: orchestrates placement state, collision/hours derivations,
@@ -26,7 +26,6 @@ export default function PlannerBoard(props: PlannerBoardProps) {
     variantId,
     cohortId,
   });
-  const [leadingCourseId, setLeadingCourseId] = useState<string | null>(null);
   const collisions = useCollisions(placements, catalog);
   const { hours, incompleteCount } = useHours(placements, catalog);
 
@@ -55,13 +54,7 @@ export default function PlannerBoard(props: PlannerBoardProps) {
         <PlanSummaryBar incompleteCount={incompleteCount} />
 
         <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
-          <PlannerPalette
-            groupings={groupings}
-            names={names}
-            hours={hours}
-            leadingCourseId={leadingCourseId}
-            onLeadingChange={setLeadingCourseId}
-          />
+          <PlannerPalette groupings={groupings} names={names} hours={hours} />
 
           <div className="flex min-h-0 flex-col gap-3">
             {error && <ErrorBanner message={error} onDismiss={clearError} />}

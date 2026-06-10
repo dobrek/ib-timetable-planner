@@ -1,6 +1,6 @@
 import SlotCell from "./SlotCell";
-import type { LocalPlacement } from "@/_pages/plan-detail/model/placement";
-import { cellKey } from "@/_pages/plan-detail/model/collisions";
+import type { LocalPlacement } from "../model/placement";
+import { cellKey } from "../model/collisions";
 
 type Props = {
   days: number;

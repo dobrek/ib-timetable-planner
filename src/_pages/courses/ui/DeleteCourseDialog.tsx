@@ -14,7 +14,7 @@ import {
 } from "@/shared/ui";
 import type { CourseRow } from "@/_pages/courses/model/course";
 
-type DeleteCourseDialogProps = {
+type Props = {
   /** The course pending deletion, or null when closed. */
   course: CourseRow | null;
   onOpenChange: (open: boolean) => void;
@@ -24,7 +24,7 @@ type DeleteCourseDialogProps = {
  * Confirms a destructive delete and names the FK cascade so the consequence is explicit.
  * Deleting a course removes everything that references it.
  */
-export default function DeleteCourseDialog({ course, onOpenChange }: DeleteCourseDialogProps) {
+export default function DeleteCourseDialog({ course, onOpenChange }: Props) {
   const { confirm, isDeleting } = useDeleteCourse(course?.id, onOpenChange);
 
   return (

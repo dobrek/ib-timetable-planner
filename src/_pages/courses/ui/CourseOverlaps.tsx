@@ -9,7 +9,7 @@ import { cn } from "@/shared/lib/cn";
 import { formatCourseLabel } from "@/_pages/courses/lib/labels";
 import type { CourseRow } from "@/_pages/courses/model/course";
 
-type CourseOverlapsProps = {
+type Props = {
   /** The dependent course whose overlaps are being managed, or null when closed. */
   course: CourseRow | null;
   /** All courses (resolves base-course labels and the candidate base list). */
@@ -27,13 +27,7 @@ type CourseOverlapsProps = {
  * Mutations update island state in place (no page reload) so the dialog stays open across
  * repeated edits. Tokens only (lessons rule #2).
  */
-export default function CourseOverlaps({
-  course,
-  courses,
-  coursesById,
-  onOverlapsChange,
-  onOpenChange,
-}: CourseOverlapsProps) {
+export default function CourseOverlaps({ course, courses, coursesById, onOverlapsChange, onOpenChange }: Props) {
   return (
     <Dialog open={course !== null} onOpenChange={onOpenChange}>
       <DialogContent>

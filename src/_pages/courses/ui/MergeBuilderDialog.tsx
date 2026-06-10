@@ -40,7 +40,7 @@ import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-type MergeBuilderDialogProps = {
+type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   courses: CourseRow[];
@@ -58,14 +58,7 @@ type MergeBuilderDialogProps = {
  * pure module the server re-checks — so the preview can never drift from what's stored.
  * Tokens only (lessons rule #2).
  */
-export default function MergeBuilderDialog({
-  open,
-  onOpenChange,
-  courses,
-  coursesById,
-  teachers,
-  cohortId,
-}: MergeBuilderDialogProps) {
+export default function MergeBuilderDialog({ open, onOpenChange, courses, coursesById, teachers, cohortId }: Props) {
   const { form, onSubmit, candidates, selectedChildren, derivation, teacherLabelById } = useMergeBuilder(
     open,
     courses,

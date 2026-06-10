@@ -26,7 +26,7 @@ import { updateMergeHoursInput, type UpdateMergeHoursInput } from "@/_pages/cour
 import type { CourseRow } from "@/_pages/courses/model/course";
 import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
 
-type MergeManageDialogProps = {
+type Props = {
   /** The composite merge parent being managed, or null when closed. */
   course: CourseRow | null;
   coursesById: Map<string, CourseRow>;
@@ -39,7 +39,7 @@ type MergeManageDialogProps = {
  * pattern naming the consequence (parent + links removed, atomic children kept). Both
  * actions `navigate()` on success. Tokens only (lessons rule #2).
  */
-export default function MergeManageDialog({ course, coursesById, onOpenChange }: MergeManageDialogProps) {
+export default function MergeManageDialog({ course, coursesById, onOpenChange }: Props) {
   return (
     <Dialog open={course !== null} onOpenChange={onOpenChange}>
       <DialogContent>

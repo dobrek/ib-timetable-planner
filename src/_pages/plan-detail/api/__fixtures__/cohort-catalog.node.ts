@@ -32,19 +32,18 @@ export const loadFixtureCourses = (dir: string): GroupingCourse[] => {
 
   const bySubject = groupBy(studentChoices, ({ subject }) => subject);
 
-  const allStudentsFor = (subject: string): string[] =>
-    (bySubject.find(({ key }) => key === subject)?.values ?? []).map(({ student }) => student);
+  const allStudentsFor = (subject: string): string[] => (bySubject.get(subject) ?? []).map(({ student }) => student);
 
   const overlapsFor = (subject: string): string[] =>
     overlapList.filter((r) => r.subject === subject).map((r) => r.overlap);
 
-  const courses: GroupingCourse[] = bySubject.map(({ key, values }) => {
+  const courses: GroupingCourse[] = [...bySubject].map(([key, values]) => {
     const studentKeys = unique(values.map(({ student }) => student).concat(overlapsFor(key).flatMap(allStudentsFor)));
     const meta = metaList.find((m) => m.subject === key);
     return { id: key, teacherKey: meta?.teacher ?? null, studentKeys, hours: meta?.hours ?? 0 };
   });
 
-  const virtualCourses: GroupingCourse[] = groupBy(mergeList, ({ subject }) => subject).map(({ key, values }) => {
+  const virtualCourses: GroupingCourse[] = [...groupBy(mergeList, ({ subject }) => subject)].map(([key, values]) => {
     const meta = metaList.find((m) => m.subject === key);
     return {
       id: key,

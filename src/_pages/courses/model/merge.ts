@@ -3,8 +3,8 @@
  * builder dialog's live preview and the `createMerge` action's server-side gate, so
  * the previewed parent and the stored parent can never drift.
  *
- * Identity stays as opaque ids; the composite `level` is a derived display token
- * (lessons: "identity as tokens, display at edges"). Pure — no DB, no React.
+ * Identity stays as opaque ids; the composite `level` is a derived display token.
+ * Pure — no DB, no React.
  */
 
 /** Minimal child projection the derivation needs. A projection of `CourseRow`. */

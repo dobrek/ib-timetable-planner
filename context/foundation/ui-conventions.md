@@ -29,7 +29,7 @@ Open the file, see the component shape immediately; scroll down only for impleme
 - **Test**: would changing one flow break the other? If not, separate hooks.
 - **Anti-pattern**: a single hook that returns everything the component needs, hiding wiring the orchestrator should make visible.
 
-Example: `MergeManageDialog` uses `useMergeHoursForm` (RHF submit) and `useDissolve` (destructive action) as two hooks, not one combined hook. `PlannerBoard` uses `usePlacements`, private `useCollisions`, and private `useHours` as three hooks — not one `usePlannerBoard`.
+Example: `MergeManageDialog` uses `useMergeHoursForm` (RHF submit) and a `useConfirmAction` instance (destructive action) as two hooks, not one combined hook. `PlannerBoard` uses `usePlacements`, private `useCollisions`, and private `useHours` as three hooks — not one `usePlannerBoard`.
 
 ## Hook placement
 
@@ -72,7 +72,70 @@ Compute shared derived data once at the orchestrator level (e.g. `coursesById` i
 
 ## Shared helpers
 
-Extract duplicated non-domain utilities to `lib/` within the slice (e.g. `lib/coerce.ts` for `toNumberOrUndefined`). Promote to `shared/lib/` only when multiple slices need the same helper.
+Extract duplicated non-domain utilities to `lib/` within the slice (e.g. `lib/labels.ts` for display formatting). Promote to `shared/lib/` or `shared/ui/` only when a second slice needs the same helper — that is how `NumberField`, `MultiSelect`, `submitForm`, and `useUrlSyncedFilters` got there.
+
+## Dialog contract
+
+Every dialog exposes intent-named **`onClose: () => void`** and adapts to Radix internally:
+
+```tsx
+<Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
+```
+
+Catalog wiring stays declarative — `onClose={dialogs.closeForm}` — with no inline `(open) => …` adapters. Internal cancel buttons and success paths call `onClose()` directly.
+
+## Form typing (Zod ↔ RHF)
+
+The schema is the single source of both types; never hand-write a form-values type or cast a resolver:
+
+```ts
+export type CourseFormValues = z.input<typeof courseInput>; // what the form holds (pre-transform)
+export type CourseInput = z.output<typeof courseInput>;     // what submit/actions receive
+
+useForm<CourseFormValues, unknown, CourseInput>({ resolver: zodResolver(courseInput) });
+```
+
+`handleSubmit` then hands `z.output` values to the submit callback.
+
+## Submit & confirm flows
+
+The mutation flow is standardized in `@/shared/lib/forms` (deep import — see the Vitest rule below):
+
+- `submitForm({ call, setError, conflictField?, conflictCodes?, successMessage, onClose })` — input errors land on their fields, conflict-coded errors land inline on `conflictField` (e.g. `"code"` for teachers, `"name"` for courses; MergeBuilder maps `["CONFLICT", "BAD_REQUEST"]` onto `childCourseIds`), anything else toasts; success toasts, closes, `refreshPage()`.
+- `useConfirmAction(call, { successMessage, onDone })` — busy-flagged confirm for delete/dissolve dialogs.
+- `refreshPage()` — `navigate(pathname + search)` so URL-mirrored filters survive the reload.
+
+## Server actions
+
+`api/actions.ts` is a declarative routing table — no per-action handler bodies:
+
+```ts
+export const courseActions = {
+  createCourse: defineDomainAction({ input: courseInput, run: createCourse }),
+};
+```
+
+`defineDomainAction` (shared/lib) enforces the session, resolves Supabase, and translates `DomainError` → `ActionError`. Domain functions stay `(supabase, input)`-shaped, framework-free, and unit-testable. PostgREST error ladders collapse to `unwrapRow(result, { conflict?, notFound?, failure })` / `unwrapCompleted(result, failure)` from `@/shared/lib/postgrest`; only the per-entity messages live in the slice (`api/constants.ts`).
+
+## Loaders & the Result convention
+
+`Result<T, E>` (shared/lib) is the one discriminated-union style. Loaders return `LoaderResult<T> = Result<T, "unavailable">` via `withSupabase(client, fetch)`; pages branch on `result.ok`. Parallel reads are checked with `assertNoQueryErrors(label, results)`. Boundary rule: `Result` models *expected absence* (e.g. unconfigured Supabase); domain failures **throw `DomainError`** — never wrap those in `Result`.
+
+## URL-synced filters
+
+`useUrlSyncedFilters(initial, parse, serialize)` (shared/lib) owns the seed-from-URL / mirror-to-URL machine. Each slice contributes only its pure codec in `model/filter-params.ts` and a thin `model/use-catalog-filters.ts` wrapper. `parse`/`serialize` must be referentially stable (module-level or `useCallback`).
+
+## Vitest rule for astro-importing shared modules
+
+`astro:*` virtual modules do not resolve under Vitest. Any shared module with **value** imports from them (`shared/lib/actions.ts`, `shared/lib/forms.ts`) must stay out of test import graphs: they are deliberately **not** re-exported where tests reach (`forms.ts`, `call-action.ts` are excluded from the barrel — deep-import them from `ui/` code), and slice api domain files deep-import `@/shared/lib/postgrest` / `@/shared/lib/errors` rather than the `@/shared/lib` barrel (which pulls in `actions.ts`). Type-only astro imports are always safe.
+
+## Import style
+
+Relative paths within a slice (`../model/course`, `./labels`); the `@/` alias only across layers (`@/shared/ui`, `@/shared/lib/forms`). Never mix both forms for the same target in one file.
+
+## Public API surface
+
+A slice's `api/index.ts` exports exactly what external consumers use — the loader (+ its types) and the actions object. Server handlers, constants, and client wrappers are internal: import them by file path within the slice. Keep the slice root `index.ts` to the page island component.
 
 ## Astro action clients
 
@@ -88,19 +151,17 @@ UI components must **not** import `actions` from `astro:actions`. Call typed wra
 
 **Pattern** (`api/course-client.ts`):
 
-- One exported function per action, named after the action (`createCourse`, `deleteOverlap`, …).
-- Input types come from `model/schemas.ts` (same schemas the action gate uses).
-- Return `{ error: ActionError<TInput> | undefined }` so dialogs/forms can branch on field errors, conflict codes, and toasts without throwing.
-- A private `runAction` helper holds the `SafeResult` cast — the only place that touches untyped `actions`.
+- One exported one-liner per action, named after it: `export const createCourse = (values: CourseInput) => callAction(actions.createCourse, values);`
+- Input types come from `model/schemas.ts` (the `z.output` types — what `handleSubmit` produces).
+- `callAction` (`@/shared/lib/call-action`, type-only astro imports) is the single transport helper; it returns `{ error: ActionError | undefined }` so dialogs branch on field errors, conflict codes, and toasts without throwing.
 
 **Imports in `ui/`:**
 
 ```ts
-import { createCourse } from "@/_pages/courses/api/course-client";
-import { isInputError } from "astro:actions"; // type guards only — not `actions`
+import { createCourse } from "../api/course-client";
 ```
 
-**Barrel export:** Do **not** re-export client wrappers from `api/index.ts`. That file already exports server handlers with the same names (`createCourse`, …). Import client functions from `api/<slice>-client.ts` directly.
+**Barrel export:** Do **not** re-export client wrappers from `api/index.ts` — they are ui-side internals; import them from `api/<slice>-client.ts` directly.
 
 **When the caller wants throw-on-error:** `plan-detail/api/placement-client.ts` throws after checking `error` and returns `data` only — suited to optimistic drag-drop where failure is exceptional. New dialog/form flows should prefer the `{ error }` return shape above.
 

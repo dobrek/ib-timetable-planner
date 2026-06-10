@@ -1,5 +1,4 @@
-import type { CohortTab } from "./course";
-import type { TeacherOption } from "@/_pages/courses/model/course";
+import type { CohortTab, TeacherOption } from "./course";
 
 /**
  * Catalog filter state mirrored into the URL query so a post-mutation

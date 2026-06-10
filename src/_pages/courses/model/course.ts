@@ -29,6 +29,9 @@ export type CourseRow = {
 /** A cohort presented as a tab. `label` is the school-year display ("Year 1" / "Year 2"). */
 export type CohortTab = CohortOption;
 
+/** Sentinel `level` value meaning "no level" — stored in the DB, rendered as "—". */
+export const LEVEL_NONE = "none";
+
 /** A selectable teacher for the multi-select filter and the create/edit form. */
 export type TeacherOption = {
   id: string;

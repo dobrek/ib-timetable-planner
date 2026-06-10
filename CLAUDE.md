@@ -1,23 +1,41 @@
-# CLAUDE.md
+# Repository Guidelines
 
-## Project
+`ib-timetable-planner` — an interactive IB-school timetable planner. Astro 6 + React 19 islands on Cloudflare Workers (workerd), Supabase (Postgres) for persistence, Tailwind v4, TypeScript v6. Package manager **pnpm 10.32.1**, Node **24.15.0** (`.node-version`). See @README.md for depth.
 
-`ib-timetable-planner` — interactive IB-school timetable planner. Full context in `context/foundation/prd.md` and `context/foundation/tech-stack.md`.
+## Hard rules
 
-Stack: Astro 6 + React 19 on Cloudflare Workers (workerd), Supabase (Postgres) for persistence, Tailwind. Package manager: **pnpm 10.32.1**. Node: **24.15.0** (see `.node-version`).
+- **Workers runtime, both dev and prod.** No Node-only APIs (`fs`, `child_process`, `net`, native modules). Confirm `pnpm build` stays clean.
+- **FSD layout is steiger-enforced.** `pnpm steiger` is a CI gate (`--fail-on-warnings`). Respect layer import direction: `app` → `_pages` → `shared`; never import upward. Config: @steiger.config.ts.
+- **Supabase is the runtime source of truth** for catalog, students, teachers, placements. `data/*.csv` are reference fixtures only — never read at runtime.
+- **Placement/constraint validation has a <200ms budget** per drag-drop. The two-cohort (Y12/Y13) constraint core lives in `src/_pages/plan-detail/model/` — read it before touching constraint logic; don't reinvent it.
+- **Auth is deny-by-default** in `src/middleware.ts`. Don't widen the allowlist without reason.
+- Don't bypass `lefthook` with `--no-verify`.
+
+## Project Structure
+
+FSD layers under `src/`: `app/` (shell, layouts, styles), `_pages/<slice>/` (page slices, underscored to avoid clashing with Astro routing), `shared/` (`api`, `lib`, `config`, `ui`). Each slice splits into `api`, `lib`, `model`, `ui` segments. `src/pages/` is Astro file-routing (+ `src/pages/api/`); `src/actions/` holds Astro Actions. `supabase/` migrations + seed, `context/foundation/` PRD/tech-stack/conventions.
 
 ## Commands
 
-- `pnpm dev` — Astro dev server (workerd runtime)
-- `pnpm build` — production build (CI gate)
-- `pnpm lint` / `pnpm lint:fix` — ESLint flat config
-- `pnpm format` — Prettier across the tree
-- `pnpm exec astro sync` — regenerate Astro content/env types; run before lint if you change content collections or env vars
-- `pnpm test` — Vitest unit suite (CI gate; pure, no DB required)
-- `pnpm test:watch` — Vitest in watch mode
-- `pnpm test:integration` — integration tests (requires local Supabase stack running)
+- `pnpm dev` — dev server (workerd); `pnpm build` — production build (CI gate).
+- `pnpm lint` / `pnpm steiger` — ESLint flat config + FSD structure check.
+- `pnpm test` — Vitest unit suite; `pnpm test:integration` — needs local Supabase running.
+- `pnpm env:local` / `pnpm env:prod` — swap Supabase target (writes `.env.local` + `.dev.vars`).
+- Run the `/verify` skill to mirror the full CI gate locally.
 
-Env profiles live in `.envs/` and are swapped with `pnpm env:local` (default dev loop) / `pnpm env:prod` (smoke against hosted Supabase). Both scripts write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler dev`).
+## Coding Style & Naming
+
+- Use `type` for data shapes; reserve `interface` for behavioral/class contracts. Each function does one thing; never mutate parameters.
+- Exported function first, private helpers below (newspaper order). `.tsx` only for JSX; hooks/helpers stay `.ts`.
+- Pure domain logic (guards, transitions) goes in `model/`; hooks orchestrate it; Astro Actions stay thin. See @context/foundation/ui-conventions.md.
+
+## Testing
+
+Vitest, tests co-located as `*.test.ts` next to source under each slice's segment. Integration tests use `*.integration.test.ts` (excluded from `pnpm test`, run via `pnpm test:integration`).
+
+## Commit & PR
+
+Commits: lowercase type + optional scope, imperative, no period — `feat(app-shell): …`, `fix(env): …`, `refactor: …`. PRs squash-merge onto `main` with a `(#NN)` suffix. CI must pass: install → `astro sync` → lint → steiger → test → build.
 
 ## CLIs in use
 
@@ -26,36 +44,3 @@ For operations beyond the `pnpm` scripts above, reach for these CLIs (run via `p
 - `wrangler` — Cloudflare Workers: deploy, secrets, deployments list, rollback, tail.
 - `supabase` — local stack (`start`/`stop`) and hosted project link/migrations.
 - `gh` — GitHub operations: PRs, issues, CI run status.
-
-## Branch and CI
-
-- CI runs: `pnpm install --frozen-lockfile` → `astro sync` → `pnpm lint` → `pnpm steiger` → `pnpm test` → `pnpm build`. Use the `/verify` skill to mirror this locally.
-- Commit style (from history): `chore: …`, `feat: …`, `fix: …` — lowercase scope, imperative subject, no period.
-
-## Runtime caveats
-
-Code runs on **Cloudflare Workers (workerd)** in both dev and prod. Do not use Node-only APIs (`fs`, `child_process`, `net`, native modules). Choose edge-compatible libraries.
-
-## Domain
-
-- The validator's hard problem is the **two-cohort (Year 12 / Year 13) cross-cohort constraint model**. Don't reinvent it — read the PRD's placement-validation section and any existing solver under `src/lib/` before adding constraint logic.
-- Placement validation has a **<200ms budget** per drag-drop interaction.
-- **Supabase is the runtime source of truth** for catalog, students, teachers, and placements.
-- `/data/*.csv` are **reference fixtures** — canonical sample inputs for seeding and tests. They are not read at runtime.
-
-## Layout
-
-- `src/pages/` — Astro routes including `api/`
-- `src/components/` — React + Astro components
-- `src/layouts/` — Astro page layouts
-- `src/lib/` — pure utilities, Supabase client, and the constraint/validation core
-- `src/middleware.ts` — route protection (auth redirects)
-- `supabase/` — local Supabase config and migrations
-- `.envs/` — environment profiles (`local.vars`, `prod.vars`); see Commands
-- `wrangler.jsonc` — Cloudflare Workers config
-- `context/foundation/` — PRD, tech-stack, infrastructure; metadata, not runtime code
-- `data/` — reference CSV fixtures
-
-## Pre-commit
-
-`lefthook` runs `eslint --fix` on staged `.ts/.tsx/.astro` and `prettier --write` on `.json/.css/.md`. Do not bypass it with `--no-verify`.

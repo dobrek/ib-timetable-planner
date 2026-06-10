@@ -1,11 +1,11 @@
 import { z } from "zod";
+import { LEVEL_NONE } from "./course";
 
 /**
  * Single source of truth for catalog validation, imported by both the Astro Actions
  * (`input` — the authoritative server gate) and the react-hook-form resolvers.
  *
- * These schemas encode app-layer rules the DB deliberately does NOT enforce
- * (lessons: "port the mechanism, not the legacy type shape"):
+ * These schemas encode app-layer rules the DB deliberately does NOT enforce:
  *   - `teacherId` is required here, but `courses.teacher_id` is nullable in the DB.
  * `level` is optional free text (matching the permissive `courses.level` column) so
  * composite merge-parent levels (`AB+SL`, …) round-trip through the editor; an empty
@@ -16,14 +16,23 @@ import { z } from "zod";
 /** IB group index. 0 is the "none" sentinel; 1–3 are the authorable groups. */
 export const COURSE_GROUP_INDICES = [0, 1, 2, 3] as const;
 
+export type CourseGroupIndex = (typeof COURSE_GROUP_INDICES)[number];
+
+/** Whether a stored number is one of the authorable group indices. */
+export const isCourseGroupIndex = (value: number): value is CourseGroupIndex =>
+  (COURSE_GROUP_INDICES as readonly number[]).includes(value);
+
+/** Coerce a stored group_index to one of the authorable options (defaults to 0 / none). */
+export const toGroupIndex = (value: number): CourseGroupIndex => (isCourseGroupIndex(value) ? value : 0);
+
 export const courseInput = z.object({
   name: z.string().trim().min(1, "Name is required"),
   // Optional: an empty level means "none".
   level: z
     .string()
     .trim()
-    .transform((value) => (value.length > 0 ? value : "none")),
-  groupIndex: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+    .transform((value) => (value.length > 0 ? value : LEVEL_NONE)),
+  groupIndex: z.literal(COURSE_GROUP_INDICES),
   hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
   cohortId: z.uuid(),
   // Stricter than the nullable DB column: a course must have a teacher.

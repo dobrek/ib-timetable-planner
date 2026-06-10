@@ -25,8 +25,9 @@ import {
   SelectValue,
 } from "@/shared/ui";
 import { createCourse, updateCourse } from "../api/course-client";
+import { GROUP_OPTIONS } from "../lib/labels";
 import type { CohortTab, CourseRow, TeacherOption } from "../model/course";
-import { courseInput, type CourseFormValues, type CourseInput } from "../model/schemas";
+import { courseInput, toGroupIndex, type CourseFormValues, type CourseInput } from "../model/schemas";
 
 type Props = {
   open: boolean;
@@ -252,13 +253,3 @@ const emptyCourseFormValues = (cohortId: string): DefaultValues<CourseFormValues
   teacherId: undefined,
   cohortId,
 });
-
-const GROUP_OPTIONS = [
-  { value: 0, label: "None" },
-  { value: 1, label: "Group 1" },
-  { value: 2, label: "Group 2" },
-  { value: 3, label: "Group 3" },
-] as const;
-
-/** Coerce a stored group_index to one of the authorable options (defaults to 0 / none). */
-const toGroupIndex = (value: number): 0 | 1 | 2 | 3 => (value === 1 || value === 2 || value === 3 ? value : 0);

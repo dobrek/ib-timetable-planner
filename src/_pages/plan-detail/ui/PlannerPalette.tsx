@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import GroupingBox from "./GroupingBox";
 import GroupingFilter from "./GroupingFilter";
 import type { PlannerGrouping } from "@/_pages/plan-detail/model/grouping";
@@ -23,10 +22,7 @@ export default function PlannerPalette({
   leadingCourseId,
   onLeadingChange,
 }: PlannerPaletteProps) {
-  const visibleGroupings = useMemo(
-    () => (leadingCourseId ? groupings.filter((g) => g.memberIds.includes(leadingCourseId)) : groupings),
-    [groupings, leadingCourseId],
-  );
+  const visibleGroupings = leadingCourseId ? groupings.filter((g) => g.memberIds.includes(leadingCourseId)) : groupings;
 
   return (
     <aside data-slot="planner-palette" className="flex min-h-0 flex-col gap-3">

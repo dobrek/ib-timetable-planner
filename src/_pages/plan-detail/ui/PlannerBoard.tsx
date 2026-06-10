@@ -8,14 +8,16 @@ import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
 import type { CellData, DragData, PlannerBoardProps } from "@/_pages/plan-detail/model/drag";
-import { usePlacements } from "./usePlacements";
 import { deriveCollisions } from "@/_pages/plan-detail/model/collisions";
+import type { GroupingCourse } from "@/_pages/plan-detail/model/grouping";
 import { countIncompleteCourses, deriveHours } from "@/_pages/plan-detail/model/hours";
+import type { LocalPlacement } from "@/_pages/plan-detail/model/placement";
+import { usePlacements } from "@/_pages/plan-detail/model/use-placements";
 
 /**
- * Planner island root: a thin composition over `usePlacements` (state + optimistic
- * persistence), the reactive collision/hours derivations, and the palette/grid views.
- * Drops always land (accept-and-flag); the only way to remove a course is the chip's "×".
+ * Planner island root: orchestrates placement state, collision/hours derivations,
+ * and the palette/grid views. Drops always land (accept-and-flag); the only way to
+ * remove a course is the chip's "×".
  */
 export default function PlannerBoard(props: PlannerBoardProps) {
   const { planId, variantId, cohortId, days, periods, groupings, names, catalog } = props;
@@ -25,14 +27,8 @@ export default function PlannerBoard(props: PlannerBoardProps) {
     cohortId,
   });
   const [leadingCourseId, setLeadingCourseId] = useState<string | null>(null);
-
-  // Reactive derivations over current placement state — recomputed on every change so a
-  // collision flag clears the moment a participant leaves, and hours track live. Pure
-  // and per-cell (O(occupants²)); no network on the validation path (≤200 ms budget).
-  const catalogById = useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
-  const collisions = useMemo(() => deriveCollisions(placements, catalogById), [placements, catalogById]);
-  const hours = useMemo(() => deriveHours(placements, catalog), [placements, catalog]);
-  const incompleteCount = useMemo(() => countIncompleteCourses(hours), [hours]);
+  const collisions = useCollisions(placements, catalog);
+  const { hours, incompleteCount } = useHours(placements, catalog);
 
   function handleDrop(event: DragEndEvent) {
     if (event.canceled) return;
@@ -84,6 +80,17 @@ export default function PlannerBoard(props: PlannerBoardProps) {
       </div>
     </DragDropProvider>
   );
+}
+
+function useCollisions(placements: LocalPlacement[], catalog: GroupingCourse[]) {
+  const catalogById = useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
+  return useMemo(() => deriveCollisions(placements, catalogById), [placements, catalogById]);
+}
+
+function useHours(placements: LocalPlacement[], catalog: GroupingCourse[]) {
+  const hours = useMemo(() => deriveHours(placements, catalog), [placements, catalog]);
+  const incompleteCount = useMemo(() => countIncompleteCourses(hours), [hours]);
+  return { hours, incompleteCount };
 }
 
 // Disable the drop "return" animation. A palette course is *copied* onto the grid —

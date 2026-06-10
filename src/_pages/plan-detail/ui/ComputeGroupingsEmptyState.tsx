@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { actions } from "astro:actions";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/shared/ui";
+import { computeGroupings } from "@/_pages/plan-detail/api/grouping-client";
 
 type Props = {
   planId: string;
@@ -15,21 +15,7 @@ type Props = {
  * to the empty state — re-compute and staleness UI are S-06.
  */
 export default function ComputeGroupingsEmptyState({ planId, cohortId }: Props) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function compute() {
-    setLoading(true);
-    setError(null);
-    try {
-      const { error: actionError } = await actions.computeGroupings({ planId, cohortId });
-      if (actionError) throw new Error(actionError.message);
-      location.reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected error computing groupings");
-      setLoading(false);
-    }
-  }
+  const { loading, error, compute } = useComputeGroupings(planId, cohortId);
 
   return (
     <div
@@ -51,4 +37,24 @@ export default function ComputeGroupingsEmptyState({ planId, cohortId }: Props) 
       )}
     </div>
   );
+}
+
+function useComputeGroupings(planId: string, cohortId: string) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function compute() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await computeGroupings({ planId, cohortId });
+      if (result.error) throw new Error(result.error);
+      location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unexpected error computing groupings");
+      setLoading(false);
+    }
+  }
+
+  return { loading, error, compute };
 }

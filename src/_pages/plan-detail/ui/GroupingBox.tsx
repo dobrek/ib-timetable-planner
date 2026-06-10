@@ -20,16 +20,14 @@ type Props = {
  * is the unit of placement). Display names are resolved at the edge from `names`.
  */
 export default function GroupingBox({ grouping, names, hours }: Props) {
-  const [expanded, setExpanded] = useState(true);
+  const { expanded, toggle } = useExpanded();
 
   return (
     <div data-slot="grouping-box" className="rounded-lg border">
       <Button
         type="button"
         variant="ghost"
-        onClick={() => {
-          setExpanded((value) => !value);
-        }}
+        onClick={toggle}
         className="h-auto w-full justify-start gap-2 px-3 py-2 text-sm font-medium"
       >
         {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -50,6 +48,14 @@ export default function GroupingBox({ grouping, names, hours }: Props) {
       )}
     </div>
   );
+}
+
+function useExpanded(initial = true) {
+  const [expanded, setExpanded] = useState(initial);
+  const toggle = () => {
+    setExpanded((value) => !value);
+  };
+  return { expanded, toggle };
 }
 
 function PaletteCourse({

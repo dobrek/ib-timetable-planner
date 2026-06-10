@@ -1,10 +1,6 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { dissolveMerge, updateMergeHours } from "@/_pages/courses/api/course-client";
-import { isInputError } from "astro:actions";
-import { navigate } from "astro:transitions/client";
-import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { submitForm, useConfirmAction } from "@/shared/lib/forms";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,35 +11,48 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  NumberField,
 } from "@/shared/ui";
-import { Button } from "@/shared/ui";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui";
-import { Input } from "@/shared/ui";
-import { toNumberOrUndefined } from "@/_pages/courses/lib/coerce";
-import { formatCourseLabel } from "@/_pages/courses/lib/labels";
-import { updateMergeHoursInput, type UpdateMergeHoursInput } from "@/_pages/courses/model/schemas";
-import type { CourseRow } from "@/_pages/courses/model/course";
-import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
+import { dissolveMerge, updateMergeHours } from "../api/course-client";
+import { formatCourseLabel } from "../lib/labels";
+import type { CourseRow } from "../model/course";
+import { updateMergeHoursInput, type UpdateMergeHoursInput } from "../model/schemas";
 
 type Props = {
   /** The composite merge parent being managed, or null when closed. */
   course: CourseRow | null;
   coursesById: Map<string, CourseRow>;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
 };
 
 /**
  * Manage an existing composite merge parent: list its (read-only) children, edit the
  * authored weekly hours, or dissolve the merge. Dissolve uses the `alert-dialog` confirm
- * pattern naming the consequence (parent + links removed, atomic children kept). Both
- * actions `navigate()` on success. Tokens only (lessons rule #2).
+ * pattern naming the consequence (parent + links removed, atomic children kept).
  */
-export default function MergeManageDialog({ course, coursesById, onOpenChange }: Props) {
+export default function MergeManageDialog({ course, coursesById, onClose }: Props) {
   return (
-    <Dialog open={course !== null} onOpenChange={onOpenChange}>
+    <Dialog
+      open={course !== null}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
       <DialogContent>
-        {course && <ManageBody key={course.id} course={course} coursesById={coursesById} onOpenChange={onOpenChange} />}
+        {course && <ManageBody key={course.id} course={course} coursesById={coursesById} onClose={onClose} />}
       </DialogContent>
     </Dialog>
   );
@@ -52,12 +61,15 @@ export default function MergeManageDialog({ course, coursesById, onOpenChange }:
 type ManageBodyProps = {
   course: CourseRow;
   coursesById: Map<string, CourseRow>;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
 };
 
-function ManageBody({ course, coursesById, onOpenChange }: ManageBodyProps) {
-  const { form, onSubmit } = useMergeHoursForm(course, onOpenChange);
-  const { dissolve, isDissolving } = useDissolve(course.id, onOpenChange);
+function ManageBody({ course, coursesById, onClose }: ManageBodyProps) {
+  const { form, onSubmit } = useMergeHoursForm(course, onClose);
+  const { confirm: dissolve, isBusy: isDissolving } = useConfirmAction(
+    () => dissolveMerge({ parentCourseId: course.id }),
+    { successMessage: "Merge deleted", onDone: onClose },
+  );
   const children = course.mergeChildIds.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);
 
   return (
@@ -93,18 +105,7 @@ function ManageBody({ course, coursesById, onOpenChange }: ManageBodyProps) {
               <FormItem>
                 <FormLabel>Weekly hours</FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
-                    min={0}
-                    autoComplete="off"
-                    value={Number.isFinite(field.value) ? field.value : ""}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    ref={field.ref}
-                    onChange={(event) => {
-                      field.onChange(toNumberOrUndefined(event.target.value));
-                    }}
-                  />
+                  <NumberField min={0} autoComplete="off" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -151,48 +152,20 @@ function ManageBody({ course, coursesById, onOpenChange }: ManageBodyProps) {
   );
 }
 
-function useMergeHoursForm(course: CourseRow, onOpenChange: (open: boolean) => void) {
+function useMergeHoursForm(course: CourseRow, onClose: () => void) {
   const form = useForm<UpdateMergeHoursInput>({
     resolver: zodResolver(updateMergeHoursInput),
     mode: "onTouched",
     defaultValues: { parentCourseId: course.id, hoursPerWeek: course.hours },
   });
 
-  const onSubmit = async (values: UpdateMergeHoursInput) => {
-    const { error } = await updateMergeHours(values);
-    if (error) {
-      if (isInputError(error)) {
-        applyActionFieldErrors(error, form.setError);
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-
-    toast.success("Merge hours updated");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
+  const onSubmit = (values: UpdateMergeHoursInput) =>
+    submitForm({
+      call: () => updateMergeHours(values),
+      setError: form.setError,
+      successMessage: "Merge hours updated",
+      onClose,
+    });
 
   return { form, onSubmit };
-}
-
-function useDissolve(courseId: string, onOpenChange: (open: boolean) => void) {
-  const [isDissolving, setIsDissolving] = useState(false);
-
-  const dissolve = async () => {
-    setIsDissolving(true);
-    const { error } = await dissolveMerge({ parentCourseId: courseId });
-    setIsDissolving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    toast.success("Merge deleted");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
-
-  return { dissolve, isDissolving };
 }

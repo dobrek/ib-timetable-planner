@@ -69,10 +69,14 @@ export const updateMergeHoursInput = z.object({
   hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
 });
 
-export type CourseInput = z.infer<typeof courseInput>;
+/** Raw form field shapes before Zod transforms — what the RHF forms hold. */
+export type CourseFormValues = z.input<typeof courseInput>;
+export type MergeFormValues = z.input<typeof mergeInput>;
+
+export type CourseInput = z.output<typeof courseInput>;
 export type UpdateCourseInput = z.infer<typeof updateCourseInput>;
 export type OverlapInput = z.infer<typeof overlapInput>;
-export type MergeInput = z.infer<typeof mergeInput>;
+export type MergeInput = z.output<typeof mergeInput>;
 export type DeleteCourseInput = z.infer<typeof deleteCourseInput>;
 export type DeleteOverlapInput = z.infer<typeof deleteOverlapInput>;
 export type DissolveMergeInput = z.infer<typeof dissolveMergeInput>;

@@ -1,10 +1,10 @@
-import type { CohortTab, CourseRow, TeacherOption } from "@/_pages/courses/model/course";
-import { filterCourses } from "@/_pages/courses/model/filter-courses";
-import { useCatalogDialogs } from "@/_pages/courses/model/use-catalog-dialogs";
-import { useCatalogFilters } from "@/_pages/courses/model/use-catalog-filters";
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Toaster } from "@/shared/ui";
 import { Combine, Plus } from "lucide-react";
 import { useState } from "react";
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Toaster } from "@/shared/ui";
+import type { CohortTab, CourseRow, TeacherOption } from "../model/course";
+import { filterCourses } from "../model/filter-courses";
+import { useCatalogDialogs } from "../model/use-catalog-dialogs";
+import { useCatalogFilters } from "../model/use-catalog-filters";
 import CourseFormDialog from "./CourseFormDialog";
 import CourseOverlaps from "./CourseOverlaps";
 import CourseTable from "./CourseTable";
@@ -23,9 +23,8 @@ type Props = {
  * Catalog island: cross-cohort course list as Year 1 / Year 2 tabs with a teacher
  * multi-select filter, a hide-merged toggle, plus create/edit/delete and overlap
  * authoring via dialogs. Composite merge parents carry a "Merged" badge beside the name
- * but remain fully editable (merge-specific constraints are deferred to the merge-builder
- * slice). Overlap edits update in-memory so the catalog stays live without a page reload.
- * Tokens only (lessons rule #2).
+ * but remain fully editable. Overlap edits update in-memory so the catalog stays live
+ * without a page reload.
  */
 export default function CourseCatalog({ cohorts, courses: initialCourses, teachers }: Props) {
   const [courses, setCourses] = useState(initialCourses);
@@ -62,7 +61,7 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
           size="sm"
           aria-pressed={filters.hideMerged}
           onClick={() => {
-            filters.setHideMerged((value) => !value);
+            filters.setHideMerged(!filters.hideMerged);
           }}
         >
           Hide merged
@@ -97,34 +96,23 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
 
       <CourseFormDialog
         open={dialogs.formOpen}
-        onOpenChange={(open) => {
-          if (!open) dialogs.closeForm();
-        }}
+        onClose={dialogs.closeForm}
         cohorts={cohorts}
         teachers={teachers}
         course={dialogs.formCourse}
         defaultCohortId={filters.activeCohortId}
       />
-      <DeleteCourseDialog
-        course={dialogs.deleteTarget}
-        onOpenChange={(open) => {
-          if (!open) dialogs.closeDelete();
-        }}
-      />
+      <DeleteCourseDialog course={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
       <CourseOverlaps
         course={dialogs.overlapCourse}
         courses={courses}
         coursesById={dialogs.coursesById}
         onOverlapsChange={dialogs.updateOverlaps}
-        onOpenChange={(open) => {
-          if (!open) dialogs.closeOverlaps();
-        }}
+        onClose={dialogs.closeOverlaps}
       />
       <MergeBuilderDialog
         open={dialogs.mergeOpen}
-        onOpenChange={(open) => {
-          if (!open) dialogs.closeMergeBuilder();
-        }}
+        onClose={dialogs.closeMergeBuilder}
         courses={courses}
         coursesById={dialogs.coursesById}
         teachers={teachers}
@@ -133,9 +121,7 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
       <MergeManageDialog
         course={dialogs.mergeManageCourse}
         coursesById={dialogs.coursesById}
-        onOpenChange={(open) => {
-          if (!open) dialogs.closeMergeManage();
-        }}
+        onClose={dialogs.closeMergeManage}
       />
       <Toaster />
     </div>

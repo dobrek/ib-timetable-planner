@@ -22,11 +22,9 @@ export const deleteTeacherInput = z.object({
   id: z.uuid(),
 });
 
-/** Raw form field shape before Zod transforms (e.g. optional `fullName`). */
-export type TeacherFormValues = {
-  code: string;
-  fullName?: string;
-};
-export type TeacherInput = z.infer<typeof teacherInput>;
+/** Raw form field shape before Zod transforms — what the RHF form holds. */
+export type TeacherFormValues = z.input<typeof teacherInput>;
+/** Parsed shape after transforms — what the action receives and the client submits. */
+export type TeacherInput = z.output<typeof teacherInput>;
 export type UpdateTeacherInput = z.infer<typeof updateTeacherInput>;
 export type DeleteTeacherInput = z.infer<typeof deleteTeacherInput>;

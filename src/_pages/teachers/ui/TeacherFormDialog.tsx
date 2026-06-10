@@ -1,7 +1,7 @@
-import { createTeacher, updateTeacher } from "@/_pages/teachers/api/teacher-client";
-import { teacherInput, type TeacherInput } from "@/_pages/teachers/model/schemas";
-import type { TeacherRow } from "@/_pages/teachers/model/teacher";
-import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { submitForm } from "@/shared/lib/forms";
 import {
   Button,
   Dialog,
@@ -18,12 +18,9 @@ import {
   FormMessage,
   Input,
 } from "@/shared/ui";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { isInputError } from "astro:actions";
-import { navigate } from "astro:transitions/client";
-import { useEffect } from "react";
-import { useForm, type Resolver } from "react-hook-form";
-import { toast } from "sonner";
+import { createTeacher, updateTeacher } from "../api/teacher-client";
+import { teacherInput, type TeacherFormValues, type TeacherInput } from "../model/schemas";
+import type { TeacherRow } from "../model/teacher";
 
 type Props = {
   open: boolean;
@@ -42,8 +39,8 @@ export default function TeacherFormDialog({ open, teacher, onClose }: Props) {
   return (
     <Dialog
       open={open}
-      onOpenChange={() => {
-        onClose();
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
       }}
     >
       <DialogContent>
@@ -96,46 +93,36 @@ export default function TeacherFormDialog({ open, teacher, onClose }: Props) {
   );
 }
 
-function useTeacherForm(open: boolean, teacher: TeacherRow | null, closeDialog: () => void) {
-  const form = useForm<TeacherInput>({
-    resolver: zodResolver(teacherInput) as Resolver<TeacherInput>,
+function useTeacherForm(open: boolean, teacher: TeacherRow | null, onClose: () => void) {
+  const form = useForm<TeacherFormValues, unknown, TeacherInput>({
+    resolver: zodResolver(teacherInput),
     mode: "onTouched",
-    defaultValues: emptyTeacherInputValues(),
+    defaultValues: emptyTeacherFormValues(),
   });
 
   useEffect(() => {
     if (!open) return;
-    form.reset(teacher ? teacherInputValues(teacher) : emptyTeacherInputValues());
+    form.reset(teacher ? teacherFormValues(teacher) : emptyTeacherFormValues());
   }, [open, teacher, form]);
 
-  const onSubmit = async (values: TeacherInput) => {
-    const { error } = teacher ? await updateTeacher({ ...values, id: teacher.id }) : await createTeacher(values);
-
-    if (error) {
-      if (isInputError(error)) {
-        applyActionFieldErrors(error, form.setError);
-      } else if (error.code === "CONFLICT") {
-        form.setError("code", { message: error.message });
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-
-    toast.success(teacher ? "Teacher updated" : "Teacher created");
-    closeDialog();
-    await navigate(window.location.pathname + window.location.search);
-  };
+  const onSubmit = (values: TeacherInput) =>
+    submitForm({
+      call: () => (teacher ? updateTeacher({ ...values, id: teacher.id }) : createTeacher(values)),
+      setError: form.setError,
+      conflictField: "code",
+      successMessage: teacher ? "Teacher updated" : "Teacher created",
+      onClose,
+    });
 
   return { form, onSubmit };
 }
 
-const teacherInputValues = (teacher: TeacherRow): TeacherInput => ({
+const teacherFormValues = (teacher: TeacherRow): TeacherFormValues => ({
   code: teacher.code,
   fullName: teacher.fullName ?? "",
 });
 
-const emptyTeacherInputValues = (): TeacherInput => ({
+const emptyTeacherFormValues = (): TeacherFormValues => ({
   code: "",
   fullName: "",
 });

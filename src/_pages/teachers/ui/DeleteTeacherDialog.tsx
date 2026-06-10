@@ -1,7 +1,4 @@
-import { useState } from "react";
-import { deleteTeacher } from "@/_pages/teachers/api/teacher-client";
-import { navigate } from "astro:transitions/client";
-import { toast } from "sonner";
+import { useConfirmAction } from "@/shared/lib/forms";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +9,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui";
-import type { TeacherRow } from "@/_pages/teachers/model/teacher";
+import { deleteTeacher } from "../api/teacher-client";
+import type { TeacherRow } from "../model/teacher";
 
 type Props = {
   /** The teacher pending deletion, or null when closed. */
@@ -24,14 +22,17 @@ type Props = {
  * Confirms a destructive delete and names the assignment cascade impact.
  */
 export default function DeleteTeacherDialog({ teacher, onClose }: Props) {
-  const { confirm, isDeleting } = useDeleteTeacher(teacher?.id, onClose);
+  const { confirm, isBusy } = useConfirmAction(() => deleteTeacher({ id: teacher?.id ?? "" }), {
+    successMessage: "Teacher deleted",
+    onDone: onClose,
+  });
   const assignmentCount = teacher?.assignments.length ?? 0;
 
   return (
     <AlertDialog
       open={teacher !== null}
-      onOpenChange={() => {
-        onClose();
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
       }}
     >
       <AlertDialogContent>
@@ -44,13 +45,13 @@ export default function DeleteTeacherDialog({ teacher, onClose }: Props) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isBusy}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={(event) => {
               event.preventDefault();
-              void confirm();
+              if (teacher) void confirm();
             }}
-            disabled={isDeleting}
+            disabled={isBusy}
           >
             Delete
           </AlertDialogAction>
@@ -58,26 +59,4 @@ export default function DeleteTeacherDialog({ teacher, onClose }: Props) {
       </AlertDialogContent>
     </AlertDialog>
   );
-}
-
-function useDeleteTeacher(teacherId: string | undefined, closeDialog: () => void) {
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const confirm = async () => {
-    if (!teacherId) return;
-    setIsDeleting(true);
-    const { error } = await deleteTeacher({ id: teacherId });
-    setIsDeleting(false);
-
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    toast.success("Teacher deleted");
-    closeDialog();
-    await navigate(window.location.pathname + window.location.search);
-  };
-
-  return { confirm, isDeleting };
 }

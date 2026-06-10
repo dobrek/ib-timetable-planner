@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
-import { createOverlap, deleteOverlap } from "@/_pages/courses/api/course-client";
 import { toast } from "sonner";
 import { X } from "lucide-react";
-import { Button } from "@/shared/ui";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
 import { cn } from "@/shared/lib/cn";
-import { formatCourseLabel } from "@/_pages/courses/lib/labels";
-import type { CourseRow } from "@/_pages/courses/model/course";
+import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
+import { createOverlap, deleteOverlap } from "../api/course-client";
+import { formatCourseLabel } from "../lib/labels";
+import type { CourseRow } from "../model/course";
 
 type Props = {
   /** The dependent course whose overlaps are being managed, or null when closed. */
@@ -17,7 +16,7 @@ type Props = {
   coursesById: Map<string, CourseRow>;
   /** Apply an overlap change to the island's in-memory state (keeps the dialog open). */
   onOverlapsChange: (courseId: string, nextOverlaps: string[]) => void;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
 };
 
 /**
@@ -25,11 +24,16 @@ type Props = {
  * attend each linked base course. Bases are picked from the same cohort (excluding self
  * and already-linked); self-links and duplicates are rejected by the schema + DB unique.
  * Mutations update island state in place (no page reload) so the dialog stays open across
- * repeated edits. Tokens only (lessons rule #2).
+ * repeated edits.
  */
-export default function CourseOverlaps({ course, courses, coursesById, onOverlapsChange, onOpenChange }: Props) {
+export default function CourseOverlaps({ course, courses, coursesById, onOverlapsChange, onClose }: Props) {
   return (
-    <Dialog open={course !== null} onOpenChange={onOpenChange}>
+    <Dialog
+      open={course !== null}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
       <DialogContent>
         {course && (
           <OverlapsBody

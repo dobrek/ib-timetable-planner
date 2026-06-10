@@ -1,20 +1,9 @@
-import { createMerge } from "@/_pages/courses/api/course-client";
-import { toNumberOrUndefined } from "@/_pages/courses/lib/coerce";
-import { formatCourseLabel } from "@/_pages/courses/lib/labels";
-import type { CourseRow, TeacherOption } from "@/_pages/courses/model/course";
-import { deriveMergeParent, mergeReasonMessage } from "@/_pages/courses/model/merge";
-import { mergeInput, type MergeInput } from "@/_pages/courses/model/schemas";
-import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
-import { cn } from "@/shared/lib/cn";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { submitForm } from "@/shared/lib/forms";
 import {
-  Badge,
   Button,
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -27,22 +16,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  Input,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  MultiSelect,
+  NumberField,
 } from "@/shared/ui";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { isInputError } from "astro:actions";
-import { navigate } from "astro:transitions/client";
-import { Check, X } from "lucide-react";
-import { useEffect, useMemo } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import { toast } from "sonner";
+import { createMerge } from "../api/course-client";
+import { formatCourseLabel } from "../lib/labels";
+import type { CourseRow, TeacherOption } from "../model/course";
+import { deriveMergeParent, mergeReasonMessage } from "../model/merge";
+import { mergeInput, type MergeFormValues, type MergeInput } from "../model/schemas";
 
 type Props = {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   courses: CourseRow[];
   coursesById: Map<string, CourseRow>;
   teachers: TeacherOption[];
@@ -51,25 +36,32 @@ type Props = {
 };
 
 /**
- * Author a new composite merge for the active cohort. Reuses the popover+command
- * multi-select shape from `TeacherFilter` to pick atomic children and the RHF +
- * `zodResolver(mergeInput)` + `navigate()` flow from `CourseFormDialog`. The parent
- * name/level/teacher are derived live and read-only via `deriveMergeParent` — the same
- * pure module the server re-checks — so the preview can never drift from what's stored.
- * Tokens only (lessons rule #2).
+ * Author a new composite merge for the active cohort. The parent name/level/teacher are
+ * derived live and read-only via `deriveMergeParent` — the same pure module the server
+ * re-checks — so the preview can never drift from what's stored.
  */
-export default function MergeBuilderDialog({ open, onOpenChange, courses, coursesById, teachers, cohortId }: Props) {
+export default function MergeBuilderDialog({ open, onClose, courses, coursesById, teachers, cohortId }: Props) {
   const { form, onSubmit, candidates, selectedChildren, derivation, teacherLabelById } = useMergeBuilder(
     open,
     courses,
     coursesById,
     teachers,
     cohortId,
-    onOpenChange,
+    onClose,
+  );
+
+  const candidateItems = useMemo(
+    () => candidates.map((course) => ({ id: course.id, label: formatCourseLabel(course) })),
+    [candidates],
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New merge</DialogTitle>
@@ -83,82 +75,22 @@ export default function MergeBuilderDialog({ open, onOpenChange, courses, course
             <FormField
               control={form.control}
               name="childCourseIds"
-              render={({ field }) => {
-                const selected = new Set(field.value);
-                const toggle = (id: string) => {
-                  const next = new Set(selected);
-                  if (next.has(id)) next.delete(id);
-                  else next.add(id);
-                  field.onChange([...next]);
-                };
-                const selectedList = candidates.filter((course) => selected.has(course.id));
-                return (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Courses to merge</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="justify-between font-normal"
-                          onBlur={field.onBlur}
-                        >
-                          {selected.size > 0 ? `${selected.size} selected` : "Select courses…"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search courses…" autoComplete="off" />
-                          <CommandList>
-                            <CommandEmpty>No courses found.</CommandEmpty>
-                            <CommandGroup>
-                              {candidates.map((course) => {
-                                const isSelected = selected.has(course.id);
-                                return (
-                                  <CommandItem
-                                    key={course.id}
-                                    value={formatCourseLabel(course)}
-                                    onSelect={() => {
-                                      toggle(course.id);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn("mr-2", isSelected ? "opacity-100" : "opacity-0")}
-                                      aria-hidden="true"
-                                    />
-                                    {formatCourseLabel(course)}
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-
-                    {selectedList.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {selectedList.map((course) => (
-                          <Badge key={course.id} variant="secondary" className="gap-1">
-                            {formatCourseLabel(course)}
-                            <button
-                              type="button"
-                              aria-label={`Remove ${course.name}`}
-                              className="hover:text-foreground -mr-0.5 rounded-sm"
-                              onClick={() => {
-                                toggle(course.id);
-                              }}
-                            >
-                              <X className="size-3" aria-hidden="true" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                );
-              }}
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Courses to merge</FormLabel>
+                  <MultiSelect
+                    items={candidateItems}
+                    selectedIds={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    trigger={field.value.length > 0 ? `${field.value.length} selected` : "Select courses…"}
+                    triggerClassName="justify-between font-normal"
+                    searchPlaceholder="Search courses…"
+                    emptyText="No courses found."
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
             />
 
             <div className="border-border bg-muted/40 rounded-md border p-3 text-sm">
@@ -186,18 +118,7 @@ export default function MergeBuilderDialog({ open, onOpenChange, courses, course
                 <FormItem>
                   <FormLabel>Weekly hours</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      autoComplete="off"
-                      value={Number.isFinite(field.value) ? field.value : ""}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      ref={field.ref}
-                      onChange={(event) => {
-                        field.onChange(toNumberOrUndefined(event.target.value));
-                      }}
-                    />
+                    <NumberField min={0} autoComplete="off" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -205,13 +126,7 @@ export default function MergeBuilderDialog({ open, onOpenChange, courses, course
             />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  onOpenChange(false);
-                }}
-              >
+              <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
               <Button type="submit" disabled={!derivation.ok || form.formState.isSubmitting}>
@@ -231,9 +146,9 @@ function useMergeBuilder(
   coursesById: Map<string, CourseRow>,
   teachers: TeacherOption[],
   cohortId: string,
-  onOpenChange: (open: boolean) => void,
+  onClose: () => void,
 ) {
-  const form = useForm<MergeInput>({
+  const form = useForm<MergeFormValues, unknown, MergeInput>({
     resolver: zodResolver(mergeInput),
     mode: "onTouched",
     defaultValues: { childCourseIds: [], hoursPerWeek: undefined, cohortId },
@@ -264,23 +179,15 @@ function useMergeBuilder(
     })),
   );
 
-  const onSubmit = async (values: MergeInput) => {
-    const { error } = await createMerge(values);
-    if (error) {
-      if (isInputError(error)) {
-        applyActionFieldErrors(error, form.setError);
-      } else if (error.code === "CONFLICT" || error.code === "BAD_REQUEST") {
-        form.setError("childCourseIds", { message: error.message });
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-
-    toast.success("Merge created");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
+  const onSubmit = (values: MergeInput) =>
+    submitForm({
+      call: () => createMerge(values),
+      setError: form.setError,
+      conflictField: "childCourseIds",
+      conflictCodes: ["CONFLICT", "BAD_REQUEST"],
+      successMessage: "Merge created",
+      onClose,
+    });
 
   return { form, onSubmit, candidates, selectedChildren, derivation, teacherLabelById };
 }

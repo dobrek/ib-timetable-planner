@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@/shared/api";
+import { unwrapCompleted } from "@/shared/lib/postgrest";
 import type { DissolveMergeInput } from "../model/schemas";
-import { DomainError } from "@/shared/lib/errors";
 import { assertMergeParent } from "./assert-merge-parent";
 
 /**
@@ -11,9 +11,8 @@ import { assertMergeParent } from "./assert-merge-parent";
 export const dissolveMerge = async (supabase: SupabaseClient, input: DissolveMergeInput) => {
   await assertMergeParent(supabase, input.parentCourseId);
 
-  const { error } = await supabase.from("courses").delete().eq("id", input.parentCourseId);
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to dissolve merge: ${error.message}`);
-  }
-  return { ok: true as const };
+  return unwrapCompleted(
+    await supabase.from("courses").delete().eq("id", input.parentCourseId),
+    "Failed to dissolve merge",
+  );
 };

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@/shared/api";
-import type { CohortTab, CourseRow } from "../model/course";
-import type { TeacherOption } from "@/_pages/courses/model/course";
+import { groupBy } from "@/shared/lib/collections";
+import { assertNoQueryErrors, withSupabase, type LoaderResult } from "@/shared/lib/loaders";
+import type { CohortTab, CourseRow, TeacherOption } from "../model/course";
 
 export type CatalogData = {
   cohorts: CohortTab[];
@@ -8,7 +9,11 @@ export type CatalogData = {
   teachers: TeacherOption[];
 };
 
-export type CatalogResult = { kind: "ok"; data: CatalogData } | { kind: "unavailable" };
+export type CatalogResult = LoaderResult<CatalogData>;
+
+/** Load the courses catalog for the page island. Unavailable when the client is null. */
+export const loadCatalog = (supabase: SupabaseClient | null): Promise<CatalogResult> =>
+  withSupabase(supabase, fetchCatalog);
 
 // Cohort order is naive (alphabetical name → first = Year 1). Stable for the two seed
 // names; the future cohort-CRUD slice replaces it with an explicit ordinal (see plan).
@@ -26,32 +31,15 @@ const fetchCatalog = async (client: SupabaseClient): Promise<CatalogData> => {
     client.from("course_merges").select("parent_course_id, child_course_id").limit(500),
     client.from("course_overlaps").select("base_course_id, dependent_course_id").limit(500),
   ]);
+  assertNoQueryErrors("Catalog", [cohortsRes, coursesRes, teachersRes, mergesRes, overlapsRes]);
 
-  for (const res of [cohortsRes, coursesRes, teachersRes, mergesRes, overlapsRes]) {
-    if (res.error) throw new Error(`Catalog lookup failed: ${res.error.message}`);
-  }
-
-  const teacherLabel = new Map((teachersRes.data ?? []).map((t) => [t.id, t.full_name ?? t.code] as const));
+  const teacherLabel = new Map((teachersRes.data ?? []).map((t) => [t.id, teacherDisplayLabel(t)] as const));
 
   // Only the composite merge *parent* (the virtual combined session, e.g. "German B AB+SL")
   // carries the "Merged" badge. Its atomic children (German B AB, German B SL) are plain courses.
-  const mergeParentIds = new Set<string>();
-  // parent course id → its child course ids (so the manage dialog can list them).
-  const childIdsByParent = new Map<string, string[]>();
-  for (const m of mergesRes.data ?? []) {
-    mergeParentIds.add(m.parent_course_id);
-    const children = childIdsByParent.get(m.parent_course_id) ?? [];
-    children.push(m.child_course_id);
-    childIdsByParent.set(m.parent_course_id, children);
-  }
-
-  // dependent course id → its base-course ids (this course's students also attend those bases).
-  const overlapsByDependent = new Map<string, string[]>();
-  for (const o of overlapsRes.data ?? []) {
-    const bases = overlapsByDependent.get(o.dependent_course_id) ?? [];
-    bases.push(o.base_course_id);
-    overlapsByDependent.set(o.dependent_course_id, bases);
-  }
+  const childLinksByParent = groupBy(mergesRes.data ?? [], (m) => m.parent_course_id);
+  // dependent course id → its base-course links (this course's students also attend those bases).
+  const overlapsByDependent = groupBy(overlapsRes.data ?? [], (o) => o.dependent_course_id);
 
   return {
     cohorts: (cohortsRes.data ?? []).map((c, index) => ({ id: c.id, label: cohortLabel(index) })),
@@ -64,16 +52,13 @@ const fetchCatalog = async (client: SupabaseClient): Promise<CatalogData> => {
       hours: c.hours_per_week,
       teacherId: c.teacher_id,
       teacherLabel: c.teacher_id ? (teacherLabel.get(c.teacher_id) ?? null) : null,
-      isMerged: mergeParentIds.has(c.id),
-      mergeChildIds: childIdsByParent.get(c.id) ?? [],
-      overlaps: overlapsByDependent.get(c.id) ?? [],
+      isMerged: childLinksByParent.has(c.id),
+      mergeChildIds: (childLinksByParent.get(c.id) ?? []).map((m) => m.child_course_id),
+      overlaps: (overlapsByDependent.get(c.id) ?? []).map((o) => o.base_course_id),
     })),
-    teachers: (teachersRes.data ?? []).map((t) => ({ id: t.id, label: t.full_name ?? t.code })),
+    teachers: (teachersRes.data ?? []).map((t) => ({ id: t.id, label: teacherDisplayLabel(t) })),
   };
 };
 
-/** Load the courses catalog for the page island. Returns unavailable when client is null. */
-export const loadCatalog = async (supabase: SupabaseClient | null): Promise<CatalogResult> => {
-  if (!supabase) return { kind: "unavailable" };
-  return { kind: "ok", data: await fetchCatalog(supabase) };
-};
+const teacherDisplayLabel = (teacher: { code: string; full_name: string | null }): string =>
+  teacher.full_name ?? teacher.code;

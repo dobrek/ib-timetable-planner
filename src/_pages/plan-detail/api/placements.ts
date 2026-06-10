@@ -2,11 +2,9 @@ import { z } from "zod";
 import type { PlannerPlacement } from "@/_pages/plan-detail/model/placement";
 import type { SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
+import { UNIQUE_VIOLATION } from "@/shared/lib/postgrest";
 
 type Supabase = SupabaseClient;
-
-/** PostgREST surfaces a Postgres unique-constraint violation with this SQLSTATE. */
-const UNIQUE_VIOLATION = "23505";
 
 export const createPlacementInput = z.object({
   variantId: z.uuid(),

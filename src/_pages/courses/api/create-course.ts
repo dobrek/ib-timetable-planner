@@ -1,28 +1,12 @@
 import type { SupabaseClient } from "@/shared/api";
+import { unwrapRow } from "@/shared/lib/postgrest";
 import type { CourseInput } from "../model/schemas";
-import { DomainError } from "@/shared/lib/errors";
-import { DUPLICATE_COURSE_MESSAGE, UNIQUE_VIOLATION } from "./constants";
+import { DUPLICATE_COURSE_MESSAGE } from "./constants";
+import { toCourseRecord } from "./course-record";
 
 /** Insert a single atomic course. */
-export const createCourse = async (supabase: SupabaseClient, input: CourseInput) => {
-  const { data, error } = await supabase
-    .from("courses")
-    .insert({
-      cohort_id: input.cohortId,
-      teacher_id: input.teacherId,
-      name: input.name,
-      level: input.level,
-      group_index: input.groupIndex,
-      hours_per_week: input.hoursPerWeek,
-    })
-    .select()
-    .single();
-
-  if (error?.code === UNIQUE_VIOLATION) {
-    throw new DomainError("CONFLICT", DUPLICATE_COURSE_MESSAGE);
-  }
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to create course: ${error.message}`);
-  }
-  return data;
-};
+export const createCourse = async (supabase: SupabaseClient, input: CourseInput) =>
+  unwrapRow(await supabase.from("courses").insert(toCourseRecord(input)).select().single(), {
+    conflict: DUPLICATE_COURSE_MESSAGE,
+    failure: "Failed to create course",
+  });

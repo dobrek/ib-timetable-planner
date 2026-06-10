@@ -6,8 +6,8 @@ import { loadTeacherCatalog } from "@/_pages/teachers/api";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 const result = await loadTeacherCatalog(supabase);
-if (result.kind === "unavailable") Astro.response.status = 503;
-const catalog = result.kind === "ok" ? result.data : null;
+if (!result.ok) Astro.response.status = 503;
+const catalog = result.ok ? result.value : null;
 ---
 
 <AppShellLayout title="Teachers">

@@ -1,8 +1,7 @@
-import { toNumberOrUndefined } from "@/_pages/courses/lib/coerce";
-import { createCourse, updateCourse } from "@/_pages/courses/api/course-client";
-import type { CohortTab, CourseRow, TeacherOption } from "@/_pages/courses/model/course";
-import { courseInput, type CourseInput } from "@/_pages/courses/model/schemas";
-import { applyActionFieldErrors } from "@/shared/lib/apply-action-errors";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm, type DefaultValues } from "react-hook-form";
+import { submitForm } from "@/shared/lib/forms";
 import {
   Button,
   Dialog,
@@ -18,22 +17,20 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  NumberField,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { isInputError } from "astro:actions";
-import { navigate } from "astro:transitions/client";
-import { useEffect } from "react";
-import { useForm, type DefaultValues } from "react-hook-form";
-import { toast } from "sonner";
+import { createCourse, updateCourse } from "../api/course-client";
+import type { CohortTab, CourseRow, TeacherOption } from "../model/course";
+import { courseInput, type CourseFormValues, type CourseInput } from "../model/schemas";
 
 type Props = {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   cohorts: CohortTab[];
   teachers: TeacherOption[];
   /** The row to edit, or null to create. */
@@ -46,14 +43,18 @@ type Props = {
  * Create/edit an atomic course. The shared `courseInput` schema drives both client
  * validation (RHF `zodResolver`, `mode: "onTouched"`) and the server action gate, so
  * field errors surface inline first and server `isInputError` mapping backs them up.
- * Tokens only (lessons rule #2).
  */
-export default function CourseFormDialog({ open, onOpenChange, cohorts, teachers, course, defaultCohortId }: Props) {
-  const { form, onSubmit } = useCourseForm(open, course, defaultCohortId, onOpenChange);
+export default function CourseFormDialog({ open, onClose, cohorts, teachers, course, defaultCohortId }: Props) {
+  const { form, onSubmit } = useCourseForm(open, course, defaultCohortId, onClose);
   const noTeachers = teachers.length === 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{course ? "Edit course" : "New course"}</DialogTitle>
@@ -100,18 +101,7 @@ export default function CourseFormDialog({ open, onOpenChange, cohorts, teachers
                   <FormItem>
                     <FormLabel>Weekly hours</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        autoComplete="off"
-                        value={Number.isFinite(field.value) ? field.value : ""}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        onChange={(event) => {
-                          field.onChange(toNumberOrUndefined(event.target.value));
-                        }}
-                      />
+                      <NumberField min={0} autoComplete="off" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -207,13 +197,7 @@ export default function CourseFormDialog({ open, onOpenChange, cohorts, teachers
             />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  onOpenChange(false);
-                }}
-              >
+              <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
               <Button type="submit" disabled={form.formState.isSubmitting || noTeachers}>
@@ -227,57 +211,40 @@ export default function CourseFormDialog({ open, onOpenChange, cohorts, teachers
   );
 }
 
-function useCourseForm(
-  open: boolean,
-  course: CourseRow | null,
-  defaultCohortId: string,
-  onOpenChange: (open: boolean) => void,
-) {
-  const form = useForm<CourseInput>({
+function useCourseForm(open: boolean, course: CourseRow | null, defaultCohortId: string, onClose: () => void) {
+  const form = useForm<CourseFormValues, unknown, CourseInput>({
     resolver: zodResolver(courseInput),
     mode: "onTouched",
-    defaultValues: emptyCourseInputValues(defaultCohortId),
+    defaultValues: emptyCourseFormValues(defaultCohortId),
   });
 
   useEffect(() => {
     if (!open) return;
-    form.reset(course ? courseInputValues(course) : emptyCourseInputValues(defaultCohortId));
+    form.reset(course ? courseFormValues(course) : emptyCourseFormValues(defaultCohortId));
   }, [open, course, defaultCohortId, form]);
 
-  const onSubmit = async (values: CourseInput) => {
-    const { error } = course ? await updateCourse({ ...values, id: course.id }) : await createCourse(values);
-
-    if (error) {
-      if (isInputError(error)) {
-        applyActionFieldErrors(error, form.setError);
-      } else if (error.code === "CONFLICT") {
-        form.setError("name", { message: error.message });
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-
-    toast.success(course ? "Course updated" : "Course created");
-    onOpenChange(false);
-    await navigate(window.location.pathname + window.location.search);
-  };
+  const onSubmit = (values: CourseInput) =>
+    submitForm({
+      call: () => (course ? updateCourse({ ...values, id: course.id }) : createCourse(values)),
+      setError: form.setError,
+      conflictField: "name",
+      successMessage: course ? "Course updated" : "Course created",
+      onClose,
+    });
 
   return { form, onSubmit };
 }
 
-const courseInputValues = (course: CourseRow): DefaultValues<CourseInput> => {
-  return {
-    name: course.name,
-    level: course.level,
-    groupIndex: toGroupIndex(course.groupIndex),
-    hoursPerWeek: course.hours,
-    teacherId: course.teacherId ?? undefined,
-    cohortId: course.cohortId,
-  };
-};
+const courseFormValues = (course: CourseRow): DefaultValues<CourseFormValues> => ({
+  name: course.name,
+  level: course.level,
+  groupIndex: toGroupIndex(course.groupIndex),
+  hoursPerWeek: course.hours,
+  teacherId: course.teacherId ?? undefined,
+  cohortId: course.cohortId,
+});
 
-const emptyCourseInputValues = (cohortId: string): DefaultValues<CourseInput> => ({
+const emptyCourseFormValues = (cohortId: string): DefaultValues<CourseFormValues> => ({
   name: "",
   level: "",
   groupIndex: 0,

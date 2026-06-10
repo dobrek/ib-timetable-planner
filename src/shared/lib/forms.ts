@@ -11,8 +11,8 @@ import { applyActionFieldErrors } from "./apply-action-errors";
  * under Vitest, so anything astro-value-importing must be deep-imported by ui code only.
  */
 
-type SubmitFormOptions<TValues extends FieldValues, TInput extends Record<string, unknown>> = {
-  call: () => Promise<{ error: ActionError<TInput> | undefined }>;
+type SubmitFormOptions<TValues extends FieldValues> = {
+  call: () => Promise<{ error: ActionError | undefined }>;
   setError: UseFormSetError<TValues>;
   /** Field that receives a conflict-coded server error as an inline message. */
   conflictField?: Path<TValues>;
@@ -27,9 +27,7 @@ type SubmitFormOptions<TValues extends FieldValues, TInput extends Record<string
  * errors land on `conflictField`, anything else toasts; success toasts, closes the
  * dialog, and re-runs the page loader via `refreshPage()`.
  */
-export async function submitForm<TValues extends FieldValues, TInput extends Record<string, unknown>>(
-  options: SubmitFormOptions<TValues, TInput>,
-): Promise<void> {
+export async function submitForm<TValues extends FieldValues>(options: SubmitFormOptions<TValues>): Promise<void> {
   const { error } = await options.call();
   if (error) {
     applyActionError(error, options);
@@ -73,10 +71,7 @@ export function refreshPage(): Promise<void> {
   return navigate(window.location.pathname + window.location.search);
 }
 
-function applyActionError<TValues extends FieldValues, TInput extends Record<string, unknown>>(
-  error: ActionError<TInput>,
-  options: SubmitFormOptions<TValues, TInput>,
-): void {
+function applyActionError<TValues extends FieldValues>(error: ActionError, options: SubmitFormOptions<TValues>): void {
   if (isInputError(error)) {
     applyActionFieldErrors(error, options.setError);
     return;

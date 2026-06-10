@@ -1,5 +1,5 @@
 import { actions } from "astro:actions";
-import type { ActionError, SafeResult } from "astro:actions";
+import { callAction } from "@/shared/lib/call-action";
 import type {
   CourseInput,
   DeleteCourseInput,
@@ -9,47 +9,22 @@ import type {
   OverlapInput,
   UpdateCourseInput,
   UpdateMergeHoursInput,
-} from "@/_pages/courses/model/schemas";
+} from "../model/schemas";
 
-type ActionResult<TInput extends Record<string, unknown>> = Promise<{
-  error: ActionError<TInput> | undefined;
-}>;
+/** Typed one-line wrappers over the generated action clients — the slice's api seam. */
 
-async function runAction<TInput extends Record<string, unknown>>(
-  call: () => ReturnType<(typeof actions)[keyof typeof actions]>,
-): ActionResult<TInput> {
-  const result = (await call()) as SafeResult<TInput, unknown>;
-  return { error: result.error };
-}
+export const createCourse = (values: CourseInput) => callAction(actions.createCourse, values);
 
-export function createCourse(values: CourseInput): ActionResult<CourseInput> {
-  return runAction<CourseInput>(() => actions.createCourse(values));
-}
+export const updateCourse = (values: UpdateCourseInput) => callAction(actions.updateCourse, values);
 
-export function updateCourse(values: UpdateCourseInput): ActionResult<UpdateCourseInput> {
-  return runAction<UpdateCourseInput>(() => actions.updateCourse(values));
-}
+export const deleteCourse = (values: DeleteCourseInput) => callAction(actions.deleteCourse, values);
 
-export function deleteCourse(values: DeleteCourseInput): ActionResult<DeleteCourseInput> {
-  return runAction<DeleteCourseInput>(() => actions.deleteCourse(values));
-}
+export const createOverlap = (values: OverlapInput) => callAction(actions.createOverlap, values);
 
-export function createOverlap(values: OverlapInput): ActionResult<OverlapInput> {
-  return runAction<OverlapInput>(() => actions.createOverlap(values));
-}
+export const deleteOverlap = (values: DeleteOverlapInput) => callAction(actions.deleteOverlap, values);
 
-export function deleteOverlap(values: DeleteOverlapInput): ActionResult<DeleteOverlapInput> {
-  return runAction<DeleteOverlapInput>(() => actions.deleteOverlap(values));
-}
+export const createMerge = (values: MergeInput) => callAction(actions.createMerge, values);
 
-export function createMerge(values: MergeInput): ActionResult<MergeInput> {
-  return runAction<MergeInput>(() => actions.createMerge(values));
-}
+export const updateMergeHours = (values: UpdateMergeHoursInput) => callAction(actions.updateMergeHours, values);
 
-export function updateMergeHours(values: UpdateMergeHoursInput): ActionResult<UpdateMergeHoursInput> {
-  return runAction<UpdateMergeHoursInput>(() => actions.updateMergeHours(values));
-}
-
-export function dissolveMerge(values: DissolveMergeInput): ActionResult<DissolveMergeInput> {
-  return runAction<DissolveMergeInput>(() => actions.dissolveMerge(values));
-}
+export const dissolveMerge = (values: DissolveMergeInput) => callAction(actions.dissolveMerge, values);

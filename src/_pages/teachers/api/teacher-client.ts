@@ -1,26 +1,11 @@
 import { actions } from "astro:actions";
-import type { ActionError, SafeResult } from "astro:actions";
-import type { DeleteTeacherInput, TeacherInput, UpdateTeacherInput } from "@/_pages/teachers/model/schemas";
+import { callAction } from "@/shared/lib/call-action";
+import type { DeleteTeacherInput, TeacherInput, UpdateTeacherInput } from "../model/schemas";
 
-type ActionResult<TInput extends Record<string, unknown>> = Promise<{
-  error: ActionError<TInput> | undefined;
-}>;
+/** Typed one-line wrappers over the generated action clients — the slice's api seam. */
 
-async function runAction<TInput extends Record<string, unknown>>(
-  call: () => ReturnType<(typeof actions)[keyof typeof actions]>,
-): ActionResult<TInput> {
-  const result = (await call()) as SafeResult<TInput, unknown>;
-  return { error: result.error };
-}
+export const createTeacher = (values: TeacherInput) => callAction(actions.createTeacher, values);
 
-export function createTeacher(values: TeacherInput): ActionResult<TeacherInput> {
-  return runAction<TeacherInput>(() => actions.createTeacher(values));
-}
+export const updateTeacher = (values: UpdateTeacherInput) => callAction(actions.updateTeacher, values);
 
-export function updateTeacher(values: UpdateTeacherInput): ActionResult<UpdateTeacherInput> {
-  return runAction<UpdateTeacherInput>(() => actions.updateTeacher(values));
-}
-
-export function deleteTeacher(values: DeleteTeacherInput): ActionResult<DeleteTeacherInput> {
-  return runAction<DeleteTeacherInput>(() => actions.deleteTeacher(values));
-}
+export const deleteTeacher = (values: DeleteTeacherInput) => callAction(actions.deleteTeacher, values);

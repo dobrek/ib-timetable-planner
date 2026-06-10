@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
 import type { PlannerGrouping } from "@/_pages/plan-detail/model/grouping";
 
@@ -19,7 +18,7 @@ const ALL = "__all__";
  * choice narrows to something. Clearing returns all groupings.
  */
 export default function GroupingFilter({ groupings, names, value, onChange }: Props) {
-  const courses = useMemo(() => leadingCourseOptions(groupings, names), [groupings, names]);
+  const courses = leadingCourseOptions(groupings, names);
 
   return (
     <div className="flex flex-col gap-1 text-sm" data-slot="grouping-filter">

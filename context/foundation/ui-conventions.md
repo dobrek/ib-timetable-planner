@@ -2,6 +2,12 @@
 
 Conventions established by the courses module refactor (`src/_pages/courses/`). Use as input when planning similar work in other page slices (e.g. `plan-detail`).
 
+## Design goals
+
+1. **Hooks span independent behavioral flows — not hide implementation.** A hook groups state and actions that depend on each other into one semantic unit. The convention test ("would changing one flow break the other?") decides boundaries. A monolithic hook that swallows everything (e.g. `usePlannerBoard` returning a bag of state) is an anti-pattern — it hides the orchestration that *is* the component's job.
+
+2. **Declarative, orchestrating, easy-to-read functional code.** Components and hooks should read as recipes: guard → act → reconcile. Extract pure domain logic (guards, state transitions) to testable `model/` functions. Hooks orchestrate React state and async side effects over those pure functions. The complexity budget lives in `model/`; the hook is glue.
+
 ## File ordering (newspaper rule)
 
 Every component file reads top-down from **what** to **how**:
@@ -16,13 +22,14 @@ Open the file, see the component shape immediately; scroll down only for impleme
 
 ## Hook granularity
 
-**One hook per independent behavioral flow** — not one hook per file.
+**One hook per independent behavioral flow** — not one hook per file, and not one hook to mechanically move `useState` out of sight.
 
-- Group state and actions that depend on each other into one hook.
-- Separate flows that don't share state get separate hooks.
+- Group state and actions that depend on each other into one hook with a clear domain boundary.
+- Separate flows that don't share state get separate hooks — even when they live in the same component file.
 - **Test**: would changing one flow break the other? If not, separate hooks.
+- **Anti-pattern**: a single hook that returns everything the component needs, hiding wiring the orchestrator should make visible.
 
-Example: `MergeManageDialog` uses `useMergeHoursForm` (RHF submit) and `useDissolve` (destructive action) as two hooks, not one combined hook.
+Example: `MergeManageDialog` uses `useMergeHoursForm` (RHF submit) and `useDissolve` (destructive action) as two hooks, not one combined hook. `PlannerBoard` uses `usePlacements`, private `useCollisions`, and private `useHours` as three hooks — not one `usePlannerBoard`.
 
 ## Hook placement
 
@@ -110,8 +117,8 @@ The courses slice uses custom hooks + RHF for forms. Overlap edits use in-memory
 
 | Current | Target |
 | --- | --- |
-| `ui/usePlacements.ts` | Move to `model/use-placements.ts`; keep `PlannerBoard.tsx` as thin orchestrator |
-| Inline derivations in `PlannerBoard` | Consider `useMemo` chains in a dedicated hook or keep as prop transforms if trivial |
+| `ui/usePlacements.ts` | Move to `model/use-placements.ts`; extract guards/transitions to `model/placement-transitions.ts`; hook orchestrates async persistence over pure functions |
+| Inline derivations in `PlannerBoard` | Private `useCollisions` and `useHours` hooks (one per independent flow); orchestrator wires them to children |
 | Dialog / action patterns | Apply same per-flow private hooks when dialogs gain similar complexity |
 | `api/placement-client.ts` | Align with typed `{ error }` pattern when touched; keep throw-on-error only where drag-drop needs it |
 

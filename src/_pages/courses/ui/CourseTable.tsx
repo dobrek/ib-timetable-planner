@@ -1,5 +1,4 @@
-import { formatCourseLabel } from "@/_pages/courses/lib/labels";
-import type { CourseRow } from "@/_pages/courses/model/course";
+import { Link2, MoreHorizontal } from "lucide-react";
 import {
   Badge,
   Button,
@@ -14,7 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui";
-import { Link2, MoreHorizontal } from "lucide-react";
+import { formatCourseLabel, formatGroupCell } from "../lib/labels";
+import { LEVEL_NONE, type CourseRow } from "../model/course";
 
 type Props = {
   rows: CourseRow[];
@@ -24,9 +24,6 @@ type Props = {
   onManageMerge: (course: CourseRow) => void;
   onDelete: (course: CourseRow) => void;
 };
-
-/** IB group index → display label. 0 is the "none" sentinel. */
-const GROUP_LABELS: Record<number, string> = { 0: "—", 1: "Group 1", 2: "Group 2", 3: "Group 3" };
 
 export default function CourseTable({ rows, coursesById, onEdit, onManageOverlaps, onManageMerge, onDelete }: Props) {
   if (rows.length === 0) {
@@ -56,8 +53,8 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
                   <OverlapBadge row={row} coursesById={coursesById} onManageOverlaps={onManageOverlaps} />
                 </span>
               </TableCell>
-              <TableCell>{row.level === "none" ? "—" : row.level}</TableCell>
-              <TableCell>{GROUP_LABELS[row.groupIndex] ?? row.groupIndex}</TableCell>
+              <TableCell>{row.level === LEVEL_NONE ? "—" : row.level}</TableCell>
+              <TableCell>{formatGroupCell(row.groupIndex)}</TableCell>
               <TableCell className="text-right">{row.hours}</TableCell>
               <TableCell>{row.teacherLabel ?? "—"}</TableCell>
               <TableCell className="text-right">

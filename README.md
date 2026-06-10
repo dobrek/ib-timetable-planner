@@ -70,19 +70,25 @@ The app is served at `http://localhost:4321`. Local Supabase Studio is at `http:
 
 ## Project Structure
 
+The codebase follows [Feature-Sliced Design](https://feature-sliced.design/) (enforced by `pnpm steiger`). Layers import downward only: `app` → `_pages` → `shared`.
+
 ```
 src/
-├── pages/          # Astro routes + API endpoints (src/pages/api/)
-├── components/     # React + Astro UI components
-├── layouts/        # Astro page layouts
-├── lib/            # Pure utilities, Supabase client, constraint/validation core
-└── styles/         # Global styles
-supabase/           # Local Supabase config, migrations
+├── app/            # App shell, layouts, global styles
+├── _pages/         # FSD page slices (e.g. plan-detail/, courses/, teachers/)
+│   └── <slice>/    #   api/ (Supabase), model/ (domain logic + hooks), lib/, ui/
+├── shared/         # Reused across slices: api/ (Supabase client), lib/, config/, ui/
+├── actions/        # Astro Actions (thin; logic lives in slice model/api)
+├── pages/          # Astro file-routing — routes + API endpoints (src/pages/api/)
+└── middleware.ts   # Deny-by-default route protection
+supabase/           # Local Supabase config, migrations, generated seed.sql
 data/               # Reference CSV fixtures (not read at runtime)
 context/            # Foundation docs (PRD, tech-stack, infrastructure, deploy plan)
 public/             # Static assets
 wrangler.jsonc      # Cloudflare Workers configuration
 ```
+
+> The two-cohort (Y12/Y13) constraint/validation core lives in `src/_pages/plan-detail/model/`.
 
 ## Environment Profiles
 
@@ -127,7 +133,7 @@ pnpm exec wrangler rollback <deployment-id>
 
 GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`:
 
-1. **`ci` job** — `pnpm install --frozen-lockfile` → `astro sync` → `lint` → `build`
+1. **`ci` job** — `pnpm install --frozen-lockfile` → `astro sync` → `lint` → `steiger` → `test` → `build`
 2. **`deploy` job** — on push to `main` only, ships via `cloudflare/wrangler-action@v3`
 
 Required repository secrets:

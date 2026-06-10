@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@/shared/api";
+import { unwrapRow } from "@/shared/lib/postgrest";
 import type { MergeInput } from "../model/schemas";
 import { deriveMergeParent, mergeReasonMessage } from "../model/merge";
 import { DomainError } from "@/shared/lib/errors";
-import { DUPLICATE_COURSE_MESSAGE, UNIQUE_VIOLATION } from "./constants";
+import { DUPLICATE_COURSE_MESSAGE } from "./constants";
 import { writeMergeAtomic } from "./write-merge-atomic";
 
 /**
@@ -40,27 +41,22 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
   }
 
   return writeMergeAtomic({
-    insertParent: async () => {
-      const { data, error } = await supabase
-        .from("courses")
-        .insert({
-          cohort_id: derivation.parent.cohortId,
-          teacher_id: derivation.parent.teacherId,
-          name: derivation.parent.name,
-          level: derivation.parent.level,
-          group_index: 0,
-          hours_per_week: input.hoursPerWeek,
-        })
-        .select()
-        .single();
-      if (error?.code === UNIQUE_VIOLATION) {
-        throw new DomainError("CONFLICT", DUPLICATE_COURSE_MESSAGE);
-      }
-      if (error) {
-        throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to create merge: ${error.message}`);
-      }
-      return data;
-    },
+    insertParent: async () =>
+      unwrapRow(
+        await supabase
+          .from("courses")
+          .insert({
+            cohort_id: derivation.parent.cohortId,
+            teacher_id: derivation.parent.teacherId,
+            name: derivation.parent.name,
+            level: derivation.parent.level,
+            group_index: 0,
+            hours_per_week: input.hoursPerWeek,
+          })
+          .select()
+          .single(),
+        { conflict: DUPLICATE_COURSE_MESSAGE, failure: "Failed to create merge" },
+      ),
     insertLinks: async (parent) => {
       const { error } = await supabase
         .from("course_merges")

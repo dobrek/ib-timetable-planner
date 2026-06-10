@@ -165,4 +165,15 @@ describe("updateMergeHours", () => {
     });
     expect(used).not.toContain("courses:update");
   });
+
+  it("rejects with NOT_FOUND when the parent row vanished before the update (PGRST116)", async () => {
+    const { client } = fakeSupabase({
+      "course_merges:select": { data: [{ parent_course_id: "parent-1" }], error: null },
+      "courses:update": { data: null, error: { code: "PGRST116", message: "0 rows" } },
+    });
+
+    await expect(updateMergeHours(client, { parentCourseId: "parent-1", hoursPerWeek: 5 })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
 });

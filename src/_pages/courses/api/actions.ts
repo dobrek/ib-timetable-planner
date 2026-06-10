@@ -1,5 +1,4 @@
-import { defineAction } from "astro:actions";
-import { requireSession, requireSupabase, runDomain } from "@/shared/lib";
+import { defineDomainAction } from "@/shared/lib";
 import {
   courseInput,
   deleteCourseInput,
@@ -25,75 +24,12 @@ import { updateMergeHours } from "./update-merge-hours";
 // actions author/edit/dissolve the composite parent.
 
 export const courseActions = {
-  createCourse: defineAction({
-    input: courseInput,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => createCourse(supabase, input));
-    },
-  }),
-
-  updateCourse: defineAction({
-    input: updateCourseInput,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => updateCourse(supabase, input));
-    },
-  }),
-
-  deleteCourse: defineAction({
-    input: deleteCourseInput,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => deleteCourse(supabase, input));
-    },
-  }),
-
-  createOverlap: defineAction({
-    input: overlapInput,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => createOverlap(supabase, input));
-    },
-  }),
-
-  deleteOverlap: defineAction({
-    input: deleteOverlapInput,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => deleteOverlap(supabase, input));
-    },
-  }),
-
-  createMerge: defineAction({
-    input: mergeInput,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => createMerge(supabase, input));
-    },
-  }),
-
-  dissolveMerge: defineAction({
-    input: dissolveMergeInput,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => dissolveMerge(supabase, input));
-    },
-  }),
-
-  updateMergeHours: defineAction({
-    input: updateMergeHoursInput,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => updateMergeHours(supabase, input));
-    },
-  }),
+  createCourse: defineDomainAction({ input: courseInput, run: createCourse }),
+  updateCourse: defineDomainAction({ input: updateCourseInput, run: updateCourse }),
+  deleteCourse: defineDomainAction({ input: deleteCourseInput, run: deleteCourse }),
+  createOverlap: defineDomainAction({ input: overlapInput, run: createOverlap }),
+  deleteOverlap: defineDomainAction({ input: deleteOverlapInput, run: deleteOverlap }),
+  createMerge: defineDomainAction({ input: mergeInput, run: createMerge }),
+  dissolveMerge: defineDomainAction({ input: dissolveMergeInput, run: dissolveMerge }),
+  updateMergeHours: defineDomainAction({ input: updateMergeHoursInput, run: updateMergeHours }),
 };

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@/shared/api";
+import { unwrapRow } from "@/shared/lib/postgrest";
 import type { OverlapInput } from "../model/schemas";
 import { DomainError } from "@/shared/lib/errors";
-import { UNIQUE_VIOLATION } from "./constants";
 
 /** Create a directed course overlap, enforcing both courses share a cohort. */
 export const createOverlap = async (supabase: SupabaseClient, input: OverlapInput) => {
@@ -20,17 +20,12 @@ export const createOverlap = async (supabase: SupabaseClient, input: OverlapInpu
     throw new DomainError("BAD_REQUEST", "Overlapping courses must be in the same cohort.");
   }
 
-  const { data, error } = await supabase
-    .from("course_overlaps")
-    .insert({ base_course_id: input.baseCourseId, dependent_course_id: input.dependentCourseId })
-    .select()
-    .single();
-
-  if (error?.code === UNIQUE_VIOLATION) {
-    throw new DomainError("CONFLICT", "This overlap already exists.");
-  }
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to create overlap: ${error.message}`);
-  }
-  return data;
+  return unwrapRow(
+    await supabase
+      .from("course_overlaps")
+      .insert({ base_course_id: input.baseCourseId, dependent_course_id: input.dependentCourseId })
+      .select()
+      .single(),
+    { conflict: "This overlap already exists.", failure: "Failed to create overlap" },
+  );
 };

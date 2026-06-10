@@ -360,12 +360,12 @@ No concerns at current scale (18 teachers, ~60 courses). The loader performs a s
 
 #### Automated
 
-- [x] 2.1 Type checking passes after loader + handlers + actions + client + barrel registration
-- [x] 2.2 Build passes with teacher actions registered
+- [x] 2.1 Type checking passes after loader + handlers + actions + client + barrel registration — b73e71d
+- [x] 2.2 Build passes with teacher actions registered — b73e71d
 
 #### Manual
 
-- [x] 2.3 Teacher CRUD actions respond correctly via Astro dev tools
+- [x] 2.3 Teacher CRUD actions respond correctly via Astro dev tools — b73e71d
 
 ### Phase 3: UI + Page Wiring
 

@@ -1,8 +1,26 @@
-import { ActionError, type ActionAPIContext } from "astro:actions";
-import { createClient } from "@/shared/api";
+import { ActionError, defineAction, type ActionAPIContext } from "astro:actions";
+import type * as z from "zod/v4/core";
+import { createClient, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "./errors";
 
-type Supabase = NonNullable<ReturnType<typeof createClient>>;
+/**
+ * Define an Astro Action with the standard domain shape: session enforced, Supabase
+ * client resolved, and the run function's `DomainError`s translated to `ActionError`s.
+ * Keeps slice `actions.ts` files as declarative input → run routing tables.
+ */
+export function defineDomainAction<TInputSchema extends z.$ZodType, TOutput>(options: {
+  input: TInputSchema;
+  run: (supabase: SupabaseClient, input: z.output<TInputSchema>) => Promise<TOutput>;
+}) {
+  return defineAction({
+    input: options.input,
+    handler: (input, context) => {
+      requireSession(context);
+      const supabase = requireSupabase(context);
+      return runDomain(() => options.run(supabase, input));
+    },
+  });
+}
 
 /**
  * Astro Actions POST to `/_actions/*`, which the middleware lists under PUBLIC_PREFIXES —
@@ -15,7 +33,7 @@ export function requireSession(context: ActionAPIContext): void {
   }
 }
 
-export function requireSupabase(context: ActionAPIContext): Supabase {
+export function requireSupabase(context: ActionAPIContext): SupabaseClient {
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
     throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: "Supabase is not configured." });

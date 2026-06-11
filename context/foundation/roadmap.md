@@ -1,10 +1,10 @@
 ---
 project: IB Schedule Planner
-version: 2
+version: 3
 status: draft
 created: 2026-05-25
-updated: 2026-05-25
-prd_version: 1
+updated: 2026-06-11
+prd_version: 2
 main_goal: market-feedback
 top_blocker: decisions
 ---
@@ -40,10 +40,10 @@ PRD §Business Logic names two paired rules — **recommendation** (the grouping
 | S-04 | students-and-choices-ui              | CRUD students and their course choices (primary entry path)                                          | F-01, F-02, S-02       | FR-006                                              | proposed |
 | S-05 | csv-import-students                  | bulk-import students from the existing `students_subjects.csv` without silently overwriting UI edits | S-04                   | FR-007, NFR Single-source-of-truth                  | proposed |
 | S-06 | compute-groupings-from-catalog       | run F-03 against the populated catalog from the authoring UI and see the ranked groupings list       | F-03, S-02, S-03, S-04 | FR-013, Business Logic (recommendation rule)        | proposed |
-| S-07 | multi-variant-management             | create and switch between parallel draft variants of one plan                                        | S-01                   | FR-010, US-02                                       | proposed |
+| S-07 | multi-variant-management             | manage plans as cloneable whole-domain scenarios — `/plans` hub with create/clone/rename/delete      | S-01                   | FR-010, US-02                                       | proposed |
 | S-08 | year-1-complete-placement            | place every required Y1 slot end-to-end under the full catalog with real (not seeded) groupings      | S-03, S-06             | US-01(d), FR-011, FR-012, FR-013                    | blocked  |
 | S-09 | year-2-with-cross-cohort-constraint  | place Y2 while honoring fixed Y1 teacher occupancy (cross-cohort)                                    | S-08                   | US-01(e), FR-009, FR-012                            | blocked  |
-| S-10 | finalize-and-csv-export              | mark a variant final and export a master-grid CSV with cohort distinguishable                        | S-09                   | US-01(g)(h), FR-014, FR-015                         | blocked  |
+| S-10 | finalize-and-csv-export              | export any plan as a master-grid CSV with cohort distinguishable                                     | S-09                   | US-01(g)(h), FR-015                                 | proposed |
 
 ## Streams
 
@@ -54,7 +54,7 @@ Navigation aid over the dependency graph — the canonical order still lives in 
 | A      | Foundations & northstar        | `F-01` → `F-02` → `F-03` → `S-01` | The northstar track — everything else only matters once the validation UX holds up.           |
 | B      | Catalog UI                     | `S-02` → `S-04` → `S-05`          | Parallel with S-01; produces the catalog content S-06 will feed to the algorithm.             |
 | C      | Algorithm & cohort progression | `S-03` → `S-06` → `S-08` → `S-09` | Validator classes grow, then the grouping algorithm gets its UI, then the cohorts come alive. |
-| D      | Variants & launch              | `S-07` → `S-10`                   | `S-07` parallel with B and C; `S-10` closes the loop after `S-09`.                            |
+| D      | Plans & launch                 | `S-07` → `S-10`                   | `S-07` parallel with B and C; `S-10` closes the loop after `S-09`.                            |
 
 ## Baseline
 
@@ -96,6 +96,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
   - Should `placements.variant_id` be per-cohort scoped (a separate placement row per (variant, cohort, slot)) or does a variant carry the cohort implicitly via the slot? — Owner: user / design in `/10x-plan`. Block: no.
   - Should `course_groupings` persist as a materialized table or as a JSONB blob keyed by `(plan_id, cohort, catalog_hash)`? — Owner: dev. Block: no (perf-driven choice in `/10x-plan`).
 - **Risk:** Sequenced together with F-01 as an absolute prerequisite of the northstar. Kept minimal (the seven tables) because pulling the whole domain in here is horizontal-first scope creep and pushes UX validation later. Trade-off: extending the schema slice-by-slice produces more migrations — accepted, because a solo-dev 8-week MVP prefers incremental migrations over one big upfront decision.
+- **Note (2026-06-11):** delivered as specified at the time; `plan_variants` and the `cohorts` table were later dropped by S-07 (PRD v2) — plans absorbed the catalog and became the cloneable domain root. References to variants in this entry are historical.
 - **Status:** ready
 
 ### F-03: port-grouping-algorithm
@@ -199,20 +200,20 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 
 ### S-07: multi-variant-management
 
-- **Outcome:** The author creates multiple draft variants of one plan; each variant carries its own set of Y1 and Y2 placements independently. The author can switch between variants; at most one variant carries the "final" mark at any time. Grouping output (S-06) is shared across variants of the same plan (it depends on the catalog, not on placements).
+- **Outcome:** Plans are cloneable whole-domain scenarios: the catalog (teachers, courses, students, choices, dependencies) is plan-owned; `/plans` is the application hub with create-blank / clone / rename / delete; catalog routes nest under the plan (`/plans/[id]/courses|teachers|students`, board at `/plans/[id]`); the `plan_variants` and `cohorts` tables are dropped (cohort becomes a native enum). Cloning deep-copies the entire scenario — catalog, placements, groupings — and is the primary creation path. Grouping output stays keyed by (plan, cohort), since it depends on the now-plan-owned catalog.
 - **Change ID:** multi-variant-management
-- **PRD refs:** FR-010, US-02
+- **PRD refs:** FR-010, US-02 (both amended in PRD v2)
 - **Prerequisites:** S-01
 - **Parallel with:** S-02, S-03, S-04, S-05, S-06
 - **Blockers:** —
 - **Unknowns:**
-  - Does "switching" include copy-from-existing (forking a variant) or only empty-new? — Owner: user. Block: no.
-- **Risk:** F-02 already builds `plan_variants.id` into the placement scope; this slice surfaces it in the UI. Held parallel with the catalog stream because it doesn't compete for the same layer.
+  - ~~Does "switching" include copy-from-existing (forking) or only empty-new?~~ Resolved 2026-06-11: both — clone is the primary path; blank-new (name + grid preset) remains for cold start.
+- **Risk:** Re-scoped 2026-06-11 (PRD v2): the original "surface `plan_variants` in the UI" framing is overturned — user research showed the what-if axis is the catalog, not placements. The slice now carries a destructive schema re-baseline (plans as FK root, composite FKs, cohort enum) and a deep-copy clone RPC; widest blast radius is the app-wide plan threading.
 - **Status:** proposed
 
 ### S-08: year-1-complete-placement
 
-- **Outcome:** The author fills in every slot required by Y1 student choices, working from the full catalog (courses + dependencies from S-02, teachers from S-03, students from S-04) and using **real grouping output from S-06** (no longer pre-seeded). The online validator certifies no-collision across all classes within Y1. The variant holds Y1 as a stable basis for Y2.
+- **Outcome:** The author fills in every slot required by Y1 student choices, working from the full catalog (courses + dependencies from S-02, teachers from S-03, students from S-04) and using **real grouping output from S-06** (no longer pre-seeded). The online validator certifies no-collision across all classes within Y1. The plan holds Y1 as a stable basis for Y2.
 - **Change ID:** year-1-complete-placement
 - **PRD refs:** US-01(d), FR-011, FR-012 (all classes within the cohort), FR-013
 - **Prerequisites:** S-03, S-06
@@ -226,7 +227,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 
 ### S-09: year-2-with-cross-cohort-constraint
 
-- **Outcome:** The author switches the variant to Y2 inside the same variant. The online validator adds the "teacher across cohorts" class — a slot S occupied by teacher T in Y1 cannot accept teacher T in Y2. Grouping recommendations for Y2 are produced by re-running F-03 with the Y2 cohort scope (S-06 covers the trigger).
+- **Outcome:** The author switches to Y2 inside the same plan. The online validator adds the "teacher across cohorts" class — a slot S occupied by teacher T in Y1 cannot accept teacher T in Y2. Grouping recommendations for Y2 are produced by re-running F-03 with the Y2 cohort scope (S-06 covers the trigger).
 - **Change ID:** year-2-with-cross-cohort-constraint
 - **PRD refs:** US-01(e), FR-009, FR-012 ("teacher across cohorts" class)
 - **Prerequisites:** S-08
@@ -235,22 +236,22 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 - **Unknowns:**
   - **Drop UX policy (PRD Q8)** is inherited further; cross-cohort is the least intuitive class for the author, so the "invalid: teacher already in Y1 slot 3" message needs careful presentation. Owner: user / design. Block: **yes**.
   - When a Y1 placement is edited _after_ Y2 has started, should the change propagate invalidation into Y2 placements, or should Y1 be frozen until the author explicitly "reopens" it? — Owner: user / design. Block: no.
-- **Risk:** The cross-cohort constraint is the "hard problem" called out in CLAUDE.md. Sequenced directly after S-08 so that any decision about variant + cohort representation in the schema is confirmed before adding cross-references.
+- **Risk:** The cross-cohort constraint is the "hard problem" called out in CLAUDE.md. Sequenced directly after S-08 so that any decision about plan + cohort representation in the schema is confirmed before adding cross-references.
 - **Status:** blocked
 
 ### S-10: finalize-and-csv-export
 
-- **Outcome:** The author marks exactly one variant per plan as `final` and exports it as a master-grid CSV (slot × course) with cohort distinguishable in the output.
+- **Outcome:** The author exports **any plan** as a master-grid CSV (slot × course) with cohort distinguishable in the output. There is no finalize step — plans are peers (FR-014 removed in PRD v2).
 - **Change ID:** finalize-and-csv-export
-- **PRD refs:** US-01(g)(h), FR-014, FR-015
+- **PRD refs:** US-01(g)(h), FR-015 (amended in PRD v2; FR-014 removed)
 - **Prerequisites:** S-09
 - **Parallel with:** —
 - **Blockers:** —
 - **Unknowns:**
-  - **Finalize gate (PRD Q9):** does mark-as-final require zero unresolved collisions across both cohorts? Likely yes per the guardrail, but the exact gate isn't decided. Owner: user. Block: **yes**.
-  - Draft export (PRD Q10) — export final variant only, or drafts too? Owner: user. Block: no.
+  - ~~**Finalize gate (PRD Q9)**~~ Resolved 2026-06-11: dissolved — FR-014 overturned in PRD v2; there is no final mark and nothing to gate.
+  - ~~Draft export (PRD Q10)~~ Resolved 2026-06-11: dissolved into amended FR-015 — any plan is exportable.
 - **Risk:** The slice with the least technical uncertainty — CSV export is more of a product decision than an engineering one. Sequenced last because it requires both cohorts placed.
-- **Status:** blocked
+- **Status:** proposed
 
 ## Backlog Handoff
 
@@ -265,15 +266,15 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 | S-04       | students-and-choices-ui              | Students + choices UI (primary path)                                           | no                    | Promotes to `ready` once F-01 + F-02 + S-02 done               |
 | S-05       | csv-import-students                  | CSV import for student choices, no silent overwrite of UI edits                | no                    | Waits for S-04                                                 |
 | S-06       | compute-groupings-from-catalog       | Run grouping algorithm against the populated catalog from the UI               | no                    | Waits for F-03 + S-02 + S-03 + S-04                            |
-| S-07       | multi-variant-management             | Multi-variant management within a plan                                         | no                    | Waits for S-01                                                 |
+| S-07       | multi-variant-management             | Plans as cloneable whole-domain scenarios (`/plans` hub + clone)               | yes                   | Re-scoped 2026-06-11 (PRD v2); plan exists (this change)       |
 | S-08       | year-1-complete-placement            | Year 1 end-to-end placement under full catalog with real groupings             | no                    | Blocked on Drop UX policy (PRD Q8); also waits for S-03 + S-06 |
 | S-09       | year-2-with-cross-cohort-constraint  | Year 2 placement honoring Year 1 teacher occupancy                             | no                    | Blocked on Drop UX policy (PRD Q8); also waits for S-08        |
-| S-10       | finalize-and-csv-export              | Mark variant final and export master-grid CSV                                  | no                    | Blocked on Finalize gate (PRD Q9); also waits for S-09         |
+| S-10       | finalize-and-csv-export              | Export any plan as master-grid CSV                                             | no                    | Finalize gate dissolved (PRD v2); waits for S-09               |
 
 ## Open Roadmap Questions
 
 1. **Drop UX policy (PRD Q8).** When a drop creates a collision, does the app (a) block the drop, (b) accept and flag for resolution, or (c) prompt the author? Owner: user / design. Block: **S-01, S-03, S-08, S-09**.
-2. **Finalize gate (PRD Q9).** Does mark-as-final require zero unresolved collisions across both cohorts? Owner: user. Block: **S-10**.
+2. **Finalize gate (PRD Q9).** Resolved 2026-06-11: no finalize gate — FR-014 overturned in PRD v2; plans are peers with no final mark. Block: none.
 3. **target_scale.qps (PRD Q1).** Shape-notes captured `users: small` but not a qps ballpark. Owner: user. Block: no — defaults to "low" for downstream sizing.
 4. **target_scale.data_volume (PRD Q2).** Same gap. Owner: user. Block: no — defaults to "small".
 5. **Viewer role v2 (PRD Q3).** Dropped from MVP. For v2, should a read-only Viewer see only finals, or drafts too? Owner: user. Block: no.
@@ -281,7 +282,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 7. **Teacher hours-per-week (PRD Q5).** Some teachers can teach up to N hours per week. Out of scope for MVP — needed in v2? Owner: user. Block: no.
 8. **Teacher soft preferences (PRD Q6).** Prefer morning vs. afternoon, prefer non-consecutive slots, etc. Hard exclusions only in MVP. Owner: user. Block: no.
 9. **Custom slot grids (PRD Q7).** MVP uses presets only; a bespoke grid editor is deferred. Owner: user. Block: no.
-10. **Draft export (PRD Q10).** Export only finals, or drafts too? Owner: user. Block: no.
+10. **Draft export (PRD Q10).** Resolved 2026-06-11: dissolved into amended FR-015 (PRD v2) — any plan is exportable. Block: no.
 11. **Keyboard / accessibility parity (PRD Q11).** Should drag-and-drop have a keyboard-only alternative? Owner: user. Block: no.
 12. **Multi-school / cross-school (PRD Q12).** No multi-tenancy in MVP. Owner: user. Block: no.
 
@@ -293,7 +294,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 - **Multi-school SaaS tenancy** — Why parked: PRD §Non-Goals + §Access Control. One school per instance.
 - **Custom slot-grid editor** — Why parked: PRD §Non-Goals + Open Question Q7. Presets only in MVP.
 - **Printable / PDF export** — Why parked: PRD §Non-Goals. CSV only.
-- **Cross-variant comparison view** — Why parked: PRD §Non-Goals. Multi-variant exists, but no side-by-side diff UI.
+- **Cross-plan comparison view** — Why parked: PRD §Non-Goals. Multiple plans exist in parallel, but no side-by-side diff UI; derived hub metrics (valid / complete / used slots) are a future extension.
 - **Mobile-optimized UX** — Why parked: PRD §Non-Goals. Laptop browser is the target form factor.
 - **Read-only Viewer role** — Why parked: PRD §Non-Goals + Open Question Q3. v2 candidate.
 - **Observability stack (logs, error tracking, dashboards)** — Why parked: `main_goal: market-feedback` + small users scope. Returns as a foundation candidate if/when scale grows or `main_goal` shifts to `quality`.

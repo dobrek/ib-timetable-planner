@@ -127,4 +127,8 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* The native search-clear (×) button reads as interactive — give it a pointer cursor. */
+  input[type="search"]::-webkit-search-cancel-button {
+    cursor: pointer;
+  }
 }

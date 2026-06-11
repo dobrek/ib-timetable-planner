@@ -22,6 +22,12 @@ type MultiSelectProps = {
   emptyText: string;
   /** Render the selection as removable badge chips below the trigger (default true). */
   showChips?: boolean;
+  /**
+   * Set when rendered inside a Dialog. A Dialog locks page scroll (react-remove-scroll) to its
+   * own subtree; this portalled popover sits outside it, so without `modal` the option list
+   * can't be scrolled (it looks cropped). Leave off for page-level usage so the body isn't locked.
+   */
+  modal?: boolean;
 };
 
 /** Searchable popover multi-select with check marks and removable badge chips. */
@@ -36,6 +42,7 @@ export function MultiSelect({
   searchPlaceholder,
   emptyText,
   showChips = true,
+  modal = false,
 }: MultiSelectProps) {
   const selected = new Set(selectedIds);
 
@@ -50,7 +57,7 @@ export function MultiSelect({
 
   return (
     <>
-      <Popover>
+      <Popover modal={modal}>
         <PopoverTrigger asChild>
           <Button type="button" variant="outline" size={triggerSize} className={triggerClassName} onBlur={onBlur}>
             {trigger}
@@ -59,7 +66,8 @@ export function MultiSelect({
         <PopoverContent className="w-80 p-0" align="start">
           <Command>
             <CommandInput placeholder={searchPlaceholder} autoComplete="off" />
-            <CommandList>
+            {/* Taller than the default so the full option set is browsable by scroll, not only by typing. */}
+            <CommandList className="max-h-[24rem]">
               <CommandEmpty>{emptyText}</CommandEmpty>
               <CommandGroup>
                 {items.map((item) => (
@@ -91,7 +99,7 @@ export function MultiSelect({
               <button
                 type="button"
                 aria-label={`Remove ${item.label}`}
-                className="hover:text-foreground -mr-0.5 rounded-sm"
+                className="hover:text-foreground -mr-0.5 cursor-pointer rounded-sm"
                 onClick={() => {
                   toggle(item.id);
                 }}

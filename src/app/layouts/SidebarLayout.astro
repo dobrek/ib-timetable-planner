@@ -1,19 +1,28 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
-import { NAV_ITEMS } from "@/shared/config";
+import { GLOBAL_NAV_ITEMS, planNavItems, type NavItem } from "@/shared/config";
 import { Sun, Moon } from "lucide-react";
 
 type Props = {
   title?: string;
+  /** When set, the sidebar renders the plan's scenario-local sub-nav + breadcrumb. */
+  plan?: { id: string; name: string };
 };
 
-const { title } = Astro.props;
+const { title, plan } = Astro.props;
 const { user } = Astro.locals;
 const pathname = Astro.url.pathname;
 
-// Home matches exactly; sections match on prefix so /plans/[id] still highlights "Plans".
+// Home and the plan board match exactly (the board href prefixes every plan sub-route);
+// other sections match on prefix so /plans/[id]/courses still highlights "Courses" and
+// /plans (the hub) highlights "Plans".
+const EXACT_HREFS = new Set(["/dashboard", ...(plan ? [`/plans/${plan.id}`] : [])]);
 const isActive = (href: string) =>
-  href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  EXACT_HREFS.has(href) ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+
+const renderItem = (item: NavItem) => ({ ...item, active: isActive(item.href) });
+const globalItems = GLOBAL_NAV_ITEMS.map(renderItem);
+const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
 ---
 
 <BaseLayout title={title}>
@@ -25,16 +34,15 @@ const isActive = (href: string) =>
 
       <nav class="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Primary">
         {
-          NAV_ITEMS.map((item) => {
-            const active = isActive(item.href);
+          globalItems.map((item) => {
             const Icon = item.icon;
             return (
               <a
                 href={item.href}
-                aria-current={active ? "page" : undefined}
+                aria-current={item.active ? "page" : undefined}
                 class:list={[
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active
+                  item.active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 ]}
@@ -44,6 +52,39 @@ const isActive = (href: string) =>
               </a>
             );
           })
+        }
+
+        {
+          plan && (
+            <div class="pt-4">
+              <p
+                class="text-sidebar-foreground/60 truncate px-3 pb-1 text-xs font-medium tracking-wide uppercase"
+                title={plan.name}
+              >
+                {plan.name}
+              </p>
+              <div class="space-y-1" role="group" aria-label={`Plan: ${plan.name}`}>
+                {planItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <a
+                      href={item.href}
+                      aria-current={item.active ? "page" : undefined}
+                      class:list={[
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        item.active
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                      ]}
+                    >
+                      <Icon size={18} aria-hidden="true" />
+                      <span>{item.label}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )
         }
       </nav>
 
@@ -75,6 +116,17 @@ const isActive = (href: string) =>
 
     <main class="flex-1 overflow-y-auto">
       <div class="mx-auto max-w-5xl px-8 py-10">
+        {
+          plan && (
+            <nav class="text-muted-foreground mb-6 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb">
+              <a href="/plans" class="hover:text-foreground transition-colors">
+                Plans
+              </a>
+              <span aria-hidden="true">/</span>
+              <span class="text-foreground font-medium">{plan.name}</span>
+            </nav>
+          )
+        }
         <slot />
       </div>
     </main>

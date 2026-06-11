@@ -2,14 +2,15 @@ import { z } from "zod";
 import { GRID_BOUNDS } from "../model/grid";
 import type { PlannerPlacement } from "../model/placement";
 import type { SupabaseClient } from "@/shared/api";
+import { cohortSchema } from "@/shared/config";
 import { DomainError } from "@/shared/lib/errors";
 import { UNIQUE_VIOLATION } from "@/shared/lib/postgrest";
 
 type Supabase = SupabaseClient;
 
 export const createPlacementInput = z.object({
-  variantId: z.uuid(),
-  cohortId: z.uuid(),
+  planId: z.uuid(),
+  cohort: cohortSchema,
   courseId: z.uuid(),
   day: z.int().min(1).max(GRID_BOUNDS.maxDays),
   period: z.int().min(1).max(GRID_BOUNDS.maxPeriods),
@@ -37,11 +38,11 @@ const toPlannerPlacement = (row: PlacementRow): PlannerPlacement => ({
  * client reconciles its optimistic id — never a rollback, never a 500.
  */
 export const insertPlacement = async (supabase: Supabase, input: CreatePlacementInput): Promise<PlannerPlacement> => {
-  const { variantId, cohortId, courseId, day, period } = input;
+  const { planId, cohort, courseId, day, period } = input;
 
   const { data, error } = await supabase
     .from("placements")
-    .insert({ variant_id: variantId, cohort_id: cohortId, course_id: courseId, day, period })
+    .insert({ plan_id: planId, cohort, course_id: courseId, day, period })
     .select()
     .single();
 
@@ -49,8 +50,8 @@ export const insertPlacement = async (supabase: Supabase, input: CreatePlacement
     const { data: existing, error: lookupError } = await supabase
       .from("placements")
       .select()
-      .eq("variant_id", variantId)
-      .eq("cohort_id", cohortId)
+      .eq("plan_id", planId)
+      .eq("cohort", cohort)
       .eq("course_id", courseId)
       .eq("day", day)
       .eq("period", period)

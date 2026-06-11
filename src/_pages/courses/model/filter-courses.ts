@@ -1,3 +1,4 @@
+import type { Cohort } from "@/shared/config";
 import type { CourseRow } from "./course";
 
 /**
@@ -8,13 +9,13 @@ import type { CourseRow } from "./course";
  */
 export function filterCourses(
   courses: readonly CourseRow[],
-  activeCohortId: string,
+  activeCohort: Cohort,
   selectedTeacherIds: readonly string[],
   hideMerged = false,
 ): CourseRow[] {
   const teacherFilter = new Set(selectedTeacherIds);
   return courses.filter((course) => {
-    if (course.cohortId !== activeCohortId) return false;
+    if (course.cohort !== activeCohort) return false;
     if (hideMerged && course.isMerged) return false;
     if (teacherFilter.size === 0) return true;
     return course.teacherId !== null && teacherFilter.has(course.teacherId);

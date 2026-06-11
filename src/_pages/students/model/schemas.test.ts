@@ -3,10 +3,12 @@ import { deleteStudentInput, studentInput, updateStudentInput } from "./schemas"
 
 const UUID_A = "11111111-1111-4111-8111-111111111111";
 const UUID_B = "22222222-2222-4222-8222-222222222222";
+const PLAN_ID = "33333333-3333-4333-8333-333333333333";
 
 const validStudent = {
+  planId: PLAN_ID,
   fullName: "Alice Parker",
-  cohortId: UUID_A,
+  cohort: "dp1" as const,
 };
 
 describe("studentInput", () => {
@@ -22,8 +24,13 @@ describe("studentInput", () => {
     expect(studentInput.safeParse({ ...validStudent, fullName: "   " }).success).toBe(false);
   });
 
-  it("rejects a non-uuid cohort id", () => {
-    expect(studentInput.safeParse({ ...validStudent, cohortId: "not-a-uuid" }).success).toBe(false);
+  it("rejects an unknown cohort value", () => {
+    expect(studentInput.safeParse({ ...validStudent, cohort: "dp3" }).success).toBe(false);
+  });
+
+  it("rejects a missing planId", () => {
+    const { planId: _omit, ...withoutPlan } = validStudent;
+    expect(studentInput.safeParse(withoutPlan).success).toBe(false);
   });
 
   it("defaults choiceCourseIds to an empty array when omitted", () => {
@@ -61,11 +68,15 @@ describe("updateStudentInput", () => {
 });
 
 describe("deleteStudentInput", () => {
-  it("accepts a valid id", () => {
-    expect(deleteStudentInput.safeParse({ id: UUID_A }).success).toBe(true);
+  it("accepts a valid plan + id pair", () => {
+    expect(deleteStudentInput.safeParse({ planId: PLAN_ID, id: UUID_A }).success).toBe(true);
   });
 
   it("rejects a missing id", () => {
-    expect(deleteStudentInput.safeParse({}).success).toBe(false);
+    expect(deleteStudentInput.safeParse({ planId: PLAN_ID }).success).toBe(false);
+  });
+
+  it("rejects a missing planId", () => {
+    expect(deleteStudentInput.safeParse({ id: UUID_A }).success).toBe(false);
   });
 });

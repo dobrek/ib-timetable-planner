@@ -1,4 +1,5 @@
-import type { CohortTab, TeacherOption } from "./course";
+import { COHORTS, COHORT_VALUES, type Cohort } from "@/shared/config";
+import type { TeacherOption } from "./course";
 
 /**
  * Catalog filter state mirrored into the URL query so a post-mutation
@@ -6,38 +7,35 @@ import type { CohortTab, TeacherOption } from "./course";
  * hide-merged toggle. Pure projections — `filterCourses` does the actual filtering.
  */
 export type CatalogFilters = {
-  cohortId: string;
+  cohort: Cohort;
   teacherIds: string[];
   hideMerged: boolean;
 };
 
 /**
- * Parse catalog filters from a URL query string, dropping unknown cohort/teacher ids so a
+ * Parse catalog filters from a URL query string, dropping unknown cohort/teacher values so a
  * bookmarked or stale URL falls back to defaults instead of erroring. Defaults: first cohort,
- * no teacher filter, merged shown.
+ * no teacher filter, merged shown. `?cohort=dp1` carries the readable enum value.
  */
-export const readFilterParams = (
-  search: string,
-  cohorts: readonly CohortTab[],
-  teachers: readonly TeacherOption[],
-): CatalogFilters => {
+export const readFilterParams = (search: string, teachers: readonly TeacherOption[]): CatalogFilters => {
   const params = new URLSearchParams(search);
-  const knownCohorts = new Set(cohorts.map((cohort) => cohort.id));
   const knownTeachers = new Set(teachers.map((teacher) => teacher.id));
 
   const requestedCohort = params.get("cohort");
-  const cohortId = requestedCohort && knownCohorts.has(requestedCohort) ? requestedCohort : (cohorts[0]?.id ?? "");
+  const cohort = (COHORT_VALUES as readonly string[]).includes(requestedCohort ?? "")
+    ? (requestedCohort as Cohort)
+    : COHORTS[0].value;
 
   const requestedTeachers = (params.get("teachers") ?? "").split(",").filter(Boolean);
   const teacherIds = requestedTeachers.filter((id) => knownTeachers.has(id));
 
-  return { cohortId, teacherIds, hideMerged: params.get("merged") === "hidden" };
+  return { cohort, teacherIds, hideMerged: params.get("merged") === "hidden" };
 };
 
 /** Serialize catalog filters to a URL query string, omitting defaults so clean state → clean URL. */
 export const toFilterSearch = (filters: CatalogFilters): string => {
   const params = new URLSearchParams();
-  if (filters.cohortId) params.set("cohort", filters.cohortId);
+  params.set("cohort", filters.cohort);
   if (filters.teacherIds.length > 0) params.set("teachers", filters.teacherIds.join(","));
   if (filters.hideMerged) params.set("merged", "hidden");
   return params.toString();

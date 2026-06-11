@@ -32,6 +32,7 @@ import type { CourseRow } from "../model/course";
 import { updateMergeHoursInput, type UpdateMergeHoursInput } from "../model/schemas";
 
 type Props = {
+  planId: string;
   /** The composite merge parent being managed, or null when closed. */
   course: CourseRow | null;
   coursesById: Map<string, CourseRow>;
@@ -43,7 +44,7 @@ type Props = {
  * authored weekly hours, or dissolve the merge. Dissolve uses the `alert-dialog` confirm
  * pattern naming the consequence (parent + links removed, atomic children kept).
  */
-export default function MergeManageDialog({ course, coursesById, onClose }: Props) {
+export default function MergeManageDialog({ planId, course, coursesById, onClose }: Props) {
   return (
     <Dialog
       open={course !== null}
@@ -52,22 +53,25 @@ export default function MergeManageDialog({ course, coursesById, onClose }: Prop
       }}
     >
       <DialogContent>
-        {course && <ManageBody key={course.id} course={course} coursesById={coursesById} onClose={onClose} />}
+        {course && (
+          <ManageBody key={course.id} planId={planId} course={course} coursesById={coursesById} onClose={onClose} />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
 type ManageBodyProps = {
+  planId: string;
   course: CourseRow;
   coursesById: Map<string, CourseRow>;
   onClose: () => void;
 };
 
-function ManageBody({ course, coursesById, onClose }: ManageBodyProps) {
-  const { form, onSubmit } = useMergeHoursForm(course, onClose);
+function ManageBody({ planId, course, coursesById, onClose }: ManageBodyProps) {
+  const { form, onSubmit } = useMergeHoursForm(planId, course, onClose);
   const { confirm: dissolve, isBusy: isDissolving } = useConfirmAction(
-    () => dissolveMerge({ parentCourseId: course.id }),
+    () => dissolveMerge({ planId, parentCourseId: course.id }),
     { successMessage: "Merge deleted", onDone: onClose },
   );
   const children = course.mergeChildIds.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);
@@ -152,11 +156,11 @@ function ManageBody({ course, coursesById, onClose }: ManageBodyProps) {
   );
 }
 
-function useMergeHoursForm(course: CourseRow, onClose: () => void) {
+function useMergeHoursForm(planId: string, course: CourseRow, onClose: () => void) {
   const form = useForm<UpdateMergeHoursInput>({
     resolver: zodResolver(updateMergeHoursInput),
     mode: "onTouched",
-    defaultValues: { parentCourseId: course.id, hoursPerWeek: course.hours },
+    defaultValues: { planId, parentCourseId: course.id, hoursPerWeek: course.hours },
   });
 
   const onSubmit = (values: UpdateMergeHoursInput) =>

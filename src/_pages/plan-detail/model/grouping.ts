@@ -1,9 +1,7 @@
-export type GroupingCourse = {
-  id: string;
-  teacherKey: string | null;
-  studentKeys: string[];
-  hours: number;
-};
+// The catalog projection + fingerprint shapes live in shared (the plans hub's clone
+// flow recomputes hashes too); re-exported here so constraint-core signatures are
+// unchanged. `@/shared/lib/catalog-hash` is deep-importable and astro-free.
+export type { ComputeWarning, GroupingCourse } from "@/shared/lib/catalog-hash";
 
 export type GroupingVariant = {
   size: number;
@@ -16,12 +14,6 @@ export type GroupingVariant = {
 export type GroupingResult = {
   seedId: string;
   variants: GroupingVariant[];
-};
-
-export type ComputeWarning = {
-  courseId: string;
-  kind: "no-teacher" | "no-students" | "zero-hours";
-  message: string;
 };
 
 /** A palette hint box: a deduped member-set read from `course_groupings`. */

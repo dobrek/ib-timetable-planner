@@ -1,8 +1,8 @@
 ---
-import { NAV_ITEMS } from "@/shared/config";
+import { GLOBAL_NAV_ITEMS } from "@/shared/config";
 
 const { user } = Astro.locals;
-const sections = NAV_ITEMS.filter((item) => item.href !== "/dashboard");
+const sections = GLOBAL_NAV_ITEMS.filter((item) => item.href !== "/dashboard");
 ---
 
 <header class="mb-8">

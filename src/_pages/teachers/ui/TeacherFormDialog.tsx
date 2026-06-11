@@ -25,6 +25,7 @@ import type { TeacherRow } from "../model/teacher";
 type Props = {
   open: boolean;
   onClose: () => void;
+  planId: string;
   /** The row to edit, or null to create. */
   teacher: TeacherRow | null;
 };
@@ -33,8 +34,8 @@ type Props = {
  * Create/edit a teacher. The shared `teacherInput` schema drives both client validation
  * (RHF `zodResolver`, `mode: "onTouched"`) and the server action gate.
  */
-export default function TeacherFormDialog({ open, teacher, onClose }: Props) {
-  const { form, onSubmit } = useTeacherForm(open, teacher, onClose);
+export default function TeacherFormDialog({ open, planId, teacher, onClose }: Props) {
+  const { form, onSubmit } = useTeacherForm(open, planId, teacher, onClose);
 
   return (
     <Dialog
@@ -93,17 +94,17 @@ export default function TeacherFormDialog({ open, teacher, onClose }: Props) {
   );
 }
 
-function useTeacherForm(open: boolean, teacher: TeacherRow | null, onClose: () => void) {
+function useTeacherForm(open: boolean, planId: string, teacher: TeacherRow | null, onClose: () => void) {
   const form = useForm<TeacherFormValues, unknown, TeacherInput>({
     resolver: zodResolver(teacherInput),
     mode: "onTouched",
-    defaultValues: emptyTeacherFormValues(),
+    defaultValues: emptyTeacherFormValues(planId),
   });
 
   useEffect(() => {
     if (!open) return;
-    form.reset(teacher ? teacherFormValues(teacher) : emptyTeacherFormValues());
-  }, [open, teacher, form]);
+    form.reset(teacher ? teacherFormValues(planId, teacher) : emptyTeacherFormValues(planId));
+  }, [open, planId, teacher, form]);
 
   const onSubmit = (values: TeacherInput) =>
     submitForm({
@@ -117,12 +118,14 @@ function useTeacherForm(open: boolean, teacher: TeacherRow | null, onClose: () =
   return { form, onSubmit };
 }
 
-const teacherFormValues = (teacher: TeacherRow): TeacherFormValues => ({
+const teacherFormValues = (planId: string, teacher: TeacherRow): TeacherFormValues => ({
+  planId,
   code: teacher.code,
   fullName: teacher.fullName ?? "",
 });
 
-const emptyTeacherFormValues = (): TeacherFormValues => ({
+const emptyTeacherFormValues = (planId: string): TeacherFormValues => ({
+  planId,
   code: "",
   fullName: "",
 });

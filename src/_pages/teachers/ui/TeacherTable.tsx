@@ -1,4 +1,5 @@
 import { MoreHorizontal, Plus } from "lucide-react";
+import type { Cohort } from "@/shared/config";
 import { cn } from "@/shared/lib/cn";
 import {
   Badge,
@@ -22,23 +23,13 @@ import type { CourseAssignment, TeacherRow } from "../model/teacher";
 type Props = {
   rows: TeacherRow[];
   totalCount: number;
-  /** Ordered cohorts; the table is structurally two-cohort (Y1/Y2 columns). */
-  cohorts: readonly { id: string }[];
   yearFilter: YearFilter;
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
   onCreateFirst: () => void;
 };
 
-export default function TeacherTable({
-  rows,
-  totalCount,
-  cohorts,
-  yearFilter,
-  onEdit,
-  onDelete,
-  onCreateFirst,
-}: Props) {
+export default function TeacherTable({ rows, totalCount, yearFilter, onEdit, onDelete, onCreateFirst }: Props) {
   if (totalCount === 0) {
     return (
       <div className="py-12 text-center">
@@ -54,9 +45,6 @@ export default function TeacherTable({
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No teachers match the current filter.</p>;
   }
-
-  const y1Id = cohorts[0]?.id;
-  const y2Id = cohorts[1]?.id;
 
   return (
     <div className="border-border overflow-hidden rounded-lg border">
@@ -75,19 +63,19 @@ export default function TeacherTable({
         </TableHeader>
         <TableBody>
           {sortTeachers(rows).map((row) => {
-            const y1h = cohortHours(row.assignments, y1Id);
-            const y2h = cohortHours(row.assignments, y2Id);
+            const y1h = cohortHours(row.assignments, "dp1");
+            const y2h = cohortHours(row.assignments, "dp2");
 
             return (
               <TableRow key={row.id}>
                 <TableCell className="font-medium">{row.code}</TableCell>
                 <TableCell>{row.fullName ?? "—"}</TableCell>
                 <TableCell className={cn(cohortGroupClass(yearFilter, "y1"))}>
-                  <AssignmentBadges assignments={cohortAssignments(row.assignments, y1Id)} />
+                  <AssignmentBadges assignments={cohortAssignments(row.assignments, "dp1")} />
                 </TableCell>
                 <TableCell className={cn("text-right", cohortGroupClass(yearFilter, "y1"))}>{y1h}</TableCell>
                 <TableCell className={cn(cohortGroupClass(yearFilter, "y2"))}>
-                  <AssignmentBadges assignments={cohortAssignments(row.assignments, y2Id)} />
+                  <AssignmentBadges assignments={cohortAssignments(row.assignments, "dp2")} />
                 </TableCell>
                 <TableCell className={cn("text-right", cohortGroupClass(yearFilter, "y2"))}>{y2h}</TableCell>
                 <TableCell className={cn("text-right", totalColumnClass(yearFilter))}>{y1h + y2h}</TableCell>
@@ -163,10 +151,10 @@ function totalColumnClass(yearFilter: YearFilter) {
   return yearFilter === "all" ? undefined : "opacity-60";
 }
 
-function cohortHours(assignments: readonly CourseAssignment[], cohortId: string | undefined): number {
-  return cohortAssignments(assignments, cohortId).reduce((sum, a) => sum + a.hours, 0);
+function cohortHours(assignments: readonly CourseAssignment[], cohort: Cohort): number {
+  return cohortAssignments(assignments, cohort).reduce((sum, a) => sum + a.hours, 0);
 }
 
-function cohortAssignments(assignments: readonly CourseAssignment[], cohortId: string | undefined): CourseAssignment[] {
-  return assignments.filter((a) => a.cohortId === cohortId);
+function cohortAssignments(assignments: readonly CourseAssignment[], cohort: Cohort): CourseAssignment[] {
+  return assignments.filter((a) => a.cohort === cohort);
 }

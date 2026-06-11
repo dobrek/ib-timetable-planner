@@ -1,9 +1,10 @@
 import { actions } from "astro:actions";
+import type { Cohort } from "@/shared/config";
 import type { PlannerPlacement } from "../model/placement";
 
 export async function createPlacement(args: {
-  variantId: string;
-  cohortId: string;
+  planId: string;
+  cohort: Cohort;
   courseId: string;
   day: number;
   period: number;

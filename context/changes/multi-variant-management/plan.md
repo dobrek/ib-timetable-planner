@@ -418,28 +418,28 @@ No production data exists; the migration is destructive by design (drops `plan_v
 
 #### Automated
 
-- [x] 2.1 `pnpm exec supabase db reset` completes with two-plan seed
-- [x] 2.2 Clone RPC integration tests pass (`pnpm test:integration`)
-- [x] 2.3 `database.types.ts` regenerated and committed (cohort enum + new columns)
+- [x] 2.1 `pnpm exec supabase db reset` completes with two-plan seed — a942e0b
+- [x] 2.2 Clone RPC integration tests pass (`pnpm test:integration`) — a942e0b
+- [x] 2.3 `database.types.ts` regenerated and committed (cohort enum + new columns) — a942e0b
 
 #### Manual
 
-- [x] 2.4 Studio check: old tables gone, seeded plans disjoint, SQL-editor `clone_plan` produces a complete third plan
+- [x] 2.4 Studio check: old tables gone, seeded plans disjoint, SQL-editor `clone_plan` produces a complete third plan — a942e0b
 
 ### Phase 3: App Adaptation (Cohort Enum + Plan Threading + Nested Routes)
 
 #### Automated
 
-- [ ] 3.1 `pnpm build` passes
-- [ ] 3.2 `pnpm test` passes
-- [ ] 3.3 `pnpm test:integration` passes with zero skipped tests
-- [ ] 3.4 `pnpm lint` and `pnpm steiger` pass
+- [x] 3.1 `pnpm build` passes
+- [x] 3.2 `pnpm test` passes
+- [x] 3.3 `pnpm test:integration` passes with zero skipped tests
+- [x] 3.4 `pnpm lint` and `pnpm steiger` pass
 
 #### Manual
 
-- [ ] 3.5 Walkthrough: hub lists both plans, catalog isolation between plans, board drag-drop persists, `?cohort=dp1` round-trips
-- [ ] 3.6 Old `/courses` bookmark redirects to `/plans`
-- [ ] 3.7 Drag-drop feels instant (<200ms budget intact)
+- [x] 3.5 Walkthrough: hub lists both plans, catalog isolation between plans, board drag-drop persists, `?cohort=dp1` round-trips
+- [x] 3.6 Old `/courses` bookmark redirects to `/plans`
+- [x] 3.7 Drag-drop feels instant (<200ms budget intact)
 
 ### Phase 4: Plans Hub (Create / Clone / Rename / Delete)
 

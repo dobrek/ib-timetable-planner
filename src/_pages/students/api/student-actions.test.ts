@@ -58,9 +58,14 @@ const fakeSupabase = (responses: Record<string, QueryResult>) => {
   return { client, used };
 };
 
-const course = (id: string, cohortId = "cohort-1") => ({ id, cohort_id: cohortId });
+const course = (id: string, cohort: "dp1" | "dp2" = "dp1") => ({ id, cohort });
 
-const createInput = { fullName: "Ada Lovelace", cohortId: "cohort-1", choiceCourseIds: ["a", "b"] };
+const createInput = {
+  planId: "plan-1",
+  fullName: "Ada Lovelace",
+  cohort: "dp1" as const,
+  choiceCourseIds: ["a", "b"],
+};
 const updateInput = { ...createInput, id: "student-1" };
 
 describe("createStudent", () => {
@@ -89,7 +94,7 @@ describe("createStudent", () => {
 
   it("rejects with BAD_REQUEST before any write when a choice is cross-cohort", async () => {
     const { client, used } = fakeSupabase({
-      "courses:select": { data: [course("a"), course("b", "cohort-2")], error: null },
+      "courses:select": { data: [course("a"), course("b", "dp2")], error: null },
     });
 
     await expect(createStudent(client, createInput)).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -149,7 +154,7 @@ describe("updateStudent", () => {
 
   it("rejects with BAD_REQUEST before any write when a choice is cross-cohort", async () => {
     const { client, used } = fakeSupabase({
-      "courses:select": { data: [course("a"), course("b", "cohort-2")], error: null },
+      "courses:select": { data: [course("a"), course("b", "dp2")], error: null },
     });
 
     await expect(updateStudent(client, updateInput)).rejects.toMatchObject({ code: "BAD_REQUEST" });

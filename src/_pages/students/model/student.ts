@@ -1,7 +1,9 @@
+import type { Cohort } from "@/shared/config";
+
 /**
- * View-models assembled server-side in `students.astro` and handed to the catalog island.
- * Projections of the generated DB rows — identity stays as opaque ids, display labels
- * resolved at the edge (in the loader), never the raw `Database` row shape.
+ * View-models assembled server-side in `plans/[id]/students.astro` and handed to the
+ * catalog island. Projections of the generated DB rows — identity stays as opaque ids,
+ * display labels resolved at the edge (in the loader), never the raw `Database` row shape.
  */
 
 /**
@@ -10,7 +12,7 @@
  */
 export type StudentRow = {
   id: string;
-  cohortId: string;
+  cohort: Cohort;
   fullName: string;
   choiceCourseIds: string[];
 };
@@ -22,7 +24,7 @@ export type StudentRow = {
  */
 export type CourseOption = {
   id: string;
-  cohortId: string;
+  cohort: Cohort;
   label: string;
   isMergeParent: boolean;
 };

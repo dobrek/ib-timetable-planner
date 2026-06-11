@@ -1,17 +1,25 @@
-import { Home, BookOpen, GraduationCap, Users, CalendarDays, type LucideIcon } from "lucide-react";
+import { Home, BookOpen, GraduationCap, Users, CalendarDays, LayoutGrid, type LucideIcon } from "lucide-react";
 
-/** One top-level navigation section. The shell and any future consumer share this list. */
+/** One navigation item. The shell and any future consumer share these lists. */
 export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
 };
 
-/** The app's top-level sections, in nav order. Single source of truth for the route convention. */
-export const NAV_ITEMS: readonly NavItem[] = [
+/**
+ * Global navigation: the app's only top-level sections. The catalog moved inside
+ * plans — its routes are plan-scoped (see {@link planNavItems}).
+ */
+export const GLOBAL_NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/courses", label: "Courses", icon: BookOpen },
-  { href: "/teachers", label: "Teachers", icon: GraduationCap },
-  { href: "/students", label: "Students", icon: Users },
   { href: "/plans", label: "Plans", icon: CalendarDays },
 ] as const;
+
+/** Scenario-local navigation rendered when the user is inside a plan. */
+export const planNavItems = (planId: string): readonly NavItem[] => [
+  { href: `/plans/${planId}`, label: "Board", icon: LayoutGrid },
+  { href: `/plans/${planId}/courses`, label: "Courses", icon: BookOpen },
+  { href: `/plans/${planId}/teachers`, label: "Teachers", icon: GraduationCap },
+  { href: `/plans/${planId}/students`, label: "Students", icon: Users },
+];

@@ -1,0 +1,29 @@
+---
+import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
+import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
+import CourseCatalog from "@/_pages/courses/ui/CourseCatalog";
+import { createClient, loadPlanSummary } from "@/shared/api";
+import { loadCatalog } from "@/_pages/courses/api";
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+const plan = supabase ? await loadPlanSummary(supabase, Astro.params.id) : null;
+if (!supabase) Astro.response.status = 503;
+else if (!plan) Astro.response.status = 404;
+
+const result = plan ? await loadCatalog(supabase, plan.id) : null;
+const catalog = result?.ok ? result.value : null;
+---
+
+<AppShellLayout title={plan ? `${plan.name} — Courses` : "Courses"} plan={plan ?? undefined}>
+  {
+    !supabase ? (
+      <p class="text-muted-foreground text-sm">Courses are unavailable — Supabase is not configured.</p>
+    ) : !plan ? (
+      <PlanScopedError />
+    ) : catalog === null ? (
+      <p class="text-muted-foreground text-sm">Courses are unavailable — Supabase is not configured.</p>
+    ) : (
+      <CourseCatalog planId={plan.id} courses={catalog.courses} teachers={catalog.teachers} client:load />
+    )
+  }
+</AppShellLayout>

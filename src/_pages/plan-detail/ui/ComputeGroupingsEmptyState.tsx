@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
+import type { Cohort } from "@/shared/config";
 import { Button } from "@/shared/ui";
 import { computeGroupings } from "../api/grouping-client";
 
 type Props = {
   planId: string;
-  cohortId: string;
+  cohort: Cohort;
 };
 
 /**
@@ -14,8 +15,8 @@ type Props = {
  * board renders from the freshly-persisted rows (single render path). Scoped strictly
  * to the empty state — re-compute and staleness UI are S-06.
  */
-export default function ComputeGroupingsEmptyState({ planId, cohortId }: Props) {
-  const { loading, error, compute } = useComputeGroupings(planId, cohortId);
+export default function ComputeGroupingsEmptyState({ planId, cohort }: Props) {
+  const { loading, error, compute } = useComputeGroupings(planId, cohort);
 
   return (
     <div
@@ -39,7 +40,7 @@ export default function ComputeGroupingsEmptyState({ planId, cohortId }: Props) 
   );
 }
 
-function useComputeGroupings(planId: string, cohortId: string) {
+function useComputeGroupings(planId: string, cohort: Cohort) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +48,7 @@ function useComputeGroupings(planId: string, cohortId: string) {
     setLoading(true);
     setError(null);
     try {
-      const result = await computeGroupings({ planId, cohortId });
+      const result = await computeGroupings({ planId, cohort });
       if (result.error) throw new Error(result.error);
       location.reload();
     } catch (err) {

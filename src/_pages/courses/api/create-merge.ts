@@ -7,14 +7,16 @@ import { DUPLICATE_COURSE_MESSAGE } from "./constants";
 import { writeParentWithLinks } from "@/shared/lib/write-parent-with-links";
 
 /**
- * Authoritative create-merge gate. Loads the selected children, re-runs `deriveMergeParent`
- * server-side (never trusting the client), inserts the composite parent then its links, and
- * compensates by deleting the parent if the link insert fails (no orphan parent).
+ * Authoritative create-merge gate. Loads the selected children (pinned to the plan),
+ * re-runs `deriveMergeParent` server-side (never trusting the client), inserts the
+ * composite parent then its links, and compensates by deleting the parent if the link
+ * insert fails (no orphan parent).
  */
 export const createMerge = async (supabase: SupabaseClient, input: MergeInput) => {
   const { data: childRows, error: lookupError } = await supabase
     .from("courses")
-    .select("id, cohort_id, name, level, teacher_id")
+    .select("id, cohort, name, level, teacher_id")
+    .eq("plan_id", input.planId)
     .in("id", input.childCourseIds);
   if (lookupError) {
     throw new DomainError("INTERNAL_SERVER_ERROR", `Course lookup failed: ${lookupError.message}`);
@@ -28,7 +30,7 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
       id: c.id,
       name: c.name,
       level: c.level,
-      cohortId: c.cohort_id,
+      cohort: c.cohort,
       teacherId: c.teacher_id,
     })),
   );
@@ -36,7 +38,7 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
     throw new DomainError("BAD_REQUEST", mergeReasonMessage(derivation.reason));
   }
   // Reject a spoofed/stale client cohort so the parent can't land in the wrong cohort.
-  if (input.cohortId !== derivation.parent.cohortId) {
+  if (input.cohort !== derivation.parent.cohort) {
     throw new DomainError("BAD_REQUEST", "Selected courses are not in the requested cohort.");
   }
 
@@ -46,7 +48,8 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
         await supabase
           .from("courses")
           .insert({
-            cohort_id: derivation.parent.cohortId,
+            plan_id: input.planId,
+            cohort: derivation.parent.cohort,
             teacher_id: derivation.parent.teacherId,
             name: derivation.parent.name,
             level: derivation.parent.level,
@@ -58,9 +61,13 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
         { conflict: DUPLICATE_COURSE_MESSAGE, failure: "Failed to create merge" },
       ),
     insertLinks: async (parent) => {
-      const { error } = await supabase
-        .from("course_merges")
-        .insert(input.childCourseIds.map((child_course_id) => ({ parent_course_id: parent.id, child_course_id })));
+      const { error } = await supabase.from("course_merges").insert(
+        input.childCourseIds.map((child_course_id) => ({
+          plan_id: input.planId,
+          parent_course_id: parent.id,
+          child_course_id,
+        })),
+      );
       if (error) {
         throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to create merge: ${error.message}`);
       }

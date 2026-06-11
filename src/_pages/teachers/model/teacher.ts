@@ -1,13 +1,15 @@
+import type { Cohort } from "@/shared/config";
+
 /**
- * View-models assembled server-side in `teachers.astro` and handed to the catalog island.
- * Projections of the generated DB rows — identity stays as opaque ids, display labels
- * resolved at the edge, never the raw `Database` row shape.
+ * View-models assembled server-side in `plans/[id]/teachers.astro` and handed to the
+ * catalog island. Projections of the generated DB rows — identity stays as opaque ids,
+ * display labels resolved at the edge, never the raw `Database` row shape.
  */
 
 /** One course assignment for badge display and workload totals. */
 export type CourseAssignment = {
   id: string;
-  cohortId: string;
+  cohort: Cohort;
   name: string;
   level: string;
   groupIndex: number;

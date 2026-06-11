@@ -1,3 +1,4 @@
+import type { Cohort } from "@/shared/config";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 
@@ -9,11 +10,10 @@ export type DragData = CourseDrag | PlacementDrag;
 /** Drop payload carried on a cell droppable's `data`. */
 export type CellData = { day: number; period: number };
 
-/** Props assembled server-side in `plans/[id].astro` and handed to the island. */
+/** Props assembled server-side in `plans/[id]/index.astro` and handed to the island. */
 export type PlannerBoardProps = {
   planId: string;
-  variantId: string;
-  cohortId: string;
+  cohort: Cohort;
   days: number;
   periods: number;
   groupings: PlannerGrouping[];

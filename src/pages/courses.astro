@@ -1,23 +1,6 @@
 ---
-import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
-import CourseCatalog from "@/_pages/courses/ui/CourseCatalog";
-import { createClient } from "@/shared/api";
-import { loadCatalog } from "@/_pages/courses/api";
-
-const supabase = createClient(Astro.request.headers, Astro.cookies);
-const result = await loadCatalog(supabase);
-if (!result.ok) Astro.response.status = 503;
-const catalog = result.ok ? result.value : null;
+// The catalog is plan-scoped now (/plans/[id]/courses); old bookmarks land on the hub.
+// 302 via Astro.response (not a top-level `return Astro.redirect`) — see index.astro.
+Astro.response.status = 302;
+Astro.response.headers.set("Location", "/plans");
 ---
-
-<AppShellLayout title="Courses">
-  {
-    catalog === null ? (
-      <p class="text-muted-foreground text-sm">Courses are unavailable — Supabase is not configured.</p>
-    ) : catalog.cohorts.length === 0 ? (
-      <p class="text-muted-foreground text-sm">No cohorts yet — seed the database to manage courses.</p>
-    ) : (
-      <CourseCatalog cohorts={catalog.cohorts} courses={catalog.courses} teachers={catalog.teachers} client:load />
-    )
-  }
-</AppShellLayout>

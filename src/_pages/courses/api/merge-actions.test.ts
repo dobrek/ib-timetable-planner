@@ -60,13 +60,13 @@ const fakeSupabase = (responses: Record<string, QueryResult>) => {
 
 const child = (id: string, level: string) => ({
   id,
-  cohort_id: "cohort-1",
+  cohort: "dp1" as const,
   name: "German B",
   level,
   teacher_id: "teacher-1",
 });
 
-const validInput = { childCourseIds: ["a", "b"], hoursPerWeek: 3, cohortId: "cohort-1" };
+const validInput = { planId: "plan-1", childCourseIds: ["a", "b"], hoursPerWeek: 3, cohort: "dp1" as const };
 
 describe("createMerge", () => {
   it("inserts the composite parent and its links for valid children", async () => {
@@ -115,7 +115,7 @@ describe("createMerge", () => {
       "courses:select": { data: [child("a", "AB"), child("b", "SL")], error: null },
     });
 
-    await expect(createMerge(client, { ...validInput, cohortId: "cohort-2" })).rejects.toMatchObject({
+    await expect(createMerge(client, { ...validInput, cohort: "dp2" })).rejects.toMatchObject({
       code: "BAD_REQUEST",
     });
   });
@@ -128,7 +128,9 @@ describe("dissolveMerge", () => {
       "courses:delete": { data: null, error: null },
     });
 
-    await expect(dissolveMerge(client, { parentCourseId: "parent-1" })).resolves.toEqual({ ok: true });
+    await expect(dissolveMerge(client, { planId: "plan-1", parentCourseId: "parent-1" })).resolves.toEqual({
+      ok: true,
+    });
     expect(used).toContain("courses:delete");
   });
 
@@ -137,7 +139,9 @@ describe("dissolveMerge", () => {
       "course_merges:select": { data: [], error: null },
     });
 
-    await expect(dissolveMerge(client, { parentCourseId: "atomic-1" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(dissolveMerge(client, { planId: "plan-1", parentCourseId: "atomic-1" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
     expect(used).not.toContain("courses:delete");
   });
 });
@@ -149,7 +153,9 @@ describe("updateMergeHours", () => {
       "courses:update": { data: { id: "parent-1", hours_per_week: 5 }, error: null },
     });
 
-    await expect(updateMergeHours(client, { parentCourseId: "parent-1", hoursPerWeek: 5 })).resolves.toEqual({
+    await expect(
+      updateMergeHours(client, { planId: "plan-1", parentCourseId: "parent-1", hoursPerWeek: 5 }),
+    ).resolves.toEqual({
       id: "parent-1",
       hours_per_week: 5,
     });
@@ -160,7 +166,9 @@ describe("updateMergeHours", () => {
       "course_merges:select": { data: [], error: null },
     });
 
-    await expect(updateMergeHours(client, { parentCourseId: "atomic-1", hoursPerWeek: 5 })).rejects.toMatchObject({
+    await expect(
+      updateMergeHours(client, { planId: "plan-1", parentCourseId: "atomic-1", hoursPerWeek: 5 }),
+    ).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
     expect(used).not.toContain("courses:update");
@@ -172,7 +180,9 @@ describe("updateMergeHours", () => {
       "courses:update": { data: null, error: { code: "PGRST116", message: "0 rows" } },
     });
 
-    await expect(updateMergeHours(client, { parentCourseId: "parent-1", hoursPerWeek: 5 })).rejects.toMatchObject({
+    await expect(
+      updateMergeHours(client, { planId: "plan-1", parentCourseId: "parent-1", hoursPerWeek: 5 }),
+    ).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
   });

@@ -1,33 +1,32 @@
-import { toOrderedCohorts, type SupabaseClient } from "@/shared/api";
+import type { SupabaseClient } from "@/shared/api";
 import { groupBy } from "@/shared/lib/collections";
 import { assertNoQueryErrors, withSupabase, type LoaderResult } from "@/shared/lib/loaders";
-import type { CohortTab, CourseRow, TeacherOption } from "../model/course";
+import type { CourseRow, TeacherOption } from "../model/course";
 
 export type CatalogData = {
-  cohorts: CohortTab[];
   courses: CourseRow[];
   teachers: TeacherOption[];
 };
 
 export type CatalogResult = LoaderResult<CatalogData>;
 
-/** Load the courses catalog for the page island. Unavailable when the client is null. */
-export const loadCatalog = (supabase: SupabaseClient | null): Promise<CatalogResult> =>
-  withSupabase(supabase, fetchCatalog);
+/** Load one plan's courses catalog for the page island. Unavailable when the client is null. */
+export const loadCatalog = (supabase: SupabaseClient | null, planId: string): Promise<CatalogResult> =>
+  withSupabase(supabase, (client) => fetchCatalog(client, planId));
 
-const fetchCatalog = async (client: SupabaseClient): Promise<CatalogData> => {
-  const [cohortsRes, coursesRes, teachersRes, mergesRes, overlapsRes] = await Promise.all([
-    client.from("cohorts").select("id, name").order("name"),
+const fetchCatalog = async (client: SupabaseClient, planId: string): Promise<CatalogData> => {
+  const [coursesRes, teachersRes, mergesRes, overlapsRes] = await Promise.all([
     client
       .from("courses")
-      .select("id, cohort_id, name, level, group_index, hours_per_week, teacher_id")
+      .select("id, cohort, name, level, group_index, hours_per_week, teacher_id")
+      .eq("plan_id", planId)
       .order("name")
       .limit(500),
-    client.from("teachers").select("id, code, full_name").order("code").limit(500),
-    client.from("course_merges").select("parent_course_id, child_course_id").limit(500),
-    client.from("course_overlaps").select("base_course_id, dependent_course_id").limit(500),
+    client.from("teachers").select("id, code, full_name").eq("plan_id", planId).order("code").limit(500),
+    client.from("course_merges").select("parent_course_id, child_course_id").eq("plan_id", planId).limit(500),
+    client.from("course_overlaps").select("base_course_id, dependent_course_id").eq("plan_id", planId).limit(500),
   ]);
-  assertNoQueryErrors("Catalog", [cohortsRes, coursesRes, teachersRes, mergesRes, overlapsRes]);
+  assertNoQueryErrors("Catalog", [coursesRes, teachersRes, mergesRes, overlapsRes]);
 
   const teacherLabel = new Map((teachersRes.data ?? []).map((t) => [t.id, teacherDisplayLabel(t)] as const));
 
@@ -38,10 +37,9 @@ const fetchCatalog = async (client: SupabaseClient): Promise<CatalogData> => {
   const overlapsByDependent = groupBy(overlapsRes.data ?? [], (o) => o.dependent_course_id);
 
   return {
-    cohorts: toOrderedCohorts(cohortsRes.data ?? []),
     courses: (coursesRes.data ?? []).map((c) => ({
       id: c.id,
-      cohortId: c.cohort_id,
+      cohort: c.cohort,
       name: c.name,
       level: c.level,
       groupIndex: c.group_index,

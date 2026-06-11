@@ -13,6 +13,7 @@ import { deleteCourse } from "../api/course-client";
 import type { CourseRow } from "../model/course";
 
 type Props = {
+  planId: string;
   /** The course pending deletion, or null when closed. */
   course: CourseRow | null;
   onClose: () => void;
@@ -22,8 +23,8 @@ type Props = {
  * Confirms a destructive delete and names the FK cascade so the consequence is explicit.
  * Deleting a course removes everything that references it.
  */
-export default function DeleteCourseDialog({ course, onClose }: Props) {
-  const { confirm, isBusy } = useConfirmAction(() => deleteCourse({ id: course?.id ?? "" }), {
+export default function DeleteCourseDialog({ planId, course, onClose }: Props) {
+  const { confirm, isBusy } = useConfirmAction(() => deleteCourse({ planId, id: course?.id ?? "" }), {
     successMessage: "Course deleted",
     onDone: onClose,
   });

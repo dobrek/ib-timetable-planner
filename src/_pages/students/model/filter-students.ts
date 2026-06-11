@@ -1,3 +1,4 @@
+import type { Cohort } from "@/shared/config";
 import type { StudentRow } from "./student";
 
 /**
@@ -7,7 +8,7 @@ import type { StudentRow } from "./student";
  */
 export function filterStudents(
   students: readonly StudentRow[],
-  cohortId: string,
+  cohort: Cohort,
   query: string,
   selectedCourseIds: readonly string[] = [],
 ): StudentRow[] {
@@ -15,7 +16,7 @@ export function filterStudents(
   const selected = new Set(selectedCourseIds);
 
   return students.filter((student) => {
-    if (student.cohortId !== cohortId) return false;
+    if (student.cohort !== cohort) return false;
     if (normalizedQuery.length > 0 && !student.fullName.toLowerCase().includes(normalizedQuery)) return false;
     if (selected.size > 0 && !student.choiceCourseIds.some((id) => selected.has(id))) return false;
     return true;

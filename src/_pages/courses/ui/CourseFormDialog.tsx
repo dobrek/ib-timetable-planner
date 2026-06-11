@@ -24,20 +24,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui";
+import { COHORTS, type Cohort } from "@/shared/config";
 import { createCourse, updateCourse } from "../api/course-client";
 import { GROUP_OPTIONS } from "../lib/labels";
-import type { CohortTab, CourseRow, TeacherOption } from "../model/course";
+import type { CourseRow, TeacherOption } from "../model/course";
 import { courseInput, toGroupIndex, type CourseFormValues, type CourseInput } from "../model/schemas";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  cohorts: CohortTab[];
+  planId: string;
   teachers: TeacherOption[];
   /** The row to edit, or null to create. */
   course: CourseRow | null;
   /** Cohort prefilled in create mode (the active tab). */
-  defaultCohortId: string;
+  defaultCohort: Cohort;
 };
 
 /**
@@ -45,8 +46,8 @@ type Props = {
  * validation (RHF `zodResolver`, `mode: "onTouched"`) and the server action gate, so
  * field errors surface inline first and server `isInputError` mapping backs them up.
  */
-export default function CourseFormDialog({ open, onClose, cohorts, teachers, course, defaultCohortId }: Props) {
-  const { form, onSubmit } = useCourseForm(open, course, defaultCohortId, onClose);
+export default function CourseFormDialog({ open, onClose, planId, teachers, course, defaultCohort }: Props) {
+  const { form, onSubmit } = useCourseForm(open, planId, course, defaultCohort, onClose);
   const noTeachers = teachers.length === 0;
 
   return (
@@ -143,7 +144,7 @@ export default function CourseFormDialog({ open, onClose, cohorts, teachers, cou
 
               <FormField
                 control={form.control}
-                name="cohortId"
+                name="cohort"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cohort</FormLabel>
@@ -154,8 +155,8 @@ export default function CourseFormDialog({ open, onClose, cohorts, teachers, cou
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {cohorts.map((cohort) => (
-                          <SelectItem key={cohort.id} value={cohort.id}>
+                        {COHORTS.map((cohort) => (
+                          <SelectItem key={cohort.value} value={cohort.value}>
                             {cohort.label}
                           </SelectItem>
                         ))}
@@ -212,17 +213,23 @@ export default function CourseFormDialog({ open, onClose, cohorts, teachers, cou
   );
 }
 
-function useCourseForm(open: boolean, course: CourseRow | null, defaultCohortId: string, onClose: () => void) {
+function useCourseForm(
+  open: boolean,
+  planId: string,
+  course: CourseRow | null,
+  defaultCohort: Cohort,
+  onClose: () => void,
+) {
   const form = useForm<CourseFormValues, unknown, CourseInput>({
     resolver: zodResolver(courseInput),
     mode: "onTouched",
-    defaultValues: emptyCourseFormValues(defaultCohortId),
+    defaultValues: emptyCourseFormValues(planId, defaultCohort),
   });
 
   useEffect(() => {
     if (!open) return;
-    form.reset(course ? courseFormValues(course) : emptyCourseFormValues(defaultCohortId));
-  }, [open, course, defaultCohortId, form]);
+    form.reset(course ? courseFormValues(planId, course) : emptyCourseFormValues(planId, defaultCohort));
+  }, [open, planId, course, defaultCohort, form]);
 
   const onSubmit = (values: CourseInput) =>
     submitForm({
@@ -236,20 +243,22 @@ function useCourseForm(open: boolean, course: CourseRow | null, defaultCohortId:
   return { form, onSubmit };
 }
 
-const courseFormValues = (course: CourseRow): DefaultValues<CourseFormValues> => ({
+const courseFormValues = (planId: string, course: CourseRow): DefaultValues<CourseFormValues> => ({
+  planId,
   name: course.name,
   level: course.level,
   groupIndex: toGroupIndex(course.groupIndex),
   hoursPerWeek: course.hours,
   teacherId: course.teacherId ?? undefined,
-  cohortId: course.cohortId,
+  cohort: course.cohort,
 });
 
-const emptyCourseFormValues = (cohortId: string): DefaultValues<CourseFormValues> => ({
+const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<CourseFormValues> => ({
+  planId,
   name: "",
   level: "",
   groupIndex: 0,
   hoursPerWeek: undefined,
   teacherId: undefined,
-  cohortId,
+  cohort,
 });

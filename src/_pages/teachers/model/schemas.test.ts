@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { deleteTeacherInput, teacherInput, updateTeacherInput } from "./schemas";
 
 const UUID_A = "11111111-1111-4111-8111-111111111111";
+const PLAN_ID = "33333333-3333-4333-8333-333333333333";
 
 const validTeacher = {
+  planId: PLAN_ID,
   code: "AP",
   fullName: "Alice Parker",
 };
@@ -22,15 +24,23 @@ describe("teacherInput", () => {
   });
 
   it("accepts a teacher without fullName", () => {
-    expect(teacherInput.parse({ code: "AP" })).toEqual({ code: "AP", fullName: undefined });
+    expect(teacherInput.parse({ planId: PLAN_ID, code: "AP" })).toEqual({
+      planId: PLAN_ID,
+      code: "AP",
+      fullName: undefined,
+    });
   });
 
   it("normalizes empty/blank fullName to undefined", () => {
-    expect(teacherInput.parse({ code: "AP", fullName: "  " }).fullName).toBeUndefined();
+    expect(teacherInput.parse({ planId: PLAN_ID, code: "AP", fullName: "  " }).fullName).toBeUndefined();
   });
 
   it("trims fullName", () => {
-    expect(teacherInput.parse({ code: "AP", fullName: "  Jane  " }).fullName).toBe("Jane");
+    expect(teacherInput.parse({ planId: PLAN_ID, code: "AP", fullName: "  Jane  " }).fullName).toBe("Jane");
+  });
+
+  it("rejects a missing planId", () => {
+    expect(teacherInput.safeParse({ code: "AP" }).success).toBe(false);
   });
 });
 
@@ -45,11 +55,15 @@ describe("updateTeacherInput", () => {
 });
 
 describe("deleteTeacherInput", () => {
-  it("accepts a valid id", () => {
-    expect(deleteTeacherInput.safeParse({ id: UUID_A }).success).toBe(true);
+  it("accepts a valid plan + id pair", () => {
+    expect(deleteTeacherInput.safeParse({ planId: PLAN_ID, id: UUID_A }).success).toBe(true);
   });
 
   it("rejects a missing id", () => {
-    expect(deleteTeacherInput.safeParse({}).success).toBe(false);
+    expect(deleteTeacherInput.safeParse({ planId: PLAN_ID }).success).toBe(false);
+  });
+
+  it("rejects a missing planId", () => {
+    expect(deleteTeacherInput.safeParse({ id: UUID_A }).success).toBe(false);
   });
 });

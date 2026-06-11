@@ -1,4 +1,4 @@
-import type { CohortOption } from "@/shared/api";
+import { COHORTS, COHORT_VALUES, type Cohort } from "@/shared/config";
 import type { CourseOption } from "./student";
 
 /**
@@ -7,40 +7,38 @@ import type { CourseOption } from "./student";
  * Pure projections — `filterStudents` does the actual filtering.
  */
 export type StudentFilters = {
-  cohortId: string;
+  cohort: Cohort;
   query: string;
   courseIds: string[];
 };
 
 /**
- * Parse student filters from a URL query string, dropping unknown cohort ids and course ids
+ * Parse student filters from a URL query string, dropping unknown cohort values and course ids
  * outside the resolved cohort so a bookmarked or stale URL falls back to defaults instead of
- * erroring. Defaults: first cohort, empty query, no course filter.
+ * erroring. Defaults: first cohort, empty query, no course filter. `?cohort=dp1` carries the
+ * readable enum value.
  */
-export const readFilterParams = (
-  search: string,
-  cohorts: readonly CohortOption[],
-  courses: readonly CourseOption[],
-): StudentFilters => {
+export const readFilterParams = (search: string, courses: readonly CourseOption[]): StudentFilters => {
   const params = new URLSearchParams(search);
-  const knownCohorts = new Set(cohorts.map((cohort) => cohort.id));
 
   const requestedCohort = params.get("cohort");
-  const cohortId = requestedCohort && knownCohorts.has(requestedCohort) ? requestedCohort : (cohorts[0]?.id ?? "");
+  const cohort = (COHORT_VALUES as readonly string[]).includes(requestedCohort ?? "")
+    ? (requestedCohort as Cohort)
+    : COHORTS[0].value;
 
   // Scope to the resolved cohort: an other-cohort id would empty the visible tab while
   // rendering no removable chip in the course filter.
-  const cohortCourses = new Set(courses.filter((course) => course.cohortId === cohortId).map((course) => course.id));
+  const cohortCourses = new Set(courses.filter((course) => course.cohort === cohort).map((course) => course.id));
   const requestedCourses = (params.get("courses") ?? "").split(",").filter(Boolean);
   const courseIds = requestedCourses.filter((id) => cohortCourses.has(id));
 
-  return { cohortId, query: params.get("q") ?? "", courseIds };
+  return { cohort, query: params.get("q") ?? "", courseIds };
 };
 
 /** Serialize student filters to a URL query string, omitting defaults so clean state → clean URL. */
 export const toFilterSearch = (filters: StudentFilters): string => {
   const params = new URLSearchParams();
-  if (filters.cohortId) params.set("cohort", filters.cohortId);
+  params.set("cohort", filters.cohort);
   if (filters.query) params.set("q", filters.query);
   if (filters.courseIds.length > 0) params.set("courses", filters.courseIds.join(","));
   return params.toString();

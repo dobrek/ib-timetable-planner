@@ -1,7 +1,8 @@
 import { Combine, Plus } from "lucide-react";
 import { useState } from "react";
+import { COHORTS, type Cohort } from "@/shared/config";
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Toaster } from "@/shared/ui";
-import type { CohortTab, CourseRow, TeacherOption } from "../model/course";
+import type { CourseRow, TeacherOption } from "../model/course";
 import { filterCourses } from "../model/filter-courses";
 import { useCatalogDialogs } from "../model/use-catalog-dialogs";
 import { useCatalogFilters } from "../model/use-catalog-filters";
@@ -14,21 +15,21 @@ import MergeManageDialog from "./MergeManageDialog";
 import TeacherFilter from "./TeacherFilter";
 
 type Props = {
-  cohorts: CohortTab[];
+  planId: string;
   courses: CourseRow[];
   teachers: TeacherOption[];
 };
 
 /**
- * Catalog island: cross-cohort course list as Year 1 / Year 2 tabs with a teacher
- * multi-select filter, a hide-merged toggle, plus create/edit/delete and overlap
+ * Catalog island for one plan: cross-cohort course list as Year 1 / Year 2 tabs with a
+ * teacher multi-select filter, a hide-merged toggle, plus create/edit/delete and overlap
  * authoring via dialogs. Composite merge parents carry a "Merged" badge beside the name
  * but remain fully editable. Overlap edits update in-memory so the catalog stays live
  * without a page reload.
  */
-export default function CourseCatalog({ cohorts, courses: initialCourses, teachers }: Props) {
+export default function CourseCatalog({ planId, courses: initialCourses, teachers }: Props) {
   const [courses, setCourses] = useState(initialCourses);
-  const filters = useCatalogFilters(cohorts, teachers);
+  const filters = useCatalogFilters(teachers);
   const dialogs = useCatalogDialogs(courses, setCourses);
 
   return (
@@ -36,7 +37,7 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Courses</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage the cross-cohort course catalog.</p>
+          <p className="text-muted-foreground mt-1 text-sm">Manage the plan&apos;s cross-cohort course catalog.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="gap-2" onClick={dialogs.openMergeBuilder}>
@@ -68,19 +69,24 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
         </Button>
       </div>
 
-      <Tabs value={filters.activeCohortId} onValueChange={filters.setActiveCohortId}>
+      <Tabs
+        value={filters.activeCohort}
+        onValueChange={(value) => {
+          filters.setActiveCohort(value as Cohort);
+        }}
+      >
         <TabsList>
-          {cohorts.map((cohort) => (
-            <TabsTrigger key={cohort.id} value={cohort.id}>
+          {COHORTS.map((cohort) => (
+            <TabsTrigger key={cohort.value} value={cohort.value}>
               {cohort.label}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        {cohorts.map((cohort) => {
-          const rows = filterCourses(courses, cohort.id, filters.selectedTeacherIds, filters.hideMerged);
+        {COHORTS.map((cohort) => {
+          const rows = filterCourses(courses, cohort.value, filters.selectedTeacherIds, filters.hideMerged);
           return (
-            <TabsContent key={cohort.id} value={cohort.id}>
+            <TabsContent key={cohort.value} value={cohort.value}>
               <CourseTable
                 rows={rows}
                 coursesById={dialogs.coursesById}
@@ -97,13 +103,14 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
       <CourseFormDialog
         open={dialogs.formOpen}
         onClose={dialogs.closeForm}
-        cohorts={cohorts}
+        planId={planId}
         teachers={teachers}
         course={dialogs.formCourse}
-        defaultCohortId={filters.activeCohortId}
+        defaultCohort={filters.activeCohort}
       />
-      <DeleteCourseDialog course={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
+      <DeleteCourseDialog planId={planId} course={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
       <CourseOverlaps
+        planId={planId}
         course={dialogs.overlapCourse}
         courses={courses}
         coursesById={dialogs.coursesById}
@@ -113,12 +120,14 @@ export default function CourseCatalog({ cohorts, courses: initialCourses, teache
       <MergeBuilderDialog
         open={dialogs.mergeOpen}
         onClose={dialogs.closeMergeBuilder}
+        planId={planId}
         courses={courses}
         coursesById={dialogs.coursesById}
         teachers={teachers}
-        cohortId={filters.activeCohortId}
+        cohort={filters.activeCohort}
       />
       <MergeManageDialog
+        planId={planId}
         course={dialogs.mergeManageCourse}
         coursesById={dialogs.coursesById}
         onClose={dialogs.closeMergeManage}

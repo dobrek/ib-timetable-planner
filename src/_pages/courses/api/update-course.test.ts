@@ -17,11 +17,12 @@ const fakeSupabase = (result: QueryResult) => {
 
 const input = {
   id: "course-1",
+  planId: "plan-1",
   name: "Mathematics",
   level: "SL",
   groupIndex: 0 as const,
   hoursPerWeek: 4,
-  cohortId: "cohort-1",
+  cohort: "dp1" as const,
   teacherId: "teacher-1",
 };
 

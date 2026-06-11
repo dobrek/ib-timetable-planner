@@ -19,6 +19,7 @@ import {
   MultiSelect,
   NumberField,
 } from "@/shared/ui";
+import type { Cohort } from "@/shared/config";
 import { createMerge } from "../api/course-client";
 import { formatCourseLabel } from "../lib/labels";
 import type { CourseRow, TeacherOption } from "../model/course";
@@ -28,11 +29,12 @@ import { mergeInput, type MergeFormValues, type MergeInput } from "../model/sche
 type Props = {
   open: boolean;
   onClose: () => void;
+  planId: string;
   courses: CourseRow[];
   coursesById: Map<string, CourseRow>;
   teachers: TeacherOption[];
   /** The active cohort the merge is scoped to. */
-  cohortId: string;
+  cohort: Cohort;
 };
 
 /**
@@ -40,13 +42,14 @@ type Props = {
  * derived live and read-only via `deriveMergeParent` — the same pure module the server
  * re-checks — so the preview can never drift from what's stored.
  */
-export default function MergeBuilderDialog({ open, onClose, courses, coursesById, teachers, cohortId }: Props) {
+export default function MergeBuilderDialog({ open, onClose, planId, courses, coursesById, teachers, cohort }: Props) {
   const { form, onSubmit, candidates, selectedChildren, derivation, teacherLabelById } = useMergeBuilder(
     open,
+    planId,
     courses,
     coursesById,
     teachers,
-    cohortId,
+    cohort,
     onClose,
   );
 
@@ -143,26 +146,27 @@ export default function MergeBuilderDialog({ open, onClose, courses, coursesById
 
 function useMergeBuilder(
   open: boolean,
+  planId: string,
   courses: CourseRow[],
   coursesById: Map<string, CourseRow>,
   teachers: TeacherOption[],
-  cohortId: string,
+  cohort: Cohort,
   onClose: () => void,
 ) {
   const form = useForm<MergeFormValues, unknown, MergeInput>({
     resolver: zodResolver(mergeInput),
     mode: "onTouched",
-    defaultValues: { childCourseIds: [], hoursPerWeek: undefined, cohortId },
+    defaultValues: { planId, childCourseIds: [], hoursPerWeek: undefined, cohort },
   });
 
   useEffect(() => {
     if (!open) return;
-    form.reset({ childCourseIds: [], hoursPerWeek: undefined, cohortId });
-  }, [open, cohortId, form]);
+    form.reset({ planId, childCourseIds: [], hoursPerWeek: undefined, cohort });
+  }, [open, planId, cohort, form]);
 
   const candidates = useMemo(
-    () => courses.filter((course) => course.cohortId === cohortId && !course.isMerged),
-    [courses, cohortId],
+    () => courses.filter((course) => course.cohort === cohort && !course.isMerged),
+    [courses, cohort],
   );
   const teacherLabelById = useMemo(() => new Map(teachers.map((teacher) => [teacher.id, teacher.label])), [teachers]);
 
@@ -175,7 +179,7 @@ function useMergeBuilder(
       id: course.id,
       name: course.name,
       level: course.level,
-      cohortId: course.cohortId,
+      cohort: course.cohort,
       teacherId: course.teacherId,
     })),
   );

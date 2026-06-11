@@ -20,11 +20,11 @@ import { usePlacements } from "../model/use-placements";
  * remove a course is the chip's "×".
  */
 export default function PlannerBoard(props: PlannerBoardProps) {
-  const { planId, variantId, cohortId, days, periods, groupings, names, catalog } = props;
+  const { planId, cohort, days, periods, groupings, names, catalog } = props;
 
   const { placements, error, addCourse, movePlacement, removePlacement, clearError } = usePlacements(props.placements, {
-    variantId,
-    cohortId,
+    planId,
+    cohort,
   });
   const collisions = useCollisions(placements, catalog);
   const { hours, incompleteCount } = useHours(placements, catalog);
@@ -43,7 +43,7 @@ export default function PlannerBoard(props: PlannerBoardProps) {
   if (groupings.length === 0) {
     return (
       <div data-slot="planner-board" className="p-6">
-        <ComputeGroupingsEmptyState planId={planId} cohortId={cohortId} />
+        <ComputeGroupingsEmptyState planId={planId} cohort={cohort} />
       </div>
     );
   }

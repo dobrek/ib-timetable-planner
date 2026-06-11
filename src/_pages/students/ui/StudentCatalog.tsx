@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-import type { CohortOption } from "@/shared/api";
+import { COHORTS, type Cohort } from "@/shared/config";
 import { Button, Input, Tabs, TabsContent, TabsList, TabsTrigger, Toaster } from "@/shared/ui";
 import { filterStudents } from "../model/filter-students";
 import { useCatalogDialogs } from "../model/use-catalog-dialogs";
@@ -12,25 +12,24 @@ import StudentFormDialog from "./StudentFormDialog";
 import StudentTable from "./StudentTable";
 
 type Props = {
+  planId: string;
   students: StudentRow[];
-  /** Ordered cohorts ("Year 1" first); rendered as tabs. */
-  cohorts: CohortOption[];
   courses: CourseOption[];
 };
 
 /**
- * Students catalog island: students partitioned by cohort tabs with their course choices
- * as badge chips, a name search, and create/edit/delete via dialogs. The active tab seeds
- * the create form's default cohort.
+ * Students catalog island for one plan: students partitioned by cohort tabs with their
+ * course choices as badge chips, a name search, and create/edit/delete via dialogs. The
+ * active tab seeds the create form's default cohort.
  */
-export default function StudentCatalog({ students, cohorts, courses }: Props) {
-  const filters = useCatalogFilters(cohorts, courses);
+export default function StudentCatalog({ planId, students, courses }: Props) {
+  const filters = useCatalogFilters(courses);
   const dialogs = useCatalogDialogs();
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
   // The course filter offers only the active cohort's real (non-merge-parent) courses.
   const filterCourses = useMemo(
-    () => courses.filter((course) => course.cohortId === filters.activeCohortId && !course.isMergeParent),
-    [courses, filters.activeCohortId],
+    () => courses.filter((course) => course.cohort === filters.activeCohort && !course.isMergeParent),
+    [courses, filters.activeCohort],
   );
 
   return (
@@ -64,20 +63,25 @@ export default function StudentCatalog({ students, cohorts, courses }: Props) {
         />
       </div>
 
-      <Tabs value={filters.activeCohortId} onValueChange={filters.setActiveCohortId}>
+      <Tabs
+        value={filters.activeCohort}
+        onValueChange={(value) => {
+          filters.setActiveCohort(value as Cohort);
+        }}
+      >
         <TabsList>
-          {cohorts.map((cohort) => (
-            <TabsTrigger key={cohort.id} value={cohort.id}>
+          {COHORTS.map((cohort) => (
+            <TabsTrigger key={cohort.value} value={cohort.value}>
               {cohort.label}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        {cohorts.map((cohort) => {
-          const rows = filterStudents(students, cohort.id, filters.query, filters.selectedCourseIds);
-          const cohortTotal = students.filter((student) => student.cohortId === cohort.id).length;
+        {COHORTS.map((cohort) => {
+          const rows = filterStudents(students, cohort.value, filters.query, filters.selectedCourseIds);
+          const cohortTotal = students.filter((student) => student.cohort === cohort.value).length;
           return (
-            <TabsContent key={cohort.id} value={cohort.id}>
+            <TabsContent key={cohort.value} value={cohort.value}>
               <StudentTable
                 rows={rows}
                 totalCount={cohortTotal}
@@ -94,12 +98,12 @@ export default function StudentCatalog({ students, cohorts, courses }: Props) {
       <StudentFormDialog
         open={dialogs.formOpen}
         onClose={dialogs.closeForm}
+        planId={planId}
         student={dialogs.formStudent}
-        cohorts={cohorts}
         courses={courses}
-        defaultCohortId={filters.activeCohortId}
+        defaultCohort={filters.activeCohort}
       />
-      <DeleteStudentDialog student={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
+      <DeleteStudentDialog planId={planId} student={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
       <Toaster />
     </div>
   );

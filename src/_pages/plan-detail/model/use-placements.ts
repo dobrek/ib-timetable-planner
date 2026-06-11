@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { Cohort } from "@/shared/config";
 import { createPlacement, deletePlacement } from "../api/placement-client";
 import type { CellData } from "./drag";
 import {
@@ -16,7 +17,7 @@ import {
 } from "./placement-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement";
 
-type UsePlacementsArgs = { variantId: string; cohortId: string };
+type UsePlacementsArgs = { planId: string; cohort: Cohort };
 
 type UsePlacements = {
   placements: LocalPlacement[];
@@ -32,7 +33,7 @@ type UsePlacements = {
  * transitions live in `placement-transitions.ts`; this hook orchestrates React state
  * and async persistence over those pure functions.
  */
-export function usePlacements(initial: PlannerPlacement[], { variantId, cohortId }: UsePlacementsArgs): UsePlacements {
+export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: UsePlacementsArgs): UsePlacements {
   const [placements, setPlacements] = useState<LocalPlacement[]>(initial);
   const [error, setError] = useState<string | null>(null);
   const placementsRef = useLatest(placements);
@@ -56,7 +57,7 @@ export function usePlacements(initial: PlannerPlacement[], { variantId, cohortId
     setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell));
 
     try {
-      const row = await createPlacement({ variantId, cohortId, courseId, day: cell.day, period: cell.period });
+      const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period });
       setPlacements((prev) => addReconcile(prev, tempId, row));
     } catch (err: unknown) {
       setPlacements((prev) => addRollback(prev, tempId));
@@ -73,8 +74,8 @@ export function usePlacements(initial: PlannerPlacement[], { variantId, cohortId
 
     try {
       const created = await createPlacement({
-        variantId,
-        cohortId,
+        planId,
+        cohort,
         courseId: intent.courseId,
         day: cell.day,
         period: cell.period,

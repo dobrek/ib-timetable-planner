@@ -13,6 +13,7 @@ import { deleteTeacher } from "../api/teacher-client";
 import type { TeacherRow } from "../model/teacher";
 
 type Props = {
+  planId: string;
   /** The teacher pending deletion, or null when closed. */
   teacher: TeacherRow | null;
   onClose: () => void;
@@ -21,8 +22,8 @@ type Props = {
 /**
  * Confirms a destructive delete and names the assignment cascade impact.
  */
-export default function DeleteTeacherDialog({ teacher, onClose }: Props) {
-  const { confirm, isBusy } = useConfirmAction(() => deleteTeacher({ id: teacher?.id ?? "" }), {
+export default function DeleteTeacherDialog({ planId, teacher, onClose }: Props) {
+  const { confirm, isBusy } = useConfirmAction(() => deleteTeacher({ planId, id: teacher?.id ?? "" }), {
     successMessage: "Teacher deleted",
     onDone: onClose,
   });

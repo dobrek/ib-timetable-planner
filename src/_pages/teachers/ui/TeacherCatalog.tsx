@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { COHORTS } from "@/shared/config";
 import { Button, Input, Toaster } from "@/shared/ui";
 import { filterTeachers, type YearFilter } from "../model/filter-teachers";
 import { useCatalogDialogs } from "../model/use-catalog-dialogs";
@@ -9,23 +10,23 @@ import TeacherFormDialog from "./TeacherFormDialog";
 import TeacherTable from "./TeacherTable";
 
 type Props = {
+  planId: string;
   teachers: TeacherRow[];
-  /** Ordered cohorts ("Year 1" first); the year filter and table columns are positional. */
-  cohorts: readonly { id: string; label: string }[];
 };
 
 /**
- * Teacher catalog island: flat table with Y1/Y2 assignment columns, text+year filters,
- * and create/edit/delete via dialogs. Assignments are read-only (authored on /courses).
+ * Teacher catalog island for one plan: flat table with Y1/Y2 assignment columns,
+ * text+year filters, and create/edit/delete via dialogs. Assignments are read-only
+ * (authored on the plan's courses page).
  */
-export default function TeacherCatalog({ teachers, cohorts }: Props) {
+export default function TeacherCatalog({ planId, teachers }: Props) {
   const filters = useCatalogFilters();
   const dialogs = useCatalogDialogs();
-  const rows = filterTeachers(teachers, filters.query, filters.year, cohorts);
+  const rows = filterTeachers(teachers, filters.query, filters.year);
 
   const yearOptions: { value: YearFilter; label: string }[] = [
     { value: "all", label: "All years" },
-    ...cohorts.slice(0, 2).map((cohort, index): { value: YearFilter; label: string } => ({
+    ...COHORTS.map((cohort, index): { value: YearFilter; label: string } => ({
       value: index === 0 ? "y1" : "y2",
       label: cohort.label,
     })),
@@ -75,15 +76,19 @@ export default function TeacherCatalog({ teachers, cohorts }: Props) {
       <TeacherTable
         rows={rows}
         totalCount={teachers.length}
-        cohorts={cohorts}
         yearFilter={filters.year}
         onEdit={dialogs.openEdit}
         onDelete={dialogs.openDelete}
         onCreateFirst={dialogs.openCreate}
       />
 
-      <TeacherFormDialog open={dialogs.formOpen} onClose={dialogs.closeForm} teacher={dialogs.formTeacher} />
-      <DeleteTeacherDialog teacher={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
+      <TeacherFormDialog
+        open={dialogs.formOpen}
+        onClose={dialogs.closeForm}
+        planId={planId}
+        teacher={dialogs.formTeacher}
+      />
+      <DeleteTeacherDialog planId={planId} teacher={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
       <Toaster />
     </div>
   );

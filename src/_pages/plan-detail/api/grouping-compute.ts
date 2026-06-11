@@ -2,15 +2,16 @@ import { z } from "zod";
 import { computeGroupings } from "../model/compute-groupings";
 import { EnumerationCapError } from "../model/enumerate";
 import type { SupabaseClient } from "@/shared/api";
+import { cohortSchema } from "@/shared/config";
+import { computeCatalogHash, loadCohortCourses } from "@/shared/lib/catalog-hash";
 import { DomainError } from "@/shared/lib/errors";
-import { computeCatalogHash, persistGroupings } from "./persist";
-import { loadCohortCourses } from "./load-cohort-catalog";
+import { persistGroupings } from "./persist";
 
 type Supabase = SupabaseClient;
 
 export const computeGroupingsInput = z.object({
   planId: z.uuid(),
-  cohortId: z.uuid(),
+  cohort: cohortSchema,
 });
 
 export type ComputeGroupingsInput = z.infer<typeof computeGroupingsInput>;
@@ -18,31 +19,22 @@ export type ComputeGroupingsInput = z.infer<typeof computeGroupingsInput>;
 export type ComputeGroupingsResult = Awaited<ReturnType<typeof computeAndPersistGroupings>>;
 
 /**
- * One-shot compute: load the cohort catalog → enumerate groupings → hash the catalog
- * → persist (atomic replace) → return the ranked list. Runs in handler scope, never at
- * module load (workerd may freeze Math.random globally).
+ * One-shot compute: load the plan-cohort catalog → enumerate groupings → hash the
+ * catalog → persist (atomic replace) → return the ranked list. Runs in handler scope,
+ * never at module load (workerd may freeze Math.random globally).
  */
 export const computeAndPersistGroupings = async (supabase: Supabase, input: ComputeGroupingsInput) => {
-  const { planId, cohortId } = input;
+  const { planId, cohort } = input;
 
-  const [planResult, cohortResult] = await Promise.all([
-    supabase.from("plans").select("id").eq("id", planId).maybeSingle(),
-    supabase.from("cohorts").select("id").eq("id", cohortId).maybeSingle(),
-  ]);
-  if (planResult.error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Plan lookup failed: ${planResult.error.message}`);
+  const { data: plan, error: planError } = await supabase.from("plans").select("id").eq("id", planId).maybeSingle();
+  if (planError) {
+    throw new DomainError("INTERNAL_SERVER_ERROR", `Plan lookup failed: ${planError.message}`);
   }
-  if (cohortResult.error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Cohort lookup failed: ${cohortResult.error.message}`);
-  }
-  if (!planResult.data) {
+  if (!plan) {
     throw new DomainError("NOT_FOUND", `Plan ${planId} not found`);
   }
-  if (!cohortResult.data) {
-    throw new DomainError("NOT_FOUND", `Cohort ${cohortId} not found`);
-  }
 
-  const { courses, names, warnings } = await loadCohortCourses(supabase, cohortId);
+  const { courses, names, warnings } = await loadCohortCourses(supabase, planId, cohort);
 
   let results;
   try {
@@ -55,7 +47,7 @@ export const computeAndPersistGroupings = async (supabase: Supabase, input: Comp
   }
 
   const catalogHash = await computeCatalogHash(courses);
-  await persistGroupings(supabase, { planId, cohortId, catalogHash, results });
+  await persistGroupings(supabase, { planId, cohort, catalogHash, results });
 
   return { groupings: results, names, catalogHash, warnings };
 };

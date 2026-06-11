@@ -1,18 +1,12 @@
 import type { SupabaseClient } from "@/shared/api";
+import type { Cohort } from "@/shared/config/cohorts";
 import { unique } from "@/shared/lib/collections";
-import type { ComputeWarning, GroupingCourse } from "../model/grouping";
+import type { CohortCatalog, ComputeWarning, GroupingCourse } from "./types";
 
 type Supabase = SupabaseClient;
 
-export type CohortCatalog = {
-  courses: GroupingCourse[];
-  /** course.id → reconstructed composite name (the fixture's natural key) for display + cross-check. */
-  names: Map<string, string>;
-  warnings: ComputeWarning[];
-};
-
 /**
- * Loads a cohort's catalog from Supabase and assembles the same `GroupingCourse[]`
+ * Loads one plan-cohort's catalog from Supabase and assembles the same `GroupingCourse[]`
  * projection the fixture adapter emits — keyed by `course.id` / `student.id` rather
  * than composite name tokens. Mirrors the legacy `subjects.ts` assembly:
  *   - regular courses (those with direct student choices) take their own choices
@@ -20,8 +14,8 @@ export type CohortCatalog = {
  *     students, per the `course_overlaps` schema comment);
  *   - virtual merge-parent courses take the union of their children's choices.
  */
-export const loadCohortCourses = async (supabase: Supabase, cohortId: string): Promise<CohortCatalog> => {
-  const courseRows = await fetchCourses(supabase, cohortId);
+export const loadCohortCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CohortCatalog> => {
+  const courseRows = await fetchCourses(supabase, planId, cohort);
   const courseIds = courseRows.map((course) => course.id);
   const [choiceRows, overlapRows, mergeRows] = await Promise.all([
     fetchChoices(supabase, courseIds),
@@ -72,13 +66,14 @@ type CourseRow = {
   teacher_id: string | null;
 };
 
-const fetchCourses = async (supabase: Supabase, cohortId: string): Promise<CourseRow[]> => {
+const fetchCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CourseRow[]> => {
   const { data, error } = await supabase
     .from("courses")
     .select("id, name, level, group_index, hours_per_week, teacher_id")
-    .eq("cohort_id", cohortId)
+    .eq("plan_id", planId)
+    .eq("cohort", cohort)
     .order("id");
-  if (error) throw new Error(`Failed to load courses for cohort ${cohortId}: ${error.message}`);
+  if (error) throw new Error(`Failed to load courses for plan ${planId} cohort ${cohort}: ${error.message}`);
   return data;
 };
 

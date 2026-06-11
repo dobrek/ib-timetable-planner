@@ -3,13 +3,15 @@ import { courseInput, overlapInput, updateCourseInput } from "./schemas";
 
 const UUID_A = "11111111-1111-4111-8111-111111111111";
 const UUID_B = "22222222-2222-4222-8222-222222222222";
+const PLAN_ID = "33333333-3333-4333-8333-333333333333";
 
 const validCourse = {
+  planId: PLAN_ID,
   name: "Mathematics",
   level: "HL" as const,
   groupIndex: 1 as const,
   hoursPerWeek: 4,
-  cohortId: UUID_A,
+  cohort: "dp1" as const,
   teacherId: UUID_B,
 };
 
@@ -67,8 +69,17 @@ describe("courseInput", () => {
     expect(courseInput.safeParse({ ...validCourse, teacherId: "" }).success).toBe(false);
   });
 
-  it("rejects a non-uuid cohortId", () => {
-    expect(courseInput.safeParse({ ...validCourse, cohortId: "not-a-uuid" }).success).toBe(false);
+  it("rejects an unknown cohort value", () => {
+    expect(courseInput.safeParse({ ...validCourse, cohort: "dp3" }).success).toBe(false);
+  });
+
+  it("rejects a missing planId", () => {
+    const { planId: _omit, ...withoutPlan } = validCourse;
+    expect(courseInput.safeParse(withoutPlan).success).toBe(false);
+  });
+
+  it("rejects a non-uuid planId", () => {
+    expect(courseInput.safeParse({ ...validCourse, planId: "not-a-uuid" }).success).toBe(false);
   });
 });
 
@@ -84,14 +95,24 @@ describe("updateCourseInput", () => {
 
 describe("overlapInput", () => {
   it("accepts a valid directed pair", () => {
-    expect(overlapInput.safeParse({ baseCourseId: UUID_A, dependentCourseId: UUID_B }).success).toBe(true);
+    expect(overlapInput.safeParse({ planId: PLAN_ID, baseCourseId: UUID_A, dependentCourseId: UUID_B }).success).toBe(
+      true,
+    );
   });
 
   it("rejects equal base and dependent (self-link)", () => {
-    expect(overlapInput.safeParse({ baseCourseId: UUID_A, dependentCourseId: UUID_A }).success).toBe(false);
+    expect(overlapInput.safeParse({ planId: PLAN_ID, baseCourseId: UUID_A, dependentCourseId: UUID_A }).success).toBe(
+      false,
+    );
   });
 
   it("rejects a non-uuid course id", () => {
-    expect(overlapInput.safeParse({ baseCourseId: "x", dependentCourseId: UUID_B }).success).toBe(false);
+    expect(overlapInput.safeParse({ planId: PLAN_ID, baseCourseId: "x", dependentCourseId: UUID_B }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects a missing planId", () => {
+    expect(overlapInput.safeParse({ baseCourseId: UUID_A, dependentCourseId: UUID_B }).success).toBe(false);
   });
 });

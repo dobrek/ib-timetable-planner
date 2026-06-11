@@ -7,21 +7,23 @@
  * Pure — no DB, no React.
  */
 
+import type { Cohort } from "@/shared/config";
+
 /** Minimal child projection the derivation needs. A projection of `CourseRow`. */
 export type MergeChildInput = {
   id: string;
   name: string;
   level: string;
-  cohortId: string;
+  cohort: Cohort;
   teacherId: string | null;
 };
 
-/** The derived composite-parent spec. `cohortId`/`teacherId` are validated across children. */
+/** The derived composite-parent spec. `cohort`/`teacherId` are validated across children. */
 export type MergeParentSpec = {
   name: string;
   level: string;
   teacherId: string;
-  cohortId: string;
+  cohort: Cohort;
 };
 
 /** Why a candidate merge is invalid — an opaque token; map to display via `mergeReasonMessage`. */
@@ -46,8 +48,8 @@ export type MergeDerivation = { ok: true; parent: MergeParentSpec } | { ok: fals
 export const deriveMergeParent = (children: MergeChildInput[]): MergeDerivation => {
   if (children.length < 2) return { ok: false, reason: "too-few-children" };
 
-  const cohortId = children[0].cohortId;
-  if (children.some((child) => child.cohortId !== cohortId)) return { ok: false, reason: "mixed-cohorts" };
+  const cohort = children[0].cohort;
+  if (children.some((child) => child.cohort !== cohort)) return { ok: false, reason: "mixed-cohorts" };
 
   const name = children[0].name;
   if (children.some((child) => child.name !== name)) return { ok: false, reason: "mismatched-name" };
@@ -61,7 +63,7 @@ export const deriveMergeParent = (children: MergeChildInput[]): MergeDerivation 
   if (new Set(levels).size !== levels.length) return { ok: false, reason: "duplicate-levels" };
 
   // teacherId is narrowed to a non-null string by the missing-teacher guard above.
-  return { ok: true, parent: { name, level: compositeLevel(levels), teacherId, cohortId } };
+  return { ok: true, parent: { name, level: compositeLevel(levels), teacherId, cohort } };
 };
 
 /** Human-readable rendering of a failure reason, for inline form errors and action messages. */

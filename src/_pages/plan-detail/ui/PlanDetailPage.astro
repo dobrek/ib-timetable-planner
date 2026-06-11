@@ -9,6 +9,14 @@ type Props = {
 };
 
 const { planName, boardProps } = Astro.props;
+
+// Scenario-local sub-nav: the board is the full-screen page, so it carries its own
+// links into the plan's catalog pages instead of the sidebar layout.
+const planLinks = [
+  { href: `/plans/${boardProps.planId}/courses`, label: "Courses" },
+  { href: `/plans/${boardProps.planId}/teachers`, label: "Teachers" },
+  { href: `/plans/${boardProps.planId}/students`, label: "Students" },
+];
 ---
 
 <main class="flex h-screen flex-col">
@@ -23,6 +31,19 @@ const { planName, boardProps } = Astro.props;
     </a>
     <span class="text-muted-foreground/50" aria-hidden="true">/</span>
     <h1 class="text-lg font-semibold">{planName}</h1>
+
+    <nav class="ml-auto flex items-center gap-1" aria-label="Plan sections">
+      {
+        planLinks.map((link) => (
+          <a
+            href={link.href}
+            class="text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </nav>
   </header>
   <PlannerBoard {...boardProps} client:load />
 </main>

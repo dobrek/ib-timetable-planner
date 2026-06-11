@@ -9,9 +9,15 @@ import type { Database } from "@/shared/api";
 // Coverage (plan.md Phase 2 #5): deep-copy completeness (row counts per table),
 // UUID remap (no cloned row references a source-plan row), cross-plan isolation
 // under mutation, per-plan teachers.code uniqueness, and repeated cloning.
+//
+// Other integration suites mutate "Seed Plan A" (the endpoint test persists
+// groupings) while files run in parallel, so this suite first snapshots the seed
+// plan with one atomic clone_plan call and uses that frozen base as its source.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const PLAN_NAME = "Seed Plan A";
+
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
 const PLAN_TABLES = [
@@ -28,15 +34,18 @@ const PLAN_TABLES = [
 
 (hasEnv ? describe : describe.skip)("clone_plan RPC (local Supabase)", () => {
   let supabase: SupabaseClient<Database>;
-  let sourcePlanId: string | null = null;
+  let sourcePlanId: string;
   const createdPlanIds: string[] = [];
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
 
-    const { data: plan } = await supabase.from("plans").select("id").eq("name", "Seed Plan A").limit(1).maybeSingle();
-    sourcePlanId = plan?.id ?? null;
+    const { data: seedPlan, error } = await supabase.from("plans").select("id").eq("name", PLAN_NAME).limit(1).single();
+    if (error) throw new Error(`Seed plan "${PLAN_NAME}" not found — re-run supabase db reset: ${error.message}`);
+
+    // Atomic snapshot of the seed plan: the frozen source for every test below.
+    sourcePlanId = await clonePlan(seedPlan.id, "Clone Test Base");
   });
 
   afterAll(async () => {
@@ -66,12 +75,7 @@ const PLAN_TABLES = [
     return new Set(data.map((r) => r.id));
   };
 
-  it("deep-copies a plan: per-table row counts match and every row is remapped", async (ctx) => {
-    if (!sourcePlanId) {
-      ctx.skip();
-      return;
-    }
-
+  it("deep-copies a plan: per-table row counts match and every row is remapped", async () => {
     const cloneId = await clonePlan(sourcePlanId, "Clone Test 1");
     expect(cloneId).not.toBe(sourcePlanId);
 
@@ -106,12 +110,7 @@ const PLAN_TABLES = [
     expect(await codes(cloneId)).toEqual(await codes(sourcePlanId));
   });
 
-  it("isolates the clone: mutating its catalog leaves the source untouched", async (ctx) => {
-    if (!sourcePlanId) {
-      ctx.skip();
-      return;
-    }
-
+  it("isolates the clone: mutating its catalog leaves the source untouched", async () => {
     const cloneId = await clonePlan(sourcePlanId, "Clone Test 2");
     const sourceStudentCount = await countRows("students", sourcePlanId);
     const sourceChoiceCount = await countRows("student_choices", sourcePlanId);
@@ -148,14 +147,11 @@ const PLAN_TABLES = [
     expect(mutatedInSource ?? 0).toBe(0);
   });
 
-  it("clones placements and groupings with members remapped to the clone's courses", async (ctx) => {
-    if (!sourcePlanId) {
-      ctx.skip();
-      return;
-    }
-
-    // Stage a warm plan without touching the seed: clone first, then add a
-    // placement and a grouping to the intermediate clone, then clone that.
+  it("clones placements and groupings with members remapped to the clone's courses", async () => {
+    // Stage a warm plan without touching the base: clone first, then pin its dp1
+    // groupings to exactly one (replace_cohort_groupings deletes the rest) and add
+    // a placement, then clone that. Assertions scope to dp1, since the base may
+    // carry dp2 groupings from the snapshot.
     const warmId = await clonePlan(sourcePlanId, "Clone Test 3 (warm)");
     const { data: warmCourses } = await supabase
       .from("courses")
@@ -176,42 +172,42 @@ const PLAN_TABLES = [
     if (rpcError) throw rpcError;
 
     const finalId = await clonePlan(warmId, "Clone Test 3 (final)");
-    expect(await countRows("placements", finalId)).toBe(1);
-    expect(await countRows("course_groupings", finalId)).toBe(1);
-    expect(await countRows("course_grouping_members", finalId)).toBe(2);
-
     const finalCourseIds = await idsOf("courses", finalId);
-    const { data: placement } = await supabase
+
+    const { data: finalPlacements } = await supabase
       .from("placements")
-      .select("course_id, cohort, day, period")
+      .select("course_id, day, period")
       .eq("plan_id", finalId)
-      .single();
-    expect(placement?.cohort).toBe("dp1");
+      .eq("cohort", "dp1");
+    expect(finalPlacements).toHaveLength(1);
+    const placement = finalPlacements?.[0];
     expect(placement && finalCourseIds.has(placement.course_id)).toBe(true);
     expect(placement?.course_id === courseA).toBe(false);
 
-    const { data: members } = await supabase.from("course_grouping_members").select("course_id").eq("plan_id", finalId);
+    const { data: finalGroupings } = await supabase
+      .from("course_groupings")
+      .select("id, catalog_hash")
+      .eq("plan_id", finalId)
+      .eq("cohort", "dp1");
+    expect(finalGroupings).toHaveLength(1);
+    const grouping = finalGroupings?.[0];
+    if (!grouping) throw new Error("final clone has no dp1 grouping");
+    // catalog_hash is copied as-is (JS-side recompute happens in the Phase 4
+    // domain function, not the RPC).
+    expect(grouping.catalog_hash).toBe("warm-hash");
+
+    const { data: members } = await supabase
+      .from("course_grouping_members")
+      .select("course_id")
+      .eq("plan_id", finalId)
+      .eq("grouping_id", grouping.id);
     expect(members).toHaveLength(2);
     for (const member of members ?? []) {
       expect(finalCourseIds.has(member.course_id)).toBe(true);
     }
-
-    // catalog_hash is copied as-is (JS-side recompute happens in the Phase 4
-    // domain function, not the RPC).
-    const { data: grouping } = await supabase
-      .from("course_groupings")
-      .select("catalog_hash")
-      .eq("plan_id", finalId)
-      .single();
-    expect(grouping?.catalog_hash).toBe("warm-hash");
   });
 
-  it("cloning the same source twice produces two independent plans", async (ctx) => {
-    if (!sourcePlanId) {
-      ctx.skip();
-      return;
-    }
-
+  it("cloning the same source twice produces two independent plans", async () => {
     const firstId = await clonePlan(sourcePlanId, "Clone Twice 1");
     const secondId = await clonePlan(sourcePlanId, "Clone Twice 2");
     expect(firstId).not.toBe(secondId);

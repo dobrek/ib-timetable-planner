@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { deriveMergeParent, mergeReasonMessage, type MergeChildInput } from "./merge";
 
-const COHORT = "cohort-1";
 const TEACHER = "teacher-1";
 
 const child = (overrides: Partial<MergeChildInput>): MergeChildInput => ({
   id: "course-1",
   name: "German B",
   level: "SL",
-  cohortId: COHORT,
+  cohort: "dp1",
   teacherId: TEACHER,
   ...overrides,
 });
@@ -18,7 +17,7 @@ describe("deriveMergeParent", () => {
     const result = deriveMergeParent([child({ id: "a", level: "AB" }), child({ id: "b", level: "SL" })]);
     expect(result).toEqual({
       ok: true,
-      parent: { name: "German B", level: "AB+SL", teacherId: TEACHER, cohortId: COHORT },
+      parent: { name: "German B", level: "AB+SL", teacherId: TEACHER, cohort: "dp1" },
     });
   });
 
@@ -53,10 +52,7 @@ describe("deriveMergeParent", () => {
   });
 
   it("rejects mixed cohorts", () => {
-    const result = deriveMergeParent([
-      child({ id: "a", level: "AB" }),
-      child({ id: "b", level: "SL", cohortId: "cohort-2" }),
-    ]);
+    const result = deriveMergeParent([child({ id: "a", level: "AB" }), child({ id: "b", level: "SL", cohort: "dp2" })]);
     expect(result).toEqual({ ok: false, reason: "mixed-cohorts" });
   });
 

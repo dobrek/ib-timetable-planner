@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import type { CohortOption } from "@/shared/api";
+import { COHORTS, type Cohort } from "@/shared/config";
 import { submitForm } from "@/shared/lib/forms";
 import {
   Button,
@@ -32,13 +32,13 @@ import type { CourseOption, StudentRow } from "../model/student";
 type Props = {
   open: boolean;
   onClose: () => void;
+  planId: string;
   /** The row to edit, or null to create. */
   student: StudentRow | null;
-  cohorts: CohortOption[];
   /** Real courses (merge parents flagged) — the choice picker is scoped per cohort. */
   courses: CourseOption[];
   /** Cohort prefilled in create mode (the active tab). */
-  defaultCohortId: string;
+  defaultCohort: Cohort;
 };
 
 /**
@@ -47,16 +47,16 @@ type Props = {
  * action gate; the choices picker is scoped to the selected cohort and clears when the cohort
  * changes (handler-scoped so `form.reset` on open can never misfire it).
  */
-export default function StudentFormDialog({ open, onClose, student, cohorts, courses, defaultCohortId }: Props) {
-  const { form, onSubmit } = useStudentForm(open, student, defaultCohortId, courses, onClose);
+export default function StudentFormDialog({ open, onClose, planId, student, courses, defaultCohort }: Props) {
+  const { form, onSubmit } = useStudentForm(open, planId, student, defaultCohort, courses, onClose);
 
-  const watchedCohortId = useWatch({ control: form.control, name: "cohortId" });
+  const watchedCohort = useWatch({ control: form.control, name: "cohort" });
   const choiceItems = useMemo(
     () =>
       courses
-        .filter((course) => course.cohortId === watchedCohortId && !course.isMergeParent)
+        .filter((course) => course.cohort === watchedCohort && !course.isMergeParent)
         .map((course) => ({ id: course.id, label: course.label })),
-    [courses, watchedCohortId],
+    [courses, watchedCohort],
   );
 
   return (
@@ -92,7 +92,7 @@ export default function StudentFormDialog({ open, onClose, student, cohorts, cou
 
             <FormField
               control={form.control}
-              name="cohortId"
+              name="cohort"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cohort</FormLabel>
@@ -111,8 +111,8 @@ export default function StudentFormDialog({ open, onClose, student, cohorts, cou
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {cohorts.map((cohort) => (
-                        <SelectItem key={cohort.id} value={cohort.id}>
+                      {COHORTS.map((cohort) => (
+                        <SelectItem key={cohort.value} value={cohort.value}>
                           {cohort.label}
                         </SelectItem>
                       ))}
@@ -166,21 +166,22 @@ export default function StudentFormDialog({ open, onClose, student, cohorts, cou
 
 function useStudentForm(
   open: boolean,
+  planId: string,
   student: StudentRow | null,
-  defaultCohortId: string,
+  defaultCohort: Cohort,
   courses: CourseOption[],
   onClose: () => void,
 ) {
   const form = useForm<StudentFormValues, unknown, StudentInput>({
     resolver: zodResolver(studentInput),
     mode: "onTouched",
-    defaultValues: emptyStudentFormValues(defaultCohortId),
+    defaultValues: emptyStudentFormValues(planId, defaultCohort),
   });
 
   useEffect(() => {
     if (!open) return;
-    form.reset(student ? studentFormValues(student, courses) : emptyStudentFormValues(defaultCohortId));
-  }, [open, student, defaultCohortId, courses, form]);
+    form.reset(student ? studentFormValues(planId, student, courses) : emptyStudentFormValues(planId, defaultCohort));
+  }, [open, planId, student, defaultCohort, courses, form]);
 
   const onSubmit = (values: StudentInput) =>
     submitForm({
@@ -193,23 +194,23 @@ function useStudentForm(
   return { form, onSubmit };
 }
 
-const studentFormValues = (student: StudentRow, courses: CourseOption[]): StudentFormValues => {
+const studentFormValues = (planId: string, student: StudentRow, courses: CourseOption[]): StudentFormValues => {
   // Prune choice ids the picker can't render (course became a merge parent or moved cohort) —
   // they'd be counted in the trigger but show no removable chip.
   const renderable = new Set(
-    courses
-      .filter((course) => course.cohortId === student.cohortId && !course.isMergeParent)
-      .map((course) => course.id),
+    courses.filter((course) => course.cohort === student.cohort && !course.isMergeParent).map((course) => course.id),
   );
   return {
+    planId,
     fullName: student.fullName,
-    cohortId: student.cohortId,
+    cohort: student.cohort,
     choiceCourseIds: student.choiceCourseIds.filter((id) => renderable.has(id)),
   };
 };
 
-const emptyStudentFormValues = (cohortId: string): StudentFormValues => ({
+const emptyStudentFormValues = (planId: string, cohort: Cohort): StudentFormValues => ({
+  planId,
   fullName: "",
-  cohortId,
+  cohort,
   choiceCourseIds: [],
 });

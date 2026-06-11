@@ -1,8 +1,8 @@
-import type { CohortOption } from "@/shared/api";
+import type { Cohort } from "@/shared/config";
 
 /**
- * View-models assembled server-side in `courses.astro` and handed to the catalog island.
- * Projections of the generated DB rows — identity stays as opaque ids, display labels
+ * View-models assembled server-side in `plans/[id]/courses.astro` and handed to the catalog
+ * island. Projections of the generated DB rows — identity stays as opaque ids, display labels
  * resolved at the edge, never the raw `Database` row shape.
  */
 
@@ -13,7 +13,7 @@ import type { CohortOption } from "@/shared/api";
  */
 export type CourseRow = {
   id: string;
-  cohortId: string;
+  cohort: Cohort;
   name: string;
   level: string;
   groupIndex: number;
@@ -25,9 +25,6 @@ export type CourseRow = {
   mergeChildIds: string[];
   overlaps: string[];
 };
-
-/** A cohort presented as a tab. `label` is the school-year display ("Year 1" / "Year 2"). */
-export type CohortTab = CohortOption;
 
 /** Sentinel `level` value meaning "no level" — stored in the DB, rendered as "—". */
 export const LEVEL_NONE = "none";

@@ -1,11 +1,12 @@
 import { useCallback } from "react";
+import { COHORTS, type Cohort } from "@/shared/config";
 import { useUrlSyncedFilters } from "@/shared/lib/use-url-synced-filters";
-import type { CohortTab, TeacherOption } from "./course";
+import type { TeacherOption } from "./course";
 import { readFilterParams, toFilterSearch, type CatalogFilters } from "./filter-params";
 
 export type CatalogFilterState = {
-  activeCohortId: string;
-  setActiveCohortId: (id: string) => void;
+  activeCohort: Cohort;
+  setActiveCohort: (cohort: Cohort) => void;
   selectedTeacherIds: string[];
   setSelectedTeacherIds: (ids: string[]) => void;
   hideMerged: boolean;
@@ -13,24 +14,18 @@ export type CatalogFilterState = {
 };
 
 /** Owns catalog filter state; URL seeding/mirroring lives in the shared hook. */
-export function useCatalogFilters(
-  cohorts: readonly CohortTab[],
-  teachers: readonly TeacherOption[],
-): CatalogFilterState {
-  const parse = useCallback(
-    (search: string): CatalogFilters => readFilterParams(search, cohorts, teachers),
-    [cohorts, teachers],
-  );
+export function useCatalogFilters(teachers: readonly TeacherOption[]): CatalogFilterState {
+  const parse = useCallback((search: string): CatalogFilters => readFilterParams(search, teachers), [teachers]);
   const { state, setState } = useUrlSyncedFilters(
-    { cohortId: cohorts[0]?.id ?? "", teacherIds: [], hideMerged: false },
+    { cohort: COHORTS[0].value, teacherIds: [], hideMerged: false },
     parse,
     toFilterSearch,
   );
 
   return {
-    activeCohortId: state.cohortId,
-    setActiveCohortId: (id) => {
-      setState((current) => ({ ...current, cohortId: id }));
+    activeCohort: state.cohort,
+    setActiveCohort: (cohort) => {
+      setState((current) => ({ ...current, cohort }));
     },
     selectedTeacherIds: state.teacherIds,
     setSelectedTeacherIds: (ids) => {

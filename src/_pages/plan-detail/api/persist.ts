@@ -1,37 +1,13 @@
 import type { Json, SupabaseClient } from "@/shared/api";
-import type { GroupingCourse, GroupingResult } from "../model/grouping";
+import type { Cohort } from "@/shared/config";
+import type { GroupingResult } from "../model/grouping";
 
 type Supabase = SupabaseClient;
-
-/** The catalog fingerprint that drives S-06 out-of-date detection. */
-export type CatalogSnapshot = GroupingCourse[];
 
 type GroupingPayload = {
   coverage_count: number;
   score: number;
   member_ids: string[];
-};
-
-/**
- * Stable SHA-256 (Web Crypto — edge-safe on workerd, global in Node) over a
- * canonical, sorted serialization of the catalog projection. The `GroupingCourse[]`
- * projection already folds overlaps and merges into each course's `studentKeys`, so
- * any change to course meta, choices, overlaps, or merges shifts the hash. Sorting
- * courses by id and student keys within each course makes the hash order-insensitive.
- */
-export const computeCatalogHash = async (snapshot: CatalogSnapshot): Promise<string> => {
-  const canonical = JSON.stringify(
-    snapshot
-      .map((course) => ({
-        id: course.id,
-        teacherKey: course.teacherKey,
-        hours: course.hours,
-        studentKeys: [...course.studentKeys].sort(),
-      }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
-  );
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
 /**
@@ -44,16 +20,16 @@ export const computeCatalogHash = async (snapshot: CatalogSnapshot): Promise<str
  */
 export const persistGroupings = async (
   supabase: Supabase,
-  params: { planId: string; cohortId: string; catalogHash: string; results: GroupingResult[] },
+  params: { planId: string; cohort: Cohort; catalogHash: string; results: GroupingResult[] },
 ): Promise<void> => {
   const groupings = toDistinctMemberSets(params.results);
   const { error } = await supabase.rpc("replace_cohort_groupings", {
     p_plan_id: params.planId,
-    p_cohort_id: params.cohortId,
+    p_cohort: params.cohort,
     p_catalog_hash: params.catalogHash,
     p_groupings: groupings as unknown as Json,
   });
-  if (error) throw new Error(`Failed to persist groupings for cohort ${params.cohortId}: ${error.message}`);
+  if (error) throw new Error(`Failed to persist groupings for cohort ${params.cohort}: ${error.message}`);
 };
 
 const toDistinctMemberSets = (results: GroupingResult[]): GroupingPayload[] => {

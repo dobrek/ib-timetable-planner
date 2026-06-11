@@ -4,10 +4,19 @@ import type { UpdateCourseInput } from "../model/schemas";
 import { DUPLICATE_COURSE_MESSAGE } from "./constants";
 import { toCourseRecord } from "./course-record";
 
-/** Update an existing atomic course by id. */
+/** Update an existing atomic course by id, pinned to its plan. */
 export const updateCourse = async (supabase: SupabaseClient, input: UpdateCourseInput) =>
-  unwrapRow(await supabase.from("courses").update(toCourseRecord(input)).eq("id", input.id).select().single(), {
-    conflict: DUPLICATE_COURSE_MESSAGE,
-    notFound: "Course not found.",
-    failure: "Failed to update course",
-  });
+  unwrapRow(
+    await supabase
+      .from("courses")
+      .update(toCourseRecord(input))
+      .eq("plan_id", input.planId)
+      .eq("id", input.id)
+      .select()
+      .single(),
+    {
+      conflict: DUPLICATE_COURSE_MESSAGE,
+      notFound: "Course not found.",
+      failure: "Failed to update course",
+    },
+  );

@@ -1,9 +1,13 @@
 import { z } from "zod";
+import { cohortSchema } from "@/shared/config";
 import { LEVEL_NONE } from "./course";
 
 /**
  * Single source of truth for catalog validation, imported by both the Astro Actions
  * (`input` — the authoritative server gate) and the react-hook-form resolvers.
+ *
+ * Every mutation carries `planId` — the catalog is plan-owned, and the domain
+ * functions insert/guard within that plan (composite FKs backstop them).
  *
  * These schemas encode app-layer rules the DB deliberately does NOT enforce:
  *   - `teacherId` is required here, but `courses.teacher_id` is nullable in the DB.
@@ -26,6 +30,7 @@ export const isCourseGroupIndex = (value: number): value is CourseGroupIndex =>
 export const toGroupIndex = (value: number): CourseGroupIndex => (isCourseGroupIndex(value) ? value : 0);
 
 export const courseInput = z.object({
+  planId: z.uuid(),
   name: z.string().trim().min(1, "Name is required"),
   // Optional: an empty level means "none".
   level: z
@@ -34,7 +39,7 @@ export const courseInput = z.object({
     .transform((value) => (value.length > 0 ? value : LEVEL_NONE)),
   groupIndex: z.literal(COURSE_GROUP_INDICES),
   hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
-  cohortId: z.uuid(),
+  cohort: cohortSchema,
   // Stricter than the nullable DB column: a course must have a teacher.
   teacherId: z.uuid("A teacher is required"),
 });
@@ -45,6 +50,7 @@ export const updateCourseInput = courseInput.extend({
 
 export const overlapInput = z
   .object({
+    planId: z.uuid(),
     baseCourseId: z.uuid(),
     dependentCourseId: z.uuid(),
   })
@@ -58,22 +64,28 @@ export const overlapInput = z
  * Authoritative input contract for `createMerge`, shared between the action gate and
  * the builder dialog's resolver. Carries only the raw author inputs; the parent's
  * derived fields (name, level, teacher) are computed server-side from the children
- * (via `deriveMergeParent`) to prevent client spoofing. `cohortId` is carried only to
+ * (via `deriveMergeParent`) to prevent client spoofing. `cohort` is carried only to
  * assert against the children-derived cohort — never trusted as the parent's cohort.
  */
 export const mergeInput = z.object({
+  planId: z.uuid(),
   childCourseIds: z.array(z.uuid()).min(2, "Select at least 2 courses to merge"),
   hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
-  cohortId: z.uuid(),
+  cohort: cohortSchema,
 });
 
-export const deleteCourseInput = z.object({ id: z.uuid() });
+export const deleteCourseInput = z.object({ planId: z.uuid(), id: z.uuid() });
 
-export const deleteOverlapInput = z.object({ baseCourseId: z.uuid(), dependentCourseId: z.uuid() });
+export const deleteOverlapInput = z.object({
+  planId: z.uuid(),
+  baseCourseId: z.uuid(),
+  dependentCourseId: z.uuid(),
+});
 
-export const dissolveMergeInput = z.object({ parentCourseId: z.uuid() });
+export const dissolveMergeInput = z.object({ planId: z.uuid(), parentCourseId: z.uuid() });
 
 export const updateMergeHoursInput = z.object({
+  planId: z.uuid(),
   parentCourseId: z.uuid(),
   hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
 });

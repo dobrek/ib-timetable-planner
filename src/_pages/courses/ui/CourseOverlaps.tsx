@@ -9,6 +9,7 @@ import { formatCourseLabel } from "../lib/labels";
 import type { CourseRow } from "../model/course";
 
 type Props = {
+  planId: string;
   /** The dependent course whose overlaps are being managed, or null when closed. */
   course: CourseRow | null;
   /** All courses (resolves base-course labels and the candidate base list). */
@@ -26,7 +27,7 @@ type Props = {
  * Mutations update island state in place (no page reload) so the dialog stays open across
  * repeated edits.
  */
-export default function CourseOverlaps({ course, courses, coursesById, onOverlapsChange, onClose }: Props) {
+export default function CourseOverlaps({ planId, course, courses, coursesById, onOverlapsChange, onClose }: Props) {
   return (
     <Dialog
       open={course !== null}
@@ -38,6 +39,7 @@ export default function CourseOverlaps({ course, courses, coursesById, onOverlap
         {course && (
           <OverlapsBody
             key={course.id}
+            planId={planId}
             course={course}
             courses={courses}
             coursesById={coursesById}
@@ -50,15 +52,16 @@ export default function CourseOverlaps({ course, courses, coursesById, onOverlap
 }
 
 type OverlapsBodyProps = {
+  planId: string;
   course: CourseRow;
   courses: CourseRow[];
   coursesById: Map<string, CourseRow>;
   onOverlapsChange: (courseId: string, nextOverlaps: string[]) => void;
 };
 
-function OverlapsBody({ course, courses, coursesById, onOverlapsChange }: OverlapsBodyProps) {
+function OverlapsBody({ planId, course, courses, coursesById, onOverlapsChange }: OverlapsBodyProps) {
   const { selectedBaseId, setSelectedBaseId, busy, linkedBases, candidates, addOverlap, removeOverlap } =
-    useOverlapActions(course, courses, coursesById, onOverlapsChange);
+    useOverlapActions(planId, course, courses, coursesById, onOverlapsChange);
 
   return (
     <>
@@ -126,6 +129,7 @@ function OverlapsBody({ course, courses, coursesById, onOverlapsChange }: Overla
 }
 
 function useOverlapActions(
+  planId: string,
   course: CourseRow,
   courses: CourseRow[],
   coursesById: Map<string, CourseRow>,
@@ -137,15 +141,14 @@ function useOverlapActions(
   const linkedBases = course.overlaps.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);
 
   const candidates = useMemo(
-    () =>
-      courses.filter((c) => c.cohortId === course.cohortId && c.id !== course.id && !course.overlaps.includes(c.id)),
+    () => courses.filter((c) => c.cohort === course.cohort && c.id !== course.id && !course.overlaps.includes(c.id)),
     [courses, course],
   );
 
   const addOverlap = async () => {
     if (!selectedBaseId) return;
     setBusy(true);
-    const { error } = await createOverlap({ baseCourseId: selectedBaseId, dependentCourseId: course.id });
+    const { error } = await createOverlap({ planId, baseCourseId: selectedBaseId, dependentCourseId: course.id });
     setBusy(false);
     if (error) {
       toast.error(error.message);
@@ -158,7 +161,7 @@ function useOverlapActions(
 
   const removeOverlap = async (baseCourseId: string) => {
     setBusy(true);
-    const { error } = await deleteOverlap({ baseCourseId, dependentCourseId: course.id });
+    const { error } = await deleteOverlap({ planId, baseCourseId, dependentCourseId: course.id });
     setBusy(false);
     if (error) {
       toast.error(error.message);

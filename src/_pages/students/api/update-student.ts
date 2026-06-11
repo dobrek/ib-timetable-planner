@@ -7,22 +7,23 @@ import { assertChoicesInCohort } from "./assert-choices-in-cohort";
 import { CHOICES_CONFLICT_MESSAGE } from "./constants";
 
 /**
- * Update a student's row, then reconcile its choices as an insert-then-delete diff. For
- * same-cohort edits the ordering is load-bearing: a failure between insert and delete can only
- * leave a visible superset the author can re-edit, never silently-lost choices. A cohort change
- * is weaker: the row's new cohort commits first, so a failure during reconciliation can leave
- * old-cohort choices attached until the author re-saves — visible in the table, but consumers
- * (S-06 grouping) must not assume choice cohorts match the student row. Closing this window
- * needs a transaction, which the project rules out (no client transactions, no new Postgres
- * functions).
+ * Update a student's row (pinned to its plan), then reconcile its choices as an
+ * insert-then-delete diff. For same-cohort edits the ordering is load-bearing: a failure
+ * between insert and delete can only leave a visible superset the author can re-edit, never
+ * silently-lost choices. A cohort change is weaker: the row's new cohort commits first, so a
+ * failure during reconciliation can leave old-cohort choices attached until the author
+ * re-saves — visible in the table, but consumers (S-06 grouping) must not assume choice
+ * cohorts match the student row. Closing this window needs a transaction, which the project
+ * rules out (no client transactions, no new Postgres functions).
  */
 export const updateStudent = async (supabase: SupabaseClient, input: UpdateStudentInput) => {
-  await assertChoicesInCohort(supabase, input.cohortId, input.choiceCourseIds);
+  await assertChoicesInCohort(supabase, input.planId, input.cohort, input.choiceCourseIds);
 
   const student = unwrapRow(
     await supabase
       .from("students")
-      .update({ cohort_id: input.cohortId, full_name: input.fullName })
+      .update({ cohort: input.cohort, full_name: input.fullName })
+      .eq("plan_id", input.planId)
       .eq("id", input.id)
       .select()
       .single(),
@@ -35,7 +36,7 @@ export const updateStudent = async (supabase: SupabaseClient, input: UpdateStude
   if (toAdd.length > 0) {
     const { error } = await supabase
       .from("student_choices")
-      .insert(toAdd.map((course_id) => ({ student_id: input.id, course_id })));
+      .insert(toAdd.map((course_id) => ({ plan_id: input.planId, student_id: input.id, course_id })));
     if (error) {
       // A concurrent editor can insert an overlapping choice between our read and this write.
       if (error.code === UNIQUE_VIOLATION) {

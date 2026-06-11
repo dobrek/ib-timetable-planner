@@ -1,7 +1,7 @@
 ---
 change_id: students-and-choices-ui
 title: Students and choices UI
-status: planned
+status: implementing
 created: 2026-06-11
 updated: 2026-06-11
 archived_at: null

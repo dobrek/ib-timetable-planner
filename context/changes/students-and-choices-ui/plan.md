@@ -391,17 +391,17 @@ None — both tables, their constraints, and cascades already exist. No data mig
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass (schemas, filter-params, filter-students): `pnpm test`
-- [ ] 1.2 Lint passes: `pnpm lint`
-- [ ] 1.3 FSD structure passes: `pnpm steiger`
-- [ ] 1.4 Build stays clean: `pnpm build`
+- [x] 1.1 Unit tests pass (schemas, filter-params, filter-students): `pnpm test`
+- [x] 1.2 Lint passes: `pnpm lint`
+- [x] 1.3 FSD structure passes: `pnpm steiger`
+- [x] 1.4 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.5 `/students` lists seeded students under cohort tabs with choice badges and counts
-- [ ] 1.6 Create / edit (name + cohort) / delete works end-to-end with toasts and refresh
-- [ ] 1.7 "New student" on the Year 2 tab pre-selects Year 2
-- [ ] 1.8 Name search narrows rows; tab + query survive reload via URL
+- [x] 1.5 `/students` lists seeded students under cohort tabs with choice badges and counts
+- [x] 1.6 Create / edit (name + cohort) / delete works end-to-end with toasts and refresh
+- [x] 1.7 "New student" on the Year 2 tab pre-selects Year 2
+- [x] 1.8 Name search narrows rows; tab + query survive reload via URL
 
 ### Phase 2: Choices editor in the form dialog
 

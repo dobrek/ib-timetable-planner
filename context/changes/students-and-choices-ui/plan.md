@@ -407,31 +407,31 @@ None — both tables, their constraints, and cascades already exist. No data mig
 
 #### Automated
 
-- [x] 2.1 New unit tests pass (diff-choices, schemas, moved write-parent-with-links): `pnpm test`
-- [x] 2.2 Lint passes: `pnpm lint`
-- [x] 2.3 FSD structure passes: `pnpm steiger`
-- [x] 2.4 Build stays clean: `pnpm build`
+- [x] 2.1 New unit tests pass (diff-choices, schemas, moved write-parent-with-links): `pnpm test` — 05306d2
+- [x] 2.2 Lint passes: `pnpm lint` — 05306d2
+- [x] 2.3 FSD structure passes: `pnpm steiger` — 05306d2
+- [x] 2.4 Build stays clean: `pnpm build` — 05306d2
 
 #### Manual
 
-- [x] 2.5 Create a student with several choices in one submit; badges appear
-- [x] 2.6 Edit adds + removes choices in one submit; table reflects new set
-- [x] 2.7 Cohort change visibly clears chips before submit; new cohort's courses listed; submit persists
-- [x] 2.8 Picker excludes merge-parent composites and other-cohort courses
-- [x] 2.9 Picker search filters by label; chips remove on X
+- [x] 2.5 Create a student with several choices in one submit; badges appear — 05306d2
+- [x] 2.6 Edit adds + removes choices in one submit; table reflects new set — 05306d2
+- [x] 2.7 Cohort change visibly clears chips before submit; new cohort's courses listed; submit persists — 05306d2
+- [x] 2.8 Picker excludes merge-parent composites and other-cohort courses — 05306d2
+- [x] 2.9 Picker search filters by label; chips remove on X — 05306d2
 
 ### Phase 3: Course filter + integration tests
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass (codec + predicate with courseIds): `pnpm test`
-- [ ] 3.2 Integration tests pass: `pnpm test:integration`
-- [ ] 3.3 Lint passes: `pnpm lint`
-- [ ] 3.4 FSD structure passes: `pnpm steiger`
-- [ ] 3.5 Build stays clean: `pnpm build`
+- [x] 3.1 Unit tests pass (codec + predicate with courseIds): `pnpm test`
+- [x] 3.2 Integration tests pass: `pnpm test:integration`
+- [x] 3.3 Lint passes: `pnpm lint`
+- [x] 3.4 FSD structure passes: `pnpm steiger`
+- [x] 3.5 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.6 Course filter narrows to students who chose any selected course; clearing restores
-- [ ] 3.7 Course filter + name search + tabs compose and survive reload via URL
-- [ ] 3.8 Switching tabs clears the course selection
+- [x] 3.6 Course filter narrows to students who chose any selected course; clearing restores
+- [x] 3.7 Course filter + name search + tabs compose and survive reload via URL
+- [x] 3.8 Switching tabs clears the course selection

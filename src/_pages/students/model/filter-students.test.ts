@@ -36,9 +36,30 @@ describe("filterStudents", () => {
     expect(filterStudents(students, "y1", "zoe")).toEqual([]);
   });
 
+  it("keeps all cohort students when the course selection is empty", () => {
+    expect(filterStudents(students, "y1", "", []).map((s) => s.id)).toEqual(["s1", "s2"]);
+  });
+
+  it("keeps students whose choices intersect the selection", () => {
+    expect(filterStudents(students, "y1", "", ["c2"]).map((s) => s.id)).toEqual(["s1"]);
+  });
+
+  it("treats the selection as a union (any chosen course matches)", () => {
+    expect(filterStudents(students, "y1", "", ["c1", "c9"]).map((s) => s.id)).toEqual(["s1"]);
+  });
+
+  it("excludes students with no intersecting choice", () => {
+    expect(filterStudents(students, "y1", "", ["c3"])).toEqual([]);
+  });
+
+  it("composes the query and course-selection clauses", () => {
+    expect(filterStudents(students, "y1", "bob", ["c2"])).toEqual([]);
+    expect(filterStudents(students, "y1", "alice", ["c2"]).map((s) => s.id)).toEqual(["s1"]);
+  });
+
   it("does not mutate its inputs", () => {
     const snapshot = JSON.stringify(students);
-    filterStudents(students, "y1", "ali");
+    filterStudents(students, "y1", "ali", ["c1"]);
     expect(JSON.stringify(students)).toBe(snapshot);
   });
 });

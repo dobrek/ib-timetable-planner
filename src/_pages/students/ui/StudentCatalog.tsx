@@ -6,6 +6,7 @@ import { filterStudents } from "../model/filter-students";
 import { useCatalogDialogs } from "../model/use-catalog-dialogs";
 import { useCatalogFilters } from "../model/use-catalog-filters";
 import type { CourseOption, StudentRow } from "../model/student";
+import CourseFilter from "./CourseFilter";
 import DeleteStudentDialog from "./DeleteStudentDialog";
 import StudentFormDialog from "./StudentFormDialog";
 import StudentTable from "./StudentTable";
@@ -23,9 +24,14 @@ type Props = {
  * the create form's default cohort.
  */
 export default function StudentCatalog({ students, cohorts, courses }: Props) {
-  const filters = useCatalogFilters(cohorts);
+  const filters = useCatalogFilters(cohorts, courses);
   const dialogs = useCatalogDialogs();
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
+  // The course filter offers only the active cohort's real (non-merge-parent) courses.
+  const filterCourses = useMemo(
+    () => courses.filter((course) => course.cohortId === filters.activeCohortId && !course.isMergeParent),
+    [courses, filters.activeCohortId],
+  );
 
   return (
     <div className="space-y-6">
@@ -51,6 +57,11 @@ export default function StudentCatalog({ students, cohorts, courses }: Props) {
           className="max-w-sm"
           aria-label="Search students"
         />
+        <CourseFilter
+          courses={filterCourses}
+          selectedIds={filters.selectedCourseIds}
+          onChange={filters.setSelectedCourseIds}
+        />
       </div>
 
       <Tabs value={filters.activeCohortId} onValueChange={filters.setActiveCohortId}>
@@ -63,7 +74,7 @@ export default function StudentCatalog({ students, cohorts, courses }: Props) {
         </TabsList>
 
         {cohorts.map((cohort) => {
-          const rows = filterStudents(students, cohort.id, filters.query);
+          const rows = filterStudents(students, cohort.id, filters.query, filters.selectedCourseIds);
           const cohortTotal = students.filter((student) => student.cohortId === cohort.id).length;
           return (
             <TabsContent key={cohort.id} value={cohort.id}>

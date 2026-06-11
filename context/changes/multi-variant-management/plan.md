@@ -407,24 +407,24 @@ No production data exists; the migration is destructive by design (drops `plan_v
 
 #### Automated
 
-- [x] 1.1 `grep -ni "final"` on prd.md shows no requirement-level final-variant language
-- [x] 1.2 `grep -ni "variant"` on prd.md/roadmap.md shows no surviving per-plan-variant requirement
+- [x] 1.1 `grep -ni "final"` on prd.md shows no requirement-level final-variant language — e754366
+- [x] 1.2 `grep -ni "variant"` on prd.md/roadmap.md shows no surviving per-plan-variant requirement — e754366
 
 #### Manual
 
-- [x] 1.3 Read-through: PRD and roadmap internally consistent (no plan_variants / final mark / finalize gate)
+- [x] 1.3 Read-through: PRD and roadmap internally consistent (no plan_variants / final mark / finalize gate) — e754366
 
 ### Phase 2: Schema Re-baseline + Clone RPC + Seed
 
 #### Automated
 
-- [ ] 2.1 `pnpm exec supabase db reset` completes with two-plan seed
-- [ ] 2.2 Clone RPC integration tests pass (`pnpm test:integration`)
-- [ ] 2.3 `database.types.ts` regenerated and committed (cohort enum + new columns)
+- [x] 2.1 `pnpm exec supabase db reset` completes with two-plan seed
+- [x] 2.2 Clone RPC integration tests pass (`pnpm test:integration`)
+- [x] 2.3 `database.types.ts` regenerated and committed (cohort enum + new columns)
 
 #### Manual
 
-- [ ] 2.4 Studio check: old tables gone, seeded plans disjoint, SQL-editor `clone_plan` produces a complete third plan
+- [x] 2.4 Studio check: old tables gone, seeded plans disjoint, SQL-editor `clone_plan` produces a complete third plan
 
 ### Phase 3: App Adaptation (Cohort Enum + Plan Threading + Nested Routes)
 

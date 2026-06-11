@@ -1,0 +1,229 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Database } from "@/shared/api";
+
+// Drives the clone_plan RPC directly against the seeded local Supabase with the
+// service_role/secret client (bypasses RLS for setup + assertions), mirroring the
+// students-crud harness. Skips when the env/stack is unavailable.
+//
+// Coverage (plan.md Phase 2 #5): deep-copy completeness (row counts per table),
+// UUID remap (no cloned row references a source-plan row), cross-plan isolation
+// under mutation, per-plan teachers.code uniqueness, and repeated cloning.
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
+
+const PLAN_TABLES = [
+  "teachers",
+  "courses",
+  "students",
+  "student_choices",
+  "course_overlaps",
+  "course_merges",
+  "placements",
+  "course_groupings",
+  "course_grouping_members",
+] as const;
+
+(hasEnv ? describe : describe.skip)("clone_plan RPC (local Supabase)", () => {
+  let supabase: SupabaseClient<Database>;
+  let sourcePlanId: string | null = null;
+  const createdPlanIds: string[] = [];
+
+  beforeAll(async () => {
+    if (!SUPABASE_URL || !SERVICE_KEY) return;
+    supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
+
+    const { data: plan } = await supabase.from("plans").select("id").eq("name", "Seed Plan A").limit(1).maybeSingle();
+    sourcePlanId = plan?.id ?? null;
+  });
+
+  afterAll(async () => {
+    // Deleting the plans rows cascades each whole cloned scenario.
+    if (createdPlanIds.length > 0) await supabase.from("plans").delete().in("id", createdPlanIds);
+  });
+
+  const countRows = async (table: (typeof PLAN_TABLES)[number], planId: string): Promise<number> => {
+    const { count, error } = await supabase
+      .from(table)
+      .select("*", { count: "exact", head: true })
+      .eq("plan_id", planId);
+    if (error) throw error;
+    return count ?? 0;
+  };
+
+  const clonePlan = async (source: string, name: string): Promise<string> => {
+    const { data, error } = await supabase.rpc("clone_plan", { p_source_plan_id: source, p_name: name });
+    if (error) throw error;
+    createdPlanIds.push(data);
+    return data;
+  };
+
+  const idsOf = async (table: "teachers" | "courses" | "students", planId: string): Promise<Set<string>> => {
+    const { data, error } = await supabase.from(table).select("id").eq("plan_id", planId);
+    if (error) throw error;
+    return new Set(data.map((r) => r.id));
+  };
+
+  it("deep-copies a plan: per-table row counts match and every row is remapped", async (ctx) => {
+    if (!sourcePlanId) {
+      ctx.skip();
+      return;
+    }
+
+    const cloneId = await clonePlan(sourcePlanId, "Clone Test 1");
+    expect(cloneId).not.toBe(sourcePlanId);
+
+    for (const table of PLAN_TABLES) {
+      expect(await countRows(table, cloneId), table).toBe(await countRows(table, sourcePlanId));
+    }
+
+    // UUID remap: cloned root-table rows share no ids with the source.
+    for (const table of ["teachers", "courses", "students"] as const) {
+      const sourceIds = await idsOf(table, sourcePlanId);
+      const cloneIds = await idsOf(table, cloneId);
+      expect(cloneIds.size, table).toBe(sourceIds.size);
+      for (const id of cloneIds) expect(sourceIds.has(id), `${table} id leaked from source`).toBe(false);
+    }
+
+    // The one plain (non-composite) FK: cloned courses' teacher_id values must
+    // point at the clone's own teachers, never the source's.
+    const sourceTeacherIds = await idsOf("teachers", sourcePlanId);
+    const cloneTeacherIds = await idsOf("teachers", cloneId);
+    const { data: clonedCourses } = await supabase.from("courses").select("teacher_id").eq("plan_id", cloneId);
+    for (const course of clonedCourses ?? []) {
+      if (course.teacher_id === null) continue;
+      expect(cloneTeacherIds.has(course.teacher_id)).toBe(true);
+      expect(sourceTeacherIds.has(course.teacher_id)).toBe(false);
+    }
+
+    // teachers.code duplicates across plans without conflict (per-plan unique).
+    const codes = async (planId: string) => {
+      const { data } = await supabase.from("teachers").select("code").eq("plan_id", planId);
+      return (data ?? []).map((t) => t.code).sort();
+    };
+    expect(await codes(cloneId)).toEqual(await codes(sourcePlanId));
+  });
+
+  it("isolates the clone: mutating its catalog leaves the source untouched", async (ctx) => {
+    if (!sourcePlanId) {
+      ctx.skip();
+      return;
+    }
+
+    const cloneId = await clonePlan(sourcePlanId, "Clone Test 2");
+    const sourceStudentCount = await countRows("students", sourcePlanId);
+    const sourceChoiceCount = await countRows("student_choices", sourcePlanId);
+
+    // Rename one cloned student.
+    const { data: cloneStudent } = await supabase
+      .from("students")
+      .select("id, full_name")
+      .eq("plan_id", cloneId)
+      .limit(1)
+      .single();
+    if (!cloneStudent) throw new Error("clone has no students");
+    await supabase.from("students").update({ full_name: "Mutated In Clone" }).eq("id", cloneStudent.id);
+
+    // Delete another cloned student (cascades its choices within the clone only).
+    const { data: victim } = await supabase
+      .from("students")
+      .select("id")
+      .eq("plan_id", cloneId)
+      .neq("id", cloneStudent.id)
+      .limit(1)
+      .single();
+    if (!victim) throw new Error("clone has fewer than two students");
+    await supabase.from("students").delete().eq("id", victim.id);
+
+    expect(await countRows("students", cloneId)).toBe(sourceStudentCount - 1);
+    expect(await countRows("students", sourcePlanId)).toBe(sourceStudentCount);
+    expect(await countRows("student_choices", sourcePlanId)).toBe(sourceChoiceCount);
+    const { count: mutatedInSource } = await supabase
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .eq("plan_id", sourcePlanId)
+      .eq("full_name", "Mutated In Clone");
+    expect(mutatedInSource ?? 0).toBe(0);
+  });
+
+  it("clones placements and groupings with members remapped to the clone's courses", async (ctx) => {
+    if (!sourcePlanId) {
+      ctx.skip();
+      return;
+    }
+
+    // Stage a warm plan without touching the seed: clone first, then add a
+    // placement and a grouping to the intermediate clone, then clone that.
+    const warmId = await clonePlan(sourcePlanId, "Clone Test 3 (warm)");
+    const { data: warmCourses } = await supabase
+      .from("courses")
+      .select("id")
+      .eq("plan_id", warmId)
+      .eq("cohort", "dp1")
+      .limit(2);
+    const [courseA, courseB] = (warmCourses ?? []).map((c) => c.id);
+    if (!courseA || !courseB) throw new Error("warm clone has fewer than two dp1 courses");
+
+    await supabase.from("placements").insert({ plan_id: warmId, cohort: "dp1", day: 1, period: 1, course_id: courseA });
+    const { error: rpcError } = await supabase.rpc("replace_cohort_groupings", {
+      p_plan_id: warmId,
+      p_cohort: "dp1",
+      p_catalog_hash: "warm-hash",
+      p_groupings: [{ coverage_count: 2, score: 1.5, member_ids: [courseA, courseB] }],
+    });
+    if (rpcError) throw rpcError;
+
+    const finalId = await clonePlan(warmId, "Clone Test 3 (final)");
+    expect(await countRows("placements", finalId)).toBe(1);
+    expect(await countRows("course_groupings", finalId)).toBe(1);
+    expect(await countRows("course_grouping_members", finalId)).toBe(2);
+
+    const finalCourseIds = await idsOf("courses", finalId);
+    const { data: placement } = await supabase
+      .from("placements")
+      .select("course_id, cohort, day, period")
+      .eq("plan_id", finalId)
+      .single();
+    expect(placement?.cohort).toBe("dp1");
+    expect(placement && finalCourseIds.has(placement.course_id)).toBe(true);
+    expect(placement?.course_id === courseA).toBe(false);
+
+    const { data: members } = await supabase.from("course_grouping_members").select("course_id").eq("plan_id", finalId);
+    expect(members).toHaveLength(2);
+    for (const member of members ?? []) {
+      expect(finalCourseIds.has(member.course_id)).toBe(true);
+    }
+
+    // catalog_hash is copied as-is (JS-side recompute happens in the Phase 4
+    // domain function, not the RPC).
+    const { data: grouping } = await supabase
+      .from("course_groupings")
+      .select("catalog_hash")
+      .eq("plan_id", finalId)
+      .single();
+    expect(grouping?.catalog_hash).toBe("warm-hash");
+  });
+
+  it("cloning the same source twice produces two independent plans", async (ctx) => {
+    if (!sourcePlanId) {
+      ctx.skip();
+      return;
+    }
+
+    const firstId = await clonePlan(sourcePlanId, "Clone Twice 1");
+    const secondId = await clonePlan(sourcePlanId, "Clone Twice 2");
+    expect(firstId).not.toBe(secondId);
+
+    const courseCount = await countRows("courses", sourcePlanId);
+    expect(await countRows("courses", firstId)).toBe(courseCount);
+    expect(await countRows("courses", secondId)).toBe(courseCount);
+
+    // Deleting one clone leaves the other (and the source) whole.
+    await supabase.from("plans").delete().eq("id", firstId);
+    expect(await countRows("courses", firstId)).toBe(0);
+    expect(await countRows("courses", secondId)).toBe(courseCount);
+    expect(await countRows("courses", sourcePlanId)).toBe(courseCount);
+  });
+});

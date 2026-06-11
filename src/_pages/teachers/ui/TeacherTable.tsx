@@ -1,5 +1,5 @@
 import { MoreHorizontal, Plus } from "lucide-react";
-import type { CohortOption } from "@/shared/api";
+import { cn } from "@/shared/lib/cn";
 import {
   Badge,
   Button,
@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/shared/ui";
 import { formatAssignmentBadgeLabel } from "../lib/labels";
+import type { YearFilter } from "../model/filter-teachers";
 import { sortTeachers } from "../model/sort-teachers";
 import type { CourseAssignment, TeacherRow } from "../model/teacher";
 
@@ -22,13 +23,22 @@ type Props = {
   rows: TeacherRow[];
   totalCount: number;
   /** Ordered cohorts; the table is structurally two-cohort (Y1/Y2 columns). */
-  cohorts: CohortOption[];
+  cohorts: readonly { id: string }[];
+  yearFilter: YearFilter;
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
   onCreateFirst: () => void;
 };
 
-export default function TeacherTable({ rows, totalCount, cohorts, onEdit, onDelete, onCreateFirst }: Props) {
+export default function TeacherTable({
+  rows,
+  totalCount,
+  cohorts,
+  yearFilter,
+  onEdit,
+  onDelete,
+  onCreateFirst,
+}: Props) {
   if (totalCount === 0) {
     return (
       <div className="py-12 text-center">
@@ -55,11 +65,11 @@ export default function TeacherTable({ rows, totalCount, cohorts, onEdit, onDele
           <TableRow>
             <TableHead>Code</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>Y1 Courses</TableHead>
-            <TableHead className="text-right">Y1h</TableHead>
-            <TableHead>Y2 Courses</TableHead>
-            <TableHead className="text-right">Y2h</TableHead>
-            <TableHead className="text-right">Total</TableHead>
+            <TableHead className={cn(cohortGroupClass(yearFilter, "y1"))}>Year 1 - Courses</TableHead>
+            <TableHead className={cn("text-right", cohortGroupClass(yearFilter, "y1"))}>h</TableHead>
+            <TableHead className={cn(cohortGroupClass(yearFilter, "y2"))}>Year 2 - Courses</TableHead>
+            <TableHead className={cn("text-right", cohortGroupClass(yearFilter, "y2"))}>h</TableHead>
+            <TableHead className={cn("text-right", totalColumnClass(yearFilter))}>Total h</TableHead>
             <TableHead className="w-12" aria-label="Actions" />
           </TableRow>
         </TableHeader>
@@ -72,15 +82,15 @@ export default function TeacherTable({ rows, totalCount, cohorts, onEdit, onDele
               <TableRow key={row.id}>
                 <TableCell className="font-medium">{row.code}</TableCell>
                 <TableCell>{row.fullName ?? "—"}</TableCell>
-                <TableCell>
+                <TableCell className={cn(cohortGroupClass(yearFilter, "y1"))}>
                   <AssignmentBadges assignments={cohortAssignments(row.assignments, y1Id)} />
                 </TableCell>
-                <TableCell className="text-right">{y1h}</TableCell>
-                <TableCell>
+                <TableCell className={cn("text-right", cohortGroupClass(yearFilter, "y1"))}>{y1h}</TableCell>
+                <TableCell className={cn(cohortGroupClass(yearFilter, "y2"))}>
                   <AssignmentBadges assignments={cohortAssignments(row.assignments, y2Id)} />
                 </TableCell>
-                <TableCell className="text-right">{y2h}</TableCell>
-                <TableCell className="text-right">{y1h + y2h}</TableCell>
+                <TableCell className={cn("text-right", cohortGroupClass(yearFilter, "y2"))}>{y2h}</TableCell>
+                <TableCell className={cn("text-right", totalColumnClass(yearFilter))}>{y1h + y2h}</TableCell>
                 <TableCell className="text-right">
                   <TeacherRowActions row={row} onEdit={onEdit} onDelete={onDelete} />
                 </TableCell>
@@ -99,7 +109,7 @@ function AssignmentBadges({ assignments }: { assignments: CourseAssignment[] }) 
   return (
     <div className="flex flex-wrap gap-1">
       {assignments.map((assignment) => (
-        <Badge key={assignment.id} variant="secondary">
+        <Badge key={assignment.id} variant="outline">
           {formatAssignmentBadgeLabel(assignment)}
         </Badge>
       ))}
@@ -142,6 +152,15 @@ function TeacherRowActions({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function cohortGroupClass(yearFilter: YearFilter, cohort: "y1" | "y2") {
+  if (yearFilter === "all" || yearFilter === cohort) return undefined;
+  return "opacity-40";
+}
+
+function totalColumnClass(yearFilter: YearFilter) {
+  return yearFilter === "all" ? undefined : "opacity-60";
 }
 
 function cohortHours(assignments: readonly CourseAssignment[], cohortId: string | undefined): number {

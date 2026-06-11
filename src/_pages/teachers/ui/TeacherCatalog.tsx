@@ -1,5 +1,4 @@
 import { Plus } from "lucide-react";
-import type { CohortOption } from "@/shared/api";
 import { Button, Input, Toaster } from "@/shared/ui";
 import { filterTeachers, type YearFilter } from "../model/filter-teachers";
 import { useCatalogDialogs } from "../model/use-catalog-dialogs";
@@ -12,7 +11,7 @@ import TeacherTable from "./TeacherTable";
 type Props = {
   teachers: TeacherRow[];
   /** Ordered cohorts ("Year 1" first); the year filter and table columns are positional. */
-  cohorts: CohortOption[];
+  cohorts: readonly { id: string; label: string }[];
 };
 
 /**
@@ -26,7 +25,7 @@ export default function TeacherCatalog({ teachers, cohorts }: Props) {
 
   const yearOptions: { value: YearFilter; label: string }[] = [
     { value: "all", label: "All years" },
-    ...cohorts.slice(0, 2).map((cohort, index) => ({
+    ...cohorts.slice(0, 2).map((cohort, index): { value: YearFilter; label: string } => ({
       value: index === 0 ? "y1" : "y2",
       label: cohort.label,
     })),
@@ -77,6 +76,7 @@ export default function TeacherCatalog({ teachers, cohorts }: Props) {
         rows={rows}
         totalCount={teachers.length}
         cohorts={cohorts}
+        yearFilter={filters.year}
         onEdit={dialogs.openEdit}
         onDelete={dialogs.openDelete}
         onCreateFirst={dialogs.openCreate}

@@ -424,14 +424,14 @@ None — both tables, their constraints, and cascades already exist. No data mig
 
 #### Automated
 
-- [x] 3.1 Unit tests pass (codec + predicate with courseIds): `pnpm test`
-- [x] 3.2 Integration tests pass: `pnpm test:integration`
-- [x] 3.3 Lint passes: `pnpm lint`
-- [x] 3.4 FSD structure passes: `pnpm steiger`
-- [x] 3.5 Build stays clean: `pnpm build`
+- [x] 3.1 Unit tests pass (codec + predicate with courseIds): `pnpm test` — 91fad99
+- [x] 3.2 Integration tests pass: `pnpm test:integration` — 91fad99
+- [x] 3.3 Lint passes: `pnpm lint` — 91fad99
+- [x] 3.4 FSD structure passes: `pnpm steiger` — 91fad99
+- [x] 3.5 Build stays clean: `pnpm build` — 91fad99
 
 #### Manual
 
-- [x] 3.6 Course filter narrows to students who chose any selected course; clearing restores
-- [x] 3.7 Course filter + name search + tabs compose and survive reload via URL
-- [x] 3.8 Switching tabs clears the course selection
+- [x] 3.6 Course filter narrows to students who chose any selected course; clearing restores — 91fad99
+- [x] 3.7 Course filter + name search + tabs compose and survive reload via URL — 91fad99
+- [x] 3.8 Switching tabs clears the course selection — 91fad99

@@ -3,7 +3,7 @@ import { navigate } from "astro:transitions/client";
 import { useState } from "react";
 import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
 import { toast } from "sonner";
-import { applyActionFieldErrors } from "./apply-action-errors";
+import { applyActionFieldErrors } from "./actions/apply-action-errors";
 
 /**
  * Client-only mutation-flow helpers (value imports from `astro:*` virtual modules).

@@ -1,15 +1,20 @@
 import type { SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
-import { unwrapRow } from "@/shared/lib/postgrest";
+import { UNIQUE_VIOLATION, unwrapRow } from "@/shared/lib/postgrest";
 import { diffChoices } from "../model/diff-choices";
 import type { UpdateStudentInput } from "../model/schemas";
 import { assertChoicesInCohort } from "./assert-choices-in-cohort";
+import { CHOICES_CONFLICT_MESSAGE } from "./constants";
 
 /**
- * Update a student's row, then reconcile its choices as an insert-then-delete diff. Ordering
- * is load-bearing: a failure between insert and delete can only leave a visible superset the
- * author can re-edit, never silently-lost choices. A cohort change lands all old-cohort choices
- * in `toRemove` naturally because the guard has already pinned `next` to the new cohort.
+ * Update a student's row, then reconcile its choices as an insert-then-delete diff. For
+ * same-cohort edits the ordering is load-bearing: a failure between insert and delete can only
+ * leave a visible superset the author can re-edit, never silently-lost choices. A cohort change
+ * is weaker: the row's new cohort commits first, so a failure during reconciliation can leave
+ * old-cohort choices attached until the author re-saves — visible in the table, but consumers
+ * (S-06 grouping) must not assume choice cohorts match the student row. Closing this window
+ * needs a transaction, which the project rules out (no client transactions, no new Postgres
+ * functions).
  */
 export const updateStudent = async (supabase: SupabaseClient, input: UpdateStudentInput) => {
   await assertChoicesInCohort(supabase, input.cohortId, input.choiceCourseIds);
@@ -32,6 +37,10 @@ export const updateStudent = async (supabase: SupabaseClient, input: UpdateStude
       .from("student_choices")
       .insert(toAdd.map((course_id) => ({ student_id: input.id, course_id })));
     if (error) {
+      // A concurrent editor can insert an overlapping choice between our read and this write.
+      if (error.code === UNIQUE_VIOLATION) {
+        throw new DomainError("CONFLICT", CHOICES_CONFLICT_MESSAGE);
+      }
       throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to add choices: ${error.message}`);
     }
   }

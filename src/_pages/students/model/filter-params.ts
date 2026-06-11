@@ -13,9 +13,9 @@ export type StudentFilters = {
 };
 
 /**
- * Parse student filters from a URL query string, dropping unknown cohort/course ids so a
- * bookmarked or stale URL falls back to defaults instead of erroring. Defaults: first cohort,
- * empty query, no course filter.
+ * Parse student filters from a URL query string, dropping unknown cohort ids and course ids
+ * outside the resolved cohort so a bookmarked or stale URL falls back to defaults instead of
+ * erroring. Defaults: first cohort, empty query, no course filter.
  */
 export const readFilterParams = (
   search: string,
@@ -24,13 +24,15 @@ export const readFilterParams = (
 ): StudentFilters => {
   const params = new URLSearchParams(search);
   const knownCohorts = new Set(cohorts.map((cohort) => cohort.id));
-  const knownCourses = new Set(courses.map((course) => course.id));
 
   const requestedCohort = params.get("cohort");
   const cohortId = requestedCohort && knownCohorts.has(requestedCohort) ? requestedCohort : (cohorts[0]?.id ?? "");
 
+  // Scope to the resolved cohort: an other-cohort id would empty the visible tab while
+  // rendering no removable chip in the course filter.
+  const cohortCourses = new Set(courses.filter((course) => course.cohortId === cohortId).map((course) => course.id));
   const requestedCourses = (params.get("courses") ?? "").split(",").filter(Boolean);
-  const courseIds = requestedCourses.filter((id) => knownCourses.has(id));
+  const courseIds = requestedCourses.filter((id) => cohortCourses.has(id));
 
   return { cohortId, query: params.get("q") ?? "", courseIds };
 };

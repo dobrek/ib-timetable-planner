@@ -48,7 +48,7 @@ type Props = {
  * changes (handler-scoped so `form.reset` on open can never misfire it).
  */
 export default function StudentFormDialog({ open, onClose, student, cohorts, courses, defaultCohortId }: Props) {
-  const { form, onSubmit } = useStudentForm(open, student, defaultCohortId, onClose);
+  const { form, onSubmit } = useStudentForm(open, student, defaultCohortId, courses, onClose);
 
   const watchedCohortId = useWatch({ control: form.control, name: "cohortId" });
   const choiceItems = useMemo(
@@ -164,7 +164,13 @@ export default function StudentFormDialog({ open, onClose, student, cohorts, cou
   );
 }
 
-function useStudentForm(open: boolean, student: StudentRow | null, defaultCohortId: string, onClose: () => void) {
+function useStudentForm(
+  open: boolean,
+  student: StudentRow | null,
+  defaultCohortId: string,
+  courses: CourseOption[],
+  onClose: () => void,
+) {
   const form = useForm<StudentFormValues, unknown, StudentInput>({
     resolver: zodResolver(studentInput),
     mode: "onTouched",
@@ -173,8 +179,8 @@ function useStudentForm(open: boolean, student: StudentRow | null, defaultCohort
 
   useEffect(() => {
     if (!open) return;
-    form.reset(student ? studentFormValues(student) : emptyStudentFormValues(defaultCohortId));
-  }, [open, student, defaultCohortId, form]);
+    form.reset(student ? studentFormValues(student, courses) : emptyStudentFormValues(defaultCohortId));
+  }, [open, student, defaultCohortId, courses, form]);
 
   const onSubmit = (values: StudentInput) =>
     submitForm({
@@ -187,11 +193,20 @@ function useStudentForm(open: boolean, student: StudentRow | null, defaultCohort
   return { form, onSubmit };
 }
 
-const studentFormValues = (student: StudentRow): StudentFormValues => ({
-  fullName: student.fullName,
-  cohortId: student.cohortId,
-  choiceCourseIds: student.choiceCourseIds,
-});
+const studentFormValues = (student: StudentRow, courses: CourseOption[]): StudentFormValues => {
+  // Prune choice ids the picker can't render (course became a merge parent or moved cohort) —
+  // they'd be counted in the trigger but show no removable chip.
+  const renderable = new Set(
+    courses
+      .filter((course) => course.cohortId === student.cohortId && !course.isMergeParent)
+      .map((course) => course.id),
+  );
+  return {
+    fullName: student.fullName,
+    cohortId: student.cohortId,
+    choiceCourseIds: student.choiceCourseIds.filter((id) => renderable.has(id)),
+  };
+};
 
 const emptyStudentFormValues = (cohortId: string): StudentFormValues => ({
   fullName: "",

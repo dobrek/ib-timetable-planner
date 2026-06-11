@@ -1,7 +1,7 @@
 import { ActionError, defineAction, type ActionAPIContext } from "astro:actions";
 import type * as z from "zod/v4/core";
 import { createClient, type SupabaseClient } from "@/shared/api";
-import { DomainError } from "./errors";
+import { DomainError } from "../errors";
 
 /**
  * Define an Astro Action with the standard domain shape: session enforced, Supabase

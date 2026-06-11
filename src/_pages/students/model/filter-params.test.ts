@@ -7,8 +7,13 @@ const cohorts = [
   { id: "cohort-y2", label: "Year 2" },
 ];
 
-const course = (id: string): CourseOption => ({ id, cohortId: "cohort-y1", label: id, isMergeParent: false });
-const courses = [course("c1"), course("c2"), course("c3")];
+const course = (id: string, cohortId = "cohort-y1"): CourseOption => ({
+  id,
+  cohortId,
+  label: id,
+  isMergeParent: false,
+});
+const courses = [course("c1"), course("c2"), course("c3"), course("c4", "cohort-y2")];
 
 describe("readFilterParams", () => {
   it("defaults to the first cohort, empty query, and no courses when the query is empty", () => {
@@ -16,10 +21,10 @@ describe("readFilterParams", () => {
   });
 
   it("reads the cohort, query, and courses from the URL", () => {
-    expect(readFilterParams("?cohort=cohort-y2&q=alice&courses=c1,c3", cohorts, courses)).toEqual({
+    expect(readFilterParams("?cohort=cohort-y2&q=alice&courses=c4", cohorts, courses)).toEqual({
       cohortId: "cohort-y2",
       query: "alice",
-      courseIds: ["c1", "c3"],
+      courseIds: ["c4"],
     });
   });
 
@@ -29,6 +34,10 @@ describe("readFilterParams", () => {
 
   it("drops unknown course ids", () => {
     expect(readFilterParams("?courses=c1,ghost,c2", cohorts, courses).courseIds).toEqual(["c1", "c2"]);
+  });
+
+  it("drops course ids outside the resolved cohort", () => {
+    expect(readFilterParams("?cohort=cohort-y2&courses=c1,c4", cohorts, courses).courseIds).toEqual(["c4"]);
   });
 });
 
@@ -44,7 +53,7 @@ describe("toFilterSearch", () => {
   });
 
   it("round-trips through readFilterParams", () => {
-    const filters = { cohortId: "cohort-y2", query: "english", courseIds: ["c1", "c3"] };
+    const filters = { cohortId: "cohort-y2", query: "english", courseIds: ["c4"] };
     expect(readFilterParams(`?${toFilterSearch(filters)}`, cohorts, courses)).toEqual(filters);
   });
 });

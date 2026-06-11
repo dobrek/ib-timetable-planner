@@ -38,6 +38,16 @@ describe("studentInput", () => {
   it("rejects a non-uuid choice id", () => {
     expect(studentInput.safeParse({ ...validStudent, choiceCourseIds: ["not-a-uuid"] }).success).toBe(false);
   });
+
+  it("dedupes repeated choice ids", () => {
+    const choiceCourseIds = [UUID_A, UUID_B, UUID_A];
+    expect(studentInput.parse({ ...validStudent, choiceCourseIds }).choiceCourseIds).toEqual([UUID_A, UUID_B]);
+  });
+
+  it("rejects more than 64 choices", () => {
+    const choiceCourseIds = Array.from({ length: 65 }, (_, i) => UUID_A.replace("8111", `8${String(100 + i)}`));
+    expect(studentInput.safeParse({ ...validStudent, choiceCourseIds }).success).toBe(false);
+  });
 });
 
 describe("updateStudentInput", () => {

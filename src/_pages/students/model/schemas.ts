@@ -10,7 +10,13 @@ export const studentInput = z.object({
   cohortId: z.uuid(),
   // The student's full course-choice set. Empty is valid (no min/max choice count — decided).
   // The server independently re-checks every id belongs to `cohortId` (assertChoicesInCohort).
-  choiceCourseIds: z.array(z.uuid()).default([]),
+  // Deduped + bounded: the MultiSelect can't produce duplicates or 64+ picks, but a crafted
+  // call could — a duplicate would hit the UNIQUE constraint as a 500 instead of failing here.
+  choiceCourseIds: z
+    .array(z.uuid())
+    .max(64, "Too many choices")
+    .default([])
+    .transform((ids) => [...new Set(ids)]),
 });
 
 export const updateStudentInput = studentInput.extend({

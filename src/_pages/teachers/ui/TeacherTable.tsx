@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui";
-import { formatAssignmentBadgeLabel } from "../lib/labels";
+import { formatCourseBadgeLabel } from "@/shared/lib/course-label";
 import type { YearFilter } from "../model/filter-teachers";
 import { sortTeachers } from "../model/sort-teachers";
 import type { CourseAssignment, TeacherRow } from "../model/teacher";
@@ -110,7 +110,7 @@ function AssignmentBadges({ assignments }: { assignments: CourseAssignment[] }) 
     <div className="flex flex-wrap gap-1">
       {assignments.map((assignment) => (
         <Badge key={assignment.id} variant="outline">
-          {formatAssignmentBadgeLabel(assignment)}
+          {formatCourseBadgeLabel(assignment)}
         </Badge>
       ))}
     </div>

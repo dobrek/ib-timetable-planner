@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deleteStudentInput, studentInput, updateStudentInput } from "./schemas";
 
 const UUID_A = "11111111-1111-4111-8111-111111111111";
+const UUID_B = "22222222-2222-4222-8222-222222222222";
 
 const validStudent = {
   fullName: "Alice Parker",
@@ -10,7 +11,7 @@ const validStudent = {
 
 describe("studentInput", () => {
   it("accepts a valid student", () => {
-    expect(studentInput.parse(validStudent)).toEqual(validStudent);
+    expect(studentInput.parse(validStudent)).toEqual({ ...validStudent, choiceCourseIds: [] });
   });
 
   it("trims the full name", () => {
@@ -23,6 +24,19 @@ describe("studentInput", () => {
 
   it("rejects a non-uuid cohort id", () => {
     expect(studentInput.safeParse({ ...validStudent, cohortId: "not-a-uuid" }).success).toBe(false);
+  });
+
+  it("defaults choiceCourseIds to an empty array when omitted", () => {
+    expect(studentInput.parse(validStudent).choiceCourseIds).toEqual([]);
+  });
+
+  it("accepts a set of uuid choices", () => {
+    const choiceCourseIds = [UUID_A, UUID_B];
+    expect(studentInput.parse({ ...validStudent, choiceCourseIds }).choiceCourseIds).toEqual(choiceCourseIds);
+  });
+
+  it("rejects a non-uuid choice id", () => {
+    expect(studentInput.safeParse({ ...validStudent, choiceCourseIds: ["not-a-uuid"] }).success).toBe(false);
   });
 });
 

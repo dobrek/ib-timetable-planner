@@ -1,4 +1,4 @@
-import { DomainError } from "./errors";
+import { DomainError } from "../errors";
 
 /** PostgREST surfaces a Postgres unique-constraint violation with this SQLSTATE. */
 export const UNIQUE_VIOLATION = "23505";

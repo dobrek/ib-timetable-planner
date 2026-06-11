@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { writeMergeAtomic } from "./write-merge-atomic";
+import { writeParentWithLinks } from "./index";
 
-describe("writeMergeAtomic", () => {
+describe("writeParentWithLinks", () => {
   const parent = { id: "parent-1" };
 
   it("inserts the parent then the links and returns the parent", async () => {
     const insertLinks = vi.fn().mockResolvedValue(undefined);
     const deleteParent = vi.fn().mockResolvedValue(undefined);
 
-    const result = await writeMergeAtomic({
+    const result = await writeParentWithLinks({
       insertParent: () => Promise.resolve(parent),
       insertLinks,
       deleteParent,
@@ -24,7 +24,7 @@ describe("writeMergeAtomic", () => {
     const deleteParent = vi.fn().mockResolvedValue(undefined);
 
     await expect(
-      writeMergeAtomic({
+      writeParentWithLinks({
         insertParent: () => Promise.resolve(parent),
         insertLinks: () => Promise.reject(linkError),
         deleteParent,

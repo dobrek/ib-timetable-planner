@@ -79,6 +79,7 @@ export default function MergeBuilderDialog({ open, onClose, courses, coursesById
                 <FormItem className="flex flex-col">
                   <FormLabel>Courses to merge</FormLabel>
                   <MultiSelect
+                    modal
                     items={candidateItems}
                     selectedIds={field.value}
                     onChange={field.onChange}

@@ -3,12 +3,14 @@ import { z } from "zod";
 /**
  * Single source of truth for student validation, imported by both the Astro Actions
  * (`input` — the authoritative server gate) and the react-hook-form resolvers.
- * (`choiceCourseIds` joins in Phase 2.)
  */
 
 export const studentInput = z.object({
   fullName: z.string().trim().min(1, "Name is required"),
   cohortId: z.uuid(),
+  // The student's full course-choice set. Empty is valid (no min/max choice count — decided).
+  // The server independently re-checks every id belongs to `cohortId` (assertChoicesInCohort).
+  choiceCourseIds: z.array(z.uuid()).default([]),
 });
 
 export const updateStudentInput = studentInput.extend({

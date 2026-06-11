@@ -85,6 +85,7 @@ export default function StudentCatalog({ students, cohorts, courses }: Props) {
         onClose={dialogs.closeForm}
         student={dialogs.formStudent}
         cohorts={cohorts}
+        courses={courses}
         defaultCohortId={filters.activeCohortId}
       />
       <DeleteStudentDialog student={dialogs.deleteTarget} onClose={dialogs.closeDelete} />

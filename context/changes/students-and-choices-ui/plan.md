@@ -391,34 +391,34 @@ None — both tables, their constraints, and cascades already exist. No data mig
 
 #### Automated
 
-- [x] 1.1 Unit tests pass (schemas, filter-params, filter-students): `pnpm test`
-- [x] 1.2 Lint passes: `pnpm lint`
-- [x] 1.3 FSD structure passes: `pnpm steiger`
-- [x] 1.4 Build stays clean: `pnpm build`
+- [x] 1.1 Unit tests pass (schemas, filter-params, filter-students): `pnpm test` — 2a16923
+- [x] 1.2 Lint passes: `pnpm lint` — 2a16923
+- [x] 1.3 FSD structure passes: `pnpm steiger` — 2a16923
+- [x] 1.4 Build stays clean: `pnpm build` — 2a16923
 
 #### Manual
 
-- [x] 1.5 `/students` lists seeded students under cohort tabs with choice badges and counts
-- [x] 1.6 Create / edit (name + cohort) / delete works end-to-end with toasts and refresh
-- [x] 1.7 "New student" on the Year 2 tab pre-selects Year 2
-- [x] 1.8 Name search narrows rows; tab + query survive reload via URL
+- [x] 1.5 `/students` lists seeded students under cohort tabs with choice badges and counts — 2a16923
+- [x] 1.6 Create / edit (name + cohort) / delete works end-to-end with toasts and refresh — 2a16923
+- [x] 1.7 "New student" on the Year 2 tab pre-selects Year 2 — 2a16923
+- [x] 1.8 Name search narrows rows; tab + query survive reload via URL — 2a16923
 
 ### Phase 2: Choices editor in the form dialog
 
 #### Automated
 
-- [ ] 2.1 New unit tests pass (diff-choices, schemas, moved write-parent-with-links): `pnpm test`
-- [ ] 2.2 Lint passes: `pnpm lint`
-- [ ] 2.3 FSD structure passes: `pnpm steiger`
-- [ ] 2.4 Build stays clean: `pnpm build`
+- [x] 2.1 New unit tests pass (diff-choices, schemas, moved write-parent-with-links): `pnpm test`
+- [x] 2.2 Lint passes: `pnpm lint`
+- [x] 2.3 FSD structure passes: `pnpm steiger`
+- [x] 2.4 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.5 Create a student with several choices in one submit; badges appear
-- [ ] 2.6 Edit adds + removes choices in one submit; table reflects new set
-- [ ] 2.7 Cohort change visibly clears chips before submit; new cohort's courses listed; submit persists
-- [ ] 2.8 Picker excludes merge-parent composites and other-cohort courses
-- [ ] 2.9 Picker search filters by label; chips remove on X
+- [x] 2.5 Create a student with several choices in one submit; badges appear
+- [x] 2.6 Edit adds + removes choices in one submit; table reflects new set
+- [x] 2.7 Cohort change visibly clears chips before submit; new cohort's courses listed; submit persists
+- [x] 2.8 Picker excludes merge-parent composites and other-cohort courses
+- [x] 2.9 Picker search filters by label; chips remove on X
 
 ### Phase 3: Course filter + integration tests
 

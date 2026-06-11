@@ -4,7 +4,7 @@ import type { MergeInput } from "../model/schemas";
 import { deriveMergeParent, mergeReasonMessage } from "../model/merge";
 import { DomainError } from "@/shared/lib/errors";
 import { DUPLICATE_COURSE_MESSAGE } from "./constants";
-import { writeMergeAtomic } from "./write-merge-atomic";
+import { writeParentWithLinks } from "@/shared/lib/write-parent-with-links";
 
 /**
  * Authoritative create-merge gate. Loads the selected children, re-runs `deriveMergeParent`
@@ -40,7 +40,7 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
     throw new DomainError("BAD_REQUEST", "Selected courses are not in the requested cohort.");
   }
 
-  return writeMergeAtomic({
+  return writeParentWithLinks({
     insertParent: async () =>
       unwrapRow(
         await supabase
@@ -70,7 +70,7 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
       if (error) {
         // Double fault: the link insert failed AND its compensating cleanup failed,
         // leaving an orphan parent. Surface it for tracing — the original link error
-        // is still rethrown to the caller by writeMergeAtomic.
+        // is still rethrown to the caller by writeParentWithLinks.
         // eslint-disable-next-line no-console
         console.error(`[createMerge] orphan parent ${parent.id} left after failed cleanup: ${error.message}`);
       }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DomainError } from "./errors";
-import { NOT_FOUND_ROW, UNIQUE_VIOLATION, unwrapCompleted, unwrapRow } from "./postgrest";
+import { DomainError } from "../errors";
+import { NOT_FOUND_ROW, UNIQUE_VIOLATION, unwrapCompleted, unwrapRow } from "./index";
 
 const MESSAGES = { conflict: "Already exists.", notFound: "Not found.", failure: "Failed to write" };
 

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import type { CohortOption } from "@/shared/api";
 import { submitForm } from "@/shared/lib/forms";
 import {
@@ -18,6 +18,7 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  MultiSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -26,7 +27,7 @@ import {
 } from "@/shared/ui";
 import { createStudent, updateStudent } from "../api/student-client";
 import { studentInput, type StudentFormValues, type StudentInput } from "../model/schemas";
-import type { StudentRow } from "../model/student";
+import type { CourseOption, StudentRow } from "../model/student";
 
 type Props = {
   open: boolean;
@@ -34,17 +35,29 @@ type Props = {
   /** The row to edit, or null to create. */
   student: StudentRow | null;
   cohorts: CohortOption[];
+  /** Real courses (merge parents flagged) — the choice picker is scoped per cohort. */
+  courses: CourseOption[];
   /** Cohort prefilled in create mode (the active tab). */
   defaultCohortId: string;
 };
 
 /**
- * Create/edit a student. The shared `studentInput` schema drives both client validation
- * (RHF `zodResolver`, `mode: "onTouched"`) and the server action gate. (The choices editor
- * joins this dialog in Phase 2.)
+ * Create/edit a student and its full course-choice set in one submit. The shared `studentInput`
+ * schema drives both client validation (RHF `zodResolver`, `mode: "onTouched"`) and the server
+ * action gate; the choices picker is scoped to the selected cohort and clears when the cohort
+ * changes (handler-scoped so `form.reset` on open can never misfire it).
  */
-export default function StudentFormDialog({ open, onClose, student, cohorts, defaultCohortId }: Props) {
+export default function StudentFormDialog({ open, onClose, student, cohorts, courses, defaultCohortId }: Props) {
   const { form, onSubmit } = useStudentForm(open, student, defaultCohortId, onClose);
+
+  const watchedCohortId = useWatch({ control: form.control, name: "cohortId" });
+  const choiceItems = useMemo(
+    () =>
+      courses
+        .filter((course) => course.cohortId === watchedCohortId && !course.isMergeParent)
+        .map((course) => ({ id: course.id, label: course.label })),
+    [courses, watchedCohortId],
+  );
 
   return (
     <Dialog
@@ -83,7 +96,15 @@ export default function StudentFormDialog({ open, onClose, student, cohorts, def
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cohort</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    onValueChange={(next) => {
+                      // Clear choices on an actual cohort change only — handler-scoped so the
+                      // reset can't misfire during form.reset on open/edit-prefill.
+                      if (next !== field.value) form.setValue("choiceCourseIds", [], { shouldDirty: true });
+                      field.onChange(next);
+                    }}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a cohort" />
@@ -100,6 +121,32 @@ export default function StudentFormDialog({ open, onClose, student, cohorts, def
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            <FormField
+              control={form.control}
+              name="choiceCourseIds"
+              render={({ field }) => {
+                const selectedIds = field.value ?? [];
+                return (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Course choices</FormLabel>
+                    <MultiSelect
+                      modal
+                      items={choiceItems}
+                      selectedIds={selectedIds}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      trigger={selectedIds.length > 0 ? `${selectedIds.length} selected` : "Select courses…"}
+                      triggerClassName="justify-between font-normal"
+                      searchPlaceholder="Search courses…"
+                      emptyText="No courses found."
+                    />
+                    <p className="text-muted-foreground text-xs">Choices are limited to the selected cohort.</p>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <DialogFooter>
@@ -143,9 +190,11 @@ function useStudentForm(open: boolean, student: StudentRow | null, defaultCohort
 const studentFormValues = (student: StudentRow): StudentFormValues => ({
   fullName: student.fullName,
   cohortId: student.cohortId,
+  choiceCourseIds: student.choiceCourseIds,
 });
 
 const emptyStudentFormValues = (cohortId: string): StudentFormValues => ({
   fullName: "",
   cohortId,
+  choiceCourseIds: [],
 });

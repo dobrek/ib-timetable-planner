@@ -1,8 +1,6 @@
-import { useState } from "react";
 import { useDraggable } from "@dnd-kit/react";
-import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
-import { Button } from "@/shared/ui";
-import type { CourseDrag } from "../model/drag";
+import { GripVertical } from "lucide-react";
+import type { CourseDrag, GroupDrag } from "../model/drag";
 import type { PlannerGrouping } from "../model/grouping";
 import type { HoursStat } from "../model/hours";
 import { cn } from "@/shared/lib/cn";
@@ -15,47 +13,52 @@ type Props = {
 };
 
 /**
- * A palette hint box: an expandable list of co-runnable member courses. Each course
- * is individually draggable onto the grid — the box never drops as a unit (the course
- * is the unit of placement). Display names are resolved at the edge from `names`.
+ * A palette hint box of co-runnable member courses, with two drag affordances:
+ * each course row drags individually onto the grid, and the header drags the
+ * whole group — dropping it fans one placement per member into the target cell.
+ * The box is the group draggable with the header as its handle; it stays in
+ * place while dragging (GroupDragOverlay carries the pointer-following clone).
+ * Display names are resolved at the edge from `names`.
  */
 export default function GroupingBox({ grouping, names, hours }: Props) {
-  const { expanded, toggle } = useExpanded();
+  // While a GroupDragOverlay is mounted for this drag, the Feedback plugin uses
+  // the overlay as the moving element and leaves this box in the palette layout,
+  // so the isDragging treatment below is the in-place "in use" state.
+  const { ref, handleRef, isDragging } = useDraggable<GroupDrag>({
+    id: `grouping:${grouping.id}`,
+    data: { kind: "grouping", groupingId: grouping.id },
+  });
 
   return (
-    <div data-slot="grouping-box" className="rounded-lg border">
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={toggle}
-        className="h-auto w-full justify-start gap-2 px-3 py-2 text-sm font-medium"
+    <div
+      ref={ref}
+      data-slot="grouping-box"
+      className={cn("bg-background rounded-lg border", isDragging && "border-dashed opacity-60")}
+    >
+      <div
+        ref={handleRef}
+        data-slot="grouping-header"
+        className={cn(
+          "flex cursor-grab items-center gap-2 rounded-t-lg px-3 py-2 text-sm font-medium",
+          "hover:bg-accent hover:text-accent-foreground active:cursor-grabbing",
+        )}
       >
-        {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        <GripVertical className="text-muted-foreground size-4" />
         <span>{grouping.memberIds.length} courses</span>
-      </Button>
-      {expanded && (
-        <ul className="space-y-1 px-2 pb-2">
-          {grouping.memberIds.map((courseId) => (
-            <PaletteCourse
-              key={courseId}
-              groupingId={grouping.id}
-              courseId={courseId}
-              name={names[courseId] ?? courseId}
-              hours={hours.get(courseId)}
-            />
-          ))}
-        </ul>
-      )}
+      </div>
+      <ul className="space-y-1 px-2 pb-2">
+        {grouping.memberIds.map((courseId) => (
+          <PaletteCourse
+            key={courseId}
+            groupingId={grouping.id}
+            courseId={courseId}
+            name={names[courseId] ?? courseId}
+            hours={hours.get(courseId)}
+          />
+        ))}
+      </ul>
     </div>
   );
-}
-
-function useExpanded(initial = true) {
-  const [expanded, setExpanded] = useState(initial);
-  const toggle = () => {
-    setExpanded((value) => !value);
-  };
-  return { expanded, toggle };
 }
 
 function PaletteCourse({

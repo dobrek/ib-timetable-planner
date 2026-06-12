@@ -3,10 +3,13 @@ import type { Cohort } from "@/shared/config";
 import { createPlacement, deletePlacement } from "../api/placement-client";
 import type { CellData } from "./drag";
 import {
+  addManyOptimistic,
   addOptimistic,
   addReconcile,
   addRollback,
   canAdd,
+  eligibleMembers,
+  groupFailureMessage,
   moveIntent,
   moveOptimistic,
   moveReconcile,
@@ -14,15 +17,19 @@ import {
   removeOptimistic,
   removeRollback,
   removeTarget,
+  settleMany,
+  type BatchOutcome,
 } from "./placement-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement";
 
-type UsePlacementsArgs = { planId: string; cohort: Cohort };
+/** `names` is used only to format persistence-failure messages — identity stays id-based. */
+type UsePlacementsArgs = { planId: string; cohort: Cohort; names: Record<string, string> };
 
 type UsePlacements = {
   placements: LocalPlacement[];
   error: string | null;
   addCourse: (courseId: string, cell: CellData) => void;
+  addGroup: (memberIds: string[], cell: CellData) => void;
   movePlacement: (placementId: string, cell: CellData) => void;
   removePlacement: (placementId: string) => void;
   clearError: () => void;
@@ -33,13 +40,20 @@ type UsePlacements = {
  * transitions live in `placement-transitions.ts`; this hook orchestrates React state
  * and async persistence over those pure functions.
  */
-export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: UsePlacementsArgs): UsePlacements {
+export function usePlacements(
+  initial: PlannerPlacement[],
+  { planId, cohort, names }: UsePlacementsArgs,
+): UsePlacements {
   const [placements, setPlacements] = useState<LocalPlacement[]>(initial);
   const [error, setError] = useState<string | null>(null);
   const placementsRef = useLatest(placements);
 
   function addCourse(courseId: string, cell: CellData) {
     void persistAdd(courseId, cell);
+  }
+
+  function addGroup(memberIds: string[], cell: CellData) {
+    void persistAddGroup(memberIds, cell);
   }
 
   function movePlacement(placementId: string, cell: CellData) {
@@ -62,6 +76,37 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     } catch (err: unknown) {
       setPlacements((prev) => addRollback(prev, tempId));
       setError(messageOf(err));
+    }
+  }
+
+  // Group fan-out (Option A): N parallel idempotent single inserts. Members already
+  // in the cell are silently skipped; the optimistic batch and the settlement each
+  // land in one state update so collision/hours derivations recompute once.
+  async function persistAddGroup(memberIds: string[], cell: CellData) {
+    const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
+    if (eligible.length === 0) return;
+
+    const entries = eligible.map((courseId) => ({ tempId: crypto.randomUUID(), courseId }));
+    setPlacements((prev) => addManyOptimistic(prev, entries, cell));
+
+    const outcomes = await Promise.all(entries.map((entry) => persistMember(entry, cell)));
+    setPlacements((prev) => settleMany(prev, outcomes));
+
+    const failedNames = outcomes
+      .filter(({ result }) => result === null)
+      .map(({ courseId }) => names[courseId] ?? courseId);
+    if (failedNames.length > 0) setError(groupFailureMessage(failedNames, outcomes.length));
+  }
+
+  async function persistMember(
+    { tempId, courseId }: { tempId: string; courseId: string },
+    cell: CellData,
+  ): Promise<BatchOutcome & { courseId: string }> {
+    try {
+      const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period });
+      return { tempId, courseId, result: row };
+    } catch {
+      return { tempId, courseId, result: null };
     }
   }
 
@@ -111,6 +156,7 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     placements,
     error,
     addCourse,
+    addGroup,
     movePlacement,
     removePlacement,
     clearError: () => {

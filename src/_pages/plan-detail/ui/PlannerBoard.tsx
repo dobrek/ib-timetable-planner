@@ -4,6 +4,7 @@ import type { DragEndEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
 import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import ErrorBanner from "./ErrorBanner";
+import GroupDragOverlay from "./GroupDragOverlay";
 import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
@@ -22,10 +23,10 @@ import { usePlacements } from "../model/use-placements";
 export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
   const { planId, cohort, days, periods, groupings, names, catalog } = props;
 
-  const { placements, error, addCourse, movePlacement, removePlacement, clearError } = usePlacements(props.placements, {
-    planId,
-    cohort,
-  });
+  const { placements, error, addCourse, addGroup, movePlacement, removePlacement, clearError } = usePlacements(
+    props.placements,
+    { planId, cohort, names },
+  );
   const collisions = useCollisions(placements, catalog);
   const { hours, incompleteCount } = useHours(placements, catalog);
 
@@ -37,7 +38,14 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     const data = source.data as DragData;
     const cell = target.data as CellData;
     if (data.kind === "course") addCourse(data.courseId, cell);
-    else movePlacement(data.placementId, cell);
+    else if (data.kind === "placement") movePlacement(data.placementId, cell);
+    else dropGroup(data.groupingId, cell);
+  }
+
+  // Unknown groupingId → empty member list → no-op.
+  function dropGroup(groupingId: string, cell: CellData) {
+    const members = groupings.find((grouping) => grouping.id === groupingId)?.memberIds ?? [];
+    addGroup(members, cell);
   }
 
   if (groupings.length === 0) {
@@ -76,6 +84,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
           </div>
         </div>
       </div>
+      <GroupDragOverlay groupings={groupings} names={names} />
     </DragDropProvider>
   );
 }

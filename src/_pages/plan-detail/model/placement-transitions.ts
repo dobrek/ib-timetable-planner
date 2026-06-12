@@ -25,6 +25,43 @@ export function addRollback(prev: LocalPlacement[], tempId: string): LocalPlacem
   return prev.filter((p) => p.id !== tempId);
 }
 
+// --- Add group (batch) ---
+
+export type BatchEntry = { tempId: string; courseId: string };
+/** `result: null` means the member failed to persist and rolls back. */
+export type BatchOutcome = { tempId: string; result: PlannerPlacement | null };
+
+export function eligibleMembers(placements: LocalPlacement[], memberIds: string[], cell: CellData): string[] {
+  return memberIds.filter((courseId) => canAdd(placements, courseId, cell));
+}
+
+export function addManyOptimistic(prev: LocalPlacement[], entries: BatchEntry[], cell: CellData): LocalPlacement[] {
+  return [
+    ...prev,
+    ...entries.map(({ tempId, courseId }) => ({
+      id: tempId,
+      courseId,
+      day: cell.day,
+      period: cell.period,
+      pending: true,
+    })),
+  ];
+}
+
+export function settleMany(prev: LocalPlacement[], outcomes: BatchOutcome[]): LocalPlacement[] {
+  const resultByTempId = new Map(outcomes.map(({ tempId, result }) => [tempId, result]));
+  return prev.flatMap((placement) => {
+    if (!resultByTempId.has(placement.id)) return [placement];
+    const result = resultByTempId.get(placement.id);
+    return result ? [result] : [];
+  });
+}
+
+export function groupFailureMessage(failedNames: string[], attempted: number): string {
+  const noun = attempted === 1 ? "course" : "courses";
+  return `${failedNames.length} of ${attempted} ${noun} failed to save: ${failedNames.join(", ")}`;
+}
+
 // --- Move ---
 
 export type MoveIntent = {

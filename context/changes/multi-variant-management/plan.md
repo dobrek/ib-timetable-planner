@@ -430,29 +430,29 @@ No production data exists; the migration is destructive by design (drops `plan_v
 
 #### Automated
 
-- [x] 3.1 `pnpm build` passes
-- [x] 3.2 `pnpm test` passes
-- [x] 3.3 `pnpm test:integration` passes with zero skipped tests
-- [x] 3.4 `pnpm lint` and `pnpm steiger` pass
+- [x] 3.1 `pnpm build` passes — 692307d
+- [x] 3.2 `pnpm test` passes — 692307d
+- [x] 3.3 `pnpm test:integration` passes with zero skipped tests — 692307d
+- [x] 3.4 `pnpm lint` and `pnpm steiger` pass — 692307d
 
 #### Manual
 
-- [x] 3.5 Walkthrough: hub lists both plans, catalog isolation between plans, board drag-drop persists, `?cohort=dp1` round-trips
-- [x] 3.6 Old `/courses` bookmark redirects to `/plans`
-- [x] 3.7 Drag-drop feels instant (<200ms budget intact)
+- [x] 3.5 Walkthrough: hub lists both plans, catalog isolation between plans, board drag-drop persists, `?cohort=dp1` round-trips — 692307d
+- [x] 3.6 Old `/courses` bookmark redirects to `/plans` — 692307d
+- [x] 3.7 Drag-drop feels instant (<200ms budget intact) — 692307d
 
 ### Phase 4: Plans Hub (Create / Clone / Rename / Delete)
 
 #### Automated
 
-- [ ] 4.1 `pnpm build`, `pnpm lint`, `pnpm steiger` pass
-- [ ] 4.2 `pnpm test` passes
-- [ ] 4.3 `pnpm test:integration` passes including plan-action tests
+- [x] 4.1 `pnpm build`, `pnpm lint`, `pnpm steiger` pass
+- [x] 4.2 `pnpm test` passes
+- [x] 4.3 `pnpm test:integration` passes including plan-action tests
 
 #### Manual
 
-- [ ] 4.4 Hub flows: create blank → empty board; clone → warm board with custom name; rename; delete with correct counts
-- [ ] 4.5 Cloned plan's catalog edits don't leak to source
+- [x] 4.4 Hub flows: create blank → empty board; clone → warm board with custom name; rename; delete with correct counts
+- [x] 4.5 Cloned plan's catalog edits don't leak to source
 
 ### Phase 5: Hosted Rollout
 

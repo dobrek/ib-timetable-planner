@@ -150,8 +150,9 @@ const PLAN_TABLES = [
   it("clones placements and groupings with members remapped to the clone's courses", async () => {
     // Stage a warm plan without touching the base: clone first, then pin its dp1
     // groupings to exactly one (replace_cohort_groupings deletes the rest) and add
-    // a placement, then clone that. Assertions scope to dp1, since the base may
-    // carry dp2 groupings from the snapshot.
+    // a placement, then clone that. Assertions scope to dp1 and compare against the
+    // warm plan rather than absolute counts — the base snapshot may already carry
+    // placements/groupings (e.g. from manual board testing on the seed plan).
     const warmId = await clonePlan(sourcePlanId, "Clone Test 3 (warm)");
     const { data: warmCourses } = await supabase
       .from("courses")
@@ -173,16 +174,24 @@ const PLAN_TABLES = [
 
     const finalId = await clonePlan(warmId, "Clone Test 3 (final)");
     const finalCourseIds = await idsOf("courses", finalId);
+    const warmCourseIds = await idsOf("courses", warmId);
 
+    const { count: warmPlacementCount } = await supabase
+      .from("placements")
+      .select("*", { count: "exact", head: true })
+      .eq("plan_id", warmId)
+      .eq("cohort", "dp1");
     const { data: finalPlacements } = await supabase
       .from("placements")
       .select("course_id, day, period")
       .eq("plan_id", finalId)
       .eq("cohort", "dp1");
-    expect(finalPlacements).toHaveLength(1);
-    const placement = finalPlacements?.[0];
-    expect(placement && finalCourseIds.has(placement.course_id)).toBe(true);
-    expect(placement?.course_id === courseA).toBe(false);
+    expect(finalPlacements).toHaveLength(warmPlacementCount ?? -1);
+    expect(finalPlacements?.length).toBeGreaterThan(0);
+    for (const placement of finalPlacements ?? []) {
+      expect(finalCourseIds.has(placement.course_id)).toBe(true);
+      expect(warmCourseIds.has(placement.course_id), "placement course leaked from source").toBe(false);
+    }
 
     const { data: finalGroupings } = await supabase
       .from("course_groupings")

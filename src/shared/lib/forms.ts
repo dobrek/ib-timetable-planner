@@ -20,12 +20,14 @@ type SubmitFormOptions<TValues extends FieldValues> = {
   conflictCodes?: readonly string[];
   successMessage: string;
   onClose: () => void;
+  /** Post-success navigation override (e.g. into a freshly created plan). Default: `refreshPage()`. */
+  refresh?: () => Promise<void>;
 };
 
 /**
  * The standard dialog submit flow: input errors land on their fields, conflict-coded
  * errors land on `conflictField`, anything else toasts; success toasts, closes the
- * dialog, and re-runs the page loader via `refreshPage()`.
+ * dialog, and re-runs the page loader via `refreshPage()` (or the `refresh` override).
  */
 export async function submitForm<TValues extends FieldValues>(options: SubmitFormOptions<TValues>): Promise<void> {
   const { error } = await options.call();
@@ -35,7 +37,7 @@ export async function submitForm<TValues extends FieldValues>(options: SubmitFor
   }
   toast.success(options.successMessage);
   options.onClose();
-  await refreshPage();
+  await (options.refresh ?? refreshPage)();
 }
 
 /**

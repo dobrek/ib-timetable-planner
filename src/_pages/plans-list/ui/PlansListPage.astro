@@ -1,5 +1,6 @@
 ---
 import type { PlanRow } from "@/_pages/plans-list/api";
+import PlansHub from "./PlansHub";
 
 type Props = {
   plans: PlanRow[] | null;
@@ -8,28 +9,10 @@ type Props = {
 const { plans } = Astro.props;
 ---
 
-<header class="mb-8">
-  <h1 class="text-foreground text-2xl font-semibold tracking-tight">Plans</h1>
-  <p class="text-muted-foreground mt-2 text-sm">Open a plan to edit its timetable.</p>
-</header>
-
 {
   plans === null ? (
     <p class="text-muted-foreground text-sm">Plans are unavailable — Supabase is not configured.</p>
-  ) : plans.length === 0 ? (
-    <p class="text-muted-foreground text-sm">No plans yet.</p>
   ) : (
-    <ul class="space-y-2">
-      {plans.map((plan) => (
-        <li>
-          <a
-            href={`/plans/${plan.id}`}
-            class="border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground block rounded-lg border px-5 py-4 font-medium transition-colors"
-          >
-            {plan.name}
-          </a>
-        </li>
-      ))}
-    </ul>
+    <PlansHub plans={plans} client:load />
   )
 }

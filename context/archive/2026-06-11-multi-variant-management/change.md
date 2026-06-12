@@ -1,10 +1,10 @@
 ---
 change_id: multi-variant-management
 title: Multi variant management
-status: impl_reviewed
+status: archived
 created: 2026-06-11
 updated: 2026-06-12
-archived_at: null
+archived_at: 2026-06-12T10:24:00Z
 ---
 
 ## Notes

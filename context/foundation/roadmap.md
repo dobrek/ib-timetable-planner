@@ -3,7 +3,7 @@ project: IB Schedule Planner
 version: 3
 status: draft
 created: 2026-05-25
-updated: 2026-06-11
+updated: 2026-06-12
 prd_version: 2
 main_goal: market-feedback
 top_blocker: decisions
@@ -40,7 +40,7 @@ PRD §Business Logic names two paired rules — **recommendation** (the grouping
 | S-04 | students-and-choices-ui              | CRUD students and their course choices (primary entry path)                                          | F-01, F-02, S-02       | FR-006                                              | proposed |
 | S-05 | csv-import-students                  | bulk-import students from the existing `students_subjects.csv` without silently overwriting UI edits | S-04                   | FR-007, NFR Single-source-of-truth                  | proposed |
 | S-06 | compute-groupings-from-catalog       | run F-03 against the populated catalog from the authoring UI and see the ranked groupings list       | F-03, S-02, S-03, S-04 | FR-013, Business Logic (recommendation rule)        | proposed |
-| S-07 | multi-variant-management             | manage plans as cloneable whole-domain scenarios — `/plans` hub with create/clone/rename/delete      | S-01                   | FR-010, US-02                                       | proposed |
+| S-07 | multi-variant-management             | manage plans as cloneable whole-domain scenarios — `/plans` hub with create/clone/rename/delete      | S-01                   | FR-010, US-02                                       | done |
 | S-08 | year-1-complete-placement            | place every required Y1 slot end-to-end under the full catalog with real (not seeded) groupings      | S-03, S-06             | US-01(d), FR-011, FR-012, FR-013                    | blocked  |
 | S-09 | year-2-with-cross-cohort-constraint  | place Y2 while honoring fixed Y1 teacher occupancy (cross-cohort)                                    | S-08                   | US-01(e), FR-009, FR-012                            | blocked  |
 | S-10 | finalize-and-csv-export              | export any plan as a master-grid CSV with cohort distinguishable                                     | S-09                   | US-01(g)(h), FR-015                                 | proposed |
@@ -209,7 +209,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 - **Unknowns:**
   - ~~Does "switching" include copy-from-existing (forking) or only empty-new?~~ Resolved 2026-06-11: both — clone is the primary path; blank-new (name + grid preset) remains for cold start.
 - **Risk:** Re-scoped 2026-06-11 (PRD v2): the original "surface `plan_variants` in the UI" framing is overturned — user research showed the what-if axis is the catalog, not placements. The slice now carries a destructive schema re-baseline (plans as FK root, composite FKs, cohort enum) and a deep-copy clone RPC; widest blast radius is the app-wide plan threading.
-- **Status:** proposed
+- **Status:** done
 
 ### S-08: year-1-complete-placement
 
@@ -302,3 +302,5 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 ## Done
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips the item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived.)
+
+- **S-07: Plans are cloneable whole-domain scenarios** — Archived 2026-06-12 → `context/archive/2026-06-11-multi-variant-management/`. Lesson: —.

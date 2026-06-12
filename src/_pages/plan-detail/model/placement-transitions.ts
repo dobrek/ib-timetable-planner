@@ -62,6 +62,19 @@ export function groupFailureMessage(failedNames: string[], attempted: number): s
   return `${failedNames.length} of ${attempted} ${noun} failed to save: ${failedNames.join(", ")}`;
 }
 
+// --- Errors ---
+
+/** Persistence-failure surface of the write path — id-based; display names resolve at the render edge. */
+export type PlacementError =
+  | { kind: "message"; message: string }
+  | { kind: "groupFailure"; failedCourseIds: string[]; attempted: number };
+
+export function placementErrorMessage(error: PlacementError, names: Record<string, string>): string {
+  if (error.kind === "message") return error.message;
+  const failedNames = error.failedCourseIds.map((id) => names[id] ?? id);
+  return groupFailureMessage(failedNames, error.attempted);
+}
+
 // --- Move ---
 
 export type MoveIntent = {

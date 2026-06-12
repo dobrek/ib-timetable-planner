@@ -9,7 +9,6 @@ import {
   addRollback,
   canAdd,
   eligibleMembers,
-  groupFailureMessage,
   moveIntent,
   moveOptimistic,
   moveReconcile,
@@ -19,15 +18,15 @@ import {
   removeTarget,
   settleMany,
   type BatchOutcome,
+  type PlacementError,
 } from "./placement-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement";
 
-/** `names` is used only to format persistence-failure messages — identity stays id-based. */
-type UsePlacementsArgs = { planId: string; cohort: Cohort; names: Record<string, string> };
+type UsePlacementsArgs = { planId: string; cohort: Cohort };
 
 type UsePlacements = {
   placements: LocalPlacement[];
-  error: string | null;
+  error: PlacementError | null;
   addCourse: (courseId: string, cell: CellData) => void;
   addGroup: (memberIds: string[], cell: CellData) => void;
   movePlacement: (placementId: string, cell: CellData) => void;
@@ -40,12 +39,9 @@ type UsePlacements = {
  * transitions live in `placement-transitions.ts`; this hook orchestrates React state
  * and async persistence over those pure functions.
  */
-export function usePlacements(
-  initial: PlannerPlacement[],
-  { planId, cohort, names }: UsePlacementsArgs,
-): UsePlacements {
+export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: UsePlacementsArgs): UsePlacements {
   const [placements, setPlacements] = useState<LocalPlacement[]>(initial);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PlacementError | null>(null);
   const placementsRef = useLatest(placements);
 
   function addCourse(courseId: string, cell: CellData) {
@@ -75,7 +71,7 @@ export function usePlacements(
       setPlacements((prev) => addReconcile(prev, tempId, row));
     } catch (err: unknown) {
       setPlacements((prev) => addRollback(prev, tempId));
-      setError(messageOf(err));
+      setError(errorOf(err));
     }
   }
 
@@ -89,13 +85,21 @@ export function usePlacements(
     const entries = eligible.map((courseId) => ({ tempId: crypto.randomUUID(), courseId }));
     setPlacements((prev) => addManyOptimistic(prev, entries, cell));
 
-    const outcomes = await Promise.all(entries.map((entry) => persistMember(entry, cell)));
-    setPlacements((prev) => settleMany(prev, outcomes));
+    try {
+      const outcomes = await Promise.all(entries.map((entry) => persistMember(entry, cell)));
+      setPlacements((prev) => settleMany(prev, outcomes));
 
-    const failedNames = outcomes
-      .filter(({ result }) => result === null)
-      .map(({ courseId }) => names[courseId] ?? courseId);
-    if (failedNames.length > 0) setError(groupFailureMessage(failedNames, outcomes.length));
+      const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
+      if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: outcomes.length });
+    } catch (err: unknown) {
+      setPlacements((prev) =>
+        settleMany(
+          prev,
+          entries.map(({ tempId }) => ({ tempId, result: null })),
+        ),
+      );
+      setError(errorOf(err));
+    }
   }
 
   async function persistMember(
@@ -105,7 +109,10 @@ export function usePlacements(
     try {
       const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period });
       return { tempId, courseId, result: row };
-    } catch {
+    } catch (err: unknown) {
+      // The banner names which members failed; keep the underlying reason traceable.
+      // eslint-disable-next-line no-console
+      console.error(`[persistAddGroup] insert failed for course ${courseId}: ${messageOf(err)}`);
       return { tempId, courseId, result: null };
     }
   }
@@ -129,11 +136,11 @@ export function usePlacements(
       try {
         await deletePlacement(intent.oldId);
       } catch (err: unknown) {
-        setError(`Move saved but old cell cleanup failed: ${messageOf(err)}`);
+        setError({ kind: "message", message: `Move saved but old cell cleanup failed: ${messageOf(err)}` });
       }
     } catch (err: unknown) {
       setPlacements((prev) => moveRollback(prev, intent.oldId, intent.origin));
-      setError(messageOf(err));
+      setError(errorOf(err));
     }
   }
 
@@ -148,7 +155,7 @@ export function usePlacements(
       await deletePlacement(placementId);
     } catch (err: unknown) {
       setPlacements((prev) => removeRollback(prev, row));
-      setError(messageOf(err));
+      setError(errorOf(err));
     }
   }
 
@@ -175,3 +182,5 @@ function useLatest<T>(value: T) {
 
 const messageOf = (err: unknown): string =>
   err instanceof Error ? err.message : "Unexpected error persisting placement";
+
+const errorOf = (err: unknown): PlacementError => ({ kind: "message", message: messageOf(err) });

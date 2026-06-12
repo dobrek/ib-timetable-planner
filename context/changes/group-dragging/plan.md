@@ -77,7 +77,7 @@ Make the grouping header draggable, remove collapse, and wire the third `handleD
 
 **Intent**: Remove the collapse feature (`useExpanded`, chevron icons, conditional member render); replace the header `Button` with a header row registered as a `useDraggable<GroupDrag>` (`id: \`grouping:${grouping.id}\``). The header keeps the "N courses" label, gains a decorative `GripVertical` icon and `cursor-grab`/`active:cursor-grabbing` styling consistent with `PaletteCourse` rows. Update the doc comment (currently "the box never drops as a unit"). `PaletteCourse` rows are untouched.
 
-**Contract**: Members are always rendered. The header element and the per-course rows are sibling draggables — the header must not wrap the member list in its draggable element. Styling uses semantic tokens only (lessons.md).
+**Contract**: Members are always rendered. ~~The header element and the per-course rows are sibling draggables — the header must not wrap the member list in its draggable element.~~ **Amended during Phase 1 (with the overlay amendment):** the outer box is the draggable element with the header as its activation handle — required so the box is the Feedback plugin's source element for the in-place "in use" treatment; per-course rows still drag independently (checkpoint 1.7). Styling uses semantic tokens only (lessons.md).
 
 #### 3. Drop handler branch
 

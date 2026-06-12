@@ -13,6 +13,7 @@ import {
   moveOptimistic,
   moveReconcile,
   moveRollback,
+  placementErrorMessage,
   removeOptimistic,
   removeRollback,
   removeTarget,
@@ -202,6 +203,25 @@ describe("group batch transitions", () => {
 
   it("groupFailureMessage uses the singular noun for a single attempt", () => {
     expect(groupFailureMessage(["Math HL"], 1)).toBe("1 of 1 course failed to save: Math HL");
+  });
+
+  it("placementErrorMessage passes a message error through verbatim", () => {
+    expect(placementErrorMessage({ kind: "message", message: "boom" }, { A: "Math HL" })).toBe("boom");
+  });
+
+  it("placementErrorMessage resolves failed course ids to display names", () => {
+    expect(
+      placementErrorMessage(
+        { kind: "groupFailure", failedCourseIds: ["A", "B"], attempted: 6 },
+        { A: "Math HL", B: "Physics SL" },
+      ),
+    ).toBe("2 of 6 courses failed to save: Math HL, Physics SL");
+  });
+
+  it("placementErrorMessage falls back to the course id when the name is unknown", () => {
+    expect(placementErrorMessage({ kind: "groupFailure", failedCourseIds: ["A"], attempted: 2 }, {})).toBe(
+      "1 of 2 courses failed to save: A",
+    );
   });
 });
 

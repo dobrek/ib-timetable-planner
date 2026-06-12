@@ -13,6 +13,7 @@ import { deriveCollisions } from "../model/collisions";
 import type { GroupingCourse } from "../model/grouping";
 import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
+import { placementErrorMessage } from "../model/placement-transitions";
 import { usePlacements } from "../model/use-placements";
 
 /**
@@ -25,7 +26,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
 
   const { placements, error, addCourse, addGroup, movePlacement, removePlacement, clearError } = usePlacements(
     props.placements,
-    { planId, cohort, names },
+    { planId, cohort },
   );
   const collisions = useCollisions(placements, catalog);
   const { hours, incompleteCount } = useHours(placements, catalog);
@@ -37,9 +38,17 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
 
     const data = source.data as DragData;
     const cell = target.data as CellData;
-    if (data.kind === "course") addCourse(data.courseId, cell);
-    else if (data.kind === "placement") movePlacement(data.placementId, cell);
-    else dropGroup(data.groupingId, cell);
+    switch (data.kind) {
+      case "course":
+        addCourse(data.courseId, cell);
+        break;
+      case "placement":
+        movePlacement(data.placementId, cell);
+        break;
+      case "grouping":
+        dropGroup(data.groupingId, cell);
+        break;
+    }
   }
 
   // Unknown groupingId → empty member list → no-op.
@@ -70,7 +79,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
           <PlannerPalette groupings={groupings} names={names} hours={hours} />
 
           <div className="flex min-h-0 flex-col gap-3">
-            {error && <ErrorBanner message={error} onDismiss={clearError} />}
+            {error && <ErrorBanner message={placementErrorMessage(error, names)} onDismiss={clearError} />}
             <div className="min-h-0 flex-1 overflow-auto">
               <PlannerGrid
                 days={days}

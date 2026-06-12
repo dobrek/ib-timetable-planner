@@ -33,7 +33,7 @@ PRD §Business Logic names two paired rules — **recommendation** (the grouping
 | ---- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------- | -------- |
 | F-01 | gated-author-provisioning            | (foundation) closed registration — only approved authors can hold an account                         | —                      | FR-001, NFR Data privacy, Access Control            | ready    |
 | F-02 | minimal-domain-schema                | (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache      | —                      | FR-002, FR-006, FR-008, FR-010, NFR Work durability | done     |
-| F-03 | port-grouping-algorithm              | (foundation) pure-function port of the existing CSV grouping algorithm, edge-runtime safe            | F-02                   | FR-013, Business Logic (recommendation rule)        | proposed |
+| F-03 | port-grouping-algorithm              | (foundation) pure-function port of the existing CSV grouping algorithm, edge-runtime safe            | F-02                   | FR-013, Business Logic (recommendation rule)        | done |
 | S-01 | first-valid-drop-with-validation     | drag a pre-seeded Y1 grouping onto a slot and see live student-collision validation                  | F-01, F-02, F-03       | US-01(d), FR-008, FR-011, FR-012, Business Logic    | blocked  |
 | S-02 | course-and-dependency-catalog-ui     | CRUD courses `(name, level, group-index)` + overlap/merge dependencies + weekly hours                | F-01, F-02             | FR-002, FR-003, FR-003A                             | proposed |
 | S-03 | teachers-and-availability-catalog-ui | CRUD teachers/assignments/availability; online validator extends to teacher + availability classes   | S-01, S-02             | FR-004, FR-005, FR-012                              | blocked  |
@@ -113,9 +113,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
   - Output persistence strategy: write to `course_groupings` table after each run vs. compute-on-read with caching — Owner: dev. Block: no (tied to F-02 Unknown about JSONB vs. materialized).
   - Re-run trigger semantics: explicit author action only (a "Compute groupings" button — see S-06), or auto on every catalog mutation — Owner: user / design. Block: no.
 - **Risk:** This is the existing algorithm's correctness in a new runtime. The port must preserve the algorithm's collision rules verbatim — a regression here invalidates every downstream placement slice. Mitigation: keep `data/dp2/` files in the repo as reference fixtures and use them as the unit-test golden set against the existing output `data/out/dp2-variants-2.csv`. The edge-runtime constraint also rules out any library that pulls in Node-only APIs; this needs verification early.
-- **Status:** proposed
-
-## Slices
+- **Status:** done
 
 ### S-01: first-valid-drop-with-validation
 
@@ -305,3 +303,4 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 
 - **S-07: Plans are cloneable whole-domain scenarios** — Archived 2026-06-12 → `context/archive/2026-06-11-multi-variant-management/`. Lesson: —.
 - **F-02: (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache** — Archived 2026-06-12 → `context/archive/2026-06-01-minimal-domain-schema/`. Lesson: —.
+- **F-03: port-grouping-algorithm** — Archived 2026-06-12 → `context/archive/2026-06-04-port-grouping-algorithm/`. Lesson: —.

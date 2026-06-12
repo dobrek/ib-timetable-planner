@@ -333,26 +333,26 @@ No schema changes, no data migration. `deriveCollisions` is removed in the same 
 
 #### Automated
 
-- [x] 1.1 Unit + parity tests pass: `pnpm test`
-- [x] 1.2 Lint passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Production build stays clean: `pnpm build`
+- [x] 1.1 Unit + parity tests pass: `pnpm test` — 9874e35
+- [x] 1.2 Lint passes: `pnpm lint` — 9874e35
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — 9874e35
+- [x] 1.4 Production build stays clean: `pnpm build` — 9874e35
 
 #### Manual
 
-- [x] 1.5 Board renders identical collision flags as before the refactor
+- [x] 1.5 Board renders identical collision flags as before the refactor — 9874e35
 
 ### Phase 2: Teacher/Student Name Records to the Island (api)
 
 #### Automated
 
-- [ ] 2.1 Unit suite still passes: `pnpm test`
-- [ ] 2.2 Integration test passes against local Supabase: `pnpm test:integration`
-- [ ] 2.3 Build stays clean: `pnpm build`
+- [x] 2.1 Unit suite still passes: `pnpm test`
+- [x] 2.2 Integration test passes against local Supabase: `pnpm test:integration`
+- [x] 2.3 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.4 Plan page loads normally in `pnpm dev`
+- [x] 2.4 Plan page loads normally in `pnpm dev`
 
 ### Phase 3: Clickable Badge + Collision Details Dialog (ui)
 

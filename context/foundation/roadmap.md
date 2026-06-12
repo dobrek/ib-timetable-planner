@@ -32,7 +32,7 @@ PRD §Business Logic names two paired rules — **recommendation** (the grouping
 | ID   | Change ID                            | Outcome (user can …)                                                                                 | Prerequisites          | PRD refs                                            | Status   |
 | ---- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------- | -------- |
 | F-01 | gated-author-provisioning            | (foundation) closed registration — only approved authors can hold an account                         | —                      | FR-001, NFR Data privacy, Access Control            | ready    |
-| F-02 | minimal-domain-schema                | (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache      | —                      | FR-002, FR-006, FR-008, FR-010, NFR Work durability | ready    |
+| F-02 | minimal-domain-schema                | (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache      | —                      | FR-002, FR-006, FR-008, FR-010, NFR Work durability | done     |
 | F-03 | port-grouping-algorithm              | (foundation) pure-function port of the existing CSV grouping algorithm, edge-runtime safe            | F-02                   | FR-013, Business Logic (recommendation rule)        | proposed |
 | S-01 | first-valid-drop-with-validation     | drag a pre-seeded Y1 grouping onto a slot and see live student-collision validation                  | F-01, F-02, F-03       | US-01(d), FR-008, FR-011, FR-012, Business Logic    | blocked  |
 | S-02 | course-and-dependency-catalog-ui     | CRUD courses `(name, level, group-index)` + overlap/merge dependencies + weekly hours                | F-01, F-02             | FR-002, FR-003, FR-003A                             | proposed |
@@ -97,7 +97,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
   - Should `course_groupings` persist as a materialized table or as a JSONB blob keyed by `(plan_id, cohort, catalog_hash)`? — Owner: dev. Block: no (perf-driven choice in `/10x-plan`).
 - **Risk:** Sequenced together with F-01 as an absolute prerequisite of the northstar. Kept minimal (the seven tables) because pulling the whole domain in here is horizontal-first scope creep and pushes UX validation later. Trade-off: extending the schema slice-by-slice produces more migrations — accepted, because a solo-dev 8-week MVP prefers incremental migrations over one big upfront decision.
 - **Note (2026-06-11):** delivered as specified at the time; `plan_variants` and the `cohorts` table were later dropped by S-07 (PRD v2) — plans absorbed the catalog and became the cloneable domain root. References to variants in this entry are historical.
-- **Status:** ready
+- **Status:** done
 
 ### F-03: port-grouping-algorithm
 
@@ -304,3 +304,4 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 (Empty on first generation. `/10x-archive` appends an entry here — and flips the item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived.)
 
 - **S-07: Plans are cloneable whole-domain scenarios** — Archived 2026-06-12 → `context/archive/2026-06-11-multi-variant-management/`. Lesson: —.
+- **F-02: (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache** — Archived 2026-06-12 → `context/archive/2026-06-01-minimal-domain-schema/`. Lesson: —.

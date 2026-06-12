@@ -3,9 +3,10 @@ id: minimal-domain-schema
 title: Minimal domain schema (Supabase tables + RLS + types for MVP)
 roadmap_ref: F-02
 prd_refs: [FR-002, FR-003, FR-003A, FR-004, FR-006, FR-008, FR-010, "NFR Work durability"]
-status: impl_reviewed
+status: archived
 created: 2026-06-01
-updated: 2026-06-02
+updated: 2026-06-12
+archived_at: 2026-06-12T10:27:00Z
 ---
 
 # Minimal domain schema

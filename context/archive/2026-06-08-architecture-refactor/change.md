@@ -1,9 +1,10 @@
 ---
 change_id: architecture-refactor
 title: Architecture refactor
-status: implemented
+status: archived
 created: 2026-06-08
-updated: 2026-06-09
+updated: 2026-06-12
+archived_at: 2026-06-12T13:02:00Z
 archived_at: null
 ---
 

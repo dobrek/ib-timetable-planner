@@ -315,27 +315,27 @@ No data or schema changes. `PlanDetailShell.astro` is deleted; any external refe
 
 #### Automated
 
-- [x] 2.1 Lint passes: `pnpm lint`
-- [x] 2.2 FSD check passes: `pnpm steiger`
-- [x] 2.3 Unit tests pass: `pnpm test`
-- [x] 2.4 Build passes: `pnpm build`
+- [x] 2.1 Lint passes: `pnpm lint` — 2c78cdf
+- [x] 2.2 FSD check passes: `pnpm steiger` — 2c78cdf
+- [x] 2.3 Unit tests pass: `pnpm test` — 2c78cdf
+- [x] 2.4 Build passes: `pnpm build` — 2c78cdf
 
 #### Manual
 
-- [x] 2.5 Board defaults collapsed on first visit; sticky preference wins thereafter
-- [x] 2.6 Sidebar nav works from board; Board item active; plan section labeled
-- [x] 2.7 Plan name + summary in one slim row; survives empty-groupings state
-- [x] 2.8 Error states render in shell
-- [x] 2.9 Drag-drop unaffected; grid usable at 1280/1440; single h1/main
+- [x] 2.5 Board defaults collapsed on first visit; sticky preference wins thereafter — 2c78cdf
+- [x] 2.6 Sidebar nav works from board; Board item active; plan section labeled — 2c78cdf
+- [x] 2.7 Plan name + summary in one slim row; survives empty-groupings state — 2c78cdf
+- [x] 2.8 Error states render in shell — 2c78cdf
+- [x] 2.9 Drag-drop unaffected; grid usable at 1280/1440; single h1/main — 2c78cdf
 
 ### Phase 3: Responsive Behavior + Final Verification
 
 #### Automated
 
-- [ ] 3.1 Full local CI gate passes: `pnpm lint && pnpm steiger && pnpm test && pnpm build`
+- [x] 3.1 Full local CI gate passes: `pnpm lint && pnpm steiger && pnpm test && pnpm build`
 
 #### Manual
 
-- [ ] 3.2 Below-lg force-collapse + non-persisting peek verified
-- [ ] 3.3 Desktop matrix from Phases 1–2 still holds
-- [ ] 3.4 Full route sweep in both themes and both sidebar states
+- [x] 3.2 Below-lg force-collapse + non-persisting peek verified
+- [x] 3.3 Desktop matrix from Phases 1–2 still holds
+- [x] 3.4 Full route sweep in both themes and both sidebar states

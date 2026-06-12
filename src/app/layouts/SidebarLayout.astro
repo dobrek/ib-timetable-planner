@@ -183,7 +183,11 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
 
   const toggleSidebar = () => {
     const collapsed = document.documentElement.classList.toggle("sidebar-collapsed");
-    localStorage.setItem("sidebar-collapsed", String(collapsed));
+    // Below lg the toggle only peeks the sidebar open for this page view —
+    // persisting would overwrite the user's desktop preference.
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      localStorage.setItem("sidebar-collapsed", String(collapsed));
+    }
     syncSidebarToggle();
   };
 

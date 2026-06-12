@@ -25,10 +25,15 @@ const { title = "10x Astro Starter" } = Astro.props;
       }
     </script>
     <script is:inline>
-      // Apply the sidebar collapse state before first paint to avoid a width flash:
-      // the stored preference wins; with none, the board route defaults to collapsed.
+      // Apply the sidebar collapse state before first paint to avoid a width flash.
+      // Below lg the rail always starts collapsed; otherwise the stored preference
+      // wins, and with none the board route defaults to collapsed. Evaluated at load
+      // only — every MPA navigation re-runs it, so no resize listener is needed.
       const storedCollapse = localStorage.getItem("sidebar-collapsed");
-      if (storedCollapse !== null ? storedCollapse === "true" : /^\/plans\/[^/]+$/.test(location.pathname)) {
+      if (
+        !window.matchMedia("(min-width: 1024px)").matches ||
+        (storedCollapse !== null ? storedCollapse === "true" : /^\/plans\/[^/]+$/.test(location.pathname))
+      ) {
         document.documentElement.classList.add("sidebar-collapsed");
       }
     </script>

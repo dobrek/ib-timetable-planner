@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
 import { GLOBAL_NAV_ITEMS, planNavItems, type NavItem } from "@/shared/config";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, PanelLeft, LogOut } from "lucide-react";
 
 type Props = {
   title?: string;
@@ -27,9 +27,30 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
 
 <BaseLayout title={title}>
   <div class="bg-background text-foreground flex h-screen">
-    <aside class="border-sidebar-border bg-sidebar text-sidebar-foreground flex w-60 shrink-0 flex-col border-r">
-      <div class="border-sidebar-border border-b px-5 py-4">
-        <a href="/dashboard" class="text-base font-semibold tracking-tight">Timetable Planner</a>
+    <aside
+      id="app-sidebar"
+      class="border-sidebar-border bg-sidebar text-sidebar-foreground collapsed:w-16 flex w-60 shrink-0 flex-col overflow-hidden border-r transition-[width] duration-200 motion-reduce:transition-none"
+    >
+      <div
+        class="border-sidebar-border collapsed:justify-center collapsed:px-0 flex items-center justify-between gap-2 border-b px-5 py-3"
+      >
+        <a
+          href="/dashboard"
+          class="collapsed:hidden overflow-hidden text-base font-semibold tracking-tight whitespace-nowrap"
+        >
+          Timetable Planner
+        </a>
+        <button
+          type="button"
+          id="sidebar-toggle"
+          aria-label="Toggle sidebar"
+          aria-expanded="true"
+          aria-controls="app-sidebar"
+          title="Collapse sidebar (⌘B)"
+          class="text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors"
+        >
+          <PanelLeft size={16} aria-hidden="true" />
+        </button>
       </div>
 
       <nav class="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Primary">
@@ -39,16 +60,17 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
             return (
               <a
                 href={item.href}
+                title={item.label}
                 aria-current={item.active ? "page" : undefined}
                 class:list={[
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "collapsed:justify-center collapsed:px-0 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   item.active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 ]}
               >
                 <Icon size={18} aria-hidden="true" />
-                <span>{item.label}</span>
+                <span class="collapsed:hidden overflow-hidden whitespace-nowrap">{item.label}</span>
               </a>
             );
           })
@@ -56,9 +78,9 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
 
         {
           plan && (
-            <div class="pt-4">
+            <div class="collapsed:border-t collapsed:border-sidebar-border pt-4">
               <p
-                class="text-sidebar-foreground/60 truncate px-3 pb-1 text-xs font-medium tracking-wide uppercase"
+                class="text-sidebar-foreground/60 collapsed:hidden truncate px-3 pb-1 text-xs font-medium tracking-wide uppercase"
                 title={plan.name}
               >
                 {plan.name}
@@ -69,16 +91,17 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
                   return (
                     <a
                       href={item.href}
+                      title={item.label}
                       aria-current={item.active ? "page" : undefined}
                       class:list={[
-                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        "collapsed:justify-center collapsed:px-0 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                         item.active
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                       ]}
                     >
                       <Icon size={18} aria-hidden="true" />
-                      <span>{item.label}</span>
+                      <span class="collapsed:hidden overflow-hidden whitespace-nowrap">{item.label}</span>
                     </a>
                   );
                 })}
@@ -89,8 +112,8 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
       </nav>
 
       <div class="border-sidebar-border border-t p-3">
-        <div class="flex items-center justify-between gap-2 px-3 pb-2">
-          <p class="text-sidebar-foreground/70 truncate text-xs" title={user?.email}>
+        <div class="collapsed:justify-center collapsed:px-0 flex items-center justify-between gap-2 px-3 pb-2">
+          <p class="text-sidebar-foreground/70 collapsed:hidden truncate text-xs" title={user?.email}>
             {user?.email}
           </p>
           <button
@@ -106,9 +129,11 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
         <form method="POST" action="/api/auth/signout">
           <button
             type="submit"
-            class="border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground w-full cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors"
+            title="Sign out"
+            class="border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground collapsed:px-0 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors"
           >
-            Sign out
+            <LogOut size={16} aria-hidden="true" />
+            <span class="collapsed:hidden overflow-hidden whitespace-nowrap">Sign out</span>
           </button>
         </form>
       </div>
@@ -138,4 +163,29 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
     const isDark = document.documentElement.classList.toggle("dark");
     localStorage.setItem("theme", isDark ? "dark" : "light");
   });
+
+  const sidebarToggle = document.getElementById("sidebar-toggle");
+  const shortcutHint = /Mac|iP/.test(navigator.platform) ? "⌘B" : "Ctrl+B";
+
+  const syncSidebarToggle = () => {
+    const collapsed = document.documentElement.classList.contains("sidebar-collapsed");
+    sidebarToggle?.setAttribute("aria-expanded", String(!collapsed));
+    sidebarToggle?.setAttribute("title", `${collapsed ? "Expand" : "Collapse"} sidebar (${shortcutHint})`);
+  };
+
+  const toggleSidebar = () => {
+    const collapsed = document.documentElement.classList.toggle("sidebar-collapsed");
+    localStorage.setItem("sidebar-collapsed", String(collapsed));
+    syncSidebarToggle();
+  };
+
+  sidebarToggle?.addEventListener("click", toggleSidebar);
+  document.addEventListener("keydown", (event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return;
+    if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+    event.preventDefault();
+    toggleSidebar();
+  });
+
+  syncSidebarToggle();
 </script>

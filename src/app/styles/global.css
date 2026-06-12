@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant collapsed (&:is(.sidebar-collapsed *));
 
 :root {
   --radius: 0.625rem;

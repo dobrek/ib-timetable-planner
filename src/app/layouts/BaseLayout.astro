@@ -24,6 +24,12 @@ const { title = "10x Astro Starter" } = Astro.props;
         document.documentElement.classList.add("dark");
       }
     </script>
+    <script is:inline>
+      // Apply the persisted sidebar collapse state before first paint to avoid a width flash.
+      if (localStorage.getItem("sidebar-collapsed") === "true") {
+        document.documentElement.classList.add("sidebar-collapsed");
+      }
+    </script>
   </head>
   <body>
     {

@@ -332,10 +332,10 @@ No data or schema changes. `PlanDetailShell.astro` is deleted; any external refe
 
 #### Automated
 
-- [x] 3.1 Full local CI gate passes: `pnpm lint && pnpm steiger && pnpm test && pnpm build`
+- [x] 3.1 Full local CI gate passes: `pnpm lint && pnpm steiger && pnpm test && pnpm build` — cc08858
 
 #### Manual
 
-- [x] 3.2 Below-lg force-collapse + non-persisting peek verified
-- [x] 3.3 Desktop matrix from Phases 1–2 still holds
-- [x] 3.4 Full route sweep in both themes and both sidebar states
+- [x] 3.2 Below-lg force-collapse + non-persisting peek verified — cc08858
+- [x] 3.3 Desktop matrix from Phases 1–2 still holds — cc08858
+- [x] 3.4 Full route sweep in both themes and both sidebar states — cc08858

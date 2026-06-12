@@ -215,32 +215,32 @@ None — no schema or server changes. The collapse removal is purely client-side
 
 #### Automated
 
-- [x] 1.1 Lint passes: `pnpm lint`
-- [x] 1.2 FSD structure check passes: `pnpm steiger`
-- [x] 1.3 Existing unit tests pass: `pnpm test`
-- [x] 1.4 Production build passes: `pnpm build`
+- [x] 1.1 Lint passes: `pnpm lint` — 32977fe
+- [x] 1.2 FSD structure check passes: `pnpm steiger` — 32977fe
+- [x] 1.3 Existing unit tests pass: `pnpm test` — 32977fe
+- [x] 1.4 Production build passes: `pnpm build` — 32977fe
 
 #### Manual
 
-- [x] 1.5 Grouping header drags onto a cell and all members land as chips
-- [x] 1.6 Per-course rows still drag; placed chips still move/remove
-- [x] 1.7 No pointer mis-capture between header and row draggables
-- [x] 1.8 Collapse removed; members always visible; grip + grab cursor on header
-- [x] 1.9 Collision flags appear post-drop on conflicting group drops
+- [x] 1.5 Grouping header drags onto a cell and all members land as chips — 32977fe
+- [x] 1.6 Per-course rows still drag; placed chips still move/remove — 32977fe
+- [x] 1.7 No pointer mis-capture between header and row draggables — 32977fe
+- [x] 1.8 Collapse removed; members always visible; grip + grab cursor on header — 32977fe
+- [x] 1.9 Collision flags appear post-drop on conflicting group drops — 32977fe
 
 ### Phase 2: Batch optimistic state + Option A persistence
 
 #### Automated
 
-- [ ] 2.1 New batch-transition tests pass: `pnpm test`
-- [ ] 2.2 Lint passes: `pnpm lint`
-- [ ] 2.3 FSD structure check passes: `pnpm steiger`
-- [ ] 2.4 Production build passes: `pnpm build`
+- [x] 2.1 New batch-transition tests pass: `pnpm test`
+- [x] 2.2 Lint passes: `pnpm lint`
+- [x] 2.3 FSD structure check passes: `pnpm steiger`
+- [x] 2.4 Production build passes: `pnpm build`
 
 #### Manual
 
-- [ ] 2.5 Group drop lands all chips at once, feels instant (<200ms)
-- [ ] 2.6 Partial failure rolls back only failed chips with named banner message
-- [ ] 2.7 Duplicate-member skips are silent; full-duplicate drop is a no-op
-- [ ] 2.8 Hours counters and collision flags correct after group drop
-- [ ] 2.9 Per-course drag/move/remove unchanged
+- [x] 2.5 Group drop lands all chips at once, feels instant (<200ms)
+- [x] 2.6 Partial failure rolls back only failed chips with named banner message
+- [x] 2.7 Duplicate-member skips are silent; full-duplicate drop is a no-op
+- [x] 2.8 Hours counters and collision flags correct after group drop
+- [x] 2.9 Per-course drag/move/remove unchanged

@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { CellData } from "./drag";
 import type { LocalPlacement, PlannerPlacement } from "./placement";
 import {
+  addManyOptimistic,
   addOptimistic,
   addReconcile,
   addRollback,
   canAdd,
+  eligibleMembers,
+  groupFailureMessage,
   moveIntent,
   moveOptimistic,
   moveReconcile,
@@ -13,6 +16,7 @@ import {
   removeOptimistic,
   removeRollback,
   removeTarget,
+  settleMany,
 } from "./placement-transitions";
 
 const p = (id: string, courseId: string, day: number, period: number, pending?: boolean): LocalPlacement => ({
@@ -85,6 +89,119 @@ describe("add transitions", () => {
     const prev = [other, { id: "temp", courseId: "A", day: 1, period: 1, pending: true }];
     const result = addRollback(prev, "temp");
     expect(result).toEqual([other]);
+  });
+});
+
+describe("group batch transitions", () => {
+  it("eligibleMembers keeps every member when the cell is empty", () => {
+    expect(eligibleMembers([], ["A", "B", "C"], cell(1, 1))).toEqual(["A", "B", "C"]);
+  });
+
+  it("eligibleMembers filters members already occupying the target cell", () => {
+    const placements = [p("p1", "B", 1, 1)];
+    expect(eligibleMembers(placements, ["A", "B", "C"], cell(1, 1))).toEqual(["A", "C"]);
+  });
+
+  it("eligibleMembers returns empty when every member occupies the cell", () => {
+    const placements = [p("p1", "A", 1, 1), p("p2", "B", 1, 1)];
+    expect(eligibleMembers(placements, ["A", "B"], cell(1, 1))).toEqual([]);
+  });
+
+  it("eligibleMembers keeps members occupying a different cell", () => {
+    const placements = [p("p1", "A", 2, 2)];
+    expect(eligibleMembers(placements, ["A"], cell(1, 1))).toEqual(["A"]);
+  });
+
+  it("addManyOptimistic appends one pending row per entry", () => {
+    const prev = [p("p1", "X", 2, 2)];
+    expect(
+      addManyOptimistic(
+        prev,
+        [
+          { tempId: "t1", courseId: "A" },
+          { tempId: "t2", courseId: "B" },
+        ],
+        cell(1, 1),
+      ),
+    ).toEqual([
+      p("p1", "X", 2, 2),
+      { id: "t1", courseId: "A", day: 1, period: 1, pending: true },
+      { id: "t2", courseId: "B", day: 1, period: 1, pending: true },
+    ]);
+  });
+
+  it("addManyOptimistic does not mutate the input array", () => {
+    const prev = [p("p1", "X", 2, 2)];
+    const snapshot = [...prev];
+    addManyOptimistic(prev, [{ tempId: "t1", courseId: "A" }], cell(1, 1));
+    expect(prev).toEqual(snapshot);
+  });
+
+  it("settleMany reconciles and rolls back in a single pass", () => {
+    const prev = [
+      p("p1", "X", 2, 2),
+      { id: "t1", courseId: "A", day: 1, period: 1, pending: true },
+      { id: "t2", courseId: "B", day: 1, period: 1, pending: true },
+    ];
+    expect(
+      settleMany(prev, [
+        { tempId: "t1", result: server("real1", "A", 1, 1) },
+        { tempId: "t2", result: null },
+      ]),
+    ).toEqual([p("p1", "X", 2, 2), server("real1", "A", 1, 1)]);
+  });
+
+  it("settleMany reconciles every row when all members succeed", () => {
+    const prev = [
+      { id: "t1", courseId: "A", day: 1, period: 1, pending: true },
+      { id: "t2", courseId: "B", day: 1, period: 1, pending: true },
+    ];
+    expect(
+      settleMany(prev, [
+        { tempId: "t1", result: server("real1", "A", 1, 1) },
+        { tempId: "t2", result: server("real2", "B", 1, 1) },
+      ]),
+    ).toEqual([server("real1", "A", 1, 1), server("real2", "B", 1, 1)]);
+  });
+
+  it("settleMany removes every row when all members fail", () => {
+    const prev = [
+      p("p1", "X", 2, 2),
+      { id: "t1", courseId: "A", day: 1, period: 1, pending: true },
+      { id: "t2", courseId: "B", day: 1, period: 1, pending: true },
+    ];
+    expect(
+      settleMany(prev, [
+        { tempId: "t1", result: null },
+        { tempId: "t2", result: null },
+      ]),
+    ).toEqual([p("p1", "X", 2, 2)]);
+  });
+
+  it("settleMany ignores outcomes whose tempId is not present", () => {
+    const prev = [p("p1", "X", 2, 2)];
+    expect(settleMany(prev, [{ tempId: "ghost", result: null }])).toEqual([p("p1", "X", 2, 2)]);
+  });
+
+  it("settleMany does not mutate the input array", () => {
+    const prev = [{ id: "t1", courseId: "A", day: 1, period: 1, pending: true }];
+    const snapshot = [...prev];
+    settleMany(prev, [{ tempId: "t1", result: null }]);
+    expect(prev).toEqual(snapshot);
+  });
+
+  it("groupFailureMessage formats a single failure", () => {
+    expect(groupFailureMessage(["Math HL"], 6)).toBe("1 of 6 courses failed to save: Math HL");
+  });
+
+  it("groupFailureMessage formats multiple failures", () => {
+    expect(groupFailureMessage(["Math HL", "Physics SL"], 6)).toBe(
+      "2 of 6 courses failed to save: Math HL, Physics SL",
+    );
+  });
+
+  it("groupFailureMessage uses the singular noun for a single attempt", () => {
+    expect(groupFailureMessage(["Math HL"], 1)).toBe("1 of 1 course failed to save: Math HL");
   });
 });
 

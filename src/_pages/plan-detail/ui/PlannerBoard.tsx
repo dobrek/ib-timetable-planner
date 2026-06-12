@@ -23,10 +23,10 @@ import { usePlacements } from "../model/use-placements";
 export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
   const { planId, cohort, days, periods, groupings, names, catalog } = props;
 
-  const { placements, error, addCourse, movePlacement, removePlacement, clearError } = usePlacements(props.placements, {
-    planId,
-    cohort,
-  });
+  const { placements, error, addCourse, addGroup, movePlacement, removePlacement, clearError } = usePlacements(
+    props.placements,
+    { planId, cohort, names },
+  );
   const collisions = useCollisions(placements, catalog);
   const { hours, incompleteCount } = useHours(placements, catalog);
 
@@ -42,11 +42,10 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     else dropGroup(data.groupingId, cell);
   }
 
-  // Interim fan-out: one addCourse per member (N state updates); the next phase
-  // replaces this with a single-batch addGroup. Unknown groupingId → no-op.
+  // Unknown groupingId → empty member list → no-op.
   function dropGroup(groupingId: string, cell: CellData) {
     const members = groupings.find((grouping) => grouping.id === groupingId)?.memberIds ?? [];
-    for (const courseId of members) addCourse(courseId, cell);
+    addGroup(members, cell);
   }
 
   if (groupings.length === 0) {

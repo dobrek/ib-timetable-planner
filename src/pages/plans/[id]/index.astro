@@ -1,5 +1,7 @@
 ---
-import PlanDetailShell from "@/_pages/plan-detail/ui/PlanDetailShell.astro";
+import SidebarLayout from "@/app/layouts/SidebarLayout.astro";
+import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
+import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import { createClient } from "@/shared/api";
 import { loadPlannerData } from "@/_pages/plan-detail/api";
 
@@ -8,4 +10,21 @@ const result = await loadPlannerData(supabase, Astro.params.id);
 if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
 ---
 
-<PlanDetailShell result={result} />
+{
+  result.ok ? (
+    <SidebarLayout
+      title={result.value.planName}
+      plan={{ id: result.value.props.planId, name: result.value.planName }}
+      fullWidth
+    >
+      <PlanDetailPage planName={result.value.planName} boardProps={result.value.props} />
+    </SidebarLayout>
+  ) : (
+    <SidebarLayout title={result.error.kind === "not-found" ? "Plan not found" : "Unavailable"}>
+      <PlanDetailError
+        kind={result.error.kind}
+        message={result.error.kind === "unavailable" ? result.error.message : undefined}
+      />
+    </SidebarLayout>
+  )
+}

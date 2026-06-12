@@ -19,7 +19,7 @@ import { usePlacements } from "../model/use-placements";
  * and the palette/grid views. Drops always land (accept-and-flag); the only way to
  * remove a course is the chip's "×".
  */
-export default function PlannerBoard(props: PlannerBoardProps) {
+export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
   const { planId, cohort, days, periods, groupings, names, catalog } = props;
 
   const { placements, error, addCourse, movePlacement, removePlacement, clearError } = usePlacements(props.placements, {
@@ -42,16 +42,21 @@ export default function PlannerBoard(props: PlannerBoardProps) {
 
   if (groupings.length === 0) {
     return (
-      <div data-slot="planner-board" className="p-6">
-        <ComputeGroupingsEmptyState planId={planId} cohort={cohort} />
-      </div>
+      <>
+        <div className="flex shrink-0 items-center border-b px-6 py-2">
+          <h1 className="text-base font-semibold">{planName}</h1>
+        </div>
+        <div data-slot="planner-board" className="p-6">
+          <ComputeGroupingsEmptyState planId={planId} cohort={cohort} />
+        </div>
+      </>
     );
   }
 
   return (
     <DragDropProvider plugins={PLUGINS} onDragEnd={handleDrop}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <PlanSummaryBar incompleteCount={incompleteCount} />
+        <PlanSummaryBar planName={planName} incompleteCount={incompleteCount} />
 
         <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
           <PlannerPalette groupings={groupings} names={names} hours={hours} />

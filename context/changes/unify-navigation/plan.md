@@ -299,34 +299,34 @@ No data or schema changes. `PlanDetailShell.astro` is deleted; any external refe
 
 #### Automated
 
-- [x] 1.1 Lint passes: `pnpm lint`
-- [x] 1.2 FSD check passes: `pnpm steiger`
-- [x] 1.3 Unit tests pass: `pnpm test`
-- [x] 1.4 Build passes: `pnpm build`
+- [x] 1.1 Lint passes: `pnpm lint` — 2a7f653
+- [x] 1.2 FSD check passes: `pnpm steiger` — 2a7f653
+- [x] 1.3 Unit tests pass: `pnpm test` — 2a7f653
+- [x] 1.4 Build passes: `pnpm build` — 2a7f653
 
 #### Manual
 
-- [x] 1.5 Toggle works on all sidebar pages; persists; no load flash
-- [x] 1.6 Cmd/Ctrl+B toggles; guarded while typing
-- [x] 1.7 Collapsed rail fully functional (icons, tooltips, active state, footer)
-- [x] 1.8 Animation smooth; reduced-motion honored; both themes correct
+- [x] 1.5 Toggle works on all sidebar pages; persists; no load flash — 2a7f653
+- [x] 1.6 Cmd/Ctrl+B toggles; guarded while typing — 2a7f653
+- [x] 1.7 Collapsed rail fully functional (icons, tooltips, active state, footer) — 2a7f653
+- [x] 1.8 Animation smooth; reduced-motion honored; both themes correct — 2a7f653
 
 ### Phase 2: Planner Joins the Shell
 
 #### Automated
 
-- [ ] 2.1 Lint passes: `pnpm lint`
-- [ ] 2.2 FSD check passes: `pnpm steiger`
-- [ ] 2.3 Unit tests pass: `pnpm test`
-- [ ] 2.4 Build passes: `pnpm build`
+- [x] 2.1 Lint passes: `pnpm lint`
+- [x] 2.2 FSD check passes: `pnpm steiger`
+- [x] 2.3 Unit tests pass: `pnpm test`
+- [x] 2.4 Build passes: `pnpm build`
 
 #### Manual
 
-- [ ] 2.5 Board defaults collapsed on first visit; sticky preference wins thereafter
-- [ ] 2.6 Sidebar nav works from board; Board item active; plan section labeled
-- [ ] 2.7 Plan name + summary in one slim row; survives empty-groupings state
-- [ ] 2.8 Error states render in shell
-- [ ] 2.9 Drag-drop unaffected; grid usable at 1280/1440; single h1/main
+- [x] 2.5 Board defaults collapsed on first visit; sticky preference wins thereafter
+- [x] 2.6 Sidebar nav works from board; Board item active; plan section labeled
+- [x] 2.7 Plan name + summary in one slim row; survives empty-groupings state
+- [x] 2.8 Error states render in shell
+- [x] 2.9 Drag-drop unaffected; grid usable at 1280/1440; single h1/main
 
 ### Phase 3: Responsive Behavior + Final Verification
 

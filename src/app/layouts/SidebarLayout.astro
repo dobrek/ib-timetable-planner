@@ -7,9 +7,11 @@ type Props = {
   title?: string;
   /** When set, the sidebar renders the plan's scenario-local sub-nav + breadcrumb. */
   plan?: { id: string; name: string };
+  /** Full-bleed content mode: no centered max-w wrapper, no breadcrumb (e.g. the planner board). */
+  fullWidth?: boolean;
 };
 
-const { title, plan } = Astro.props;
+const { title, plan, fullWidth = false } = Astro.props;
 const { user } = Astro.locals;
 const pathname = Astro.url.pathname;
 
@@ -139,22 +141,28 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
       </div>
     </aside>
 
-    <main class="flex-1 overflow-y-auto">
-      <div class="mx-auto max-w-5xl px-8 py-10">
-        {
-          plan && (
-            <nav class="text-muted-foreground mb-6 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb">
-              <a href="/plans" class="hover:text-foreground transition-colors">
-                Plans
-              </a>
-              <span aria-hidden="true">/</span>
-              <span class="text-foreground font-medium">{plan.name}</span>
-            </nav>
-          )
-        }
-        <slot />
-      </div>
-    </main>
+    {
+      fullWidth ? (
+        <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <slot />
+        </main>
+      ) : (
+        <main class="flex-1 overflow-y-auto">
+          <div class="mx-auto max-w-5xl px-8 py-10">
+            {plan && (
+              <nav class="text-muted-foreground mb-6 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb">
+                <a href="/plans" class="hover:text-foreground transition-colors">
+                  Plans
+                </a>
+                <span aria-hidden="true">/</span>
+                <span class="text-foreground font-medium">{plan.name}</span>
+              </nav>
+            )}
+            <slot />
+          </div>
+        </main>
+      )
+    }
   </div>
 </BaseLayout>
 

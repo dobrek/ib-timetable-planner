@@ -54,6 +54,16 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
+      # Schema first, then code: migrations are additive by convention, so the
+      # live Worker keeps running against the new schema while the deploy finishes.
+      - name: Apply Supabase migrations
+        run: |
+          pnpm exec supabase link --project-ref hwmuiymhjgewtymymbmb
+          pnpm exec supabase db push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:

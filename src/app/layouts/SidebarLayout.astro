@@ -183,17 +183,18 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
 
   const toggleSidebar = () => {
     const collapsed = document.documentElement.classList.toggle("sidebar-collapsed");
+    syncSidebarToggle();
     // Below lg the toggle only peeks the sidebar open for this page view —
     // persisting would overwrite the user's desktop preference.
     if (window.matchMedia("(min-width: 1024px)").matches) {
       localStorage.setItem("sidebar-collapsed", String(collapsed));
     }
-    syncSidebarToggle();
   };
 
   sidebarToggle?.addEventListener("click", toggleSidebar);
   document.addEventListener("keydown", (event) => {
     if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return;
+    if (event.shiftKey || event.altKey) return;
     if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
     event.preventDefault();
     toggleSidebar();

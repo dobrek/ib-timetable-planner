@@ -29,7 +29,12 @@ const { title = "10x Astro Starter" } = Astro.props;
       // Below lg the rail always starts collapsed; otherwise the stored preference
       // wins, and with none the board route defaults to collapsed. Evaluated at load
       // only — every MPA navigation re-runs it, so no resize listener is needed.
-      const storedCollapse = localStorage.getItem("sidebar-collapsed");
+      let storedCollapse = null;
+      try {
+        storedCollapse = localStorage.getItem("sidebar-collapsed");
+      } catch {
+        // Storage blocked — treat as no preference so the viewport/route defaults apply.
+      }
       if (
         !window.matchMedia("(min-width: 1024px)").matches ||
         (storedCollapse !== null ? storedCollapse === "true" : /^\/plans\/[^/]+$/.test(location.pathname))

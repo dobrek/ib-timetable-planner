@@ -2,15 +2,21 @@
 import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
 import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
 import TeacherCatalog from "@/_pages/teachers/ui/TeacherCatalog";
-import { createClient, loadPlanSummary } from "@/shared/api";
+import { createClient, isPlanId, loadPlanSummary } from "@/shared/api";
 import { loadTeacherCatalog } from "@/_pages/teachers/api";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
-const plan = supabase ? await loadPlanSummary(supabase, Astro.params.id) : null;
+// The catalog load only needs the route param, so it runs alongside the plan
+// lookup; the isPlanId guard keeps malformed ids on the 404 path (a raw
+// non-UUID would make the catalog query itself error → 500).
+const planId = isPlanId(Astro.params.id) ? Astro.params.id : undefined;
+const [plan, result] =
+  supabase && planId
+    ? await Promise.all([loadPlanSummary(supabase, planId), loadTeacherCatalog(supabase, planId)])
+    : [null, null];
 if (!supabase) Astro.response.status = 503;
 else if (!plan) Astro.response.status = 404;
 
-const result = plan ? await loadTeacherCatalog(supabase, plan.id) : null;
 const catalog = result?.ok ? result.value : null;
 ---
 

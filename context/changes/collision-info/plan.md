@@ -104,8 +104,8 @@ Ids stay opaque (uuids); names are never part of violations.
 **Intent**: Port the three checks from `hasIntersection` into self-contained evaluators, each with both `explain` (enumerating) and `test` (short-circuit), preserving today's matching semantics exactly.
 
 **Contract**:
-- `duplicate-course`: a course id appearing more than once among occupants → one violation per duplicated id.
-- `teacher-conflict`: occupants grouped by non-null `teacherKey`; each group of ≥2 → one violation carrying that `teacherKey` and all member course ids. Null teachers never conflict.
+- `duplicate-course`: a course id appearing more than once among occupants → one violation per duplicated id. The `test` path keeps the raw predicate's semantics — "course.id present among `others`" — NOT "appears more than once"; the existing parity case `hasIntersection(c, [c]) === true` (`collision.test.ts:15`) depends on it.
+- `teacher-conflict`: occupants grouped by non-null `teacherKey`; each group of ≥2 → one violation carrying that `teacherKey` and all member course ids. Null teachers never conflict. Match by strict `!== null` equality, never truthiness — an empty-string `teacherKey` is a valid colliding key (add a `""` fixture to the constraint tests; the existing `t1`/null fixtures would not catch truthiness drift).
 - `student-conflict`: each unordered occupant pair with a non-empty `studentKeys` intersection → one violation carrying the shared student ids and the pair `[a.id, b.id]`.
 
 #### 3. Registry index
@@ -143,7 +143,7 @@ export const deriveCellViolations = (
 ): Map<string, CellCollisions>;
 ```
 
-`conflictingIds` is the union of course ids across the cell's violations. Cell bucketing, the not-in-catalog defensive skip, and the multi-occupancy early-continue all carry over. `deriveCollisions` is removed (its two consumers — tests and `PlannerBoard` — are updated in this phase).
+`conflictingIds` is the union of course ids across the cell's violations. Cell bucketing, the not-in-catalog defensive skip, and the multi-occupancy early-continue all carry over. `deriveCollisions` is removed (its two consumers — tests and `PlannerBoard` — are updated in this phase). The module's `cellKey` export and semantics stay unchanged — it has importers outside this change's consumer list (`PlannerGrid.tsx`, `SlotCell.tsx`).
 
 #### 6. Wire the board to the new derivation (no behavior change)
 
@@ -261,13 +261,13 @@ Turn the badge into an accessible trigger and add the Dialog that renders the ce
 - Duplicate: "*{course}* is placed more than once in this slot."
 Title names the cell using the same day/period labels `PlannerGrid` renders in its headers. Long student lists scroll within the Dialog body. Unknown ids fall back to the raw id (same `names[x] ?? x` idiom as `SlotCell.tsx:47`). The kind→section mapping is exhaustive over the union so a future kind is a compile-time reminder, not a silent omission.
 
-#### 4. Pass name records through
+#### 4. Pass name records through + shared slot labels
 
-**Files**: `src/pages/plans/[id]/index.astro` (props spread — verify it forwards the new fields), `src/_pages/plan-detail/ui/PlannerGrid.tsx` (forward `onInspect`)
+**Files**: `src/pages/plans/[id]/index.astro` (props spread — verify it forwards the new fields), `src/_pages/plan-detail/ui/PlannerGrid.tsx` (forward `onInspect`; switch headers to the shared label helpers), `src/_pages/plan-detail/lib/slot-labels.ts` (new)
 
-**Intent**: Plumb `teacherNames`/`studentNames` from the island props to the Dialog and `onInspect` from the board to `SlotCell`. The grid itself doesn't read names.
+**Intent**: Plumb `teacherNames`/`studentNames` from the island props to the Dialog and `onInspect` from the board to `SlotCell`. The grid itself doesn't read names. The day/period labels the Dialog title needs are **not** currently reusable — `DAY_LABELS` is a non-exported const in `PlannerGrid.tsx` and period labels are inlined JSX — so extract them once instead of duplicating the format.
 
-**Contract**: Props pass-through only; no logic.
+**Contract**: Props pass-through only; no logic — except `slot-labels.ts`, which exports `dayLabel(day): string` (`DAY_LABELS[day - 1] ?? \`Day ${day}\``) and `periodLabel(period): string` (`P${period}`), consumed by both `PlannerGrid` headers and the Dialog title.
 
 ### Success Criteria:
 

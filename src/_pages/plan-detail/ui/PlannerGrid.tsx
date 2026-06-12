@@ -1,4 +1,6 @@
+import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import SlotCell from "./SlotCell";
+import { dayLabel, periodLabel } from "../lib/slot-labels";
 import type { CellCollisions } from "../model/collisions";
 import type { LocalPlacement } from "../model/placement";
 import { cellKey } from "../model/collisions";
@@ -11,12 +13,11 @@ type Props = {
   /** cellKey → flags + structured violations for that cell. */
   collisions: Map<string, CellCollisions>;
   onRemove: (placementId: string) => void;
+  onInspect: (target: CollisionInspectionTarget) => void;
 };
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 /** The 10×5 (period × day) slot grid. Each cell is a droppable; cells are multi-occupancy. */
-export default function PlannerGrid({ days, periods, placements, names, collisions, onRemove }: Props) {
+export default function PlannerGrid({ days, periods, placements, names, collisions, onRemove, onInspect }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
   const byCell = groupByCell(placements, names);
@@ -30,7 +31,7 @@ export default function PlannerGrid({ days, periods, placements, names, collisio
         <div className="bg-background p-2" />
         {dayList.map((day) => (
           <div key={day} className="bg-background text-muted-foreground p-2 text-center text-xs font-medium">
-            {DAY_LABELS[day - 1] ?? `Day ${day}`}
+            {dayLabel(day)}
           </div>
         ))}
 
@@ -43,6 +44,7 @@ export default function PlannerGrid({ days, periods, placements, names, collisio
             names={names}
             collisions={collisions}
             onRemove={onRemove}
+            onInspect={onInspect}
           />
         ))}
       </div>
@@ -57,6 +59,7 @@ function PeriodRow({
   names,
   collisions,
   onRemove,
+  onInspect,
 }: {
   period: number;
   days: number[];
@@ -64,11 +67,12 @@ function PeriodRow({
   names: Record<string, string>;
   collisions: Map<string, CellCollisions>;
   onRemove: (placementId: string) => void;
+  onInspect: (target: CollisionInspectionTarget) => void;
 }) {
   return (
     <>
       <div className="bg-background text-muted-foreground flex items-center justify-center p-2 text-xs font-medium">
-        P{period}
+        {periodLabel(period)}
       </div>
       {days.map((day) => (
         <SlotCell
@@ -77,8 +81,9 @@ function PeriodRow({
           period={period}
           occupants={byCell.get(cellKey(day, period)) ?? []}
           names={names}
-          conflicts={collisions.get(cellKey(day, period))?.conflictingIds}
+          collisions={collisions.get(cellKey(day, period))}
           onRemove={onRemove}
+          onInspect={onInspect}
         />
       ))}
     </>

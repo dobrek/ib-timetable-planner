@@ -346,28 +346,28 @@ No schema changes, no data migration. `deriveCollisions` is removed in the same 
 
 #### Automated
 
-- [x] 2.1 Unit suite still passes: `pnpm test`
-- [x] 2.2 Integration test passes against local Supabase: `pnpm test:integration`
-- [x] 2.3 Build stays clean: `pnpm build`
+- [x] 2.1 Unit suite still passes: `pnpm test` — f9e76af
+- [x] 2.2 Integration test passes against local Supabase: `pnpm test:integration` — f9e76af
+- [x] 2.3 Build stays clean: `pnpm build` — f9e76af
 
 #### Manual
 
-- [x] 2.4 Plan page loads normally in `pnpm dev`
+- [x] 2.4 Plan page loads normally in `pnpm dev` — f9e76af
 
 ### Phase 3: Clickable Badge + Collision Details Dialog (ui)
 
 #### Automated
 
-- [ ] 3.1 Unit suite passes: `pnpm test`
-- [ ] 3.2 Lint passes: `pnpm lint`
-- [ ] 3.3 FSD structure check passes: `pnpm steiger`
-- [ ] 3.4 Build stays clean: `pnpm build`
+- [x] 3.1 Unit suite passes: `pnpm test`
+- [x] 3.2 Lint passes: `pnpm lint`
+- [x] 3.3 FSD structure check passes: `pnpm steiger`
+- [x] 3.4 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.5 Badge click opens Dialog: grouped by cause, full names, clicked course emphasized
-- [ ] 3.6 Multi-collision cell shows all collisions with correct emphasis
-- [ ] 3.7 Badge click doesn't start a drag; drag and remove still work
-- [ ] 3.8 Keyboard pass: Tab → Enter opens, Esc closes, focus returns
-- [ ] 3.9 Reactive behavior: flags clear on resolution; Dialog closes if its collisions vanish
-- [ ] 3.10 Light/dark theme pass with semantic tokens
+- [x] 3.5 Badge click opens Dialog: grouped by cause, full names, clicked course emphasized
+- [x] 3.6 Multi-collision cell shows all collisions with correct emphasis
+- [x] 3.7 Badge click doesn't start a drag; drag and remove still work
+- [x] 3.8 Keyboard pass: Tab → Enter opens, Esc closes, focus returns
+- [x] 3.9 Reactive behavior: flags clear on resolution; Dialog closes if its collisions vanish
+- [x] 3.10 Light/dark theme pass with semantic tokens

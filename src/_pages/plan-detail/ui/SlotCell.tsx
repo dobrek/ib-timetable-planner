@@ -2,6 +2,8 @@ import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { TriangleAlert, X } from "lucide-react";
 import { Badge } from "@/shared/ui";
 import { Button } from "@/shared/ui";
+import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
+import type { CellCollisions } from "../model/collisions";
 import { cellKey } from "../model/collisions";
 import type { CellData, PlacementDrag } from "../model/drag";
 import type { LocalPlacement } from "../model/placement";
@@ -12,9 +14,10 @@ type Props = {
   period: number;
   occupants: LocalPlacement[];
   names: Record<string, string>;
-  /** Course ids in collision within this cell (undefined when none). */
-  conflicts: Set<string> | undefined;
+  /** Flags + structured violations for this cell (undefined when collision-free). */
+  collisions: CellCollisions | undefined;
   onRemove: (placementId: string) => void;
+  onInspect: (target: CollisionInspectionTarget) => void;
 };
 
 /**
@@ -23,8 +26,9 @@ type Props = {
  * destructive outline; conflicting chips are badged. The flag is a reactive derivation,
  * so it clears the instant a participant moves or is removed.
  */
-export default function SlotCell({ day, period, occupants, names, conflicts, onRemove }: Props) {
+export default function SlotCell({ day, period, occupants, names, collisions, onRemove, onInspect }: Props) {
   const { ref, isDropTarget } = useDroppable<CellData>({ id: cellKey(day, period), data: { day, period } });
+  const conflicts = collisions?.conflictingIds;
   const hasCollision = (conflicts?.size ?? 0) > 0;
 
   return (
@@ -47,6 +51,9 @@ export default function SlotCell({ day, period, occupants, names, conflicts, onR
           name={names[placement.courseId] ?? placement.courseId}
           conflicted={conflicts?.has(placement.courseId) ?? false}
           onRemove={onRemove}
+          onInspect={() => {
+            onInspect({ day, period, courseId: placement.courseId });
+          }}
         />
       ))}
     </div>
@@ -58,11 +65,13 @@ function PlacedChip({
   name,
   conflicted,
   onRemove,
+  onInspect,
 }: {
   placement: LocalPlacement;
   name: string;
   conflicted: boolean;
   onRemove: (placementId: string) => void;
+  onInspect: () => void;
 }) {
   const { ref, isDragging } = useDraggable<PlacementDrag>({
     id: placement.id,
@@ -85,14 +94,22 @@ function PlacedChip({
     >
       <span className="truncate">{name}</span>
       {conflicted && (
-        <Badge
-          variant="destructive"
-          data-slot="collision-badge"
-          title="Collision: shares a student or teacher with another course in this slot"
-          className="gap-0.5 px-1 py-0"
-        >
-          <TriangleAlert className="size-3" />
-          <span className="sr-only sm:not-sr-only">collision</span>
+        <Badge variant="destructive" asChild data-slot="collision-badge" className="cursor-pointer gap-0.5 px-1 py-0">
+          <button
+            type="button"
+            aria-label="Show collision details"
+            onClick={(event) => {
+              event.stopPropagation();
+              onInspect();
+            }}
+            onPointerDown={(event) => {
+              // Keep the click from starting a drag on the chip.
+              event.stopPropagation();
+            }}
+          >
+            <TriangleAlert className="size-3" />
+            <span className="sr-only sm:not-sr-only">collision</span>
+          </button>
         </Badge>
       )}
       <Button

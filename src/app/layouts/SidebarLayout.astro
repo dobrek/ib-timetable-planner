@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
+import SidebarNavLink from "./SidebarNavLink.astro";
 import { GLOBAL_NAV_ITEMS, planNavItems, type NavItem } from "@/shared/config";
 import { Sun, Moon, PanelLeft, LogOut } from "lucide-react";
 
@@ -22,12 +23,33 @@ const EXACT_HREFS = new Set(["/dashboard", ...(plan ? [`/plans/${plan.id}`] : []
 const isActive = (href: string) =>
   EXACT_HREFS.has(href) ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
-const renderItem = (item: NavItem) => ({ ...item, active: isActive(item.href) });
-const globalItems = GLOBAL_NAV_ITEMS.map(renderItem);
-const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
+const withActive = (item: NavItem) => ({ ...item, active: isActive(item.href) });
+const globalItems = GLOBAL_NAV_ITEMS.map(withActive);
+const planItems = plan ? planNavItems(plan.id).map(withActive) : [];
+
+const iconButtonClass =
+  "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors";
 ---
 
 <BaseLayout title={title}>
+  <script is:inline>
+    // Runs during parse, before the aside below exists, so the rail renders at the
+    // correct width on first paint. Below lg it always starts collapsed; otherwise
+    // the stored preference wins, and with none the board route defaults to
+    // collapsed. Re-evaluated on every MPA navigation — no resize listener needed.
+    let storedCollapse = null;
+    try {
+      storedCollapse = localStorage.getItem("sidebar-collapsed");
+    } catch {
+      // Storage blocked — treat as no preference so the viewport/route defaults apply.
+    }
+    if (
+      !window.matchMedia("(min-width: 1024px)").matches ||
+      (storedCollapse !== null ? storedCollapse === "true" : /^\/plans\/[^/]+$/.test(location.pathname))
+    ) {
+      document.documentElement.classList.add("sidebar-collapsed");
+    }
+  </script>
   <div class="bg-background text-foreground flex h-screen">
     <aside
       id="app-sidebar"
@@ -49,34 +71,14 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
           aria-expanded="true"
           aria-controls="app-sidebar"
           title="Collapse sidebar (⌘B)"
-          class="text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors"
+          class:list={iconButtonClass}
         >
           <PanelLeft size={16} aria-hidden="true" />
         </button>
       </div>
 
       <nav class="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Primary">
-        {
-          globalItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <a
-                href={item.href}
-                title={item.label}
-                aria-current={item.active ? "page" : undefined}
-                class:list={[
-                  "collapsed:justify-center collapsed:px-0 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  item.active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                ]}
-              >
-                <Icon size={18} aria-hidden="true" />
-                <span class="collapsed:hidden overflow-hidden whitespace-nowrap">{item.label}</span>
-              </a>
-            );
-          })
-        }
+        {globalItems.map((item) => <SidebarNavLink {...item} />)}
 
         {
           plan && (
@@ -88,25 +90,9 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
                 {plan.name}
               </p>
               <div class="space-y-1" role="group" aria-label={`Plan: ${plan.name}`}>
-                {planItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <a
-                      href={item.href}
-                      title={item.label}
-                      aria-current={item.active ? "page" : undefined}
-                      class:list={[
-                        "collapsed:justify-center collapsed:px-0 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                        item.active
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                      ]}
-                    >
-                      <Icon size={18} aria-hidden="true" />
-                      <span class="collapsed:hidden overflow-hidden whitespace-nowrap">{item.label}</span>
-                    </a>
-                  );
-                })}
+                {planItems.map((item) => (
+                  <SidebarNavLink {...item} />
+                ))}
               </div>
             </div>
           )
@@ -118,12 +104,7 @@ const planItems = plan ? planNavItems(plan.id).map(renderItem) : [];
           <p class="text-sidebar-foreground/70 collapsed:hidden truncate text-xs" title={user?.email}>
             {user?.email}
           </p>
-          <button
-            type="button"
-            id="theme-toggle"
-            aria-label="Toggle theme"
-            class="text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors"
-          >
+          <button type="button" id="theme-toggle" aria-label="Toggle theme" class:list={iconButtonClass}>
             <span class="dark:hidden"><Moon size={16} aria-hidden="true" /></span>
             <span class="hidden dark:block"><Sun size={16} aria-hidden="true" /></span>
           </button>

@@ -183,6 +183,15 @@ No global store library (Zustand, Context) unless:
 
 The courses slice uses custom hooks + RHF for forms. Overlap edits use in-memory updates; other mutations use `navigate()` to re-run the server loader.
 
+## Astro layouts & inline scripts
+
+Established by the `unify-navigation` change (`src/app/layouts/`).
+
+- **Pre-paint scripts live with the component that owns the affected markup.** A `<script is:inline>` placed in the template *before* the element it affects runs during HTML parsing — early enough to prevent a flash — so sidebar-collapse state belongs in `SidebarLayout`, not `BaseLayout`. Only genuinely document-global concerns (theme) sit in `BaseLayout`'s head.
+- **Inline scripts stay static.** Never interpolate db/user-derived values into `is:inline` blocks (XSS surface). If a script needs server-side constants, use `define:vars` — never string-built markup.
+- **Mutation stays at the boundary.** Frontmatter helpers are pure (`isActive`, `withActive`); imperative DOM/`localStorage` writes are confined to the inline scripts.
+- **Repeated markup extracts to a sibling `.astro` component** (Astro has no private in-file sub-components, so the React "private children" rule translates to a co-located sibling file) — e.g. `SidebarNavLink.astro` next to `SidebarLayout.astro`.
+
 ## Applicability to `plan-detail`
 
 Applied (June 2026): hooks live in `model/` with pure transitions (`use-placements.ts` over `placement-transitions.ts`), private `useCollisions`/`useHours` in `PlannerBoard`, within-slice relative imports, trimmed `api/index.ts` barrel (loader + actions only), the `Result` detail-page loader above, grid bounds single-sourced in `model/grid.ts` (`GRID_BOUNDS`, mirroring the DB checks), and a palette-local leading-course filter hook.

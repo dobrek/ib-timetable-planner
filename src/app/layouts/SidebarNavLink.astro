@@ -1,0 +1,24 @@
+---
+import type { NavItem } from "@/shared/config";
+
+type Props = NavItem & {
+  active: boolean;
+};
+
+const { href, label, icon: Icon, active } = Astro.props;
+---
+
+<a
+  href={href}
+  title={label}
+  aria-current={active ? "page" : undefined}
+  class:list={[
+    "collapsed:justify-center collapsed:px-0 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+    active
+      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+  ]}
+>
+  <Icon size={18} aria-hidden="true" />
+  <span class="collapsed:hidden overflow-hidden whitespace-nowrap">{label}</span>
+</a>

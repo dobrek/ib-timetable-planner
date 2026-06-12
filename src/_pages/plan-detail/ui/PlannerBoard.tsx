@@ -4,6 +4,7 @@ import type { DragEndEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
 import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import ErrorBanner from "./ErrorBanner";
+import GroupDragOverlay from "./GroupDragOverlay";
 import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
@@ -37,7 +38,15 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     const data = source.data as DragData;
     const cell = target.data as CellData;
     if (data.kind === "course") addCourse(data.courseId, cell);
-    else movePlacement(data.placementId, cell);
+    else if (data.kind === "placement") movePlacement(data.placementId, cell);
+    else dropGroup(data.groupingId, cell);
+  }
+
+  // Interim fan-out: one addCourse per member (N state updates); the next phase
+  // replaces this with a single-batch addGroup. Unknown groupingId → no-op.
+  function dropGroup(groupingId: string, cell: CellData) {
+    const members = groupings.find((grouping) => grouping.id === groupingId)?.memberIds ?? [];
+    for (const courseId of members) addCourse(courseId, cell);
   }
 
   if (groupings.length === 0) {
@@ -76,6 +85,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
           </div>
         </div>
       </div>
+      <GroupDragOverlay groupings={groupings} names={names} />
     </DragDropProvider>
   );
 }

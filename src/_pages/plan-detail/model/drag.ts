@@ -5,7 +5,8 @@ import type { PlannerPlacement } from "./placement";
 /** Drag payload carried on the draggable's `data`. Identity is opaque ids — never names. */
 export type CourseDrag = { kind: "course"; courseId: string };
 export type PlacementDrag = { kind: "placement"; placementId: string; courseId: string };
-export type DragData = CourseDrag | PlacementDrag;
+export type GroupDrag = { kind: "grouping"; groupingId: string };
+export type DragData = CourseDrag | PlacementDrag | GroupDrag;
 
 /** Drop payload carried on a cell droppable's `data`. */
 export type CellData = { day: number; period: number };

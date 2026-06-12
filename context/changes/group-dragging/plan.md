@@ -232,15 +232,15 @@ None — no schema or server changes. The collapse removal is purely client-side
 
 #### Automated
 
-- [x] 2.1 New batch-transition tests pass: `pnpm test`
-- [x] 2.2 Lint passes: `pnpm lint`
-- [x] 2.3 FSD structure check passes: `pnpm steiger`
-- [x] 2.4 Production build passes: `pnpm build`
+- [x] 2.1 New batch-transition tests pass: `pnpm test` — f71feea
+- [x] 2.2 Lint passes: `pnpm lint` — f71feea
+- [x] 2.3 FSD structure check passes: `pnpm steiger` — f71feea
+- [x] 2.4 Production build passes: `pnpm build` — f71feea
 
 #### Manual
 
-- [x] 2.5 Group drop lands all chips at once, feels instant (<200ms)
-- [x] 2.6 Partial failure rolls back only failed chips with named banner message
-- [x] 2.7 Duplicate-member skips are silent; full-duplicate drop is a no-op
-- [x] 2.8 Hours counters and collision flags correct after group drop
-- [x] 2.9 Per-course drag/move/remove unchanged
+- [x] 2.5 Group drop lands all chips at once, feels instant (<200ms) — f71feea
+- [x] 2.6 Partial failure rolls back only failed chips with named banner message — f71feea
+- [x] 2.7 Duplicate-member skips are silent; full-duplicate drop is a no-op — f71feea
+- [x] 2.8 Hours counters and collision flags correct after group drop — f71feea
+- [x] 2.9 Per-course drag/move/remove unchanged — f71feea

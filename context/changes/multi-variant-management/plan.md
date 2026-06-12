@@ -458,10 +458,10 @@ No production data exists; the migration is destructive by design (drops `plan_v
 
 #### Automated
 
-- [x] 5.1 `supabase db diff` clean after push
-- [x] 5.2 CI green on merge commit (incl. deploy)
+- [x] 5.1 `supabase db diff` clean after push — 5202218
+- [x] 5.2 CI green on merge commit (incl. deploy) — 5202218
 
 #### Manual
 
-- [x] 5.3 Production smoke: hub round-trip on deployed app
-- [x] 5.4 `supabase db advisors` shows no new blocking findings
+- [x] 5.3 Production smoke: hub round-trip on deployed app — 5202218
+- [x] 5.4 `supabase db advisors` shows no new blocking findings — 5202218

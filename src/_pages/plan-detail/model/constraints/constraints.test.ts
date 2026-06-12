@@ -1,0 +1,111 @@
+import { describe, expect, it } from "vitest";
+import { duplicateCourse } from "./duplicate-course";
+import { explainCell, violatesAny } from "./index";
+import { studentConflict } from "./student-conflict";
+import { teacherConflict } from "./teacher-conflict";
+import type { BoardContext } from "./types";
+import type { GroupingCourse } from "../grouping";
+
+const course = (id: string, teacherKey: string | null, studentKeys: string[]): GroupingCourse => ({
+  id,
+  teacherKey,
+  studentKeys,
+  hours: 4,
+});
+
+const ctx = (...courses: GroupingCourse[]): BoardContext => ({
+  cell: { day: 1, period: 1 },
+  catalogById: new Map(courses.map((c) => [c.id, c])),
+});
+
+describe("duplicateCourse", () => {
+  it("explains one violation per duplicated id", () => {
+    const a = course("A", "t1", ["s1"]);
+    const b = course("B", "t2", ["s2"]);
+    expect(duplicateCourse.explain([a, a, b, b, course("C", "t3", ["s3"])], ctx(a, b))).toEqual([
+      { kind: "duplicate-course", courseId: "A" },
+      { kind: "duplicate-course", courseId: "B" },
+    ]);
+  });
+
+  it("explains nothing when all ids are distinct", () => {
+    const a = course("A", "t1", ["s1"]);
+    const b = course("B", "t2", ["s2"]);
+    expect(duplicateCourse.explain([a, b], ctx(a, b))).toEqual([]);
+  });
+
+  it("tests true when the same id is among others", () => {
+    const a = course("A", "t1", ["s1"]);
+    expect(duplicateCourse.test?.(a, [a])).toBe(true);
+    expect(duplicateCourse.test?.(a, [course("B", "t2", ["s2"])])).toBe(false);
+  });
+});
+
+describe("teacherConflict", () => {
+  it("explains one violation per teacher carrying all member course ids", () => {
+    const a = course("A", "t1", ["s1"]);
+    const b = course("B", "t1", ["s2"]);
+    const c = course("C", "t1", ["s3"]);
+    expect(teacherConflict.explain([a, b, c], ctx(a, b, c))).toEqual([
+      { kind: "teacher", teacherKey: "t1", courseIds: ["A", "B", "C"] },
+    ]);
+  });
+
+  it("never conflicts null teachers", () => {
+    const a = course("A", null, ["s1"]);
+    const b = course("B", null, ["s2"]);
+    expect(teacherConflict.explain([a, b], ctx(a, b))).toEqual([]);
+    expect(teacherConflict.test?.(a, [b])).toBe(false);
+  });
+
+  it("tests false when only one side has the teacher", () => {
+    expect(teacherConflict.test?.(course("A", "t1", ["s1"]), [course("B", null, ["s2"])])).toBe(false);
+  });
+
+  it("tests true when a non-null teacher is shared", () => {
+    expect(teacherConflict.test?.(course("A", "t1", ["s1"]), [course("B", "t1", ["s2"])])).toBe(true);
+  });
+});
+
+describe("studentConflict", () => {
+  it("explains one violation per pair with the exact shared student list", () => {
+    const a = course("A", null, ["s1", "s2", "s3"]);
+    const b = course("B", null, ["s2", "s3", "s4"]);
+    const c = course("C", null, ["s4"]);
+    expect(studentConflict.explain([a, b, c], ctx(a, b, c))).toEqual([
+      { kind: "student", studentKeys: ["s2", "s3"], courseIds: ["A", "B"] },
+      { kind: "student", studentKeys: ["s4"], courseIds: ["B", "C"] },
+    ]);
+  });
+
+  it("explains nothing when no students are shared", () => {
+    const a = course("A", null, ["s1"]);
+    const b = course("B", null, ["s2"]);
+    expect(studentConflict.explain([a, b], ctx(a, b))).toEqual([]);
+  });
+
+  it("tests true when a student key is shared", () => {
+    expect(studentConflict.test?.(course("A", null, ["s1", "s2"]), [course("B", null, ["s3", "s2"])])).toBe(true);
+  });
+});
+
+describe("explainCell", () => {
+  it("aggregates violations across constraints", () => {
+    const a = course("A", "t1", ["s1"]);
+    const b = course("B", "t1", ["s1"]);
+    expect(explainCell([a, b], ctx(a, b))).toEqual([
+      { kind: "teacher", teacherKey: "t1", courseIds: ["A", "B"] },
+      { kind: "student", studentKeys: ["s1"], courseIds: ["A", "B"] },
+    ]);
+  });
+});
+
+describe("violatesAny", () => {
+  it("matches the registry's test fast paths", () => {
+    const a = course("A", "t1", ["s1"]);
+    expect(violatesAny(a, [a])).toBe(true);
+    expect(violatesAny(a, [course("B", "t1", ["s2"])])).toBe(true);
+    expect(violatesAny(a, [course("B", "t2", ["s1"])])).toBe(true);
+    expect(violatesAny(a, [course("B", "t2", ["s2"])])).toBe(false);
+  });
+});

@@ -9,7 +9,7 @@ import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
 import type { CellData, DragData, PlannerBoardProps } from "../model/drag";
-import { deriveCollisions } from "../model/collisions";
+import { deriveCellViolations } from "../model/collisions";
 import type { GroupingCourse } from "../model/grouping";
 import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
@@ -100,7 +100,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
 
 function useCollisions(placements: LocalPlacement[], catalog: GroupingCourse[]) {
   const catalogById = useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
-  return useMemo(() => deriveCollisions(placements, catalogById), [placements, catalogById]);
+  return useMemo(() => deriveCellViolations(placements, catalogById), [placements, catalogById]);
 }
 
 function useHours(placements: LocalPlacement[], catalog: GroupingCourse[]) {

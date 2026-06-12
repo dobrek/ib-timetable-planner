@@ -1,4 +1,5 @@
 import SlotCell from "./SlotCell";
+import type { CellCollisions } from "../model/collisions";
 import type { LocalPlacement } from "../model/placement";
 import { cellKey } from "../model/collisions";
 
@@ -7,8 +8,8 @@ type Props = {
   periods: number;
   placements: LocalPlacement[];
   names: Record<string, string>;
-  /** cellKey → set of course ids in collision for that cell. */
-  collisions: Map<string, Set<string>>;
+  /** cellKey → flags + structured violations for that cell. */
+  collisions: Map<string, CellCollisions>;
   onRemove: (placementId: string) => void;
 };
 
@@ -61,7 +62,7 @@ function PeriodRow({
   days: number[];
   byCell: Map<string, LocalPlacement[]>;
   names: Record<string, string>;
-  collisions: Map<string, Set<string>>;
+  collisions: Map<string, CellCollisions>;
   onRemove: (placementId: string) => void;
 }) {
   return (
@@ -76,7 +77,7 @@ function PeriodRow({
           period={period}
           occupants={byCell.get(cellKey(day, period)) ?? []}
           names={names}
-          conflicts={collisions.get(cellKey(day, period))}
+          conflicts={collisions.get(cellKey(day, period))?.conflictingIds}
           onRemove={onRemove}
         />
       ))}

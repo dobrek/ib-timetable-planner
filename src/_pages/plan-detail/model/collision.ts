@@ -1,13 +1,10 @@
+import { violatesAny } from "./constraints";
 import type { GroupingCourse } from "./grouping";
 
-export const hasIntersection = (course: GroupingCourse, list: GroupingCourse[]): boolean => {
-  if (list.some((item) => item.id === course.id)) return true;
-
-  if (
-    course.teacherKey !== null &&
-    list.some((item) => item.teacherKey !== null && item.teacherKey === course.teacherKey)
-  )
-    return true;
-
-  return list.some((item) => item.studentKeys.some((s) => course.studentKeys.includes(s)));
-};
+/**
+ * Registry-derived fast path: true iff `course` violates any registered cell
+ * constraint against `list` (duplicate id, shared teacher, shared students).
+ * Short-circuits — the combinatorial grouping enumerator depends on this staying
+ * a cheap boolean; the enumerating `explain` path must never run there.
+ */
+export const hasIntersection = (course: GroupingCourse, list: GroupingCourse[]): boolean => violatesAny(course, list);

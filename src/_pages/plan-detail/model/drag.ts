@@ -20,6 +20,10 @@ export type PlannerBoardProps = {
   groupings: PlannerGrouping[];
   /** courseId → display name, resolved at the edge (never baked into drag payloads). */
   names: Record<string, string>;
+  /** teacherKey → display name (`full_name ?? code`), resolved at the edge — never baked into drag payloads or violations. */
+  teacherNames: Record<string, string>;
+  /** studentKey → full name, resolved at the edge — never baked into drag payloads or violations. */
+  studentNames: Record<string, string>;
   placements: PlannerPlacement[];
   /** Validation catalog: `GroupingCourse[]` keyed by course id. */
   catalog: GroupingCourse[];

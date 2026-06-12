@@ -1,7 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
+import CollisionDetailsDialog from "./CollisionDetailsDialog";
+import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import ErrorBanner from "./ErrorBanner";
 import GroupDragOverlay from "./GroupDragOverlay";
@@ -9,7 +11,8 @@ import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
 import type { CellData, DragData, PlannerBoardProps } from "../model/drag";
-import { deriveCollisions } from "../model/collisions";
+import { cellKey, deriveCellViolations } from "../model/collisions";
+import type { CellCollisions } from "../model/collisions";
 import type { GroupingCourse } from "../model/grouping";
 import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
@@ -22,13 +25,14 @@ import { usePlacements } from "../model/use-placements";
  * remove a course is the chip's "×".
  */
 export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
-  const { planId, cohort, days, periods, groupings, names, catalog } = props;
+  const { planId, cohort, days, periods, groupings, names, teacherNames, studentNames, catalog } = props;
 
   const { placements, error, addCourse, addGroup, movePlacement, removePlacement, clearError } = usePlacements(
     props.placements,
     { planId, cohort },
   );
   const collisions = useCollisions(placements, catalog);
+  const inspection = useCollisionInspection(collisions);
   const { hours, incompleteCount } = useHours(placements, catalog);
 
   function handleDrop(event: DragEndEvent) {
@@ -88,11 +92,20 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 names={names}
                 collisions={collisions}
                 onRemove={removePlacement}
+                onInspect={inspection.open}
               />
             </div>
           </div>
         </div>
       </div>
+      <CollisionDetailsDialog
+        target={inspection.target}
+        violations={inspectedViolations(inspection.target, collisions)}
+        names={names}
+        teacherNames={teacherNames}
+        studentNames={studentNames}
+        onClose={inspection.close}
+      />
       <GroupDragOverlay groupings={groupings} names={names} />
     </DragDropProvider>
   );
@@ -100,8 +113,29 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
 
 function useCollisions(placements: LocalPlacement[], catalog: GroupingCourse[]) {
   const catalogById = useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
-  return useMemo(() => deriveCollisions(placements, catalogById), [placements, catalogById]);
+  return useMemo(() => deriveCellViolations(placements, catalogById), [placements, catalogById]);
 }
+
+function useCollisionInspection(collisions: Map<string, CellCollisions>) {
+  const [target, setTarget] = useState<CollisionInspectionTarget | null>(null);
+
+  // The collision map is a reactive derivation; if the inspected cell's violations
+  // vanish while the dialog is open (participant moved or removed elsewhere, server
+  // reconciliation), close rather than show stale content. Adjust-state-during-render
+  // (not an effect) so the close lands in the same render as the recompute.
+  if (target && !collisions.has(cellKey(target.day, target.period))) setTarget(null);
+
+  return {
+    target,
+    open: setTarget,
+    close: () => {
+      setTarget(null);
+    },
+  };
+}
+
+const inspectedViolations = (target: CollisionInspectionTarget | null, collisions: Map<string, CellCollisions>) =>
+  target ? (collisions.get(cellKey(target.day, target.period))?.violations ?? []) : [];
 
 function useHours(placements: LocalPlacement[], catalog: GroupingCourse[]) {
   const hours = useMemo(() => deriveHours(placements, catalog), [placements, catalog]);

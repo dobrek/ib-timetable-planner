@@ -35,7 +35,7 @@ PRD §Business Logic names two paired rules — **recommendation** (the grouping
 | F-02 | minimal-domain-schema                | (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache      | —                      | FR-002, FR-006, FR-008, FR-010, NFR Work durability | done     |
 | F-03 | port-grouping-algorithm              | (foundation) pure-function port of the existing CSV grouping algorithm, edge-runtime safe            | F-02                   | FR-013, Business Logic (recommendation rule)        | done |
 | S-01 | first-valid-drop-with-validation     | drag a pre-seeded Y1 grouping onto a slot and see live student-collision validation                  | F-01, F-02, F-03       | US-01(d), FR-008, FR-011, FR-012, Business Logic    | done     |
-| S-02 | course-and-dependency-catalog-ui     | CRUD courses `(name, level, group-index)` + overlap/merge dependencies + weekly hours                | F-01, F-02             | FR-002, FR-003, FR-003A                             | proposed |
+| S-02 | course-and-dependency-catalog-ui     | CRUD courses `(name, level, group-index)` + overlap/merge dependencies + weekly hours                | F-01, F-02             | FR-002, FR-003, FR-003A                             | done     |
 | S-03 | teachers-and-availability-catalog-ui | CRUD teachers/assignments/availability; online validator extends to teacher + availability classes   | S-01, S-02             | FR-004, FR-005, FR-012                              | blocked  |
 | S-04 | students-and-choices-ui              | CRUD students and their course choices (primary entry path)                                          | F-01, F-02, S-02       | FR-006                                              | proposed |
 | S-05 | csv-import-students                  | bulk-import students from the existing `students_subjects.csv` without silently overwriting UI edits | S-04                   | FR-007, NFR Single-source-of-truth                  | proposed |
@@ -140,7 +140,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 - **Unknowns:**
   - IB Group attribute (1–6) per course (PRD Q4) — include now or defer to v2? Owner: user. Block: no.
 - **Risk:** Sequenced parallel with the northstar because a real catalog is mandatory for S-06 and S-08. Not done before the northstar because the northstar can lean on a seed script — building full course CRUD _before_ the validation hypothesis is tested would be UI investment whose foundation may not survive.
-- **Status:** proposed
+- **Status:** done
 
 ### S-03: teachers-and-availability-catalog-ui
 
@@ -301,6 +301,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips the item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived.)
 
+- **S-02: CRUD courses + overlap/merge dependencies + weekly hours** — Archived 2026-06-12 → `context/archive/2026-06-07-course-catalog/`. Lesson: —.
 - **F-01: (foundation) closed registration — only approved authors can hold an account** — Archived 2026-06-12 → `context/archive/2026-05-29-gated-author-provisioning/`. Lesson: —.
 - **S-01: First valid drop with validation** — Archived 2026-06-12 → `context/archive/2026-06-05-first-valid-drop-with-validation/`. Lesson: —.
 - **S-07: Plans are cloneable whole-domain scenarios** — Archived 2026-06-12 → `context/archive/2026-06-11-multi-variant-management/`. Lesson: —.

@@ -1,9 +1,10 @@
 ---
 change_id: course-catalog
 title: Course catalog
-status: impl_reviewed
+status: archived
 created: 2026-06-07
-updated: 2026-06-08
+updated: 2026-06-12
+archived_at: 2026-06-12T10:43:00Z
 last_note: "Impl review (full plan): APPROVED, all dimensions PASS, gate green (83 tests, build, lint, astro check). 3 low-impact observations, all fixed during triage — F1 defensive .limit(500) on course_merges/overlaps reads; F2 detokenized shadcn literals (text-white→text-destructive-foreground, bg-black/50→bg-overlay; added the tokens to global.css; recorded as a lesson); F3 plan cross-ref for the DS cursor-pointer touch to pre-existing primitives. Report: reviews/impl-review.md."
 archived_at: null
 ---

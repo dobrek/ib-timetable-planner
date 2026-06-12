@@ -445,23 +445,23 @@ No production data exists; the migration is destructive by design (drops `plan_v
 
 #### Automated
 
-- [x] 4.1 `pnpm build`, `pnpm lint`, `pnpm steiger` pass
-- [x] 4.2 `pnpm test` passes
-- [x] 4.3 `pnpm test:integration` passes including plan-action tests
+- [x] 4.1 `pnpm build`, `pnpm lint`, `pnpm steiger` pass — e1a9489
+- [x] 4.2 `pnpm test` passes — e1a9489
+- [x] 4.3 `pnpm test:integration` passes including plan-action tests — e1a9489
 
 #### Manual
 
-- [x] 4.4 Hub flows: create blank → empty board; clone → warm board with custom name; rename; delete with correct counts
-- [x] 4.5 Cloned plan's catalog edits don't leak to source
+- [x] 4.4 Hub flows: create blank → empty board; clone → warm board with custom name; rename; delete with correct counts — e1a9489
+- [x] 4.5 Cloned plan's catalog edits don't leak to source — e1a9489
 
 ### Phase 5: Hosted Rollout
 
 #### Automated
 
-- [ ] 5.1 `supabase db diff` clean after push
-- [ ] 5.2 CI green on merge commit (incl. deploy)
+- [x] 5.1 `supabase db diff` clean after push
+- [x] 5.2 CI green on merge commit (incl. deploy)
 
 #### Manual
 
-- [ ] 5.3 Production smoke: hub round-trip on deployed app
-- [ ] 5.4 `supabase db advisors` shows no new blocking findings
+- [x] 5.3 Production smoke: hub round-trip on deployed app
+- [x] 5.4 `supabase db advisors` shows no new blocking findings

@@ -31,7 +31,7 @@ PRD §Business Logic names two paired rules — **recommendation** (the grouping
 
 | ID   | Change ID                            | Outcome (user can …)                                                                                 | Prerequisites          | PRD refs                                            | Status   |
 | ---- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------- | -------- |
-| F-01 | gated-author-provisioning            | (foundation) closed registration — only approved authors can hold an account                         | —                      | FR-001, NFR Data privacy, Access Control            | ready    |
+| F-01 | gated-author-provisioning            | (foundation) closed registration — only approved authors can hold an account                         | —                      | FR-001, NFR Data privacy, Access Control            | done     |
 | F-02 | minimal-domain-schema                | (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache      | —                      | FR-002, FR-006, FR-008, FR-010, NFR Work durability | done     |
 | F-03 | port-grouping-algorithm              | (foundation) pure-function port of the existing CSV grouping algorithm, edge-runtime safe            | F-02                   | FR-013, Business Logic (recommendation rule)        | done |
 | S-01 | first-valid-drop-with-validation     | drag a pre-seeded Y1 grouping onto a slot and see live student-collision validation                  | F-01, F-02, F-03       | US-01(d), FR-008, FR-011, FR-012, Business Logic    | done     |
@@ -81,7 +81,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 - **Unknowns:**
   - Gate mechanism: invite-only (Supabase email invite) vs. allow-list in middleware vs. manual user creation in Supabase Studio — Owner: user. Block: no (decided during `/10x-plan`).
 - **Risk:** Sequenced first alongside F-02 because NFR Data privacy says student PII cannot sit next to open registration even in a preview demo. If deferred, every catalog investment (S-02, S-04, S-05) operates on data trivially reachable via the public signup form.
-- **Status:** ready
+- **Status:** done
 
 ### F-02: minimal-domain-schema
 
@@ -301,6 +301,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips the item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived.)
 
+- **F-01: (foundation) closed registration — only approved authors can hold an account** — Archived 2026-06-12 → `context/archive/2026-05-29-gated-author-provisioning/`. Lesson: —.
 - **S-01: First valid drop with validation** — Archived 2026-06-12 → `context/archive/2026-06-05-first-valid-drop-with-validation/`. Lesson: —.
 - **S-07: Plans are cloneable whole-domain scenarios** — Archived 2026-06-12 → `context/archive/2026-06-11-multi-variant-management/`. Lesson: —.
 - **F-02: (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache** — Archived 2026-06-12 → `context/archive/2026-06-01-minimal-domain-schema/`. Lesson: —.

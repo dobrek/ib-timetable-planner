@@ -34,7 +34,7 @@ PRD §Business Logic names two paired rules — **recommendation** (the grouping
 | F-01 | gated-author-provisioning            | (foundation) closed registration — only approved authors can hold an account                         | —                      | FR-001, NFR Data privacy, Access Control            | ready    |
 | F-02 | minimal-domain-schema                | (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache      | —                      | FR-002, FR-006, FR-008, FR-010, NFR Work durability | done     |
 | F-03 | port-grouping-algorithm              | (foundation) pure-function port of the existing CSV grouping algorithm, edge-runtime safe            | F-02                   | FR-013, Business Logic (recommendation rule)        | done |
-| S-01 | first-valid-drop-with-validation     | drag a pre-seeded Y1 grouping onto a slot and see live student-collision validation                  | F-01, F-02, F-03       | US-01(d), FR-008, FR-011, FR-012, Business Logic    | blocked  |
+| S-01 | first-valid-drop-with-validation     | drag a pre-seeded Y1 grouping onto a slot and see live student-collision validation                  | F-01, F-02, F-03       | US-01(d), FR-008, FR-011, FR-012, Business Logic    | done     |
 | S-02 | course-and-dependency-catalog-ui     | CRUD courses `(name, level, group-index)` + overlap/merge dependencies + weekly hours                | F-01, F-02             | FR-002, FR-003, FR-003A                             | proposed |
 | S-03 | teachers-and-availability-catalog-ui | CRUD teachers/assignments/availability; online validator extends to teacher + availability classes   | S-01, S-02             | FR-004, FR-005, FR-012                              | blocked  |
 | S-04 | students-and-choices-ui              | CRUD students and their course choices (primary entry path)                                          | F-01, F-02, S-02       | FR-006                                              | proposed |
@@ -127,7 +127,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
   - **Drop UX policy (PRD Q8):** block-drop / flag-and-allow / prompt — Owner: user / design. Block: **yes**.
   - Initial data seed for the northstar: dev-script SQL vs. minimal UI vs. one CSV from `data/dp2/` piped through F-03 — Owner: user. Block: no.
 - **Risk:** The northstar. The whole sequence stands or falls on whether the online validator can deliver feedback under 200ms in an edge-safe runtime AND whether the "feel of the puzzle" actually holds up. If even the cheapest collision class (student) doesn't fit the p95 budget, the entire PRD §Business Logic bet needs revisiting — and it's far cheaper to learn that here than in S-08. Note that S-01 no longer carries the algorithm-port risk (that moved to F-03); this slice is purely about the validator and the UX.
-- **Status:** blocked
+- **Status:** done
 
 ### S-02: course-and-dependency-catalog-ui
 
@@ -301,6 +301,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips the item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived.)
 
+- **S-01: First valid drop with validation** — Archived 2026-06-12 → `context/archive/2026-06-05-first-valid-drop-with-validation/`. Lesson: —.
 - **S-07: Plans are cloneable whole-domain scenarios** — Archived 2026-06-12 → `context/archive/2026-06-11-multi-variant-management/`. Lesson: —.
 - **F-02: (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache** — Archived 2026-06-12 → `context/archive/2026-06-01-minimal-domain-schema/`. Lesson: —.
 - **F-03: port-grouping-algorithm** — Archived 2026-06-12 → `context/archive/2026-06-04-port-grouping-algorithm/`. Lesson: —.

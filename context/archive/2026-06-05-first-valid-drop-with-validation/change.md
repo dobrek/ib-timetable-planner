@@ -1,10 +1,10 @@
 ---
 change_id: first-valid-drop-with-validation
 title: First valid drop with validation
-status: impl_reviewed
+status: archived
 created: 2026-06-05
-updated: 2026-06-07
-archived_at: null
+updated: 2026-06-12
+archived_at: 2026-06-12T10:37:21Z
 ---
 
 ## Notes

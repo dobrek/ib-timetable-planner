@@ -317,16 +317,16 @@ None — no schema, no data, no server changes. The `localStorage` key is additi
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `pnpm test`
-- [x] 3.2 Lint passes: `pnpm lint`
-- [x] 3.3 FSD structure check passes: `pnpm steiger`
-- [x] 3.4 Production build is clean: `pnpm build`
+- [x] 3.1 Unit tests pass: `pnpm test` — 6556160
+- [x] 3.2 Lint passes: `pnpm lint` — 6556160
+- [x] 3.3 FSD structure check passes: `pnpm steiger` — 6556160
+- [x] 3.4 Production build is clean: `pnpm build` — 6556160
 
 #### Manual
 
-- [x] 3.5 Default dim-blocked mode dims dead-ends; empty grid not flooded
-- [x] 3.6 Highlight-free mode tints free cells; partial is a distinct intermediate
-- [x] 3.7 Group drag shows free / partial / blocked correctly in both modes
-- [x] 3.8 Chosen mode survives a page reload
-- [x] 3.9 Hover + post-drop collision treatments still render correctly
-- [x] 3.10 Light and dark themes both render the new token legibly
+- [x] 3.5 Default dim-blocked mode dims dead-ends; empty grid not flooded — 6556160
+- [x] 3.6 Highlight-free mode tints free cells; partial is a distinct intermediate — 6556160
+- [x] 3.7 Group drag shows free / partial / blocked correctly in both modes — 6556160
+- [x] 3.8 Chosen mode survives a page reload — 6556160
+- [x] 3.9 Hover + post-drop collision treatments still render correctly — 6556160
+- [x] 3.10 Light and dark themes both render the new token legibly — 6556160

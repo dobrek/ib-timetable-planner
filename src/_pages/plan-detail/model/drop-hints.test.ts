@@ -130,12 +130,45 @@ describe("deriveDropHints", () => {
     const result = deriveDropHints({ members: [a, b] }, [], catalog(a, b), availability({ t1: [cellKey(1, 1)] }));
     expect(result?.get(cellKey(1, 1))).toBe("partial");
   });
+
+  it("hints warn on an otherwise-free cell where the dragged course's teacher is soft-unavailable", () => {
+    const a = course("A", "t1", ["s1"]);
+    const result = deriveDropHints({ members: [a] }, [], catalog(a), availability({}, { t1: [cellKey(1, 1)] }));
+    expect(result?.get(cellKey(1, 1))).toBe("warn");
+    expect(result?.has(cellKey(2, 2))).toBe(false);
+  });
+
+  it("blocked dominates warn (precedence) when a cell is both strong- and soft-unavailable", () => {
+    const a = course("A", "t1", ["s1"]);
+    const result = deriveDropHints(
+      { members: [a] },
+      [],
+      catalog(a),
+      availability({ t1: [cellKey(1, 1)] }, { t1: [cellKey(1, 1)] }),
+    );
+    expect(result?.get(cellKey(1, 1))).toBe("blocked");
+  });
+
+  it("a collision blocked dominates a soft-unavailable warn on the same cell", () => {
+    // B occupies (1,1) sharing teacher t1 with A → collision; A also soft-unavailable there.
+    const a = course("A", "t1", ["s1"]);
+    const b = course("B", "t1", ["s2"]);
+    const result = deriveDropHints(
+      { members: [a] },
+      [placement("p1", "B", 1, 1)],
+      catalog(a, b),
+      availability({}, { t1: [cellKey(1, 1)] }),
+    );
+    expect(result?.get(cellKey(1, 1))).toBe("blocked");
+  });
 });
 
-// Build an AvailabilityIndex (strong only) from teacherKey → cellKey[].
-const availability = (strong: Record<string, string[]>) => ({
-  strongUnavailableByTeacher: new Map(Object.entries(strong).map(([t, keys]) => [t, new Set(keys)])),
-  softUnavailableByTeacher: new Map<string, Set<string>>(),
+// Build an AvailabilityIndex from teacherKey → cellKey[] for each severity.
+const toMap = (rec: Record<string, string[]>) =>
+  new Map(Object.entries(rec).map(([teacher, keys]) => [teacher, new Set(keys)]));
+const availability = (strong: Record<string, string[]>, soft: Record<string, string[]> = {}) => ({
+  strongUnavailableByTeacher: toMap(strong),
+  softUnavailableByTeacher: toMap(soft),
 });
 
 describe("resolveDragHintContext", () => {

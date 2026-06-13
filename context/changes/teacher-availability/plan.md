@@ -513,29 +513,29 @@ Additive only — new table, new enum, `create or replace` clone function (old m
 
 #### Automated
 
-- [x] 3.1 Constraint + aggregation unit tests pass: `pnpm test`
-- [x] 3.2 Enumeration stays availability-free: `enumerate.test.ts` green
-- [x] 3.3 Board loader integration test passes: `pnpm test:integration`
-- [x] 3.4 Lint, FSD, build clean: `pnpm lint`, `pnpm steiger`, `pnpm build`
+- [x] 3.1 Constraint + aggregation unit tests pass: `pnpm test` — 91be14d
+- [x] 3.2 Enumeration stays availability-free: `enumerate.test.ts` green — 91be14d
+- [x] 3.3 Board loader integration test passes: `pnpm test:integration` — 91be14d
+- [x] 3.4 Lint, FSD, build clean: `pnpm lint`, `pnpm steiger`, `pnpm build` — 91be14d
 
 #### Manual
 
-- [x] 3.5 Strong-unavailable drop lands, cell shows destructive ring + distinguished badge, plan reads invalid
-- [x] 3.6 Dialog shows a distinct "unavailable" section naming the teacher
-- [x] 3.7 Dragging highlights strong-unavailable cells as blocked
-- [x] 3.8 Drag stays under the 200ms budget on a full board
+- [x] 3.5 Strong-unavailable drop lands, cell shows destructive ring + distinguished badge, plan reads invalid — 91be14d
+- [x] 3.6 Dialog shows a distinct "unavailable" section naming the teacher — 91be14d
+- [x] 3.7 Dragging highlights strong-unavailable cells as blocked — 91be14d
+- [x] 3.8 Drag stays under the 200ms budget on a full board — 91be14d
 
 ### Phase 4: Soft-NO severity tier
 
 #### Automated
 
-- [ ] 4.1 Updated core tests pass: `pnpm test` (block/warn split, warn hints, soft emission)
-- [ ] 4.2 Enumeration still availability-free: `enumerate.test.ts` green
-- [ ] 4.3 Lint, FSD, build clean: `pnpm lint`, `pnpm steiger`, `pnpm build`
+- [x] 4.1 Updated core tests pass: `pnpm test` (block/warn split, warn hints, soft emission)
+- [x] 4.2 Enumeration still availability-free: `enumerate.test.ts` green
+- [x] 4.3 Lint, FSD, build clean: `pnpm lint`, `pnpm steiger`, `pnpm build`
 
 #### Manual
 
-- [ ] 4.4 Soft placement shows amber ring/chip/badge; cell/plan stays valid and finalizable
-- [ ] 4.5 Badge opens a visually distinct dialog warn section naming the teacher
-- [ ] 4.6 Soft drag shows warn only on otherwise-free cells; blocked/partial unaffected
-- [ ] 4.7 Light/dark both render the amber tier correctly
+- [x] 4.4 Soft placement shows amber ring/chip/badge; cell/plan stays valid and finalizable
+- [x] 4.5 Badge opens a visually distinct dialog warn section naming the teacher
+- [x] 4.6 Soft drag shows warn only on otherwise-free cells; blocked/partial unaffected
+- [x] 4.7 Light/dark both render the amber tier correctly

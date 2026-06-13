@@ -142,6 +142,31 @@ describe("teacherAvailability", () => {
     expect(teacherAvailability.explain([a], unavailCtx({ day: 1, period: 1 }, strong))).toEqual([]);
   });
 
+  it("maps a soft-unavailable occupant to a warn violation (soft → warn)", () => {
+    const a = course("A", "t1", ["s1"]);
+    const ctxSoft: BoardContext = {
+      cell: { day: 1, period: 1 },
+      catalogById: new Map(),
+      softUnavailableByTeacher: new Map([["t1", new Set(["1:1"])]]),
+    };
+    expect(teacherAvailability.explain([a], ctxSoft)).toEqual([
+      { kind: "teacher-unavailable", teacherKey: "t1", courseIds: ["A"], severity: "warn" },
+    ]);
+  });
+
+  it("strong wins over soft at the same cell", () => {
+    const a = course("A", "t1", ["s1"]);
+    const ctxBoth: BoardContext = {
+      cell: { day: 1, period: 1 },
+      catalogById: new Map(),
+      strongUnavailableByTeacher: new Map([["t1", new Set(["1:1"])]]),
+      softUnavailableByTeacher: new Map([["t1", new Set(["1:1"])]]),
+    };
+    expect(teacherAvailability.explain([a], ctxBoth)).toEqual([
+      { kind: "teacher-unavailable", teacherKey: "t1", courseIds: ["A"], severity: "block" },
+    ]);
+  });
+
   it("ignores null-teacher occupants", () => {
     const a = course("A", null, ["s1"]);
     const strong = new Map([["t1", new Set(["1:1"])]]);

@@ -24,7 +24,7 @@ describe("deriveCellViolations", () => {
   it("flags both courses when two in a cell share a student", () => {
     const cat = catalog(course("A", "t1", ["s1", "s2"]), course("B", "t2", ["s2", "s3"]));
     const result = deriveCellViolations([placement("p1", "A", 1, 1), placement("p2", "B", 1, 1)], cat);
-    expect(result.get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A", "B"]));
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B"]));
     expect(result.get(cellKey(1, 1))?.violations).toEqual([
       { kind: "student", studentKeys: ["s2"], courseIds: ["A", "B"] },
     ]);
@@ -33,7 +33,7 @@ describe("deriveCellViolations", () => {
   it("flags both courses when two in a cell share a teacher", () => {
     const cat = catalog(course("A", "t1", ["s1"]), course("B", "t1", ["s2"]));
     const result = deriveCellViolations([placement("p1", "A", 2, 3), placement("p2", "B", 2, 3)], cat);
-    expect(result.get(cellKey(2, 3))?.conflictingIds).toEqual(new Set(["A", "B"]));
+    expect(result.get(cellKey(2, 3))?.blockingIds).toEqual(new Set(["A", "B"]));
     expect(result.get(cellKey(2, 3))?.violations).toEqual([
       { kind: "teacher", teacherKey: "t1", courseIds: ["A", "B"] },
     ]);
@@ -52,7 +52,7 @@ describe("deriveCellViolations", () => {
       [placement("p1", "A", 1, 1), placement("p2", "B", 1, 1), placement("p3", "C", 1, 1)],
       cat,
     );
-    expect(result.get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A", "B"]));
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B"]));
   });
 
   it("does not flag the same students across different cells (per-cell scope)", () => {
@@ -64,7 +64,7 @@ describe("deriveCellViolations", () => {
   it("clears the flag when a participant leaves the cell (recompute)", () => {
     const cat = catalog(course("A", "t1", ["s1"]), course("B", "t2", ["s1"]));
     const placements = [placement("p1", "A", 1, 1), placement("p2", "B", 1, 1)];
-    expect(deriveCellViolations(placements, cat).get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A", "B"]));
+    expect(deriveCellViolations(placements, cat).get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B"]));
 
     const afterMove = [placement("p1", "A", 1, 1), placement("p2", "B", 1, 2)];
     expect(deriveCellViolations(afterMove, cat).size).toBe(0);
@@ -84,7 +84,7 @@ describe("deriveCellViolations", () => {
   it("reports a duplicated course placed twice in the same cell", () => {
     const cat = catalog(course("A", "t1", ["s1"]));
     const result = deriveCellViolations([placement("p1", "A", 1, 1), placement("p2", "A", 1, 1)], cat);
-    expect(result.get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A"]));
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A"]));
     expect(result.get(cellKey(1, 1))?.violations).toContainEqual({ kind: "duplicate-course", courseId: "A" });
   });
 
@@ -95,7 +95,7 @@ describe("deriveCellViolations", () => {
       softUnavailableByTeacher: new Map<string, Set<string>>(),
     };
     const result = deriveCellViolations([placement("p1", "A", 1, 1)], cat, availability);
-    expect(result.get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A"]));
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A"]));
     expect(result.get(cellKey(1, 1))?.unavailableIds).toEqual(new Set(["A"]));
     expect(result.get(cellKey(1, 1))?.violations).toEqual([
       { kind: "teacher-unavailable", teacherKey: "t1", courseIds: ["A"], severity: "block" },
@@ -105,11 +105,48 @@ describe("deriveCellViolations", () => {
   it("leaves unavailableIds empty for a plain collision (only teacher-unavailable populates it)", () => {
     const cat = catalog(course("A", "t1", ["s1"]), course("B", "t1", ["s2"]));
     const result = deriveCellViolations([placement("p1", "A", 1, 1), placement("p2", "B", 1, 1)], cat);
-    expect(result.get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A", "B"]));
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B"]));
     expect(result.get(cellKey(1, 1))?.unavailableIds).toEqual(new Set());
   });
 
-  it("keeps conflictingIds equal to the union of violation course ids (invariant)", () => {
+  it("flags a soft-unavailable cell as warn only — not blocking, never invalid", () => {
+    const cat = catalog(course("A", "t1", ["s1"]));
+    const availability = {
+      strongUnavailableByTeacher: new Map<string, Set<string>>(),
+      softUnavailableByTeacher: new Map([["t1", new Set(["1:1"])]]),
+    };
+    const result = deriveCellViolations([placement("p1", "A", 1, 1)], cat, availability);
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set()); // never invalid
+    expect(result.get(cellKey(1, 1))?.warningIds).toEqual(new Set(["A"]));
+    expect(result.get(cellKey(1, 1))?.unavailableIds).toEqual(new Set(["A"]));
+    expect(result.get(cellKey(1, 1))?.violations).toEqual([
+      { kind: "teacher-unavailable", teacherKey: "t1", courseIds: ["A"], severity: "warn" },
+    ]);
+  });
+
+  it("splits blocking and warn ids: their union is the full violation set, warn excluded from blocking", () => {
+    // A & B collide (shared teacher → block); C is soft-unavailable at the cell (warn).
+    const cat = catalog(course("A", "t1", ["s1"]), course("B", "t1", ["s3"]), course("C", "t2", ["s9"]));
+    const availability = {
+      strongUnavailableByTeacher: new Map<string, Set<string>>(),
+      softUnavailableByTeacher: new Map([["t2", new Set(["1:1"])]]),
+    };
+    const result = deriveCellViolations(
+      [placement("p1", "A", 1, 1), placement("p2", "B", 1, 1), placement("p3", "C", 1, 1)],
+      cat,
+      availability,
+    );
+    const cell = result.get(cellKey(1, 1));
+    if (!cell) throw new Error("expected a violation cell at (1,1)");
+    expect(cell.blockingIds).toEqual(new Set(["A", "B"]));
+    expect(cell.warningIds).toEqual(new Set(["C"]));
+    // Union invariant: blocking ∪ warn === every course id across the violations.
+    expect(new Set([...cell.blockingIds, ...cell.warningIds])).toEqual(unionOfViolationCourseIds(cell));
+    // Warn id is excluded from blocking (stays valid).
+    expect(cell.blockingIds.has("C")).toBe(false);
+  });
+
+  it("keeps blocking ∪ warn equal to the union of violation course ids (invariant)", () => {
     const cat = catalog(
       course("A", "t1", ["s1", "s2"]),
       course("B", "t1", ["s3"]),
@@ -128,9 +165,9 @@ describe("deriveCellViolations", () => {
       cat,
     );
     for (const cell of result.values()) {
-      expect(cell.conflictingIds).toEqual(unionOfViolationCourseIds(cell));
+      expect(new Set([...cell.blockingIds, ...cell.warningIds])).toEqual(unionOfViolationCourseIds(cell));
     }
-    expect(result.get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A", "B", "C"]));
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B", "C"]));
   });
 });
 

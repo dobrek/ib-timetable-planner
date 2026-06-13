@@ -65,6 +65,15 @@ describe("teacherConflict", () => {
   it("tests true when a non-null teacher is shared", () => {
     expect(teacherConflict.test?.(course("A", "t1", ["s1"]), [course("B", "t1", ["s2"])])).toBe(true);
   });
+
+  it("treats an empty-string teacherKey as a valid colliding key (strict null, not truthiness)", () => {
+    const a = course("A", "", ["s1"]);
+    const b = course("B", "", ["s2"]);
+    expect(teacherConflict.explain([a, b], ctx(a, b))).toEqual([
+      { kind: "teacher", teacherKey: "", courseIds: ["A", "B"] },
+    ]);
+    expect(teacherConflict.test?.(a, [b])).toBe(true);
+  });
 });
 
 describe("studentConflict", () => {

@@ -7,6 +7,7 @@ const teacher = (id: string, code: string, fullName: string | null): TeacherRow 
   code,
   fullName,
   assignments: [],
+  availability: [],
 });
 
 describe("sortTeachers", () => {

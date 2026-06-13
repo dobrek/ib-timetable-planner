@@ -14,7 +14,7 @@ export const loadTeacherCatalog = (supabase: SupabaseClient | null, planId: stri
   withSupabase(supabase, (client) => fetchTeacherCatalog(client, planId));
 
 const fetchTeacherCatalog = async (client: SupabaseClient, planId: string): Promise<TeacherCatalogData> => {
-  const [teachersRes, coursesRes] = await Promise.all([
+  const [teachersRes, coursesRes, availabilityRes] = await Promise.all([
     client
       .from("teachers")
       .select("id, code, full_name")
@@ -29,11 +29,13 @@ const fetchTeacherCatalog = async (client: SupabaseClient, planId: string): Prom
       .not("teacher_id", "is", null)
       .order("name")
       .limit(500),
+    client.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", planId).limit(5000),
   ]);
-  assertNoQueryErrors("Teacher catalog", [teachersRes, coursesRes]);
+  assertNoQueryErrors("Teacher catalog", [teachersRes, coursesRes, availabilityRes]);
 
   const assignedCourses = (coursesRes.data ?? []).filter((course) => course.teacher_id !== null);
   const assignmentsByTeacher = groupBy(assignedCourses, (course) => course.teacher_id);
+  const availabilityByTeacher = groupBy(availabilityRes.data ?? [], (cell) => cell.teacher_id);
 
   const teachers: TeacherRow[] = (teachersRes.data ?? []).map((teacher) => ({
     id: teacher.id,
@@ -46,6 +48,11 @@ const fetchTeacherCatalog = async (client: SupabaseClient, planId: string): Prom
       level: course.level,
       groupIndex: course.group_index,
       hours: course.hours_per_week,
+    })),
+    availability: (availabilityByTeacher.get(teacher.id) ?? []).map((cell) => ({
+      day: cell.day,
+      period: cell.period,
+      severity: cell.severity,
     })),
   }));
 

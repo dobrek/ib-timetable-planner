@@ -479,35 +479,35 @@ Additive only — new table, new enum, `create or replace` clone function (old m
 
 #### Automated
 
-- [x] 1.1 Migration applies cleanly: `pnpm exec supabase db reset`
-- [x] 1.2 Generated types in sync: `supabase gen types` no diff
-- [x] 1.3 FSD structure passes: `pnpm steiger`
-- [x] 1.4 Linting passes: `pnpm lint`
-- [x] 1.5 Existing unit suite green: `pnpm test`
-- [x] 1.6 Production build clean: `pnpm build`
-- [x] 1.7 Clone integration test: availability rows copy with remapped teacher_id (`pnpm test:integration`)
+- [x] 1.1 Migration applies cleanly: `pnpm exec supabase db reset` — 24e77a8
+- [x] 1.2 Generated types in sync: `supabase gen types` no diff — 24e77a8
+- [x] 1.3 FSD structure passes: `pnpm steiger` — 24e77a8
+- [x] 1.4 Linting passes: `pnpm lint` — 24e77a8
+- [x] 1.5 Existing unit suite green: `pnpm test` — 24e77a8
+- [x] 1.6 Production build clean: `pnpm build` — 24e77a8
+- [x] 1.7 Clone integration test: availability rows copy with remapped teacher_id (`pnpm test:integration`) — 24e77a8
 
 #### Manual
 
-- [x] 1.8 Clone carries availability rows with remapped teacher_id
-- [x] 1.9 Deleting a teacher cascades its availability away
+- [x] 1.8 Clone carries availability rows with remapped teacher_id — 24e77a8
+- [x] 1.9 Deleting a teacher cascades its availability away — 24e77a8
 
 ### Phase 2: Authoring UI (teachers catalog)
 
 #### Automated
 
-- [ ] 2.1 Transition unit tests pass: `pnpm test`
-- [ ] 2.2 Availability action integration tests pass: `pnpm test:integration`
-- [ ] 2.3 Linting + FSD pass: `pnpm lint`, `pnpm steiger`
-- [ ] 2.4 Build clean: `pnpm build`
+- [x] 2.1 Transition unit tests pass: `pnpm test`
+- [x] 2.2 Availability action integration tests pass: `pnpm test:integration`
+- [x] 2.3 Linting + FSD pass: `pnpm lint`, `pnpm steiger`
+- [x] 2.4 Build clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.5 Click-cycle a cell available → soft → strong → available; persists across reload
-- [ ] 2.6 Day-header bulk-sets a column and persists
-- [ ] 2.7 Optimistic feedback instant; forced failure rolls back + shows error banner
-- [ ] 2.8 Cloning the plan carries availability
-- [ ] 2.9 Teacher rows with availability show the indicator badge (with count); clicking it opens the dialog; rows with none show no badge
+- [x] 2.5 Click-cycle a cell available → soft → strong → available; persists across reload
+- [x] 2.6 Day-header bulk-sets a column and persists
+- [x] 2.7 Optimistic feedback instant; forced failure rolls back + shows error banner
+- [x] 2.8 Cloning the plan carries availability
+- [x] 2.9 Teacher rows with availability show the indicator badge (with count); clicking it opens the dialog; rows with none show no badge
 
 ### Phase 3: Strong-NO validation + board render
 

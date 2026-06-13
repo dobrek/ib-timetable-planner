@@ -217,34 +217,45 @@ const PLAN_TABLES = [
   });
 
   it("clones teacher_availability with teacher_id remapped to the clone's teachers", async () => {
-    // Warm plan so the frozen base is never mutated. Give one warm teacher a single
-    // availability cell, clone again, and assert the cell carries over with its
-    // teacher_id remapped through _teacher_map (not coordinate-only like slot_bundles).
-    const warmId = await clonePlan(sourcePlanId, "Clone Test 4 (warm avail)");
-    const { data: warmTeacher } = await supabase.from("teachers").select("id").eq("plan_id", warmId).limit(1).single();
-    if (!warmTeacher) throw new Error("warm clone has no teachers");
+    // Self-contained bare plan + one teacher + one availability cell — isolated from any
+    // availability already on the seed plan (e.g. inserted by hand during manual testing),
+    // mirroring the slot-bundles harness. Asserts the cell carries over with its teacher_id
+    // remapped through _teacher_map (not coordinate-only like slot_bundles).
+    const { data: srcPlan, error: planError } = await supabase
+      .from("plans")
+      .insert({ name: "Avail Clone Source", slot_grid_preset: "5x10" })
+      .select("id")
+      .single();
+    if (planError) throw planError;
+    createdPlanIds.push(srcPlan.id);
+
+    const { data: srcTeacher, error: teacherError } = await supabase
+      .from("teachers")
+      .insert({ plan_id: srcPlan.id, code: "AV1", full_name: "Availability Teacher" })
+      .select("id")
+      .single();
+    if (teacherError) throw teacherError;
 
     await supabase
       .from("teacher_availability")
-      .insert({ plan_id: warmId, teacher_id: warmTeacher.id, day: 2, period: 3, severity: "strong" });
+      .insert({ plan_id: srcPlan.id, teacher_id: srcTeacher.id, day: 2, period: 3, severity: "strong" });
 
-    const finalId = await clonePlan(warmId, "Clone Test 4 (final avail)");
-    const finalTeacherIds = await idsOf("teachers", finalId);
-    const warmTeacherIds = await idsOf("teachers", warmId);
+    const cloneId = await clonePlan(srcPlan.id, "Avail Clone Dest");
+    const cloneTeacherIds = await idsOf("teachers", cloneId);
 
-    const { data: finalAvail } = await supabase
+    const { data: cloneAvail } = await supabase
       .from("teacher_availability")
       .select("teacher_id, day, period, severity")
-      .eq("plan_id", finalId);
-    expect(finalAvail).toHaveLength(1);
-    const row = finalAvail?.[0];
-    if (!row) throw new Error("final clone has no availability");
+      .eq("plan_id", cloneId);
+    expect(cloneAvail).toHaveLength(1);
+    const row = cloneAvail?.[0];
+    if (!row) throw new Error("clone has no availability");
     expect(row.day).toBe(2);
     expect(row.period).toBe(3);
     expect(row.severity).toBe("strong");
-    // teacher_id points at the clone's own teachers, never the warm source's.
-    expect(finalTeacherIds.has(row.teacher_id)).toBe(true);
-    expect(warmTeacherIds.has(row.teacher_id)).toBe(false);
+    // teacher_id points at the clone's own teacher, never the source's.
+    expect(cloneTeacherIds.has(row.teacher_id)).toBe(true);
+    expect(row.teacher_id).not.toBe(srcTeacher.id);
   });
 
   it("cloning the same source twice produces two independent plans", async () => {

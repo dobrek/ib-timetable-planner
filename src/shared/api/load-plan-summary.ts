@@ -8,8 +8,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** Route-param guard: true when the id is a well-formed plan UUID. */
 export const isPlanId = (id: string | undefined): id is string => !!id && UUID_RE.test(id);
 
-/** The plan context every plan-scoped page resolves: identity + display name. */
-export type PlanSummary = { id: string; name: string };
+/** The plan context every plan-scoped page resolves: identity + display name + grid preset. */
+export type PlanSummary = { id: string; name: string; slot_grid_preset: string };
 
 /**
  * Resolve a route's plan param to its row, or null for a missing/garbage id (the page
@@ -21,7 +21,7 @@ export const loadPlanSummary = async (
 ): Promise<PlanSummary | null> => {
   if (!isPlanId(id)) return null;
 
-  const { data, error } = await supabase.from("plans").select("id, name").eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("plans").select("id, name, slot_grid_preset").eq("id", id).maybeSingle();
   if (error) throw new Error(`Plan lookup failed: ${error.message}`);
   return data;
 };

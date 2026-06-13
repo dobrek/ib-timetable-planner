@@ -2,6 +2,8 @@ import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import SlotCell from "./SlotCell";
 import { dayLabel, periodLabel } from "../lib/slot-labels";
 import type { CellCollisions } from "../model/collisions";
+import type { DropHint } from "../model/drop-hints";
+import type { HintMode } from "../lib/drag-hint-mode";
 import type { LocalPlacement } from "../model/placement";
 import { cellKey } from "../model/collisions";
 
@@ -12,12 +14,26 @@ type Props = {
   names: Record<string, string>;
   /** cellKey → flags + structured violations for that cell. */
   collisions: Map<string, CellCollisions>;
+  /** cellKey → drag hint (sparse: absent = free); null when no drag is active. */
+  dropHints: Map<string, DropHint> | null;
+  /** Encoding for the hint cells while a drag is active. */
+  hintMode: HintMode;
   onRemove: (placementId: string) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 };
 
 /** The 10×5 (period × day) slot grid. Each cell is a droppable; cells are multi-occupancy. */
-export default function PlannerGrid({ days, periods, placements, names, collisions, onRemove, onInspect }: Props) {
+export default function PlannerGrid({
+  days,
+  periods,
+  placements,
+  names,
+  collisions,
+  dropHints,
+  hintMode,
+  onRemove,
+  onInspect,
+}: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
   const byCell = groupByCell(placements, names);
@@ -43,6 +59,8 @@ export default function PlannerGrid({ days, periods, placements, names, collisio
             byCell={byCell}
             names={names}
             collisions={collisions}
+            dropHints={dropHints}
+            hintMode={hintMode}
             onRemove={onRemove}
             onInspect={onInspect}
           />
@@ -58,6 +76,8 @@ function PeriodRow({
   byCell,
   names,
   collisions,
+  dropHints,
+  hintMode,
   onRemove,
   onInspect,
 }: {
@@ -66,6 +86,8 @@ function PeriodRow({
   byCell: Map<string, LocalPlacement[]>;
   names: Record<string, string>;
   collisions: Map<string, CellCollisions>;
+  dropHints: Map<string, DropHint> | null;
+  hintMode: HintMode;
   onRemove: (placementId: string) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 }) {
@@ -82,6 +104,9 @@ function PeriodRow({
           occupants={byCell.get(cellKey(day, period)) ?? []}
           names={names}
           collisions={collisions.get(cellKey(day, period))}
+          dropHint={dropHints?.get(cellKey(day, period))}
+          hintActive={dropHints !== null}
+          hintMode={hintMode}
           onRemove={onRemove}
           onInspect={onInspect}
         />

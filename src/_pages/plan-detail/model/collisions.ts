@@ -37,7 +37,13 @@ export const deriveCellViolations = (
   return collisions;
 };
 
-const bucketByCell = (
+/**
+ * Group placements into their `(day, period)` cells, projecting each to its
+ * validation-catalog course (placements whose course is absent are skipped).
+ * Shared by `deriveCellViolations` and the drag-hint derivation (`drop-hints.ts`)
+ * so both read occupants the same way.
+ */
+export const bucketByCell = (
   placements: PlannerPlacement[],
   catalogById: Map<string, GroupingCourse>,
 ): Map<string, { cell: { day: number; period: number }; occupants: GroupingCourse[] }> => {

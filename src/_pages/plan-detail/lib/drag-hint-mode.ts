@@ -16,14 +16,23 @@ const listeners = new Set<() => void>();
 /** Reads the stored mode, defaulting to `dim-blocked` on a miss, invalid value, or the server. */
 export function readHintMode(): HintMode {
   if (typeof window === "undefined") return DEFAULT_HINT_MODE;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return isHintMode(stored) ? stored : DEFAULT_HINT_MODE;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return isHintMode(stored) ? stored : DEFAULT_HINT_MODE;
+  } catch {
+    // Storage blocked (private mode / disabled) — treat as no preference.
+    return DEFAULT_HINT_MODE;
+  }
 }
 
 /** Persists the mode and notifies subscribers (so `useSyncExternalStore` re-renders this tab). */
 export function writeHintMode(mode: HintMode): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, mode);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, mode);
+  } catch {
+    // Storage blocked — preference won't persist; degrade silently.
+  }
   for (const listener of listeners) listener();
 }
 
@@ -40,4 +49,5 @@ export function subscribeHintMode(listener: () => void): () => void {
   };
 }
 
-const isHintMode = (value: string | null): value is HintMode => value === "dim-blocked" || value === "highlight-free";
+export const isHintMode = (value: string | null): value is HintMode =>
+  value === "dim-blocked" || value === "highlight-free";

@@ -22,6 +22,7 @@ import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
 import { placementErrorMessage } from "../model/placement-transitions";
 import { usePlacements } from "../model/use-placements";
+import { useSlotBundles } from "../model/use-slot-bundles";
 
 /**
  * Planner island root: orchestrates placement state, collision/hours derivations,
@@ -31,16 +32,32 @@ import { usePlacements } from "../model/use-placements";
 export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
   const { planId, cohort, days, periods, groupings, names, teacherNames, studentNames, catalog } = props;
 
-  const { placements, error, addCourse, addGroup, movePlacement, removePlacement, clearError } = usePlacements(
-    props.placements,
-    { planId, cohort },
-  );
+  const {
+    placements,
+    error,
+    addCourse,
+    addGroup,
+    movePlacement,
+    removePlacement,
+    moveBundle,
+    removeBundle,
+    clearError,
+  } = usePlacements(props.placements, { planId, cohort });
+  const {
+    isOverridden,
+    toggleBundle,
+    error: slotBundleError,
+    clearError: clearSlotBundleError,
+  } = useSlotBundles(props.overrides, { planId, cohort });
   const catalogById = useCatalogById(catalog);
   const collisions = useCollisions(placements, catalogById);
   const inspection = useCollisionInspection(collisions);
   const { hours, incompleteCount } = useHours(placements, catalog);
   const { dropHints, startDragHints, clearDragHints } = useDragHints(catalogById, placements, groupings);
   const { hintMode, setHintMode } = useHintMode();
+
+  // The placement and slot-bundle write paths share the single ErrorBanner (both PlacementError).
+  const banner = error ?? slotBundleError;
 
   // Capture the dragged identity so the hint map has an input; the source's `data` is the
   // same opaque `DragData` the drop handler reads (undefined only if dropped from nowhere).
@@ -66,6 +83,9 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         break;
       case "grouping":
         dropGroup(data.groupingId, cell);
+        break;
+      case "bundle":
+        moveBundle(data.day, data.period, cell);
         break;
     }
   }
@@ -98,7 +118,15 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
           <PlannerPalette groupings={groupings} names={names} hours={hours} />
 
           <div className="flex min-h-0 flex-col gap-3">
-            {error && <ErrorBanner message={placementErrorMessage(error, names)} onDismiss={clearError} />}
+            {banner && (
+              <ErrorBanner
+                message={placementErrorMessage(banner, names)}
+                onDismiss={() => {
+                  clearError();
+                  clearSlotBundleError();
+                }}
+              />
+            )}
             <div className="flex shrink-0 justify-end">
               <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
             </div>
@@ -111,7 +139,10 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 collisions={collisions}
                 dropHints={dropHints}
                 hintMode={hintMode}
+                isOverridden={isOverridden}
                 onRemove={removePlacement}
+                onToggleBundle={toggleBundle}
+                onRemoveBundle={removeBundle}
                 onInspect={inspection.open}
               />
             </div>
@@ -126,7 +157,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         studentNames={studentNames}
         onClose={inspection.close}
       />
-      <GroupDragOverlay groupings={groupings} names={names} />
+      <GroupDragOverlay groupings={groupings} names={names} placements={placements} />
     </DragDropProvider>
   );
 }

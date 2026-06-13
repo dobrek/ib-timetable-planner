@@ -5,6 +5,7 @@ import type { CellCollisions } from "../model/collisions";
 import type { DropHint } from "../model/drop-hints";
 import type { HintMode } from "../lib/drag-hint-mode";
 import type { LocalPlacement } from "../model/placement";
+import { isBundled } from "../model/slot-bundle";
 import { cellKey } from "../model/collisions";
 
 type Props = {
@@ -18,7 +19,11 @@ type Props = {
   dropHints: Map<string, DropHint> | null;
   /** Encoding for the hint cells while a drag is active. */
   hintMode: HintMode;
+  /** Is `(day, period)` explicitly ungrouped? Drives the per-cell `bundled` derivation. */
+  isOverridden: (day: number, period: number) => boolean;
   onRemove: (placementId: string) => void;
+  onToggleBundle: (day: number, period: number, bundled: boolean) => void;
+  onRemoveBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 };
 
@@ -31,7 +36,10 @@ export default function PlannerGrid({
   collisions,
   dropHints,
   hintMode,
+  isOverridden,
   onRemove,
+  onToggleBundle,
+  onRemoveBundle,
   onInspect,
 }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
@@ -61,7 +69,10 @@ export default function PlannerGrid({
             collisions={collisions}
             dropHints={dropHints}
             hintMode={hintMode}
+            isOverridden={isOverridden}
             onRemove={onRemove}
+            onToggleBundle={onToggleBundle}
+            onRemoveBundle={onRemoveBundle}
             onInspect={onInspect}
           />
         ))}
@@ -78,7 +89,10 @@ function PeriodRow({
   collisions,
   dropHints,
   hintMode,
+  isOverridden,
   onRemove,
+  onToggleBundle,
+  onRemoveBundle,
   onInspect,
 }: {
   period: number;
@@ -88,7 +102,10 @@ function PeriodRow({
   collisions: Map<string, CellCollisions>;
   dropHints: Map<string, DropHint> | null;
   hintMode: HintMode;
+  isOverridden: (day: number, period: number) => boolean;
   onRemove: (placementId: string) => void;
+  onToggleBundle: (day: number, period: number, bundled: boolean) => void;
+  onRemoveBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 }) {
   return (
@@ -96,21 +113,27 @@ function PeriodRow({
       <div className="bg-background text-muted-foreground flex items-center justify-center p-2 text-xs font-medium">
         {periodLabel(period)}
       </div>
-      {days.map((day) => (
-        <SlotCell
-          key={day}
-          day={day}
-          period={period}
-          occupants={byCell.get(cellKey(day, period)) ?? []}
-          names={names}
-          collisions={collisions.get(cellKey(day, period))}
-          dropHint={dropHints?.get(cellKey(day, period))}
-          hintActive={dropHints !== null}
-          hintMode={hintMode}
-          onRemove={onRemove}
-          onInspect={onInspect}
-        />
-      ))}
+      {days.map((day) => {
+        const occupants = byCell.get(cellKey(day, period)) ?? [];
+        return (
+          <SlotCell
+            key={day}
+            day={day}
+            period={period}
+            occupants={occupants}
+            names={names}
+            collisions={collisions.get(cellKey(day, period))}
+            dropHint={dropHints?.get(cellKey(day, period))}
+            hintActive={dropHints !== null}
+            hintMode={hintMode}
+            bundled={isBundled(occupants.length, isOverridden(day, period))}
+            onRemove={onRemove}
+            onToggleBundle={onToggleBundle}
+            onRemoveBundle={onRemoveBundle}
+            onInspect={onInspect}
+          />
+        );
+      })}
     </>
   );
 }

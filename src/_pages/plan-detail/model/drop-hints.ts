@@ -13,11 +13,11 @@ export type DropHint = "partial" | "blocked";
 
 /** Resolved inputs the derivation needs, independent of which `DragData` kind produced them. */
 export type DragHintContext = {
-  /** The course(s) the drag would land — one for course/placement drags, N for groupings. */
+  /** The course(s) the drag would land — one for course/placement drags, N for groupings/bundles. */
   members: GroupingCourse[];
-  /** For placement moves: the dragged placement, subtracted from the board before the what-if. */
-  excludePlacementId?: string;
-  /** For placement moves: the origin cell, forced `"blocked"` (dropping there is a same-cell no-op). */
+  /** Dragged placements subtracted from the board before the what-if — one for a placement move, all for a bundle. */
+  excludePlacementIds?: string[];
+  /** For placement/bundle moves: the origin cell, forced `"blocked"` (dropping there is a same-cell no-op). */
   origin?: CellData;
 };
 
@@ -45,7 +45,7 @@ export const resolveDragHintContext = (data: DragData, deps: ResolveDeps): DragH
       const row = placements.find((placement) => placement.id === data.placementId);
       return {
         members: [course],
-        excludePlacementId: data.placementId,
+        excludePlacementIds: [data.placementId],
         origin: row ? { day: row.day, period: row.period } : undefined,
       };
     }
@@ -53,6 +53,20 @@ export const resolveDragHintContext = (data: DragData, deps: ResolveDeps): DragH
       const grouping = groupings.find((candidate) => candidate.id === data.groupingId);
       const members = resolveMembers(grouping, catalogById);
       return members.length > 0 ? { members } : null;
+    }
+    case "bundle": {
+      // A whole-slot drag: members are the source cell's occupants, and ALL of them are
+      // excluded so the what-if judges targets against the courses that would remain there.
+      const source = placements.filter((placement) => placement.day === data.day && placement.period === data.period);
+      const members = source
+        .map((placement) => catalogById.get(placement.courseId))
+        .filter((course): course is GroupingCourse => course !== undefined);
+      if (members.length === 0) return null;
+      return {
+        members,
+        excludePlacementIds: source.map((placement) => placement.id),
+        origin: { day: data.day, period: data.period },
+      };
     }
   }
 };
@@ -71,11 +85,10 @@ export const deriveDropHints = (
 ): Map<string, DropHint> | null => {
   if (!context) return null;
 
-  // A placement move lifts the dragged chip off the board for the what-if, so every cell —
-  // including its origin — is judged against the courses that would *remain*.
-  const occupied = context.excludePlacementId
-    ? placements.filter((placement) => placement.id !== context.excludePlacementId)
-    : placements;
+  // A placement/bundle move lifts the dragged chip(s) off the board for the what-if, so every
+  // cell — including the origin — is judged against the courses that would *remain*.
+  const excluded = new Set(context.excludePlacementIds);
+  const occupied = excluded.size > 0 ? placements.filter((placement) => !excluded.has(placement.id)) : placements;
 
   const hints = new Map<string, DropHint>();
   for (const [key, { occupants }] of bucketByCell(occupied, catalogById)) {

@@ -1,12 +1,15 @@
 import type { Cohort } from "@/shared/config";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { PlannerPlacement } from "./placement";
+import type { SlotOverride } from "./slot-bundle";
 
 /** Drag payload carried on the draggable's `data`. Identity is opaque ids — never names. */
 export type CourseDrag = { kind: "course"; courseId: string };
 export type PlacementDrag = { kind: "placement"; placementId: string; courseId: string };
 export type GroupDrag = { kind: "grouping"; groupingId: string };
-export type DragData = CourseDrag | PlacementDrag | GroupDrag;
+/** Whole-slot drag: moves every placement at the source cell as one unit. */
+export type BundleDrag = { kind: "bundle"; day: number; period: number };
+export type DragData = CourseDrag | PlacementDrag | GroupDrag | BundleDrag;
 
 /** Drop payload carried on a cell droppable's `data`. */
 export type CellData = { day: number; period: number };
@@ -25,6 +28,8 @@ export type PlannerBoardProps = {
   /** studentKey → full name, resolved at the edge — never baked into drag payloads or violations. */
   studentNames: Record<string, string>;
   placements: PlannerPlacement[];
+  /** Persisted unbundled overrides (cells the planner explicitly ungrouped). */
+  overrides: SlotOverride[];
   /** Validation catalog: `GroupingCourse[]` keyed by course id. */
   catalog: GroupingCourse[];
 };

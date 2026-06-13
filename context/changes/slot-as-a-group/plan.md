@@ -374,16 +374,16 @@ The <200 ms per-drag budget is met structurally and is preserved: validation rem
 
 #### Automated
 
-- [ ] 1.1 Migrations apply cleanly: `pnpm exec supabase db reset`
-- [ ] 1.2 Types regenerated and compile: `pnpm build`
-- [ ] 1.3 Lint passes: `pnpm lint`
-- [ ] 1.4 FSD structure check passes: `pnpm steiger`
-- [ ] 1.5 Integration tests pass: `pnpm test:integration`
+- [x] 1.1 Migrations apply cleanly: `pnpm exec supabase db reset`
+- [x] 1.2 Types regenerated and compile: `pnpm build`
+- [x] 1.3 Lint passes: `pnpm lint`
+- [x] 1.4 FSD structure check passes: `pnpm steiger`
+- [x] 1.5 Integration tests pass: `pnpm test:integration`
 
 #### Manual
 
-- [ ] 1.6 `slot_bundles` table visible in Studio with RLS policy after `db reset`
-- [ ] 1.7 Cloning a plan with an override carries the override to the new plan
+- [x] 1.6 `slot_bundles` table visible in Studio with RLS policy after `db reset`
+- [x] 1.7 Cloning a plan with an override carries the override to the new plan
 
 ### Phase 2: Model & state
 

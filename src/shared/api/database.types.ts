@@ -229,11 +229,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "courses_teacher_id_fkey"
-            columns: ["teacher_id"]
+            foreignKeyName: "courses_teacher_fkey"
+            columns: ["plan_id", "teacher_id"]
             isOneToOne: false
             referencedRelation: "teachers"
-            referencedColumns: ["id"]
+            referencedColumns: ["plan_id", "id"]
           },
         ]
       }
@@ -305,6 +305,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      slot_bundles: {
+        Row: {
+          cohort: Database["public"]["Enums"]["cohort"]
+          created_at: string
+          day: number
+          id: string
+          period: number
+          plan_id: string
+        }
+        Insert: {
+          cohort: Database["public"]["Enums"]["cohort"]
+          created_at?: string
+          day: number
+          id?: string
+          period: number
+          plan_id: string
+        }
+        Update: {
+          cohort?: Database["public"]["Enums"]["cohort"]
+          created_at?: string
+          day?: number
+          id?: string
+          period?: number
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slot_bundles_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_choices: {
         Row: {

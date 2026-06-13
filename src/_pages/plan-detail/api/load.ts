@@ -8,6 +8,7 @@ import type { PlannerBoardProps } from "../model/drag";
 import { parseGridPreset } from "../model/grid";
 import type { PlannerGrouping } from "../model/grouping";
 import type { PlannerPlacement } from "../model/placement";
+import type { SlotOverride } from "../model/slot-bundle";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,16 +46,17 @@ export const loadPlannerData = async (
 
   const { days, periods } = parseGridPreset(plan.slot_grid_preset);
 
-  const [groupingsResult, placementsResult, catalog] = await Promise.all([
+  const [groupingsResult, placementsResult, overridesResult, catalog] = await Promise.all([
     supabase
       .from("course_groupings")
       .select("id, coverage_count, score, course_grouping_members(course_id)")
       .eq("plan_id", id)
       .eq("cohort", BOARD_COHORT),
     supabase.from("placements").select("id, course_id, day, period").eq("plan_id", id).eq("cohort", BOARD_COHORT),
+    supabase.from("slot_bundles").select("day, period").eq("plan_id", id).eq("cohort", BOARD_COHORT),
     loadCohortCourses(supabase, id, BOARD_COHORT),
   ]);
-  assertNoQueryErrors("Planner board", [groupingsResult, placementsResult]);
+  assertNoQueryErrors("Planner board", [groupingsResult, placementsResult, overridesResult]);
 
   const [teacherNames, studentNames] = await Promise.all([
     fetchTeacherNames(
@@ -78,6 +80,11 @@ export const loadPlannerData = async (
     period: row.period,
   }));
 
+  const overrides: SlotOverride[] = (overridesResult.data ?? []).map((row) => ({
+    day: row.day,
+    period: row.period,
+  }));
+
   return ok({
     planName: plan.name,
     props: {
@@ -90,6 +97,7 @@ export const loadPlannerData = async (
       teacherNames,
       studentNames,
       placements,
+      overrides,
       catalog: catalog.courses,
     },
   });

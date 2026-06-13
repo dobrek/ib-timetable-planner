@@ -1,11 +1,10 @@
 import type { SupabaseClient } from "@/shared/api";
-import type { Cohort } from "@/shared/config";
+import { type Cohort, parseGridPreset } from "@/shared/config";
 import { loadCohortCourses } from "@/shared/lib/catalog-hash";
 import { unique } from "@/shared/lib/collections";
 import { assertNoQueryErrors } from "@/shared/lib/loaders";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { PlannerBoardProps } from "../model/drag";
-import { parseGridPreset } from "../model/grid";
 import type { PlannerGrouping } from "../model/grouping";
 import type { PlannerPlacement } from "../model/placement";
 import type { SlotOverride } from "../model/slot-bundle";

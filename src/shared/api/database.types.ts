@@ -415,6 +415,51 @@ export type Database = {
           },
         ]
       }
+      teacher_availability: {
+        Row: {
+          created_at: string
+          day: number
+          id: string
+          period: number
+          plan_id: string
+          severity: Database["public"]["Enums"]["availability_severity"]
+          teacher_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: number
+          id?: string
+          period: number
+          plan_id: string
+          severity: Database["public"]["Enums"]["availability_severity"]
+          teacher_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: number
+          id?: string
+          period?: number
+          plan_id?: string
+          severity?: Database["public"]["Enums"]["availability_severity"]
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_availability_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_availability_teacher_fkey"
+            columns: ["plan_id", "teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["plan_id", "id"]
+          },
+        ]
+      }
       teachers: {
         Row: {
           code: string
@@ -470,6 +515,7 @@ export type Database = {
       }
     }
     Enums: {
+      availability_severity: "strong" | "soft"
       cohort: "dp1" | "dp2"
     }
     CompositeTypes: {
@@ -601,6 +647,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      availability_severity: ["strong", "soft"],
       cohort: ["dp1", "dp2"],
     },
   },

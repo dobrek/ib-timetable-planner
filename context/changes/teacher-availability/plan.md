@@ -479,18 +479,18 @@ Additive only — new table, new enum, `create or replace` clone function (old m
 
 #### Automated
 
-- [ ] 1.1 Migration applies cleanly: `pnpm exec supabase db reset`
-- [ ] 1.2 Generated types in sync: `supabase gen types` no diff
-- [ ] 1.3 FSD structure passes: `pnpm steiger`
-- [ ] 1.4 Linting passes: `pnpm lint`
-- [ ] 1.5 Existing unit suite green: `pnpm test`
-- [ ] 1.6 Production build clean: `pnpm build`
-- [ ] 1.7 Clone integration test: availability rows copy with remapped teacher_id (`pnpm test:integration`)
+- [x] 1.1 Migration applies cleanly: `pnpm exec supabase db reset`
+- [x] 1.2 Generated types in sync: `supabase gen types` no diff
+- [x] 1.3 FSD structure passes: `pnpm steiger`
+- [x] 1.4 Linting passes: `pnpm lint`
+- [x] 1.5 Existing unit suite green: `pnpm test`
+- [x] 1.6 Production build clean: `pnpm build`
+- [x] 1.7 Clone integration test: availability rows copy with remapped teacher_id (`pnpm test:integration`)
 
 #### Manual
 
-- [ ] 1.8 Clone carries availability rows with remapped teacher_id
-- [ ] 1.9 Deleting a teacher cascades its availability away
+- [x] 1.8 Clone carries availability rows with remapped teacher_id
+- [x] 1.9 Deleting a teacher cascades its availability away
 
 ### Phase 2: Authoring UI (teachers catalog)
 

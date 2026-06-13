@@ -216,6 +216,37 @@ const PLAN_TABLES = [
     }
   });
 
+  it("clones teacher_availability with teacher_id remapped to the clone's teachers", async () => {
+    // Warm plan so the frozen base is never mutated. Give one warm teacher a single
+    // availability cell, clone again, and assert the cell carries over with its
+    // teacher_id remapped through _teacher_map (not coordinate-only like slot_bundles).
+    const warmId = await clonePlan(sourcePlanId, "Clone Test 4 (warm avail)");
+    const { data: warmTeacher } = await supabase.from("teachers").select("id").eq("plan_id", warmId).limit(1).single();
+    if (!warmTeacher) throw new Error("warm clone has no teachers");
+
+    await supabase
+      .from("teacher_availability")
+      .insert({ plan_id: warmId, teacher_id: warmTeacher.id, day: 2, period: 3, severity: "strong" });
+
+    const finalId = await clonePlan(warmId, "Clone Test 4 (final avail)");
+    const finalTeacherIds = await idsOf("teachers", finalId);
+    const warmTeacherIds = await idsOf("teachers", warmId);
+
+    const { data: finalAvail } = await supabase
+      .from("teacher_availability")
+      .select("teacher_id, day, period, severity")
+      .eq("plan_id", finalId);
+    expect(finalAvail).toHaveLength(1);
+    const row = finalAvail?.[0];
+    if (!row) throw new Error("final clone has no availability");
+    expect(row.day).toBe(2);
+    expect(row.period).toBe(3);
+    expect(row.severity).toBe("strong");
+    // teacher_id points at the clone's own teachers, never the warm source's.
+    expect(finalTeacherIds.has(row.teacher_id)).toBe(true);
+    expect(warmTeacherIds.has(row.teacher_id)).toBe(false);
+  });
+
   it("cloning the same source twice produces two independent plans", async () => {
     const firstId = await clonePlan(sourcePlanId, "Clone Twice 1");
     const secondId = await clonePlan(sourcePlanId, "Clone Twice 2");

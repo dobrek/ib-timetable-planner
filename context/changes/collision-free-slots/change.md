@@ -1,7 +1,7 @@
 ---
 change_id: collision-free-slots
 title: Collision free slots
-status: plan_reviewed
+status: implementing
 created: 2026-06-13
 updated: 2026-06-13
 archived_at: null

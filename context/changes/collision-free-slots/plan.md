@@ -296,9 +296,9 @@ None — no schema, no data, no server changes. The `localStorage` key is additi
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass: `pnpm test`
-- [ ] 1.2 Type checking / lint passes: `pnpm lint`
-- [ ] 1.3 FSD structure check passes: `pnpm steiger`
+- [x] 1.1 Unit tests pass: `pnpm test`
+- [x] 1.2 Type checking / lint passes: `pnpm lint`
+- [x] 1.3 FSD structure check passes: `pnpm steiger`
 
 ### Phase 2: Drag-start wiring + grid threading
 

@@ -1,15 +1,17 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
 import CollisionDetailsDialog from "./CollisionDetailsDialog";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
+import DragHintModeToggle from "./DragHintModeToggle";
 import ErrorBanner from "./ErrorBanner";
 import GroupDragOverlay from "./GroupDragOverlay";
 import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
+import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../lib/drag-hint-mode";
 import type { CellData, DragData, PlannerBoardProps } from "../model/drag";
 import { cellKey, deriveCellViolations } from "../model/collisions";
 import type { CellCollisions } from "../model/collisions";
@@ -38,6 +40,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   const inspection = useCollisionInspection(collisions);
   const { hours, incompleteCount } = useHours(placements, catalog);
   const { dropHints, startDragHints, clearDragHints } = useDragHints(catalogById, placements, groupings);
+  const { hintMode, setHintMode } = useHintMode();
 
   // Capture the dragged identity so the hint map has an input; the source's `data` is the
   // same opaque `DragData` the drop handler reads (undefined only if dropped from nowhere).
@@ -96,6 +99,9 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
 
           <div className="flex min-h-0 flex-col gap-3">
             {error && <ErrorBanner message={placementErrorMessage(error, names)} onDismiss={clearError} />}
+            <div className="flex shrink-0 justify-end">
+              <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
+            </div>
             <div className="min-h-0 flex-1 overflow-auto">
               <PlannerGrid
                 days={days}
@@ -104,6 +110,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 names={names}
                 collisions={collisions}
                 dropHints={dropHints}
+                hintMode={hintMode}
                 onRemove={removePlacement}
                 onInspect={inspection.open}
               />
@@ -155,6 +162,15 @@ function useDragHints(
       setContext(null);
     },
   };
+}
+
+// Per-device hint encoding, persisted in localStorage. `useSyncExternalStore` returns the
+// default during SSR and the hydration render (the island is `client:load`) via the server
+// snapshot, then switches to the stored value — so the toggle's active state can't trip a
+// hydration mismatch. Drags never run at hydration, so the cells themselves can't mismatch.
+function useHintMode() {
+  const hintMode = useSyncExternalStore(subscribeHintMode, readHintMode, () => DEFAULT_HINT_MODE);
+  return { hintMode, setHintMode: writeHintMode };
 }
 
 function useCollisionInspection(collisions: Map<string, CellCollisions>) {

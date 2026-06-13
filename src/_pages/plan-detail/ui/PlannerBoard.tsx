@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
-import type { DragEndEvent } from "@dnd-kit/react";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
 import CollisionDetailsDialog from "./CollisionDetailsDialog";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
@@ -13,7 +13,9 @@ import PlannerPalette from "./PlannerPalette";
 import type { CellData, DragData, PlannerBoardProps } from "../model/drag";
 import { cellKey, deriveCellViolations } from "../model/collisions";
 import type { CellCollisions } from "../model/collisions";
-import type { GroupingCourse } from "../model/grouping";
+import { deriveDropHints, resolveDragHintContext } from "../model/drop-hints";
+import type { DragHintContext } from "../model/drop-hints";
+import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
 import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
 import { placementErrorMessage } from "../model/placement-transitions";
@@ -31,11 +33,21 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     props.placements,
     { planId, cohort },
   );
-  const collisions = useCollisions(placements, catalog);
+  const catalogById = useCatalogById(catalog);
+  const collisions = useCollisions(placements, catalogById);
   const inspection = useCollisionInspection(collisions);
   const { hours, incompleteCount } = useHours(placements, catalog);
+  const { dropHints, startDragHints, clearDragHints } = useDragHints(catalogById, placements, groupings);
+
+  // Capture the dragged identity so the hint map has an input; the source's `data` is the
+  // same opaque `DragData` the drop handler reads (undefined only if dropped from nowhere).
+  function handleDragStart(event: DragStartEvent) {
+    const data = event.operation.source?.data as DragData | undefined;
+    if (data) startDragHints(data);
+  }
 
   function handleDrop(event: DragEndEvent) {
+    clearDragHints(); // clears for both a successful drop and a canceled drag (Escape / drop in void)
     if (event.canceled) return;
     const { source, target } = event.operation;
     if (!source || !target) return; // dropped outside any cell — no-op (removal is via "×")
@@ -75,7 +87,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   }
 
   return (
-    <DragDropProvider plugins={PLUGINS} onDragEnd={handleDrop}>
+    <DragDropProvider plugins={PLUGINS} onDragStart={handleDragStart} onDragEnd={handleDrop}>
       <div className="flex min-h-0 flex-1 flex-col">
         <PlanSummaryBar planName={planName} incompleteCount={incompleteCount} />
 
@@ -91,6 +103,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 placements={placements}
                 names={names}
                 collisions={collisions}
+                dropHints={dropHints}
                 onRemove={removePlacement}
                 onInspect={inspection.open}
               />
@@ -111,9 +124,37 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   );
 }
 
-function useCollisions(placements: LocalPlacement[], catalog: GroupingCourse[]) {
-  const catalogById = useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
+// Shared course lookup, built once for both the collision and drag-hint derivations.
+function useCatalogById(catalog: GroupingCourse[]) {
+  return useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
+}
+
+function useCollisions(placements: LocalPlacement[], catalogById: Map<string, GroupingCourse>) {
   return useMemo(() => deriveCellViolations(placements, catalogById), [placements, catalogById]);
+}
+
+// Owns the active-drag identity and derives the per-cell hint map from it. Keyed on live
+// placements so marks stay correct if an optimistic placement settles or rolls back mid-drag.
+// The map is null when no drag is active, so cells render no hint.
+function useDragHints(
+  catalogById: Map<string, GroupingCourse>,
+  placements: LocalPlacement[],
+  groupings: PlannerGrouping[],
+) {
+  const [context, setContext] = useState<DragHintContext | null>(null);
+  const dropHints = useMemo(
+    () => deriveDropHints(context, placements, catalogById),
+    [context, placements, catalogById],
+  );
+  return {
+    dropHints,
+    startDragHints: (data: DragData) => {
+      setContext(resolveDragHintContext(data, { catalogById, groupings, placements }));
+    },
+    clearDragHints: () => {
+      setContext(null);
+    },
+  };
 }
 
 function useCollisionInspection(collisions: Map<string, CellCollisions>) {

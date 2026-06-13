@@ -296,22 +296,22 @@ None — no schema, no data, no server changes. The `localStorage` key is additi
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `pnpm test`
-- [x] 1.2 Type checking / lint passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
+- [x] 1.1 Unit tests pass: `pnpm test` — 8515cb8
+- [x] 1.2 Type checking / lint passes: `pnpm lint` — 8515cb8
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — 8515cb8
 
 ### Phase 2: Drag-start wiring + grid threading
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `pnpm test`
-- [ ] 2.2 Lint passes: `pnpm lint`
-- [ ] 2.3 FSD structure check passes: `pnpm steiger`
-- [ ] 2.4 Production build is clean: `pnpm build`
+- [x] 2.1 Unit tests pass: `pnpm test`
+- [x] 2.2 Lint passes: `pnpm lint`
+- [x] 2.3 FSD structure check passes: `pnpm steiger`
+- [x] 2.4 Production build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.5 `data-drop-hint` populates on expected cells; origin reads blocked; drop/Escape clears it
+- [x] 2.5 `data-drop-hint` populates on expected cells; origin reads blocked; drop/Escape clears it
 
 ### Phase 3: Encoding, toggle & persistence
 

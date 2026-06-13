@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "./collisions";
-import { deriveDropHints, type DragHintContext } from "./drop-hints";
-import type { GroupingCourse } from "./grouping";
+import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
+import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 
 const course = (id: string, teacherKey: string | null, studentKeys: string[]): GroupingCourse => ({
@@ -17,6 +17,8 @@ const placement = (id: string, courseId: string, day: number, period: number): P
   day,
   period,
 });
+
+const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({ id, memberIds, coverageCount: 1, score: 1 });
 
 const catalog = (...courses: GroupingCourse[]): Map<string, GroupingCourse> => new Map(courses.map((c) => [c.id, c]));
 
@@ -96,5 +98,59 @@ describe("deriveDropHints", () => {
       catalog(a, b, x, y),
     );
     expect(result?.get(cellKey(1, 1))).toBe("blocked");
+  });
+});
+
+describe("resolveDragHintContext", () => {
+  it("resolves a course drag to a single member, no exclusion or origin", () => {
+    const a = course("A", "t1", ["s1"]);
+    const result = resolveDragHintContext(
+      { kind: "course", courseId: "A" },
+      { catalogById: catalog(a), groupings: [], placements: [] },
+    );
+    expect(result).toEqual({ members: [a] });
+  });
+
+  it("returns null for a course drag whose id is absent from the catalog", () => {
+    const result = resolveDragHintContext(
+      { kind: "course", courseId: "GHOST" },
+      { catalogById: catalog(course("A", "t1", ["s1"])), groupings: [], placements: [] },
+    );
+    expect(result).toBeNull();
+  });
+
+  it("resolves a placement drag to its course, exclusion id, and origin cell", () => {
+    const a = course("A", "t1", ["s1"]);
+    const result = resolveDragHintContext(
+      { kind: "placement", placementId: "p1", courseId: "A" },
+      { catalogById: catalog(a), groupings: [], placements: [placement("p1", "A", 2, 3)] },
+    );
+    expect(result).toEqual({ members: [a], excludePlacementId: "p1", origin: { day: 2, period: 3 } });
+  });
+
+  it("returns null for a placement drag whose course is absent from the catalog", () => {
+    const result = resolveDragHintContext(
+      { kind: "placement", placementId: "p1", courseId: "GHOST" },
+      { catalogById: catalog(course("A", "t1", ["s1"])), groupings: [], placements: [placement("p1", "GHOST", 1, 1)] },
+    );
+    expect(result).toBeNull();
+  });
+
+  it("resolves a grouping drag to all its catalog members", () => {
+    const a = course("A", "t1", ["s1"]);
+    const b = course("B", "t2", ["s2"]);
+    const result = resolveDragHintContext(
+      { kind: "grouping", groupingId: "g1" },
+      { catalogById: catalog(a, b), groupings: [grouping("g1", ["A", "B"])], placements: [] },
+    );
+    expect(result).toEqual({ members: [a, b] });
+  });
+
+  it("returns null for an unknown grouping id (no members resolve)", () => {
+    const result = resolveDragHintContext(
+      { kind: "grouping", groupingId: "nope" },
+      { catalogById: catalog(course("A", "t1", ["s1"])), groupings: [grouping("g1", ["A"])], placements: [] },
+    );
+    expect(result).toBeNull();
   });
 });

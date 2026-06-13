@@ -529,13 +529,13 @@ Additive only — new table, new enum, `create or replace` clone function (old m
 
 #### Automated
 
-- [x] 4.1 Updated core tests pass: `pnpm test` (block/warn split, warn hints, soft emission)
-- [x] 4.2 Enumeration still availability-free: `enumerate.test.ts` green
-- [x] 4.3 Lint, FSD, build clean: `pnpm lint`, `pnpm steiger`, `pnpm build`
+- [x] 4.1 Updated core tests pass: `pnpm test` (block/warn split, warn hints, soft emission) — 26d0b59
+- [x] 4.2 Enumeration still availability-free: `enumerate.test.ts` green — 26d0b59
+- [x] 4.3 Lint, FSD, build clean: `pnpm lint`, `pnpm steiger`, `pnpm build` — 26d0b59
 
 #### Manual
 
-- [x] 4.4 Soft placement shows amber ring/chip/badge; cell/plan stays valid and finalizable
-- [x] 4.5 Badge opens a visually distinct dialog warn section naming the teacher
-- [x] 4.6 Soft drag shows warn only on otherwise-free cells; blocked/partial unaffected
-- [x] 4.7 Light/dark both render the amber tier correctly
+- [x] 4.4 Soft placement shows amber ring/chip/badge; cell/plan stays valid and finalizable — 26d0b59
+- [x] 4.5 Badge opens a visually distinct dialog warn section naming the teacher — 26d0b59
+- [x] 4.6 Soft drag shows warn only on otherwise-free cells; blocked/partial unaffected — 26d0b59
+- [x] 4.7 Light/dark both render the amber tier correctly — 26d0b59

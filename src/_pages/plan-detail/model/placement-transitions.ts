@@ -135,3 +135,58 @@ export function removeOptimistic(prev: LocalPlacement[], id: string): LocalPlace
 export function removeRollback(prev: LocalPlacement[], row: LocalPlacement): LocalPlacement[] {
   return [...prev, row];
 }
+
+// --- Bundle move/remove (whole-slot batch) ---
+
+/** Every placement id sitting at a cell — the membership of a whole-slot drag/remove. */
+export function occupantPlacementIds(placements: LocalPlacement[], cell: CellData): string[] {
+  return placements.filter((p) => p.day === cell.day && p.period === cell.period).map((p) => p.id);
+}
+
+export type BundlePartition = { movers: string[]; mergers: string[] };
+
+/**
+ * Split a bundle's occupants by the destination — the batch analogue of `moveIntent`'s
+ * per-row `occupiesCell` check, generalized from reject to skip. A **merger** is an
+ * occupant whose course already sits at the target (its twin stays; the source row is
+ * dropped, never moved onto its twin — which would create a duplicate-course collision
+ * both transiently and post-settle). A **mover** is everyone else.
+ */
+export function partitionBundleMove(placements: LocalPlacement[], ids: string[], target: CellData): BundlePartition {
+  const idSet = new Set(ids);
+  const movers: string[] = [];
+  const mergers: string[] = [];
+  for (const row of placements) {
+    if (!idSet.has(row.id)) continue;
+    if (occupiesCell(placements, row.courseId, target)) mergers.push(row.id);
+    else movers.push(row.id);
+  }
+  return { movers, mergers };
+}
+
+/**
+ * Apply a whole-slot move in ONE pass: movers get the target coords + `pending` (keeping
+ * their old id, like `moveOptimistic`); mergers are filtered out (their target twin already
+ * holds that course). No intermediate twin is ever created, so the board derives only the
+ * initial and final states — never a transient duplicate-course flag.
+ */
+export function moveManyOptimistic(
+  prev: LocalPlacement[],
+  movers: string[],
+  mergers: string[],
+  target: CellData,
+): LocalPlacement[] {
+  const moverSet = new Set(movers);
+  const mergerSet = new Set(mergers);
+  return prev.flatMap((p) => {
+    if (mergerSet.has(p.id)) return [];
+    if (moverSet.has(p.id)) return [{ ...p, day: target.day, period: target.period, pending: true }];
+    return [p];
+  });
+}
+
+/** Remove every placement in `ids` in one immutable pass (whole-slot bulk remove). */
+export function removeManyOptimistic(prev: LocalPlacement[], ids: string[]): LocalPlacement[] {
+  const idSet = new Set(ids);
+  return prev.filter((p) => !idSet.has(p.id));
+}

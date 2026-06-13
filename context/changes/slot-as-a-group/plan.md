@@ -374,29 +374,29 @@ The <200 ms per-drag budget is met structurally and is preserved: validation rem
 
 #### Automated
 
-- [x] 1.1 Migrations apply cleanly: `pnpm exec supabase db reset`
-- [x] 1.2 Types regenerated and compile: `pnpm build`
-- [x] 1.3 Lint passes: `pnpm lint`
-- [x] 1.4 FSD structure check passes: `pnpm steiger`
-- [x] 1.5 Integration tests pass: `pnpm test:integration`
+- [x] 1.1 Migrations apply cleanly: `pnpm exec supabase db reset` — 5621020
+- [x] 1.2 Types regenerated and compile: `pnpm build` — 5621020
+- [x] 1.3 Lint passes: `pnpm lint` — 5621020
+- [x] 1.4 FSD structure check passes: `pnpm steiger` — 5621020
+- [x] 1.5 Integration tests pass: `pnpm test:integration` — 5621020
 
 #### Manual
 
-- [x] 1.6 `slot_bundles` table visible in Studio with RLS policy after `db reset`
-- [x] 1.7 Cloning a plan with an override carries the override to the new plan
+- [x] 1.6 `slot_bundles` table visible in Studio with RLS policy after `db reset` — 5621020
+- [x] 1.7 Cloning a plan with an override carries the override to the new plan — 5621020
 
 ### Phase 2: Model & state
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `pnpm test`
-- [ ] 2.2 Type check / build clean: `pnpm build`
-- [ ] 2.3 Lint passes: `pnpm lint`
-- [ ] 2.4 FSD structure check passes: `pnpm steiger`
+- [x] 2.1 Unit tests pass: `pnpm test`
+- [x] 2.2 Type check / build clean: `pnpm build`
+- [x] 2.3 Lint passes: `pnpm lint`
+- [x] 2.4 FSD structure check passes: `pnpm steiger`
 
 #### Manual
 
-- [ ] 2.5 No board behavior change: Phase 2 code present but not composed into `PlannerBoard` (wiring is Phase 3); board loads/renders as before, no regressions
+- [x] 2.5 No board behavior change: Phase 2 code present but not composed into `PlannerBoard` (wiring is Phase 3); board loads/renders as before, no regressions
 
 ### Phase 3: UI & interaction
 

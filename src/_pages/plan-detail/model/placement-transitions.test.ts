@@ -10,10 +10,14 @@ import {
   eligibleMembers,
   groupFailureMessage,
   moveIntent,
+  moveManyOptimistic,
   moveOptimistic,
   moveReconcile,
   moveRollback,
+  occupantPlacementIds,
+  partitionBundleMove,
   placementErrorMessage,
+  removeManyOptimistic,
   removeOptimistic,
   removeRollback,
   removeTarget,
@@ -334,5 +338,74 @@ describe("remove transitions", () => {
   it("removeRollback appends the row back", () => {
     const row = p("p1", "A", 1, 1);
     expect(removeRollback([p("p2", "B", 2, 2)], row)).toEqual([p("p2", "B", 2, 2), row]);
+  });
+});
+
+describe("bundle move/remove transitions", () => {
+  it("occupantPlacementIds returns every id at the cell and nothing else", () => {
+    const placements = [p("p1", "A", 1, 1), p("p2", "B", 1, 1), p("p3", "C", 2, 2)];
+    expect(occupantPlacementIds(placements, cell(1, 1))).toEqual(["p1", "p2"]);
+  });
+
+  it("partitionBundleMove classifies a course absent at the target as a mover", () => {
+    const placements = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1)];
+    expect(partitionBundleMove(placements, ["s_a", "s_b"], cell(2, 2))).toEqual({
+      movers: ["s_a", "s_b"],
+      mergers: [],
+    });
+  });
+
+  it("partitionBundleMove classifies a course already at the target as a merger", () => {
+    // B already sits at (2,2); A does not.
+    const placements = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1), p("t_b", "B", 2, 2)];
+    expect(partitionBundleMove(placements, ["s_a", "s_b"], cell(2, 2))).toEqual({
+      movers: ["s_a"],
+      mergers: ["s_b"],
+    });
+  });
+
+  it("moveManyOptimistic moves movers to the target (pending) and drops mergers in one pass", () => {
+    const prev = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1), p("t_b", "B", 2, 2), p("t_c", "C", 2, 2)];
+    expect(moveManyOptimistic(prev, ["s_a"], ["s_b"], cell(2, 2))).toEqual([
+      { id: "s_a", courseId: "A", day: 2, period: 2, pending: true },
+      p("t_b", "B", 2, 2),
+      p("t_c", "C", 2, 2),
+    ]);
+  });
+
+  it("moveManyOptimistic does not mutate the input array", () => {
+    const prev = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1)];
+    const snapshot = [...prev];
+    moveManyOptimistic(prev, ["s_a"], ["s_b"], cell(2, 2));
+    expect(prev).toEqual(snapshot);
+  });
+
+  it("merge onto an occupied target yields exactly one row per course and an empty source", () => {
+    // Source (1,1): A, B. Target (2,2): B (twin), C. Moving the bundle should leave the source
+    // empty and the target holding A, B, C — with B appearing exactly once (no duplicate-course row).
+    const prev = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1), p("t_b", "B", 2, 2), p("t_c", "C", 2, 2)];
+    const { movers, mergers } = partitionBundleMove(prev, ["s_a", "s_b"], cell(2, 2));
+    const optimistic = moveManyOptimistic(prev, movers, mergers, cell(2, 2));
+    // Settle the one mover's POST-new (s_a's old id → its server row at the target).
+    const settled = settleMany(optimistic, [{ tempId: "s_a", result: server("new_a", "A", 2, 2) }]);
+
+    const source = settled.filter((row) => row.day === 1 && row.period === 1);
+    const target = settled.filter((row) => row.day === 2 && row.period === 2);
+    expect(source).toEqual([]);
+    expect(target.map((row) => row.courseId).sort()).toEqual(["A", "B", "C"]);
+    // B is present exactly once — the merger's source row was dropped, not moved onto its twin.
+    expect(target.filter((row) => row.courseId === "B")).toHaveLength(1);
+  });
+
+  it("removeManyOptimistic clears every id in the set in one pass", () => {
+    const prev = [p("p1", "A", 1, 1), p("p2", "B", 1, 1), p("p3", "C", 2, 2)];
+    expect(removeManyOptimistic(prev, ["p1", "p2"])).toEqual([p("p3", "C", 2, 2)]);
+  });
+
+  it("removeManyOptimistic does not mutate the input array", () => {
+    const prev = [p("p1", "A", 1, 1), p("p2", "B", 1, 1)];
+    const snapshot = [...prev];
+    removeManyOptimistic(prev, ["p1"]);
+    expect(prev).toEqual(snapshot);
   });
 });

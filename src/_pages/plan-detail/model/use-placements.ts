@@ -10,9 +10,13 @@ import {
   canAdd,
   eligibleMembers,
   moveIntent,
+  moveManyOptimistic,
   moveOptimistic,
   moveReconcile,
   moveRollback,
+  occupantPlacementIds,
+  partitionBundleMove,
+  removeManyOptimistic,
   removeOptimistic,
   removeRollback,
   removeTarget,
@@ -31,6 +35,8 @@ type UsePlacements = {
   addGroup: (memberIds: string[], cell: CellData) => void;
   movePlacement: (placementId: string, cell: CellData) => void;
   removePlacement: (placementId: string) => void;
+  moveBundle: (day: number, period: number, target: CellData) => void;
+  removeBundle: (day: number, period: number) => void;
   clearError: () => void;
 };
 
@@ -58,6 +64,14 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
 
   function removePlacement(placementId: string) {
     void persistRemove(placementId);
+  }
+
+  function moveBundle(day: number, period: number, target: CellData) {
+    void persistMoveBundle(day, period, target);
+  }
+
+  function removeBundle(day: number, period: number) {
+    void persistRemoveBundle(day, period);
   }
 
   async function persistAdd(courseId: string, cell: CellData) {
@@ -159,6 +173,86 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     }
   }
 
+  // Whole-slot move (POST-new for movers, DELETE-old for movers + mergers), applied as a
+  // single optimistic setPlacements so the board derives only the initial and final states —
+  // never a transient duplicate. The table is never touched; bundled-ness is destination state.
+  async function persistMoveBundle(day: number, period: number, target: CellData) {
+    if (target.day === day && target.period === period) return; // same-cell no-op
+    const ids = occupantPlacementIds(placementsRef.current, { day, period });
+    if (ids.length === 0) return;
+    const occupants = placementsRef.current.filter((p) => ids.includes(p.id));
+    if (occupants.some((p) => p.pending)) return; // batch analogue of moveIntent's pending reject
+
+    const { movers, mergers } = partitionBundleMove(placementsRef.current, ids, target);
+    const moverRows = occupants.filter((p) => movers.includes(p.id));
+
+    setPlacements((prev) => moveManyOptimistic(prev, movers, mergers, target));
+
+    const outcomes = await Promise.all(moverRows.map((row) => persistMover(row, target)));
+    setPlacements((prev) => settleMany(prev, outcomes));
+
+    // Source empties: delete every original row. Best-effort — cleanup failures are surfaced.
+    await Promise.all([...movers, ...mergers].map((id) => deleteOld(id)));
+
+    const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
+    if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: moverRows.length });
+  }
+
+  async function persistMover(row: LocalPlacement, target: CellData): Promise<BatchOutcome & { courseId: string }> {
+    try {
+      const created = await createPlacement({
+        planId,
+        cohort,
+        courseId: row.courseId,
+        day: target.day,
+        period: target.period,
+      });
+      return { tempId: row.id, courseId: row.courseId, result: created };
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
+      console.error(`[moveBundle] insert failed for course ${row.courseId}: ${messageOf(err)}`);
+      return { tempId: row.id, courseId: row.courseId, result: null };
+    }
+  }
+
+  async function deleteOld(id: string) {
+    try {
+      await deletePlacement(id);
+    } catch (err: unknown) {
+      setError({ kind: "message", message: `Move saved but old cell cleanup failed: ${messageOf(err)}` });
+    }
+  }
+
+  // Whole-slot bulk remove in one optimistic setPlacements; failed deletes are restored so
+  // island state stays consistent with the DB, and the failures are surfaced.
+  async function persistRemoveBundle(day: number, period: number) {
+    const occupants = placementsRef.current.filter((p) => p.day === day && p.period === period);
+    if (occupants.length === 0) return;
+    if (occupants.some((p) => p.pending)) return; // batch analogue of removeTarget's pending reject
+
+    const ids = occupants.map((p) => p.id);
+    setPlacements((prev) => removeManyOptimistic(prev, ids));
+
+    const failed = (await Promise.all(occupants.map((row) => deleteOccupant(row)))).filter(
+      (row): row is LocalPlacement => row !== null,
+    );
+    if (failed.length > 0) {
+      setPlacements((prev) => [...prev, ...failed]);
+      setError({ kind: "groupFailure", failedCourseIds: failed.map((row) => row.courseId), attempted: ids.length });
+    }
+  }
+
+  async function deleteOccupant(row: LocalPlacement): Promise<LocalPlacement | null> {
+    try {
+      await deletePlacement(row.id);
+      return null;
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
+      console.error(`[removeBundle] delete failed for course ${row.courseId}: ${messageOf(err)}`);
+      return row;
+    }
+  }
+
   return {
     placements,
     error,
@@ -166,6 +260,8 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     addGroup,
     movePlacement,
     removePlacement,
+    moveBundle,
+    removeBundle,
     clearError: () => {
       setError(null);
     },

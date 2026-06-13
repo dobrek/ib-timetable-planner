@@ -292,6 +292,10 @@ Surface bundles on the board: the slot header with the lock toggle + trash icons
 - Grouped cue on the cell root: `ring-ring ring-1 ring-inset rounded-md` + `bg-accent/40`, applied only when `bundled && !hasCollision && !isDropTarget` (tokens only).
 - Pass `bundled` to `PlacedChip`; in `PlacedChip`, extend `useDraggable({ disabled: placement.pending || bundled })`, hide/disable the remove `Button` when `bundled`, and drop `cursor-grab` when `bundled`. The read-only conflict-inspect badge stays.
 
+**As-built deviations** (impl-review 2026-06-13 — both deliberate, documented in code):
+- The whole-slot `useDraggable` is mounted on the **cell root**, not on the header strip as written above. dnd-kit's `preventActivation` would make the header's lock/trash buttons start a drag if the handle lived on the strip; mounting on the root (buttons auto-excluded from activation, plus their `stopPropagation`) avoids that and gives a larger grab target. When `bundled` the chips are inert, so a root-level handle is unambiguous.
+- The toggle renders a single icon per state — lucide `Link` (bundled) / `Unlink` (overridden) — not the `Link`/`Lock` + `Unlink`/`LockOpen` pairing sketched above. One icon per state reads cleaner and matches the "lock/link icon" intent in Desired End State.
+
 #### 4. `GroupDragOverlay` — bundle branch
 
 **File**: `src/_pages/plan-detail/ui/GroupDragOverlay.tsx`

@@ -88,6 +88,27 @@ describe("deriveCellViolations", () => {
     expect(result.get(cellKey(1, 1))?.violations).toContainEqual({ kind: "duplicate-course", courseId: "A" });
   });
 
+  it("flags a single-occupant cell when the teacher is strong-unavailable there", () => {
+    const cat = catalog(course("A", "t1", ["s1"]));
+    const availability = {
+      strongUnavailableByTeacher: new Map([["t1", new Set(["1:1"])]]),
+      softUnavailableByTeacher: new Map<string, Set<string>>(),
+    };
+    const result = deriveCellViolations([placement("p1", "A", 1, 1)], cat, availability);
+    expect(result.get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A"]));
+    expect(result.get(cellKey(1, 1))?.unavailableIds).toEqual(new Set(["A"]));
+    expect(result.get(cellKey(1, 1))?.violations).toEqual([
+      { kind: "teacher-unavailable", teacherKey: "t1", courseIds: ["A"], severity: "block" },
+    ]);
+  });
+
+  it("leaves unavailableIds empty for a plain collision (only teacher-unavailable populates it)", () => {
+    const cat = catalog(course("A", "t1", ["s1"]), course("B", "t1", ["s2"]));
+    const result = deriveCellViolations([placement("p1", "A", 1, 1), placement("p2", "B", 1, 1)], cat);
+    expect(result.get(cellKey(1, 1))?.conflictingIds).toEqual(new Set(["A", "B"]));
+    expect(result.get(cellKey(1, 1))?.unavailableIds).toEqual(new Set());
+  });
+
   it("keeps conflictingIds equal to the union of violation course ids (invariant)", () => {
     const cat = catalog(
       course("A", "t1", ["s1", "s2"]),

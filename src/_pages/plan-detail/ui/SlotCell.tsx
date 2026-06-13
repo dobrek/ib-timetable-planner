@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { Link, Trash2, TriangleAlert, Unlink, X } from "lucide-react";
+import { Link, Trash2, TriangleAlert, Unlink, UserX, X } from "lucide-react";
 import { Badge } from "@/shared/ui";
 import { Button } from "@/shared/ui";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
@@ -80,6 +80,7 @@ export default function SlotCell({
   );
 
   const conflicts = collisions?.conflictingIds;
+  const unavailable = collisions?.unavailableIds;
   const hasCollision = (conflicts?.size ?? 0) > 0;
   // Sparse map: no entry while a drag is active means "free"; no active drag means "no hint".
   const hintState = hintActive ? (dropHint ?? "free") : undefined;
@@ -158,6 +159,7 @@ export default function SlotCell({
           placement={placement}
           name={names[placement.courseId] ?? placement.courseId}
           conflicted={conflicts?.has(placement.courseId) ?? false}
+          unavailable={unavailable?.has(placement.courseId) ?? false}
           bundled={bundled}
           onRemove={onRemove}
           onInspect={() => {
@@ -173,6 +175,7 @@ function PlacedChip({
   placement,
   name,
   conflicted,
+  unavailable,
   bundled,
   onRemove,
   onInspect,
@@ -180,6 +183,8 @@ function PlacedChip({
   placement: LocalPlacement;
   name: string;
   conflicted: boolean;
+  /** Flagged by a teacher-unavailable violation — distinguishes the badge from a plain collision. */
+  unavailable: boolean;
   bundled: boolean;
   onRemove: (placementId: string) => void;
   onInspect: () => void;
@@ -206,10 +211,15 @@ function PlacedChip({
     >
       <span className="truncate">{name}</span>
       {conflicted && (
-        <Badge variant="destructive" asChild data-slot="collision-badge" className="cursor-pointer gap-0.5 px-1 py-0">
+        <Badge
+          variant="destructive"
+          asChild
+          data-slot={unavailable ? "unavailable-badge" : "collision-badge"}
+          className="cursor-pointer gap-0.5 px-1 py-0"
+        >
           <button
             type="button"
-            aria-label="Show collision details"
+            aria-label={unavailable ? "Show teacher-unavailable details" : "Show collision details"}
             onClick={(event) => {
               event.stopPropagation();
               onInspect();
@@ -219,8 +229,8 @@ function PlacedChip({
               event.stopPropagation();
             }}
           >
-            <TriangleAlert className="size-3" />
-            <span className="sr-only sm:not-sr-only">collision</span>
+            {unavailable ? <UserX className="size-3" /> : <TriangleAlert className="size-3" />}
+            <span className="sr-only sm:not-sr-only">{unavailable ? "unavailable" : "collision"}</span>
           </button>
         </Badge>
       )}

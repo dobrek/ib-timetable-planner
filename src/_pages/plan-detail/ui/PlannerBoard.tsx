@@ -12,6 +12,8 @@ import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
 import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../lib/drag-hint-mode";
+import { buildAvailabilityIndex } from "../model/availability-index";
+import type { AvailabilityIndex } from "../model/availability-index";
 import type { CellData, DragData, PlannerBoardProps } from "../model/drag";
 import { cellKey, deriveCellViolations } from "../model/collisions";
 import type { CellCollisions } from "../model/collisions";
@@ -30,7 +32,7 @@ import { useSlotBundles } from "../model/use-slot-bundles";
  * remove a course is the chip's "×".
  */
 export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
-  const { planId, cohort, days, periods, groupings, names, teacherNames, studentNames, catalog } = props;
+  const { planId, cohort, days, periods, groupings, names, teacherNames, studentNames, catalog, availability } = props;
 
   const {
     placements,
@@ -50,10 +52,16 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     clearError: clearSlotBundleError,
   } = useSlotBundles(props.overrides, { planId, cohort });
   const catalogById = useCatalogById(catalog);
-  const collisions = useCollisions(placements, catalogById);
+  const availabilityIndex = useAvailabilityIndex(availability);
+  const collisions = useCollisions(placements, catalogById, availabilityIndex);
   const inspection = useCollisionInspection(collisions);
   const { hours, incompleteCount } = useHours(placements, catalog);
-  const { dropHints, startDragHints, clearDragHints } = useDragHints(catalogById, placements, groupings);
+  const { dropHints, startDragHints, clearDragHints } = useDragHints(
+    catalogById,
+    placements,
+    groupings,
+    availabilityIndex,
+  );
   const { hintMode, setHintMode } = useHintMode();
 
   // The placement and slot-bundle write paths share the single ErrorBanner (both PlacementError).
@@ -167,8 +175,20 @@ function useCatalogById(catalog: GroupingCourse[]) {
   return useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
 }
 
-function useCollisions(placements: LocalPlacement[], catalogById: Map<string, GroupingCourse>) {
-  return useMemo(() => deriveCellViolations(placements, catalogById), [placements, catalogById]);
+// Index the raw availability cells (a serializable prop) into the Maps the derivations read.
+function useAvailabilityIndex(availability: PlannerBoardProps["availability"]) {
+  return useMemo(() => buildAvailabilityIndex(availability), [availability]);
+}
+
+function useCollisions(
+  placements: LocalPlacement[],
+  catalogById: Map<string, GroupingCourse>,
+  availability: AvailabilityIndex,
+) {
+  return useMemo(
+    () => deriveCellViolations(placements, catalogById, availability),
+    [placements, catalogById, availability],
+  );
 }
 
 // Owns the active-drag identity and derives the per-cell hint map from it. Keyed on live
@@ -178,11 +198,12 @@ function useDragHints(
   catalogById: Map<string, GroupingCourse>,
   placements: LocalPlacement[],
   groupings: PlannerGrouping[],
+  availability: AvailabilityIndex,
 ) {
   const [context, setContext] = useState<DragHintContext | null>(null);
   const dropHints = useMemo(
-    () => deriveDropHints(context, placements, catalogById),
-    [context, placements, catalogById],
+    () => deriveDropHints(context, placements, catalogById, availability),
+    [context, placements, catalogById, availability],
   );
   return {
     dropHints,

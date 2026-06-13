@@ -96,6 +96,20 @@ function DetailsBody({
           </section>
         )}
 
+        {grouped["teacher-unavailable"].length > 0 && (
+          <section data-slot="collision-section-unavailable" className="space-y-1">
+            <h3 className="text-foreground text-sm font-semibold">Teacher unavailable</h3>
+            <ul className="space-y-1">
+              {grouped["teacher-unavailable"].map((violation) => (
+                <li key={`${violation.teacherKey}:${violation.courseIds.join(":")}`}>
+                  {teacherNames[violation.teacherKey] ?? violation.teacherKey} cannot teach this slot:{" "}
+                  <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {grouped.student.length > 0 && (
           <section data-slot="collision-section-student" className="space-y-1">
             <h3 className="text-foreground text-sm font-semibold">Students</h3>
@@ -163,7 +177,7 @@ function CourseNameList({
 type ViolationsByKind = { [K in CollisionViolation["kind"]]: Extract<CollisionViolation, { kind: K }>[] };
 
 const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
-  const groups: ViolationsByKind = { teacher: [], student: [], "duplicate-course": [] };
+  const groups: ViolationsByKind = { teacher: [], student: [], "duplicate-course": [], "teacher-unavailable": [] };
   for (const violation of violations) {
     switch (violation.kind) {
       case "teacher":
@@ -174,6 +188,9 @@ const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
         break;
       case "duplicate-course":
         groups["duplicate-course"].push(violation);
+        break;
+      case "teacher-unavailable":
+        groups["teacher-unavailable"].push(violation);
         break;
     }
   }

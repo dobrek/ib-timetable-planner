@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { duplicateCourse } from "./duplicate-course";
 import { explainCell, violatesAny } from "./index";
 import { studentConflict } from "./student-conflict";
+import { teacherAvailability } from "./teacher-availability";
 import { teacherConflict } from "./teacher-conflict";
 import type { BoardContext } from "./types";
 import type { GroupingCourse } from "../grouping";
@@ -116,5 +117,43 @@ describe("violatesAny", () => {
     expect(violatesAny(a, [course("B", "t1", ["s2"])])).toBe(true);
     expect(violatesAny(a, [course("B", "t2", ["s1"])])).toBe(true);
     expect(violatesAny(a, [course("B", "t2", ["s2"])])).toBe(false);
+  });
+});
+
+describe("teacherAvailability", () => {
+  const unavailCtx = (cell: { day: number; period: number }, strong: Map<string, Set<string>>): BoardContext => ({
+    cell,
+    catalogById: new Map(),
+    strongUnavailableByTeacher: strong,
+  });
+
+  it("flags one block violation per occupant whose teacher is strong-unavailable at the cell", () => {
+    const a = course("A", "t1", ["s1"]);
+    const b = course("B", "t2", ["s2"]);
+    const strong = new Map([["t1", new Set(["1:1"])]]);
+    expect(teacherAvailability.explain([a, b], unavailCtx({ day: 1, period: 1 }, strong))).toEqual([
+      { kind: "teacher-unavailable", teacherKey: "t1", courseIds: ["A"], severity: "block" },
+    ]);
+  });
+
+  it("does not flag when the teacher is unavailable at a different cell", () => {
+    const a = course("A", "t1", ["s1"]);
+    const strong = new Map([["t1", new Set(["2:2"])]]);
+    expect(teacherAvailability.explain([a], unavailCtx({ day: 1, period: 1 }, strong))).toEqual([]);
+  });
+
+  it("ignores null-teacher occupants", () => {
+    const a = course("A", null, ["s1"]);
+    const strong = new Map([["t1", new Set(["1:1"])]]);
+    expect(teacherAvailability.explain([a], unavailCtx({ day: 1, period: 1 }, strong))).toEqual([]);
+  });
+
+  it("returns nothing when no availability context is supplied (board-only, ctx optional)", () => {
+    const a = course("A", "t1", ["s1"]);
+    expect(teacherAvailability.explain([a], ctx(a))).toEqual([]);
+  });
+
+  it("is board-only: no `test`, so it never enters grouping enumeration", () => {
+    expect(teacherAvailability).not.toHaveProperty("test");
   });
 });

@@ -1,3 +1,4 @@
+import type { AvailabilityIndex } from "./availability-index";
 import type { CollisionViolation } from "./constraints";
 import { explainCell } from "./constraints";
 import type { GroupingCourse } from "./grouping";
@@ -9,8 +10,19 @@ export const cellKey = (day: number, period: number): string => `${day}:${period
 export type CellCollisions = {
   /** Projection: every course id participating in a violation — drives the grid flags. */
   conflictingIds: Set<string>;
+  /** Course ids flagged specifically by a teacher-unavailable violation — drives the
+   *  distinguished "unavailable" badge (vs the generic collision badge). */
+  unavailableIds: Set<string>;
   /** Structured explanations for the cell, in registry order — drives the detail Dialog. */
   violations: CollisionViolation[];
+};
+
+// Local empty default so 2-arg callers (and the no-availability case) need no index. Kept
+// here rather than imported from `availability-index` to avoid a runtime import cycle
+// (availability-index → collisions for `cellKey`).
+const NO_AVAILABILITY: AvailabilityIndex = {
+  strongUnavailableByTeacher: new Map(),
+  softUnavailableByTeacher: new Map(),
 };
 
 /**
@@ -25,14 +37,27 @@ export type CellCollisions = {
 export const deriveCellViolations = (
   placements: PlannerPlacement[],
   catalogById: Map<string, GroupingCourse>,
+  availability: AvailabilityIndex = NO_AVAILABILITY,
 ): Map<string, CellCollisions> => {
   const cells = bucketByCell(placements, catalogById);
 
   const collisions = new Map<string, CellCollisions>();
   for (const [key, { cell, occupants }] of cells) {
-    if (occupants.length < 2) continue;
-    const violations = explainCell(occupants, { cell, catalogById });
-    if (violations.length > 0) collisions.set(key, { conflictingIds: collectCourseIds(violations), violations });
+    // No <2 short-circuit: teacher-unavailable flags a SINGLE occupant whose teacher
+    // can't teach this cell. The other constraints still need >=2 and return [] otherwise.
+    const violations = explainCell(occupants, {
+      cell,
+      catalogById,
+      strongUnavailableByTeacher: availability.strongUnavailableByTeacher,
+      softUnavailableByTeacher: availability.softUnavailableByTeacher,
+    });
+    if (violations.length > 0) {
+      collisions.set(key, {
+        conflictingIds: collectCourseIds(violations),
+        unavailableIds: collectUnavailableIds(violations),
+        violations,
+      });
+    }
   }
   return collisions;
 };
@@ -64,6 +89,14 @@ const collectCourseIds = (violations: CollisionViolation[]): Set<string> => {
   for (const violation of violations) {
     if (violation.kind === "duplicate-course") ids.add(violation.courseId);
     else for (const id of violation.courseIds) ids.add(id);
+  }
+  return ids;
+};
+
+const collectUnavailableIds = (violations: CollisionViolation[]): Set<string> => {
+  const ids = new Set<string>();
+  for (const violation of violations) {
+    if (violation.kind === "teacher-unavailable") for (const id of violation.courseIds) ids.add(id);
   }
   return ids;
 };

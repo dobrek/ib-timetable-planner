@@ -7,16 +7,22 @@ import type { GroupingCourse } from "../grouping";
 export type CollisionViolation =
   | { kind: "duplicate-course"; courseId: string }
   | { kind: "teacher"; teacherKey: string; courseIds: string[] }
-  | { kind: "student"; studentKeys: string[]; courseIds: [string, string] };
+  | { kind: "student"; studentKeys: string[]; courseIds: [string, string] }
+  | { kind: "teacher-unavailable"; teacherKey: string; courseIds: string[]; severity: "block" | "warn" };
 
 /**
- * Inputs beyond the cell's occupants. Deliberately minimal — future board-only
- * constraints (cross-cohort occupancy, teacher availability) add optional fields
- * here additively, without touching existing evaluators.
+ * Inputs beyond the cell's occupants. Deliberately minimal — board-only constraints
+ * (cross-cohort occupancy, teacher availability) add optional fields here additively,
+ * without touching existing evaluators. Teacher availability is keyed teacherKey →
+ * set of `cellKey` (`${day}:${period}`); the constraint checks `ctx.cell` membership.
  */
 export type BoardContext = {
   cell: { day: number; period: number };
   catalogById: Map<string, GroupingCourse>;
+  /** Cells (by `cellKey`) each teacher CANNOT teach — strong NO → `block` violations. */
+  strongUnavailableByTeacher?: Map<string, Set<string>>;
+  /** Cells (by `cellKey`) each teacher PREFERS NOT to teach — soft NO → `warn` (Phase 4). */
+  softUnavailableByTeacher?: Map<string, Set<string>>;
 };
 
 /** A self-contained cell constraint: one file per rule, registered in `index.ts`. */

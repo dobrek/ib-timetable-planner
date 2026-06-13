@@ -115,6 +115,27 @@ describe("deriveDropHints", () => {
     );
     expect(result?.get(cellKey(1, 1))).toBe("blocked");
   });
+
+  it("blocks an EMPTY cell where the dragged course's teacher is strong-unavailable", () => {
+    const a = course("A", "t1", ["s1"]);
+    const result = deriveDropHints({ members: [a] }, [], catalog(a), availability({ t1: [cellKey(1, 1)] }));
+    expect(result?.get(cellKey(1, 1))).toBe("blocked");
+    // Cells where the teacher is available stay free.
+    expect(result?.has(cellKey(2, 2))).toBe(false);
+  });
+
+  it("marks a group cell partial when one member's teacher is strong-unavailable there but the other fits", () => {
+    const a = course("A", "t1", ["s1"]);
+    const b = course("B", "t2", ["s2"]);
+    const result = deriveDropHints({ members: [a, b] }, [], catalog(a, b), availability({ t1: [cellKey(1, 1)] }));
+    expect(result?.get(cellKey(1, 1))).toBe("partial");
+  });
+});
+
+// Build an AvailabilityIndex (strong only) from teacherKey → cellKey[].
+const availability = (strong: Record<string, string[]>) => ({
+  strongUnavailableByTeacher: new Map(Object.entries(strong).map(([t, keys]) => [t, new Set(keys)])),
+  softUnavailableByTeacher: new Map<string, Set<string>>(),
 });
 
 describe("resolveDragHintContext", () => {

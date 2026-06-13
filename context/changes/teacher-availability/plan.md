@@ -496,34 +496,34 @@ Additive only — new table, new enum, `create or replace` clone function (old m
 
 #### Automated
 
-- [x] 2.1 Transition unit tests pass: `pnpm test`
-- [x] 2.2 Availability action integration tests pass: `pnpm test:integration`
-- [x] 2.3 Linting + FSD pass: `pnpm lint`, `pnpm steiger`
-- [x] 2.4 Build clean: `pnpm build`
+- [x] 2.1 Transition unit tests pass: `pnpm test` — 72180e6
+- [x] 2.2 Availability action integration tests pass: `pnpm test:integration` — 72180e6
+- [x] 2.3 Linting + FSD pass: `pnpm lint`, `pnpm steiger` — 72180e6
+- [x] 2.4 Build clean: `pnpm build` — 72180e6
 
 #### Manual
 
-- [x] 2.5 Click-cycle a cell available → soft → strong → available; persists across reload
-- [x] 2.6 Day-header bulk-sets a column and persists
-- [x] 2.7 Optimistic feedback instant; forced failure rolls back + shows error banner
-- [x] 2.8 Cloning the plan carries availability
-- [x] 2.9 Teacher rows with availability show the indicator badge (with count); clicking it opens the dialog; rows with none show no badge
+- [x] 2.5 Click-cycle a cell available → soft → strong → available; persists across reload — 72180e6
+- [x] 2.6 Day-header bulk-sets a column and persists — 72180e6
+- [x] 2.7 Optimistic feedback instant; forced failure rolls back + shows error banner — 72180e6
+- [x] 2.8 Cloning the plan carries availability — 72180e6
+- [x] 2.9 Teacher rows with availability show the indicator badge (with count); clicking it opens the dialog; rows with none show no badge — 72180e6
 
 ### Phase 3: Strong-NO validation + board render
 
 #### Automated
 
-- [ ] 3.1 Constraint + aggregation unit tests pass: `pnpm test`
-- [ ] 3.2 Enumeration stays availability-free: `enumerate.test.ts` green
-- [ ] 3.3 Board loader integration test passes: `pnpm test:integration`
-- [ ] 3.4 Lint, FSD, build clean: `pnpm lint`, `pnpm steiger`, `pnpm build`
+- [x] 3.1 Constraint + aggregation unit tests pass: `pnpm test`
+- [x] 3.2 Enumeration stays availability-free: `enumerate.test.ts` green
+- [x] 3.3 Board loader integration test passes: `pnpm test:integration`
+- [x] 3.4 Lint, FSD, build clean: `pnpm lint`, `pnpm steiger`, `pnpm build`
 
 #### Manual
 
-- [ ] 3.5 Strong-unavailable drop lands, cell shows destructive ring + distinguished badge, plan reads invalid
-- [ ] 3.6 Dialog shows a distinct "unavailable" section naming the teacher
-- [ ] 3.7 Dragging highlights strong-unavailable cells as blocked
-- [ ] 3.8 Drag stays under the 200ms budget on a full board
+- [x] 3.5 Strong-unavailable drop lands, cell shows destructive ring + distinguished badge, plan reads invalid
+- [x] 3.6 Dialog shows a distinct "unavailable" section naming the teacher
+- [x] 3.7 Dragging highlights strong-unavailable cells as blocked
+- [x] 3.8 Drag stays under the 200ms budget on a full board
 
 ### Phase 4: Soft-NO severity tier
 

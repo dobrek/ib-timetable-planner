@@ -4,6 +4,7 @@ import { loadCohortCourses } from "@/shared/lib/catalog-hash";
 import { unique } from "@/shared/lib/collections";
 import { assertNoQueryErrors } from "@/shared/lib/loaders";
 import { err, ok, type Result } from "@/shared/lib/result";
+import type { BoardAvailabilityCell } from "../model/availability-index";
 import type { PlannerBoardProps } from "../model/drag";
 import type { PlannerGrouping } from "../model/grouping";
 import type { PlannerPlacement } from "../model/placement";
@@ -45,7 +46,7 @@ export const loadPlannerData = async (
 
   const { days, periods } = parseGridPreset(plan.slot_grid_preset);
 
-  const [groupingsResult, placementsResult, overridesResult, catalog] = await Promise.all([
+  const [groupingsResult, placementsResult, overridesResult, availabilityResult, catalog] = await Promise.all([
     supabase
       .from("course_groupings")
       .select("id, coverage_count, score, course_grouping_members(course_id)")
@@ -53,9 +54,11 @@ export const loadPlannerData = async (
       .eq("cohort", BOARD_COHORT),
     supabase.from("placements").select("id, course_id, day, period").eq("plan_id", id).eq("cohort", BOARD_COHORT),
     supabase.from("slot_bundles").select("day, period").eq("plan_id", id).eq("cohort", BOARD_COHORT),
+    // Availability is cohort-independent — no cohort filter (S-09: it just works for dp2 later).
+    supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
     loadCohortCourses(supabase, id, BOARD_COHORT),
   ]);
-  assertNoQueryErrors("Planner board", [groupingsResult, placementsResult, overridesResult]);
+  assertNoQueryErrors("Planner board", [groupingsResult, placementsResult, overridesResult, availabilityResult]);
 
   const [teacherNames, studentNames] = await Promise.all([
     fetchTeacherNames(
@@ -84,6 +87,13 @@ export const loadPlannerData = async (
     period: row.period,
   }));
 
+  const availability: BoardAvailabilityCell[] = (availabilityResult.data ?? []).map((row) => ({
+    teacherKey: row.teacher_id,
+    day: row.day,
+    period: row.period,
+    severity: row.severity,
+  }));
+
   return ok({
     planName: plan.name,
     props: {
@@ -98,6 +108,7 @@ export const loadPlannerData = async (
       placements,
       overrides,
       catalog: catalog.courses,
+      availability,
     },
   });
 };

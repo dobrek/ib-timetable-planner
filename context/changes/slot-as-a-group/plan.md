@@ -402,17 +402,17 @@ The <200 ms per-drag budget is met structurally and is preserved: validation rem
 
 #### Automated
 
-- [x] 3.1 Build clean: `pnpm build`
-- [x] 3.2 Lint passes: `pnpm lint`
-- [x] 3.3 FSD structure check passes: `pnpm steiger`
-- [x] 3.4 Unit tests pass: `pnpm test`
+- [x] 3.1 Build clean: `pnpm build` — 1d6fc7c
+- [x] 3.2 Lint passes: `pnpm lint` — 1d6fc7c
+- [x] 3.3 FSD structure check passes: `pnpm steiger` — 1d6fc7c
+- [x] 3.4 Unit tests pass: `pnpm test` — 1d6fc7c
 
 #### Manual
 
-- [x] 3.5 ≥2-course slot shows header lock icon; chips have no "×" and aren't draggable; faint cue visible
-- [x] 3.6 Lock icon toggles ungroup/regroup; per-chip "×" + drag return when ungrouped
-- [x] 3.7 Header drag moves all courses as one unit; merge onto occupied target skips same-course; collisions flag; no mid-move flicker
-- [x] 3.8 Trash icon removes all bundle placements with no confirmation
-- [x] 3.9 Override / regroup state persists across reload; clone preserves overrides
-- [x] 3.10 Grouped cue yields to collision ring and drop-target ring
-- [x] 3.11 Drag feel within the <200 ms budget
+- [x] 3.5 ≥2-course slot shows header lock icon; chips have no "×" and aren't draggable; faint cue visible — 1d6fc7c
+- [x] 3.6 Lock icon toggles ungroup/regroup; per-chip "×" + drag return when ungrouped — 1d6fc7c
+- [x] 3.7 Header drag moves all courses as one unit; merge onto occupied target skips same-course; collisions flag; no mid-move flicker — 1d6fc7c
+- [x] 3.8 Trash icon removes all bundle placements with no confirmation — 1d6fc7c
+- [x] 3.9 Override / regroup state persists across reload; clone preserves overrides — 1d6fc7c
+- [x] 3.10 Grouped cue yields to collision ring and drop-target ring — 1d6fc7c
+- [x] 3.11 Drag feel within the <200 ms budget — 1d6fc7c

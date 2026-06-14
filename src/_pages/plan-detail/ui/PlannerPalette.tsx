@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import GroupingBox from "./GroupingBox";
 import GroupingFilter from "./GroupingFilter";
+import { sortGroupingsForPalette } from "../model/sort-groupings";
 import type { PlannerGrouping } from "../model/grouping";
 import type { HoursStat } from "../model/hours";
 
@@ -16,7 +17,8 @@ type PlannerPaletteProps = {
  * it — so both the selection state and the membership filter live here.
  */
 export default function PlannerPalette({ groupings, names, hours }: PlannerPaletteProps) {
-  const { leadingCourseId, setLeadingCourseId, visibleGroupings } = useLeadingFilter(groupings);
+  const sortedGroupings = useMemo(() => sortGroupingsForPalette(groupings), [groupings]);
+  const { leadingCourseId, setLeadingCourseId, visibleGroupings } = useLeadingFilter(sortedGroupings);
 
   return (
     <aside data-slot="planner-palette" className="flex min-h-0 flex-col gap-3">

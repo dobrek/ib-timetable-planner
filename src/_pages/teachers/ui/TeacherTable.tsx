@@ -1,6 +1,6 @@
 import { CalendarOff, MoreHorizontal, Plus } from "lucide-react";
 import type { Cohort } from "@/shared/config";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/lib/class-names";
 import {
   Badge,
   Button,

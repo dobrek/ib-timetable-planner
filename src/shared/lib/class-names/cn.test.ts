@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "./cn";
 
 describe("harness smoke test", () => {
   it("always passes", () => {

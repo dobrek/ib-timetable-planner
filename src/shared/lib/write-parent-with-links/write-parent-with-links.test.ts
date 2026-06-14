@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { writeParentWithLinks } from "./index";
+import { writeParentWithLinks } from "./write-parent-with-links";
 
 describe("writeParentWithLinks", () => {
   const parent = { id: "parent-1" };

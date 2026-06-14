@@ -7,8 +7,8 @@ export type LoaderResult<T> = Result<T, "unavailable">;
 /** Run a page loader against the client, reporting unavailable when the client is null. */
 export async function withSupabase<T>(
   client: SupabaseClient | null,
-  fetch: (client: SupabaseClient) => Promise<T>,
+  run: (client: SupabaseClient) => Promise<T>,
 ): Promise<LoaderResult<T>> {
   if (!client) return err("unavailable");
-  return ok(await fetch(client));
+  return ok(await run(client));
 }

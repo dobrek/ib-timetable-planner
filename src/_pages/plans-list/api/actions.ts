@@ -1,4 +1,4 @@
-import { defineDomainAction } from "@/shared/lib";
+import { defineDomainAction } from "@/shared/lib/actions";
 import { clonePlanInput, createPlanInput, deletePlanInput, renamePlanInput } from "../model/schemas";
 import { createPlan } from "./create-plan";
 import { clonePlan } from "./clone-plan";

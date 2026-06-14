@@ -2,7 +2,7 @@ import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { SearchIcon } from "lucide-react";
 
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/lib/class-names";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog";
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {

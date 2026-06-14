@@ -1,6 +1,6 @@
 import type * as React from "react";
 import { Check, X } from "lucide-react";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/lib/class-names";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";

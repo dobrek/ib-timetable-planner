@@ -1,5 +1,5 @@
 import { actions } from "astro:actions";
-import { callAction } from "@/shared/lib/call-action";
+import { callAction } from "@/shared/lib/forms";
 import type {
   CourseInput,
   DeleteCourseInput,

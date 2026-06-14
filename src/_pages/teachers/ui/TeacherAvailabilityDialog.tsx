@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Ban, Minus } from "lucide-react";
 import { type AvailabilitySeverity, dayLabel, periodLabel } from "@/shared/config";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/lib/class-names";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
 import { useTeacherAvailability } from "../model/use-teacher-availability";

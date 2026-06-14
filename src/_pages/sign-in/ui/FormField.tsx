@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { CircleAlert } from "lucide-react";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/lib/class-names";
 import { Input, Label } from "@/shared/ui";
 
 type FormFieldProps = {

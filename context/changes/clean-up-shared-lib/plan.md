@@ -426,34 +426,34 @@ No hot-path complexity changes. The `<200ms` placement/constraint budget is pres
 
 #### Automated
 
-- [x] 1.1 `pnpm steiger` passes (lib now well under cap)
-- [x] 1.2 `pnpm lint` passes
-- [x] 1.3 `pnpm test` passes (postgrest tests run from new location)
-- [x] 1.4 `pnpm build` passes
-- [x] 1.5 `grep -rn 'from "@/shared/lib/postgrest"' src` returns nothing
-- [x] 1.6 `ls -1 src/shared/lib | grep -vc '^$'` == 13
+- [x] 1.1 `pnpm steiger` passes (lib now well under cap) — f877038
+- [x] 1.2 `pnpm lint` passes — f877038
+- [x] 1.3 `pnpm test` passes (postgrest tests run from new location) — f877038
+- [x] 1.4 `pnpm build` passes — f877038
+- [x] 1.5 `grep -rn 'from "@/shared/lib/postgrest"' src` returns nothing — f877038
+- [x] 1.6 `ls -1 src/shared/lib | grep -vc '^$'` == 13 — f877038
 
 #### Manual
 
-- [ ] 1.7 App boots; unconfigured-service banner still renders when Supabase env is absent
-- [ ] 1.8 A create/update flow surfaces a `DomainError` unchanged
-- [ ] 1.9 A batch-parallel read failure (`assertNoQueryErrors` path) surfaces correctly through `runDomain`/the action layer after the `Error`→`DomainError` switch
+- [x] 1.7 App boots; unconfigured-service banner still renders when Supabase env is absent — f877038
+- [x] 1.8 A create/update flow surfaces a `DomainError` unchanged — f877038
+- [x] 1.9 A batch-parallel read failure (`assertNoQueryErrors` path) surfaces correctly through `runDomain`/the action layer after the `Error`→`DomainError` switch — f877038
 
 ### Phase 2: Regroup remaining lib into folders + slim the barrel
 
 #### Automated
 
-- [ ] 2.1 `pnpm steiger` passes
-- [ ] 2.2 `pnpm lint` passes
-- [ ] 2.3 `pnpm test` passes
-- [ ] 2.4 `pnpm build` passes
-- [ ] 2.5 `grep -rn 'never reach it via\|never reach via' src/shared` returns nothing
-- [ ] 2.6 Throwaway `*.test.ts` importing `@/shared/lib` runs under Vitest with no `astro:*` error (then removed)
+- [x] 2.1 `pnpm steiger` passes
+- [x] 2.2 `pnpm lint` passes
+- [x] 2.3 `pnpm test` passes
+- [x] 2.4 `pnpm build` passes
+- [x] 2.5 `grep -rn 'never reach it via\|never reach via' src/shared` returns nothing
+- [x] 2.6 Throwaway `*.test.ts` importing `@/shared/lib` runs under Vitest with no `astro:*` error (then removed)
 
 #### Manual
 
-- [ ] 2.7 Form submit + confirm + refresh flow works end-to-end
-- [ ] 2.8 URL-synced filters hydrate from the query string
+- [x] 2.7 Form submit + confirm + refresh flow works end-to-end
+- [x] 2.8 URL-synced filters hydrate from the query string
 
 ### Phase 3: F3 — move grid + slot-labels config → lib
 

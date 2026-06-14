@@ -10,8 +10,12 @@ describe("unwrapCompleted", () => {
   });
 
   it("maps any error to INTERNAL_SERVER_ERROR with the failure prefix", () => {
-    try {
+    const run = () => {
       unwrapCompleted({ error: { code: "57014", message: "timeout" } }, "Failed to delete");
+    };
+    expect(run).toThrow(DomainError);
+    try {
+      run();
     } catch (error) {
       expect((error as DomainError).code).toBe("INTERNAL_SERVER_ERROR");
       expect((error as DomainError).message).toBe("Failed to delete: timeout");

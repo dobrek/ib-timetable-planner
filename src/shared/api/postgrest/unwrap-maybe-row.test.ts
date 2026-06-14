@@ -12,8 +12,10 @@ describe("unwrapMaybeRow", () => {
   });
 
   it("maps any error to INTERNAL_SERVER_ERROR with the failure prefix", () => {
+    const run = () => unwrapMaybeRow({ data: null, error: { code: "57014", message: "timeout" } }, "Read failed");
+    expect(run).toThrow(DomainError);
     try {
-      unwrapMaybeRow({ data: null, error: { code: "57014", message: "timeout" } }, "Read failed");
+      run();
     } catch (error) {
       expect((error as DomainError).code).toBe("INTERNAL_SERVER_ERROR");
       expect((error as DomainError).message).toBe("Read failed: timeout");

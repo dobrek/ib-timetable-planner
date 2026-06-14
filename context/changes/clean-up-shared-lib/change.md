@@ -1,7 +1,7 @@
 ---
 change_id: clean-up-shared-lib
 title: Clean up shared lib
-status: implemented
+status: impl_reviewed
 created: 2026-06-14
 updated: 2026-06-14
 archived_at: null

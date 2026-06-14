@@ -10,8 +10,12 @@ describe("assertNoQueryErrors", () => {
   });
 
   it("throws a DomainError naming the label and the first failing message", () => {
-    try {
+    const run = () => {
       assertNoQueryErrors("Catalog", [{ error: null }, { error: { message: "boom" } }]);
+    };
+    expect(run).toThrow(DomainError);
+    try {
+      run();
     } catch (error) {
       expect((error as DomainError).code).toBe("INTERNAL_SERVER_ERROR");
       expect((error as DomainError).message).toBe("Catalog lookup failed: boom");

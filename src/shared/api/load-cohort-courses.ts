@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config/cohorts";
 import { groupByInto, unique } from "@/shared/lib/collections";
 import type { CohortCatalog, ComputeWarning, GroupingCourse } from "@/shared/lib/catalog-hash";
+import { DomainError } from "@/shared/lib/errors";
 import { unwrapMany } from "./postgrest";
 
 type Supabase = SupabaseClient;
@@ -60,12 +61,13 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
     const parent = courseById.get(parentId);
     // Merge rows are fetched by parent_course_id IN courseIds, so the parent is always
     // present; fail loudly rather than fabricating a phantom (teacherKey:null, hours:0).
-    if (!parent) throw new Error(`Merge parent ${parentId} missing from the plan-cohort catalog`);
+    if (!parent)
+      throw new DomainError("INTERNAL_SERVER_ERROR", `Merge parent ${parentId} missing from the plan-cohort catalog`);
     return {
       id: parentId,
       teacherKey: parent.teacher_id,
       hours: parent.hours_per_week,
-      studentKeys: [...studentsOf(parentId), ...childIds.flatMap(studentsOf)],
+      studentKeys: unique([...studentsOf(parentId), ...childIds.flatMap(studentsOf)]),
     };
   });
 

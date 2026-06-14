@@ -15,8 +15,10 @@ describe("unwrapMany", () => {
   });
 
   it("maps any error to INTERNAL_SERVER_ERROR with the failure prefix", () => {
+    const run = () => unwrapMany({ data: null, error: { code: "42P01", message: "missing table" } }, "Lookup failed");
+    expect(run).toThrow(DomainError);
     try {
-      unwrapMany({ data: null, error: { code: "42P01", message: "missing table" } }, "Lookup failed");
+      run();
     } catch (error) {
       expect((error as DomainError).code).toBe("INTERNAL_SERVER_ERROR");
       expect((error as DomainError).message).toBe("Lookup failed: missing table");

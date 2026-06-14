@@ -3,6 +3,7 @@ import {
   columnCoords,
   cycleSeverity,
   lineCells,
+  nextLineSeverity,
   reconcileCell,
   reconcileLine,
   rollbackCell,
@@ -29,6 +30,22 @@ describe("cycleSeverity", () => {
     expect(cycleSeverity(null)).toBe("soft");
     expect(cycleSeverity("soft")).toBe("strong");
     expect(cycleSeverity("strong")).toBeNull();
+  });
+});
+
+describe("nextLineSeverity", () => {
+  it("uniformly strong → clear", () => {
+    expect(nextLineSeverity(["strong", "strong", "strong"])).toBeNull();
+  });
+
+  it("uniformly soft → strong", () => {
+    expect(nextLineSeverity(["soft", "soft"])).toBe("strong");
+  });
+
+  it("all-available or mixed → soft", () => {
+    expect(nextLineSeverity([null, null])).toBe("soft");
+    expect(nextLineSeverity(["soft", "strong"])).toBe("soft");
+    expect(nextLineSeverity(["strong", null])).toBe("soft");
   });
 });
 

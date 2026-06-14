@@ -89,12 +89,12 @@ function AvailabilityBody({
 
   const cycleColumn = (day: number) => {
     onChange();
-    availability.setColumn(day, nextLineSeverity(periodList.map((period) => availability.severityAt(day, period))));
+    availability.cycleColumn(day);
   };
 
   const cycleRow = (period: number) => {
     onChange();
-    availability.setRow(period, nextLineSeverity(dayList.map((day) => availability.severityAt(day, period))));
+    availability.cycleRow(period);
   };
 
   return (
@@ -234,14 +234,3 @@ const SEVERITY_LABEL: Record<AvailabilitySeverity | "available", string> = {
   soft: "soft (prefers not)",
   strong: "strong (cannot)",
 };
-
-/**
- * Bulk-cycle for a whole line (a column or a row), mirroring the per-cell cycle at line
- * granularity: uniformly strong → clear; uniformly soft → strong; anything else
- * (empty/mixed) → soft.
- */
-function nextLineSeverity(severities: (AvailabilitySeverity | null)[]): AvailabilitySeverity | null {
-  if (severities.every((s) => s === "strong")) return null;
-  if (severities.every((s) => s === "soft")) return "strong";
-  return "soft";
-}

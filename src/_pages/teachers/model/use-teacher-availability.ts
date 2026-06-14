@@ -10,6 +10,7 @@ import {
   columnCoords,
   cycleSeverity,
   lineCells,
+  nextLineSeverity,
   reconcileCell,
   reconcileLine,
   rollbackCell,
@@ -29,8 +30,8 @@ export type UseTeacherAvailability = {
   cells: LocalAvailabilityCell[];
   severityAt: (day: number, period: number) => AvailabilitySeverity | null;
   cycleCell: (day: number, period: number) => void;
-  setColumn: (day: number, severity: AvailabilitySeverity | null) => void;
-  setRow: (period: number, severity: AvailabilitySeverity | null) => void;
+  cycleColumn: (day: number) => void;
+  cycleRow: (period: number) => void;
   error: string | null;
   clearError: () => void;
 };
@@ -78,16 +79,19 @@ export function useTeacherAvailability(
     }
   }
 
-  function setColumn(day: number, severity: AvailabilitySeverity | null) {
-    applyLine(columnCoords(day, periods), severity, () =>
-      setAvailabilityColumn({ planId, teacherId, day, periods, severity }),
-    );
+  // Bulk-cycle a whole column/row. The next severity is decided from `cellsRef.current` —
+  // the same source `applyLine` captures its rollback snapshot from — so the decision and
+  // the rollback never read divergent state (matching how `cycleCell` reads the ref above).
+  function cycleColumn(day: number) {
+    const coords = columnCoords(day, periods);
+    const severity = nextLineSeverity(coords.map((c) => severityAt(cellsRef.current, c.day, c.period)));
+    applyLine(coords, severity, () => setAvailabilityColumn({ planId, teacherId, day, periods, severity }));
   }
 
-  function setRow(period: number, severity: AvailabilitySeverity | null) {
-    applyLine(rowCoords(period, days), severity, () =>
-      setAvailabilityRow({ planId, teacherId, period, days, severity }),
-    );
+  function cycleRow(period: number) {
+    const coords = rowCoords(period, days);
+    const severity = nextLineSeverity(coords.map((c) => severityAt(cellsRef.current, c.day, c.period)));
+    applyLine(coords, severity, () => setAvailabilityRow({ planId, teacherId, period, days, severity }));
   }
 
   // Shared optimistic write path for a whole line (column or row): capture the prior cells
@@ -115,8 +119,8 @@ export function useTeacherAvailability(
     cells,
     severityAt: (day, period) => severityAt(cells, day, period),
     cycleCell,
-    setColumn,
-    setRow,
+    cycleColumn,
+    cycleRow,
     error,
     clearError: () => {
       setError(null);

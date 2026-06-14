@@ -30,6 +30,17 @@ export function cycleSeverity(current: AvailabilitySeverity | null): Availabilit
   return null;
 }
 
+/**
+ * Bulk-cycle for a whole line (a column or a row), mirroring {@link cycleSeverity} at line
+ * granularity: uniformly strong → clear; uniformly soft → strong; anything else
+ * (empty/mixed) → soft.
+ */
+export function nextLineSeverity(severities: readonly (AvailabilitySeverity | null)[]): AvailabilitySeverity | null {
+  if (severities.every((severity) => severity === "strong")) return null;
+  if (severities.every((severity) => severity === "soft")) return "strong";
+  return "soft";
+}
+
 // --- Single-cell transitions ---
 
 /** Optimistically set a cell to `severity` (or remove it when null), flagged pending. */

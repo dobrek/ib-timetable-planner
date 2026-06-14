@@ -1,10 +1,10 @@
 ---
 change_id: slot-as-a-group
 title: Slot as a group
-status: implemented
+status: archived
 created: 2026-06-13
-updated: 2026-06-13
-archived_at: null
+updated: 2026-06-14
+archived_at: 2026-06-14T18:32:00Z
 ---
 
 ## Notes

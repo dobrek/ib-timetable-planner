@@ -1,10 +1,10 @@
 ---
 change_id: collision-info
 title: Collision info
-status: impl_reviewed
+status: archived
 created: 2026-06-12
-updated: 2026-06-13
-archived_at: null
+updated: 2026-06-14
+archived_at: 2026-06-14T18:35:40Z
 ---
 
 ## Notes

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
+import { unwrapMany, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 
 /**
@@ -11,16 +11,16 @@ export const assertMergeParent = async (
   planId: string,
   parentCourseId: string,
 ): Promise<void> => {
-  const { data, error } = await supabase
-    .from("course_merges")
-    .select("parent_course_id")
-    .eq("plan_id", planId)
-    .eq("parent_course_id", parentCourseId)
-    .limit(1);
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Merge lookup failed: ${error.message}`);
-  }
-  if (data.length === 0) {
+  const rows = unwrapMany(
+    await supabase
+      .from("course_merges")
+      .select("parent_course_id")
+      .eq("plan_id", planId)
+      .eq("parent_course_id", parentCourseId)
+      .limit(1),
+    "Merge lookup failed",
+  );
+  if (rows.length === 0) {
     throw new DomainError("NOT_FOUND", "Not a merge parent.");
   }
 };

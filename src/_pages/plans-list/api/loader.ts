@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
+import { unwrapMany, type SupabaseClient } from "@/shared/api";
 
 /**
  * One hub row: identity + display fields, plus the entity counts the delete
@@ -29,16 +29,14 @@ export const loadPlans = async (supabase: SupabaseClient | null): Promise<PlansR
 };
 
 const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
-  const { data, error } = await client
-    .from("plans")
-    .select("id, name, slot_grid_preset, updated_at")
-    .order("name")
-    .limit(200);
-  if (error) throw new Error(`Plans lookup failed: ${error.message}`);
+  const rows = unwrapMany(
+    await client.from("plans").select("id, name, slot_grid_preset, updated_at").order("name").limit(200),
+    "Plans lookup failed",
+  );
 
   // Per-plan head counts (3 queries per plan, parallel) — trivial at ≤ tens of plans.
   return Promise.all(
-    data.map(async (row) => ({
+    rows.map(async (row) => ({
       id: row.id,
       name: row.name,
       slotGridPreset: row.slot_grid_preset,

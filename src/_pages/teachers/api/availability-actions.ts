@@ -1,4 +1,4 @@
-import { defineDomainAction } from "@/shared/lib";
+import { defineDomainAction } from "@/shared/lib/actions";
 import {
   clearAvailabilityCellInput,
   clearCell,

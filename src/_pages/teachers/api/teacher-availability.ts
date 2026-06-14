@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { SupabaseClient } from "@/shared/api";
-import { availabilitySeveritySchema, GRID_BOUNDS } from "@/shared/config";
-import { DomainError } from "@/shared/lib/errors";
+import { unwrapCompleted, type SupabaseClient } from "@/shared/api";
+import { availabilitySeveritySchema } from "@/shared/config";
+import { GRID_BOUNDS } from "@/shared/lib/grid";
 
 /**
  * Teacher-availability persistence: tri-state per-cell edits (set a severity / clear a
@@ -59,27 +59,27 @@ type Supabase = SupabaseClient;
 /** Set one cell's severity. Upserts on the unique coordinate, so it overwrites in place. */
 export const setCell = async (supabase: Supabase, input: SetAvailabilityCellInput): Promise<void> => {
   const { planId, teacherId, day, period, severity } = input;
-  const { error } = await supabase
-    .from("teacher_availability")
-    .upsert({ plan_id: planId, teacher_id: teacherId, day, period, severity }, { onConflict: ON_CONFLICT });
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to set availability cell: ${error.message}`);
-  }
+  unwrapCompleted(
+    await supabase
+      .from("teacher_availability")
+      .upsert({ plan_id: planId, teacher_id: teacherId, day, period, severity }, { onConflict: ON_CONFLICT }),
+    "Failed to set availability cell",
+  );
 };
 
 /** Clear one cell by coordinate. No-op when the cell is already available (no row). */
 export const clearCell = async (supabase: Supabase, input: ClearAvailabilityCellInput): Promise<void> => {
   const { planId, teacherId, day, period } = input;
-  const { error } = await supabase
-    .from("teacher_availability")
-    .delete()
-    .eq("plan_id", planId)
-    .eq("teacher_id", teacherId)
-    .eq("day", day)
-    .eq("period", period);
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to clear availability cell: ${error.message}`);
-  }
+  unwrapCompleted(
+    await supabase
+      .from("teacher_availability")
+      .delete()
+      .eq("plan_id", planId)
+      .eq("teacher_id", teacherId)
+      .eq("day", day)
+      .eq("period", period),
+    "Failed to clear availability cell",
+  );
 };
 
 /**
@@ -91,15 +91,15 @@ export const setColumn = async (supabase: Supabase, input: SetAvailabilityColumn
   const { planId, teacherId, day, periods, severity } = input;
 
   if (severity === null) {
-    const { error } = await supabase
-      .from("teacher_availability")
-      .delete()
-      .eq("plan_id", planId)
-      .eq("teacher_id", teacherId)
-      .eq("day", day);
-    if (error) {
-      throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to clear availability column: ${error.message}`);
-    }
+    unwrapCompleted(
+      await supabase
+        .from("teacher_availability")
+        .delete()
+        .eq("plan_id", planId)
+        .eq("teacher_id", teacherId)
+        .eq("day", day),
+      "Failed to clear availability column",
+    );
     return;
   }
 
@@ -110,10 +110,10 @@ export const setColumn = async (supabase: Supabase, input: SetAvailabilityColumn
     period: index + 1,
     severity,
   }));
-  const { error } = await supabase.from("teacher_availability").upsert(rows, { onConflict: ON_CONFLICT });
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to set availability column: ${error.message}`);
-  }
+  unwrapCompleted(
+    await supabase.from("teacher_availability").upsert(rows, { onConflict: ON_CONFLICT }),
+    "Failed to set availability column",
+  );
 };
 
 /**
@@ -124,15 +124,15 @@ export const setRow = async (supabase: Supabase, input: SetAvailabilityRowInput)
   const { planId, teacherId, period, days, severity } = input;
 
   if (severity === null) {
-    const { error } = await supabase
-      .from("teacher_availability")
-      .delete()
-      .eq("plan_id", planId)
-      .eq("teacher_id", teacherId)
-      .eq("period", period);
-    if (error) {
-      throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to clear availability row: ${error.message}`);
-    }
+    unwrapCompleted(
+      await supabase
+        .from("teacher_availability")
+        .delete()
+        .eq("plan_id", planId)
+        .eq("teacher_id", teacherId)
+        .eq("period", period),
+      "Failed to clear availability row",
+    );
     return;
   }
 
@@ -143,8 +143,8 @@ export const setRow = async (supabase: Supabase, input: SetAvailabilityRowInput)
     period,
     severity,
   }));
-  const { error } = await supabase.from("teacher_availability").upsert(rows, { onConflict: ON_CONFLICT });
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to set availability row: ${error.message}`);
-  }
+  unwrapCompleted(
+    await supabase.from("teacher_availability").upsert(rows, { onConflict: ON_CONFLICT }),
+    "Failed to set availability row",
+  );
 };

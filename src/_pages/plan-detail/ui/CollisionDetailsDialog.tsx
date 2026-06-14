@@ -1,7 +1,7 @@
 import { Fragment } from "react";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/lib/class-names";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
-import { dayLabel, periodLabel } from "@/shared/config";
+import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CollisionViolation } from "../model/constraints";
 
 /** The inspected cell plus the course whose badge was clicked (emphasized in the body). */

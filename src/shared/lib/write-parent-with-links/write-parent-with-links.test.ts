@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { writeParentWithLinks } from "./index";
+import { writeParentWithLinks } from "./write-parent-with-links";
 
 describe("writeParentWithLinks", () => {
   const parent = { id: "parent-1" };
@@ -22,6 +22,21 @@ describe("writeParentWithLinks", () => {
   it("deletes the parent and rethrows when the link insert fails (no orphan parent)", async () => {
     const linkError = new Error("link insert failed");
     const deleteParent = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      writeParentWithLinks({
+        insertParent: () => Promise.resolve(parent),
+        insertLinks: () => Promise.reject(linkError),
+        deleteParent,
+      }),
+    ).rejects.toBe(linkError);
+
+    expect(deleteParent).toHaveBeenCalledWith(parent);
+  });
+
+  it("rethrows the original link error even when cleanup (deleteParent) also fails", async () => {
+    const linkError = new Error("link insert failed");
+    const deleteParent = vi.fn().mockRejectedValue(new Error("cleanup failed"));
 
     await expect(
       writeParentWithLinks({

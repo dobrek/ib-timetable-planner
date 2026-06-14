@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapRow } from "@/shared/lib/postgrest";
+import { unwrapRow, type SupabaseClient } from "@/shared/api";
 import type { UpdateMergeHoursInput } from "../model/schemas";
 import { assertMergeParent } from "./assert-merge-parent";
 

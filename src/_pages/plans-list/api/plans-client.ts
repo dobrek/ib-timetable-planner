@@ -1,5 +1,5 @@
 import { actions, type ActionError, type SafeResult } from "astro:actions";
-import { callAction } from "@/shared/lib/call-action";
+import { callAction } from "@/shared/lib/forms";
 import type { ClonePlanInput, CreatePlanInput, DeletePlanInput, RenamePlanInput } from "../model/schemas";
 
 /** Typed one-line wrappers over the generated action clients — the slice's api seam. */

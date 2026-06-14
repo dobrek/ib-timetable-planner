@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Database } from "@/shared/api";
-import { computeCatalogHash, loadCohortCourses } from "@/shared/lib/catalog-hash";
+import { loadCohortCourses, type Database } from "@/shared/api";
+import { computeCatalogHash } from "@/shared/lib/catalog-hash";
 import { DomainError } from "@/shared/lib/errors";
 import { createPlan } from "./create-plan";
 import { clonePlan } from "./clone-plan";

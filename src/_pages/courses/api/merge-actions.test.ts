@@ -128,9 +128,7 @@ describe("dissolveMerge", () => {
       "courses:delete": { data: null, error: null },
     });
 
-    await expect(dissolveMerge(client, { planId: "plan-1", parentCourseId: "parent-1" })).resolves.toEqual({
-      ok: true,
-    });
+    await expect(dissolveMerge(client, { planId: "plan-1", parentCourseId: "parent-1" })).resolves.toBeUndefined();
     expect(used).toContain("courses:delete");
   });
 

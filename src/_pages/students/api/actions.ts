@@ -1,4 +1,4 @@
-import { defineDomainAction } from "@/shared/lib";
+import { defineDomainAction } from "@/shared/lib/actions";
 import { deleteStudentInput, studentInput, updateStudentInput } from "../model/schemas";
 import { createStudent } from "./create-student";
 import { updateStudent } from "./update-student";

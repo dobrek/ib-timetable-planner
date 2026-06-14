@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { computeGroupings } from "../model/compute-groupings";
 import { EnumerationCapError } from "../model/enumerate";
-import type { SupabaseClient } from "@/shared/api";
+import { loadCohortCourses, unwrapRow, type SupabaseClient } from "@/shared/api";
 import { cohortSchema } from "@/shared/config";
-import { computeCatalogHash, loadCohortCourses } from "@/shared/lib/catalog-hash";
+import { computeCatalogHash } from "@/shared/lib/catalog-hash";
 import { DomainError } from "@/shared/lib/errors";
 import { persistGroupings } from "./persist";
 
@@ -26,13 +26,10 @@ export type ComputeGroupingsResult = Awaited<ReturnType<typeof computeAndPersist
 export const computeAndPersistGroupings = async (supabase: Supabase, input: ComputeGroupingsInput) => {
   const { planId, cohort } = input;
 
-  const { data: plan, error: planError } = await supabase.from("plans").select("id").eq("id", planId).maybeSingle();
-  if (planError) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Plan lookup failed: ${planError.message}`);
-  }
-  if (!plan) {
-    throw new DomainError("NOT_FOUND", `Plan ${planId} not found`);
-  }
+  unwrapRow(await supabase.from("plans").select("id").eq("id", planId).single(), {
+    notFound: `Plan ${planId} not found`,
+    failure: "Plan lookup failed",
+  });
 
   const { courses, names, warnings } = await loadCohortCourses(supabase, planId, cohort);
 

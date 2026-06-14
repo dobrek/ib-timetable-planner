@@ -1,8 +1,7 @@
-import type { SupabaseClient } from "@/shared/api";
-import { type Cohort, parseGridPreset } from "@/shared/config";
-import { loadCohortCourses } from "@/shared/lib/catalog-hash";
+import { loadCohortCourses, assertNoQueryErrors, unwrapMany, type SupabaseClient } from "@/shared/api";
+import { type Cohort } from "@/shared/config";
+import { parseGridPreset } from "@/shared/lib/grid";
 import { unique } from "@/shared/lib/collections";
-import { assertNoQueryErrors } from "@/shared/lib/loaders";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { BoardAvailabilityCell } from "../model/availability-index";
 import type { PlannerBoardProps } from "../model/drag";
@@ -115,14 +114,18 @@ export const loadPlannerData = async (
 
 const fetchTeacherNames = async (supabase: SupabaseClient, ids: string[]): Promise<Record<string, string>> => {
   if (ids.length === 0) return {};
-  const { data, error } = await supabase.from("teachers").select("id, full_name, code").in("id", ids);
-  if (error) throw new Error(`Failed to load teacher names: ${error.message}`);
-  return Object.fromEntries(data.map((row) => [row.id, row.full_name ?? row.code]));
+  const rows = unwrapMany(
+    await supabase.from("teachers").select("id, full_name, code").in("id", ids),
+    "Failed to load teacher names",
+  );
+  return Object.fromEntries(rows.map((row) => [row.id, row.full_name ?? row.code]));
 };
 
 const fetchStudentNames = async (supabase: SupabaseClient, ids: string[]): Promise<Record<string, string>> => {
   if (ids.length === 0) return {};
-  const { data, error } = await supabase.from("students").select("id, full_name").in("id", ids);
-  if (error) throw new Error(`Failed to load student names: ${error.message}`);
-  return Object.fromEntries(data.map((row) => [row.id, row.full_name]));
+  const rows = unwrapMany(
+    await supabase.from("students").select("id, full_name").in("id", ids),
+    "Failed to load student names",
+  );
+  return Object.fromEntries(rows.map((row) => [row.id, row.full_name]));
 };

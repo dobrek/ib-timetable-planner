@@ -10,7 +10,7 @@ import type { BundleDrag, CellData, PlacementDrag } from "../model/drag";
 import type { DropHint } from "../model/drop-hints";
 import type { HintMode } from "../lib/drag-hint-mode";
 import type { LocalPlacement } from "../model/placement";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/lib/class-names";
 
 type Props = {
   day: number;

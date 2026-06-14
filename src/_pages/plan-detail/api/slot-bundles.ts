@@ -1,8 +1,8 @@
 import { z } from "zod";
-import type { SupabaseClient } from "@/shared/api";
-import { cohortSchema, GRID_BOUNDS } from "@/shared/config";
+import { UNIQUE_VIOLATION, unwrapCompleted, type SupabaseClient } from "@/shared/api";
+import { cohortSchema } from "@/shared/config";
+import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
-import { UNIQUE_VIOLATION } from "@/shared/lib/postgrest";
 
 /**
  * Slot-bundle overrides have INVERTED semantics: a `slot_bundles` row PRESENT
@@ -47,15 +47,14 @@ export const insertOverride = async (supabase: Supabase, input: UnbundleSlotInpu
 export const deleteOverride = async (supabase: Supabase, input: BundleSlotInput): Promise<void> => {
   const { planId, cohort, day, period } = input;
 
-  const { error } = await supabase
-    .from("slot_bundles")
-    .delete()
-    .eq("plan_id", planId)
-    .eq("cohort", cohort)
-    .eq("day", day)
-    .eq("period", period);
-
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to delete slot bundle override: ${error.message}`);
-  }
+  unwrapCompleted(
+    await supabase
+      .from("slot_bundles")
+      .delete()
+      .eq("plan_id", planId)
+      .eq("cohort", cohort)
+      .eq("day", day)
+      .eq("period", period),
+    "Failed to delete slot bundle override",
+  );
 };

@@ -1,6 +1,6 @@
-import type { SupabaseClient } from "@/shared/api";
+import { assertNoQueryErrors, type SupabaseClient } from "@/shared/api";
 import { groupBy } from "@/shared/lib/collections";
-import { assertNoQueryErrors, withSupabase, type LoaderResult } from "@/shared/lib/loaders";
+import { withSupabase, type LoaderResult } from "@/shared/lib/result";
 import type { CourseRow, TeacherOption } from "../model/course";
 
 export type CatalogData = {

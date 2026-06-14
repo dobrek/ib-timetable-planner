@@ -1,4 +1,4 @@
-import type { Json, SupabaseClient } from "@/shared/api";
+import { unwrapCompleted, type Json, type SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config";
 import type { GroupingResult } from "../model/grouping";
 
@@ -23,13 +23,15 @@ export const persistGroupings = async (
   params: { planId: string; cohort: Cohort; catalogHash: string; results: GroupingResult[] },
 ): Promise<void> => {
   const groupings = toDistinctMemberSets(params.results);
-  const { error } = await supabase.rpc("replace_cohort_groupings", {
-    p_plan_id: params.planId,
-    p_cohort: params.cohort,
-    p_catalog_hash: params.catalogHash,
-    p_groupings: groupings as unknown as Json,
-  });
-  if (error) throw new Error(`Failed to persist groupings for cohort ${params.cohort}: ${error.message}`);
+  unwrapCompleted(
+    await supabase.rpc("replace_cohort_groupings", {
+      p_plan_id: params.planId,
+      p_cohort: params.cohort,
+      p_catalog_hash: params.catalogHash,
+      p_groupings: groupings as unknown as Json,
+    }),
+    `Failed to persist groupings for cohort ${params.cohort}`,
+  );
 };
 
 const toDistinctMemberSets = (results: GroupingResult[]): GroupingPayload[] => {

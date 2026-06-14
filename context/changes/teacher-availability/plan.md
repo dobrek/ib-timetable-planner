@@ -212,6 +212,7 @@ Register the three as `defineDomainAction` entries in the `teacherActions` objec
 
 > **Addendum (impl-review, 2026-06-14):** shipped a fourth, symmetric op — `setRow` (bulk a whole period across days), registered as a fourth action `setAvailabilityRow`, with `rowCoords` in the model and clickable period-row headers in the dialog. The authoring grid now bulk-cycles by both axes (column *and* row), not column-only. Net-additive, covered by unit + integration tests.
 
+
 #### 4. Client wrapper
 
 **File**: `src/_pages/teachers/api/teacher-client.ts` (extend)

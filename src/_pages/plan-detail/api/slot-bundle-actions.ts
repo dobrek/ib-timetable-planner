@@ -1,4 +1,4 @@
-import { defineDomainAction } from "@/shared/lib";
+import { defineDomainAction } from "@/shared/lib/actions";
 import { bundleSlotInput, deleteOverride, insertOverride, unbundleSlotInput } from "./slot-bundles";
 
 // Action name = UI verb. Note the inverted DB op (see slot-bundles.ts): unbundleSlot

@@ -1,7 +1,7 @@
-import type { SupabaseClient } from "@/shared/api";
+import { assertNoQueryErrors, type SupabaseClient } from "@/shared/api";
 import { groupBy } from "@/shared/lib/collections";
-import { assertNoQueryErrors, withSupabase, type LoaderResult } from "@/shared/lib/loaders";
-import { formatCourseBadgeLabel } from "@/shared/lib/course-label";
+import { withSupabase, type LoaderResult } from "@/shared/lib/result";
+import { formatCourseRowBadgeLabel } from "@/shared/lib/course-label";
 import type { CourseOption, StudentRow } from "../model/student";
 
 export type StudentCatalogData = {
@@ -38,7 +38,7 @@ const fetchStudentCatalog = async (client: SupabaseClient, planId: string): Prom
   const courses: CourseOption[] = (coursesRes.data ?? []).map((course) => ({
     id: course.id,
     cohort: course.cohort,
-    label: formatCourseBadgeLabel({ name: course.name, level: course.level, groupIndex: course.group_index }),
+    label: formatCourseRowBadgeLabel(course),
     isMergeParent: mergeParentIds.has(course.id),
   }));
   const labelByCourseId = new Map(courses.map((course) => [course.id, course.label]));

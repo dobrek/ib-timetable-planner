@@ -19,7 +19,7 @@ export const computeCatalogHash = async (snapshot: CatalogSnapshot): Promise<str
         hours: course.hours,
         studentKeys: [...course.studentKeys].sort(),
       }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   );
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");

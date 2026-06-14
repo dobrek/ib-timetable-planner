@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { PlannerPlacement } from "../model/placement";
-import type { SupabaseClient } from "@/shared/api";
-import { cohortSchema, GRID_BOUNDS } from "@/shared/config";
+import { UNIQUE_VIOLATION, unwrapRow, unwrapCompleted, type SupabaseClient } from "@/shared/api";
+import { cohortSchema } from "@/shared/config";
+import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
-import { UNIQUE_VIOLATION } from "@/shared/lib/postgrest";
 
 type Supabase = SupabaseClient;
 
@@ -46,18 +46,18 @@ export const insertPlacement = async (supabase: Supabase, input: CreatePlacement
     .single();
 
   if (error?.code === UNIQUE_VIOLATION) {
-    const { data: existing, error: lookupError } = await supabase
-      .from("placements")
-      .select()
-      .eq("plan_id", planId)
-      .eq("cohort", cohort)
-      .eq("course_id", courseId)
-      .eq("day", day)
-      .eq("period", period)
-      .single();
-    if (lookupError) {
-      throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to load existing placement: ${lookupError.message}`);
-    }
+    const existing = unwrapRow(
+      await supabase
+        .from("placements")
+        .select()
+        .eq("plan_id", planId)
+        .eq("cohort", cohort)
+        .eq("course_id", courseId)
+        .eq("day", day)
+        .eq("period", period)
+        .single(),
+      { failure: "Failed to load existing placement" },
+    );
     return toPlannerPlacement(existing);
   }
 
@@ -70,9 +70,6 @@ export const insertPlacement = async (supabase: Supabase, input: CreatePlacement
 
 /** Remove a single placement row by id. Move is expressed client-side as POST-new → DELETE-old. */
 export const removePlacement = async (supabase: Supabase, input: DeletePlacementInput): Promise<{ id: string }> => {
-  const { error } = await supabase.from("placements").delete().eq("id", input.id);
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to delete placement: ${error.message}`);
-  }
+  unwrapCompleted(await supabase.from("placements").delete().eq("id", input.id), "Failed to delete placement");
   return { id: input.id };
 };

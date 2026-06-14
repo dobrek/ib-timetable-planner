@@ -2,9 +2,9 @@ import { z } from "zod";
 
 /**
  * The canonical slot-grid presets (FR-008: small enumerated set, fixed for the
- * lifetime of a plan). `<days>x<periods>` — the convention `parseGridPreset`
- * (see `./grid`) interprets. The DB column stays plain text; this list is the
- * authoring-time gate for plan creation.
+ * lifetime of a plan). `<days>x<periods>` — the convention the grid parser
+ * (see `@/shared/lib/grid`) interprets. The DB column stays plain text; this list
+ * is the authoring-time gate for plan creation.
  */
 
 export const GRID_PRESET_VALUES = ["5x6", "5x8", "5x10"] as const;

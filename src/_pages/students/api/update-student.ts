@@ -1,6 +1,5 @@
-import type { SupabaseClient } from "@/shared/api";
+import { UNIQUE_VIOLATION, unwrapRow, unwrapMany, unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
-import { UNIQUE_VIOLATION, unwrapRow } from "@/shared/lib/postgrest";
 import { diffChoices } from "../model/diff-choices";
 import type { UpdateStudentInput } from "../model/schemas";
 import { assertChoicesInCohort } from "./assert-choices-in-cohort";
@@ -47,23 +46,19 @@ export const updateStudent = async (supabase: SupabaseClient, input: UpdateStude
   }
 
   if (toRemove.length > 0) {
-    const { error } = await supabase
-      .from("student_choices")
-      .delete()
-      .eq("student_id", input.id)
-      .in("course_id", toRemove);
-    if (error) {
-      throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to remove choices: ${error.message}`);
-    }
+    unwrapCompleted(
+      await supabase.from("student_choices").delete().eq("student_id", input.id).in("course_id", toRemove),
+      "Failed to remove choices",
+    );
   }
 
   return student;
 };
 
 const readChoiceCourseIds = async (supabase: SupabaseClient, studentId: string): Promise<string[]> => {
-  const { data, error } = await supabase.from("student_choices").select("course_id").eq("student_id", studentId);
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Choice lookup failed: ${error.message}`);
-  }
-  return data.map((choice) => choice.course_id);
+  const rows = unwrapMany(
+    await supabase.from("student_choices").select("course_id").eq("student_id", studentId),
+    "Choice lookup failed",
+  );
+  return rows.map((choice) => choice.course_id);
 };

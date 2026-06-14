@@ -3,7 +3,7 @@ import { GripVertical } from "lucide-react";
 import type { CourseDrag, GroupDrag } from "../model/drag";
 import type { PlannerGrouping } from "../model/grouping";
 import type { HoursStat } from "../model/hours";
-import { cn } from "@/shared/lib/cn";
+import { cn } from "@/shared/lib/class-names";
 
 type Props = {
   grouping: PlannerGrouping;

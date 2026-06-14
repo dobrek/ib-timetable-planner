@@ -36,3 +36,10 @@
 - **Problem**: Plan Testing Strategy lists teacher CRUD integration tests (create→read→update→delete, SET NULL cascade). No dedicated integration test file exists; Phase 2.3 marked complete via manual verification only.
 - **Rule**: When a plan's Testing Strategy lists integration tests for catalog CRUD, implement them in the integration test harness before marking integration success criteria complete. Manual sign-off alone is insufficient unless the plan explicitly defers integration tests to a follow-up change.
 - **Applies to**: implement, impl-review
+
+## Guard `localStorage` with try/catch, not just a `typeof window` check
+
+- **Context**: Per-device cosmetic preference helpers that read/write `localStorage` from React islands or Astro layouts (e.g. `src/_pages/plan-detail/lib/drag-hint-mode.ts` for the drag-hint encoding; the existing `theme` / `sidebar-collapsed` inline-script reads).
+- **Problem**: A `typeof window !== "undefined"` guard only proves we're on the client — it does NOT stop `getItem`/`setItem` from throwing. Safari private mode, storage disabled by policy, or an exceeded quota all raise and crash the read (or the write path). The `theme`/`sidebar-collapsed` precedents guard only `typeof window`, so copying them verbatim inherits the gap.
+- **Rule**: Wrap every `localStorage` `getItem`/`setItem` in `try/catch` on top of the `typeof window` guard; on failure degrade silently to the in-code default (reads) or a no-op (writes). When a React island must react to the value, pair it with `useSyncExternalStore` (server-snapshot = default) so hydration stays deterministic.
+- **Applies to**: implement, impl-review, plan-review

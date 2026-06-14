@@ -144,7 +144,7 @@ Capture drag identity at `onDragStart`, derive the hint map reactively, and thre
 
 **Intent**: Own the active-drag identity so the hint derivation has an input, and clear it precisely when the drag ends.
 
-**Contract**: Add `onDragStart` to `DragDropProvider` (`PlannerBoard.tsx:78`) reading `event.operation.source.data as DragData`, resolving it via `resolveDragHintContext`, and storing the result in a `useState<DragHintContext | null>`. Clear to `null` at the top of `handleDrop` (covers both successful drop and `event.canceled`). The context lives alongside `usePlacements` (the natural owner of placement state).
+**Contract**: Add `onDragStart` to `DragDropProvider` (`PlannerBoard.tsx:78`) reading `event.operation.source.data as DragData`, resolving it via `resolveDragHintContext`, and storing the result in a `useState<DragHintContext | null>`. Clear to `null` at the top of `handleDrop` (covers both successful drop and `event.canceled`). **As built**: rather than living alongside `usePlacements`, the context state and its derivation `useMemo` are co-located in a dedicated `useDragHints` hook (`PlannerBoard.tsx:146-165`) — same ownership intent, tighter cohesion between the drag context and the map it derives.
 
 #### 2. Reactive hint derivation hook
 
@@ -223,7 +223,7 @@ Hover (`isDropTarget`) and collision (`ring-destructive`) treatments must contin
 **Contract**:
 - `HintMode = "dim-blocked" | "highlight-free"`; default `"dim-blocked"`.
 - Persistence helper: `readHintMode()` / `writeHintMode(mode)` over `localStorage` key `planner-drag-hint-mode`, guarded by `typeof window !== "undefined"`, defaulting to `"dim-blocked"` on miss/invalid value (same shape as the existing `theme`/`sidebar-collapsed` reads).
-- `PlannerBoard` holds `const [hintMode, setHintMode] = useState(readHintMode)` (lazy initializer) and writes on change. Thread `hintMode` to the grid alongside `dropHints`.
+- `PlannerBoard` reads the mode via a `useHintMode` hook and writes on change. Thread `hintMode` to the grid alongside `dropHints`. **As built**: rather than a `useState(readHintMode)` lazy initializer, persistence shipped via `useSyncExternalStore(subscribeHintMode, readHintMode, () => DEFAULT_HINT_MODE)` backed by a module-level pub/sub (`listeners` Set + a `storage` event listener) in `drag-hint-mode.ts`. The server-snapshot arg makes the hydration render deterministic (no mismatch — stronger than the lazy-initializer plan at line 68) and adds cross-tab sync.
 - A small segmented/icon control rendered near `PlanSummaryBar` (`PlannerBoard.tsx:80`), labeled to make clear it affects drag feedback (e.g. "While dragging: highlight free / mark collisions"). Token-based styling only; prefer existing shared UI primitives.
 
 ### Success Criteria:

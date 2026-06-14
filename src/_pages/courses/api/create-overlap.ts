@@ -1,18 +1,18 @@
-import { unwrapRow, type SupabaseClient } from "@/shared/api";
+import { unwrapMany, unwrapRow, type SupabaseClient } from "@/shared/api";
 import type { OverlapInput } from "../model/schemas";
 import { DomainError } from "@/shared/lib/errors";
 
 /** Create a directed course overlap, enforcing both courses share the plan and cohort. */
 export const createOverlap = async (supabase: SupabaseClient, input: OverlapInput) => {
   // Both courses must belong to the plan and share a cohort — overlaps are within a school year.
-  const { data: courses, error: lookupError } = await supabase
-    .from("courses")
-    .select("id, cohort")
-    .eq("plan_id", input.planId)
-    .in("id", [input.baseCourseId, input.dependentCourseId]);
-  if (lookupError) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Course lookup failed: ${lookupError.message}`);
-  }
+  const courses = unwrapMany(
+    await supabase
+      .from("courses")
+      .select("id, cohort")
+      .eq("plan_id", input.planId)
+      .in("id", [input.baseCourseId, input.dependentCourseId]),
+    "Course lookup failed",
+  );
   if (courses.length !== 2) {
     throw new DomainError("NOT_FOUND", "One or both courses no longer exist.");
   }

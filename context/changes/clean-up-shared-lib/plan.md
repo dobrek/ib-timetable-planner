@@ -459,32 +459,32 @@ No hot-path complexity changes. The `<200ms` placement/constraint budget is pres
 
 #### Automated
 
-- [x] 3.1 `pnpm steiger` passes with no `shared-lib-grouping` warning
-- [x] 3.2 `pnpm lint` passes
-- [x] 3.3 `pnpm test` passes
-- [x] 3.4 `pnpm build` passes
-- [x] 3.5 `ls -1 src/shared/lib | grep -vc '^$'` == 13
-- [x] 3.6 `grep -rn 'parseGridPreset\|dayLabel\|periodLabel' src/shared/config` returns nothing
+- [x] 3.1 `pnpm steiger` passes with no `shared-lib-grouping` warning — bf85ec6
+- [x] 3.2 `pnpm lint` passes — bf85ec6
+- [x] 3.3 `pnpm test` passes — bf85ec6
+- [x] 3.4 `pnpm build` passes — bf85ec6
+- [x] 3.5 `ls -1 src/shared/lib | grep -vc '^$'` == 13 — bf85ec6
+- [x] 3.6 `grep -rn 'parseGridPreset\|dayLabel\|periodLabel' src/shared/config` returns nothing — bf85ec6
 
 #### Manual
 
-- [x] 3.7 Plan grid renders with correct dimensions from a preset
-- [x] 3.8 Teacher availability dialog shows correct day/period labels
+- [x] 3.7 Plan grid renders with correct dimensions from a preset — bf85ec6
+- [x] 3.8 Teacher availability dialog shows correct day/period labels — bf85ec6
 
 ### Phase 4: Declarative dedup sweep
 
 #### Automated
 
-- [ ] 4.1 `pnpm lint` passes (no unused inline decoders left)
-- [ ] 4.2 `pnpm test` passes
-- [ ] 4.3 `pnpm build` passes
-- [ ] 4.4 `pnpm steiger` passes
-- [ ] 4.5 Inline `{data,error}` decoders removed from slice code
+- [x] 4.1 `pnpm lint` passes (no unused inline decoders left)
+- [x] 4.2 `pnpm test` passes
+- [x] 4.3 `pnpm build` passes
+- [x] 4.4 `pnpm steiger` passes
+- [x] 4.5 Inline `{data,error}` decoders removed from slice code
 
 #### Manual
 
-- [ ] 4.6 A multi-row read path returns identical data + error behavior
-- [ ] 4.7 Grouping-dependent UI renders identically
+- [x] 4.6 A multi-row read path returns identical data + error behavior
+- [x] 4.7 Grouping-dependent UI renders identically
 
 ### Phase 5: Bug fixes + unit tests
 

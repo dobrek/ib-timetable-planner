@@ -1,7 +1,6 @@
-import { loadCohortCourses, type SupabaseClient } from "@/shared/api";
+import { loadCohortCourses, unwrapRow, unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import { COHORT_VALUES, type Cohort } from "@/shared/config";
 import { computeCatalogHash } from "@/shared/lib/catalog-hash";
-import { DomainError } from "@/shared/lib/errors";
 import type { ClonePlanInput } from "../model/schemas";
 
 /**
@@ -13,13 +12,10 @@ import type { ClonePlanInput } from "../model/schemas";
  * Details); a plpgsql copy could silently drift.
  */
 export const clonePlan = async (supabase: SupabaseClient, input: ClonePlanInput): Promise<{ id: string }> => {
-  const { data: newPlanId, error } = await supabase.rpc("clone_plan", {
-    p_source_plan_id: input.sourcePlanId,
-    p_name: input.name,
-  });
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to clone plan: ${error.message}`);
-  }
+  const newPlanId = unwrapRow(
+    await supabase.rpc("clone_plan", { p_source_plan_id: input.sourcePlanId, p_name: input.name }),
+    { failure: "Failed to clone plan" },
+  );
 
   // Best-effort: if the refresh fails the clone still exists — its groupings merely
   // read as stale, a state the board already handles (compute empty-state / re-run).
@@ -38,10 +34,12 @@ export const clonePlan = async (supabase: SupabaseClient, input: ClonePlanInput)
 const refreshCatalogHash = async (supabase: SupabaseClient, planId: string, cohort: Cohort): Promise<void> => {
   const { courses } = await loadCohortCourses(supabase, planId, cohort);
   const catalogHash = await computeCatalogHash(courses);
-  const { error } = await supabase
-    .from("course_groupings")
-    .update({ catalog_hash: catalogHash })
-    .eq("plan_id", planId)
-    .eq("cohort", cohort);
-  if (error) throw new Error(`hash update failed for cohort ${cohort}: ${error.message}`);
+  unwrapCompleted(
+    await supabase
+      .from("course_groupings")
+      .update({ catalog_hash: catalogHash })
+      .eq("plan_id", planId)
+      .eq("cohort", cohort),
+    `hash update failed for cohort ${cohort}`,
+  );
 };

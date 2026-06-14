@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config/cohorts";
-import { unique } from "@/shared/lib/collections";
+import { groupByInto, unique } from "@/shared/lib/collections";
 import type { CohortCatalog, ComputeWarning, GroupingCourse } from "@/shared/lib/catalog-hash";
+import { unwrapMany } from "./postgrest";
 
 type Supabase = SupabaseClient;
 
@@ -24,9 +25,21 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
   ]);
 
   const courseById = new Map(courseRows.map((course) => [course.id, course]));
-  const directStudents = groupByCourse(choiceRows);
-  const dependentsOf = groupPairs(overlapRows.map((row) => [row.base_course_id, row.dependent_course_id]));
-  const childrenOf = groupPairs(mergeRows.map((row) => [row.parent_course_id, row.child_course_id]));
+  const directStudents = groupByInto(
+    choiceRows,
+    (row) => row.course_id,
+    (row) => row.student_id,
+  );
+  const dependentsOf = groupByInto(
+    overlapRows,
+    (row) => row.base_course_id,
+    (row) => row.dependent_course_id,
+  );
+  const childrenOf = groupByInto(
+    mergeRows,
+    (row) => row.parent_course_id,
+    (row) => row.child_course_id,
+  );
   const mergeChildIds = new Set(mergeRows.map((row) => row.child_course_id));
 
   const studentsOf = (courseId: string): string[] => directStudents.get(courseId) ?? [];
@@ -66,28 +79,26 @@ type CourseRow = {
   teacher_id: string | null;
 };
 
-const fetchCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CourseRow[]> => {
-  const { data, error } = await supabase
-    .from("courses")
-    .select("id, name, level, group_index, hours_per_week, teacher_id")
-    .eq("plan_id", planId)
-    .eq("cohort", cohort)
-    .order("id");
-  if (error) throw new Error(`Failed to load courses for plan ${planId} cohort ${cohort}: ${error.message}`);
-  return data;
-};
+const fetchCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CourseRow[]> =>
+  unwrapMany(
+    await supabase
+      .from("courses")
+      .select("id, name, level, group_index, hours_per_week, teacher_id")
+      .eq("plan_id", planId)
+      .eq("cohort", cohort)
+      .order("id"),
+    `Failed to load courses for plan ${planId} cohort ${cohort}`,
+  );
 
 const fetchChoices = async (
   supabase: Supabase,
   courseIds: string[],
 ): Promise<{ course_id: string; student_id: string }[]> => {
   if (courseIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from("student_choices")
-    .select("course_id, student_id")
-    .in("course_id", courseIds);
-  if (error) throw new Error(`Failed to load student choices: ${error.message}`);
-  return data;
+  return unwrapMany(
+    await supabase.from("student_choices").select("course_id, student_id").in("course_id", courseIds),
+    "Failed to load student choices",
+  );
 };
 
 const fetchOverlaps = async (
@@ -95,12 +106,13 @@ const fetchOverlaps = async (
   courseIds: string[],
 ): Promise<{ base_course_id: string; dependent_course_id: string }[]> => {
   if (courseIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from("course_overlaps")
-    .select("base_course_id, dependent_course_id")
-    .in("base_course_id", courseIds);
-  if (error) throw new Error(`Failed to load course overlaps: ${error.message}`);
-  return data;
+  return unwrapMany(
+    await supabase
+      .from("course_overlaps")
+      .select("base_course_id, dependent_course_id")
+      .in("base_course_id", courseIds),
+    "Failed to load course overlaps",
+  );
 };
 
 const fetchMerges = async (
@@ -108,32 +120,10 @@ const fetchMerges = async (
   courseIds: string[],
 ): Promise<{ parent_course_id: string; child_course_id: string }[]> => {
   if (courseIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from("course_merges")
-    .select("parent_course_id, child_course_id")
-    .in("parent_course_id", courseIds);
-  if (error) throw new Error(`Failed to load course merges: ${error.message}`);
-  return data;
-};
-
-const groupByCourse = (rows: { course_id: string; student_id: string }[]): Map<string, string[]> => {
-  const map = new Map<string, string[]>();
-  for (const { course_id, student_id } of rows) {
-    const existing = map.get(course_id);
-    if (existing) existing.push(student_id);
-    else map.set(course_id, [student_id]);
-  }
-  return map;
-};
-
-const groupPairs = (pairs: [string, string][]): Map<string, string[]> => {
-  const map = new Map<string, string[]>();
-  for (const [key, value] of pairs) {
-    const existing = map.get(key);
-    if (existing) existing.push(value);
-    else map.set(key, [value]);
-  }
-  return map;
+  return unwrapMany(
+    await supabase.from("course_merges").select("parent_course_id, child_course_id").in("parent_course_id", courseIds),
+    "Failed to load course merges",
+  );
 };
 
 /**

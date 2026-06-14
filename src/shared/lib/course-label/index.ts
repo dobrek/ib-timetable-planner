@@ -1,1 +1,1 @@
-export { formatCourseBadgeLabel } from "./course-label";
+export { formatCourseBadgeLabel, formatCourseRowBadgeLabel } from "./course-label";

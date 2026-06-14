@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
+import { unwrapMany, type SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config";
 import { DomainError } from "@/shared/lib/errors";
 import { CHOICES_NOT_IN_COHORT_MESSAGE } from "./constants";
@@ -17,12 +17,12 @@ export const assertChoicesInCohort = async (
 ): Promise<void> => {
   if (courseIds.length === 0) return;
 
-  const { data, error } = await supabase.from("courses").select("id, cohort").eq("plan_id", planId).in("id", courseIds);
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Choice lookup failed: ${error.message}`);
-  }
+  const rows = unwrapMany(
+    await supabase.from("courses").select("id, cohort").eq("plan_id", planId).in("id", courseIds),
+    "Choice lookup failed",
+  );
 
-  const inCohort = new Set(data.filter((course) => course.cohort === cohort).map((course) => course.id));
+  const inCohort = new Set(rows.filter((course) => course.cohort === cohort).map((course) => course.id));
   if (courseIds.some((id) => !inCohort.has(id))) {
     throw new DomainError("BAD_REQUEST", CHOICES_NOT_IN_COHORT_MESSAGE);
   }

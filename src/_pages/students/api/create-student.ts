@@ -1,5 +1,4 @@
-import { unwrapRow, type SupabaseClient } from "@/shared/api";
-import { DomainError } from "@/shared/lib/errors";
+import { unwrapCompleted, unwrapRow, type SupabaseClient } from "@/shared/api";
 import { writeParentWithLinks } from "@/shared/lib/write-parent-with-links";
 import type { StudentInput } from "../model/schemas";
 import { assertChoicesInCohort } from "./assert-choices-in-cohort";
@@ -24,14 +23,14 @@ export const createStudent = async (supabase: SupabaseClient, input: StudentInpu
       ),
     insertLinks: async (student) => {
       if (input.choiceCourseIds.length === 0) return;
-      const { error } = await supabase
-        .from("student_choices")
-        .insert(
-          input.choiceCourseIds.map((course_id) => ({ plan_id: input.planId, student_id: student.id, course_id })),
-        );
-      if (error) {
-        throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to save choices: ${error.message}`);
-      }
+      unwrapCompleted(
+        await supabase
+          .from("student_choices")
+          .insert(
+            input.choiceCourseIds.map((course_id) => ({ plan_id: input.planId, student_id: student.id, course_id })),
+          ),
+        "Failed to save choices",
+      );
     },
     deleteParent: async (student) => {
       const { error } = await supabase.from("students").delete().eq("id", student.id);

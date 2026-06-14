@@ -1,4 +1,4 @@
-import { unwrapRow, type SupabaseClient } from "@/shared/api";
+import { unwrapMany, unwrapRow, unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import type { MergeInput } from "../model/schemas";
 import { deriveMergeParent, mergeReasonMessage } from "../model/merge";
 import { DomainError } from "@/shared/lib/errors";
@@ -12,14 +12,14 @@ import { writeParentWithLinks } from "@/shared/lib/write-parent-with-links";
  * insert fails (no orphan parent).
  */
 export const createMerge = async (supabase: SupabaseClient, input: MergeInput) => {
-  const { data: childRows, error: lookupError } = await supabase
-    .from("courses")
-    .select("id, cohort, name, level, teacher_id")
-    .eq("plan_id", input.planId)
-    .in("id", input.childCourseIds);
-  if (lookupError) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Course lookup failed: ${lookupError.message}`);
-  }
+  const childRows = unwrapMany(
+    await supabase
+      .from("courses")
+      .select("id, cohort, name, level, teacher_id")
+      .eq("plan_id", input.planId)
+      .in("id", input.childCourseIds),
+    "Course lookup failed",
+  );
   if (childRows.length !== input.childCourseIds.length) {
     throw new DomainError("NOT_FOUND", "One or more courses no longer exist.");
   }
@@ -60,16 +60,16 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
         { conflict: DUPLICATE_COURSE_MESSAGE, failure: "Failed to create merge" },
       ),
     insertLinks: async (parent) => {
-      const { error } = await supabase.from("course_merges").insert(
-        input.childCourseIds.map((child_course_id) => ({
-          plan_id: input.planId,
-          parent_course_id: parent.id,
-          child_course_id,
-        })),
+      unwrapCompleted(
+        await supabase.from("course_merges").insert(
+          input.childCourseIds.map((child_course_id) => ({
+            plan_id: input.planId,
+            parent_course_id: parent.id,
+            child_course_id,
+          })),
+        ),
+        "Failed to create merge",
       );
-      if (error) {
-        throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to create merge: ${error.message}`);
-      }
     },
     deleteParent: async (parent) => {
       const { error } = await supabase.from("courses").delete().eq("id", parent.id);

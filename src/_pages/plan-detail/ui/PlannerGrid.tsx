@@ -7,6 +7,7 @@ import type { HintMode } from "../lib/drag-hint-mode";
 import type { LocalPlacement } from "../model/placement";
 import { isBundled } from "../model/slot-bundle";
 import { cellKey } from "../model/collisions";
+import { groupBy } from "@/shared/lib/collections";
 
 type Props = {
   days: number;
@@ -144,13 +145,7 @@ function PeriodRow({
  * read has no inherent ordering.
  */
 const groupByCell = (placements: LocalPlacement[], names: Record<string, string>): Map<string, LocalPlacement[]> => {
-  const map = new Map<string, LocalPlacement[]>();
-  for (const placement of placements) {
-    const key = cellKey(placement.day, placement.period);
-    const existing = map.get(key);
-    if (existing) existing.push(placement);
-    else map.set(key, [placement]);
-  }
+  const map = groupBy(placements, (placement) => cellKey(placement.day, placement.period));
   for (const occupants of map.values()) occupants.sort((a, b) => compareByName(a, b, names));
   return map;
 };

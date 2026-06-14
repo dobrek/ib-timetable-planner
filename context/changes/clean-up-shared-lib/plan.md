@@ -443,33 +443,33 @@ No hot-path complexity changes. The `<200ms` placement/constraint budget is pres
 
 #### Automated
 
-- [x] 2.1 `pnpm steiger` passes
-- [x] 2.2 `pnpm lint` passes
-- [x] 2.3 `pnpm test` passes
-- [x] 2.4 `pnpm build` passes
-- [x] 2.5 `grep -rn 'never reach it via\|never reach via' src/shared` returns nothing
-- [x] 2.6 Throwaway `*.test.ts` importing `@/shared/lib` runs under Vitest with no `astro:*` error (then removed)
+- [x] 2.1 `pnpm steiger` passes — 9b29b98
+- [x] 2.2 `pnpm lint` passes — 9b29b98
+- [x] 2.3 `pnpm test` passes — 9b29b98
+- [x] 2.4 `pnpm build` passes — 9b29b98
+- [x] 2.5 `grep -rn 'never reach it via\|never reach via' src/shared` returns nothing — 9b29b98
+- [x] 2.6 Throwaway `*.test.ts` importing `@/shared/lib` runs under Vitest with no `astro:*` error (then removed) — 9b29b98
 
 #### Manual
 
-- [x] 2.7 Form submit + confirm + refresh flow works end-to-end
-- [x] 2.8 URL-synced filters hydrate from the query string
+- [x] 2.7 Form submit + confirm + refresh flow works end-to-end — 9b29b98
+- [x] 2.8 URL-synced filters hydrate from the query string — 9b29b98
 
 ### Phase 3: F3 — move grid + slot-labels config → lib
 
 #### Automated
 
-- [ ] 3.1 `pnpm steiger` passes with no `shared-lib-grouping` warning
-- [ ] 3.2 `pnpm lint` passes
-- [ ] 3.3 `pnpm test` passes
-- [ ] 3.4 `pnpm build` passes
-- [ ] 3.5 `ls -1 src/shared/lib | grep -vc '^$'` == 13
-- [ ] 3.6 `grep -rn 'parseGridPreset\|dayLabel\|periodLabel' src/shared/config` returns nothing
+- [x] 3.1 `pnpm steiger` passes with no `shared-lib-grouping` warning
+- [x] 3.2 `pnpm lint` passes
+- [x] 3.3 `pnpm test` passes
+- [x] 3.4 `pnpm build` passes
+- [x] 3.5 `ls -1 src/shared/lib | grep -vc '^$'` == 13
+- [x] 3.6 `grep -rn 'parseGridPreset\|dayLabel\|periodLabel' src/shared/config` returns nothing
 
 #### Manual
 
-- [ ] 3.7 Plan grid renders with correct dimensions from a preset
-- [ ] 3.8 Teacher availability dialog shows correct day/period labels
+- [x] 3.7 Plan grid renders with correct dimensions from a preset
+- [x] 3.8 Teacher availability dialog shows correct day/period labels
 
 ### Phase 4: Declarative dedup sweep
 

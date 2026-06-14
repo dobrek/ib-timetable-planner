@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { UNIQUE_VIOLATION, type SupabaseClient } from "@/shared/api";
-import { cohortSchema, GRID_BOUNDS } from "@/shared/config";
+import { cohortSchema } from "@/shared/config";
+import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
 
 /**

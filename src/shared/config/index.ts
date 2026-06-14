@@ -5,8 +5,6 @@ export {
   availabilitySeveritySchema,
   type AvailabilitySeverity,
 } from "./availability-severity";
-export { GRID_BOUNDS, DEFAULT_GRID, parseGridPreset, type GridDimensions } from "./grid";
-export { dayLabel, periodLabel } from "./slot-labels";
 export {
   GRID_PRESETS,
   GRID_PRESET_VALUES,

@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Ban, Minus } from "lucide-react";
-import { type AvailabilitySeverity, dayLabel, periodLabel } from "@/shared/config";
+import { type AvailabilitySeverity } from "@/shared/config";
+import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import { cn } from "@/shared/lib/class-names";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";

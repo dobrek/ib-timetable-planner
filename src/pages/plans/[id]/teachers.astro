@@ -3,7 +3,7 @@ import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
 import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
 import TeacherCatalog from "@/_pages/teachers/ui/TeacherCatalog";
 import { createClient, isPlanId, loadPlanSummary } from "@/shared/api";
-import { parseGridPreset } from "@/shared/config";
+import { parseGridPreset } from "@/shared/lib/grid";
 import { loadTeacherCatalog } from "@/_pages/teachers/api";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);

@@ -1,6 +1,6 @@
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import SlotCell from "./SlotCell";
-import { dayLabel, periodLabel } from "@/shared/config";
+import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CellCollisions } from "../model/collisions";
 import type { DropHint } from "../model/drop-hints";
 import type { HintMode } from "../lib/drag-hint-mode";

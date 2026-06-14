@@ -1,5 +1,6 @@
 import { loadCohortCourses, assertNoQueryErrors, type SupabaseClient } from "@/shared/api";
-import { type Cohort, parseGridPreset } from "@/shared/config";
+import { type Cohort } from "@/shared/config";
+import { parseGridPreset } from "@/shared/lib/grid";
 import { unique } from "@/shared/lib/collections";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { BoardAvailabilityCell } from "../model/availability-index";

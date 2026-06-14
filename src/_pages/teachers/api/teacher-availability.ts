@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@/shared/api";
-import { availabilitySeveritySchema, GRID_BOUNDS } from "@/shared/config";
+import { availabilitySeveritySchema } from "@/shared/config";
+import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
 
 /**

@@ -22,6 +22,7 @@ const teacher = (
   code,
   fullName,
   assignments,
+  availability: [],
 });
 
 const teachers: TeacherRow[] = [

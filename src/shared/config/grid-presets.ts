@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * The canonical slot-grid presets (FR-008: small enumerated set, fixed for the
  * lifetime of a plan). `<days>x<periods>` — the convention `parseGridPreset`
- * (plan-detail) interprets. The DB column stays plain text; this list is the
+ * (see `./grid`) interprets. The DB column stays plain text; this list is the
  * authoring-time gate for plan creation.
  */
 

@@ -1,4 +1,4 @@
-import { MoreHorizontal, Plus } from "lucide-react";
+import { CalendarOff, MoreHorizontal, Plus } from "lucide-react";
 import type { Cohort } from "@/shared/config";
 import { cn } from "@/shared/lib/cn";
 import {
@@ -26,10 +26,19 @@ type Props = {
   yearFilter: YearFilter;
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
+  onEditAvailability: (teacher: TeacherRow) => void;
   onCreateFirst: () => void;
 };
 
-export default function TeacherTable({ rows, totalCount, yearFilter, onEdit, onDelete, onCreateFirst }: Props) {
+export default function TeacherTable({
+  rows,
+  totalCount,
+  yearFilter,
+  onEdit,
+  onDelete,
+  onEditAvailability,
+  onCreateFirst,
+}: Props) {
   if (totalCount === 0) {
     return (
       <div className="py-12 text-center">
@@ -68,7 +77,12 @@ export default function TeacherTable({ rows, totalCount, yearFilter, onEdit, onD
 
             return (
               <TableRow key={row.id}>
-                <TableCell className="font-medium">{row.code}</TableCell>
+                <TableCell className="font-medium">
+                  <span className="flex items-center gap-2">
+                    {row.code}
+                    <AvailabilityBadge row={row} onEditAvailability={onEditAvailability} />
+                  </span>
+                </TableCell>
                 <TableCell>{row.fullName ?? "—"}</TableCell>
                 <TableCell className={cn(cohortGroupClass(yearFilter, "y1"))}>
                   <AssignmentBadges assignments={cohortAssignments(row.assignments, "dp1")} />
@@ -80,7 +94,12 @@ export default function TeacherTable({ rows, totalCount, yearFilter, onEdit, onD
                 <TableCell className={cn("text-right", cohortGroupClass(yearFilter, "y2"))}>{y2h}</TableCell>
                 <TableCell className={cn("text-right", totalColumnClass(yearFilter))}>{y1h + y2h}</TableCell>
                 <TableCell className="text-right">
-                  <TeacherRowActions row={row} onEdit={onEdit} onDelete={onDelete} />
+                  <TeacherRowActions
+                    row={row}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onEditAvailability={onEditAvailability}
+                  />
                 </TableCell>
               </TableRow>
             );
@@ -109,10 +128,12 @@ function TeacherRowActions({
   row,
   onEdit,
   onDelete,
+  onEditAvailability,
 }: {
   row: TeacherRow;
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
+  onEditAvailability: (teacher: TeacherRow) => void;
 }) {
   return (
     <DropdownMenu>
@@ -130,6 +151,13 @@ function TeacherRowActions({
           Edit
         </DropdownMenuItem>
         <DropdownMenuItem
+          onSelect={() => {
+            onEditAvailability(row);
+          }}
+        >
+          Edit availability
+        </DropdownMenuItem>
+        <DropdownMenuItem
           variant="destructive"
           onSelect={() => {
             onDelete(row);
@@ -139,6 +167,40 @@ function TeacherRowActions({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * At-a-glance signal that a teacher carries availability constraints, with the constrained-
+ * cell count. Modeled on the clickable `OverlapBadge` — clicking opens the availability
+ * dialog. Deliberately neutral (no destructive/warning coloring): a presence/shortcut
+ * affordance, not a severity signal — the strong/soft breakdown lives in the dialog.
+ */
+function AvailabilityBadge({
+  row,
+  onEditAvailability,
+}: {
+  row: TeacherRow;
+  onEditAvailability: (teacher: TeacherRow) => void;
+}) {
+  if (row.availability.length === 0) return null;
+  return (
+    <Badge
+      asChild
+      variant="outline"
+      className="hover:bg-accent hover:text-accent-foreground cursor-pointer gap-1 font-normal"
+    >
+      <button
+        type="button"
+        onClick={() => {
+          onEditAvailability(row);
+        }}
+        aria-label={`Edit availability for ${row.fullName ?? row.code} (${row.availability.length} constrained cells)`}
+      >
+        <CalendarOff className="size-3" aria-hidden="true" />
+        {row.availability.length}
+      </button>
+    </Badge>
   );
 }
 

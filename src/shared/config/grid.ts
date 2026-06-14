@@ -1,4 +1,4 @@
-import { DEFAULT_GRID_PRESET } from "@/shared/config";
+import { DEFAULT_GRID_PRESET } from "./grid-presets";
 
 export type GridDimensions = { days: number; periods: number };
 

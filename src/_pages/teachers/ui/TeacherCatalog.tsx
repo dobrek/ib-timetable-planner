@@ -6,20 +6,24 @@ import { useCatalogDialogs } from "../model/use-catalog-dialogs";
 import { useCatalogFilters } from "../model/use-catalog-filters";
 import type { TeacherRow } from "../model/teacher";
 import DeleteTeacherDialog from "./DeleteTeacherDialog";
+import TeacherAvailabilityDialog from "./TeacherAvailabilityDialog";
 import TeacherFormDialog from "./TeacherFormDialog";
 import TeacherTable from "./TeacherTable";
 
 type Props = {
   planId: string;
   teachers: TeacherRow[];
+  /** The plan's grid dimensions — sizes the availability authoring grid. */
+  days: number;
+  periods: number;
 };
 
 /**
  * Teacher catalog island for one plan: flat table with Y1/Y2 assignment columns,
- * text+year filters, and create/edit/delete via dialogs. Assignments are read-only
- * (authored on the plan's courses page).
+ * text+year filters, and create/edit/delete + availability via dialogs. Assignments are
+ * read-only (authored on the plan's courses page).
  */
-export default function TeacherCatalog({ planId, teachers }: Props) {
+export default function TeacherCatalog({ planId, teachers, days, periods }: Props) {
   const filters = useCatalogFilters();
   const dialogs = useCatalogDialogs();
   const rows = filterTeachers(teachers, filters.query, filters.year);
@@ -79,6 +83,7 @@ export default function TeacherCatalog({ planId, teachers }: Props) {
         yearFilter={filters.year}
         onEdit={dialogs.openEdit}
         onDelete={dialogs.openDelete}
+        onEditAvailability={dialogs.openAvailability}
         onCreateFirst={dialogs.openCreate}
       />
 
@@ -89,6 +94,13 @@ export default function TeacherCatalog({ planId, teachers }: Props) {
         teacher={dialogs.formTeacher}
       />
       <DeleteTeacherDialog planId={planId} teacher={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
+      <TeacherAvailabilityDialog
+        teacher={dialogs.availabilityTarget}
+        planId={planId}
+        days={days}
+        periods={periods}
+        onClose={dialogs.closeAvailability}
+      />
       <Toaster />
     </div>
   );

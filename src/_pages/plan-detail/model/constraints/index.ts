@@ -1,11 +1,17 @@
 import type { GroupingCourse } from "../grouping";
 import { duplicateCourse } from "./duplicate-course";
 import { studentConflict } from "./student-conflict";
+import { teacherAvailability } from "./teacher-availability";
 import { teacherConflict } from "./teacher-conflict";
 import type { BoardContext, CellConstraint, CollisionViolation } from "./types";
 
 /** Single registration point — adding a constraint touches only this array. */
-export const CELL_CONSTRAINTS: CellConstraint[] = [duplicateCourse, teacherConflict, studentConflict];
+export const CELL_CONSTRAINTS: CellConstraint[] = [
+  duplicateCourse,
+  teacherConflict,
+  studentConflict,
+  teacherAvailability,
+];
 
 /** Enumerates every violation in a cell across all registered constraints. */
 export const explainCell = (occupants: GroupingCourse[], ctx: BoardContext): CollisionViolation[] =>

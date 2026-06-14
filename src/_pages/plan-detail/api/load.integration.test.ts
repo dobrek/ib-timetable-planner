@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { loadPlannerData } from "./load";
 
@@ -67,5 +67,49 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     const nameless = teachers.filter((teacher) => teacher.full_name === null);
     expect(nameless.length).toBeGreaterThan(0); // the seed inserts teachers with code only
     for (const teacher of nameless) expect(teacherNames[teacher.id]).toBe(teacher.code);
+  });
+});
+
+// Self-contained (bare plan + one teacher + one availability cell), isolated from the seed —
+// proves the board loader fetches availability by plan only (cohort-independent) and projects
+// each row to the island shape.
+(hasEnv ? describe : describe.skip)("loadPlannerData availability shape", () => {
+  let supabase: SupabaseClient<Database>;
+  const createdPlanIds: string[] = [];
+
+  beforeAll(() => {
+    if (!SUPABASE_URL || !SERVICE_KEY) return;
+    supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
+  });
+
+  afterAll(async () => {
+    if (createdPlanIds.length > 0) await supabase.from("plans").delete().in("id", createdPlanIds);
+  });
+
+  it("ships availability cells projected to teacherKey/day/period/severity", async () => {
+    const { data: plan, error: planError } = await supabase
+      .from("plans")
+      .insert({ name: "Avail Load Probe", slot_grid_preset: "5x10" })
+      .select("id")
+      .single();
+    if (planError) throw planError;
+    createdPlanIds.push(plan.id);
+
+    const { data: teacher, error: teacherError } = await supabase
+      .from("teachers")
+      .insert({ plan_id: plan.id, code: "AVL", full_name: "Avail Loader" })
+      .select("id")
+      .single();
+    if (teacherError) throw teacherError;
+
+    await supabase
+      .from("teacher_availability")
+      .insert({ plan_id: plan.id, teacher_id: teacher.id, day: 3, period: 2, severity: "strong" });
+
+    const result = await loadPlannerData(supabase, plan.id);
+    if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
+    expect(result.value.props.availability).toEqual([
+      { teacherKey: teacher.id, day: 3, period: 2, severity: "strong" },
+    ]);
   });
 });

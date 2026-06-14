@@ -11,6 +11,10 @@ export type TeacherDialogState = {
   deleteTarget: TeacherRow | null;
   openDelete: (teacher: TeacherRow) => void;
   closeDelete: () => void;
+
+  availabilityTarget: TeacherRow | null;
+  openAvailability: (teacher: TeacherRow) => void;
+  closeAvailability: () => void;
 };
 
 /**
@@ -20,6 +24,7 @@ export function useCatalogDialogs(): TeacherDialogState {
   const [formOpen, setFormOpen] = useState(false);
   const [formTeacher, setFormTeacher] = useState<TeacherRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TeacherRow | null>(null);
+  const [availabilityTarget, setAvailabilityTarget] = useState<TeacherRow | null>(null);
 
   const openCreate = () => {
     setFormTeacher(null);
@@ -43,6 +48,14 @@ export function useCatalogDialogs(): TeacherDialogState {
     setDeleteTarget(null);
   };
 
+  const openAvailability = (teacher: TeacherRow) => {
+    setAvailabilityTarget(teacher);
+  };
+
+  const closeAvailability = () => {
+    setAvailabilityTarget(null);
+  };
+
   return {
     formOpen,
     formTeacher,
@@ -52,5 +65,8 @@ export function useCatalogDialogs(): TeacherDialogState {
     deleteTarget,
     openDelete,
     closeDelete,
+    availabilityTarget,
+    openAvailability,
+    closeAvailability,
   };
 }

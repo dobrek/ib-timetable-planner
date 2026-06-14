@@ -1,15 +1,24 @@
+import type { AvailabilityIndex } from "./availability-index";
 import { bucketByCell, cellKey } from "./collisions";
 import { violatesAny } from "./constraints";
 import type { CellData, DragData } from "./drag";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 
+// Local empty default so callers without availability need no index (kept here rather than
+// imported from `availability-index` to avoid a runtime cycle via `collisions`).
+const NO_AVAILABILITY: AvailabilityIndex = {
+  strongUnavailableByTeacher: new Map(),
+  softUnavailableByTeacher: new Map(),
+};
+
 /**
  * Per-cell drag affordance. The map is **sparse**: a cell absent from the map (while
  * a drag is active) is free. `"partial"` is structurally group-only — single-member
- * drags only ever yield free or `"blocked"`.
+ * drags only ever yield free, `"warn"`, or `"blocked"`. `"warn"` (soft-NO) is advisory:
+ * it only surfaces on a cell that would otherwise be free. Precedence: blocked > partial > warn > free.
  */
-export type DropHint = "partial" | "blocked";
+export type DropHint = "partial" | "blocked" | "warn";
 
 /** Resolved inputs the derivation needs, independent of which `DragData` kind produced them. */
 export type DragHintContext = {
@@ -82,6 +91,7 @@ export const deriveDropHints = (
   context: DragHintContext | null,
   placements: PlannerPlacement[],
   catalogById: Map<string, GroupingCourse>,
+  availability: AvailabilityIndex = NO_AVAILABILITY,
 ): Map<string, DropHint> | null => {
   if (!context) return null;
 
@@ -90,9 +100,22 @@ export const deriveDropHints = (
   const excluded = new Set(context.excludePlacementIds);
   const occupied = excluded.size > 0 ? placements.filter((placement) => !excluded.has(placement.id)) : placements;
 
+  // Candidate cells = occupied cells PLUS empty cells where a dragged member's teacher is
+  // strong- OR soft-unavailable. Those aren't seen by `classifyCell`'s `violatesAny`
+  // (availability is a board-only constraint with no `test`), so we surface them explicitly.
+  const candidates = new Map<string, GroupingCourse[]>();
+  for (const [key, { occupants }] of bucketByCell(occupied, catalogById)) candidates.set(key, occupants);
+  for (const member of context.members) {
+    if (member.teacherKey === null) continue;
+    for (const byTeacher of [availability.strongUnavailableByTeacher, availability.softUnavailableByTeacher]) {
+      const unavailableCells = byTeacher.get(member.teacherKey);
+      if (unavailableCells) for (const key of unavailableCells) if (!candidates.has(key)) candidates.set(key, []);
+    }
+  }
+
   const hints = new Map<string, DropHint>();
-  for (const [key, { occupants }] of bucketByCell(occupied, catalogById)) {
-    const hint = classifyCell(context.members, occupants);
+  for (const [key, occupants] of candidates) {
+    const hint = classifyCell(context.members, occupants, key, availability);
     if (hint) hints.set(key, hint);
   }
 
@@ -112,19 +135,33 @@ const resolveMembers = (
     .filter((course): course is GroupingCourse => course !== undefined);
 
 /**
- * A member "fits" a cell iff it would land collision-free. Roll up: all fit → free (omit);
- * some fit → `"partial"`; none fit → `"blocked"`.
+ * A member "hard-fits" a cell iff it would land collision-free AND its teacher is not
+ * strong-unavailable there. Roll up with precedence blocked > partial > warn > free:
+ * some members don't hard-fit → `"blocked"` (none fit) / `"partial"` (some fit); all hard-fit
+ * → `"warn"` if any member's teacher is soft-unavailable there, else free (omit).
  *
- * INVARIANT: fit is decided by `violatesAny` over the constraint registry — never a bespoke
- * check — so future constraints (e.g. cross-cohort teacher availability) are inherited for free.
- * Duplicate-of-existing is already covered (`duplicateCourse.test` is in the registry), so no
- * separate `canAdd` check is needed for candidate cells.
+ * Collision fit is decided by `violatesAny` over the constraint registry. Availability is a
+ * board-only constraint (no `test`), so it is NOT inherited by `violatesAny` — both severities
+ * are checked explicitly here, the one place a board-only rule must be wired into hints.
  */
-const classifyCell = (members: GroupingCourse[], occupants: GroupingCourse[]): DropHint | null => {
+const classifyCell = (
+  members: GroupingCourse[],
+  occupants: GroupingCourse[],
+  key: string,
+  availability: AvailabilityIndex,
+): DropHint | null => {
   let fits = 0;
+  let soft = false;
   for (const member of members) {
-    if (!violatesAny(member, occupants)) fits += 1;
+    if (!violatesAny(member, occupants) && !isStrongUnavailable(member, key, availability)) fits += 1;
+    if (isSoftUnavailable(member, key, availability)) soft = true;
   }
-  if (fits === members.length) return null;
-  return fits === 0 ? "blocked" : "partial";
+  if (fits < members.length) return fits === 0 ? "blocked" : "partial";
+  return soft ? "warn" : null;
 };
+
+const isStrongUnavailable = (member: GroupingCourse, key: string, availability: AvailabilityIndex): boolean =>
+  member.teacherKey !== null && (availability.strongUnavailableByTeacher.get(member.teacherKey)?.has(key) ?? false);
+
+const isSoftUnavailable = (member: GroupingCourse, key: string, availability: AvailabilityIndex): boolean =>
+  member.teacherKey !== null && (availability.softUnavailableByTeacher.get(member.teacherKey)?.has(key) ?? false);

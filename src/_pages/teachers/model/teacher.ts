@@ -1,4 +1,4 @@
-import type { Cohort } from "@/shared/config";
+import type { AvailabilitySeverity, Cohort } from "@/shared/config";
 
 /**
  * View-models assembled server-side in `plans/[id]/teachers.astro` and handed to the
@@ -17,12 +17,21 @@ export type CourseAssignment = {
 };
 
 /**
+ * One constrained availability cell for a teacher: the `(day, period)` the teacher
+ * cannot teach (`strong`) or prefers not to (`soft`). Cohort-independent — it applies
+ * to whatever cohort the board renders. Absence of a cell means available.
+ */
+export type TeacherAvailabilityCell = { day: number; period: number; severity: AvailabilitySeverity };
+
+/**
  * One teacher row in the catalog table. `assignments` are read-only projections of
  * courses where `teacher_id` points at this teacher, grouped by cohort in the UI.
+ * `availability` is the teacher's constrained cells, edited via the availability dialog.
  */
 export type TeacherRow = {
   id: string;
   code: string;
   fullName: string | null;
   assignments: CourseAssignment[];
+  availability: TeacherAvailabilityCell[];
 };

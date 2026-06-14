@@ -1,4 +1,5 @@
 import type { Cohort } from "@/shared/config";
+import type { BoardAvailabilityCell } from "./availability-index";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 import type { SlotOverride } from "./slot-bundle";
@@ -32,4 +33,7 @@ export type PlannerBoardProps = {
   overrides: SlotOverride[];
   /** Validation catalog: `GroupingCourse[]` keyed by course id. */
   catalog: GroupingCourse[];
+  /** Plan-scoped teacher availability (all teachers, cohort-independent), raw cells the
+   *  island indexes into Maps. Strong drives the board flag now; soft is consumed in Phase 4. */
+  availability: BoardAvailabilityCell[];
 };

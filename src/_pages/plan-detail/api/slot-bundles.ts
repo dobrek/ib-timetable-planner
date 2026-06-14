@@ -1,7 +1,6 @@
 import { z } from "zod";
-import { GRID_BOUNDS } from "../model/grid";
 import type { SupabaseClient } from "@/shared/api";
-import { cohortSchema } from "@/shared/config";
+import { cohortSchema, GRID_BOUNDS } from "@/shared/config";
 import { DomainError } from "@/shared/lib/errors";
 import { UNIQUE_VIOLATION } from "@/shared/lib/postgrest";
 

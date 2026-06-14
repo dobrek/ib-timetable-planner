@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { cn } from "@/shared/lib/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
-import { dayLabel, periodLabel } from "../lib/slot-labels";
+import { dayLabel, periodLabel } from "@/shared/config";
 import type { CollisionViolation } from "../model/constraints";
 
 /** The inspected cell plus the course whose badge was clicked (emphasized in the body). */
@@ -67,6 +67,8 @@ function DetailsBody({
   studentNames: Record<string, string>;
 }) {
   const grouped = groupByKind(violations);
+  const unavailableBlock = grouped["teacher-unavailable"].filter((violation) => violation.severity === "block");
+  const unavailableWarn = grouped["teacher-unavailable"].filter((violation) => violation.severity === "warn");
 
   return (
     <>
@@ -89,6 +91,37 @@ function DetailsBody({
                 <li key={violation.teacherKey}>
                   {teacherNames[violation.teacherKey] ?? violation.teacherKey} teaches{" "}
                   {violation.courseIds.length === 2 ? "both" : "all"} of:{" "}
+                  <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {unavailableBlock.length > 0 && (
+          <section data-slot="collision-section-unavailable" className="space-y-1">
+            <h3 className="text-foreground text-sm font-semibold">Teacher unavailable</h3>
+            <ul className="space-y-1">
+              {unavailableBlock.map((violation) => (
+                <li key={`${violation.teacherKey}:${violation.courseIds.join(":")}`}>
+                  {teacherNames[violation.teacherKey] ?? violation.teacherKey} cannot teach this slot:{" "}
+                  <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {unavailableWarn.length > 0 && (
+          <section
+            data-slot="collision-section-soft"
+            className="border-warning/50 bg-warning/10 text-warning space-y-1 rounded-md border px-3 py-2"
+          >
+            <h3 className="text-warning text-sm font-semibold">Teacher prefers not</h3>
+            <ul className="space-y-1">
+              {unavailableWarn.map((violation) => (
+                <li key={`${violation.teacherKey}:${violation.courseIds.join(":")}`}>
+                  {teacherNames[violation.teacherKey] ?? violation.teacherKey} prefers not to teach this slot:{" "}
                   <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
                 </li>
               ))}
@@ -163,7 +196,7 @@ function CourseNameList({
 type ViolationsByKind = { [K in CollisionViolation["kind"]]: Extract<CollisionViolation, { kind: K }>[] };
 
 const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
-  const groups: ViolationsByKind = { teacher: [], student: [], "duplicate-course": [] };
+  const groups: ViolationsByKind = { teacher: [], student: [], "duplicate-course": [], "teacher-unavailable": [] };
   for (const violation of violations) {
     switch (violation.kind) {
       case "teacher":
@@ -174,6 +207,9 @@ const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
         break;
       case "duplicate-course":
         groups["duplicate-course"].push(violation);
+        break;
+      case "teacher-unavailable":
+        groups["teacher-unavailable"].push(violation);
         break;
     }
   }

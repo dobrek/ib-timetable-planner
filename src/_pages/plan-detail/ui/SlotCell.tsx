@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { Link, Trash2, TriangleAlert, Unlink, X } from "lucide-react";
+import { Link, Trash2, TriangleAlert, Unlink, UserX, X } from "lucide-react";
 import { Badge } from "@/shared/ui";
 import { Button } from "@/shared/ui";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
@@ -79,8 +79,11 @@ export default function SlotCell({
     [dropRef, dragRef],
   );
 
-  const conflicts = collisions?.conflictingIds;
-  const hasCollision = (conflicts?.size ?? 0) > 0;
+  const blockingIds = collisions?.blockingIds;
+  const warningIds = collisions?.warningIds;
+  const unavailable = collisions?.unavailableIds;
+  const hasBlocking = (blockingIds?.size ?? 0) > 0;
+  const hasWarning = (warningIds?.size ?? 0) > 0;
   // Sparse map: no entry while a drag is active means "free"; no active drag means "no hint".
   const hintState = hintActive ? (dropHint ?? "free") : undefined;
   const hasHeader = occupants.length >= 2;
@@ -91,20 +94,28 @@ export default function SlotCell({
       data-slot="slot-cell"
       data-day={day}
       data-period={period}
-      data-collision={hasCollision ? "true" : undefined}
+      data-collision={hasBlocking ? "true" : undefined}
+      data-availability={hasWarning && !hasBlocking ? "soft" : undefined}
       data-bundled={bundled ? "true" : undefined}
       data-drop-hint={hintState}
       className={cn(
         "bg-background flex min-h-16 flex-col gap-1 p-1 transition-colors",
-        // Hint treatment is gated off when hover/collision apply: those rings/bg must win, and
+        // Hint treatment is gated off when hover/blocking apply: those rings/bg must win, and
         // since every Tailwind ring sets the same custom property, co-occurrence can't be resolved
         // by className order — so we emit no hint class at all in those cases.
-        hintState && !isDropTarget && !hasCollision && HINT_CLASS[hintMode][hintState],
-        // Faint containment cue, gated off so the collision/drop-target rings still win.
-        bundled && !hasCollision && !isDropTarget && "bg-accent/40 ring-ring rounded-md ring-1 ring-inset",
+        hintState && !isDropTarget && !hasBlocking && HINT_CLASS[hintMode][hintState],
+        // Soft-NO amber ring (static; no active drag). Loses to blocking, the drop target, and
+        // the active-drag hint — slotted into the same ring ladder as collision.
+        hasWarning && !hasBlocking && !isDropTarget && !hintState && "ring-warning bg-warning/5 ring-2 ring-inset",
+        // Faint containment cue, gated off so the collision/warn/drop-target rings still win.
+        bundled &&
+          !hasBlocking &&
+          !hasWarning &&
+          !isDropTarget &&
+          "bg-accent/40 ring-ring rounded-md ring-1 ring-inset",
         // The whole bundled cell is grabbable; interactive children opt out of the drag.
         bundled && "cursor-grab active:cursor-grabbing",
-        hasCollision && "ring-destructive ring-2 ring-inset",
+        hasBlocking && "ring-destructive ring-2 ring-inset",
         isDropTarget && "bg-accent ring-ring ring-2 ring-inset",
         isDragging && "opacity-60",
       )}
@@ -157,7 +168,9 @@ export default function SlotCell({
           key={placement.id}
           placement={placement}
           name={names[placement.courseId] ?? placement.courseId}
-          conflicted={conflicts?.has(placement.courseId) ?? false}
+          blocking={blockingIds?.has(placement.courseId) ?? false}
+          warning={warningIds?.has(placement.courseId) ?? false}
+          unavailable={unavailable?.has(placement.courseId) ?? false}
           bundled={bundled}
           onRemove={onRemove}
           onInspect={() => {
@@ -172,14 +185,21 @@ export default function SlotCell({
 function PlacedChip({
   placement,
   name,
-  conflicted,
+  blocking,
+  warning,
+  unavailable,
   bundled,
   onRemove,
   onInspect,
 }: {
   placement: LocalPlacement;
   name: string;
-  conflicted: boolean;
+  /** In a blocking violation (collision or strong-NO) — destructive treatment, counts invalid. */
+  blocking: boolean;
+  /** In a warn violation only (soft-NO) — amber treatment, non-blocking. */
+  warning: boolean;
+  /** Flagged by a teacher-unavailable violation — distinguishes the badge from a plain collision. */
+  unavailable: boolean;
   bundled: boolean;
   onRemove: (placementId: string) => void;
   onInspect: () => void;
@@ -195,21 +215,31 @@ function PlacedChip({
       ref={ref}
       data-slot="placed-chip"
       data-course-id={placement.courseId}
-      data-conflicted={conflicted ? "true" : undefined}
+      data-conflicted={blocking ? "true" : undefined}
+      data-warning={warning && !blocking ? "true" : undefined}
       className={cn(
         "flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs",
-        conflicted ? "border-destructive bg-destructive/10 text-destructive" : "bg-secondary text-secondary-foreground",
+        blocking
+          ? "border-destructive bg-destructive/10 text-destructive"
+          : warning
+            ? "border-warning bg-warning/10 text-warning"
+            : "bg-secondary text-secondary-foreground",
         placement.pending && "opacity-60",
         !placement.pending && !bundled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
     >
       <span className="truncate">{name}</span>
-      {conflicted && (
-        <Badge variant="destructive" asChild data-slot="collision-badge" className="cursor-pointer gap-0.5 px-1 py-0">
+      {(blocking || warning) && (
+        <Badge
+          variant={blocking ? "destructive" : "warning"}
+          asChild
+          data-slot={unavailable ? "unavailable-badge" : "collision-badge"}
+          className="cursor-pointer gap-0.5 px-1 py-0"
+        >
           <button
             type="button"
-            aria-label="Show collision details"
+            aria-label={unavailable ? "Show teacher-unavailable details" : "Show collision details"}
             onClick={(event) => {
               event.stopPropagation();
               onInspect();
@@ -219,8 +249,8 @@ function PlacedChip({
               event.stopPropagation();
             }}
           >
-            <TriangleAlert className="size-3" />
-            <span className="sr-only sm:not-sr-only">collision</span>
+            {unavailable ? <UserX className="size-3" /> : <TriangleAlert className="size-3" />}
+            <span className="sr-only sm:not-sr-only">{unavailable ? "unavailable" : "collision"}</span>
           </button>
         </Badge>
       )}
@@ -250,19 +280,22 @@ function PlacedChip({
 }
 
 /**
- * Per-mode cell treatment for each hint state, token-driven (`--valid`, `--muted`). The
- * derivation is encoding-agnostic — only this table decides which side gets visual ink:
- * `dim-blocked` recedes blocked/partial and leaves free neutral; `highlight-free` tints
- * free with `--valid` and leaves blocked neutral. Empty strings are no-ops in `cn`.
+ * Per-mode cell treatment for each hint state, token-driven (`--valid`, `--warning`,
+ * `--muted`). The derivation is encoding-agnostic — only this table decides which side gets
+ * visual ink: `dim-blocked` recedes blocked/partial and leaves free neutral; `highlight-free`
+ * tints free with `--valid` and leaves blocked neutral. `warn` (soft-NO, a valid-but-advisory
+ * drop) always reads amber, never dimmed. Empty strings are no-ops in `cn`.
  */
 const HINT_CLASS: Record<HintMode, Record<DropHint | "free", string>> = {
   "dim-blocked": {
     free: "",
+    warn: "bg-warning/10 ring-warning/40 ring-2 ring-inset",
     partial: "bg-muted/60 opacity-70",
     blocked: "bg-muted opacity-40",
   },
   "highlight-free": {
     free: "bg-valid/10 ring-valid ring-2 ring-inset",
+    warn: "bg-warning/10 ring-warning/50 ring-2 ring-inset",
     partial: "bg-valid/5 ring-valid/40 ring-2 ring-inset",
     blocked: "",
   },

@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapRow } from "@/shared/lib/postgrest";
+import { unwrapRow, type SupabaseClient } from "@/shared/api";
 import type { MergeInput } from "../model/schemas";
 import { deriveMergeParent, mergeReasonMessage } from "../model/merge";
 import { DomainError } from "@/shared/lib/errors";

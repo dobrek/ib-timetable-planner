@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapCompleted } from "@/shared/lib/postgrest";
+import { unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import type { DeletePlanInput } from "../model/schemas";
 
 /**

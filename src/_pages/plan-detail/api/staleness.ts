@@ -1,6 +1,6 @@
-import type { SupabaseClient } from "@/shared/api";
+import { loadCohortCourses, type SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config";
-import { computeCatalogHash, loadCohortCourses } from "@/shared/lib/catalog-hash";
+import { computeCatalogHash } from "@/shared/lib/catalog-hash";
 
 type Supabase = SupabaseClient;
 

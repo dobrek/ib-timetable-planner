@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapRow } from "@/shared/lib/postgrest";
+import { unwrapRow, type SupabaseClient } from "@/shared/api";
 import type { OverlapInput } from "../model/schemas";
 import { DomainError } from "@/shared/lib/errors";
 

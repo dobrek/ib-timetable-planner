@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapCompleted } from "@/shared/lib/postgrest";
+import { unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import type { DeleteOverlapInput } from "../model/schemas";
 
 /** Delete a directed course overlap by its (base, dependent) pair, pinned to its plan. */

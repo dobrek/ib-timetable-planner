@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapRow } from "@/shared/lib/postgrest";
+import { unwrapRow, type SupabaseClient } from "@/shared/api";
 import type { TeacherInput } from "../model/schemas";
 import { DUPLICATE_TEACHER_MESSAGE } from "./constants";
 

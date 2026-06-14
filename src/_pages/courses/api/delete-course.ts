@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapCompleted } from "@/shared/lib/postgrest";
+import { unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import type { DeleteCourseInput } from "../model/schemas";
 
 /** Delete a course by id, pinned to its plan (merge/overlap links cascade via FK). */

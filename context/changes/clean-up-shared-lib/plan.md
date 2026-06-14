@@ -426,12 +426,12 @@ No hot-path complexity changes. The `<200ms` placement/constraint budget is pres
 
 #### Automated
 
-- [ ] 1.1 `pnpm steiger` passes (lib now well under cap)
-- [ ] 1.2 `pnpm lint` passes
-- [ ] 1.3 `pnpm test` passes (postgrest tests run from new location)
-- [ ] 1.4 `pnpm build` passes
-- [ ] 1.5 `grep -rn 'from "@/shared/lib/postgrest"' src` returns nothing
-- [ ] 1.6 `ls -1 src/shared/lib | grep -vc '^$'` == 13
+- [x] 1.1 `pnpm steiger` passes (lib now well under cap)
+- [x] 1.2 `pnpm lint` passes
+- [x] 1.3 `pnpm test` passes (postgrest tests run from new location)
+- [x] 1.4 `pnpm build` passes
+- [x] 1.5 `grep -rn 'from "@/shared/lib/postgrest"' src` returns nothing
+- [x] 1.6 `ls -1 src/shared/lib | grep -vc '^$'` == 13
 
 #### Manual
 

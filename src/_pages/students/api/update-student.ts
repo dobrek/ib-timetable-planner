@@ -1,6 +1,5 @@
-import type { SupabaseClient } from "@/shared/api";
+import { UNIQUE_VIOLATION, unwrapRow, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
-import { UNIQUE_VIOLATION, unwrapRow } from "@/shared/lib/postgrest";
 import { diffChoices } from "../model/diff-choices";
 import type { UpdateStudentInput } from "../model/schemas";
 import { assertChoicesInCohort } from "./assert-choices-in-cohort";

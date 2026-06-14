@@ -1,5 +1,4 @@
-import type { Database, SupabaseClient } from "@/shared/api";
-import { unwrapRow } from "@/shared/lib/postgrest";
+import { unwrapRow, type Database, type SupabaseClient } from "@/shared/api";
 import type { RenamePlanInput } from "../model/schemas";
 
 type PlanRecord = Database["public"]["Tables"]["plans"]["Row"];

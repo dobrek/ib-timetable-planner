@@ -1,4 +1,4 @@
-import { DomainError } from "../errors";
+import { DomainError } from "@/shared/lib/errors";
 
 /** PostgREST surfaces a Postgres unique-constraint violation with this SQLSTATE. */
 export const UNIQUE_VIOLATION = "23505";
@@ -29,6 +29,15 @@ export function unwrapRow<T>(result: RowResult<T>, messages: RowMessages): T {
 export function unwrapCompleted(result: { error: PostgrestError | null }, failure: string): { ok: true } {
   if (result.error) throw toDomainError(result.error, { failure });
   return { ok: true as const };
+}
+
+/** Throw a DomainError when any of a batch of parallel PostgREST reads failed. */
+export function assertNoQueryErrors(label: string, results: readonly { error: { message: string } | null }[]): void {
+  for (const result of results) {
+    if (result.error) {
+      throw new DomainError("INTERNAL_SERVER_ERROR", `${label} lookup failed: ${result.error.message}`);
+    }
+  }
 }
 
 function toDomainError(error: PostgrestError, messages: RowMessages): DomainError {

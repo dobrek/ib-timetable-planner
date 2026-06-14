@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { computeGroupings } from "../model/compute-groupings";
 import { EnumerationCapError } from "../model/enumerate";
-import type { SupabaseClient } from "@/shared/api";
+import { loadCohortCourses, type SupabaseClient } from "@/shared/api";
 import { cohortSchema } from "@/shared/config";
-import { computeCatalogHash, loadCohortCourses } from "@/shared/lib/catalog-hash";
+import { computeCatalogHash } from "@/shared/lib/catalog-hash";
 import { DomainError } from "@/shared/lib/errors";
 import { persistGroupings } from "./persist";
 

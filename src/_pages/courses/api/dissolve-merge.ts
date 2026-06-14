@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapCompleted } from "@/shared/lib/postgrest";
+import { unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import type { DissolveMergeInput } from "../model/schemas";
 import { assertMergeParent } from "./assert-merge-parent";
 

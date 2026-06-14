@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@/shared/api";
-import { unwrapCompleted } from "@/shared/lib/postgrest";
+import { unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import type { DeleteTeacherInput } from "../model/schemas";
 
 /** Delete a teacher by id, pinned to its plan. courses.teacher_id cascades to SET NULL via FK. */

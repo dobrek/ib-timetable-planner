@@ -1,9 +1,8 @@
 import { z } from "zod";
 import type { PlannerPlacement } from "../model/placement";
-import type { SupabaseClient } from "@/shared/api";
+import { UNIQUE_VIOLATION, type SupabaseClient } from "@/shared/api";
 import { cohortSchema, GRID_BOUNDS } from "@/shared/config";
 import { DomainError } from "@/shared/lib/errors";
-import { UNIQUE_VIOLATION } from "@/shared/lib/postgrest";
 
 type Supabase = SupabaseClient;
 

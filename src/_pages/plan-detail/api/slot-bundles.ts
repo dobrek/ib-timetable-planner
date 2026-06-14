@@ -1,8 +1,7 @@
 import { z } from "zod";
-import type { SupabaseClient } from "@/shared/api";
+import { UNIQUE_VIOLATION, type SupabaseClient } from "@/shared/api";
 import { cohortSchema, GRID_BOUNDS } from "@/shared/config";
 import { DomainError } from "@/shared/lib/errors";
-import { UNIQUE_VIOLATION } from "@/shared/lib/postgrest";
 
 /**
  * Slot-bundle overrides have INVERTED semantics: a `slot_bundles` row PRESENT

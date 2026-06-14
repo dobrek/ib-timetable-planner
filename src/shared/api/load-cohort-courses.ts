@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config/cohorts";
 import { unique } from "@/shared/lib/collections";
-import type { CohortCatalog, ComputeWarning, GroupingCourse } from "./types";
+import type { CohortCatalog, ComputeWarning, GroupingCourse } from "@/shared/lib/catalog-hash";
 
 type Supabase = SupabaseClient;
 

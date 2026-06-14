@@ -1,6 +1,5 @@
-import type { SupabaseClient } from "@/shared/api";
+import { unwrapRow, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
-import { unwrapRow } from "@/shared/lib/postgrest";
 import { writeParentWithLinks } from "@/shared/lib/write-parent-with-links";
 import type { StudentInput } from "../model/schemas";
 import { assertChoicesInCohort } from "./assert-choices-in-cohort";

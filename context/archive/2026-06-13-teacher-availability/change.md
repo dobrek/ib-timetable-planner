@@ -1,10 +1,10 @@
 ---
 change_id: teacher-availability
 title: Teacher availability
-status: impl_reviewed
+status: archived
 created: 2026-06-13
 updated: 2026-06-14
-archived_at: null
+archived_at: 2026-06-14T18:31:00Z
 ---
 
 ## Notes

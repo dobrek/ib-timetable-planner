@@ -3,7 +3,7 @@ project: IB Schedule Planner
 version: 3
 status: draft
 created: 2026-05-25
-updated: 2026-06-12
+updated: 2026-06-14
 prd_version: 2
 main_goal: market-feedback
 top_blocker: decisions
@@ -36,7 +36,7 @@ PRD §Business Logic names two paired rules — **recommendation** (the grouping
 | F-03 | port-grouping-algorithm              | (foundation) pure-function port of the existing CSV grouping algorithm, edge-runtime safe            | F-02                   | FR-013, Business Logic (recommendation rule)        | done |
 | S-01 | first-valid-drop-with-validation     | drag a pre-seeded Y1 grouping onto a slot and see live student-collision validation                  | F-01, F-02, F-03       | US-01(d), FR-008, FR-011, FR-012, Business Logic    | done     |
 | S-02 | course-and-dependency-catalog-ui     | CRUD courses `(name, level, group-index)` + overlap/merge dependencies + weekly hours                | F-01, F-02             | FR-002, FR-003, FR-003A                             | done     |
-| S-03 | teachers-and-availability-catalog-ui | CRUD teachers/assignments/availability; online validator extends to teacher + availability classes   | S-01, S-02             | FR-004, FR-005, FR-012                              | blocked  |
+| S-03 | teachers-and-availability-catalog-ui | CRUD teachers/assignments/availability; online validator extends to teacher + availability classes   | S-01, S-02             | FR-004, FR-005, FR-012                              | done     |
 | S-04 | students-and-choices-ui              | CRUD students and their course choices (primary entry path)                                          | F-01, F-02, S-02       | FR-006                                              | done     |
 | S-05 | csv-import-students                  | bulk-import students from the existing `students_subjects.csv` without silently overwriting UI edits | S-04                   | FR-007, NFR Single-source-of-truth                  | proposed |
 | S-06 | compute-groupings-from-catalog       | run F-03 against the populated catalog from the authoring UI and see the ranked groupings list       | F-03, S-02, S-03, S-04 | FR-013, Business Logic (recommendation rule)        | proposed |
@@ -154,7 +154,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
   - **Drop UX policy (PRD Q8)** is inherited — once there are three collision classes, the cost of an unclear invalid-drop presentation grows. Owner: user / design. Block: **yes**.
   - Teacher hours-per-week (PRD Q5), teacher soft preferences (PRD Q6) — Owner: user. Block: no (outside MVP per Non-Goals).
 - **Risk:** Validator classes start to compound — this is the first place where aggregating multiple constraint classes might push the online p95 budget. Sequenced after the northstar so the validator's baseline performance is already known.
-- **Status:** blocked
+- **Status:** done
 
 ### S-04: students-and-choices-ui
 
@@ -301,6 +301,7 @@ What's already in place in the codebase as of 2026-05-25 (auto-researched + user
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips the item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived.)
 
+- **S-03: CRUD teachers + availability; online validator extends to teacher + availability classes** — Archived 2026-06-14 → `context/archive/2026-06-13-teacher-availability/`. Lesson: —.
 - **S-04: CRUD students and their course choices (primary entry path)** — Archived 2026-06-12 → `context/archive/2026-06-11-students-and-choices-ui/`. Lesson: —.
 - **S-02: CRUD courses + overlap/merge dependencies + weekly hours** — Archived 2026-06-12 → `context/archive/2026-06-07-course-catalog/`. Lesson: —.
 - **F-01: (foundation) closed registration — only approved authors can hold an account** — Archived 2026-06-12 → `context/archive/2026-05-29-gated-author-provisioning/`. Lesson: —.

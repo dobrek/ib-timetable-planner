@@ -41,11 +41,14 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
     (row) => row.child_course_id,
   );
   const mergeChildIds = new Set(mergeRows.map((row) => row.child_course_id));
+  const mergeParentIds = new Set(childrenOf.keys());
 
   const studentsOf = (courseId: string): string[] => directStudents.get(courseId) ?? [];
 
+  // A merge parent is represented once, as a virtual course — exclude it here even if it
+  // also carries direct choices, so the same id can't enter both buckets (bug #5).
   const regularCourses: GroupingCourse[] = courseRows
-    .filter((course) => directStudents.has(course.id))
+    .filter((course) => directStudents.has(course.id) && !mergeParentIds.has(course.id))
     .map((course) => ({
       id: course.id,
       teacherKey: course.teacher_id,
@@ -55,11 +58,14 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
 
   const virtualCourses: GroupingCourse[] = [...childrenOf.entries()].map(([parentId, childIds]) => {
     const parent = courseById.get(parentId);
+    // Merge rows are fetched by parent_course_id IN courseIds, so the parent is always
+    // present; fail loudly rather than fabricating a phantom (teacherKey:null, hours:0).
+    if (!parent) throw new Error(`Merge parent ${parentId} missing from the plan-cohort catalog`);
     return {
       id: parentId,
-      teacherKey: parent?.teacher_id ?? null,
-      hours: parent?.hours_per_week ?? 0,
-      studentKeys: childIds.flatMap(studentsOf),
+      teacherKey: parent.teacher_id,
+      hours: parent.hours_per_week,
+      studentKeys: [...studentsOf(parentId), ...childIds.flatMap(studentsOf)],
     };
   });
 

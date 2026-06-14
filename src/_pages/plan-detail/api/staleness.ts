@@ -1,4 +1,4 @@
-import { loadCohortCourses, type SupabaseClient } from "@/shared/api";
+import { loadCohortCourses, unwrapMaybeRow, type SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config";
 import { computeCatalogHash } from "@/shared/lib/catalog-hash";
 
@@ -17,15 +17,17 @@ export const isGroupingStale = async (
   const { courses } = await loadCohortCourses(supabase, params.planId, params.cohort);
   const currentHash = await computeCatalogHash(courses);
 
-  const { data, error } = await supabase
-    .from("course_groupings")
-    .select("catalog_hash")
-    .eq("plan_id", params.planId)
-    .eq("cohort", params.cohort)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(`Failed to read stored grouping hash: ${error.message}`);
+  const stored = unwrapMaybeRow(
+    await supabase
+      .from("course_groupings")
+      .select("catalog_hash")
+      .eq("plan_id", params.planId)
+      .eq("cohort", params.cohort)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    "Failed to read stored grouping hash",
+  );
 
-  return data?.catalog_hash == null || data.catalog_hash !== currentHash;
+  return stored?.catalog_hash == null || stored.catalog_hash !== currentHash;
 };

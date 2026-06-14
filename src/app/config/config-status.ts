@@ -12,9 +12,9 @@ export const configStatuses: ConfigStatus[] = [
   {
     name: "Supabase",
     configured: Boolean(SUPABASE_URL && SUPABASE_KEY),
-    message: "Supabase nie jest skonfigurowany — funkcje uwierzytelniania są wyłączone.",
-    docsUrl: "https://github.com/przeprogramowani/10x-astro-starter#supabase-configuration",
-    docsLabel: "Zobacz instrukcję konfiguracji",
+    message: "Supabase is not configured — authentication features are disabled.",
+    docsUrl: "https://github.com/dobrek/ib-timetable-planner#supabase",
+    docsLabel: "See the configuration guide",
   },
 ];
 

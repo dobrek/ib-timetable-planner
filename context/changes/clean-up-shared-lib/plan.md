@@ -475,29 +475,29 @@ No hot-path complexity changes. The `<200ms` placement/constraint budget is pres
 
 #### Automated
 
-- [x] 4.1 `pnpm lint` passes (no unused inline decoders left)
-- [x] 4.2 `pnpm test` passes
-- [x] 4.3 `pnpm build` passes
-- [x] 4.4 `pnpm steiger` passes
-- [x] 4.5 Inline `{data,error}` decoders removed from slice code
+- [x] 4.1 `pnpm lint` passes (no unused inline decoders left) — b33f718
+- [x] 4.2 `pnpm test` passes — b33f718
+- [x] 4.3 `pnpm build` passes — b33f718
+- [x] 4.4 `pnpm steiger` passes — b33f718
+- [x] 4.5 Inline `{data,error}` decoders removed from slice code — b33f718
 
 #### Manual
 
-- [x] 4.6 A multi-row read path returns identical data + error behavior
-- [x] 4.7 Grouping-dependent UI renders identically
+- [x] 4.6 A multi-row read path returns identical data + error behavior — b33f718
+- [x] 4.7 Grouping-dependent UI renders identically — b33f718
 
 ### Phase 5: Bug fixes + unit tests
 
 #### Automated
 
-- [ ] 5.1 `pnpm test` passes, including new + bug-lock tests
-- [ ] 5.2 `pnpm lint` passes (no leftover eslint-disable for bug #2)
-- [ ] 5.3 `pnpm build` passes
-- [ ] 5.4 `pnpm steiger` passes
-- [ ] 5.5 `compute-catalog-hash` test asserts a fixed digest (locks bug #1)
+- [x] 5.1 `pnpm test` passes, including new + bug-lock tests
+- [x] 5.2 `pnpm lint` passes (no leftover eslint-disable for bug #2)
+- [x] 5.3 `pnpm build` passes
+- [x] 5.4 `pnpm steiger` passes
+- [x] 5.5 `compute-catalog-hash` test asserts a fixed digest (locks bug #1)
 
 #### Manual
 
-- [ ] 5.6 Clone a plan: staleness/hash flow correct across re-load
-- [ ] 5.7 Confirm dialog: rapid double-click does not double-submit; no post-unmount warning
-- [ ] 5.8 Config banner copy reads correctly (English, correct docs link)
+- [x] 5.6 Clone a plan: staleness/hash flow correct across re-load
+- [x] 5.7 Confirm dialog: rapid double-click does not double-submit; no post-unmount warning
+- [x] 5.8 Config banner copy reads correctly (English, correct docs link)

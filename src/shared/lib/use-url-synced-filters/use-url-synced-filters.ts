@@ -1,13 +1,13 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 /**
  * Owns filter state mirrored into the URL query so a post-mutation
  * `navigate(pathname + search)` preserves it. State starts at SSR-safe defaults, then
- * seeds from the URL on mount; until then it isn't mirrored back, so the first render
- * can't clobber a bookmarked URL.
+ * seeds from the URL once on mount; until then it isn't mirrored back, so the first
+ * render can't clobber a bookmarked URL.
  *
- * `parse` and `serialize` must be referentially stable (module-level functions or
- * `useCallback`) — the seed effect re-runs when `parse` changes.
+ * The seed runs exactly once (a mount guard), so an unstable `parse` identity can't
+ * re-fire it and overwrite in-flight user edits.
  */
 export function useUrlSyncedFilters<T>(
   initial: T,
@@ -16,12 +16,13 @@ export function useUrlSyncedFilters<T>(
 ): { state: T; setState: Dispatch<SetStateAction<T>>; ready: boolean } {
   const [state, setState] = useState(initial);
   const [ready, setReady] = useState(false);
+  const seeded = useRef(false);
 
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect -- client-only URL state, seeded after the SSR-matching first render */
+    if (seeded.current) return;
+    seeded.current = true;
     setState(parse(window.location.search));
     setReady(true);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [parse]);
 
   useEffect(() => {

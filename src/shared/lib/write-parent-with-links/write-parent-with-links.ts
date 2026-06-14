@@ -17,7 +17,12 @@ export const writeParentWithLinks = async <T extends { id: string }>(ops: WriteP
   try {
     await ops.insertLinks(parent);
   } catch (error) {
-    await ops.deleteParent(parent);
+    // The original link error must always win: a rejecting cleanup must not replace it.
+    try {
+      await ops.deleteParent(parent);
+    } catch {
+      // Cleanup failed too — leaves an orphan parent, but the link error still propagates below.
+    }
     throw error;
   }
   return parent;

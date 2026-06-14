@@ -8,6 +8,7 @@ export {
   UNIQUE_VIOLATION,
   NOT_FOUND_ROW,
   unwrapRow,
+  unwrapMaybeRow,
   unwrapMany,
   unwrapCompleted,
   assertNoQueryErrors,

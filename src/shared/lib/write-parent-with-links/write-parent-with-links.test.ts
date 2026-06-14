@@ -33,4 +33,19 @@ describe("writeParentWithLinks", () => {
 
     expect(deleteParent).toHaveBeenCalledWith(parent);
   });
+
+  it("rethrows the original link error even when cleanup (deleteParent) also fails", async () => {
+    const linkError = new Error("link insert failed");
+    const deleteParent = vi.fn().mockRejectedValue(new Error("cleanup failed"));
+
+    await expect(
+      writeParentWithLinks({
+        insertParent: () => Promise.resolve(parent),
+        insertLinks: () => Promise.reject(linkError),
+        deleteParent,
+      }),
+    ).rejects.toBe(linkError);
+
+    expect(deleteParent).toHaveBeenCalledWith(parent);
+  });
 });

@@ -244,27 +244,27 @@ None. No schema or data changes.
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `pnpm test`
-- [x] 1.2 Linting + type-check passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Production build stays clean: `pnpm build`
+- [x] 1.1 Unit tests pass: `pnpm test` — 000b06f
+- [x] 1.2 Linting + type-check passes: `pnpm lint` — 000b06f
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — 000b06f
+- [x] 1.4 Production build stays clean: `pnpm build` — 000b06f
 
 #### Manual
 
-- [x] 1.5 Boxes render by student total desc, then course count desc
-- [x] 1.6 Order is identical across a full page reload
-- [x] 1.7 Leading-course filter narrows the list while preserving order
+- [x] 1.5 Boxes render by student total desc, then course count desc — 000b06f
+- [x] 1.6 Order is identical across a full page reload — 000b06f
+- [x] 1.7 Leading-course filter narrows the list while preserving order — 000b06f
 
 ### Phase 2: Student total in the box header
 
 #### Automated
 
-- [x] 2.1 Linting + type-check passes: `pnpm lint`
-- [x] 2.2 FSD structure check passes: `pnpm steiger`
-- [x] 2.3 Production build stays clean: `pnpm build`
+- [x] 2.1 Linting + type-check passes: `pnpm lint` — 000b06f
+- [x] 2.2 FSD structure check passes: `pnpm steiger` — 000b06f
+- [x] 2.3 Production build stays clean: `pnpm build` — 000b06f
 
 #### Manual
 
-- [x] 2.4 Each header shows the student total, equal to the sum of member subjects' students
-- [x] 2.5 The number matches the Phase 1 ordering
-- [x] 2.6 Header styling follows theme tokens and the drag handle still works
+- [x] 2.4 Each header shows the student total, equal to the sum of member subjects' students — 000b06f
+- [x] 2.5 The number matches the Phase 1 ordering — 000b06f
+- [x] 2.6 Header styling follows theme tokens and the drag handle still works — 000b06f

@@ -1,10 +1,10 @@
 ---
 change_id: group-dragging
 title: Group dragging
-status: impl_reviewed
+status: archived
 created: 2026-06-12
-updated: 2026-06-12
-archived_at: null
+updated: 2026-06-14
+archived_at: 2026-06-14T20:34:52Z
 ---
 
 ## Notes

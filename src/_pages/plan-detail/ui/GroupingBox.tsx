@@ -45,6 +45,9 @@ export default function GroupingBox({ grouping, names, hours }: Props) {
       >
         <GripVertical className="text-muted-foreground size-4" />
         <span>{grouping.memberIds.length} courses</span>
+        <span data-slot="students-counter" className="text-muted-foreground ml-auto shrink-0 tabular-nums">
+          {grouping.coverageCount} students
+        </span>
       </div>
       <ul className="space-y-1 px-2 pb-2">
         {grouping.memberIds.map((courseId) => (

@@ -1,7 +1,7 @@
 ---
 change_id: planner-picking-leading-course
 title: Planner picking leading course
-status: implementing
+status: implemented
 created: 2026-06-14
 updated: 2026-06-15
 archived_at: null

@@ -215,13 +215,13 @@ hotspot.
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `pnpm test`
-- [x] 1.2 Type checking + lint pass: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Production build is clean: `pnpm build`
+- [x] 1.1 Unit tests pass: `pnpm test` — c14fe51
+- [x] 1.2 Type checking + lint pass: `pnpm lint` — c14fe51
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — c14fe51
+- [x] 1.4 Production build is clean: `pnpm build` — c14fe51
 
 #### Manual
 
-- [x] 1.5 Default order is group-count ascending with counts; selection filters the palette as before
-- [x] 1.6 Toggle switches to alphabetical live, marks active mode, keeps counts; reload resets to group-count
-- [x] 1.7 "All groupings" clears; trigger shows the selected course; layout holds for long names and single/empty lists
+- [x] 1.5 Default order is group-count ascending with counts; selection filters the palette as before — c14fe51
+- [x] 1.6 Toggle switches to alphabetical live, marks active mode, keeps counts; reload resets to group-count — c14fe51
+- [x] 1.7 "All groupings" clears; trigger shows the selected course; layout holds for long names and single/empty lists — c14fe51

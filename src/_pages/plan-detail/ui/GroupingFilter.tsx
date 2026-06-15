@@ -1,4 +1,19 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
+import { useState } from "react";
+import { ArrowDownUp } from "lucide-react";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui";
+import { leadingCourseOptions, sortByGroupCount, sortByName } from "../model/leading-course-options";
 import type { PlannerGrouping } from "../model/grouping";
 
 type Props = {
@@ -8,21 +23,47 @@ type Props = {
   onChange: (courseId: string | null) => void;
 };
 
+type SortOrder = "by-groups" | "alphabetic";
+
 /** Sentinel for the cleared filter — Radix Select reserves "" for the placeholder. */
 const ALL = "__all__";
 
 /**
  * Leading-course filter: pick a course and the palette shows only groupings whose
  * member set contains it (membership filter — no seed data needed). The option list
- * is the distinct set of courses that appear in at least one grouping, so every
- * choice narrows to something. Clearing returns all groupings.
+ * is the distinct set of courses that appear in at least one grouping, each labelled
+ * with its group count, so every choice narrows to something. Options default to
+ * fewest-groupings-first (most constrained surface first); an icon-button toggle
+ * switches to alphabetic order. Clearing returns all groupings.
  */
 export default function GroupingFilter({ groupings, names, value, onChange }: Props) {
-  const courses = leadingCourseOptions(groupings, names);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("by-groups");
+  const base = leadingCourseOptions(groupings, names);
+  const courses = sortOrder === "by-groups" ? sortByGroupCount(base) : sortByName(base);
 
   return (
     <div className="flex flex-col gap-1 text-sm" data-slot="grouping-filter">
-      <span className="text-muted-foreground font-medium">Leading course</span>
+      <div className="flex items-center gap-1">
+        <span className="text-muted-foreground font-medium">Leading course</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="ml-auto size-7" aria-label="Sort order">
+              <ArrowDownUp aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuRadioGroup
+              value={sortOrder}
+              onValueChange={(next) => {
+                setSortOrder(next as SortOrder);
+              }}
+            >
+              <DropdownMenuRadioItem value="by-groups">By group count</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="alphabetic">Alphabetical</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <Select
         value={value ?? ALL}
         onValueChange={(next) => {
@@ -36,7 +77,7 @@ export default function GroupingFilter({ groupings, names, value, onChange }: Pr
           <SelectItem value={ALL}>All groupings</SelectItem>
           {courses.map((course) => (
             <SelectItem key={course.id} value={course.id}>
-              {course.name}
+              {`${course.name} (${course.groupCount})`}
             </SelectItem>
           ))}
         </SelectContent>
@@ -44,11 +85,3 @@ export default function GroupingFilter({ groupings, names, value, onChange }: Pr
     </div>
   );
 }
-
-const leadingCourseOptions = (
-  groupings: PlannerGrouping[],
-  names: Record<string, string>,
-): { id: string; name: string }[] => {
-  const ids = new Set(groupings.flatMap((grouping) => grouping.memberIds));
-  return [...ids].map((id) => ({ id, name: names[id] ?? id })).sort((a, b) => a.name.localeCompare(b.name));
-};

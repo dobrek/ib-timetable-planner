@@ -1,38 +1,38 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
+import { addAvailability, createPlan, seedPlanCatalog, teardown } from "@/test/factories";
 import { loadPlannerData } from "./load";
 
 // Proves `loadPlannerData` ships the teacher/student name records the collision
 // detail Dialog resolves ids through: every `teacherKey`/`studentKey` present in
 // the returned validation catalog must be covered, and a teacher without a
-// `full_name` must resolve to their `code` (the seed inserts teachers with code
-// only). Local-only: connects with the service_role/secret key (bypasses RLS);
-// skips cleanly when the env or stack is unavailable. Targets "Seed Plan A",
-// whose dp1 cohort the board loads.
+// `full_name` must resolve to their `code` (the factory seeds teachers with code
+// only, like the seed). Local-only: connects with the service_role/secret key
+// (bypasses RLS); skips cleanly when the env or stack is unavailable. Owns a
+// factory-seeded plan whose dp1 cohort the board loads.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PLAN_NAME = "Seed Plan A";
 
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
 (hasEnv ? describe : describe.skip)("loadPlannerData name records (dp1)", () => {
   let supabase: SupabaseClient<Database>;
-  let planId: string | null = null;
+  let planId: string;
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
+    planId = await createPlan(supabase);
+    await seedPlanCatalog(supabase, planId);
+  });
 
-    const { data: plan, error } = await supabase.from("plans").select("id").eq("name", PLAN_NAME).limit(1).single();
-    if (error) throw new Error(`Seed plan "${PLAN_NAME}" not found — re-run supabase db reset: ${error.message}`);
-    planId = plan.id;
+  afterAll(async () => {
+    await teardown(supabase);
   });
 
   it("ships name records covering every teacher and student key in the catalog", async () => {
-    if (!planId) throw new Error("beforeAll did not resolve the seed plan");
-
     const result = await loadPlannerData(supabase, planId);
     if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
     const { catalog, teacherNames, studentNames } = result.value.props;
@@ -51,8 +51,6 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   });
 
   it("resolves a teacher without full_name to their code", async () => {
-    if (!planId) throw new Error("beforeAll did not resolve the seed plan");
-
     const result = await loadPlannerData(supabase, planId);
     if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
     const { teacherNames } = result.value.props;
@@ -65,17 +63,17 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     if (error) throw new Error(`Teacher lookup failed: ${error.message}`);
 
     const nameless = teachers.filter((teacher) => teacher.full_name === null);
-    expect(nameless.length).toBeGreaterThan(0); // the seed inserts teachers with code only
+    expect(nameless.length).toBeGreaterThan(0); // the factory seeds teachers with code only
     for (const teacher of nameless) expect(teacherNames[teacher.id]).toBe(teacher.code);
   });
 });
 
-// Self-contained (bare plan + one teacher + one availability cell), isolated from the seed —
-// proves the board loader fetches availability by plan only (cohort-independent) and projects
-// each row to the island shape.
+// Self-contained (factory plan + one teacher + one availability cell) — proves the
+// board loader fetches availability by plan only (cohort-independent) and projects
+// each row to the island shape. Already bare-plan; now uses the factory for the
+// plan lifecycle for consistency.
 (hasEnv ? describe : describe.skip)("loadPlannerData availability shape", () => {
   let supabase: SupabaseClient<Database>;
-  const createdPlanIds: string[] = [];
 
   beforeAll(() => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
@@ -83,30 +81,22 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   });
 
   afterAll(async () => {
-    if (createdPlanIds.length > 0) await supabase.from("plans").delete().in("id", createdPlanIds);
+    await teardown(supabase);
   });
 
   it("ships availability cells projected to teacherKey/day/period/severity", async () => {
-    const { data: plan, error: planError } = await supabase
-      .from("plans")
-      .insert({ name: "Avail Load Probe", slot_grid_preset: "5x10" })
-      .select("id")
-      .single();
-    if (planError) throw planError;
-    createdPlanIds.push(plan.id);
+    const planId = await createPlan(supabase, { name: "Avail Load Probe" });
 
     const { data: teacher, error: teacherError } = await supabase
       .from("teachers")
-      .insert({ plan_id: plan.id, code: "AVL", full_name: "Avail Loader" })
+      .insert({ plan_id: planId, code: "AVL", full_name: "Avail Loader" })
       .select("id")
       .single();
     if (teacherError) throw teacherError;
 
-    await supabase
-      .from("teacher_availability")
-      .insert({ plan_id: plan.id, teacher_id: teacher.id, day: 3, period: 2, severity: "strong" });
+    await addAvailability(supabase, { planId, teacherId: teacher.id, day: 3, period: 2, severity: "strong" });
 
-    const result = await loadPlannerData(supabase, plan.id);
+    const result = await loadPlannerData(supabase, planId);
     if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
     expect(result.value.props.availability).toEqual([
       { teacherKey: teacher.id, day: 3, period: 2, severity: "strong" },

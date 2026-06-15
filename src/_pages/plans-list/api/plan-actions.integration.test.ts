@@ -3,47 +3,42 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadCohortCourses, type Database } from "@/shared/api";
 import { computeCatalogHash } from "@/shared/lib/catalog-hash";
 import { DomainError } from "@/shared/lib/errors";
+import { createPlan as createFactoryPlan, registerPlan, seedPlanCatalog, teardown } from "@/test/factories";
 import { createPlan } from "./create-plan";
 import { clonePlan } from "./clone-plan";
 import { renamePlan } from "./rename-plan";
 import { deletePlan } from "./delete-plan";
 
-// Drives the plan-hub domain functions directly against the seeded local Supabase
-// with the service_role/secret client, mirroring the other suites. Skips when the
-// env/stack is unavailable.
+// Drives the plan-hub domain functions directly against the local Supabase with the
+// service_role/secret client, mirroring the other suites. Skips when the env/stack
+// is unavailable.
 //
 // Coverage (plan.md Phase 4 #4): create → rename → delete round-trip; delete
 // cascades the full scenario; the clonePlan domain function leaves cloned
 // groupings non-stale (hash matches a fresh computeCatalogHash over the clone's
-// catalog). Like the clone-RPC suite, it snapshots "Seed Plan A" first so
-// parallel files mutating the seed plan can't race it.
+// catalog). Plan-rooted isolation: the base is a factory-owned, CSV-seeded plan
+// the clone tests source from; every created plan is registered for teardown.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PLAN_NAME = "Seed Plan A";
 
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
 (hasEnv ? describe : describe.skip)("plan actions (local Supabase)", () => {
   let supabase: SupabaseClient<Database>;
   let basePlanId: string;
-  const createdPlanIds: string[] = [];
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
 
-    const { data: seedPlan, error } = await supabase.from("plans").select("id").eq("name", PLAN_NAME).limit(1).single();
-    if (error) throw new Error(`Seed plan "${PLAN_NAME}" not found — re-run supabase db reset: ${error.message}`);
-
-    // Atomic snapshot of the seed plan: the frozen source for the clone tests.
-    const base = await clonePlan(supabase, { sourcePlanId: seedPlan.id, name: "Plan Actions Base" });
-    basePlanId = base.id;
-    createdPlanIds.push(basePlanId);
+    // Factory-owned, CSV-seeded base: the frozen source for the clone tests.
+    basePlanId = await createFactoryPlan(supabase, { name: "Plan Actions Base" });
+    await seedPlanCatalog(supabase, basePlanId);
   });
 
   afterAll(async () => {
-    if (createdPlanIds.length > 0) await supabase.from("plans").delete().in("id", createdPlanIds);
+    await teardown(supabase);
   });
 
   const countRows = async (table: "students" | "courses" | "placements", planId: string): Promise<number> => {
@@ -57,7 +52,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
   it("creates a blank plan, renames it, and deletes it", async () => {
     const created = await createPlan(supabase, { name: "Plan Actions CRUD", slotGridPreset: "5x8" });
-    createdPlanIds.push(created.id);
+    registerPlan(created.id);
     expect(created.slot_grid_preset).toBe("5x8");
 
     // Blank by design: no catalog rows arrive with a created plan.
@@ -80,7 +75,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
   it("delete cascades the full scenario and leaves the source untouched", async () => {
     const clone = await clonePlan(supabase, { sourcePlanId: basePlanId, name: "Plan Actions Cascade" });
-    createdPlanIds.push(clone.id);
+    registerPlan(clone.id);
 
     const baseCounts = {
       students: await countRows("students", basePlanId),
@@ -119,7 +114,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     if (rpcError) throw rpcError;
 
     const clone = await clonePlan(supabase, { sourcePlanId: basePlanId, name: "Plan Actions Warm Clone" });
-    createdPlanIds.push(clone.id);
+    registerPlan(clone.id);
 
     const { courses } = await loadCohortCourses(supabase, clone.id, "dp1");
     const freshHash = await computeCatalogHash(courses);

@@ -1,22 +1,29 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
+import {
+  computeGroupingsFor,
+  createPlan as createFactoryPlan,
+  placeCourse,
+  registerPlan,
+  seedPlanCatalog,
+  teardown,
+} from "@/test/factories";
 
-// Drives the clone_plan RPC directly against the seeded local Supabase with the
-// service_role/secret client (bypasses RLS for setup + assertions), mirroring the
-// students-crud harness. Skips when the env/stack is unavailable.
+// Drives the clone_plan RPC directly against the local Supabase with the
+// service_role/secret client (bypasses RLS for setup + assertions). Skips when the
+// env/stack is unavailable.
 //
 // Coverage (plan.md Phase 2 #5): deep-copy completeness (row counts per table),
 // UUID remap (no cloned row references a source-plan row), cross-plan isolation
 // under mutation, per-plan teachers.code uniqueness, and repeated cloning.
 //
-// Other integration suites mutate "Seed Plan A" (the endpoint test persists
-// groupings) while files run in parallel, so this suite first snapshots the seed
-// plan with one atomic clone_plan call and uses that frozen base as its source.
+// Plan-rooted isolation: the source is a factory-owned, CSV-seeded plan carrying a
+// full output graph (a dp2 placement + dp2 groupings, staged so the dp1-focused
+// test below can't collide). Every created/cloned plan is registered for teardown.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PLAN_NAME = "Seed Plan A";
 
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
@@ -35,22 +42,25 @@ const PLAN_TABLES = [
 (hasEnv ? describe : describe.skip)("clone_plan RPC (local Supabase)", () => {
   let supabase: SupabaseClient<Database>;
   let sourcePlanId: string;
-  const createdPlanIds: string[] = [];
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
 
-    const { data: seedPlan, error } = await supabase.from("plans").select("id").eq("name", PLAN_NAME).limit(1).single();
-    if (error) throw new Error(`Seed plan "${PLAN_NAME}" not found — re-run supabase db reset: ${error.message}`);
-
-    // Atomic snapshot of the seed plan: the frozen source for every test below.
-    sourcePlanId = await clonePlan(seedPlan.id, "Clone Test Base");
+    // Factory-owned, CSV-seeded source with a full output graph so the deep-copy
+    // test exercises placements + groupings copy, not just the catalog. Output is
+    // staged on dp2; the warm-clone test below operates on dp1, so they never collide.
+    sourcePlanId = await createFactoryPlan(supabase, { name: "Clone Test Base" });
+    const catalog = await seedPlanCatalog(supabase, sourcePlanId);
+    const dp2Course = catalog.courses.find((c) => c.cohort === "dp2");
+    if (!dp2Course) throw new Error("seeded catalog has no dp2 course");
+    await placeCourse(supabase, { planId: sourcePlanId, cohort: "dp2", courseId: dp2Course.id, day: 1, period: 1 });
+    await computeGroupingsFor(supabase, { planId: sourcePlanId, cohort: "dp2" });
   });
 
   afterAll(async () => {
-    // Deleting the plans rows cascades each whole cloned scenario.
-    if (createdPlanIds.length > 0) await supabase.from("plans").delete().in("id", createdPlanIds);
+    // Cascade-deletes every registered plan (source + all clones).
+    await teardown(supabase);
   });
 
   const countRows = async (table: (typeof PLAN_TABLES)[number], planId: string): Promise<number> => {
@@ -65,7 +75,7 @@ const PLAN_TABLES = [
   const clonePlan = async (source: string, name: string): Promise<string> => {
     const { data, error } = await supabase.rpc("clone_plan", { p_source_plan_id: source, p_name: name });
     if (error) throw error;
-    createdPlanIds.push(data);
+    registerPlan(data);
     return data;
   };
 
@@ -221,26 +231,20 @@ const PLAN_TABLES = [
     // availability already on the seed plan (e.g. inserted by hand during manual testing),
     // mirroring the slot-bundles harness. Asserts the cell carries over with its teacher_id
     // remapped through _teacher_map (not coordinate-only like slot_bundles).
-    const { data: srcPlan, error: planError } = await supabase
-      .from("plans")
-      .insert({ name: "Avail Clone Source", slot_grid_preset: "5x10" })
-      .select("id")
-      .single();
-    if (planError) throw planError;
-    createdPlanIds.push(srcPlan.id);
+    const srcPlanId = await createFactoryPlan(supabase, { name: "Avail Clone Source" });
 
     const { data: srcTeacher, error: teacherError } = await supabase
       .from("teachers")
-      .insert({ plan_id: srcPlan.id, code: "AV1", full_name: "Availability Teacher" })
+      .insert({ plan_id: srcPlanId, code: "AV1", full_name: "Availability Teacher" })
       .select("id")
       .single();
     if (teacherError) throw teacherError;
 
     await supabase
       .from("teacher_availability")
-      .insert({ plan_id: srcPlan.id, teacher_id: srcTeacher.id, day: 2, period: 3, severity: "strong" });
+      .insert({ plan_id: srcPlanId, teacher_id: srcTeacher.id, day: 2, period: 3, severity: "strong" });
 
-    const cloneId = await clonePlan(srcPlan.id, "Avail Clone Dest");
+    const cloneId = await clonePlan(srcPlanId, "Avail Clone Dest");
     const cloneTeacherIds = await idsOf("teachers", cloneId);
 
     const { data: cloneAvail } = await supabase

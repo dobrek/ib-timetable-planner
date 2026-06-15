@@ -148,9 +148,53 @@ relevant rollout phase ships; before that, it reads "TBD — see §3 Phase N."
 
 ### 6.2 Adding an integration test
 
-- TBD — see §3 Phase 1 (API route boundary) and §3 Phase 3 (Astro Action +
-  RLS boundary). Will document the local-Supabase setup and the
-  mock-only-at-the-network-edge policy.
+**Standard pattern — plan-rooted ownership via the scenario factory** (`src/test/factories/`).
+Every integration suite owns a fresh plan and tears it down; it never reads the shared
+dev seed by name (a grep guard, `src/test/no-seed-coupling.test.ts`, fails CI if a
+`Seed Plan A`/`Seed Plan B` lookup is reintroduced). This keeps the lane parallel-safe
+by construction and resilient to a dev-DB exchange.
+
+```ts
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Database } from "@/shared/api";
+import { createPlan, seedPlanCatalog, teardown } from "@/test/factories";
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
+
+(hasEnv ? describe : describe.skip)("my feature (local Supabase)", () => {
+  let supabase: SupabaseClient<Database>;
+  let planId: string;
+
+  beforeAll(async () => {
+    if (!SUPABASE_URL || !SERVICE_KEY) return;
+    supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
+    planId = await createPlan(supabase);        // owned plan, registered for teardown
+    await seedPlanCatalog(supabase, planId);    // real CSV catalog (both cohorts)
+  });
+
+  afterAll(async () => {
+    await teardown(supabase);                   // cascade-deletes every owned plan
+  });
+
+  // ... drive the real domain functions against `planId` ...
+});
+```
+
+- **Builders.** Input: `addAvailability`, `addMerge`, `addStudentWithChoices`. Output
+  via the real domain functions (computed, not transcribed): `placeCourse`
+  (`insertPlacement`), `ungroupSlot` (`insertOverride`), `computeGroupingsFor`
+  (`computeAndPersistGroupings`). `seedPlanCatalog` returns the inserted rows for id lookups.
+- **Externally-created plans** (e.g. a `clone_plan` result) — call `registerPlan(id)` so
+  teardown reaps them too.
+- **Run** with `pnpm test:integration` (needs the local stack: `supabase start` +
+  `.env.test.local`, or `$GITHUB_ENV` in CI). Suites `describe.skip` locally when the
+  env is absent; CI fails loudly via the `load-test-env.ts` gate.
+- **Catalog source.** The factory seeds from the same `data/dp1|dp2` CSVs as the seed
+  generator, through the shared `scripts/lib/catalog-transcode.mjs` (byte-identical-seed
+  guarded) — so CSV-derived oracles (`adapter-parity`, `load`) stay valid.
 
 ### 6.3 Adding an e2e test
 

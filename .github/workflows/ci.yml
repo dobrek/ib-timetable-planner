@@ -67,10 +67,9 @@ jobs:
       - name: Export Supabase env
         run: supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY | sed 's/"//g' >> "$GITHUB_ENV"
 
-      # Serial-in-Phase-1 hedge: the seed-coupled suites still coordinate by hand
-      # until Phase 3 lands plan-rooted isolation. Run single-file so CI timing
-      # can't expose a cross-suite race before the isolation fix. Phase 3 removes this.
-      - run: pnpm test:integration --no-file-parallelism
+      # Plan-rooted isolation (Phase 3) makes the lane parallel-safe by construction:
+      # every suite owns a fresh plan and tears it down, reading no shared seed state.
+      - run: pnpm test:integration
 
   deploy:
     needs: [ci, integration]

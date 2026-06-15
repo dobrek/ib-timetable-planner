@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadCohortCourses, type Database } from "@/shared/api";
+import { createPlan, seedPlanCatalog, teardown } from "@/test/factories";
 import type { GroupingCourse } from "../model/grouping";
 import { loadFixtureCourses } from "./__fixtures__/cohort-catalog.node";
 
@@ -11,12 +12,12 @@ import { loadFixtureCourses } from "./__fixtures__/cohort-catalog.node";
 // key (composite name) and translate UUIDs back to names/codes before comparing.
 //
 // Local-only: connects with the service_role/secret key (bypasses RLS). Skips
-// cleanly when the env or stack is unavailable. Targets "Seed Plan A"'s dp2
-// cohort, which the default seed loads from data/dp2.
+// cleanly when the env or stack is unavailable. Owns a factory-seeded plan whose
+// dp2 catalog comes from the same data/dp2 CSVs the fixture oracle reads — so the
+// parity check stays meaningful while the suite depends on nothing already in the DB.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PLAN_NAME = "Seed Plan A";
 const COHORT = "dp2";
 const FIXTURE_DIR = "data/dp2";
 
@@ -24,7 +25,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
 (hasEnv ? describe : describe.skip)("dual-adapter parity (dp2)", () => {
   let supabase: SupabaseClient<Database>;
-  let planId: string | null = null;
+  let planId: string;
   let studentName: Map<string, string>;
   let teacherCode: Map<string, string>;
 
@@ -32,9 +33,8 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
 
-    const { data: plan, error } = await supabase.from("plans").select("id").eq("name", PLAN_NAME).limit(1).single();
-    if (error) throw new Error(`Seed plan "${PLAN_NAME}" not found — re-run supabase db reset: ${error.message}`);
-    planId = plan.id;
+    planId = await createPlan(supabase);
+    await seedPlanCatalog(supabase, planId);
 
     const { data: students } = await supabase.from("students").select("id, full_name").eq("plan_id", planId);
     studentName = new Map((students ?? []).map((s) => [s.id, s.full_name]));
@@ -43,9 +43,11 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     teacherCode = new Map((teachers ?? []).map((t) => [t.id, t.code]));
   });
 
-  it("Supabase adapter ≡ fixture adapter on the dp2 catalog", async () => {
-    if (!planId) throw new Error("beforeAll did not resolve the seed plan");
+  afterAll(async () => {
+    await teardown(supabase);
+  });
 
+  it("Supabase adapter ≡ fixture adapter on the dp2 catalog", async () => {
     const fixtureCourses = loadFixtureCourses(FIXTURE_DIR);
     const { courses: dbCourses, names } = await loadCohortCourses(supabase, planId, COHORT);
 

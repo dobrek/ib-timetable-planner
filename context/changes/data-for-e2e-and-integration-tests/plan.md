@@ -497,27 +497,27 @@ schema migrations. Rollback = revert the commits; no data to preserve.
 
 #### Automated
 
-- [x] 2.1 `node scripts/gen-seed.mjs` output byte-identical to committed `supabase/seed.sql`
-- [x] 2.2 `pnpm test:integration` stays green (harness exercised)
-- [x] 2.3 Factory smoke test: `createPlan` + `seedPlanCatalog` + output builder → `teardown` cascade-removes plan(s)
-- [x] 2.4 `pnpm lint`, `pnpm steiger`, type-check, `pnpm build` clean
+- [x] 2.1 `node scripts/gen-seed.mjs` output byte-identical to committed `supabase/seed.sql` — fdb76dd
+- [x] 2.2 `pnpm test:integration` stays green (harness exercised) — fdb76dd
+- [x] 2.3 Factory smoke test: `createPlan` + `seedPlanCatalog` + output builder → `teardown` cascade-removes plan(s) — fdb76dd
+- [x] 2.4 `pnpm lint`, `pnpm steiger`, type-check, `pnpm build` clean — fdb76dd
 
 #### Manual
 
-- [x] 2.5 Studio spot-check: factory-seeded plan matches a real seed plan
+- [x] 2.5 Studio spot-check: factory-seeded plan matches a real seed plan — fdb76dd
 
 ### Phase 3: Migrate all six seed-coupled suites
 
 #### Automated
 
-- [ ] 3.1 `pnpm test:integration` green with all six suites migrated
-- [ ] 3.2 Grep-guard unit test passes (and fails on a reintroduced `"Seed Plan"` reference)
-- [ ] 3.3 No `*.integration.test.ts` references `"Seed Plan A"`/`"Seed Plan B"`
-- [ ] 3.4 `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 3.1 `pnpm test:integration` green with all six suites migrated
+- [x] 3.2 Grep-guard unit test passes (and fails on a reintroduced `"Seed Plan"` reference)
+- [x] 3.3 No `*.integration.test.ts` references `"Seed Plan A"`/`"Seed Plan B"`
+- [x] 3.4 `pnpm lint`, `pnpm steiger`, `pnpm build` clean
 
 #### Manual
 
-- [ ] 3.5 One-time seed-independence check passes (alter seed → reset → green → restore)
+- [x] 3.5 One-time seed-independence check passes (alter seed → reset → green → restore)
 
 ### Phase 4: Action-boundary unit tests
 

@@ -1,19 +1,18 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
-import { computeAndPersistGroupings } from "./grouping-compute";
+import { computeGroupingsFor, createPlan, seedPlanCatalog, teardown } from "@/test/factories";
 import { isGroupingStale } from "./staleness";
 
-// Exercises the full compute path against the seeded dp2 catalog with the
-// service_role/secret client (bypasses RLS for setup + assertions). The Astro
-// Action couples to astro:env, so we drive the same domain function the handler
-// runs (load → compute → hash → persist) rather than the HTTP layer. Faithful
-// end-to-end RLS coverage through the real middleware is deferred to the Module 3
-// testing work, per scope. Skips when the env/stack is unavailable.
+// Exercises the full compute path against a factory-owned plan seeded with the real
+// CSV catalog, using the service_role/secret client (bypasses RLS for setup +
+// assertions). The Astro Action couples to astro:env, so we drive the same domain
+// function the handler runs (load → compute → hash → persist) rather than the HTTP
+// layer. Plan-rooted isolation: this suite owns its plan and tears it down, so it
+// depends on nothing already in the dev DB. Skips when the env/stack is unavailable.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PLAN_NAME = "Seed Plan A";
 const COHORT = "dp2";
 const HASH_RE = /^[0-9a-f]{64}$/;
 
@@ -21,21 +20,21 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
 (hasEnv ? describe : describe.skip)("computeGroupings action path (dp2)", () => {
   let supabase: SupabaseClient<Database>;
-  let planId: string | null = null;
+  let planId: string;
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
+    planId = await createPlan(supabase);
+    await seedPlanCatalog(supabase, planId);
+  });
 
-    const { data: plan, error } = await supabase.from("plans").select("id").eq("name", PLAN_NAME).limit(1).single();
-    if (error) throw new Error(`Seed plan "${PLAN_NAME}" not found — re-run supabase db reset: ${error.message}`);
-    planId = plan.id;
+  afterAll(async () => {
+    await teardown(supabase);
   });
 
   it("computes, persists, and returns a ranked list + catalogHash", async () => {
-    if (!planId) throw new Error("beforeAll did not resolve the seed plan");
-
-    const response = await computeAndPersistGroupings(supabase, { planId, cohort: COHORT });
+    const response = await computeGroupingsFor(supabase, { planId, cohort: COHORT });
 
     // Response shape: ranked, id-keyed, hashed.
     expect(response.catalogHash).toMatch(HASH_RE);

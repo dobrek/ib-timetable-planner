@@ -483,9 +483,9 @@ schema migrations. Rollback = revert the commits; no data to preserve.
 
 #### Automated
 
-- [ ] 1.1 `pnpm test:integration` passes locally against the running local stack
+- [x] 1.1 `pnpm test:integration` passes locally against the running local stack
 - [ ] 1.2 `integration` CI job green; log shows suites executed, not skipped
-- [ ] 1.3 `ci` job and `deploy` gating remain green
+- [x] 1.3 `ci` job and `deploy` gating remain green
 
 #### Manual
 

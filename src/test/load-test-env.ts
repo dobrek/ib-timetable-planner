@@ -20,3 +20,17 @@ try {
 } catch {
   // No local test env — integration tests guard on the missing vars and skip.
 }
+
+// In CI the stack is always expected, so a missing var means the stack failed to
+// boot or export its env — fail the whole run loudly instead of letting suites
+// silently skip (the silent-zero-coverage trap). Locally (CI unset) we keep the
+// per-suite describe.skip so a dev without the stack stays unblocked.
+if (process.env.CI === "true") {
+  const missing = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(
+      `Integration tests expected the Supabase stack in CI but these vars are missing: ${missing.join(", ")}. ` +
+        `Ensure 'supabase start' ran and 'supabase status -o env' exported them to $GITHUB_ENV.`,
+    );
+  }
+}

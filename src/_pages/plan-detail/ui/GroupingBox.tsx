@@ -1,5 +1,6 @@
 import { useDraggable } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
+import HoursCounter from "./HoursCounter";
 import PaletteCourseChip from "./PaletteCourseChip";
 import type { GroupDrag } from "../model/drag";
 import type { PlannerGrouping } from "../model/grouping";
@@ -73,18 +74,7 @@ function MemberRow({ name, hours }: { name: string; hours: HoursStat | undefined
   return (
     <li data-slot="grouping-member" className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
       <span className="truncate">{name}</span>
-      {hours && (
-        <span
-          data-slot="hours-counter"
-          title="Hours placed / required"
-          className={cn(
-            "ml-auto shrink-0 tabular-nums",
-            hours.placed === hours.required ? "text-muted-foreground" : "text-foreground",
-          )}
-        >
-          {hours.placed}/{hours.required}
-        </span>
-      )}
+      <HoursCounter hours={hours} />
     </li>
   );
 }

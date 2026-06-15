@@ -1,5 +1,6 @@
 import { GripVertical } from "lucide-react";
 import type { Ref } from "react";
+import HoursCounter from "./HoursCounter";
 import type { HoursStat } from "../model/hours";
 import { cn } from "@/shared/lib/class-names";
 
@@ -33,18 +34,7 @@ export default function PaletteCourseChip({ name, hours, isDragging, ref }: Prop
     >
       <GripVertical className="text-muted-foreground size-4" />
       <span className="truncate">{name}</span>
-      {hours && (
-        <span
-          data-slot="hours-counter"
-          title="Hours placed / required"
-          className={cn(
-            "ml-auto shrink-0 tabular-nums",
-            hours.placed === hours.required ? "text-muted-foreground" : "text-foreground",
-          )}
-        >
-          {hours.placed}/{hours.required}
-        </span>
-      )}
+      <HoursCounter hours={hours} />
     </div>
   );
 }

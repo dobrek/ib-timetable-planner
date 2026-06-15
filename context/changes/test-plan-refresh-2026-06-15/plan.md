@@ -538,26 +538,26 @@ auth/RLS rollout phase (Risk #5, now §3 Phase 2); that is out of scope here.
 
 #### Automated
 
-- [x] 3.1 No `__tests__` or pre-FSD reference paths remain
-- [x] 3.2 Live counts present (55 unit / 9 integration)
-- [x] 3.3 Freshness dates bumped to 2026-06-15
-- [x] 3.4 Prettier formats test-plan.md clean
-- [x] 3.5 Guide-wide stale-token sweep is clean
+- [x] 3.1 No `__tests__` or pre-FSD reference paths remain — 53e9869
+- [x] 3.2 Live counts present (55 unit / 9 integration) — 53e9869
+- [x] 3.3 Freshness dates bumped to 2026-06-15 — 53e9869
+- [x] 3.4 Prettier formats test-plan.md clean — 53e9869
+- [x] 3.5 Guide-wide stale-token sweep is clean — 53e9869
 
 #### Manual
 
-- [x] 3.6 §4 counts and CI-lane description match research
-- [x] 3.7 §6.1 reference test exists; §6.4/§6.5 phase pointers resolve
-- [x] 3.8 §7 substance unchanged, only paths re-anchored
-- [x] 3.9 §8 records the refactor trigger as resolved
+- [x] 3.6 §4 counts and CI-lane description match research — 53e9869
+- [x] 3.7 §6.1 reference test exists; §6.4/§6.5 phase pointers resolve — 53e9869
+- [x] 3.8 §7 substance unchanged, only paths re-anchored — 53e9869
+- [x] 3.9 §8 records the refactor trigger as resolved — 53e9869
 
 ### Phase 4: Archive data-quality fix
 
 #### Automated
 
-- [ ] 4.1 Exactly one `archived_at` in the archived change.md
-- [ ] 4.2 The remaining `archived_at` value is the timestamp, not null
+- [x] 4.1 Exactly one `archived_at` in the archived change.md
+- [x] 4.2 The remaining `archived_at` value is the timestamp, not null
 
 #### Manual
 
-- [ ] 4.3 Frontmatter still parses as valid YAML; no other field changed
+- [x] 4.3 Frontmatter still parses as valid YAML; no other field changed

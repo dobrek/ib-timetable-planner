@@ -507,32 +507,32 @@ auth/RLS rollout phase (Risk #5, now §3 Phase 2); that is out of scope here.
 
 #### Automated
 
-- [x] 1.1 No stale risk-evidence tokens remain in §1–§2 (grep placements/planner/auth)
-- [x] 1.2 Corrected PRD anchors present (L57/L130/L131/L158)
-- [x] 1.3 S-09 row present
-- [x] 1.4 Prettier formats test-plan.md clean
+- [x] 1.1 No stale risk-evidence tokens remain in §1–§2 (grep placements/planner/auth) — a33e0f2
+- [x] 1.2 Corrected PRD anchors present (L57/L130/L131/L158) — a33e0f2
+- [x] 1.3 S-09 row present — a33e0f2
+- [x] 1.4 Prettier formats test-plan.md clean — a33e0f2
 
 #### Manual
 
-- [x] 1.5 §1 principle #4 past tense, no build-first sequencing (C3)
-- [x] 1.6 S-09 row reads as the refresh's inference (C4)
-- [x] 1.7 Risk #1 server-persist criterion reads as currently-unmet
-- [x] 1.8 Risk #3 no longer references a placements/grouping API route
+- [x] 1.5 §1 principle #4 past tense, no build-first sequencing (C3) — a33e0f2
+- [x] 1.6 S-09 row reads as the refresh's inference (C4) — a33e0f2
+- [x] 1.7 Risk #1 server-persist criterion reads as currently-unmet — a33e0f2
+- [x] 1.8 Risk #3 no longer references a placements/grouping API route — a33e0f2
 
 ### Phase 2: Phased Rollout & Quality Gates (§3 + §5)
 
 #### Automated
 
-- [ ] 2.1 Phantom folder reference gone
-- [ ] 2.2 Real Phase 0 folder (data-for-e2e-and-integration-tests) present
-- [ ] 2.3 "complete (absorbed)" present and "#3 (route)" absent from §3
-- [ ] 2.4 Prettier formats test-plan.md clean
+- [x] 2.1 Phantom folder reference gone
+- [x] 2.2 Real Phase 0 folder (data-for-e2e-and-integration-tests) present
+- [x] 2.3 "complete (absorbed)" present and "#3 (route)" absent from §3
+- [x] 2.4 Prettier formats test-plan.md clean
 
 #### Manual
 
-- [ ] 2.5 §3 rows match target sequence; Status column uses only parser-literal values
-- [ ] 2.6 Phase 2 names the ownership-column prerequisite clearly
-- [ ] 2.7 §5 gate "Phase N" references resolve to correct new-sequence phases
+- [x] 2.5 §3 rows match target sequence; Status column uses only parser-literal values
+- [x] 2.6 Phase 2 names the ownership-column prerequisite clearly
+- [x] 2.7 §5 gate "Phase N" references resolve to correct new-sequence phases
 
 ### Phase 3: Stack, Cookbook, Don't-Test & Freshness (§4, §6, §7, §8)
 

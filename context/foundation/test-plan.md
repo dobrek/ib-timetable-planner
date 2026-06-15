@@ -81,16 +81,37 @@ deliberately unmapped**: registration is closed to an approved author set
 
 ## 3. Phased Rollout
 
-Each row is a discrete rollout phase that will open its own change folder
-via `/10x-new`. Status moves left-to-right through the values below; the
-orchestrator updates Status as artifacts appear on disk.
+Each row is a discrete rollout phase; an unstarted phase opens its own change
+folder via `/10x-new`. Status moves left-to-right through the values below; the
+orchestrator updates Status as artifacts appear on disk. The next active phase
+is cued in its Phase-name cell (**next active**) — that cue is **not** a status
+value.
 
-| # | Phase name | Goal (one line) | Risks covered | Test types | Status | Change folder |
-|---|------------|-----------------|----------------|------------|--------|----------------|
-| 1 | Validator trust core + API hot-path boundary | Prove a false-positive cannot pass the core or the `placements`/`grouping` API route. | #1, #3 (API-route half) | unit (harden core, independent oracle) + integration (route) | change opened | context/changes/testing-validator-trust-core/ |
-| 2 | Drag → validate → feedback loop + persistence | Prove a real collision visibly reads "invalid" and placed work survives reload. | #2, #4 | component / integration (planner island); persistence integration; ≤1 e2e | not started | — |
-| 3 | Auth + Astro Actions boundary + RLS / PII | Prove every Action self-enforces session, no cross-author read, and error translation holds. | #5, #3 (Actions half) | integration (local Supabase + auth) | not started | — |
-| 4 | Quality-gate: parity harness for new validator classes | Lock a convention + fixture harness so future validator classes (roadmap S-03, S-09) ship with parity guards. | cross-cutting (forward-proof; interview Q2) | gates + table-driven fixture harness | not started | — |
+| #   | Phase name                                                          | Goal (one line)                                                                                                                  | Risks covered                                | Test types                                                                | Status      | Change folder                                                         |
+| --- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------- |
+| 0   | Integration harness + CI lane                                       | Stand up the DB-test infrastructure (plan-rooted factories, scenario builders, CI integration lane) the rollout assumed.         | enabler; #1, #3 (persist half), #4 (partial) | integration (factory harness) + CI lane                                   | complete    | `context/changes/data-for-e2e-and-integration-tests/`                 |
+| 1   | Validator trust core (independent oracle) — **complete (absorbed)** | Prove a false-positive cannot pass the core; covers the domain persist path (the placements/grouping route migrated to Actions). | #1                                           | unit (independent oracle)                                                 | complete    | — (absorbed into organic feature/refactor growth; no discrete change) |
+| 2   | Auth + Astro Actions boundary + RLS / PII — **next active**         | Prove every Action self-enforces session, no cross-author read/mutate, and error translation holds.                              | #5, #3 (Actions)                             | integration (local Supabase + auth)                                       | not started | —                                                                     |
+| 3   | Drag → validate → feedback loop + persistence reload-restore        | Prove a real collision visibly reads "invalid" and placed work survives reload.                                                  | #2, #4 (reload-restore)                      | component / integration (planner island); persistence integration; ≤1 e2e | not started | —                                                                     |
+| 4   | Parity harness for new validator classes (owns S-09)                | Lock a convention + fixture harness so future validator classes (roadmap S-03, S-09) ship with parity guards.                    | #1-class, S-09                               | gates + table-driven fixture harness                                      | not started | —                                                                     |
+
+**Notes.**
+
+- **Phase 0** stood up `data-for-e2e-and-integration-tests` (closed 2026-06-15)
+  and owns the server-mutation boundary. Its three risks map honestly: Risk #1
+  in-memory oracle holds; Risk #3 **persist half only** (the Actions-over-HTTP +
+  auth boundary is still unit-only); Risk #4 write-then-read-back holds, but the
+  production reload-restore path is deferred to Phase 3.
+- **Phase 1** was **absorbed** into organic feature + refactor growth — the
+  independent-oracle unit tests satisfy Risk #1 today, but no discrete Phase 1
+  change ever shipped. The old **Risk #3 route half is dropped**: the
+  placements/grouping API route migrated to Astro Actions, so Phase 0 alone
+  owns that boundary (no double-count).
+- **Phase 2** carries an explicit **prerequisite**: an ownership column + real
+  per-author RLS policies must land before cross-author tests are meaningful.
+  Today RLS policies are permissive (`using(true)`) and the integration suites
+  use the service-role key, which bypasses RLS — so "authenticated = full
+  access," not per-author ownership.
 
 **Status vocabulary** (fixed — parser literals): `not started` → `change
 opened` → `researched` → `planned` → `implementing` → `complete`.
@@ -128,8 +149,8 @@ phase lands; before that, the gate is `planned`.
 |------|-------|-----------|---------|
 | lint + typecheck (astro sync → eslint → build) | local + CI | required (already wired) | syntactic / type drift |
 | unit + integration | local + CI | required after §3 Phase 1 | validator false-positives, boundary regressions |
-| drag→feedback e2e / island integration | CI on PR | required after §3 Phase 2 | broken drop-validation user path, lost work |
-| auth + RLS ownership integration | local + CI | required after §3 Phase 3 | unauthenticated mutation, cross-author PII access |
+| auth + RLS ownership integration | local + CI | required after §3 Phase 2 | unauthenticated mutation, cross-author PII access |
+| drag→feedback e2e / island integration | CI on PR | required after §3 Phase 3 | broken drop-validation user path, lost work |
 | new-validator-class parity fixture | CI on PR | required after §3 Phase 4 | a new collision class shipping without a false-positive guard |
 | pre-prod smoke | between merge + prod | optional | environment-specific (workerd / Supabase) failures |
 

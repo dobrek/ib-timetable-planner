@@ -1,7 +1,7 @@
 ---
 change_id: dnd-single-course-from-palette
 title: Dnd single course from palette
-status: impl_reviewed
+status: implemented
 created: 2026-06-15
 updated: 2026-06-15
 archived_at: null

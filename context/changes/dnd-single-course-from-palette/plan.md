@@ -296,31 +296,31 @@ None — UI-only, no persisted data or schema affected.
 
 #### Automated
 
-- [x] 1.1 Type checking passes: `pnpm build`
-- [x] 1.2 Linting passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Existing unit suite stays green: `pnpm test`
+- [x] 1.1 Type checking passes: `pnpm build` — db99896
+- [x] 1.2 Linting passes: `pnpm lint` — db99896
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — db99896
+- [x] 1.4 Existing unit suite stays green: `pnpm test` — db99896
 
 #### Manual
 
-- [x] 1.5 Selecting a course shows a draggable chip as the first list item with name, grip, and hours
-- [x] 1.6 Dragging the chip places that one course
-- [x] 1.7 Clearing the filter removes the chip
-- [x] 1.8 No regression: group-box rows and header still drag
+- [x] 1.5 Selecting a course shows a draggable chip as the first list item with name, grip, and hours — db99896
+- [x] 1.6 Dragging the chip places that one course — db99896
+- [x] 1.7 Clearing the filter removes the chip — db99896
+- [x] 1.8 No regression: group-box rows and header still drag — db99896
 
 ### Phase 2: Whole-only group boxes + whole-box drag + chip-style singletons
 
 #### Automated
 
-- [ ] 2.1 Type checking passes: `pnpm build`
-- [ ] 2.2 Linting passes: `pnpm lint`
-- [ ] 2.3 FSD structure check passes: `pnpm steiger`
-- [ ] 2.4 Existing unit suite stays green: `pnpm test`
+- [x] 2.1 Type checking passes: `pnpm build`
+- [x] 2.2 Linting passes: `pnpm lint`
+- [x] 2.3 FSD structure check passes: `pnpm steiger`
+- [x] 2.4 Existing unit suite stays green: `pnpm test`
 
 #### Manual
 
-- [ ] 2.5 Member rows are display-only (drag the whole group, not the single course); rows show name + hours, no grip
-- [ ] 2.6 Grabbing anywhere on a multi-member box drags the whole group and fans into the cell
-- [ ] 2.7 A 1-member grouping renders as a chip and drags to place its one course
-- [ ] 2.8 The promoted chip is the only single-course producer; one grip per box (header)
-- [ ] 2.9 Singleton drag overlay reads acceptably; drag-cancel leaves placements unchanged
+- [x] 2.5 Member rows are display-only (drag the whole group, not the single course); rows show name + hours, no grip
+- [x] 2.6 Grabbing anywhere on a multi-member box drags the whole group and fans into the cell
+- [x] 2.7 A 1-member grouping renders as a chip and drags to place its one course
+- [x] 2.8 The promoted chip is the only single-course producer; one grip per box (header)
+- [x] 2.9 Singleton drag overlay reads acceptably; drag-cancel leaves placements unchanged

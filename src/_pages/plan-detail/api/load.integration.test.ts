@@ -17,19 +17,27 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
+// File-level lifecycle: one shared client and a single teardown drained once at
+// the end. Both describe blocks register into the same file-scoped plan registry,
+// so a per-block afterAll would let the first block's teardown delete the second's
+// plan; a single file-level teardown removes that execution-order dependency.
+let supabase: SupabaseClient<Database>;
+
+beforeAll(() => {
+  if (!SUPABASE_URL || !SERVICE_KEY) return;
+  supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
+});
+
+afterAll(async () => {
+  await teardown(supabase);
+});
+
 (hasEnv ? describe : describe.skip)("loadPlannerData name records (dp1)", () => {
-  let supabase: SupabaseClient<Database>;
   let planId: string;
 
   beforeAll(async () => {
-    if (!SUPABASE_URL || !SERVICE_KEY) return;
-    supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
     planId = await createPlan(supabase);
     await seedPlanCatalog(supabase, planId);
-  });
-
-  afterAll(async () => {
-    await teardown(supabase);
   });
 
   it("ships name records covering every teacher and student key in the catalog", async () => {
@@ -73,17 +81,6 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 // each row to the island shape. Already bare-plan; now uses the factory for the
 // plan lifecycle for consistency.
 (hasEnv ? describe : describe.skip)("loadPlannerData availability shape", () => {
-  let supabase: SupabaseClient<Database>;
-
-  beforeAll(() => {
-    if (!SUPABASE_URL || !SERVICE_KEY) return;
-    supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
-  });
-
-  afterAll(async () => {
-    await teardown(supabase);
-  });
-
   it("ships availability cells projected to teacherKey/day/period/severity", async () => {
     const planId = await createPlan(supabase, { name: "Avail Load Probe" });
 

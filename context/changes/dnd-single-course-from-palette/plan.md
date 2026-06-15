@@ -312,15 +312,15 @@ None — UI-only, no persisted data or schema affected.
 
 #### Automated
 
-- [x] 2.1 Type checking passes: `pnpm build`
-- [x] 2.2 Linting passes: `pnpm lint`
-- [x] 2.3 FSD structure check passes: `pnpm steiger`
-- [x] 2.4 Existing unit suite stays green: `pnpm test`
+- [x] 2.1 Type checking passes: `pnpm build` — 3e212ed
+- [x] 2.2 Linting passes: `pnpm lint` — 3e212ed
+- [x] 2.3 FSD structure check passes: `pnpm steiger` — 3e212ed
+- [x] 2.4 Existing unit suite stays green: `pnpm test` — 3e212ed
 
 #### Manual
 
-- [x] 2.5 Member rows are display-only (drag the whole group, not the single course); rows show name + hours, no grip
-- [x] 2.6 Grabbing anywhere on a multi-member box drags the whole group and fans into the cell
-- [x] 2.7 A 1-member grouping renders as a chip and drags to place its one course
-- [x] 2.8 The promoted chip is the only single-course producer; one grip per box (header)
-- [x] 2.9 Singleton drag overlay reads acceptably; drag-cancel leaves placements unchanged
+- [x] 2.5 Member rows are display-only (drag the whole group, not the single course); rows show name + hours, no grip — 3e212ed
+- [x] 2.6 Grabbing anywhere on a multi-member box drags the whole group and fans into the cell — 3e212ed
+- [x] 2.7 A 1-member grouping renders as a chip and drags to place its one course — 3e212ed
+- [x] 2.8 The promoted chip is the only single-course producer; one grip per box (header) — 3e212ed
+- [x] 2.9 Singleton drag overlay reads acceptably; drag-cancel leaves placements unchanged — 3e212ed

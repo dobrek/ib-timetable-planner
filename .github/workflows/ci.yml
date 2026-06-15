@@ -53,15 +53,19 @@ jobs:
       # Regenerate the catalog seed so `supabase start` loads a current seed.sql.
       - run: node scripts/gen-seed.mjs > supabase/seed.sql
 
-      # Trimmed stack: keep db + rest + kong (PostgREST path) and auth/GoTrue
-      # (always boots, not excludable). Everything else is excluded to cut boot time.
+      # Trimmed stack: keep postgres + postgrest + kong (the supabase-js path) and
+      # gotrue (cheap; future RLS/e2e). Exclude everything else to cut boot time.
+      # Container names are the CLI's own labels (mailpit/storage-api/logflare/
+      # postgres-meta), not the docs' aliases — the CLI rejects inbucket/storage/etc.
       - name: Start Supabase (trimmed stack)
-        run: supabase start -x studio,imgproxy,inbucket,realtime,storage,vector,analytics,edge-runtime,functions,meta
+        run: supabase start -x studio,imgproxy,mailpit,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
 
       # The local stack mints its own keys; export them to the job env so the
-      # integration suites and the load-test-env CI fail-gate find them.
+      # integration suites and the load-test-env CI fail-gate find them. `status -o env`
+      # quotes its values (SUPABASE_URL="http://..."); $GITHUB_ENV keeps quotes literal,
+      # which supabase-js rejects as an invalid URL — strip them before appending.
       - name: Export Supabase env
-        run: supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY >> "$GITHUB_ENV"
+        run: supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY | sed 's/"//g' >> "$GITHUB_ENV"
 
       # Serial-in-Phase-1 hedge: the seed-coupled suites still coordinate by hand
       # until Phase 3 lands plan-rooted isolation. Run single-file so CI timing

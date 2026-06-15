@@ -67,9 +67,14 @@ jobs:
       - name: Export Supabase env
         run: supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY | sed 's/"//g' >> "$GITHUB_ENV"
 
-      # Plan-rooted isolation (Phase 3) makes the lane parallel-safe by construction:
+      # Plan-rooted isolation (Phase 3) makes the lane DATA-safe under parallelism:
       # every suite owns a fresh plan and tears it down, reading no shared seed state.
-      - run: pnpm test:integration
+      # `--maxWorkers=2` is a separate, RESOURCE concern: nine suites hammering the
+      # trimmed stack on a constrained runner intermittently drew transient Kong/
+      # PostgREST 502s ("invalid response from upstream server"). Capping concurrent
+      # files keeps real parallelism while staying under that ceiling. CI-only — local
+      # `pnpm test:integration` runs unconstrained.
+      - run: pnpm test:integration --maxWorkers=2
 
   deploy:
     needs: [ci, integration]

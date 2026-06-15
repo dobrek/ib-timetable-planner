@@ -510,18 +510,18 @@ schema migrations. Rollback = revert the commits; no data to preserve.
 
 #### Automated
 
-- [x] 3.1 `pnpm test:integration` green with all six suites migrated
-- [x] 3.2 Grep-guard unit test passes (and fails on a reintroduced `"Seed Plan"` reference)
-- [x] 3.3 No `*.integration.test.ts` references `"Seed Plan A"`/`"Seed Plan B"`
-- [x] 3.4 `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 3.1 `pnpm test:integration` green with all six suites migrated — 947da2d
+- [x] 3.2 Grep-guard unit test passes (and fails on a reintroduced `"Seed Plan"` reference) — 947da2d
+- [x] 3.3 No `*.integration.test.ts` references `"Seed Plan A"`/`"Seed Plan B"` — 947da2d
+- [x] 3.4 `pnpm lint`, `pnpm steiger`, `pnpm build` clean — 947da2d
 
 #### Manual
 
-- [x] 3.5 One-time seed-independence check passes (alter seed → reset → green → restore)
+- [x] 3.5 One-time seed-independence check passes (alter seed → reset → green → restore) — 947da2d
 
 ### Phase 4: Action-boundary unit tests
 
 #### Automated
 
-- [ ] 4.1 New action-boundary unit tests pass under `pnpm test`
-- [ ] 4.2 `pnpm lint`, `pnpm steiger`, type-check, `pnpm build` clean with the new stub + alias
+- [x] 4.1 New action-boundary unit tests pass under `pnpm test`
+- [x] 4.2 `pnpm lint`, `pnpm steiger`, type-check, `pnpm build` clean with the new stub + alias

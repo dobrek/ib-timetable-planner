@@ -8,10 +8,12 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     exclude: ["src/**/*.integration.test.ts"],
-    // Stub Astro's server-env virtual module so the `@/shared/api` barrel
-    // (which re-exports the env-reading `createClient`) is importable under Vitest.
+    // Stub Astro virtual modules so slice code reaching them through the
+    // `@/shared/api` barrel (env-reading `createClient`) and the action wrapper
+    // (`ActionError`/`defineAction`) is importable under Vitest.
     alias: {
       "astro:env/server": fileURLToPath(new URL("./test/stubs/astro-env-server.ts", import.meta.url)),
+      "astro:actions": fileURLToPath(new URL("./test/stubs/astro-actions.ts", import.meta.url)),
     },
   },
 });

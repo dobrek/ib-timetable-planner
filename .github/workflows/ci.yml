@@ -31,8 +31,45 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Node setup
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v2
+
+      # Regenerate the catalog seed so `supabase start` loads a current seed.sql.
+      - run: node scripts/gen-seed.mjs > supabase/seed.sql
+
+      # Trimmed stack: keep db + rest + kong (PostgREST path) and auth/GoTrue
+      # (always boots, not excludable). Everything else is excluded to cut boot time.
+      - name: Start Supabase (trimmed stack)
+        run: supabase start -x studio,imgproxy,inbucket,realtime,storage,vector,analytics,edge-runtime,functions,meta
+
+      # The local stack mints its own keys; export them to the job env so the
+      # integration suites and the load-test-env CI fail-gate find them.
+      - name: Export Supabase env
+        run: supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY >> "$GITHUB_ENV"
+
+      # Serial-in-Phase-1 hedge: the seed-coupled suites still coordinate by hand
+      # until Phase 3 lands plan-rooted isolation. Run single-file so CI timing
+      # can't expose a cross-suite race before the isolation fix. Phase 3 removes this.
+      - run: pnpm test:integration --no-file-parallelism
+
   deploy:
-    needs: ci
+    needs: [ci, integration]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

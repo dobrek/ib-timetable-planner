@@ -523,5 +523,5 @@ schema migrations. Rollback = revert the commits; no data to preserve.
 
 #### Automated
 
-- [x] 4.1 New action-boundary unit tests pass under `pnpm test`
-- [x] 4.2 `pnpm lint`, `pnpm steiger`, type-check, `pnpm build` clean with the new stub + alias
+- [x] 4.1 New action-boundary unit tests pass under `pnpm test` — d5e6a83
+- [x] 4.2 `pnpm lint`, `pnpm steiger`, type-check, `pnpm build` clean with the new stub + alias — d5e6a83

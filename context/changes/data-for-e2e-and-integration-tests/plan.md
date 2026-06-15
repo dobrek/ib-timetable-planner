@@ -497,14 +497,14 @@ schema migrations. Rollback = revert the commits; no data to preserve.
 
 #### Automated
 
-- [ ] 2.1 `node scripts/gen-seed.mjs` output byte-identical to committed `supabase/seed.sql`
-- [ ] 2.2 `pnpm test:integration` stays green (harness exercised)
-- [ ] 2.3 Factory smoke test: `createPlan` + `seedPlanCatalog` + output builder → `teardown` cascade-removes plan(s)
-- [ ] 2.4 `pnpm lint`, `pnpm steiger`, type-check, `pnpm build` clean
+- [x] 2.1 `node scripts/gen-seed.mjs` output byte-identical to committed `supabase/seed.sql`
+- [x] 2.2 `pnpm test:integration` stays green (harness exercised)
+- [x] 2.3 Factory smoke test: `createPlan` + `seedPlanCatalog` + output builder → `teardown` cascade-removes plan(s)
+- [x] 2.4 `pnpm lint`, `pnpm steiger`, type-check, `pnpm build` clean
 
 #### Manual
 
-- [ ] 2.5 Studio spot-check: factory-seeded plan matches a real seed plan
+- [x] 2.5 Studio spot-check: factory-seeded plan matches a real seed plan
 
 ### Phase 3: Migrate all six seed-coupled suites
 

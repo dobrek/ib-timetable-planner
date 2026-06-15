@@ -19,7 +19,7 @@ FSD layers under `src/`: `app/` (shell, layouts, styles), `_pages/<slice>/` (pag
 
 - `pnpm dev` — dev server (workerd); `pnpm build` — production build (CI gate).
 - `pnpm lint` / `pnpm steiger` — ESLint flat config + FSD structure check.
-- `pnpm test` — Vitest unit suite; `pnpm test:integration` — needs local Supabase running.
+- `pnpm test` — Vitest unit suite (`pnpm test:watch` to iterate); `pnpm test:integration` — needs local Supabase running.
 - `pnpm env:local` / `pnpm env:prod` — swap Supabase target (writes `.env.local` + `.dev.vars`).
 - Run the `/verify` skill to mirror the full CI gate locally.
 
@@ -31,7 +31,7 @@ FSD layers under `src/`: `app/` (shell, layouts, styles), `_pages/<slice>/` (pag
 
 ## Testing
 
-Vitest, tests co-located as `*.test.ts` next to source under each slice's segment. Integration tests use `*.integration.test.ts` (excluded from `pnpm test`, run via `pnpm test:integration`).
+Vitest, tests co-located as `*.test.ts` next to source under each slice's segment. Integration tests use `*.integration.test.ts` (excluded from `pnpm test`, run via `pnpm test:integration`); they build state through the builders in `src/test/factories/` and clean up via `teardown`, rather than asserting against raw seed rows.
 
 ## Commit & PR
 
@@ -44,3 +44,4 @@ For operations beyond the `pnpm` scripts above, reach for these CLIs (run via `p
 - `wrangler` — Cloudflare Workers: deploy, secrets, deployments list, rollback, tail.
 - `supabase` — local stack (`start`/`stop`) and hosted project link/migrations.
 - `gh` — GitHub operations: PRs, issues, CI run status.
+- `playwright-cli` - Playwright Cli for manual UI verification, see the playwright-cli skill.

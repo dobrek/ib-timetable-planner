@@ -69,3 +69,4 @@ lefthook-local.yml
 
 # playwright
 .playwright-mcp
+.playwright-cli

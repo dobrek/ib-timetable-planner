@@ -52,6 +52,7 @@
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
     "@feature-sliced/steiger-plugin": "^0.6.0",
+    "@playwright/cli": "^0.1.14",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-astro": "^1.7.0",

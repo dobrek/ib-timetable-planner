@@ -555,9 +555,9 @@ auth/RLS rollout phase (Risk #5, now §3 Phase 2); that is out of scope here.
 
 #### Automated
 
-- [x] 4.1 Exactly one `archived_at` in the archived change.md
-- [x] 4.2 The remaining `archived_at` value is the timestamp, not null
+- [x] 4.1 Exactly one `archived_at` in the archived change.md — dbc909a
+- [x] 4.2 The remaining `archived_at` value is the timestamp, not null — dbc909a
 
 #### Manual
 
-- [x] 4.3 Frontmatter still parses as valid YAML; no other field changed
+- [x] 4.3 Frontmatter still parses as valid YAML; no other field changed — dbc909a

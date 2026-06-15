@@ -31,6 +31,10 @@ describe("leadingCourseOptions", () => {
     expect(byId.get("c-a")).toBe("Alpha");
     expect(byId.get("c-b")).toBe("c-b");
   });
+
+  it("returns an empty array when there are no groupings", () => {
+    expect(leadingCourseOptions([], {})).toEqual([]);
+  });
 });
 
 describe("sortByGroupCount", () => {
@@ -50,6 +54,10 @@ describe("sortByGroupCount", () => {
     sortByGroupCount(input);
     expect(input.map((o) => o.id)).toEqual(original);
   });
+
+  it("returns an empty array unchanged", () => {
+    expect(sortByGroupCount([])).toEqual([]);
+  });
 });
 
 describe("sortByName", () => {
@@ -63,5 +71,9 @@ describe("sortByName", () => {
     const original = input.map((o) => o.id);
     sortByName(input);
     expect(input.map((o) => o.id)).toEqual(original);
+  });
+
+  it("returns an empty array unchanged", () => {
+    expect(sortByName([])).toEqual([]);
   });
 });

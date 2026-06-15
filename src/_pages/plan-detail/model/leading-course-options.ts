@@ -9,6 +9,9 @@ export type LeadingCourseOption = { id: string; name: string; groupCount: number
  * groupings whose member set contains it. Counts accumulate in a single pass over
  * `memberIds` (one `Map`, not `filter().length` per id). Returned unsorted — the
  * caller picks an ordering (`sortByGroupCount` / `sortByName`).
+ *
+ * Assumes each grouping's `memberIds` is duplicate-free (a repeated id would
+ * inflate its count) — guaranteed by the `course_grouping_members` composite PK.
  */
 export const leadingCourseOptions = (
   groupings: PlannerGrouping[],

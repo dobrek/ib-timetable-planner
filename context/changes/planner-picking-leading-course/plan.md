@@ -31,7 +31,7 @@ This is a client-only, display-layer change confined to the `plan-detail` slice.
   `localStorage` via `useSyncExternalStore`. This change is **session-only** ephemeral state,
   so that persistence machinery is deliberately **not** reused.
 - **`@/shared/ui` already exports `DropdownMenu*`** (incl. `DropdownMenuRadioGroup` /
-  `DropdownMenuRadioItem`), already used as a row-actions menu in `CourseTable.tsx:122-161`
+  `DropdownMenuRadioItem`), already used as a row-actions menu in `src/_pages/courses/ui/CourseTable.tsx:124-161`
   (`<Button variant="ghost" size="icon">` + lucide icon trigger → `DropdownMenuContent
   align="end"`). This is the affordance to reuse for the sort toggle.
 - **`GroupingBox.tsx:95-106`** is the count-label precedent: a right-aligned
@@ -141,7 +141,7 @@ stays the course `id` and the "All groupings" clear path is untouched.
 - Each `SelectItem` renders the option text with the group count appended in brackets, e.g.
   `` `${name} (${groupCount})` ``. No separate span or styling — the count is part of the
   label text, so it also appears in the trigger when selected (intended).
-- Sort toggle: an icon-button `DropdownMenu` mirroring `CourseTable.tsx:122-161` — trigger
+- Sort toggle: an icon-button `DropdownMenu` mirroring `src/_pages/courses/ui/CourseTable.tsx:124-161` — trigger
   `<Button variant="ghost" size="icon" aria-label="Sort order">` with a lucide sort icon
   (e.g. `ArrowDownUp`); `DropdownMenuContent align="end"` containing a
   `DropdownMenuRadioGroup value={sortOrder} onValueChange={...}` with two
@@ -204,7 +204,7 @@ hotspot.
 
 - Research: `context/changes/planner-picking-leading-course/research.md`
 - Template to mirror: `src/_pages/plan-detail/model/sort-groupings.ts` (+ `.test.ts`)
-- Toggle affordance: `src/_pages/plan-detail/ui/CourseTable.tsx:122-161` (row-actions menu)
+- Toggle affordance: `src/_pages/courses/ui/CourseTable.tsx:124-161` (row-actions menu)
 - Prior change carve-out: `context/changes/planner-palette-group-sorting/plan.md:64-73`
 
 ## Progress

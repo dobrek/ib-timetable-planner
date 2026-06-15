@@ -123,16 +123,16 @@ The classic test base for this project. AI-native tools (if any) carry a
 
 | Layer | Tool | Version | Notes |
 |-------|------|---------|-------|
-| unit | Vitest | (see lockfile) | `vitest.config.ts`; 15 test files today, 13 concentrated in `src/lib` (grouping, planner, placements, courses, schemas). |
-| integration | Vitest | (see lockfile) | `vitest.integration.config.ts`; requires the local Supabase stack running (`pnpm test:integration`). Must exercise **both** Astro Actions (via Astro's action context / `getActionContext`) and API routes. |
-| e2e | none yet — see Phase 2 | — | At most one e2e for the drag→feedback loop, only if integration cannot reach it; Playwright MCP is available as the runner. |
+| unit | Vitest | (see lockfile) | `vitest.config.ts`; **55 unit** test files — 53 co-located `*.test.ts` siblings under the FSD slices + 2 infra-guard suites in `src/test/` (`no-seed-coupling`, `seed-transcode-identity`). |
+| integration | Vitest | (see lockfile) | `vitest.integration.config.ts`; **9 integration** suites; plan-rooted scenario factory harness at `src/test/factories/`; requires the local Supabase stack (`pnpm test:integration`). Live **CI integration lane**: regenerate seed → boot a trimmed Supabase stack → `pnpm test:integration --maxWorkers=2` (the 2-worker cap is a CI runner-resource hedge). Mutations/compute flow through **Astro Actions only** — a real Action over `/_actions/*`; the placements/grouping API route is gone. |
+| e2e | none yet — see §3 Phase 3 | — | At most one e2e for the drag→feedback loop, only if integration cannot reach it; Playwright MCP is the candidate runner (no Playwright/Cypress dep, config, or spec exists yet). |
 | edge runtime | n/a | — | Code runs on Cloudflare Workers (workerd) in dev and prod — edge-safe libs only, no Node APIs (`fs`, `child_process`, native). |
 
 **Stack grounding tools (current session):**
-- Docs: Context7 available — use to ground the current Astro Actions testing API (action context / `callAction`) and React-island test setup during Phase 2/3 research; checked: 2026-06-08.
-- Search: Exa.ai available — use for current-status discovery only, then prefer official docs; checked: 2026-06-08.
-- Runtime/browser: Playwright MCP available — candidate for the single Phase 2 e2e only if integration cannot reach the drag→feedback loop; not used otherwise; checked: 2026-06-08.
-- Provider/platform: Supabase tooling available — backs the integration-test database for Phases 1, 3, 4 (RLS, persistence); checked: 2026-06-08.
+- Docs: Context7 available — use to ground the current Astro Actions testing API (action context / `callAction`) and React-island test setup during Phase 2/3 research; checked: 2026-06-15.
+- Search: Exa.ai available — use for current-status discovery only, then prefer official docs; checked: 2026-06-15.
+- Runtime/browser: Playwright MCP available — candidate for the single Phase 3 e2e only if integration cannot reach the drag→feedback loop; not used otherwise; checked: 2026-06-15.
+- Provider/platform: Supabase tooling available — backs the integration-test database for Phases 2, 3, 4 (RLS, persistence); checked: 2026-06-15.
 
 Use docs MCPs for current framework/library APIs and setup details. Use
 search MCPs for discovery or current status only, then prefer official docs
@@ -161,12 +161,14 @@ relevant rollout phase ships; before that, it reads "TBD — see §3 Phase N."
 
 ### 6.1 Adding a unit test
 
-- **Location**: a `__tests__/` directory next to the unit under test (e.g.
-  `src/lib/placements/__tests__/`), matching the existing `src/lib`
-  convention.
+- **Location**: a co-located `*.test.ts` sibling next to the source under test
+  (e.g. `src/_pages/plan-detail/model/collision.test.ts`), matching the FSD
+  slice convention — tests sit beside their source, never in a separate
+  test-only directory.
 - **Naming**: `<module>.test.ts`.
-- **Reference test**: `src/lib/placements/__tests__/validate.test.ts`
-  (Phase 1 hardens its oracle independence — see §3 Phase 1 for the
+- **Reference test**: `src/_pages/plan-detail/model/collisions.test.ts` — the
+  live Risk #1 independent-oracle example (hand-typed literal expectations, not
+  values recomputed from the validator; see §3 Phase 1 for the
   student-collision false-positive pattern).
 - **Run locally**: `pnpm test`.
 
@@ -222,19 +224,21 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
 ### 6.3 Adding an e2e test
 
-- TBD — see §3 Phase 2 (drag → validate → feedback loop).
+- TBD — see §3 Phase 3 (drag → validate → feedback loop).
 
 ### 6.4 Adding a test for a new API endpoint
 
-- TBD — see §3 Phase 1. Will cover the `src/pages/api/*` hot-path contract
-  (request parse → validate → persist → valid/invalid response) and
+- TBD — see §3 Phase 2. The only remaining API routes are the auth session
+  endpoints (`src/pages/api/auth/*`, kept for progressive enhancement); the
+  placement/grouping hot path migrated to Astro Actions (see §6.5). Will cover
+  the request parse → validate → respond contract for those auth endpoints and
   server-side re-validation of untrusted input.
 
 ### 6.5 Adding a test for a new Astro Action
 
-- TBD — see §3 Phase 3. Will cover `requireSession` enforcement, the
+- TBD — see §3 Phase 2. Will cover `requireSession` enforcement, the
   `DomainError`→`ActionError` translation, and persistence under RLS —
-  without re-testing the already-covered `src/lib/courses` domain logic.
+  without re-testing the already-covered `src/_pages/courses/api` domain logic.
 
 ### 6.6 Per-rollout-phase notes
 
@@ -246,7 +250,7 @@ here capturing anything surprising the rollout phase taught.)
 Exclusions agreed during the rollout (Phase 2 interview, Q5). Future
 contributors should respect these unless the underlying assumption changes.
 
-- **shadcn/ui primitives (`src/components/ui/*`)** — vendored library code;
+- **shadcn/ui primitives (`src/shared/ui/*`)** — vendored library code;
   the library is the test, and the high churn here is mostly CLI
   regeneration. Re-evaluate only if a primitive is hand-modified with real
   logic. (Source: Phase 2 interview Q5.)
@@ -256,16 +260,17 @@ contributors should respect these unless the underlying assumption changes.
 - **Generated Supabase types (`database.types.ts` and other generated
   artifacts)** — the generator is the test. Re-evaluate if types are
   hand-edited. (Source: Phase 2 interview Q5.)
-- **The grouping core (`src/lib/grouping`)** — already guarded by parity
-  tests against the original CSV pipeline output; do not re-litigate it.
-  Re-evaluate only if the parity oracle is found to mirror the
-  implementation. (Source: Phase 2 interview Q5.)
+- **The grouping core (`src/_pages/plan-detail/model/compute-groupings.ts`)** —
+  already guarded by parity tests (`src/_pages/plan-detail/api/parity.test.ts`)
+  against the original CSV pipeline output; do not re-litigate it. Re-evaluate
+  only if the parity oracle is found to mirror the implementation. (Source:
+  Phase 2 interview Q5.)
 
 ## 8. Freshness Ledger
 
-- Strategy (§1–§5) last reviewed: 2026-06-08
-- Stack versions last verified: 2026-06-08
-- AI-native tool references last verified: 2026-06-08
+- Strategy (§1–§5) last reviewed: 2026-06-15
+- Stack versions last verified: 2026-06-15
+- AI-native tool references last verified: 2026-06-15
 
 Refresh (`/10x-test-plan --refresh`) when:
 
@@ -274,4 +279,5 @@ Refresh (`/10x-test-plan --refresh`) when:
 - the project's tech stack changes (new framework, new test runner),
 - §7 negative-space no longer matches what the team believes,
 - the anticipated architecture refactor (§1 principle #4) lands and shifts
-  the stable boundaries the rollout pins.
+  the stable boundaries the rollout pins. **(Resolved 2026-06-15: the FSD
+  refactor landed and this refresh re-anchored the boundaries.)**

@@ -523,33 +523,33 @@ auth/RLS rollout phase (Risk #5, now §3 Phase 2); that is out of scope here.
 
 #### Automated
 
-- [x] 2.1 Phantom folder reference gone
-- [x] 2.2 Real Phase 0 folder (data-for-e2e-and-integration-tests) present
-- [x] 2.3 "complete (absorbed)" present and "#3 (route)" absent from §3
-- [x] 2.4 Prettier formats test-plan.md clean
+- [x] 2.1 Phantom folder reference gone — fae7364
+- [x] 2.2 Real Phase 0 folder (data-for-e2e-and-integration-tests) present — fae7364
+- [x] 2.3 "complete (absorbed)" present and "#3 (route)" absent from §3 — fae7364
+- [x] 2.4 Prettier formats test-plan.md clean — fae7364
 
 #### Manual
 
-- [x] 2.5 §3 rows match target sequence; Status column uses only parser-literal values
-- [x] 2.6 Phase 2 names the ownership-column prerequisite clearly
-- [x] 2.7 §5 gate "Phase N" references resolve to correct new-sequence phases
+- [x] 2.5 §3 rows match target sequence; Status column uses only parser-literal values — fae7364
+- [x] 2.6 Phase 2 names the ownership-column prerequisite clearly — fae7364
+- [x] 2.7 §5 gate "Phase N" references resolve to correct new-sequence phases — fae7364
 
 ### Phase 3: Stack, Cookbook, Don't-Test & Freshness (§4, §6, §7, §8)
 
 #### Automated
 
-- [ ] 3.1 No `__tests__` or pre-FSD reference paths remain
-- [ ] 3.2 Live counts present (55 unit / 9 integration)
-- [ ] 3.3 Freshness dates bumped to 2026-06-15
-- [ ] 3.4 Prettier formats test-plan.md clean
-- [ ] 3.5 Guide-wide stale-token sweep is clean
+- [x] 3.1 No `__tests__` or pre-FSD reference paths remain
+- [x] 3.2 Live counts present (55 unit / 9 integration)
+- [x] 3.3 Freshness dates bumped to 2026-06-15
+- [x] 3.4 Prettier formats test-plan.md clean
+- [x] 3.5 Guide-wide stale-token sweep is clean
 
 #### Manual
 
-- [ ] 3.6 §4 counts and CI-lane description match research
-- [ ] 3.7 §6.1 reference test exists; §6.4/§6.5 phase pointers resolve
-- [ ] 3.8 §7 substance unchanged, only paths re-anchored
-- [ ] 3.9 §8 records the refactor trigger as resolved
+- [x] 3.6 §4 counts and CI-lane description match research
+- [x] 3.7 §6.1 reference test exists; §6.4/§6.5 phase pointers resolve
+- [x] 3.8 §7 substance unchanged, only paths re-anchored
+- [x] 3.9 §8 records the refactor trigger as resolved
 
 ### Phase 4: Archive data-quality fix
 

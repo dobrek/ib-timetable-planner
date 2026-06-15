@@ -507,17 +507,17 @@ auth/RLS rollout phase (Risk #5, now §3 Phase 2); that is out of scope here.
 
 #### Automated
 
-- [ ] 1.1 No stale risk-evidence tokens remain in §1–§2 (grep placements/planner/auth)
-- [ ] 1.2 Corrected PRD anchors present (L57/L130/L131/L158)
-- [ ] 1.3 S-09 row present
-- [ ] 1.4 Prettier formats test-plan.md clean
+- [x] 1.1 No stale risk-evidence tokens remain in §1–§2 (grep placements/planner/auth)
+- [x] 1.2 Corrected PRD anchors present (L57/L130/L131/L158)
+- [x] 1.3 S-09 row present
+- [x] 1.4 Prettier formats test-plan.md clean
 
 #### Manual
 
-- [ ] 1.5 §1 principle #4 past tense, no build-first sequencing (C3)
-- [ ] 1.6 S-09 row reads as the refresh's inference (C4)
-- [ ] 1.7 Risk #1 server-persist criterion reads as currently-unmet
-- [ ] 1.8 Risk #3 no longer references a placements/grouping API route
+- [x] 1.5 §1 principle #4 past tense, no build-first sequencing (C3)
+- [x] 1.6 S-09 row reads as the refresh's inference (C4)
+- [x] 1.7 Risk #1 server-persist criterion reads as currently-unmet
+- [x] 1.8 Risk #3 no longer references a placements/grouping API route
 
 ### Phase 2: Phased Rollout & Quality Gates (§3 + §5)
 

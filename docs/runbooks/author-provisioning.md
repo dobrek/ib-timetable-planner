@@ -50,6 +50,40 @@ pnpm exec supabase stop && pnpm exec supabase start
 
 ---
 
+## a-bis) Provision the e2e author programmatically (script)
+
+The e2e suite (`pnpm test:e2e`) needs a sign-in-ready author. Instead of clicking
+through Studio, `scripts/provision-e2e-author.mjs` creates it via the admin API
+(`auth.admin.createUser`), which bypasses `enable_signup = false`. It runs
+automatically as the **`pretest:e2e` hook** before every e2e run (locally and in
+CI) and is **idempotent** — a re-run against an existing author succeeds rather
+than erroring, so it is safe to run repeatedly.
+
+**What it reads:**
+
+- `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from the environment. Locally, if
+  they aren't exported it falls back to parsing `.env.test.local` (the same file
+  the integration lane's `load-test-env.ts` reads); in CI the `e2e` job exports
+  them from its ephemeral stack via `supabase status`.
+- The author credentials from the shared `e2e/author-credentials.mjs` module:
+  `E2E_AUTHOR_EMAIL` / `E2E_AUTHOR_PASSWORD` if set, otherwise the **fixed local
+  default** (`e2e-author@example.test`). The setup spec (`e2e/auth.setup.ts`)
+  imports the **same** module, so the provisioned account always matches the one
+  sign-in resolves. The local stack is ephemeral, so the fixed default is
+  low-risk and there is no CI secret to rotate.
+
+Run it directly if you want the author without running the suite:
+
+```bash
+node scripts/provision-e2e-author.mjs
+```
+
+It exits non-zero with a clear stderr message if `SUPABASE_URL` /
+`SUPABASE_SERVICE_ROLE_KEY` are absent. Local `enable_confirmations = false`
+makes the created user immediately sign-in-ready.
+
+---
+
 ## b) Create an author on the hosted project (Supabase dashboard)
 
 1. Open the project in the Supabase dashboard (https://supabase.com/dashboard).

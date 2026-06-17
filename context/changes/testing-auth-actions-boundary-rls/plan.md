@@ -401,14 +401,14 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 
 #### Automated
 
-- [x] 3.1 Integration suite green against local Supabase (`pnpm test:integration`)
-- [x] 3.2 Unit + steiger unaffected (`pnpm test`, `pnpm steiger`)
-- [x] 3.3 Contract assertions are key-agnostic; cross-author correctly absent
+- [x] 3.1 Integration suite green against local Supabase (`pnpm test:integration`) — fa1b3d8
+- [x] 3.2 Unit + steiger unaffected (`pnpm test`, `pnpm steiger`) — fa1b3d8
+- [x] 3.3 Contract assertions are key-agnostic; cross-author correctly absent — fa1b3d8
 
 #### Manual
 
-- [x] 3.4 Suite leaves no residual rows (teardown verified)
-- [x] 3.5 Translation-matrix assertions read real `DomainError` codes, not a hardcoded mirror
+- [x] 3.4 Suite leaves no residual rows (teardown verified) — fa1b3d8
+- [x] 3.5 Translation-matrix assertions read real `DomainError` codes, not a hardcoded mirror — fa1b3d8
 
 ### Phase 4: CI e2e lane + deploy gate
 
@@ -416,8 +416,8 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 
 - [ ] 4.1 `e2e` job runs and passes on a PR (full chain)
 - [ ] 4.2 `deploy` is observably gated on `e2e`
-- [ ] 4.3 No `-x` exclusion change needed; `ci` + `integration` jobs unaffected
-- [ ] 4.4 Env isolation holds: e2e job references no `secrets.SUPABASE_*`; no workflow-level `SUPABASE_*` env (grep `ci.yml`)
+- [x] 4.3 No `-x` exclusion change needed; `ci` + `integration` jobs unaffected
+- [x] 4.4 Env isolation holds: e2e job references no `secrets.SUPABASE_*`; no workflow-level `SUPABASE_*` env (grep `ci.yml`)
 
 #### Manual
 

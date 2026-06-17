@@ -73,7 +73,7 @@ const reactConfig = tseslint.config({
 // author-credentials module) read `process.env` and other Node globals. They live
 // outside src/ and aren't browser code, so give them the Node global scope rather
 // than the React/browser defaults — otherwise `no-undef` flags `process`.
-const nodeModulesConfig = tseslint.config({
+const nodeMjsConfig = tseslint.config({
   files: ["**/*.mjs"],
   languageOptions: {
     globals: { process: "readonly", console: "readonly" },
@@ -104,7 +104,7 @@ export default tseslint.config(
   baseConfig,
   ambientDeclConfig,
   reactConfig,
-  nodeModulesConfig,
+  nodeMjsConfig,
   eslintPluginAstro.configs["flat/recommended"],
   ...eslintPluginAstro.configs["flat/jsx-a11y-recommended"],
   astroConfig,

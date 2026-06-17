@@ -69,6 +69,17 @@ const reactConfig = tseslint.config({
   },
 });
 
+// Node-runtime ESM modules (root config files, e2e Node helpers like the shared
+// author-credentials module) read `process.env` and other Node globals. They live
+// outside src/ and aren't browser code, so give them the Node global scope rather
+// than the React/browser defaults — otherwise `no-undef` flags `process`.
+const nodeModulesConfig = tseslint.config({
+  files: ["**/*.mjs"],
+  languageOptions: {
+    globals: { process: "readonly", console: "readonly" },
+  },
+});
+
 const astroConfig = tseslint.config({
   files: ["**/*.astro"],
   languageOptions: {
@@ -93,6 +104,7 @@ export default tseslint.config(
   baseConfig,
   ambientDeclConfig,
   reactConfig,
+  nodeModulesConfig,
   eslintPluginAstro.configs["flat/recommended"],
   ...eslintPluginAstro.configs["flat/jsx-a11y-recommended"],
   astroConfig,

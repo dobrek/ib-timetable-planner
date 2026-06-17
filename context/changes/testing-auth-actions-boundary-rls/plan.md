@@ -374,28 +374,28 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 
 #### Automated
 
-- [x] 1.1 Type checking + lint pass (`pnpm lint`)
-- [x] 1.2 Build stays clean on workerd (`pnpm build`)
-- [x] 1.3 GRANT migration applies on `supabase db reset`; `has_table_privilege('authenticated','public.plans','INSERT')` = true
-- [x] 1.4 Provisioning script is idempotent across two runs (`node scripts/provision-e2e-author.mjs`)
-- [x] 1.5 Setup project runs green and writes `e2e/.auth/user.json` with `sb-…-auth-token` cookie(s)
+- [x] 1.1 Type checking + lint pass (`pnpm lint`) — 0e33bc6
+- [x] 1.2 Build stays clean on workerd (`pnpm build`) — 0e33bc6
+- [x] 1.3 GRANT migration applies on `supabase db reset`; `has_table_privilege('authenticated','public.plans','INSERT')` = true — 0e33bc6
+- [x] 1.4 Provisioning script is idempotent across two runs (`node scripts/provision-e2e-author.mjs`) — 0e33bc6
+- [x] 1.5 Setup project runs green and writes `e2e/.auth/user.json` with `sb-…-auth-token` cookie(s) — 0e33bc6
 
 #### Manual
 
-- [x] 1.6 Env-to-worker path confirmed: `pnpm preview` serves working sign-in, setup spec logs in
-- [x] 1.7 `git status` confirms `e2e/.auth/user.json` is ignored (no live cookies staged)
+- [x] 1.6 Env-to-worker path confirmed: `pnpm preview` serves working sign-in, setup spec logs in — 0e33bc6
+- [x] 1.7 `git status` confirms `e2e/.auth/user.json` is ignored (no live cookies staged) — 0e33bc6
 
 ### Phase 2: E2e assertion specs
 
 #### Automated
 
-- [ ] 2.1 Full e2e suite green across both projects (`pnpm test:e2e`)
-- [ ] 2.2 Project routing correct — no storageState leak into guard specs
+- [x] 2.1 Full e2e suite green across both projects (`pnpm test:e2e`)
+- [x] 2.2 Project routing correct — no storageState leak into guard specs
 
 #### Manual
 
-- [ ] 2.3 Healing workflow verified via `@playwright/cli attach` + `snapshot` on a broken selector
-- [ ] 2.4 Session reuse proven — `e2e/.auth/user.json` rehydrates without a fresh sign-in (trace shows no `/auth/signin` redirect)
+- [x] 2.3 Healing workflow verified via `@playwright/cli attach` + `snapshot` on a broken selector
+- [x] 2.4 Session reuse proven — `e2e/.auth/user.json` rehydrates without a fresh sign-in (trace shows no `/auth/signin` redirect)
 
 ### Phase 3: Vitest integration complement
 

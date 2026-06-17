@@ -1,9 +1,9 @@
 ---
 change_id: testing-auth-actions-boundary-rls
 title: Auth, Astro Actions boundary, and RLS/PII integration tests
-status: new
+status: implementing
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-17
 archived_at: null
 ---
 

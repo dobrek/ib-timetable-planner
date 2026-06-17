@@ -70,3 +70,7 @@ lefthook-local.yml
 # playwright
 .playwright-mcp
 .playwright-cli
+e2e/.auth/
+test-results/
+playwright-report/
+.playwright/

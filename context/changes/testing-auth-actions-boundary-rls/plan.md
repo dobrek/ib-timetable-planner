@@ -389,26 +389,26 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 
 #### Automated
 
-- [x] 2.1 Full e2e suite green across both projects (`pnpm test:e2e`)
-- [x] 2.2 Project routing correct — no storageState leak into guard specs
+- [x] 2.1 Full e2e suite green across both projects (`pnpm test:e2e`) — ec2163a
+- [x] 2.2 Project routing correct — no storageState leak into guard specs — ec2163a
 
 #### Manual
 
-- [x] 2.3 Healing workflow verified via `@playwright/cli attach` + `snapshot` on a broken selector
-- [x] 2.4 Session reuse proven — `e2e/.auth/user.json` rehydrates without a fresh sign-in (trace shows no `/auth/signin` redirect)
+- [x] 2.3 Healing workflow verified via `@playwright/cli attach` + `snapshot` on a broken selector — ec2163a
+- [x] 2.4 Session reuse proven — `e2e/.auth/user.json` rehydrates without a fresh sign-in (trace shows no `/auth/signin` redirect) — ec2163a
 
 ### Phase 3: Vitest integration complement
 
 #### Automated
 
-- [ ] 3.1 Integration suite green against local Supabase (`pnpm test:integration`)
-- [ ] 3.2 Unit + steiger unaffected (`pnpm test`, `pnpm steiger`)
-- [ ] 3.3 Contract assertions are key-agnostic; cross-author correctly absent
+- [x] 3.1 Integration suite green against local Supabase (`pnpm test:integration`)
+- [x] 3.2 Unit + steiger unaffected (`pnpm test`, `pnpm steiger`)
+- [x] 3.3 Contract assertions are key-agnostic; cross-author correctly absent
 
 #### Manual
 
-- [ ] 3.4 Suite leaves no residual rows (teardown verified)
-- [ ] 3.5 Translation-matrix assertions read real `DomainError` codes, not a hardcoded mirror
+- [x] 3.4 Suite leaves no residual rows (teardown verified)
+- [x] 3.5 Translation-matrix assertions read real `DomainError` codes, not a hardcoded mirror
 
 ### Phase 4: CI e2e lane + deploy gate
 

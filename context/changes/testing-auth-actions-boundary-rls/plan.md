@@ -414,7 +414,7 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 
 #### Automated
 
-- [ ] 4.1 `e2e` job runs and passes on a PR (full chain)
+- [x] 4.1 `e2e` job runs and passes on a PR (full chain) — e4ac4c2
 - [ ] 4.2 `deploy` is observably gated on `e2e`
 - [x] 4.3 No `-x` exclusion change needed; `ci` + `integration` jobs unaffected — e4ac4c2
 - [x] 4.4 Env isolation holds: e2e job references no `secrets.SUPABASE_*`; no workflow-level `SUPABASE_*` env (grep `ci.yml`) — e4ac4c2
@@ -423,15 +423,15 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 
 - [ ] 4.5 A deliberately broken assertion turns `e2e` red and blocks `deploy`, then reverts cleanly
 - [ ] 4.6 Uploaded `playwright-report/` artifact present and diagnostic on failure
-- [ ] 4.7 Env-to-worker mechanism in CI confirmed and recorded (resolves research Open Q1)
+- [x] 4.7 Env-to-worker mechanism in CI confirmed and recorded (resolves research Open Q1) — e4ac4c2
 
 ### Phase 5: Docs + close-out
 
 #### Automated
 
-- [x] 5.1 Markdown/prettier clean on edited docs (`pnpm format` no-diff)
+- [x] 5.1 Markdown/prettier clean on edited docs (`pnpm format` no-diff) — dbfcf88
 
 #### Manual
 
-- [x] 5.2 `test-plan.md` §3/§6.3 match what shipped (e2e in Phase 2, cross-author deferred)
-- [x] 5.3 Runbook programmatic-provisioning path accurate against final script flags
+- [x] 5.2 `test-plan.md` §3/§6.3 match what shipped (e2e in Phase 2, cross-author deferred) — dbfcf88
+- [x] 5.3 Runbook programmatic-provisioning path accurate against final script flags — dbfcf88

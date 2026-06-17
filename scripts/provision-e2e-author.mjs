@@ -58,8 +58,8 @@ const { error } = await supabase.auth.admin.createUser({
 
 if (error) {
   // Idempotent: an already-registered author is the steady state, not a failure.
-  const alreadyExists = error.code === "email_exists" || /already.*registered|already.*exists/i.test(error.message);
-  if (alreadyExists) {
+  // GoTrue's stable `email_exists` code is the contract — don't match on message text.
+  if (error.code === "email_exists") {
     process.stderr.write(`[provision-e2e-author] Author ${authorEmail} already exists — ok.\n`);
     process.exit(0);
   }

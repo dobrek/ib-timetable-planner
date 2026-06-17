@@ -13,21 +13,12 @@ import { defineConfig, devices } from "@playwright/test";
 // dev ./dist`), because the boundary under test (`/_actions/*` + `astro:env/server`
 // secrets + cookie SSR) only behaves correctly on workerd, not Vite-emulated dev.
 // The preview worker reads SUPABASE_URL/SUPABASE_KEY from `.dev.vars` (written by
-// `pnpm env:local` locally, by the CI step in the e2e job). `webServer.env` is
-// belt-and-suspenders only — workerd's binding source is `.dev.vars`.
+// `pnpm env:local` locally, by the CI step in the e2e job) — that is workerd's
+// only binding source, so we deliberately do NOT forward `webServer.env`: a stale
+// shell var must not be able to shadow `.dev.vars` and aim the preview elsewhere.
 
 const PORT = 4321;
 const baseURL = `http://localhost:${PORT}`;
-
-/** Forward only the env vars that are actually set, so an unset var can't shadow `.dev.vars` with an empty string. */
-function definedEnv(...keys: string[]): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const key of keys) {
-    const value = process.env[key];
-    if (value) out[key] = value;
-  }
-  return out;
-}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -61,6 +52,5 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
-    env: definedEnv("SUPABASE_URL", "SUPABASE_KEY"),
   },
 });

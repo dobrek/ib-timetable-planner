@@ -415,14 +415,14 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 #### Automated
 
 - [x] 4.1 `e2e` job runs and passes on a PR (full chain) — e4ac4c2
-- [ ] 4.2 `deploy` is observably gated on `e2e`
+- [x] 4.2 `deploy` is observably gated on `e2e` — e4ac4c2 (verified structurally: `deploy.needs = [ci, integration, e2e]`, ci.yml)
 - [x] 4.3 No `-x` exclusion change needed; `ci` + `integration` jobs unaffected — e4ac4c2
 - [x] 4.4 Env isolation holds: e2e job references no `secrets.SUPABASE_*`; no workflow-level `SUPABASE_*` env (grep `ci.yml`) — e4ac4c2
 
 #### Manual
 
-- [ ] 4.5 A deliberately broken assertion turns `e2e` red and blocks `deploy`, then reverts cleanly
-- [ ] 4.6 Uploaded `playwright-report/` artifact present and diagnostic on failure
+- [ ] 4.5 A deliberately broken assertion turns `e2e` red and blocks `deploy`, then reverts cleanly — deferred (failure-injection drill not run; deploy gate confirmed structurally via 4.2)
+- [ ] 4.6 Uploaded `playwright-report/` artifact present and diagnostic on failure — deferred (needs a real failing run; the upload step exists with `if: failure()`, ci.yml)
 - [x] 4.7 Env-to-worker mechanism in CI confirmed and recorded (resolves research Open Q1) — e4ac4c2
 
 ### Phase 5: Docs + close-out

@@ -91,7 +91,7 @@ value.
 | --- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------- |
 | 0   | Integration harness + CI lane                                       | Stand up the DB-test infrastructure (plan-rooted factories, scenario builders, CI integration lane) the rollout assumed.         | enabler; #1, #3 (persist half), #4 (partial) | integration (factory harness) + CI lane                                   | complete    | `context/changes/data-for-e2e-and-integration-tests/`                 |
 | 1   | Validator trust core (independent oracle) — **complete (absorbed)** | Prove a false-positive cannot pass the core; covers the domain persist path (the placements/grouping route migrated to Actions). | #1                                           | unit (independent oracle)                                                 | complete    | — (absorbed into organic feature/refactor growth; no discrete change) |
-| 2   | Auth + Astro Actions boundary + RLS / PII — **next active**         | Prove every Action self-enforces session, no cross-author read/mutate, and error translation holds.                              | #5, #3 (Actions)                             | integration (local Supabase + auth)                                       | change opened | context/changes/testing-auth-actions-boundary-rls/                    |
+| 2   | Auth + Astro Actions boundary + RLS / PII                           | Prove every Action self-enforces session, no cross-author read/mutate, and error translation holds.                              | #5 (unauth half), #3 (Actions)               | **e2e (Playwright, workerd preview) + integration (local Supabase + auth)** — hybrid | implementing | context/changes/testing-auth-actions-boundary-rls/                    |
 | 3   | Drag → validate → feedback loop + persistence reload-restore        | Prove a real collision visibly reads "invalid" and placed work survives reload.                                                  | #2, #4 (reload-restore)                      | component / integration (planner island); persistence integration; ≤1 e2e | not started | —                                                                     |
 | 4   | Parity harness for new validator classes (owns S-09)                | Lock a convention + fixture harness so future validator classes (roadmap S-03, S-09) ship with parity guards.                    | #1-class, S-09                               | gates + table-driven fixture harness                                      | not started | —                                                                     |
 
@@ -112,6 +112,20 @@ value.
   Today RLS policies are permissive (`using(true)`) and the integration suites
   use the service-role key, which bypasses RLS — so "authenticated = full
   access," not per-author ownership.
+- **Phase 2 is a hybrid, and it introduced the project's first Playwright e2e
+  harness** (`testing-auth-actions-boundary-rls`) — the reusable browser-test
+  pattern was **not** deferred wholesale to Phase 3. The split: e2e owns the
+  browser-observable truths (sign-in → `storageState` reuse → protected
+  dashboard; guard redirect; no-session Action refused with `UNAUTHORIZED` over
+  real HTTP), while the Vitest integration complement owns the matrix-shaped
+  truths (`DomainError`→`ActionError` for the in-scope codes, malformed-input
+  rejection, `createPlan` persistence at the `.handler` layer). A new CI `e2e`
+  job runs the suite against a real workerd preview and **gates deploy**; a
+  `GRANT … TO authenticated` migration pins table reachability. **Deferred:**
+  the `createPlan` UI-driven happy-path e2e (a later browser test once the
+  pattern is established) and the **cross-author / IDOR half of #5** (waits on
+  the ownership-column + real-RLS prerequisite above — candidate Phase 2.5).
+  See §6.3 for the reusable harness pointer.
 
 **Status vocabulary** (fixed — parser literals): `not started` → `change
 opened` → `researched` → `planned` → `implementing` → `complete`.
@@ -125,7 +139,7 @@ The classic test base for this project. AI-native tools (if any) carry a
 |-------|------|---------|-------|
 | unit | Vitest | (see lockfile) | `vitest.config.ts`; **55 unit** test files — 53 co-located `*.test.ts` siblings under the FSD slices + 2 infra-guard suites in `src/test/` (`no-seed-coupling`, `seed-transcode-identity`). |
 | integration | Vitest | (see lockfile) | `vitest.integration.config.ts`; **9 integration** suites; plan-rooted scenario factory harness at `src/test/factories/`; requires the local Supabase stack (`pnpm test:integration`). Live **CI integration lane**: regenerate seed → boot a trimmed Supabase stack → `pnpm test:integration --maxWorkers=2` (the 2-worker cap is a CI runner-resource hedge). Mutations/compute flow through **Astro Actions only** — a real Action over `/_actions/*`; the placements/grouping API route is gone. |
-| e2e | none yet — see §3 Phase 3 | — | At most one e2e for the drag→feedback loop, only if integration cannot reach it; Playwright MCP is the candidate runner (no Playwright/Cypress dep, config, or spec exists yet). |
+| e2e | Playwright (`@playwright/test`) | (see lockfile) | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). Three projects — `setup` (logs in once → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs). `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e remains §3 Phase 3. |
 | edge runtime | n/a | — | Code runs on Cloudflare Workers (workerd) in dev and prod — edge-safe libs only, no Node APIs (`fs`, `child_process`, native). |
 
 **Stack grounding tools (current session):**
@@ -224,7 +238,30 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
 ### 6.3 Adding an e2e test
 
-- TBD — see §3 Phase 3 (drag → validate → feedback loop).
+The reusable pattern shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`).
+Copy it rather than reinventing:
+
+- **Config:** root `playwright.config.ts` defines the project topology. Put the
+  spec in `e2e/specs/`. Pick the project by what you're proving:
+  - authenticated flow → name it `*.spec.ts` (runs under `chromium`, which
+    reuses `e2e/.auth/user.json` via `storageState` — no per-test sign-in);
+  - negative / unauthenticated flow (guard redirect, no-session Action) → name
+    it `*guard.spec.ts` or `*unauth.spec.ts` (runs under `chromium-guard`, which
+    starts with **no** cookies, so the real server-side gate is what rejects).
+- **Auth reuse:** `e2e/auth.setup.ts` signs in once through the real UI and
+  writes `storageState`; the author is provisioned idempotently by
+  `scripts/provision-e2e-author.mjs` (the `pretest:e2e` hook), reading creds from
+  the shared `e2e/author-credentials.mjs`.
+- **Fidelity:** `webServer` runs `pnpm build && pnpm preview` on real **workerd**
+  (not Vite dev) — the worker reads `SUPABASE_URL`/`SUPABASE_KEY` from `.dev.vars`
+  (written by `pnpm env:local` locally; by the CI `e2e` job from the stack's
+  minted keys). No sleeps / `networkidle`; gate on hydration and assertions
+  (see the playwright-cli skill). Run with `pnpm test:e2e`.
+- **Scope discipline:** prefer integration (`.handler`) for matrix-shaped truths;
+  reserve e2e for genuinely browser-observable ones. The `createPlan` UI-driven
+  happy-path mutation e2e and the cross-author/IDOR flow are **deferred** (the
+  latter waits on the ownership-column + real-RLS prerequisite — see §3 notes).
+- Drag → validate → feedback e2e is still §3 Phase 3 territory.
 
 ### 6.4 Adding a test for a new API endpoint
 

@@ -416,8 +416,8 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 
 - [ ] 4.1 `e2e` job runs and passes on a PR (full chain)
 - [ ] 4.2 `deploy` is observably gated on `e2e`
-- [x] 4.3 No `-x` exclusion change needed; `ci` + `integration` jobs unaffected
-- [x] 4.4 Env isolation holds: e2e job references no `secrets.SUPABASE_*`; no workflow-level `SUPABASE_*` env (grep `ci.yml`)
+- [x] 4.3 No `-x` exclusion change needed; `ci` + `integration` jobs unaffected — e4ac4c2
+- [x] 4.4 Env isolation holds: e2e job references no `secrets.SUPABASE_*`; no workflow-level `SUPABASE_*` env (grep `ci.yml`) — e4ac4c2
 
 #### Manual
 
@@ -429,9 +429,9 @@ Reconcile the foundation docs with the divergence this change makes, and stamp t
 
 #### Automated
 
-- [ ] 5.1 Markdown/prettier clean on edited docs (`pnpm format` no-diff)
+- [x] 5.1 Markdown/prettier clean on edited docs (`pnpm format` no-diff)
 
 #### Manual
 
-- [ ] 5.2 `test-plan.md` §3/§6.3 match what shipped (e2e in Phase 2, cross-author deferred)
-- [ ] 5.3 Runbook programmatic-provisioning path accurate against final script flags
+- [x] 5.2 `test-plan.md` §3/§6.3 match what shipped (e2e in Phase 2, cross-author deferred)
+- [x] 5.3 Runbook programmatic-provisioning path accurate against final script flags

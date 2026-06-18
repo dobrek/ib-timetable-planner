@@ -98,7 +98,7 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
       # wranglerVersion pins the action's installed Wrangler to the repo's devDependency
-      # (package.json `^4.94.0` → lockfile 4.94.0) so CI deploys with the version the app
+      # (package.json `^4.102.0` → lockfile 4.102.0) so CI deploys with the version the app
       # is built against. Keep in lockstep with the `wrangler` devDependency on bumps.
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v4
@@ -106,4 +106,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
-          wranglerVersion: "4.94.0"
+          wranglerVersion: "4.102.0"

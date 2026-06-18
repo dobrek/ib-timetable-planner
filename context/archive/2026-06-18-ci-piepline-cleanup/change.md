@@ -1,10 +1,10 @@
 ---
 change_id: ci-piepline-cleanup
 title: Ci piepline cleanup
-status: implemented
+status: archived
 created: 2026-06-18
 updated: 2026-06-18
-archived_at: null
+archived_at: 2026-06-18T14:34:54Z
 ---
 
 ## Notes

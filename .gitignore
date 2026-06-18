@@ -67,6 +67,9 @@ node_modules/
 # lefthook local overrides
 lefthook-local.yml
 
+# pii scrub artifacts (contain real names — never commit)
+/pii-scrub/
+
 # playwright
 .playwright-mcp
 .playwright-cli

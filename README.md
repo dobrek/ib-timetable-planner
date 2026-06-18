@@ -133,8 +133,8 @@ pnpm exec wrangler rollback <deployment-id>
 
 GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`:
 
-1. **`ci` job** — `pnpm install --frozen-lockfile` → `astro sync` → `lint` → `steiger` → `test` → `build`
-2. **`deploy` job** — on push to `main` only, ships via `cloudflare/wrangler-action@v3`
+1. **`verify` job** — `pnpm install --frozen-lockfile` → `astro sync` → `lint` → `steiger` → `test` → `build`
+2. **`deploy` job** — on push to `main` only, ships via `cloudflare/wrangler-action@v4`
 
 Required repository secrets:
 

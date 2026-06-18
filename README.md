@@ -113,9 +113,14 @@ The app deploys to **Cloudflare Workers**. The full deployment plan is in [`cont
 - **Production URL:** <https://ib-timetable-planner.dobromir-kropielnicki.workers.dev>
 - **Custom domain:** <https://ib-timetable-planner.dev>
 
-### Manual deploy
+Deployment is **automated**: every push to `main` runs the CI pipeline, and once all test jobs pass the `deploy` job applies pending Supabase migrations to the hosted project and ships the Worker (see [CI / CD](#ci--cd)). Merging to `main` is the normal release path — no manual steps required.
+
+### Manual deploy (escape hatch)
+
+For out-of-band releases (e.g. CI is unavailable), run the same two steps the `deploy` job runs — schema first, then code:
 
 ```bash
+pnpm exec supabase db push   # apply pending migrations to the hosted project
 pnpm build
 pnpm exec wrangler deploy
 ```
@@ -131,19 +136,23 @@ pnpm exec wrangler rollback <deployment-id>
 
 ## CI / CD
 
-GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`:
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`. All jobs share the `./.github/actions/setup` step (pnpm + Node + `pnpm install --frozen-lockfile`):
 
-1. **`verify` job** — `pnpm install --frozen-lockfile` → `astro sync` → `lint` → `steiger` → `test` → `build`
-2. **`deploy` job** — on push to `main` only, ships via `cloudflare/wrangler-action@v4`
+1. **`verify` job** — `astro sync` → `lint` → `steiger` → `pnpm audit --audit-level=high` → `test` → `build`
+2. **`integration` job** — boots a trimmed local Supabase stack, runs `pnpm test:integration --maxWorkers=2`
+3. **`e2e` job** — boots the stack + workerd preview, runs the Playwright suite (`pnpm test:e2e`)
+4. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` all pass: applies pending migrations (`supabase db push`), then ships via `cloudflare/wrangler-action@v4`
 
 Required repository secrets:
 
-| Secret                  | Description                            |
-| ----------------------- | -------------------------------------- |
-| `SUPABASE_URL`          | Hosted Supabase project URL            |
-| `SUPABASE_KEY`          | Hosted Supabase Publishable (anon) key |
-| `CLOUDFLARE_API_TOKEN`  | Scoped token (Workers Scripts: Edit)   |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier          |
+| Secret                  | Description                                       |
+| ----------------------- | ------------------------------------------------- |
+| `SUPABASE_URL`          | Hosted Supabase project URL                       |
+| `SUPABASE_KEY`          | Hosted Supabase Publishable (anon) key            |
+| `SUPABASE_ACCESS_TOKEN` | Supabase CLI access token — `db push` in `deploy` |
+| `SUPABASE_DB_PASSWORD`  | Hosted DB password — `db push` in `deploy`        |
+| `CLOUDFLARE_API_TOKEN`  | Scoped token (Workers Scripts: Edit)              |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier                     |
 
 ## Supabase
 
@@ -193,14 +202,14 @@ The generator aborts loudly on data inconsistencies (e.g. phantom courses) and p
 pnpm exec supabase migration new <descriptive_name>
 ```
 
-**Hosted.** Push **migrations only** — the seed is dev-only and is never applied to hosted:
+**Hosted.** On merge to `main`, the CI `deploy` job applies pending **migrations only** via `supabase db push` (the seed is dev-only and is never applied to hosted). To push out-of-band — CI unavailable, or to validate before merge:
 
 ```bash
 pnpm exec supabase db push             # apply pending migrations to the linked project
 pnpm exec supabase db diff             # should report clean afterward
 ```
 
-> After a push, verify table access. Supabase currently auto-grants `anon`/`authenticated` on new `public` tables, but the platform is moving to opt-in grants. If tables are unexpectedly unreachable, add `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;` and re-run `pnpm exec supabase db advisors`. RLS controls which rows are visible; grants control whether the table is reachable at all — both must be in place.
+> Table reachability is pinned explicitly in migrations, not left to Supabase's legacy auto-grant for new `public` tables (the platform is moving to opt-in grants). `authenticated` and `service_role` are granted DML on the public schema — current and future tables, via `alter default privileges` — while `anon` is revoked (least privilege). When adding a `public` table, the default-privilege rules carry these grants forward automatically; if a table is ever unexpectedly unreachable, run `pnpm exec supabase db advisors` and confirm the role holds a grant. RLS controls which rows are visible; grants control whether the table is reachable at all — both must be in place.
 
 **Rollback.** There is no production data to preserve yet. Prefer additive migrations (nullable new columns, no `DROP`); a code rollback does not undo an applied migration. To reset hosted state at this stage, drop and re-push.
 

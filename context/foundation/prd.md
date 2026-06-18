@@ -1,197 +1,483 @@
 ---
-project: "IB Schedule Planner"
-version: 2
+project: ib-timetable-planner
+version: 1
 status: draft
-created: 2026-05-19
-updated: 2026-06-11 # v2 amendment: per-plan variants overturned — plans become cloneable whole-domain scenarios (change: multi-variant-management)
-context_type: greenfield
+created: 2026-06-18
+context_type: brownfield
 product_type: web-app
 target_scale:
   users: small
-  qps: tbd
-  data_volume: tbd
 timeline_budget:
-  mvp_weeks: 8
+  delivery_weeks: 6
   hard_deadline: null
   after_hours_only: true
-  soft_milestone: "internal preview demo at the school"
 ---
 
-# PRD — IB Schedule Planner
+# PRD — IB Timetable Planner (post-demo feedback change)
 
-## Vision & Problem Statement
+> Brownfield change PRD, generated from `context/foundation/shape-notes.md`
+> (shaped from end-user feedback after the first demo,
+> `docs/users-feedback/19-06-26.md`). The greenfield product PRD that defined
+> the shipped system is archived at
+> `context/foundation/archive/prd-2026-06-18-1646.md`.
 
-Building a timetable for an IB (International Baccalaureate) programme is structurally different from a regular high school schedule. Students individually choose their own subject set (level, language, options), so there are no fixed homeroom classes; the schedule spans two year-cohorts (Year 1 and Year 2) that share teachers and the same slot grid. A plan author at one IB-offering high school must find slot assignments where overlapping courses do not collide for any student, any teacher, or any teacher-availability rule — across the full two-cohort programme, simultaneously. Today, a standalone algorithm reads four CSV files (student–subject choices, teacher–subject assignments, subject overlaps, subject merges) and emits a ranked list of "course groupings that could be held in the same slot without collision"; the author then opens that list in a general-purpose spreadsheet and **manually drags those groupings onto a slot grid**. There is no automatic check that a placement remains valid as the grid fills up: collisions are caught visually, late, and re-doing a placement is expensive.
+## Current System Overview
 
-The combinatorial step already produces compatible groupings. What remains — placing those groupings on a slot grid, sequencing the work across two cohorts, exploring multiple parallel plans before committing — is interactive, visual, and constraint-driven, but is being done in a tool that knows nothing about students, teachers, or availability and therefore cannot validate. A purpose-built editor with live multi-constraint validation collapses the workflow: the author drops a grouping on a slot, the app immediately responds with valid or with the specific class of collision, and the timetable converges by feel rather than by spreadsheet bookkeeping.
+> Baseline this change is described against. Names real technologies — it
+> describes reality, not a stack choice. Grounded in the live codebase
+> (2026-06-18).
+
+**Purpose.** An interactive IB timetable editor: a plan author drags compatible
+course groupings onto a two-cohort slot grid with live, sub-200 ms constraint
+validation — replacing the prior "algorithm output + manual Excel" workflow.
+
+**Architecture & stack.** Astro 6 + React 19 islands on Cloudflare Workers
+(workerd), Supabase (Postgres) for persistence, Tailwind v4, TypeScript v6. The
+two-cohort constraint/validation core lives in `src/_pages/plan-detail/model/`.
+
+**Users.** A few plan authors at one IB-offering liceum. Email + password auth;
+single `Author` role.
+
+**Core functionality today.**
+
+- **Domain root is `Plan`.** The earlier "multiple variants per plan" concept
+  was retired — `plan_variants` was dropped (migration
+  `20260611180006_plans_as_domain_root.sql`); a Plan now owns its catalog
+  (teachers, courses, students, choices, overlaps, merges, placements,
+  groupings, availability) directly.
+- **Two cohorts, values `dp1` / `dp2`.** Display labels are currently
+  **"Year 1" / "Year 2"** (`src/shared/config/cohorts.ts`).
+- **Single-cohort board.** The planner loads one cohort at a time —
+  `BOARD_COHORT = "dp1"` is hardcoded (`src/_pages/plan-detail/api/load.ts`).
+  There is **no combined two-cohort view** and **no cross-cohort
+  teacher-occupancy constraint** — the Y1→Y2 fixed-order model described in the
+  original PRD was never actually implemented.
+- **Course → single teacher.** A course carries one nullable `teacher_id` (one
+  teacher per course).
+- **Placement = one course in one cell.** Placements are keyed
+  `(plan_id, cohort, day, period, course_id)`; a placed grouping is decomposed
+  into independent per-course placements, not stored as a unit.
+- **"Bundle" is a state flag, not an entity.** `isBundled = occupantCount ≥ 2
+  && !overridden` (`slot-bundle.ts`); a `slot_bundles` table records explicit
+  opt-outs. A whole-slot move deletes + recreates individual placements — the
+  bundle is **not** a movable, persistent object, and there is **no temporary
+  holding container**.
+- **Constraint core (within-cell).** Registered cell constraints:
+  `duplicate-course`, `teacher-conflict`, `student-conflict`,
+  `teacher-availability` (`constraints/index.ts`). Drag-drop validation
+  (`drop-hints.ts`) classifies each cell free / partial / blocked / warn under
+  the sub-200 ms budget.
+- **Slot grid = `(day, period)` only.** Each slot is a single weekly period
+  (e.g. `5×10` = Mon–Fri × 10 periods). **No week / fortnight dimension.**
+- **CSV export.** Specified in the original PRD but **not yet implemented** in
+  the codebase (no export endpoint found). CSV files under `data/dp1`,
+  `data/dp2` are inbound seed fixtures only.
+
+## Problem Statement & Motivation
+
+> Delta-framed: what's changing and why.
+
+**The gap.** The product was demoed to its end users. Design and core
+functionality were well received, but the demo surfaced six places where the
+tool's model diverges from how authors actually work and how the IB domain
+actually behaves. Left unaddressed, these force authors back toward
+spreadsheet-style workarounds for the exact cases the tool exists to remove.
+
+**Why now.** This is the first real-user feedback after the build. Aligning the
+tool with the authors' mental model and domain reality *before* further
+development is cheaper than layering more features on a diverging foundation.
+
+**The six asks** (full detail resolved in Scope of Change and Business Logic
+Changes):
+
+1. **Co-teaching** — a single course can be run by two teachers (rare but
+   real); both teachers must count as occupied for collision purposes.
+2. **Bi-weekly (fortnightly) courses** — a course runs some hours in week A,
+   nothing in week B, then resumes; two fortnightly courses of opposite weeks
+   can legitimately share one slot.
+3. **DP1 / DP2 naming** — authors call the cohorts "DP1" / "DP2", not
+   "Year 1" / "Year 2".
+4. **No fixed cohort start order + free switching** — authors want to begin
+   with either cohort and move between them freely while planning (today the
+   board is locked to one cohort).
+5. **Combined two-cohort view** — a new view showing both cohorts at once, one
+   column per cohort (DP1 | DP2), as the final assembly stage.
+6. **Bundles as first-class + a holding container** — authors perceive a placed
+   grouping as a "bundle" and operate on it as a unit (move / remove / replace);
+   they want to lift a bundle into a temporary external container to free the
+   board while preparing a new location for it.
+
+**Insight.** The demo confirmed authors reason in *bundles*, name cohorts
+*DP1/DP2*, occasionally *co-teach*, run *fortnightly* courses, and reject a
+forced cohort order. This change is domain-fidelity and mental-model alignment,
+not capability-for-its-own-sake.
 
 ## User & Persona
 
-**Primary persona — Plan Author.** A teacher or administrator at one IB-offering high school who is responsible for producing the year's timetable. There are a small number of such authors at the school (today: ~handful, possibly working in parallel on competing plans for the same school year before one is adopted). They have substantial domain knowledge about the IB programme structure (SL/HL levels, language groups, overlap and merge dependencies), are comfortable with spreadsheets, and currently invest significant unstructured time arranging the grid by hand. They reach for this product at the start of each school year, and again after any subsequent shift in student choices, teacher availability, or course offerings, when the timetable has to be (re)built.
+**Primary persona — Plan Author (unchanged).** A teacher/admin at one IB liceum
+responsible for producing the year's timetable; a few such authors at the
+school. No new persona and no scale change are introduced by this work.
 
-Students, teachers, school administration, and parents are NOT primary personas. Students' choices and teachers' availability are captured upstream and entered into the app by the author; no self-service flows are in scope for MVP.
+What changes for them is the *experience*: they gain a final two-cohort assembly
+stage (the combined view), bundle-centric manipulation with a holding area, the
+freedom to start from and switch between cohorts, and a domain model that can
+express co-teaching and fortnightly courses.
 
 ## Success Criteria
 
+> Delta-framed; guardrails name existing behaviour that must not regress.
+> Non-functional properties from shaping are folded into Guardrails below.
+
 ### Primary
 
-A plan author can take a fresh school year — students, teachers, courses, and choices for two IB cohorts (Year 1 and Year 2) — and produce a complete, collision-free timetable plan covering both cohorts end-to-end inside the app, faster and with fewer last-mile fixes than the current "algorithm + spreadsheet" workflow.
+A plan author can produce a complete, collision-free timetable across **both
+cohorts (DP1 and DP2)** using the enriched domain model, and assemble/review
+both cohorts together in a new combined view. The change has succeeded when,
+working from an existing plan:
 
-The reference first-session shape:
-
-1. Author signs in.
-2. Author creates a plan: a name plus a slot-grid preset (e.g., Mon–Fri × 8 periods). On a fresh instance the plan starts blank; once any plan exists, **cloning an existing plan is the primary path** to a new one.
-3. Author seeds the plan's catalog: creates students (or imports them from CSV) and their choices for both cohorts; creates teachers and their course assignments; declares teacher availability rules; declares course dependencies (overlaps, merges).
-4. The author works on **Year 1 first**. The app computes "compatible course groupings" for Year 1 and offers them as draggable building blocks.
-5. Author drags Year 1 groupings onto slots. At every drop, the app validates the placement against Year 1 student collisions, Year 1 teacher collisions, and teacher-availability violations, and gives immediate feedback.
-6. Once Year 1 is stable, the author moves to **Year 2** within the same plan. Year 1 placements now act as **fixed teacher-occupancy constraints**: a teacher already teaching in slot S for Year 1 cannot be placed in slot S for Year 2.
-7. When both cohorts are fully placed, the plan is complete — plans are peers; there is no separate "final" mark.
-8. Author exports the plan as a master-grid CSV (slot × course, with cohort distinguishable).
+1. Cohorts read as **DP1 / DP2** throughout the UI.
+2. The author can open the board on **either** cohort and **switch between DP1
+   and DP2 freely** while planning — no forced start order.
+3. A course can be **co-taught by two teachers**, and the collision checks treat
+   **both** teachers as occupied.
+4. A course can be **bi-weekly** (week A / week B): two opposite-week courses may
+   share one slot without a false collision, while same-week courses still
+   collide.
+5. The author manipulates a placed grouping as a **bundle** — move / remove /
+   replace as a unit — and can lift a bundle into a **temporary holding
+   container** to free the board, then place it elsewhere, all within cohort
+   constraints.
+6. A **combined view** shows DP1 and DP2 side by side (one column each) as the
+   final assembly stage, with placements staying collision-free across students,
+   teachers (within *and* across cohorts), and availability — inside the
+   sub-200 ms validation budget.
 
 ### Secondary
 
-Authors can keep multiple plans in parallel — typically by cloning an existing plan and editing the clone's catalog and placements independently — so different scheduling scenarios can be explored side by side before the school adopts one.
+- A parked bundle in the holding container survives a browser refresh (work
+  durability extended to the staging area). Nice-to-have, not sufficient alone.
 
 ### Guardrails
 
-- **Validation is never wrong-positive.** A placement the app marks as valid must actually be collision-free for students, teachers, and availability. False negatives (the app flagging a non-collision) are an acceptable v1 cost; false positives (silently accepting a real collision) are not.
-- **Student-choice data is never silently mutated.** Authors can edit catalog entities; student choices imported from CSV are treated as ground truth and any modification must be explicit.
-- **The product is functional without dependency on third-party scheduling or optimization services.** The grouping computation and validation belong to the application itself; there must be no external scheduling service in the critical path.
+- **Validation responsiveness (preserved + extended).** Drag-drop validation
+  outcome stays within the sub-200 ms budget (≤ 200 ms p95 for a typical cohort)
+  even after co-teaching and bi-weekly are folded into the occupancy checks —
+  including the combined two-cohort view validating against both cohorts at once.
+- **Collision correctness (preserved + extended).** No false-positive "valid"
+  across the new dimensions: a slot the app calls valid must be genuinely
+  collision-free for students, *both* teachers of a co-taught course, week-aware
+  fortnightly overlaps, and cross-cohort teacher occupancy. False positives are a
+  regression even if everything else works.
+- **Existing single-cohort editing views keep working** — the combined view is
+  additive, not a replacement.
+- **Existing board-state durability is preserved** — no silent loss of
+  in-progress work on an accidental browser refresh or tab close.
+- **Combined-view usability.** The two-column DP1 | DP2 view stays readable and
+  usable on a typical laptop screen.
+- **Privacy (preserved).** Student names and choices remain author-only.
+- **CSV export discrepancy.** Export was selected as must-preserve but is not yet
+  implemented in the codebase. Either it is genuinely out of scope (drop from
+  guardrails) or it must be built *and* represent the enriched model
+  (co-teaching, bi-weekly, both cohorts). Routed to Open Questions.
 
 ## User Stories
 
-### US-01: End-to-end first plan (Year 1 then Year 2)
+> Delta-framed — each notes what was different before.
 
-- **Given** a plan author has signed in to a freshly seeded instance with no plans yet
-- **When** they:
-  - (a) create a plan and choose a slot-grid preset,
-  - (b) create the plan's Year 1 and Year 2 students and choices via the UI (optionally seeded from CSV import),
-  - (c) populate the plan's catalog with teachers, course assignments, availability rules, and course dependencies (overlap + merge),
-  - (d) work on Year 1 first: drag compatible Year 1 groupings onto slots, accepting only drops the live validator marks valid, until all Year 1 slots required by the cohort are placed,
-  - (e) switch to Year 2 within the same plan: drag Year 2 groupings onto slots under the additional constraint that teacher slots occupied in Year 1 are now unavailable,
-  - (f) cover all slots required by both cohorts' choices
-- **Then** the plan is collision-free for every student in both cohorts, every teacher across both cohorts, and every availability rule; and the master-grid CSV export reflects the placed timetable with cohort distinguishable
+### US-01: Assemble a collision-free two-cohort plan in the combined view
 
-### US-02: Parallel plans
+- **Given** an author working on an existing plan whose catalog includes a
+  co-taught course and a bi-weekly course
+- **When** they open the combined view (DP1 | DP2), start on whichever cohort
+  they like, switch freely between the two columns, and drag groupings and
+  bundles onto slots
+- **Then** every placement is validated live (within the sub-200 ms budget)
+  against student, teacher (within *and* across cohorts, counting both teachers
+  of a co-taught course), week-aware fortnightly, and availability collisions —
+  and the author ends with a complete, collision-free plan across both cohorts
 
-- **Given** a plan author has an in-progress plan they don't want to disturb
-- **When** they clone it into a second plan
-- **Then** both plans exist independently — each with its own catalog (students, teachers, courses, choices, dependencies) and its own Year 1 and Year 2 placements — and can be edited in parallel without either affecting the other
+> Before: the board was locked to one cohort (`dp1`), cohorts read "Year 1/2", a
+> course had one teacher, there was no week dimension, and there was no combined
+> view.
 
-## Functional Requirements
+### US-02: Park a bundle while rearranging the board
 
-### Authentication
+- **Given** an author who needs to free a slot to make room for another bundle
+- **When** they lift the occupying bundle off the board into the holding
+  container, rearrange other bundles on the board, then drag the parked bundle
+  back onto a now-suitable slot
+- **Then** the parked bundle is held intact off-board (not flagged while parked),
+  and on drop-back it is re-validated within its cohort's constraints
 
-- FR-001: Author can sign in with email and password. Priority: must-have
-  > Socratic: Counter-argument considered: "auth is overkill for a small private deployment." Resolution: stands — email + password is the lowest-friction model that still keeps a per-author identity for plan attribution.
+> Before: a whole-slot move decomposed into per-course placements and there was
+> no staging area — freeing a slot meant deleting and re-creating placements.
 
-### Catalog: courses, teachers, dependencies
+### US-03: Two opposite-week courses share one slot
 
-- FR-002: Author can manage the course catalog (create, edit, delete). A course is identified by the triple `(name, level, group-index)`, where `level ∈ {SL, HL, AB, none}` and `group-index ∈ {1, 2, none}`. Examples: `(English B, HL, 1)`, `(English B, HL, 2)`, `(CAS, none, 1)`, `(TOK, none, 2)`, `(Computer Science, SL, none)`. Priority: must-have
-  > Socratic: Counter-argument considered: "level enum is too rigid." Resolution: stands — the (level, group-index) tuple matches the existing data shape and the IB programme structure. The IB Group attribute (Group 1–6) is captured as an Open Question.
-- FR-003: Author can declare course dependencies of two kinds: (a) **overlap** — two same-subject different-level courses that may share slot fragments (e.g., Polish A SL / Polish A HL); (b) **merge** — different-level groups taught together as one (e.g., German B AB+SL). Priority: must-have
-  > Socratic: Counter-argument considered: "overlap and merge could be one unified concept." Resolution: kept separate — they have distinct semantics in collision rules (overlap = share fragments; merge = one combined slot). Unifying them risks losing the distinction.
-- FR-003A: Author can declare number of hours (1hour = slot) per week for given subject. Priority: must-have
-- FR-004: Author can manage teachers (create, edit, delete) and assign each teacher to one or more courses (where a course is the `(name, level, group-index)` triple from FR-002). Priority: must-have
-  > Socratic: Counter-argument considered: "missing hours-per-week or preferred-time constraints." Resolution: kept minimal for MVP. Captured as Open Questions for downstream consideration.
-- FR-005: Author can declare teacher availability rules — slots a given teacher cannot be scheduled into. Priority: must-have
-  > Socratic: Counter-argument considered: "soft preferences (prefer morning, prefer non-consecutive) are needed too." Resolution: hard exclusions only in MVP; soft preferences captured as Open Question.
+- **Given** two bi-weekly courses, one on week A and one on week B, with no
+  student or teacher in common
+- **When** the author places both into the same slot
+- **Then** the validator accepts the pair (opposite weeks don't overlap), but
+  would flag a third placement that shares a week with either
 
-### Student data
+> Before: any two courses in one slot were tested as simultaneous — there was no
+> notion of alternating weeks.
 
-- FR-006: Author can manage students and their course choices via the UI — create a student, add or remove course choices for that student (each choice is a course as defined in FR-002). This is the **primary path** for entering student data. Priority: must-have
-  > Socratic: Counter-argument considered: "the cohort is large; UI-only entry will be slow." Resolution: kept as primary path per author preference; CSV import (FR-007) is the bulk seeding alternate.
-- FR-007: Author can bulk-import student choices from a CSV matching the existing `students_subjects.csv` shape (student name, course, level, optional group-index). This is an **optional alternate path**, useful for seeding existing data from the prior CSV-based workflow. Priority: must-have
+## Scope of Change
 
-### Plan, grid, cohorts, placement
+> Each item carries a `Change:` tag — `new` (didn't exist), `modified` (existing
+> behaviour changes), `preserved` (must keep working unchanged). FR IDs and
+> `> Socrates:` blockquotes are preserved verbatim for downstream review.
 
-- FR-008: At plan creation, the author selects a slot-grid preset from a small enumerated set (e.g., `Mon–Fri × 6 periods`, `Mon–Fri × 8 periods`). The grid is fixed for the lifetime of the plan in MVP; bespoke editing is deferred. Priority: must-have
-  > Socratic: Counter-argument considered: "schools vary too much; presets won't fit." Resolution: presets cover the immediate target (one IB high school); a custom grid editor is in Open Questions.
-- FR-009: A plan spans **two cohorts** — Year 1 and Year 2 of the IB programme — that share the slot grid and the teacher pool. The author builds the Year 1 cohort first; once Year 1 placements are stable, Year 1 acts as a **fixed constraint set** when the author starts placing Year 2 (slots in which a teacher already teaches a Year 1 course are unavailable to the same teacher in Year 2). Priority: must-have
-- FR-010: Author can manage plans as complete scenarios (catalog + placements). A new plan is created blank (name + grid preset) or — the primary path — by cloning an existing plan, deep-copying its entire catalog, placements, and groupings into an independent new plan. Plans can be renamed and deleted; deleting a plan removes its whole scenario. Priority: must-have
-  > Socratic: Amended in v2 (2026-06-11). v1 promised per-plan draft variants; user conversations showed the real what-if axis is the catalog (student/teacher changes), not placements within a fixed catalog — so the cloneable unit became the whole plan. Parallel what-if exploration remains a core need; it now happens across plans, not within one.
-- FR-011: Author can place courses (or compatible course groupings) onto slots by drag-and-drop within the current cohort of the current plan, and can remove or move placements. Priority: must-have
-  > Socratic: Counter-argument considered: "keyboard-only / click-to-place alternatives." Resolution: drag-and-drop is the stated UX premise ("like solving a puzzle"); alternatives captured as Open Question.
-- FR-012: On every drop, the app validates the placement against (a) student collisions, (b) teacher collisions within the current cohort, (c) teacher collisions against the _other cohort's fixed placements_, (d) teacher availability rules — and reports the outcome immediately in the UI. Priority: must-have
-  > Socratic: Counter-argument considered: "block-invalid-drops vs. flag-and-allow." Resolution: deliberate ambiguity preserved here; resolution path is in Open Questions — both options are defensible, and the choice is worth deciding during design review.
-- FR-013: App computes ranked "compatible course groupings" from current catalog state (scoped to the current cohort) and exposes them as draggable building blocks alongside the grid. Priority: must-have
-  > Socratic: Counter-argument considered: "defer ranking to v2." Resolution: kept — ranking is what makes the algorithm output usable; without it the author drowns in options.
+### Domain model: co-teaching
 
-### Export
+- FR-001: Author can assign two or more teachers to a single course
+  (co-teaching), and every assigned teacher is treated as occupied for
+  teacher-conflict and availability checks. Priority: must-have. Change: modified
+  > Socrates: Counter-argument considered: "co-teachers may split the class, so
+  > only one is in the room at a time — both-occupied is too strict." Resolution:
+  > stands — when two teachers run one course they are both committed to that
+  > slot; the split-teaching case is not what users reported.
 
-- FR-014: Removed in v2 (2026-06-11). Plans are peers — no plan carries a "final" mark. Priority: —
-  > Socratic: v1 required "exactly one variant per plan as final"; the `is_final` flag was never read or written by shipped code, and the variant level it marked is gone. Surfacing the best candidate via derived quality metrics (valid / complete / used slots) on the plans hub is a future extension; which plan the school actually adopts is a social fact recorded outside the tool for now.
-- FR-015: Author can export **any plan** as a master-grid CSV (slot × course), with cohort distinguishable in the output. Priority: must-have
-  > Socratic: Amended in v2 (2026-06-11). With no final mark, restricting export to a "final" artifact has no anchor; export applies to any plan. This dissolves former Open Question 10 (draft export).
+### Domain model: bi-weekly (fortnightly)
 
-## Non-Functional Requirements
+- FR-002: Author can mark a course as bi-weekly (fortnightly) and, when placing
+  it, choose which fortnight week (A or B) the placement occupies; a weekly
+  course occupies both weeks. Priority: must-have. Change: new
+  > Socrates: Counter-argument considered: "make the whole plan a fortnight grid
+  > instead of a per-course flag." Resolution: stands — weekly and fortnightly
+  > courses coexist in one plan, so the fortnight attribute belongs on the
+  > course/placement, not the entire grid.
+- FR-003: The placement validator is week-aware — it permits two opposite-week
+  fortnightly courses to share one slot, and flags any week overlap (two
+  same-week courses, or any clash with a weekly course). Priority: must-have. Change: new
+  > Socrates: Counter-argument considered: "forbid slot-sharing entirely to avoid
+  > grid clutter and correctness risk." Resolution: stands — opposite-week
+  > sharing is exactly the capacity gain users asked for; clutter is a display
+  > concern, and correctness is held by the guardrail (no false-positive valid).
 
-- **Validation responsiveness.** When the author drops a course grouping on a slot, the validation outcome is visibly reflected in the UI fast enough to preserve the "solving a puzzle" feel — target ≤ 200 ms user-perceived response at p95 for a cohort of typical size (one IB year, ~50–150 students, ~30–60 courses).
-- **Work durability.** Author work in progress (catalog edits, placements, plan state) survives accidental session interruption — page close, refresh, or local crash — without loss of placed work. The user must always be able to return to where they left off.
-- **Data privacy.** Student names and their individual course choices are treated as personally identifying. Only authenticated authors can access this data; export files are produced only on explicit author action.
-- **Single-source-of-truth integrity.** Once a CSV import has been applied, subsequent edits in the UI become the new source of truth — re-importing the same CSV later must not silently overwrite UI-edited data without explicit author intent.
+### Cohort naming
 
-## Business Logic
+- FR-004: Cohorts are presented as "DP1" and "DP2" throughout the UI, replacing
+  the "Year 1" / "Year 2" display labels (the `dp1` / `dp2` data values are
+  unchanged). Priority: must-have. Change: modified
+  > Socrates: Counter-argument considered: "make cohort names author-
+  > configurable rather than a hardcoded DP1/DP2 relabel." Resolution: stands —
+  > DP1/DP2 is the standard IB term for this school; a fixed relabel suffices.
+  > Configurable names noted as a possible future extension, not this change.
 
-**Domain rule (one sentence).** The application continuously applies two paired rules over the current catalog and placement state: a **recommendation rule** that produces a ranked list of course groupings whose members can be taught simultaneously without collision, and a **validation rule** that judges whether any proposed placement of such a grouping on a specific slot remains collision-free given everything else placed so far.
+### Cohort navigation & cross-cohort constraint
 
-**Inputs the rules consume** (from the author's point of view):
+- FR-005: Author can open the board on either cohort and switch between DP1 and
+  DP2 freely at any time while planning — there is no fixed start order.
+  Priority: must-have. Change: modified
+  > Socrates: Counter-argument considered: "free switching loses the
+  > DP1-stable-before-DP2 guard and invites thrashing between half-built
+  > cohorts." Resolution: stands — authors explicitly asked to choose either
+  > cohort and switch freely; the symmetric constraint (FR-006) makes order
+  > irrelevant to correctness.
+- FR-006: Teacher **occupancy** is enforced symmetrically across both cohorts and
+  is week-aware — a teacher occupied in a given slot and week (in either cohort)
+  cannot be placed in that same slot and week of the other cohort, though the
+  same teacher may occupy one slot across opposite weeks. Teacher
+  **availability** stays week-agnostic (an unavailable slot applies to both
+  weeks) and cohort-independent. Priority: must-have. Change: new
+  > Socrates: Counter-argument **accepted (refined)**: "teacher availability is
+  > not week-aware — it's the same for week A and week B." Resolution: the rule
+  > was split. Occupancy/conflict is week-aware and symmetric across cohorts;
+  > availability is week-agnostic (unavailable = both weeks) and cohort-
+  > independent (unchanged from today). FR text updated accordingly.
 
-- The catalog: every course with its `(name, level, group-index)` identity, the course dependencies (overlap groups, merge groups), every teacher with their course assignments and availability rules.
-- The cohort under construction (Year 1 or Year 2), and — when the cohort is Year 2 — the fixed placements already made for Year 1 (which constrain teacher availability).
-- Every student's chosen set of courses.
-- The current slot-grid preset and all current placements in the plan under construction.
+### Combined two-cohort view
 
-**Output the rules produce.**
+- FR-007: Author can open a combined view showing DP1 and DP2 side by side, one
+  column per cohort. Priority: must-have. Change: new
+  > Socrates: Counter-argument **accepted**: "two full grids side by side won't
+  > fit a laptop screen — readability suffers." Resolution: kept, but the
+  > combined view must use a space-efficient layout (compact/narrower columns,
+  > horizontal scroll if needed). Layout/screen-fit routed to Open Questions for
+  > design.
+- FR-008: The combined view is editable — the author can perform placement and
+  bundle operations on either cohort's column, within that cohort's constraints.
+  Priority: must-have. Change: new
+  > Socrates: Counter-argument **accepted**: "cross-column drags invite
+  > accidental cohort moves in a cramped two-grid layout." Resolution: kept
+  > editable, but cross-cohort (cross-column) moves are prevented/guarded — a
+  > bundle moves only within its own cohort column, consistent with "within
+  > cohort constraints."
 
-- The **recommendation rule** emits a ranked list of compatible course groupings ("compatible groupings"). Each entry is a set of courses that can share one slot without collision in the current cohort; entries are scored (student coverage count and fractional score, matching the existing algorithm's output shape) so the author sees the most useful groupings first.
-- The **validation rule** emits a judgment per drop: valid (no collision under any class — student / teacher in cohort / teacher across cohorts / availability) or invalid (with the specific class(es) of violation named).
+### Bundles & holding container
 
-**How the author encounters the rules in the product flow.**
+- FR-009: A placed grouping is a first-class bundle the author can move, remove,
+  or replace as a single unit, within cohort constraints. Priority: must-have. Change: modified
+  > Socrates: Counter-argument considered: "'replace' is underspecified — replace
+  > with what?" Resolution: stands — replace swaps the bundle's contents for a
+  > different compatible grouping on the same slot (detailed in Business Logic
+  > Changes); per-course control is retained via FR-010.
+- FR-010: Author can ungroup a bundle to operate on its individual courses —
+  remove a single course, or move one course to another slot. Priority:
+  must-have. Change: preserved
+  > Socrates: Counter-argument considered: "per-course ops reopen the
+  > fine-grained collision risk bundling was meant to simplify." Resolution:
+  > stands — this preserves today's ungroup / opt-out behaviour (the
+  > `slot_bundles` override); single-course moves are re-validated like any
+  > placement.
+- FR-011: Author can lift a bundle off the board into a temporary holding
+  container (a shelf that holds multiple parked bundles) and place a parked
+  bundle back onto a slot later. Priority: must-have. Change: new
+  > Socrates: Observation **accepted (new requirement)**: "this kind of bundle
+  > operation reveals a need for an undo mechanism." Resolution: kept; undo/redo
+  > captured as new FR-013 and routed to Open Questions for priority/scope, since
+  > undo could affect the 4–6 week estimate.
 
-- The author opens a plan, picks a cohort. The recommendation rule's output appears as draggable building blocks beside the grid; the highest-scored groupings are at the top.
-- The author drags a grouping onto a slot. The validation rule fires at the drop moment. The grid responds immediately — accepting visually, or flagging with the violation class — without a perceptible wait.
-- When the author moves between cohorts within the same plan, the recommendation and validation rules re-evaluate against the new cohort scope while honoring the other cohort's fixed placements.
+### Preserved behaviour
 
-This is what the existing CSV + spreadsheet workflow lacks: a general-purpose spreadsheet knows about cells, not about students / teachers / availability, so it cannot validate; the existing algorithm produces a one-shot ranked list with no feedback loop once the author starts placing.
+- FR-012: Existing single-cohort editing boards keep working unchanged, and live
+  drag-drop validation stays within the sub-200 ms budget and remains
+  collision-correct (no false-positive "valid") across all new dimensions.
+  Priority: must-have. Change: preserved
+  > Socrates: Counter-argument considered: "the 200 ms budget is the hardest
+  > guarantee to keep once co-teaching, bi-weekly, and cross-cohort checks are
+  > added — this 'preserved' FR may be aspirational." Resolution: stands —
+  > preserved as a hard guardrail; performance of the enriched constraint core is
+  > the key delivery risk and is called out in the guardrails.
 
-## Access Control
+### Editing safety
 
-**Sign-in.** Email + password authentication. Each plan author has an individual account.
+- FR-013: Author can undo (and redo) recent editing operations — bundle move,
+  remove, replace, ungroup, single-course move, lift-to-container, and
+  place-back. Priority: must-have _(provisional — scope/priority unresolved; see
+  Open Questions)_. Change: new
+  > Socrates: surfaced during the FR-011 challenge — the lift/park/replace
+  > workflow is error-prone enough that authors will expect to step back.
+  > Priority and depth (single-step vs multi-step history; session-only vs
+  > durable) are unresolved and may move the timeline.
 
-**Roles.** A single role in MVP:
+## Constraints & Compatibility
 
-- **Author** — can create, clone, rename, and delete plans; can edit each plan's catalog (students, teachers, courses, choices, availability); can import and export.
+> Makes preservation, backward compatibility, and migration needs explicit.
 
-A read-only Viewer role was considered and explicitly dropped from MVP; it appears in Open Questions as a v2 candidate.
+- **Existing plans load and validate unchanged.** New model fields must default
+  so existing data behaves identically: a single-teacher course is the
+  one-element teacher set; a course with no fortnight flag is weekly (both
+  weeks); existing placements with no week tag are treated as weekly.
+- **Additive migrations only.** Schema changes (teacher set/junction, course
+  fortnight flag, placement week, bundle identity) are additive
+  (nullable/defaulted) per the project's migration convention — no destructive
+  drops of in-use columns. There is no production data to migrate yet; a code
+  rollback does not undo an applied migration.
+- **Constraint core is the protected zone.** Work touches
+  `src/_pages/plan-detail/model/` (the <200 ms two-cohort constraint core). The
+  existing collision classes (duplicate-course, teacher-conflict,
+  student-conflict, teacher-availability) keep functioning; new behaviour extends
+  them rather than replacing them.
+- **Existing per-cohort boards preserved.** The single-cohort board remains; the
+  combined view and holding container are additive surfaces.
+- **Ungroup / slot-bundle opt-out preserved** (`slot_bundles` override, FR-010).
+- **Workers runtime.** Stays within Cloudflare Workers (workerd) — no Node-only
+  APIs — for the new constraint logic and any persistence.
+- **No access control change** (email + password, single Author role).
+- **CSV export** is unresolved (see Open Questions); if built, the master-grid
+  export must distinguish cohorts and represent co-teaching + bi-weekly weeks.
 
-**Identity scope.** All accounts belong to one school's instance; there is no cross-school tenancy in the MVP. Unauthenticated access is rejected at every gated route.
+## Business Logic Changes
+
+> States the current rule, then the delta. NOT the full domain model.
+
+**Current rule.** The app continuously (a) recommends a ranked list of course
+groupings whose members can be taught simultaneously without collision, and (b)
+validates that any proposed placement stays collision-free for students,
+teachers, and teacher availability. This change **modifies the validation half**
+and **adds bundle-as-unit semantics**; the recommendation half is unchanged in
+spirit (it must, however, become co-teaching- and week-aware).
+
+**Unified collision rule (week-aware) — new.** Two placements occupying the same
+slot collide **only if** they share a resource — a student *or* a teacher —
+**and** their weeks overlap. A weekly placement occupies both weeks (overlaps
+everything); a fortnightly placement occupies week A or week B, and opposite
+weeks never overlap. So two opposite-week fortnightly courses may share one slot
+even when they share students or teachers. (Duplicate-course — the same course
+twice in one cell — remains blocked regardless of week.)
+
+**Co-teaching — modified.** A course may carry a *set* of teachers (one or more).
+For teacher-conflict, every teacher in the set occupies the slot/week; a conflict
+arises if any of them is shared with another week-overlapping occupant. For
+availability, a placement is invalid if **any** of the course's teachers is
+unavailable in that slot. Availability is week-agnostic (an unavailable slot
+applies to both weeks) and cohort-independent — unchanged from today.
+
+**Symmetric cross-cohort teacher occupancy — new.** Teacher occupancy is shared
+across both cohorts and week-aware: a teacher occupied in slot S / week W in
+*either* cohort cannot be placed in slot S / week W of the other cohort, though
+the same teacher may occupy slot S across opposite weeks. This replaces the
+never-implemented one-way "Year 1 fixes Year 2" model with a symmetric one.
+Students belong to a single cohort, so student collisions stay within-cohort;
+rooms remain out of scope.
+
+**Bundle semantics — new / modified.** A placed grouping is a *bundle*: the set
+of courses occupying one slot, treated as a unit with identity.
+
+- **Move** relocates all the bundle's courses atomically to a target slot,
+  re-validated at the destination (consistent with the existing drop-hint
+  policy); a bundle moves only within its own cohort.
+- **Remove** deletes the whole bundle's placements at once.
+- **Replace** swaps the bundle's contents for a different compatible grouping on
+  the same slot.
+- **Ungroup** drops the bundle to individual courses, restoring per-course
+  move/remove (today's ungroup / opt-out behaviour — FR-010).
+- A bundle lifted into the **holding container** is off-board: it holds no slot
+  and is **not validated while parked**; collisions are evaluated only on
+  drop-back. The shelf holds multiple parked bundles.
+
+## Access Control Changes
+
+**No access control changes — current model preserved.** Authentication stays
+email + password; the single `Author` role is unchanged. Every author retains
+full create/edit/delete over the plan and its catalog. The combined two-cohort
+view and the holding container are author-only, like the rest of the editor.
 
 ## Non-Goals
 
-The MVP explicitly does NOT include:
+> Existing-system aspects out of scope for this change, plus new scope
+> boundaries.
 
-- **End-to-end automatic timetable optimization.** Solving the full scheduling problem fully automatically is out of scope. The app computes ranked compatible groupings and validates placements; it does NOT auto-place courses on slots.
-- **Room / location validation.** MVP validates students, teachers, and teacher availability. Rooms are assigned after the timetable is set, outside this tool.
-- **Student-facing and teacher-facing self-entry flows.** Authors enter all data. No student portal for choice submission; no teacher self-service for availability declarations.
-- **Multi-school SaaS tenancy.** One school per instance.
-- **Custom slot-grid editor.** Grid presets only (e.g., Mon–Fri × 6 or × 8 periods). Bespoke day-count and per-period-label editing is deferred.
-- **Printable / PDF export.** CSV only.
-- **Cross-plan comparison view.** Multiple plans exist in parallel (the author can switch between them), but no side-by-side diff UI.
-- **Mobile-optimized UX.** Laptop browser is the target form factor.
-- **Read-only Viewer role.** Considered and dropped from MVP scope; v2 candidate (see Open Questions).
+**New scope boundaries locked for this change:**
+
+- **Arbitrary fortnight cycles.** Bi-weekly is a two-week A/B alternation only —
+  no every-third-week, custom rotations, or month-based patterns.
+- **Split-teaching.** Co-teaching models both teachers occupying the same slot
+  together; it does NOT model teachers splitting a class across different times
+  or rooms.
+- **Configurable cohort names.** DP1/DP2 is a fixed relabel; cohort names are not
+  user-editable.
+- **Cross-cohort rooms or students.** The symmetric cross-cohort constraint
+  covers teacher occupancy only — not rooms (out of product scope entirely) and
+  not students (single-cohort by definition).
+
+**Carried forward from the product's existing non-goals (still out of scope):**
+
+- Room / location validation.
+- End-to-end automatic timetable optimization / auto-placement.
+- Custom slot-grid editor (presets only).
+- Student- and teacher-facing self-entry flows.
+- Multi-school / cross-school tenancy.
+- Mobile-optimized UX (laptop is the target form factor).
+- Printable / PDF export.
+- Teacher soft preferences and hours-per-week caps.
 
 ## Open Questions
 
-1. **`target_scale.qps`.** Shape-notes captured `users: small` but not the qps ballpark. Owner: user. Block: no — defaults to "low" for downstream sizing unless resolved.
-2. **`target_scale.data_volume`.** Same gap. Owner: user. Block: no — defaults to "small" for downstream sizing unless resolved.
-3. **Viewer role.** Dropped from MVP per shaping. Is a read-only role still desired for v2? If so, what does a Viewer see — all plans, or a chosen subset? Owner: user. Block: no.
-4. **IB Group attribute.** Should each course carry its IB Group (1–6) attribute, in case the algorithm later needs it for stricter compatibility rules? Owner: user. Block: no.
-5. **Teacher hours-per-week constraint.** Some teachers can teach a subject but only up to N hours per week. Out of scope for MVP — needed in v2? Owner: user. Block: no.
-6. **Teacher soft preferences.** Prefer morning vs. afternoon, prefer non-consecutive slots, etc. Hard exclusions only in MVP; soft preferences are an open extension. Owner: user. Block: no.
-7. **Custom slot grids.** MVP uses presets only; a bespoke grid editor (custom day count, custom period count and labels) is deferred. Owner: user. Block: no.
-8. **Drop UX policy.** When a drop creates a collision, does the app (a) block the drop entirely, (b) accept the drop and flag the violation until resolved, or (c) prompt the author? Owner: user / design. Block: yes — FR-012 cannot ship until this is decided.
-9. **Finalize gate.** Resolved in v2 (2026-06-11): dissolved — FR-014's final mark is removed; plans are peers, so there is nothing to gate. Block: no.
-10. **Draft export.** Resolved in v2 (2026-06-11): dissolved into amended FR-015 — any plan can be exported; the final/draft distinction no longer exists. Block: no.
-11. **Keyboard / accessibility parity.** Should drag-and-drop have a keyboard-only alternative for accessibility? Owner: user. Block: no — MVP can ship drag-only and add later.
-12. **Multi-school / cross-school.** No multi-tenancy in MVP; if a second school later wants to use the same instance, what does that look like? Owner: user. Block: no.
+> Routed verbatim from shaping. The skill never invents domain decisions to fill
+> gaps.
+
+1. **Undo/redo scope & priority (FR-013).** Surfaced during shaping as a real
+   need. Is it must-have for this change or a fast-follow? Single-step vs
+   multi-step history? Session-only vs durable across reload? — Owner: author.
+   Affects the 4–6 week estimate.
+2. **Combined-view layout / screen-fit (FR-007).** Two cohort grids side by side
+   strain a laptop screen. Compact columns, horizontal scroll, density toggle, or
+   collapse-to-one-column? — Owner: author + design.
+3. **CSV export in scope?** Listed as must-preserve but not yet implemented in
+   the codebase. If in scope, it must represent the enriched model (co-teaching,
+   bi-weekly week tags, both cohorts distinguishable). If not, drop it from the
+   guardrails. — Owner: author.

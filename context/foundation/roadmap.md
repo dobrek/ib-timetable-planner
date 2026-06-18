@@ -1,311 +1,222 @@
 ---
-project: IB Schedule Planner
-version: 3
+project: ib-timetable-planner
+version: 1
 status: draft
-created: 2026-05-25
-updated: 2026-06-14
-prd_version: 2
-main_goal: market-feedback
+created: 2026-06-18
+updated: 2026-06-18
+prd_version: 1
+main_goal: quality
 top_blocker: decisions
 ---
 
-# Roadmap: IB Schedule Planner
+# Roadmap: IB Timetable Planner (post-demo feedback change)
 
-> Derived from `context/foundation/prd.md` (v1) + auto-researched codebase baseline.
-> Edit-in-place; archive when superseded.
+> Derived from `context/foundation/prd.md` (v1 — the post-demo feedback change PRD) + auto-researched codebase baseline.
+> Edit-in-place; archive when superseded. The original product-build roadmap is archived at `context/foundation/archive/2026-06-18-roadmap.md`.
 > Slices below are listed in dependency order. The `## At a glance` table is the index.
 
 ## Vision recap
 
-A plan author at one IB-offering school manually builds the timetable for two cohorts (Year 1 + Year 2) — students individually pick their own subject set, there are no homeroom classes, so detecting collisions requires checking every student, every teacher, and every availability rule simultaneously. Today a standalone algorithm emits ranked "collision-free groupings" as a CSV, and the author drags those groupings around in a spreadsheet that knows nothing about the constraints — collisions are caught visually and late. The PRD proposes a purpose-built editor: the same drag-and-drop, but with an in-app validator that responds valid/invalid in real time for every collision class (student, teacher within cohort, teacher across cohorts, availability).
-
-PRD §Business Logic names two paired rules — **recommendation** (the grouping algorithm) and **validation** (the per-drop check). They are paired, but they have _different cadences_: grouping is a one-shot computation over the catalog snapshot (re-run only when the catalog changes), while validation is an online per-drop function over the current placement state. The roadmap below splits them accordingly — F-03 ports the grouping algorithm; the validator grows incrementally inside the placement slices.
+The IB timetable editor shipped and was demoed to its plan authors. Design and the core drag-and-drop validation were well received, but the demo surfaced six places where the tool's model diverges from how authors actually work and how the IB domain behaves — pushing them back toward spreadsheet workarounds for the exact cases the tool exists to remove. This change is **domain-fidelity and mental-model alignment, not new capability for its own sake**: cohorts named DP1/DP2, co-taught courses (two teachers both occupied), bi-weekly (fortnightly) courses where opposite-week pairs may share a slot, free movement between cohorts, a combined two-cohort assembly view, and placed groupings treated as first-class "bundles" with a temporary holding shelf. The hard constraint throughout: the enriched collision core must stay **collision-correct (no false-positive "valid") and within the sub-200 ms drag-drop budget** — including when validating both cohorts at once.
 
 ## North star
 
-**S-01: First valid drop with validation** — the first moment the author experiences the "feel of the puzzle": they drag a pre-seeded Y1 grouping onto a slot and see an immediate response from the online validator. This is the moment the PRD's core hypothesis either holds or falls.
+**S-06: Author assembles a complete, collision-free DP1 | DP2 plan in the combined two-cohort view** — this is the PRD's Primary Success Criterion ("assemble/review both cohorts together in a new combined view", US-01), the explicit final assembly stage where every enriched dimension (co-teaching, bi-weekly, cross-cohort teacher occupancy, bundles) is exercised together inside the validation budget. With `main_goal: quality`, it's the slice whose green light means the change preserved correctness while matching the authors' mental model.
 
-> The **north star** in this roadmap is the smallest end-to-end flow (author → catalog seed → drop → validator feedback) whose successful delivery proves that the product's core hypothesis (live validation collapses the spreadsheet step) actually works — which is why it sits as early as its prerequisites allow.
+> The **north star** is the smallest end-to-end slice whose successful delivery proves the change's core hypothesis (authors can assemble both cohorts the way they actually think, with no correctness regression) — placed as early as its prerequisites allow, because everything else only matters if this holds. It sits late here only because its prerequisites (the two-cohort/cross-cohort board S-04 and first-class bundles S-05) are genuine, not because it was deferred for tidy ordering.
 
 ## At a glance
 
-| ID   | Change ID                            | Outcome (user can …)                                                                                 | Prerequisites          | PRD refs                                            | Status   |
-| ---- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------- | -------- |
-| F-01 | gated-author-provisioning            | (foundation) closed registration — only approved authors can hold an account                         | —                      | FR-001, NFR Data privacy, Access Control            | done     |
-| F-02 | minimal-domain-schema                | (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache      | —                      | FR-002, FR-006, FR-008, FR-010, NFR Work durability | done     |
-| F-03 | port-grouping-algorithm              | (foundation) pure-function port of the existing CSV grouping algorithm, edge-runtime safe            | F-02                   | FR-013, Business Logic (recommendation rule)        | done |
-| S-01 | first-valid-drop-with-validation     | drag a pre-seeded Y1 grouping onto a slot and see live student-collision validation                  | F-01, F-02, F-03       | US-01(d), FR-008, FR-011, FR-012, Business Logic    | done     |
-| S-02 | course-and-dependency-catalog-ui     | CRUD courses `(name, level, group-index)` + overlap/merge dependencies + weekly hours                | F-01, F-02             | FR-002, FR-003, FR-003A                             | done     |
-| S-03 | teachers-and-availability-catalog-ui | CRUD teachers/assignments/availability; online validator extends to teacher + availability classes   | S-01, S-02             | FR-004, FR-005, FR-012                              | done     |
-| S-04 | students-and-choices-ui              | CRUD students and their course choices (primary entry path)                                          | F-01, F-02, S-02       | FR-006                                              | done     |
-| S-05 | csv-import-students                  | bulk-import students from the existing `students_subjects.csv` without silently overwriting UI edits | S-04                   | FR-007, NFR Single-source-of-truth                  | proposed |
-| S-06 | compute-groupings-from-catalog       | run F-03 against the populated catalog from the authoring UI and see the ranked groupings list       | F-03, S-02, S-03, S-04 | FR-013, Business Logic (recommendation rule)        | proposed |
-| S-07 | multi-variant-management             | manage plans as cloneable whole-domain scenarios — `/plans` hub with create/clone/rename/delete      | S-01                   | FR-010, US-02                                       | done |
-| S-08 | year-1-complete-placement            | place every required Y1 slot end-to-end under the full catalog with real (not seeded) groupings      | S-03, S-06             | US-01(d), FR-011, FR-012, FR-013                    | blocked  |
-| S-09 | year-2-with-cross-cohort-constraint  | place Y2 while honoring fixed Y1 teacher occupancy (cross-cohort)                                    | S-08                   | US-01(e), FR-009, FR-012                            | blocked  |
-| S-10 | finalize-and-csv-export              | export any plan as a master-grid CSV with cohort distinguishable                                     | S-09                   | US-01(g)(h), FR-015                                 | proposed |
+| ID   | Change ID                            | Outcome (user can …)                                                                       | Prerequisites | PRD refs                          | Status   |
+| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------ | ------------- | --------------------------------- | -------- |
+| S-01 | dp1-dp2-cohort-naming                | see cohorts labelled **DP1 / DP2** everywhere instead of "Year 1 / Year 2"                 | —             | FR-004                            | ready    |
+| S-02 | co-teaching-teacher-sets             | assign two+ teachers to a course; both count as occupied for conflict + availability       | —             | FR-001, FR-012                    | ready    |
+| S-03 | bi-weekly-week-aware-validation      | mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot           | S-02          | FR-002, FR-003, FR-012, US-03     | proposed |
+| S-04 | two-cohort-board-cross-cohort        | open either cohort, switch freely; a teacher occupied in one cohort's slot/week blocks the other | S-02, S-03    | FR-005, FR-006, FR-012            | proposed |
+| S-05 | first-class-bundle-operations        | move / remove / replace a placed grouping as one bundle; ungroup to per-course still works | —             | FR-009, FR-010                    | ready    |
+| S-06 | combined-two-cohort-view             | assemble & edit a collision-free DP1 \| DP2 plan side by side, validated across both cohorts | S-04, S-05    | FR-007, FR-008, FR-012, US-01     | proposed |
+| S-07 | bundle-holding-container             | lift a bundle off-board onto a holding shelf, then place it back later; survives refresh   | S-05          | FR-011, US-02                     | proposed |
+| S-08 | editing-undo-redo                    | undo / redo recent editing operations (move, remove, replace, ungroup, lift, place-back)   | S-05, S-07    | FR-013                            | blocked  |
 
 ## Streams
 
-Navigation aid over the dependency graph — the canonical order still lives in `## Foundations` + `## Slices` below.
+Navigation aid — groups items that share a Prerequisites chain. Canonical ordering still lives in the dependency graph below; this table is the proposed reading order across parallel tracks.
 
-| Stream | Theme                          | Chain                             | Note                                                                                          |
-| ------ | ------------------------------ | --------------------------------- | --------------------------------------------------------------------------------------------- |
-| A      | Foundations & northstar        | `F-01` → `F-02` → `F-03` → `S-01` | The northstar track — everything else only matters once the validation UX holds up.           |
-| B      | Catalog UI                     | `S-02` → `S-04` → `S-05`          | Parallel with S-01; produces the catalog content S-06 will feed to the algorithm.             |
-| C      | Algorithm & cohort progression | `S-03` → `S-06` → `S-08` → `S-09` | Validator classes grow, then the grouping algorithm gets its UI, then the cohorts come alive. |
-| D      | Plans & launch                 | `S-07` → `S-10`                   | `S-07` parallel with B and C; `S-10` closes the loop after `S-09`.                            |
+| Stream | Theme                          | Chain                            | Note                                                                                                  |
+| ------ | ------------------------------ | -------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| A      | Two-cohort correctness & assembly | `S-02` → `S-03` → `S-04` → `S-06` | The north-star track. Quality-sequenced through the protected constraint core; `S-06` also consumes `S-05` from Stream B. |
+| B      | Bundle manipulation            | `S-05` → `S-07` → `S-08`         | Parallel with Stream A (different files). `S-05` also unlocks the combined view (`S-06`). `S-08` blocked on undo scope. |
+| C      | Cohort relabel                 | `S-01`                           | Standalone cosmetic relabel; parallel with everything.                                                |
 
 ## Baseline
 
-What's already in place in the codebase as of 2026-05-25 (auto-researched + user-confirmed). Foundations below assume these are present and do NOT re-scaffold them.
+What's already in place in the codebase as of 2026-06-18 (auto-researched + author-confirmed). This is a brownfield change on a shipped product, so the generic platform is **present** and slices below extend it rather than re-scaffold it. The "change-specific" rows are the subsystems the six asks introduce — all absent today, which is why each is a vertical slice, not a foundation.
 
-- **Frontend:** partial — Astro 6.3.7 + React 19.2.6 + Tailwind 4 + shadcn wired (`astro.config.mjs:14`, `components.json`). No domain components yet — only auth + stock (`src/components/auth/*`, `src/components/Welcome.astro`).
-- **Backend / API:** partial — Astro in `output: "server"` mode with the Cloudflare adapter; only three stock auth endpoints exist (`src/pages/api/auth/{signin,signup,signout}.ts`). `src/lib/utils.ts` contains only `cn()`. No domain logic.
-- **Data:** absent — `supabase/config.toml` exists (project_id: "ib-timetable-planner"), but `schema_paths=[]`, no `supabase/migrations/`, no `seed.sql`, no generated types.
-- **Auth:** partial — sign-in + sign-up + signout flow + middleware redirect (`src/middleware.ts:18-21`) + Supabase SSR client (`src/lib/supabase.ts:5-24`) all work, BUT registration is open. The product needs a closed author list (approval / invite) — F-01 closes that gap.
-- **Deploy / infra:** present — `wrangler.jsonc` with `compatibility_date: "2026-05-08"`, `nodejs_compat`; `.github/workflows/ci.yml` runs install→astro sync→lint→build plus deploy to Cloudflare Workers on main; `pnpm env:local` / `pnpm env:prod` swap `.envs/*.vars` into `.env.local` + `.dev.vars`.
-- **Observability:** absent — no sentry/otel/datadog/pino in deps, no structured logging in middleware/routes. Not promoted to an F-NN in this MVP — `main_goal: market-feedback` does not weight this layer.
+**Generic platform — present:**
+
+- **Frontend:** present — Astro 6 + React 19 islands + Tailwind v4 + shadcn; drag-and-drop via `@dnd-kit/react` (`src/_pages/plan-detail/ui/PlannerBoard.tsx`, `package.json`).
+- **Backend / API:** present — Astro Actions (`src/actions/`) are the single mutation/compute transport; API routes reserved for auth.
+- **Data:** present — Supabase Postgres, 13 migrations under `supabase/migrations/`, generated `src/shared/api/database.types.ts`.
+- **Auth:** present — email/password via Supabase, deny-by-default `src/middleware.ts`, single Author role. **No change in this work.**
+- **Deploy / infra:** present — Cloudflare Workers (`wrangler.jsonc`) + GitHub Actions CI. **No change.**
+- **Observability:** partial — Cloudflare observability enabled (`wrangler.jsonc`); no Sentry/OTEL/Datadog. Not promoted to a foundation — `main_goal: quality` here means *collision correctness verified by tests*, not production telemetry.
+
+**Change-specific subsystems — absent today (each ask is net-new behaviour):**
+
+- **Co-teaching:** absent — a course carries a single nullable `teacher_id`; constraints reference a singular `teacherKey` (`constraints/teacher-conflict.ts`, `teacher-availability.ts`). → S-02.
+- **Bi-weekly / week dimension:** absent — no `week` column on placements, no fortnight flag on courses; the grid is `(day, period)` only. → S-03.
+- **Cross-cohort teacher occupancy:** absent — every registered constraint operates within a single cell; `BoardContext` only *comments* about future cross-cohort fields. → S-04.
+- **DP1/DP2 naming:** present-but-wrong — labels are "Year 1" / "Year 2" in `src/shared/config/cohorts.ts` (data values `dp1`/`dp2` already correct). → S-01.
+- **Free switching / two-cohort board:** absent — `BOARD_COHORT = "dp1"` is hardcoded in `src/_pages/plan-detail/api/load.ts:15`. → S-04.
+- **Combined two-cohort view:** absent — `PlannerBoard` renders a single cohort. → S-06.
+- **First-class bundle:** absent — `isBundled` is a derived flag (`occupantCount ≥ 2 && !overridden`, `slot-bundle.ts`); whole-slot move is delete+recreate of per-course placements (`persistMoveBundle`); `slot_bundles` records opt-outs only. → S-05.
+- **Holding container / undo-redo:** both absent. → S-07, S-08.
 
 ## Foundations
 
-### F-01: gated-author-provisioning
+**None.** This is a brownfield change on a mature, shipped platform: auth, data, the Astro-Actions transport, the deploy pipeline, the `@dnd-kit` board, and the existing four-class constraint core are all present (see `## Baseline`). Every cross-cutting model change this change needs — the teacher *set* (co-teaching), the week dimension (bi-weekly), the cross-cohort validation context, and bundle *identity* — is folded into the first vertical slice that makes it user-visible (S-02, S-03, S-04, S-05 respectively), per progressive disclosure. There is no cross-cutting enabler whose postponement would make the first vertical slice unplannable, so no `F-NN` is justified; introducing one would be horizontal-first scope creep into the protected constraint core.
 
-- **Outcome:** (foundation) registration into the application is closed. Only an author who has been approved or created by someone with permissions can register and sign in; the open self-service signup currently wired in `src/pages/auth/signup.astro` is no longer publicly reachable.
-- **Change ID:** gated-author-provisioning
-- **PRD refs:** FR-001, NFR Data privacy, Access Control
-- **Unlocks:** every S-NN below (every slice touches student PII — without a gate, a public URL exposes the catalog).
+## Slices
+
+### S-01: DP1 / DP2 cohort naming
+
+- **Outcome:** Author sees cohorts labelled **"DP1"** and **"DP2"** throughout the UI, replacing the "Year 1" / "Year 2" display labels. The `dp1` / `dp2` data values are unchanged.
+- **Change ID:** dp1-dp2-cohort-naming
+- **PRD refs:** FR-004
 - **Prerequisites:** —
-- **Parallel with:** F-02
+- **Parallel with:** S-02, S-03, S-04, S-05, S-06, S-07, S-08
 - **Blockers:** —
-- **Unknowns:**
-  - Gate mechanism: invite-only (Supabase email invite) vs. allow-list in middleware vs. manual user creation in Supabase Studio — Owner: user. Block: no (decided during `/10x-plan`).
-- **Risk:** Sequenced first alongside F-02 because NFR Data privacy says student PII cannot sit next to open registration even in a preview demo. If deferred, every catalog investment (S-02, S-04, S-05) operates on data trivially reachable via the public signup form.
-- **Status:** done
+- **Unknowns:** —
+- **Risk:** Lowest-risk slice in the change — a display-label relabel in `src/shared/config/cohorts.ts` and any hardcoded UI strings, with zero touch to the constraint core or schema. Sequenced first as a clean, correctness-neutral win that removes a daily friction the demo flagged; can ship independently of every other slice. Risk is only completeness (every surface relabelled, no stray "Year 1" string).
+- **Status:** ready
 
-### F-02: minimal-domain-schema
+### S-02: Co-teaching (teacher sets)
 
-- **Outcome:** (foundation) Supabase carries the tables needed to power the northstar plus a cache for grouping algorithm output: `courses`, `students`, `student_choices`, `plans`, `plan_variants`, `placements`, and a `course_groupings` table (per plan + cohort, holding the ranked output of F-03). RLS scoped to the authenticated author. Generated TS types land in `src/lib/database.types.ts` (or equivalent). Schema for teachers / dependencies / availability arrives in the slices that introduce them (S-02, S-03) — F-02 does not try to drag the whole domain in at once.
-- **Change ID:** minimal-domain-schema
-- **PRD refs:** FR-002, FR-006, FR-008, FR-010, NFR Work durability
-- **Unlocks:** F-03 (needs the catalog types to define its input/output), S-01 (needs `plans` + `plan_variants` + `placements` + `students` + `student_choices` + `courses` + `course_groupings` to seed the drop-and-validate scenario at all), S-02 / S-04 / S-07 (each extends the schema with its own tables).
+- **Outcome:** Author can assign two or more teachers to a single course; every assigned teacher is treated as occupied for teacher-conflict and is checked for availability (a placement is invalid if **any** of the course's teachers is unavailable in that slot). A single-teacher course behaves exactly as today (one-element set).
+- **Change ID:** co-teaching-teacher-sets
+- **PRD refs:** FR-001, FR-012 (preserved: sub-200 ms + no false-positive valid)
 - **Prerequisites:** —
-- **Parallel with:** F-01
+- **Parallel with:** S-01, S-05, S-07
 - **Blockers:** —
 - **Unknowns:**
-  - Should `placements.variant_id` be per-cohort scoped (a separate placement row per (variant, cohort, slot)) or does a variant carry the cohort implicitly via the slot? — Owner: user / design in `/10x-plan`. Block: no.
-  - Should `course_groupings` persist as a materialized table or as a JSONB blob keyed by `(plan_id, cohort, catalog_hash)`? — Owner: dev. Block: no (perf-driven choice in `/10x-plan`).
-- **Risk:** Sequenced together with F-01 as an absolute prerequisite of the northstar. Kept minimal (the seven tables) because pulling the whole domain in here is horizontal-first scope creep and pushes UX validation later. Trade-off: extending the schema slice-by-slice produces more migrations — accepted, because a solo-dev 8-week MVP prefers incremental migrations over one big upfront decision.
-- **Note (2026-06-11):** delivered as specified at the time; `plan_variants` and the `cohorts` table were later dropped by S-07 (PRD v2) — plans absorbed the catalog and became the cloneable domain root. References to variants in this entry are historical.
-- **Status:** done
+  - Teacher-set storage: junction table vs. array column on courses, and how `database.types.ts` + the catalog UI surface a second teacher — Owner: dev. Block: no (resolved in `/10x-plan`; must be an additive migration that defaults existing single-teacher courses to a one-element set).
+- **Risk:** First touch of the protected constraint core, chosen deliberately as the gentler entry: a "modified" change localised to `teacher-conflict` + `teacher-availability`, establishing the teacher-as-set shape the later unified rule (S-03) and cross-cohort scope (S-04) build on. Sequenced before S-03 so the week-aware rewrite integrates the teacher set once rather than reworking it. Not parallel with S-03/S-04 — they edit the same hot collision code.
+- **Status:** ready
 
-### F-03: port-grouping-algorithm
+### S-03: Bi-weekly courses + week-aware validation
 
-- **Outcome:** (foundation) the existing CSV-based grouping algorithm (input directory `data/dp2/`, output `data/out/dp2-variants-2.csv`) is re-implemented as a pure function in `src/lib/`, operating on domain types (courses + dependencies + student choices + teachers + availability) rather than raw CSVs. Edge-runtime safe (no `fs` / `child_process` / native modules per CLAUDE.md). Returns a ranked list of compatible groupings with coverage scores matching the existing algorithm's output shape. Unit-testable in isolation; output is deterministic for a given catalog snapshot. Handles all collision classes (student, teacher, availability, overlap/merge dependencies) the existing algorithm handles — it does not need to grow incrementally because its input is catalog state, not placement state.
-- **Change ID:** port-grouping-algorithm
-- **PRD refs:** FR-013, Business Logic (recommendation rule), §"Current Algorithm" in shape-notes
-- **Unlocks:** S-01 (needs grouping output, even pre-seeded, to render the draggable building blocks), S-06 (puts UI on top of this function), S-08 (uses real algorithm output at full-cohort scale).
-- **Prerequisites:** F-02
-- **Parallel with:** F-01
+- **Outcome:** Author can mark a course bi-weekly (fortnightly) and choose which week (A or B) a placement occupies; a weekly course occupies both weeks. The validator becomes week-aware: two opposite-week fortnightly courses may share one slot, while any week overlap (two same-week courses, or any clash with a weekly course) is flagged. Existing placements with no week tag are treated as weekly.
+- **Change ID:** bi-weekly-week-aware-validation
+- **PRD refs:** FR-002, FR-003, FR-012 (preserved), US-03
+- **Prerequisites:** S-02
+- **Parallel with:** S-01, S-05, S-07
 - **Blockers:** —
 - **Unknowns:**
-  - Behavior when catalog is partially populated (no teachers yet, no availability rules yet) — degrade to student-only groupings, or refuse to compute? — Owner: dev. Block: no.
-  - Output persistence strategy: write to `course_groupings` table after each run vs. compute-on-read with caching — Owner: dev. Block: no (tied to F-02 Unknown about JSONB vs. materialized).
-  - Re-run trigger semantics: explicit author action only (a "Compute groupings" button — see S-06), or auto on every catalog mutation — Owner: user / design. Block: no.
-- **Risk:** This is the existing algorithm's correctness in a new runtime. The port must preserve the algorithm's collision rules verbatim — a regression here invalidates every downstream placement slice. Mitigation: keep `data/dp2/` files in the repo as reference fixtures and use them as the unit-test golden set against the existing output `data/out/dp2-variants-2.csv`. The edge-runtime constraint also rules out any library that pulls in Node-only APIs; this needs verification early.
-- **Status:** done
-
-### S-01: first-valid-drop-with-validation
-
-- **Outcome:** The author opens a plan with a minimal seeded catalog (courses + students + their Year 1 choices, plus pre-seeded `course_groupings` rows produced by running F-03 once against the seed — manually loaded for the northstar), picks a slot-grid preset (Mon–Fri × 6 or × 8), drags a Y1 grouping from the panel onto a slot, and sees an immediate response from the online validator: valid, or a named class of student collision. The placement persists across reloads. The validator implemented here covers the **student-collision class only**; teacher classes arrive in S-03, cross-cohort in S-09.
-- **Change ID:** first-valid-drop-with-validation
-- **PRD refs:** US-01(d), FR-008, FR-011, FR-012 ("student collision" class only), Business Logic (validation rule)
-- **Prerequisites:** F-01, F-02, F-03
-- **Parallel with:** S-02 (their dependencies don't intersect)
-- **Blockers:** —
-- **Unknowns:**
-  - **Drop UX policy (PRD Q8):** block-drop / flag-and-allow / prompt — Owner: user / design. Block: **yes**.
-  - Initial data seed for the northstar: dev-script SQL vs. minimal UI vs. one CSV from `data/dp2/` piped through F-03 — Owner: user. Block: no.
-- **Risk:** The northstar. The whole sequence stands or falls on whether the online validator can deliver feedback under 200ms in an edge-safe runtime AND whether the "feel of the puzzle" actually holds up. If even the cheapest collision class (student) doesn't fit the p95 budget, the entire PRD §Business Logic bet needs revisiting — and it's far cheaper to learn that here than in S-08. Note that S-01 no longer carries the algorithm-port risk (that moved to F-03); this slice is purely about the validator and the UX.
-- **Status:** done
-
-### S-02: course-and-dependency-catalog-ui
-
-- **Outcome:** The author CRUDs courses (`name`, `level ∈ {SL, HL, AB, none}`, `group-index ∈ {1, 2, none}`), declares weekly hours per course, and declares dependencies of two kinds: overlap (e.g., Polish A SL / Polish A HL) and merge (e.g., German B AB+SL). Everything in the authoring UI; no self-service flows.
-- **Change ID:** course-and-dependency-catalog-ui
-- **PRD refs:** FR-002, FR-003, FR-003A
-- **Prerequisites:** F-01, F-02
-- **Parallel with:** S-01, S-04 (once courses exist), S-07
-- **Blockers:** —
-- **Unknowns:**
-  - IB Group attribute (1–6) per course (PRD Q4) — include now or defer to v2? Owner: user. Block: no.
-- **Risk:** Sequenced parallel with the northstar because a real catalog is mandatory for S-06 and S-08. Not done before the northstar because the northstar can lean on a seed script — building full course CRUD _before_ the validation hypothesis is tested would be UI investment whose foundation may not survive.
-- **Status:** done
-
-### S-03: teachers-and-availability-catalog-ui
-
-- **Outcome:** The author CRUDs teachers and their course assignments (the triple from FR-002) and declares hard availability rules (slots a given teacher cannot be placed in). The **online validator** extends to cover two new collision classes: "teacher in cohort" + "teacher availability". (Note: F-03's grouping algorithm already handles teacher constraints once teachers exist — no F-03 change needed here.)
-- **Change ID:** teachers-and-availability-catalog-ui
-- **PRD refs:** FR-004, FR-005, FR-012 ("teacher in cohort", "availability" classes)
-- **Prerequisites:** S-01, S-02
-- **Parallel with:** S-04, S-05, S-07
-- **Blockers:** —
-- **Unknowns:**
-  - **Drop UX policy (PRD Q8)** is inherited — once there are three collision classes, the cost of an unclear invalid-drop presentation grows. Owner: user / design. Block: **yes**.
-  - Teacher hours-per-week (PRD Q5), teacher soft preferences (PRD Q6) — Owner: user. Block: no (outside MVP per Non-Goals).
-- **Risk:** Validator classes start to compound — this is the first place where aggregating multiple constraint classes might push the online p95 budget. Sequenced after the northstar so the validator's baseline performance is already known.
-- **Status:** done
-
-### S-04: students-and-choices-ui
-
-- **Outcome:** The author CRUDs students and their course choices (each choice is a course as defined in FR-002). This is the **primary path** for entering student data; the CSV import in S-05 is an alternate seeding path.
-- **Change ID:** students-and-choices-ui
-- **PRD refs:** FR-006
-- **Prerequisites:** F-01, F-02, S-02
-- **Parallel with:** S-03, S-07
-- **Blockers:** —
-- **Unknowns:**
-  - PII handling on edit (audit trail, soft-delete vs. hard-delete of a student record) — Owner: user. Block: no.
-- **Risk:** Low. A "basic CRUD" slice over the schema F-02 already provides. Sequenced after S-02 because choices reference courses.
-- **Status:** done
-
-### S-05: csv-import-students
-
-- **Outcome:** The author imports students from a CSV in the existing `students_subjects.csv` shape (student name, course, level, optional group-index). Re-importing the same CSV after subsequent UI edits **does not silently overwrite** — it requires an explicit author decision (merge / overwrite / skip).
-- **Change ID:** csv-import-students
-- **PRD refs:** FR-007, NFR Single-source-of-truth
-- **Prerequisites:** S-04
-- **Parallel with:** S-03, S-07
-- **Blockers:** —
-- **Unknowns:**
-  - Re-import conflict-resolution strategy (the actual UI): diff-view + per-row decision vs. a global mode — Owner: user / design in `/10x-plan`. Block: no.
-- **Risk:** "Silent overwrite" is precisely the guardrail the PRD calls out — this slice exists to address it, not merely for CSV feature-parity with the prior workflow. Sequenced after S-04 so the rationale for refusing silent overwrite (keeping UI edits as the single source of truth) is concrete.
+  - How the week (A/B) is chosen at drop time and shown on a placed cell without breaking the existing drop-hint UX — Owner: user / design. Block: no.
+  - Whether the grouping/recommendation half must also become week-aware in this slice or can follow — Owner: dev. Block: no (PRD says recommendation "unchanged in spirit" but must become week-aware eventually).
+- **Risk:** The deepest, most invasive change — the PRD's "unified collision rule" spine (collide iff *share a student or teacher* **and** *weeks overlap*) is reworked across schema (course fortnight flag + placement week), the grid, and every occupancy check. Highest single-slice correctness risk before cross-cohort; sequenced after S-02 so the rule is built once over the teacher-set form, and before S-04 because cross-cohort occupancy (FR-006) is itself week-aware and depends on this dimension existing.
 - **Status:** proposed
 
-### S-06: compute-groupings-from-catalog
+### S-04: Two-cohort board — free switching + cross-cohort occupancy
 
-- **Outcome:** With the catalog populated (courses + dependencies from S-02, teachers + availability from S-03, students + choices from S-04, optionally seeded via S-05), the author invokes F-03 from the authoring UI — a "Compute groupings" action — and sees the ranked list of compatible groupings rendered with their coverage scores. Output is persisted in `course_groupings` so subsequent placement work reuses it without recomputing. The author can re-run the computation explicitly when the catalog changes; the UI surfaces "groupings out of date" when catalog mutations have happened since the last run.
-- **Change ID:** compute-groupings-from-catalog
-- **PRD refs:** FR-013, Business Logic (recommendation rule), §"Current Algorithm" in shape-notes
-- **Prerequisites:** F-03, S-02, S-03, S-04
-- **Parallel with:** S-05, S-07
+- **Outcome:** Author can open the board on either cohort and switch between DP1 and DP2 freely (no forced start order); the board is no longer locked to `dp1`. Teacher **occupancy** is enforced symmetrically and week-aware across both cohorts — a teacher occupied in slot S / week W in either cohort cannot be placed in S / W of the other (but may occupy S across opposite weeks). Teacher **availability** stays week-agnostic and cohort-independent (unchanged).
+- **Change ID:** two-cohort-board-cross-cohort
+- **PRD refs:** FR-005, FR-006, FR-012 (preserved)
+- **Prerequisites:** S-02, S-03
+- **Parallel with:** S-01, S-05, S-07
 - **Blockers:** —
 - **Unknowns:**
-  - "Out of date" detection: catalog-row-timestamp comparison vs. a `catalog_hash` column on `course_groupings` — Owner: dev. Block: no.
-  - When the catalog has gaps (e.g., student takes a course with no teacher assigned yet), surface as a per-grouping warning or block compute entirely? — Owner: user / design. Block: no.
-- **Risk:** The first time the ported algorithm runs against the author's own data, not a fixture. Discrepancies between the new run and the historical `data/out/dp2-variants-2.csv` output reveal port-correctness issues — this slice is where regression vs. the existing algorithm becomes user-visible. Mitigation: keep the existing CSV pipeline runnable in parallel as a parity check during this slice.
+  - Whether the validator loads both cohorts' placements into context eagerly or fetches the other cohort's occupancy on demand — directly impacts the sub-200 ms budget — Owner: dev. Block: no (perf-driven, resolved in `/10x-plan`).
+- **Risk:** The hardest correctness slice — the symmetric cross-cohort teacher constraint is built from scratch (the never-implemented "Year 1 fixes Year 2" model is replaced by a symmetric one), and it must hold the sub-200 ms budget while now scanning across cohorts. FR-005 (free switching) is folded in because switching is only *safe* once this symmetric constraint exists (the PRD's own reasoning) and the constraint can't be exercised without leaving the `dp1` lock. Could be split (constraint vs. switcher UI) in `/10x-plan` if scope proves large.
 - **Status:** proposed
 
-### S-07: multi-variant-management
+### S-05: First-class bundle operations
 
-- **Outcome:** Plans are cloneable whole-domain scenarios: the catalog (teachers, courses, students, choices, dependencies) is plan-owned; `/plans` is the application hub with create-blank / clone / rename / delete; catalog routes nest under the plan (`/plans/[id]/courses|teachers|students`, board at `/plans/[id]`); the `plan_variants` and `cohorts` tables are dropped (cohort becomes a native enum). Cloning deep-copies the entire scenario — catalog, placements, groupings — and is the primary creation path. Grouping output stays keyed by (plan, cohort), since it depends on the now-plan-owned catalog.
-- **Change ID:** multi-variant-management
-- **PRD refs:** FR-010, US-02 (both amended in PRD v2)
-- **Prerequisites:** S-01
-- **Parallel with:** S-02, S-03, S-04, S-05, S-06
+- **Outcome:** A placed grouping is a first-class bundle the author can **move** (relocate all its courses atomically, re-validated at the destination, within its own cohort), **remove** (delete the whole bundle at once), or **replace** (swap its contents for a different compatible grouping on the same slot). Ungrouping to operate on individual courses — remove one course, move one course — keeps working exactly as today (the `slot_bundles` opt-out).
+- **Change ID:** first-class-bundle-operations
+- **PRD refs:** FR-009, FR-010
+- **Prerequisites:** —
+- **Parallel with:** S-01, S-02, S-03, S-04, S-06
 - **Blockers:** —
 - **Unknowns:**
-  - ~~Does "switching" include copy-from-existing (forking) or only empty-new?~~ Resolved 2026-06-11: both — clone is the primary path; blank-new (name + grid preset) remains for cold start.
-- **Risk:** Re-scoped 2026-06-11 (PRD v2): the original "surface `plan_variants` in the UI" framing is overturned — user research showed the what-if axis is the catalog, not placements. The slice now carries a destructive schema re-baseline (plans as FK root, composite FKs, cohort enum) and a deep-copy clone RPC; widest blast radius is the app-wide plan threading.
-- **Status:** done
+  - Whether a bundle gains a persistent identity row or is reconstituted from its placements at move time (today's move is delete+recreate) — Owner: dev. Block: no (drives whether the holding container in S-07 can persist a parked bundle as a unit).
+  - "Replace" interaction: pick the replacement grouping from the recommendation panel vs. a dedicated swap affordance — Owner: user / design. Block: no.
+- **Risk:** Head of the bundle track, independent of the constraint-core chain (different files), so it runs in parallel with S-02→S-04. The model change (bundle move becomes atomic and identity-bearing instead of delete+recreate) is intrinsic to this slice — no separate foundation. Carries FR-010 as preserved behaviour, so the existing ungroup / opt-out path must not regress. Its identity decision is load-bearing for S-07 and S-08.
+- **Status:** ready
 
-### S-08: year-1-complete-placement
+### S-06: Combined two-cohort view  *(north star)*
 
-- **Outcome:** The author fills in every slot required by Y1 student choices, working from the full catalog (courses + dependencies from S-02, teachers from S-03, students from S-04) and using **real grouping output from S-06** (no longer pre-seeded). The online validator certifies no-collision across all classes within Y1. The plan holds Y1 as a stable basis for Y2.
-- **Change ID:** year-1-complete-placement
-- **PRD refs:** US-01(d), FR-011, FR-012 (all classes within the cohort), FR-013
-- **Prerequisites:** S-03, S-06
+- **Outcome:** Author opens a combined view showing DP1 and DP2 side by side, one column per cohort, and edits either column (placement and bundle operations) within that cohort's constraints — cross-column (cross-cohort) moves are guarded so a bundle moves only within its own cohort. Every placement is validated live against students, teachers (within *and* across cohorts, counting both teachers of a co-taught course), week-aware fortnightly overlap, and availability — all within the sub-200 ms budget while validating both cohorts at once. The author ends with a complete, collision-free plan across DP1 and DP2.
+- **Change ID:** combined-two-cohort-view
+- **PRD refs:** FR-007, FR-008, FR-012 (preserved), US-01
+- **Prerequisites:** S-04, S-05
+- **Parallel with:** S-07
+- **Blockers:** —
+- **Unknowns:**
+  - Combined-view layout / screen-fit (PRD Open Q #2): compact columns, horizontal scroll, density toggle, or collapse-to-one-column on a laptop — Owner: user + design. Block: no (a design input resolved in `/10x-plan`; does not block planning).
+- **Risk:** The north star and the capstone — the first time the fully enriched validator runs against both cohorts simultaneously, so the sub-200 ms guardrail is re-proven here at its hardest. Sequenced as early as its real prerequisites allow (the two-cohort/cross-cohort board S-04 and first-class bundles S-05 are both mandatory; the existing single-cohort boards remain, so this view is additive, not a replacement). If the budget breaks here, the chain loops back to S-04/S-03 to optimise the validator before this view is shippable.
+- **Status:** proposed
+
+### S-07: Bundle holding container
+
+- **Outcome:** Author can lift a bundle off the board into a temporary holding container (a shelf that holds multiple parked bundles), rearrange the board, then drag a parked bundle back onto a now-suitable slot. A parked bundle is off-board — it holds no slot and is **not** validated while parked; collisions are evaluated only on drop-back, within its cohort's constraints. A parked bundle survives an accidental browser refresh or tab close.
+- **Change ID:** bundle-holding-container
+- **PRD refs:** FR-011, US-02 (and Secondary Success Criterion: parked bundle survives refresh)
+- **Prerequisites:** S-05
+- **Parallel with:** S-01, S-02, S-03, S-04, S-06
+- **Blockers:** —
+- **Unknowns:**
+  - Where a parked bundle persists for refresh-durability (a `holding` state on the bundle in Supabase vs. guarded `localStorage`) — Owner: dev. Block: no (note lessons.md: guard `localStorage` with try/catch, not just a `typeof window` check).
+- **Risk:** Depends only on bundle identity from S-05, so it runs in parallel with the constraint chain and the combined view. Lower correctness risk (a parked bundle is explicitly unvalidated), but the durability NFR (no silent loss of a parked bundle) is the load-bearing requirement. Sequenced after S-05 because lifting a bundle as a unit requires the first-class bundle to exist.
+- **Status:** proposed
+
+### S-08: Editing undo / redo
+
+- **Outcome:** Author can undo (and redo) recent editing operations — bundle move, remove, replace, ungroup, single-course move, lift-to-container, and place-back.
+- **Change ID:** editing-undo-redo
+- **PRD refs:** FR-013
+- **Prerequisites:** S-05, S-07
 - **Parallel with:** —
 - **Blockers:** —
 - **Unknowns:**
-  - **Drop UX policy (PRD Q8)** — full coverage of validator classes plus author time pressure is exactly the context in which the policy choice matters most. Owner: user / design. Block: **yes**.
-  - Online-validator performance under a realistic catalog (~50–150 students, ~30–60 courses) — a p95 < 200ms budget per drop may require incremental validation rather than full recompute. Owner: dev. Block: no.
-- **Risk:** The first moment the online validator runs against a full cohort with real grouping output. Every prior performance measurement gets re-validated here at real scale. If the p95 budget breaks, the sequence must loop back to S-01/S-03 to optimize the validator. (Note: the grouping algorithm's own runtime is _not_ on the hot path — it ran once during S-06 and the output is cached.)
+  - Undo/redo scope & priority (PRD Open Q #1, FR-013 is provisional): must-have for this change or a fast-follow? Single-step vs. multi-step history? Session-only vs. durable across reload? — Owner: author. **Block: yes** (the answer changes whether this slice exists in this change at all, and the PRD flags it may move the 4–6 week estimate).
+- **Risk:** Wraps the full editing-operation set, so it depends on those operations existing (S-05, S-07) and ideally the combined view's edits too. Blocked until its scope is decided — building multi-step durable undo across every operation is a different slice than session-only single-step. Resolving Open Q #1 either promotes this to `ready` (after S-05/S-07) or moves it to a fast-follow / parks it.
 - **Status:** blocked
-
-### S-09: year-2-with-cross-cohort-constraint
-
-- **Outcome:** The author switches to Y2 inside the same plan. The online validator adds the "teacher across cohorts" class — a slot S occupied by teacher T in Y1 cannot accept teacher T in Y2. Grouping recommendations for Y2 are produced by re-running F-03 with the Y2 cohort scope (S-06 covers the trigger).
-- **Change ID:** year-2-with-cross-cohort-constraint
-- **PRD refs:** US-01(e), FR-009, FR-012 ("teacher across cohorts" class)
-- **Prerequisites:** S-08
-- **Parallel with:** —
-- **Blockers:** —
-- **Unknowns:**
-  - **Drop UX policy (PRD Q8)** is inherited further; cross-cohort is the least intuitive class for the author, so the "invalid: teacher already in Y1 slot 3" message needs careful presentation. Owner: user / design. Block: **yes**.
-  - When a Y1 placement is edited _after_ Y2 has started, should the change propagate invalidation into Y2 placements, or should Y1 be frozen until the author explicitly "reopens" it? — Owner: user / design. Block: no.
-- **Risk:** The cross-cohort constraint is the "hard problem" called out in CLAUDE.md. Sequenced directly after S-08 so that any decision about plan + cohort representation in the schema is confirmed before adding cross-references.
-- **Status:** blocked
-
-### S-10: finalize-and-csv-export
-
-- **Outcome:** The author exports **any plan** as a master-grid CSV (slot × course) with cohort distinguishable in the output. There is no finalize step — plans are peers (FR-014 removed in PRD v2).
-- **Change ID:** finalize-and-csv-export
-- **PRD refs:** US-01(g)(h), FR-015 (amended in PRD v2; FR-014 removed)
-- **Prerequisites:** S-09
-- **Parallel with:** —
-- **Blockers:** —
-- **Unknowns:**
-  - ~~**Finalize gate (PRD Q9)**~~ Resolved 2026-06-11: dissolved — FR-014 overturned in PRD v2; there is no final mark and nothing to gate.
-  - ~~Draft export (PRD Q10)~~ Resolved 2026-06-11: dissolved into amended FR-015 — any plan is exportable.
-- **Risk:** The slice with the least technical uncertainty — CSV export is more of a product decision than an engineering one. Sequenced last because it requires both cohorts placed.
-- **Status:** proposed
 
 ## Backlog Handoff
 
-| Roadmap ID | Change ID                            | Suggested issue title                                                          | Ready for `/10x-plan` | Notes                                                          |
-| ---------- | ------------------------------------ | ------------------------------------------------------------------------------ | --------------------- | -------------------------------------------------------------- |
-| F-01       | gated-author-provisioning            | Close registration to invited/approved authors only                            | yes                   | Run `/10x-plan gated-author-provisioning`                      |
-| F-02       | minimal-domain-schema                | Supabase schema + RLS for catalog/plan/variant/placement/groupings (MVP scope) | yes                   | Run `/10x-plan minimal-domain-schema`                          |
-| F-03       | port-grouping-algorithm              | Port the CSV grouping algorithm to a pure function in `src/lib/`               | no                    | Promotes to `ready` once F-02 done                             |
-| S-01       | first-valid-drop-with-validation     | First valid drop with live student-collision validation                        | no                    | Blocked on Drop UX policy (PRD Q8); also waits for F-03        |
-| S-02       | course-and-dependency-catalog-ui     | Course catalog + overlap/merge dependencies UI                                 | no                    | Promotes to `ready` once F-01 + F-02 done                      |
-| S-03       | teachers-and-availability-catalog-ui | Teachers + availability UI; online validator extends to teacher classes        | no                    | Blocked on Drop UX policy (PRD Q8); also waits for S-01, S-02  |
-| S-04       | students-and-choices-ui              | Students + choices UI (primary path)                                           | no                    | Promotes to `ready` once F-01 + F-02 + S-02 done               |
-| S-05       | csv-import-students                  | CSV import for student choices, no silent overwrite of UI edits                | no                    | Waits for S-04                                                 |
-| S-06       | compute-groupings-from-catalog       | Run grouping algorithm against the populated catalog from the UI               | no                    | Waits for F-03 + S-02 + S-03 + S-04                            |
-| S-07       | multi-variant-management             | Plans as cloneable whole-domain scenarios (`/plans` hub + clone)               | yes                   | Re-scoped 2026-06-11 (PRD v2); plan exists (this change)       |
-| S-08       | year-1-complete-placement            | Year 1 end-to-end placement under full catalog with real groupings             | no                    | Blocked on Drop UX policy (PRD Q8); also waits for S-03 + S-06 |
-| S-09       | year-2-with-cross-cohort-constraint  | Year 2 placement honoring Year 1 teacher occupancy                             | no                    | Blocked on Drop UX policy (PRD Q8); also waits for S-08        |
-| S-10       | finalize-and-csv-export              | Export any plan as master-grid CSV                                             | no                    | Finalize gate dissolved (PRD v2); waits for S-09               |
+| Roadmap ID | Change ID                       | Suggested issue title                                                | Ready for `/10x-plan` | Notes |
+| ---------- | ------------------------------- | -------------------------------------------------------------------- | --------------------- | ----- |
+| S-01       | dp1-dp2-cohort-naming           | Relabel cohorts DP1 / DP2 throughout the UI                          | yes                   | Run `/10x-plan dp1-dp2-cohort-naming` — no prerequisites |
+| S-02       | co-teaching-teacher-sets        | Co-teaching: assign multiple teachers per course, both occupied      | yes                   | Run `/10x-plan co-teaching-teacher-sets` — head of constraint chain |
+| S-03       | bi-weekly-week-aware-validation | Bi-weekly courses + week-aware collision validation                  | no                    | Promotes to `ready` once S-02 done |
+| S-04       | two-cohort-board-cross-cohort   | Free cohort switching + symmetric cross-cohort teacher occupancy     | no                    | Promotes to `ready` once S-02 + S-03 done |
+| S-05       | first-class-bundle-operations   | First-class bundle: move / remove / replace as a unit                | yes                   | Run `/10x-plan first-class-bundle-operations` — parallel with constraint chain |
+| S-06       | combined-two-cohort-view        | Combined DP1 \| DP2 view (north star) — assemble both cohorts        | no                    | Promotes to `ready` once S-04 + S-05 done |
+| S-07       | bundle-holding-container        | Holding container: park a bundle off-board, place it back            | no                    | Promotes to `ready` once S-05 done |
+| S-08       | editing-undo-redo               | Undo / redo for editing operations                                   | no                    | Blocked on undo scope (Open Q #1); also waits for S-05 + S-07 |
 
 ## Open Roadmap Questions
 
-1. **Drop UX policy (PRD Q8).** When a drop creates a collision, does the app (a) block the drop, (b) accept and flag for resolution, or (c) prompt the author? Owner: user / design. Block: **S-01, S-03, S-08, S-09**.
-2. **Finalize gate (PRD Q9).** Resolved 2026-06-11: no finalize gate — FR-014 overturned in PRD v2; plans are peers with no final mark. Block: none.
-3. **target_scale.qps (PRD Q1).** Shape-notes captured `users: small` but not a qps ballpark. Owner: user. Block: no — defaults to "low" for downstream sizing.
-4. **target_scale.data_volume (PRD Q2).** Same gap. Owner: user. Block: no — defaults to "small".
-5. **Viewer role v2 (PRD Q3).** Dropped from MVP. For v2, should a read-only Viewer see only finals, or drafts too? Owner: user. Block: no.
-6. **IB Group attribute (PRD Q4).** Should each course carry its IB Group (1–6) attribute, in case the algorithm later needs it for stricter compatibility rules? Owner: user. Block: no.
-7. **Teacher hours-per-week (PRD Q5).** Some teachers can teach up to N hours per week. Out of scope for MVP — needed in v2? Owner: user. Block: no.
-8. **Teacher soft preferences (PRD Q6).** Prefer morning vs. afternoon, prefer non-consecutive slots, etc. Hard exclusions only in MVP. Owner: user. Block: no.
-9. **Custom slot grids (PRD Q7).** MVP uses presets only; a bespoke grid editor is deferred. Owner: user. Block: no.
-10. **Draft export (PRD Q10).** Resolved 2026-06-11: dissolved into amended FR-015 (PRD v2) — any plan is exportable. Block: no.
-11. **Keyboard / accessibility parity (PRD Q11).** Should drag-and-drop have a keyboard-only alternative? Owner: user. Block: no.
-12. **Multi-school / cross-school (PRD Q12).** No multi-tenancy in MVP. Owner: user. Block: no.
+1. **Undo/redo scope & priority (FR-013, PRD Open Q #1).** Must-have for this change or a fast-follow? Single-step vs. multi-step history? Session-only vs. durable across reload? — Owner: author. Block: **S-08** (and may move the 4–6 week estimate). This is the single highest-leverage decision in the change.
+2. **Combined-view layout / screen-fit (FR-007, PRD Open Q #2).** Two cohort grids side by side strain a laptop screen — compact columns, horizontal scroll, density toggle, or collapse-to-one-column? — Owner: author + design. Block: no (a design input for S-06, resolvable in `/10x-plan`).
+3. **CSV export in scope? (PRD Open Q #3).** Listed as must-preserve in the original product but never implemented. If in scope, it must represent the enriched model (co-teaching, bi-weekly week tags, both cohorts distinguishable) and would become a **new slice**; if not, it drops from the guardrails. — Owner: author. Block: no (does not gate any existing slice; resolving it in-scope adds a slice via `/10x-plan`).
 
 ## Parked
 
-- **End-to-end automatic timetable optimization** — Why parked: PRD §Non-Goals. The app computes compatible groupings and validates placements; it does NOT auto-place courses on slots.
-- **Room / location validation** — Why parked: PRD §Non-Goals. Rooms are assigned after the timetable is set, outside this tool.
-- **Student-facing and teacher-facing self-entry flows** — Why parked: PRD §Non-Goals. Authors enter all data.
-- **Multi-school SaaS tenancy** — Why parked: PRD §Non-Goals + §Access Control. One school per instance.
-- **Custom slot-grid editor** — Why parked: PRD §Non-Goals + Open Question Q7. Presets only in MVP.
-- **Printable / PDF export** — Why parked: PRD §Non-Goals. CSV only.
-- **Cross-plan comparison view** — Why parked: PRD §Non-Goals. Multiple plans exist in parallel, but no side-by-side diff UI; derived hub metrics (valid / complete / used slots) are a future extension.
-- **Mobile-optimized UX** — Why parked: PRD §Non-Goals. Laptop browser is the target form factor.
-- **Read-only Viewer role** — Why parked: PRD §Non-Goals + Open Question Q3. v2 candidate.
-- **Observability stack (logs, error tracking, dashboards)** — Why parked: `main_goal: market-feedback` + small users scope. Returns as a foundation candidate if/when scale grows or `main_goal` shifts to `quality`.
+- **Arbitrary fortnight cycles** — Why parked: PRD §Non-Goals. Bi-weekly is a two-week A/B alternation only — no every-third-week, custom rotations, or month-based patterns.
+- **Split-teaching** — Why parked: PRD §Non-Goals. Co-teaching models both teachers occupying the same slot together; it does not model teachers splitting a class across different times or rooms.
+- **Configurable cohort names** — Why parked: PRD §Non-Goals. DP1/DP2 is a fixed relabel (S-01); cohort names are not user-editable. Possible future extension.
+- **Cross-cohort rooms or students** — Why parked: PRD §Non-Goals. The symmetric cross-cohort constraint covers teacher occupancy only — rooms are out of product scope, students are single-cohort by definition.
+- **Room / location validation** — Why parked: PRD §Non-Goals (carried forward).
+- **End-to-end automatic timetable optimization / auto-placement** — Why parked: PRD §Non-Goals (carried forward).
+- **Custom slot-grid editor (presets only)** — Why parked: PRD §Non-Goals (carried forward).
+- **Student- and teacher-facing self-entry flows** — Why parked: PRD §Non-Goals (carried forward).
+- **Multi-school / cross-school tenancy** — Why parked: PRD §Non-Goals (carried forward).
+- **Mobile-optimized UX** — Why parked: PRD §Non-Goals (carried forward); laptop is the target form factor.
+- **Printable / PDF export** — Why parked: PRD §Non-Goals (carried forward); CSV (if any) only.
+- **Teacher soft preferences and hours-per-week caps** — Why parked: PRD §Non-Goals (carried forward); hard exclusions only.
 
 ## Done
 
-(Empty on first generation. `/10x-archive` appends an entry here — and flips the item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived.)
-
-- **S-03: CRUD teachers + availability; online validator extends to teacher + availability classes** — Archived 2026-06-14 → `context/archive/2026-06-13-teacher-availability/`. Lesson: —.
-- **S-04: CRUD students and their course choices (primary entry path)** — Archived 2026-06-12 → `context/archive/2026-06-11-students-and-choices-ui/`. Lesson: —.
-- **S-02: CRUD courses + overlap/merge dependencies + weekly hours** — Archived 2026-06-12 → `context/archive/2026-06-07-course-catalog/`. Lesson: —.
-- **F-01: (foundation) closed registration — only approved authors can hold an account** — Archived 2026-06-12 → `context/archive/2026-05-29-gated-author-provisioning/`. Lesson: —.
-- **S-01: First valid drop with validation** — Archived 2026-06-12 → `context/archive/2026-06-05-first-valid-drop-with-validation/`. Lesson: —.
-- **S-07: Plans are cloneable whole-domain scenarios** — Archived 2026-06-12 → `context/archive/2026-06-11-multi-variant-management/`. Lesson: —.
-- **F-02: (foundation) Supabase tables + RLS for catalog, plans, variants, placements, and grouping cache** — Archived 2026-06-12 → `context/archive/2026-06-01-minimal-domain-schema/`. Lesson: —.
-- **F-03: port-grouping-algorithm** — Archived 2026-06-12 → `context/archive/2026-06-04-port-grouping-algorithm/`. Lesson: —.
+(Empty on first generation. `/10x-archive` appends an entry here — and flips that item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived. Do NOT pre-populate.)

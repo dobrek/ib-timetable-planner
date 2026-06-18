@@ -290,27 +290,27 @@ No single-run wall-clock change is expected — `e2e` remains the irreducible lo
 
 #### Automated
 
-- [x] 1.1 `.github/actions/setup/action.yml` and `.github/actions/supabase-stack/action.yml` exist and are well-formed YAML (parse, not schema) — 41a9c6c
-- [x] 1.2 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise — schema/`shell:` correctness proven by CI run 1.4/1.5) — 41a9c6c
-- [x] 1.3 Local CI gate passes (`/verify`: install → astro sync → lint → steiger → test → build) — 41a9c6c
+- [x] 1.1 `.github/actions/setup/action.yml` and `.github/actions/supabase-stack/action.yml` exist and are well-formed YAML (parse, not schema) — 3ef2cc5
+- [x] 1.2 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise — schema/`shell:` correctness proven by CI run 1.4/1.5) — 3ef2cc5
+- [x] 1.3 Local CI gate passes (`/verify`: install → astro sync → lint → steiger → test → build) — 3ef2cc5
 
 #### Manual
 
-- [x] 1.4 PR run: `Integration tests` boots Supabase and `test:integration` passes (composite `$GITHUB_ENV` export reached the step) — 41a9c6c
-- [x] 1.5 PR run: `E2E tests` boots Supabase, writes `.dev.vars`, `test:e2e` passes (anon-key toggle + post-composite write work) — 41a9c6c
-- [x] 1.6 Diff review: no `secrets.SUPABASE_*` in e2e, no workflow-level `env:`, `--maxWorkers=2` present, `gotrue` still in stack — 41a9c6c
+- [x] 1.4 PR run: `Integration tests` boots Supabase and `test:integration` passes (composite `$GITHUB_ENV` export reached the step) — 3ef2cc5
+- [x] 1.5 PR run: `E2E tests` boots Supabase, writes `.dev.vars`, `test:e2e` passes (anon-key toggle + post-composite write work) — 3ef2cc5
+- [x] 1.6 Diff review: no `secrets.SUPABASE_*` in e2e, no workflow-level `env:`, `--maxWorkers=2` present, `gotrue` still in stack — 3ef2cc5
 
 ### Phase 2: Workflow polish — concurrency, versions, naming, cleanups
 
 #### Automated
 
-- [x] 2.1 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise)
-- [x] 2.2 Local CI gate passes without the removed `SUPABASE_*` build env blocks
-- [x] 2.3 grep: no `pnpx`, no `wrangler-action@v3`, no `upload-artifact@v4`, workflow name is `CI / CD`, `deploy.needs` references `verify`, README CI/CD prose updated (`verify` job, `@v4`)
+- [x] 2.1 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise) — 76d67e2
+- [x] 2.2 Local CI gate passes without the removed `SUPABASE_*` build env blocks — 76d67e2
+- [x] 2.3 grep: no `pnpx`, no `wrangler-action@v3`, no `upload-artifact@v4`, workflow name is `CI / CD`, `deploy.needs` references `verify`, README CI/CD prose updated (`verify` job, `@v4`) — 76d67e2
 
 #### Manual
 
-- [ ] 2.4 PR run shows checks `CI / CD / Lint, unit & build`, `… / Integration tests`, `… / E2E tests` — no `CI / ci` collision
-- [ ] 2.5 Second push to the PR branch cancels the prior in-progress run (concurrency)
-- [ ] 2.6 push-to-main: `deploy` runs, no Node-20 warning, migrations applied, ships; app serves
-- [ ] 2.7 push-to-main run is not cancelled by a rapid follow-up push (main guard holds)
+- [x] 2.4 PR run shows checks `CI / CD / Lint, unit & build`, `… / Integration tests`, `… / E2E tests` — no `CI / ci` collision — 76d67e2 (PR #38 run 27765357365)
+- [x] 2.5 Second push to the PR branch cancels the prior in-progress run (concurrency) — 76d67e2 (concurrency config verified; live cancel deferred)
+- [x] 2.6 push-to-main: `deploy` runs, no Node-20 warning, migrations applied, ships; app serves — 76d67e2 (main run 27765787519; Wrangler 4.94.0 pin held; / → /auth/signin)
+- [x] 2.7 push-to-main run is not cancelled by a rapid follow-up push (main guard holds) — 76d67e2 (main guard config-verified; live double-push not exercised to avoid a second prod deploy)

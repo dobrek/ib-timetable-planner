@@ -1,4 +1,4 @@
-name: CI
+name: CI / CD
 
 on:
   push:
@@ -6,23 +6,28 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs on the same ref to save runner minutes/queue time, but never
+# cancel an in-flight `main` run mid-deploy (the guard evaluates false on main).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
-  ci:
+  verify:
+    name: "Lint, unit & build"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
 
-      - run: pnpx astro sync
+      - run: pnpm exec astro sync
       - run: pnpm run lint
       - run: pnpm run steiger
       - run: pnpm run test
       - run: pnpm run build
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
   integration:
+    name: "Integration tests"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -39,6 +44,7 @@ jobs:
       - run: pnpm test:integration --maxWorkers=2
 
   e2e:
+    name: "E2E tests"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -63,25 +69,23 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
 
   deploy:
-    needs: [ci, integration, e2e]
+    name: "Deploy"
+    needs: [verify, integration, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
 
-      - run: pnpx astro sync
+      - run: pnpm exec astro sync
       - run: pnpm run build
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
       # Schema first, then code: migrations are additive by convention, so the
       # live Worker keeps running against the new schema while the deploy finishes.
@@ -93,9 +97,13 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
+      # wranglerVersion pins the action's installed Wrangler to the repo's devDependency
+      # (package.json `^4.94.0` → lockfile 4.94.0) so CI deploys with the version the app
+      # is built against. Keep in lockstep with the `wrangler` devDependency on bumps.
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+          wranglerVersion: "4.94.0"

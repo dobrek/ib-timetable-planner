@@ -290,23 +290,23 @@ No single-run wall-clock change is expected — `e2e` remains the irreducible lo
 
 #### Automated
 
-- [x] 1.1 `.github/actions/setup/action.yml` and `.github/actions/supabase-stack/action.yml` exist and are well-formed YAML (parse, not schema)
-- [x] 1.2 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise — schema/`shell:` correctness proven by CI run 1.4/1.5)
-- [x] 1.3 Local CI gate passes (`/verify`: install → astro sync → lint → steiger → test → build)
+- [x] 1.1 `.github/actions/setup/action.yml` and `.github/actions/supabase-stack/action.yml` exist and are well-formed YAML (parse, not schema) — 41a9c6c
+- [x] 1.2 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise — schema/`shell:` correctness proven by CI run 1.4/1.5) — 41a9c6c
+- [x] 1.3 Local CI gate passes (`/verify`: install → astro sync → lint → steiger → test → build) — 41a9c6c
 
 #### Manual
 
-- [ ] 1.4 PR run: `Integration tests` boots Supabase and `test:integration` passes (composite `$GITHUB_ENV` export reached the step)
-- [ ] 1.5 PR run: `E2E tests` boots Supabase, writes `.dev.vars`, `test:e2e` passes (anon-key toggle + post-composite write work)
-- [ ] 1.6 Diff review: no `secrets.SUPABASE_*` in e2e, no workflow-level `env:`, `--maxWorkers=2` present, `gotrue` still in stack
+- [x] 1.4 PR run: `Integration tests` boots Supabase and `test:integration` passes (composite `$GITHUB_ENV` export reached the step) — 41a9c6c
+- [x] 1.5 PR run: `E2E tests` boots Supabase, writes `.dev.vars`, `test:e2e` passes (anon-key toggle + post-composite write work) — 41a9c6c
+- [x] 1.6 Diff review: no `secrets.SUPABASE_*` in e2e, no workflow-level `env:`, `--maxWorkers=2` present, `gotrue` still in stack — 41a9c6c
 
 ### Phase 2: Workflow polish — concurrency, versions, naming, cleanups
 
 #### Automated
 
-- [ ] 2.1 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise)
-- [ ] 2.2 Local CI gate passes without the removed `SUPABASE_*` build env blocks
-- [ ] 2.3 grep: no `pnpx`, no `wrangler-action@v3`, no `upload-artifact@v4`, workflow name is `CI / CD`, `deploy.needs` references `verify`, README CI/CD prose updated (`verify` job, `@v4`)
+- [x] 2.1 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise)
+- [x] 2.2 Local CI gate passes without the removed `SUPABASE_*` build env blocks
+- [x] 2.3 grep: no `pnpx`, no `wrangler-action@v3`, no `upload-artifact@v4`, workflow name is `CI / CD`, `deploy.needs` references `verify`, README CI/CD prose updated (`verify` job, `@v4`)
 
 #### Manual
 

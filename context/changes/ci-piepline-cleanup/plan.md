@@ -290,9 +290,9 @@ No single-run wall-clock change is expected — `e2e` remains the irreducible lo
 
 #### Automated
 
-- [ ] 1.1 `.github/actions/setup/action.yml` and `.github/actions/supabase-stack/action.yml` exist and are well-formed YAML (parse, not schema)
-- [ ] 1.2 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise — schema/`shell:` correctness proven by CI run 1.4/1.5)
-- [ ] 1.3 Local CI gate passes (`/verify`: install → astro sync → lint → steiger → test → build)
+- [x] 1.1 `.github/actions/setup/action.yml` and `.github/actions/supabase-stack/action.yml` exist and are well-formed YAML (parse, not schema)
+- [x] 1.2 `.github/workflows/ci.yml` is well-formed YAML (actionlint if available; parse otherwise — schema/`shell:` correctness proven by CI run 1.4/1.5)
+- [x] 1.3 Local CI gate passes (`/verify`: install → astro sync → lint → steiger → test → build)
 
 #### Manual
 

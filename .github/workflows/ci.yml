@@ -11,17 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Node setup
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .node-version
-          cache: "pnpm"
-
-      - run: pnpm install --frozen-lockfile
       - run: pnpx astro sync
       - run: pnpm run lint
       - run: pnpm run steiger
@@ -35,37 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Node setup
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .node-version
-          cache: "pnpm"
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v2
-
-      # Regenerate the catalog seed so `supabase start` loads a current seed.sql.
-      - run: node scripts/gen-seed.mjs > supabase/seed.sql
-
-      # Trimmed stack: keep postgres + postgrest + kong (the supabase-js path) and
-      # gotrue (cheap; future RLS/e2e). Exclude everything else to cut boot time.
-      # Container names are the CLI's own labels (mailpit/storage-api/logflare/
-      # postgres-meta), not the docs' aliases — the CLI rejects inbucket/storage/etc.
-      - name: Start Supabase (trimmed stack)
-        run: supabase start -x studio,imgproxy,mailpit,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
-
-      # The local stack mints its own keys; export them to the job env so the
-      # integration suites and the load-test-env CI fail-gate find them. `status -o env`
-      # quotes its values (SUPABASE_URL="http://..."); $GITHUB_ENV keeps quotes literal,
-      # which supabase-js rejects as an invalid URL — strip them before appending.
-      - name: Export Supabase env
-        run: supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY | sed 's/"//g' >> "$GITHUB_ENV"
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/supabase-stack
 
       # Plan-rooted isolation (Phase 3) makes the lane DATA-safe under parallelism:
       # every suite owns a fresh plan and tears it down, reading no shared seed state.
@@ -80,44 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Node setup
-        uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/supabase-stack
         with:
-          node-version-file: .node-version
-          cache: "pnpm"
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v2
-
-      # Regenerate the catalog seed so `supabase start` loads a current seed.sql.
-      - run: node scripts/gen-seed.mjs > supabase/seed.sql
-
-      # Same trimmed stack as the integration job — gotrue is retained (the e2e
-      # author signs in through it), so no `-x` exclusion change is needed here.
-      - name: Start Supabase (trimmed stack)
-        run: supabase start -x studio,imgproxy,mailpit,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
-
-      # Export the ephemeral local stack's minted keys to THIS job's env only.
-      # The e2e lane needs three values: SUPABASE_URL + the anon key (SUPABASE_KEY,
-      # written into `.dev.vars` for the workerd preview) and the service-role key
-      # (the `pretest:e2e` provisioning hook bypasses `enable_signup=false` with it).
-      # `status -o env` quotes its values; $GITHUB_ENV keeps quotes literal, which
-      # supabase-js rejects as an invalid URL — strip them before appending.
-      #
-      # Env isolation (e2e ↔ deploy): these vars come SOLELY from this job's own
-      # ephemeral stack. Never reference `${{ secrets.SUPABASE_* }}` here (those are
-      # the hosted/production project, used only by `deploy`) and never promote
-      # SUPABASE_* to a workflow-level `env:` block — writing a production key into
-      # `.dev.vars` would aim the workerd preview, and a real signInWithPassword, at
-      # production. $GITHUB_ENV is per-job, so these stay job-scoped.
-      - name: Export Supabase env
-        run: supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.anon_key=SUPABASE_KEY --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY | sed 's/"//g' >> "$GITHUB_ENV"
+          export-anon-key: "true"
 
       # The workerd preview reads SUPABASE_URL/SUPABASE_KEY from `.dev.vars`, NOT from
       # `webServer.env` — and the CI stack mints its own anon key that won't match the
@@ -147,17 +75,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Node setup
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .node-version
-          cache: "pnpm"
-
-      - run: pnpm install --frozen-lockfile
       - run: pnpx astro sync
       - run: pnpm run build
         env:

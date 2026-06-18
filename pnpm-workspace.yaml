@@ -4,5 +4,8 @@ allowBuilds:
   sharp: true
   workerd: true
 overrides:
+  '@babel/core@>=7.0.0 <7.29.7': ^7.29.7
   'vite@>=7.0.0 <7.3.5': ^7.3.5
   'ws@>=8.0.0 <8.21.0': ^8.21.0
+  'yaml@>=2.0.0 <2.9.0': ^2.9.0
+  'js-yaml@>=4.0.0 <4.2.0': ^4.2.0

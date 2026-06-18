@@ -1,16 +1,17 @@
 ---
 name: verify
-description: Run the local CI gate — install, astro sync, lint, build. Use after a batch of edits to confirm CI will pass before committing or opening a PR.
+description: Run the local CI gate — install, astro sync, audit, lint, test, build. Use after a batch of edits to confirm CI will pass before committing or opening a PR.
 ---
 
 Run the exact sequence `.github/workflows/ci.yml` runs, in order, stopping at the first failure.
 
 1. `pnpm install --frozen-lockfile`
-2. `pnpm exec astro sync`
+2. `pnpm astro sync`
 3. `pnpm lint`
-4. `pnpm steiger`
-5. `pnpm test`
-6. `pnpm build`
+4. `pnpm audit`
+5. `pnpm steiger`
+6. `pnpm test`
+7. `pnpm build`
 
 Report:
 

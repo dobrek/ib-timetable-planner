@@ -4,4 +4,5 @@ allowBuilds:
   sharp: true
   workerd: true
 overrides:
+  'vite@>=7.0.0 <7.3.5': ^7.3.5
   'ws@>=8.0.0 <8.21.0': ^8.21.0

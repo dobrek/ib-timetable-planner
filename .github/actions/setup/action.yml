@@ -1,0 +1,21 @@
+name: "Setup (pnpm + node + install)"
+description: "Install pnpm, set up Node from .node-version with the pnpm cache, then install deps with a frozen lockfile."
+
+# checkout is intentionally NOT here — a local `uses: ./.github/actions/...` needs the
+# repo already checked out, so each calling job keeps `actions/checkout` as its first step.
+runs:
+  using: "composite"
+  steps:
+    - name: Install pnpm
+      uses: pnpm/action-setup@v6
+
+    # pnpm must be set up before setup-node so `cache: "pnpm"` can locate the store.
+    - name: Node setup
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: .node-version
+        cache: "pnpm"
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile

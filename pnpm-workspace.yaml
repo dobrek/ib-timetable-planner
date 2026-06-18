@@ -1,6 +1,7 @@
 allowBuilds:
   esbuild: true
+  lefthook: true
   sharp: true
   workerd: true
 overrides:
-  'ws@>=8.0.0 <8.20.1': ^8.20.1
+  'ws@>=8.0.0 <8.21.0': ^8.21.0

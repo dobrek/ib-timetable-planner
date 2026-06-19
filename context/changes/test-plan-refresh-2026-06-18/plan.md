@@ -461,19 +461,19 @@ None. No schema or data changes. (The "14 migrations" figure is reported, not ap
 
 #### Automated
 
-- [ ] 1.1 No deleted slice id remains (`grep "S-09"` empty)
-- [ ] 1.2 Old PRD cites gone (`grep "L57|L130|L131|L158"` empty)
-- [ ] 1.3 New PRD cites present (`grep "L166|L173|L379|L434"` matches)
-- [ ] 1.4 Risk #7 row exists (`grep "^| 7 |"` matches)
-- [ ] 1.5 sub-200ms note present (`grep "200"` matches the budget note)
+- [x] 1.1 No deleted slice id remains (`grep "S-09"` empty)
+- [x] 1.2 Old PRD cites gone (`grep "L57|L130|L131|L158"` empty)
+- [x] 1.3 New PRD cites present (`grep "L166|L173|L379|L434"` matches)
+- [x] 1.4 Risk #7 row exists (`grep "^| 7 |"` matches)
+- [x] 1.5 sub-200ms note present (`grep "200"` matches the budget note)
 
 #### Manual
 
-- [ ] 1.6 Principle #4 re-centred on the S-02→S-04 rewrite (esp. S-03), FSD kept as prior
-- [ ] 1.7 Risk #5 reframed to "preserve author-only invariant; IDOR deferred to Phase 2.5"
-- [ ] 1.8 Risk #6 reads as the enriched-dimension family, forward-inference / not-yet-live, no anchor
-- [ ] 1.9 Risk #7 bundle durability coherent with S-05/S-07 + localStorage guard pitfall
-- [ ] 1.10 Approximate-ordering note makes the High×High #6 placement intelligible
+- [x] 1.6 Principle #4 re-centred on the S-02→S-04 rewrite (esp. S-03), FSD kept as prior
+- [x] 1.7 Risk #5 reframed to "preserve author-only invariant; IDOR deferred to Phase 2.5"
+- [x] 1.8 Risk #6 reads as the enriched-dimension family, forward-inference / not-yet-live, no anchor
+- [x] 1.9 Risk #7 bundle durability coherent with S-05/S-07 + localStorage guard pitfall
+- [x] 1.10 Approximate-ordering note makes the High×High #6 placement intelligible
 
 ### Phase 2: §3 Phased Rollout + §5 Quality Gates
 

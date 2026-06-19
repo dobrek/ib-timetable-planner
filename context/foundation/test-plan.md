@@ -29,18 +29,23 @@ Tests follow three non-negotiable principles for this project:
 A fourth, **project-specific** principle governs this rollout in particular:
 
 4. **Tests are the refactor safety net, never a refactor blocker.** This
-   codebase is early and substantially LLM-generated. The structural refactor
-   this principle anticipated **has since landed** (archived
-   `2026-06-08-architecture-refactor`, 5 phases): a pre-existing behavioral
-   net held green through the FSD relocation, and the base has grown from a
-   15-test baseline to **55 unit + 9 integration** since. Every test the
-   rollout adds must assert **observable behavior at a stable boundary** — the
-   validator's verdict, the user-visible drop feedback, auth/RLS enforcement,
-   persistence durability — the contracts that survive a refactor. Tests must
-   **never** mirror internal structure that is liable to move. If a test would
-   have to change purely because internals were reshaped and no behavior
-   changed, it is the wrong test. This is the direct answer to interview Q2
-   and the convention the §3 Phase 4 parity gate enforces.
+   codebase is early and substantially LLM-generated. The *prior* structural
+   refactor this principle was first written against **has since landed**
+   (archived `2026-06-08-architecture-refactor`, 5 phases): a pre-existing
+   behavioral net held green through the FSD relocation, and the base has grown
+   from a 15-test baseline to **55 unit + 10 integration** since. The **next**
+   refactor is already named: the enriched collision-core rewrite — roadmap
+   **S-02 → S-04**, above all **S-03's unified-rule rewrite** of
+   `collisions.ts` / `collision.ts` / `drop-hints.ts` — reworks the protected
+   four-class core. The **55 unit tests** (above all `collisions.test.ts`) are
+   the net that rewrite must survive **without a behavioral change**. Every
+   test the rollout adds must assert **observable behavior at a stable
+   boundary** — the validator's verdict, the user-visible drop feedback,
+   auth/RLS enforcement, persistence durability — the contracts that survive a
+   refactor. Tests must **never** mirror internal structure that is liable to
+   move. If a test would have to change purely because internals were reshaped
+   and no behavior changed, it is the wrong test. This is the direct answer to
+   interview Q2 and the convention the §3 Phase 4 parity gate enforces.
 
 Hot-spot scope used for likelihood weighting: `src/` (excluding tests, build
 output, `data/` fixtures, `context/` docs).
@@ -55,12 +60,20 @@ research's job, see §1 principle #3).
 
 | # | Risk (failure scenario) | Impact | Likelihood | Source (evidence — not anchor) |
 |---|--------------------------|--------|------------|--------------------------------|
-| 1 | The validator marks a placement **valid that actually collides** for a student (the shipped student-collision class) — the author trusts and ships a broken timetable. | High | High | PRD §Guardrails L57 (no wrong-positive); interview Q1; FSD evidence dir `src/_pages/plan-detail/{model,api}` |
+| 1 | The validator marks a placement **valid that actually collides** for a student (the shipped student-collision class) — the author trusts and ships a broken timetable. | High | High | PRD §Guardrails L166 (no wrong-positive); interview Q1; FSD evidence dir `src/_pages/plan-detail/{model,api}` |
 | 2 | The **drag → action → grid feedback loop renders the wrong verdict** — an optimistic UI keeps showing "valid" after the server returns invalid, so the user never sees the collision. | High | High | interview Q3 + Q4; FSD evidence dir `src/_pages/plan-detail/{ui,api}` |
 | 3 | A **server-mutation boundary diverges from its tested core** — every app-data mutation/compute now flows through Astro Actions (`src/actions/` barrel over `_pages/*/api/` handlers; the placements/grouping API route was migrated away). Untested at the **wrapper-over-a-real-HTTP-`/_actions/*`-request** layer: broken auth enforcement, wrong `DomainError`→`ActionError` translation, failed persistence, off-contract response, or no server-side re-validation of untrusted input. | High | Medium | interview correction (Actions are now the sole mutation transport); test base: the wrapper contract is unit-tested but no integration test invokes a real Action over HTTP; lessons.md Actions-only rule |
-| 4 | **Placed work is lost** — a placement does not survive reload/crash, or a write is silently dropped, violating the work-durability promise. | High | Medium | PRD NFR Work durability L130; FSD evidence dir `src/_pages/plan-detail/api` |
-| 5 | **Unauthenticated or cross-author access to student PII or the catalog** — an RLS ownership gap, or an Astro Action handler missing `requireSession()` (the `/_actions/*` path is exempt from the middleware redirect by convention, so the gate is per-handler). *(abuse: authorization / IDOR)* | High | Medium | PRD NFR Data privacy L131, Access Control L158; Actions self-enforce auth (interview correction + `src/actions` convention); auth untested; FSD evidence dir `src/_pages/sign-in/ui`, `src/pages/auth` |
-| 6 | **Cross-cohort teacher collision passes as valid** (S-09) — *refresh inference, not yet live:* if/when the cross-cohort teacher-constraint class ships (roadmap S-09, currently `blocked` on prereq S-08), the validator could mark a Y2 placement valid that reuses a teacher already occupied in Y1 — a new false-positive class under the L57 no-wrong-positive guardrail. | High | Medium | refresh inference grounded in roadmap S-09 (L226–238) + PRD L57; **no code anchor** — class not built (`types.ts:15` carries only a design-note comment). Not testable until S-09 ships; response is the §3 Phase 4 parity gate. |
+| 4 | **Placed work is lost** — a placement does not survive reload/crash, or a write is silently dropped, violating the work-durability promise. | High | Medium | PRD NFR Work durability L173; FSD evidence dir `src/_pages/plan-detail/api` |
+| 5 | **Unauthenticated access, or a regression of the author-only privacy invariant** — an Astro Action handler missing `requireSession()` (the `/_actions/*` path is exempt from the middleware redirect by convention, so the gate is per-handler), or student names/choices leaking beyond their author. The rewritten PRD makes **no access-control change**, so the job is to *preserve* the existing author-only invariant, not to cover a change-introduced surface. Per-author RLS / cross-author IDOR stays a **deferred, prerequisite-gated** concern (candidate Phase 2.5), not a surface this wave introduces. *(abuse: authorization / IDOR)* | High | Medium | PRD Privacy L177 (student names + choices author-only), Constraints L379 + Access Control Changes L434 (no access-control change); Actions self-enforce auth (interview correction + `src/actions` convention); cross-author RLS still untested; FSD evidence dir `src/_pages/sign-in/ui`, `src/pages/auth` |
+| 6 | **A new enriched-dimension false-positive class passes as valid** — *refresh inference, not yet live:* as each enriched dimension ships, the validator could mark a placement valid that the richer rule should reject — a new false-positive class under the L166 no-wrong-positive guardrail. The family: **S-02** co-teaching (both teachers of a co-taught course count as occupied), **S-03** bi-weekly opposite-week overlap (the unified-rule rewrite), **S-04** cross-cohort symmetric teacher occupancy, **S-06** both-cohorts-at-once. | High | High | refresh inference grounded in roadmap S-02 / S-03 / S-04 / S-06 + PRD L166–170 (the enriched no-false-positive surface); **no code anchor — classes not built**. Not testable until each class ships; response is the §3 Phase 4 parity harness, per slice. |
+| 7 | **A bundle operation or a parked bundle loses in-progress work** — a bundle move/remove/replace, or a bundle parked off-board, drops placed work, breaking the no-silent-loss-on-refresh / tab-close promise. *refresh inference, not yet live.* | High | Medium | refresh inference grounded in roadmap S-05 (`first-class-bundle-operations`, `ready`) + S-07 (`bundle-holding-container`; Secondary success criterion — a parked bundle survives refresh) + PRD durability L173; interview Q1 fear #2 + Q3 low-confidence. Implementation pitfall when the slices ship: guard `localStorage` with try/catch (`lessons.md:40-45`). |
+
+> **Ordering note.** Rows are ordered by risk = impact × likelihood, but that
+> ordering is **approximate for the forward-inference rows** (#6 High × High,
+> #7 High × Medium): those classes are not yet built, so their likelihood is an
+> estimate, not an observed rate. #6 listed after the live High × Medium #3–#5
+> is editorial placement, not a strict-priority claim — the table is not
+> re-sorted around the not-yet-live rows.
 
 **Abuse / security lens applied.** Risk #3 carries the untrusted-input /
 server-parity surface; Risk #5 carries authorization/IDOR and PII leakage.
@@ -77,7 +90,18 @@ deliberately unmapped**: registration is closed to an approved author set
 | #3 | A request hitting the boundary — the **Action wrapper over a real HTTP `/_actions/*` request** — enforces auth, translates a domain error to the correct client error, persists, and rejects malformed/untrusted input. | "the domain function is tested, so the boundary is fine" — the *handler wiring* is what is untested. | The real handler path (Astro's action context over `/_actions/*`); the persistence call; the response/error contract shape; the `requireSession` enforcement point. | integration (real Action via Astro's action context, local Supabase). | Mocking the domain function *inside* the boundary test (tests nothing); re-testing `src/_pages/courses` logic that is already covered. |
 | #4 | After a reload, the grid **restores exactly** the placed state. | "the write returned 200" ≠ "the work is durable". | The persist + read-back path; RLS on read; what reload actually re-fetches. | integration (local Supabase). | Asserting the DB write happened instead of asserting that reload restores the placed grid. |
 | #5 | An Action invoked **without a session is rejected**; author B **cannot read or mutate** author A's students/placements/catalog. | "the middleware protects everything" — `/_actions/*` is exempt; "logged in" ≠ "authorized for this row". | RLS policies and ownership column; per-handler `requireSession` coverage; the gated-route set. | integration (local Supabase + auth, both mechanisms). | Happy-path single-author only — the attacker is a *different* authenticated author, not an anonymous one. |
-| #6 / S-09 | *(not testable until the class ships)* When the cross-cohort teacher class lands, a fixture reusing a Y1-occupied teacher in Y2 is **rejected**; a non-reusing placement is accepted — guarded by the §3 Phase 4 parity harness as the class is added. | "the in-cell teacher check already covers this" — it does not; today's `teacher-conflict` is single-cell only, with no cohort dimension. | The new constraint's cohort dimension and `BoardContext` field; the parity oracle's expected values (from requirements, not the new code). | unit (parity fixture) once the class exists. | Shipping the new class without a false-positive parity guard; lifting the oracle's expected values from the new validator's own code. |
+| #6 | *(not testable until each class ships)* As each enriched dimension lands, a fixture the richer rule should reject is **rejected** and a clean one is accepted — a per-slice parity fixture (expected values from requirements) guarded by the §3 Phase 4 harness across S-02 / S-03 / S-04 / S-06. | "the in-cell checks already cover this" — they do not; today's core is single-cell, single-teacher, single-cohort, and week-agnostic. | Each new class's added dimension (teacher-set, week parity, cross-cohort occupancy, both-cohorts context); the parity oracle's expected values (from requirements, not the new code). | unit (parity fixture) once each class exists. | Shipping a new class without a false-positive parity guard; lifting the oracle's expected values from the new validator's own code. |
+| #7 | A bundle op (move/remove/replace) and a **parked** bundle both **survive a reload** with their placed work intact — prove restore, not the write. | "the write returned 200" ≠ "the parked bundle came back after refresh". | The bundle persistence + read-back path; what a refresh / tab-close re-fetches or re-hydrates; the `localStorage` guard (try/catch) if park state is client-persisted. | integration (local Supabase) for the server path; component for the client-restore path. | Asserting the write happened instead of asserting that reload restores the bundle / parked state. |
+
+**Placement-validation performance budget (not a CI gate).** Drag-drop
+constraint validation carries a **sub-200 ms budget** per placement. By team
+decision this budget is **deliberately not a CI gate** — it is verified
+**manually / by feel** during development, not asserted by an automated perf
+test. Rationale: a wall-clock perf assertion on shared CI runners is flaky and
+would block merges on noise rather than real regressions. This is a budget +
+governance decision, not a "validator marks X valid" failure scenario, so it is
+recorded here as prose (and as a §7 exclusion) rather than as a scored risk row.
+(Source: Phase 2 interview Q5 + the 2026-06-18 refresh interview.)
 
 ## 3. Phased Rollout
 

@@ -495,14 +495,14 @@ None. No schema or data changes. (The "14 migrations" figure is reported, not ap
 
 #### Automated
 
-- [x] 3.1 Counts present (`grep "10 integration|14 migration|4 e2e|55 unit"`)
-- [x] 3.2 Exact versions present (`grep "6.4.8|4.1.9|1.61|4.102"`)
-- [x] 3.3 Dates re-stamped (`grep -c "2026-06-18"` ≥ 4)
-- [x] 3.4 §7 grew by two new exclusions (sub-200ms-not-CI-gated + cross-author-IDOR-deferred)
+- [x] 3.1 Counts present (`grep "10 integration|14 migration|4 e2e|55 unit"`) — 25868bb
+- [x] 3.2 Exact versions present (`grep "6.4.8|4.1.9|1.61|4.102"`) — 25868bb
+- [x] 3.3 Dates re-stamped (`grep -c "2026-06-18"` ≥ 4) — 25868bb
+- [x] 3.4 §7 grew by two new exclusions (sub-200ms-not-CI-gated + cross-author-IDOR-deferred) — 25868bb
 
 #### Manual
 
-- [x] 3.5 §4 counts/versions match research exactly; "three Playwright projects" vs "4 specs" preserved
-- [x] 3.6 §7's two new exclusions coherent with sources; no contradiction with §2/§3
-- [x] 3.7 §8 + header re-stamp records the change-wave trigger
-- [x] 3.8 Plan flags the `load.ts:14` S-09 residue follow-up (no code edited)
+- [x] 3.5 §4 counts/versions match research exactly; "three Playwright projects" vs "4 specs" preserved — 25868bb
+- [x] 3.6 §7's two new exclusions coherent with sources; no contradiction with §2/§3 — 25868bb
+- [x] 3.7 §8 + header re-stamp records the change-wave trigger — 25868bb
+- [x] 3.8 Plan flags the `load.ts:14` S-09 residue follow-up (no code edited) — 25868bb

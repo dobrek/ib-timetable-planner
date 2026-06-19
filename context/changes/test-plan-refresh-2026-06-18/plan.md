@@ -479,30 +479,30 @@ None. No schema or data changes. (The "14 migrations" figure is reported, not ap
 
 #### Automated
 
-- [x] 2.1 Phase 2 no longer `implementing` in the §3 table
-- [x] 2.2 Archived folder referenced (`grep "archive/2026-06-15-testing-auth-actions-boundary-rls"`)
-- [x] 2.3 Old non-archived folder gone (`grep "changes/testing-auth-actions-boundary-rls"` empty)
-- [x] 2.4 Phase 4 sequencing recorded (`grep "before S-02"` matches)
+- [x] 2.1 Phase 2 no longer `implementing` in the §3 table — b792bae
+- [x] 2.2 Archived folder referenced (`grep "archive/2026-06-15-testing-auth-actions-boundary-rls"`) — b792bae
+- [x] 2.3 Old non-archived folder gone (`grep "changes/testing-auth-actions-boundary-rls"` empty) — b792bae
+- [x] 2.4 Phase 4 sequencing recorded (`grep "before S-02"` matches) — b792bae
 
 #### Manual
 
-- [x] 2.5 Phase 3 cued **next active**; status vocabulary still parses
-- [x] 2.6 Phase 4 reads as owning the enriched-dimension wave (S-02/S-03/S-04/S-06)
-- [x] 2.7 before-S-02 / before-S-03 sequencing flag reads correctly for downstream `/10x-plan`
-- [x] 2.8 §5 gates consistent with Phase 2 complete / Phase 3 pending
+- [x] 2.5 Phase 3 cued **next active**; status vocabulary still parses — b792bae
+- [x] 2.6 Phase 4 reads as owning the enriched-dimension wave (S-02/S-03/S-04/S-06) — b792bae
+- [x] 2.7 before-S-02 / before-S-03 sequencing flag reads correctly for downstream `/10x-plan` — b792bae
+- [x] 2.8 §5 gates consistent with Phase 2 complete / Phase 3 pending — b792bae
 
 ### Phase 3: §4 Stack + §7 Exclusions + §8 Freshness
 
 #### Automated
 
-- [ ] 3.1 Counts present (`grep "10 integration|14 migration|4 e2e|55 unit"`)
-- [ ] 3.2 Exact versions present (`grep "6.4.8|4.1.9|1.61|4.102"`)
-- [ ] 3.3 Dates re-stamped (`grep -c "2026-06-18"` ≥ 4)
-- [ ] 3.4 §7 grew by two new exclusions (sub-200ms-not-CI-gated + cross-author-IDOR-deferred)
+- [x] 3.1 Counts present (`grep "10 integration|14 migration|4 e2e|55 unit"`)
+- [x] 3.2 Exact versions present (`grep "6.4.8|4.1.9|1.61|4.102"`)
+- [x] 3.3 Dates re-stamped (`grep -c "2026-06-18"` ≥ 4)
+- [x] 3.4 §7 grew by two new exclusions (sub-200ms-not-CI-gated + cross-author-IDOR-deferred)
 
 #### Manual
 
-- [ ] 3.5 §4 counts/versions match research exactly; "three Playwright projects" vs "4 specs" preserved
-- [ ] 3.6 §7's two new exclusions coherent with sources; no contradiction with §2/§3
-- [ ] 3.7 §8 + header re-stamp records the change-wave trigger
-- [ ] 3.8 Plan flags the `load.ts:14` S-09 residue follow-up (no code edited)
+- [x] 3.5 §4 counts/versions match research exactly; "three Playwright projects" vs "4 specs" preserved
+- [x] 3.6 §7's two new exclusions coherent with sources; no contradiction with §2/§3
+- [x] 3.7 §8 + header re-stamp records the change-wave trigger
+- [x] 3.8 Plan flags the `load.ts:14` S-09 residue follow-up (no code edited)

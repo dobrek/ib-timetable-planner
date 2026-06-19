@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-06-15 (refresh — post-FSD, rollout re-sequenced)
+> Last updated: 2026-06-18 (refresh — post-demo domain-fidelity change wave)
 
 ## 1. Strategy
 
@@ -173,16 +173,23 @@ The classic test base for this project. AI-native tools (if any) carry a
 
 | Layer | Tool | Version | Notes |
 |-------|------|---------|-------|
-| unit | Vitest | (see lockfile) | `vitest.config.ts`; **55 unit** test files — 53 co-located `*.test.ts` siblings under the FSD slices + 2 infra-guard suites in `src/test/` (`no-seed-coupling`, `seed-transcode-identity`). |
-| integration | Vitest | (see lockfile) | `vitest.integration.config.ts`; **9 integration** suites; plan-rooted scenario factory harness at `src/test/factories/`; requires the local Supabase stack (`pnpm test:integration`). Live **CI integration lane**: regenerate seed → boot a trimmed Supabase stack → `pnpm test:integration --maxWorkers=2` (the 2-worker cap is a CI runner-resource hedge). Mutations/compute flow through **Astro Actions only** — a real Action over `/_actions/*`; the placements/grouping API route is gone. |
-| e2e | Playwright (`@playwright/test`) | (see lockfile) | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). Three projects — `setup` (logs in once → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs). `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e remains §3 Phase 3. |
+| unit | Vitest | 4.1.9 | `vitest.config.ts`; **55 unit** test files — 53 co-located `*.test.ts` siblings under the FSD slices + 2 infra-guard suites in `src/test/` (`no-seed-coupling`, `seed-transcode-identity`). |
+| integration | Vitest | 4.1.9 | `vitest.integration.config.ts`; **10 integration** suites (the Phase 2 `action-boundary.integration.test.ts` is the +1 over the prior refresh's 9); plan-rooted scenario factory harness at `src/test/factories/`; requires the local Supabase stack (`pnpm test:integration`). Live **CI integration lane**: regenerate seed → boot a trimmed Supabase stack → `pnpm test:integration --maxWorkers=2` (the 2-worker cap is a CI runner-resource hedge). Mutations/compute flow through **Astro Actions only** — a real Action over `/_actions/*`; the placements/grouping API route is gone. |
+| e2e | Playwright (`@playwright/test`) | 1.61.0 | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). **4 e2e specs** in `e2e/specs/` (`auth`, `auth-guard`, `action-unauth`, `seed`); `e2e/auth.setup.ts` is the **setup project**, not a spec. Three Playwright **projects** — `setup` (logs in once → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs) — distinct from the spec count. `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e remains §3 Phase 3. |
 | edge runtime | n/a | — | Code runs on Cloudflare Workers (workerd) in dev and prod — edge-safe libs only, no Node APIs (`fs`, `child_process`, native). |
 
+**Versions pinned (verified 2026-06-18):** astro **6.4.8**, vitest **4.1.9**,
+@playwright/test **1.61.0**, wrangler **4.102.0** (`package.json` carries
+matching caret ranges). **Schema substrate:** **14 migrations** in
+`supabase/migrations/` (newest
+`20260618203532_grant_service_role_table_access.sql`) back the integration +
+e2e database — reported here, not applied by this guide.
+
 **Stack grounding tools (current session):**
-- Docs: Context7 available — use to ground the current Astro Actions testing API (action context / `callAction`) and React-island test setup during Phase 2/3 research; checked: 2026-06-15.
-- Search: Exa.ai available — use for current-status discovery only, then prefer official docs; checked: 2026-06-15.
-- Runtime/browser: Playwright MCP available — candidate for the single Phase 3 e2e only if integration cannot reach the drag→feedback loop; not used otherwise; checked: 2026-06-15.
-- Provider/platform: Supabase tooling available — backs the integration-test database for Phases 2, 3, 4 (RLS, persistence); checked: 2026-06-15.
+- Docs: Context7 available — use to ground the current Astro Actions testing API (action context / `callAction`) and React-island test setup during Phase 2/3 research; checked: 2026-06-18.
+- Search: Exa.ai available — use for current-status discovery only, then prefer official docs; checked: 2026-06-18.
+- Runtime/browser: Playwright MCP available — candidate for the single Phase 3 e2e only if integration cannot reach the drag→feedback loop; not used otherwise; checked: 2026-06-18.
+- Provider/platform: Supabase tooling available — backs the integration-test database for Phases 2, 3, 4 (RLS, persistence); checked: 2026-06-18.
 
 Use docs MCPs for current framework/library APIs and setup details. Use
 search MCPs for discovery or current status only, then prefer official docs
@@ -345,12 +352,30 @@ contributors should respect these unless the underlying assumption changes.
   against the original CSV pipeline output; do not re-litigate it. Re-evaluate
   only if the parity oracle is found to mirror the implementation. (Source:
   Phase 2 interview Q5.)
+- **Placement-validation sub-200 ms budget — not a CI gate.** The drag-drop
+  validation performance budget is verified **manually / by feel**, not by an
+  automated perf test: a wall-clock assertion on shared CI runners is flaky and
+  would block merges on noise rather than real regressions. Re-evaluate if
+  validation moves off the in-memory board check, or if the budget starts being
+  missed in practice. (Source: Phase 2 interview Q5 + the 2026-06-18 refresh
+  interview; see the §2 performance-budget note.)
+- **Cross-author / IDOR access — deferred, not permanently excluded.**
+  Cross-author tests wait on the ownership-column + real per-author RLS
+  prerequisite (today RLS is permissive `using(true)` and integration uses the
+  service-role key, which bypasses RLS), so a cross-author test would assert
+  nothing meaningful yet — candidate **Phase 2.5**. This is a *deferral pending a
+  prerequisite*, not a standing exclusion. (Source: Phase 2 deferral; see §2
+  Risk #5 and §3 notes.)
 
 ## 8. Freshness Ledger
 
-- Strategy (§1–§5) last reviewed: 2026-06-15
-- Stack versions last verified: 2026-06-15
-- AI-native tool references last verified: 2026-06-15
+- Strategy (§1–§5) last reviewed: 2026-06-18
+- Stack versions last verified: 2026-06-18
+- AI-native tool references last verified: 2026-06-18
+- 2026-06-18 refresh trigger: the **post-demo domain-fidelity change wave** —
+  PRD + roadmap rewritten (old roadmap archived), §3 Phase 2 shipped + archived,
+  and a dependency-bump + migration wave landed. See this refresh's change
+  folder `context/changes/test-plan-refresh-2026-06-18/`.
 
 Refresh (`/10x-test-plan --refresh`) when:
 

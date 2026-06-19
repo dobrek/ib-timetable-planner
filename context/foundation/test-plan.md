@@ -115,9 +115,9 @@ value.
 | --- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------- |
 | 0   | Integration harness + CI lane                                       | Stand up the DB-test infrastructure (plan-rooted factories, scenario builders, CI integration lane) the rollout assumed.         | enabler; #1, #3 (persist half), #4 (partial) | integration (factory harness) + CI lane                                   | complete    | `context/changes/data-for-e2e-and-integration-tests/`                 |
 | 1   | Validator trust core (independent oracle) — **complete (absorbed)** | Prove a false-positive cannot pass the core; covers the domain persist path (the placements/grouping route migrated to Actions). | #1                                           | unit (independent oracle)                                                 | complete    | — (absorbed into organic feature/refactor growth; no discrete change) |
-| 2   | Auth + Astro Actions boundary + RLS / PII                           | Prove every Action self-enforces session, no cross-author read/mutate, and error translation holds.                              | #5 (unauth half), #3 (Actions)               | **e2e (Playwright, workerd preview) + integration (local Supabase + auth)** — hybrid | implementing | context/changes/testing-auth-actions-boundary-rls/                    |
-| 3   | Drag → validate → feedback loop + persistence reload-restore        | Prove a real collision visibly reads "invalid" and placed work survives reload.                                                  | #2, #4 (reload-restore)                      | component / integration (planner island); persistence integration; ≤1 e2e | not started | —                                                                     |
-| 4   | Parity harness for new validator classes (owns S-09)                | Lock a convention + fixture harness so future validator classes (roadmap S-03, S-09) ship with parity guards.                    | #1-class, S-09                               | gates + table-driven fixture harness                                      | not started | —                                                                     |
+| 2   | Auth + Astro Actions boundary + RLS / PII                           | Prove every Action self-enforces session, no cross-author read/mutate, and error translation holds.                              | #5 (unauth half), #3 (Actions)               | **e2e (Playwright, workerd preview) + integration (local Supabase + auth)** — hybrid | complete    | `context/archive/2026-06-15-testing-auth-actions-boundary-rls/`        |
+| 3   | Drag → validate → feedback loop + persistence reload-restore — **next active** | Prove a real collision visibly reads "invalid" and placed work survives reload; fold in bundle-persistence durability as S-05 / S-07 ship. | #2, #4 (reload-restore)                      | component / integration (planner island); persistence integration; ≤1 e2e | not started | —                                                                     |
+| 4   | Parity harness for new validator classes (owns the enriched-dimension wave) | Lock a convention + fixture harness so each enriched validator class (roadmap S-02 / S-03 / S-04 / S-06) ships with a false-positive parity guard — the §2 Risk #6 response. | #1-class, #6 (enriched family)               | gates + table-driven fixture harness                                      | not started | —                                                                     |
 
 **Notes.**
 
@@ -150,6 +150,18 @@ value.
   pattern is established) and the **cross-author / IDOR half of #5** (waits on
   the ownership-column + real-RLS prerequisite above — candidate Phase 2.5).
   See §6.3 for the reusable harness pointer.
+- **Phase 3 is the next active phase.** The optimistic drag → validate →
+  feedback reconciliation loop is the #1 under-tested worry (interview Q3 + Q4),
+  so it leads the remaining rollout. Bundle-persistence durability (Risk #7)
+  folds into this phase as the bundle slices **S-05 / S-07** ship — the
+  reload-restore proof is the same shape (prove restore, not the write).
+- **Phase 4 owns the whole enriched-dimension wave** (S-02 / S-03 / S-04 /
+  S-06), not a single slice — it is the §2 Risk #6 response. **Sequencing flag
+  for each slice's `/10x-plan`:** land the parity-harness convention
+  **before S-02** (the first `ready` touch of the protected core, which already
+  edits `teacher-conflict` / `teacher-availability`), with
+  **before S-03's unified-rule rewrite** as the latest-acceptable bound. Do not
+  let the first enriched class ship without the parity guard in place.
 
 **Status vocabulary** (fixed — parser literals): `not started` → `change
 opened` → `researched` → `planned` → `implementing` → `complete`.
@@ -191,6 +203,13 @@ phase lands; before that, the gate is `planned`.
 | drag→feedback e2e / island integration | CI on PR | required after §3 Phase 3 | broken drop-validation user path, lost work |
 | new-validator-class parity fixture | CI on PR | required after §3 Phase 4 | a new collision class shipping without a false-positive guard |
 | pre-prod smoke | between merge + prod | optional | environment-specific (workerd / Supabase) failures |
+
+> **Current enforcement (as of 2026-06-18).** With §3 Phase 1 (absorbed) and
+> Phase 2 **complete**, the **unit + integration** and **auth + RLS ownership
+> integration** gates are now **live**. The **drag→feedback e2e / island
+> integration** gate is still **planned** (enforced once §3 Phase 3 — the next
+> active phase — lands), and **new-validator-class parity** stays planned
+> pending §3 Phase 4.
 
 ## 6. Cookbook Patterns
 

@@ -461,35 +461,35 @@ None. No schema or data changes. (The "14 migrations" figure is reported, not ap
 
 #### Automated
 
-- [x] 1.1 No deleted slice id remains (`grep "S-09"` empty)
-- [x] 1.2 Old PRD cites gone (`grep "L57|L130|L131|L158"` empty)
-- [x] 1.3 New PRD cites present (`grep "L166|L173|L379|L434"` matches)
-- [x] 1.4 Risk #7 row exists (`grep "^| 7 |"` matches)
-- [x] 1.5 sub-200ms note present (`grep "200"` matches the budget note)
+- [x] 1.1 No deleted slice id remains (`grep "S-09"` empty) — e68e597
+- [x] 1.2 Old PRD cites gone (`grep "L57|L130|L131|L158"` empty) — e68e597
+- [x] 1.3 New PRD cites present (`grep "L166|L173|L379|L434"` matches) — e68e597
+- [x] 1.4 Risk #7 row exists (`grep "^| 7 |"` matches) — e68e597
+- [x] 1.5 sub-200ms note present (`grep "200"` matches the budget note) — e68e597
 
 #### Manual
 
-- [x] 1.6 Principle #4 re-centred on the S-02→S-04 rewrite (esp. S-03), FSD kept as prior
-- [x] 1.7 Risk #5 reframed to "preserve author-only invariant; IDOR deferred to Phase 2.5"
-- [x] 1.8 Risk #6 reads as the enriched-dimension family, forward-inference / not-yet-live, no anchor
-- [x] 1.9 Risk #7 bundle durability coherent with S-05/S-07 + localStorage guard pitfall
-- [x] 1.10 Approximate-ordering note makes the High×High #6 placement intelligible
+- [x] 1.6 Principle #4 re-centred on the S-02→S-04 rewrite (esp. S-03), FSD kept as prior — e68e597
+- [x] 1.7 Risk #5 reframed to "preserve author-only invariant; IDOR deferred to Phase 2.5" — e68e597
+- [x] 1.8 Risk #6 reads as the enriched-dimension family, forward-inference / not-yet-live, no anchor — e68e597
+- [x] 1.9 Risk #7 bundle durability coherent with S-05/S-07 + localStorage guard pitfall — e68e597
+- [x] 1.10 Approximate-ordering note makes the High×High #6 placement intelligible — e68e597
 
 ### Phase 2: §3 Phased Rollout + §5 Quality Gates
 
 #### Automated
 
-- [ ] 2.1 Phase 2 no longer `implementing` in the §3 table
-- [ ] 2.2 Archived folder referenced (`grep "archive/2026-06-15-testing-auth-actions-boundary-rls"`)
-- [ ] 2.3 Old non-archived folder gone (`grep "changes/testing-auth-actions-boundary-rls"` empty)
-- [ ] 2.4 Phase 4 sequencing recorded (`grep "before S-02"` matches)
+- [x] 2.1 Phase 2 no longer `implementing` in the §3 table
+- [x] 2.2 Archived folder referenced (`grep "archive/2026-06-15-testing-auth-actions-boundary-rls"`)
+- [x] 2.3 Old non-archived folder gone (`grep "changes/testing-auth-actions-boundary-rls"` empty)
+- [x] 2.4 Phase 4 sequencing recorded (`grep "before S-02"` matches)
 
 #### Manual
 
-- [ ] 2.5 Phase 3 cued **next active**; status vocabulary still parses
-- [ ] 2.6 Phase 4 reads as owning the enriched-dimension wave (S-02/S-03/S-04/S-06)
-- [ ] 2.7 before-S-02 / before-S-03 sequencing flag reads correctly for downstream `/10x-plan`
-- [ ] 2.8 §5 gates consistent with Phase 2 complete / Phase 3 pending
+- [x] 2.5 Phase 3 cued **next active**; status vocabulary still parses
+- [x] 2.6 Phase 4 reads as owning the enriched-dimension wave (S-02/S-03/S-04/S-06)
+- [x] 2.7 before-S-02 / before-S-03 sequencing flag reads correctly for downstream `/10x-plan`
+- [x] 2.8 §5 gates consistent with Phase 2 complete / Phase 3 pending
 
 ### Phase 3: §4 Stack + §7 Exclusions + §8 Freshness
 

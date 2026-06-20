@@ -1,7 +1,7 @@
 ---
 change_id: dp1-dp2-cohort-naming
 title: Dp1 dp2 cohort naming
-status: implementing
+status: implemented
 created: 2026-06-20
 updated: 2026-06-20
 archived_at: null

@@ -1,10 +1,10 @@
 ---
 change_id: data-for-e2e-and-integration-tests
 title: Data for e2e and integration tests
-status: implemented
+status: archived
 created: 2026-06-15
-updated: 2026-06-15
-archived_at: null
+updated: 2026-06-20
+archived_at: 2026-06-20T00:00:00Z
 ---
 
 ## Notes

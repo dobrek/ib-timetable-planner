@@ -49,9 +49,7 @@ afterAll(async () => {
     expect(Object.keys(teacherNames).length).toBeGreaterThan(0);
     expect(Object.keys(studentNames).length).toBeGreaterThan(0);
 
-    const uncoveredTeachers = catalog
-      .map((course) => course.teacherKey)
-      .filter((key) => key !== null && !(key in teacherNames));
+    const uncoveredTeachers = catalog.flatMap((course) => course.teacherKeys).filter((key) => !(key in teacherNames));
     expect(uncoveredTeachers).toEqual([]);
 
     const uncoveredStudents = catalog.flatMap((course) => course.studentKeys).filter((key) => !(key in studentNames));

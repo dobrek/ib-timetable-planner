@@ -7,9 +7,9 @@ import { teacherConflict } from "./teacher-conflict";
 import type { BoardContext } from "./types";
 import type { GroupingCourse } from "../grouping";
 
-const course = (id: string, teacherKey: string | null, studentKeys: string[]): GroupingCourse => ({
+const course = (id: string, teacher: string | null, studentKeys: string[]): GroupingCourse => ({
   id,
-  teacherKey,
+  teacherKeys: teacher === null ? [] : [teacher],
   studentKeys,
   hours: 4,
 });
@@ -167,10 +167,30 @@ describe("teacherAvailability", () => {
     ]);
   });
 
-  it("ignores null-teacher occupants", () => {
+  it("ignores empty-teacher-set occupants", () => {
     const a = course("A", null, ["s1"]);
     const strong = new Map([["t1", new Set(["1:1"])]]);
     expect(teacherAvailability.explain([a], unavailCtx({ day: 1, period: 1 }, strong))).toEqual([]);
+  });
+
+  it("fans out one violation per co-teacher unavailable at the cell, naming each", () => {
+    const coTaught: GroupingCourse = { id: "A", teacherKeys: ["t1", "t2"], studentKeys: ["s1"], hours: 4 };
+    const strong = new Map([
+      ["t1", new Set(["1:1"])],
+      ["t2", new Set(["1:1"])],
+    ]);
+    expect(teacherAvailability.explain([coTaught], unavailCtx({ day: 1, period: 1 }, strong))).toEqual([
+      { kind: "teacher-unavailable", teacherKey: "t1", courseIds: ["A"], severity: "block" },
+      { kind: "teacher-unavailable", teacherKey: "t2", courseIds: ["A"], severity: "block" },
+    ]);
+  });
+
+  it("flags only the unavailable co-teacher when the other is free at the cell", () => {
+    const coTaught: GroupingCourse = { id: "A", teacherKeys: ["t1", "t2"], studentKeys: ["s1"], hours: 4 };
+    const strong = new Map([["t2", new Set(["1:1"])]]);
+    expect(teacherAvailability.explain([coTaught], unavailCtx({ day: 1, period: 1 }, strong))).toEqual([
+      { kind: "teacher-unavailable", teacherKey: "t2", courseIds: ["A"], severity: "block" },
+    ]);
   });
 
   it("returns nothing when no availability context is supplied (board-only, ctx optional)", () => {

@@ -58,8 +58,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
         names.get(course.id) ?? course.id,
         {
           id: names.get(course.id) ?? course.id,
-          teacherKey:
-            course.teacherKey === null ? null : (teacherCode.get(course.teacherKey) ?? `?${course.teacherKey}`),
+          teacherKeys: course.teacherKeys.map((id) => teacherCode.get(id) ?? `?${id}`),
           hours: course.hours,
           studentKeys: course.studentKeys.map((id) => studentName.get(id) ?? `?${id}`),
         },
@@ -72,13 +71,17 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     const onlyInDb = [...dbByName.keys()].filter((name) => !fixtureByName.has(name)).sort();
     expect({ onlyInFixture, onlyInDb }).toEqual({ onlyInFixture: [], onlyInDb: [] });
 
-    // 2. Per-course field parity: teacherKey, hours, studentKeys (as sets).
+    // 2. Per-course field parity: teacherKeys, hours, studentKeys (teachers + students as sets).
     const diffs = [...fixtureByName.entries()].flatMap(([name, fixture]) => {
       const db = dbByName.get(name);
       if (!db) return [];
       const problems: string[] = [];
-      if (db.teacherKey !== fixture.teacherKey) {
-        problems.push(`teacherKey: db=${db.teacherKey} fixture=${fixture.teacherKey}`);
+      const dbTeachers = new Set(db.teacherKeys);
+      const fixtureTeachers = new Set(fixture.teacherKeys);
+      if (dbTeachers.size !== fixtureTeachers.size || [...fixtureTeachers].some((t) => !dbTeachers.has(t))) {
+        const missing = [...fixtureTeachers].filter((t) => !dbTeachers.has(t));
+        const extra = [...dbTeachers].filter((t) => !fixtureTeachers.has(t));
+        problems.push(`teachers: missing=[${missing.join(", ")}] extra=[${extra.join(", ")}]`);
       }
       if (db.hours !== fixture.hours) {
         problems.push(`hours: db=${db.hours} fixture=${fixture.hours}`);

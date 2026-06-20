@@ -89,6 +89,18 @@ function serializePlan(planName, rows) {
     );
   }
 
+  // course_teachers — the single source of each course's teacher set. Serialized after
+  // courses + teachers (its composite-FK targets). Mirrors the course_merges block.
+  if (rows.course_teachers.length > 0) {
+    sql.push(
+      inserts(
+        "course_teachers",
+        ["id", "plan_id", "course_id", "teacher_id"],
+        rows.course_teachers.map((r) => [q(r.id), q(r.plan_id), q(r.course_id), q(r.teacher_id)]),
+      ),
+    );
+  }
+
   sql.push(
     inserts(
       "students",
@@ -108,6 +120,21 @@ function serializePlan(planName, rows) {
   return sql;
 }
 
+// ≥1-teacher invariant (decision 3): a course with no course_teachers row would render
+// teacher-less and silently lose double-booking + availability detection. Fail loud here,
+// joining the transcoder's other data-consistency aborts, rather than bake a broken seed.
+function assertEveryCourseHasTeacher(planName, rows) {
+  const withTeacher = new Set(rows.course_teachers.map((r) => r.course_id));
+  const orphans = rows.courses.filter((c) => !withTeacher.has(c.id));
+  if (orphans.length > 0) {
+    const names = orphans.map((c) => `${c.name} (${c.level}, gi=${c.group_index})`).join(", ");
+    throw new Error(
+      `Seed abort — ${planName}: ${orphans.length} course(s) resolved to zero teachers: ${names}. ` +
+        `Every course must have at least one teacher (add a teachers_subjects.csv row).`,
+    );
+  }
+}
+
 function printStats(planName, stats) {
   process.stderr.write(`\nSeed stats — ${planName}:\n`);
   process.stderr.write(`  Teachers:        ${stats.teachers}\n`);
@@ -121,6 +148,8 @@ function printStats(planName, stats) {
   process.stderr.write(`  Overlaps (Y2):   ${stats.overlapsY2}\n`);
   process.stderr.write(`  Merges (Y1):     ${stats.mergesY1}\n`);
   process.stderr.write(`  Merges (Y2):     ${stats.mergesY2}\n`);
+  process.stderr.write(`  CourseTeach (Y1):${stats.courseTeachersY1}\n`);
+  process.stderr.write(`  CourseTeach (Y2):${stats.courseTeachersY2}\n`);
 }
 
 // ---------------------------------------------------------------------------
@@ -137,6 +166,7 @@ out.push("-- Re-generate with: node scripts/gen-seed.mjs > supabase/seed.sql\n")
 const PLAN_NAMES = ["Seed Plan A", "Seed Plan B"];
 for (const planName of PLAN_NAMES) {
   const { rows, stats } = buildPlanRows(planName, dp1Data, dp2Data, fixtures);
+  assertEveryCourseHasTeacher(planName, rows);
   out.push(...serializePlan(planName, rows));
   printStats(planName, stats);
 }

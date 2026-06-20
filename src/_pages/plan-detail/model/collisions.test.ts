@@ -4,9 +4,9 @@ import type { CellCollisions } from "./collisions";
 import type { GroupingCourse } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 
-const course = (id: string, teacherKey: string | null, studentKeys: string[]): GroupingCourse => ({
+const course = (id: string, teacher: string | null, studentKeys: string[]): GroupingCourse => ({
   id,
-  teacherKey,
+  teacherKeys: teacher === null ? [] : [teacher],
   studentKeys,
   hours: 4,
 });

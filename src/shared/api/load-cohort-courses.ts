@@ -19,10 +19,11 @@ type Supabase = SupabaseClient;
 export const loadCohortCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CohortCatalog> => {
   const courseRows = await fetchCourses(supabase, planId, cohort);
   const courseIds = courseRows.map((course) => course.id);
-  const [choiceRows, overlapRows, mergeRows] = await Promise.all([
+  const [choiceRows, overlapRows, mergeRows, courseTeacherRows] = await Promise.all([
     fetchChoices(supabase, courseIds),
     fetchOverlaps(supabase, courseIds),
     fetchMerges(supabase, courseIds),
+    fetchCourseTeachers(supabase, courseIds),
   ]);
 
   const courseById = new Map(courseRows.map((course) => [course.id, course]));
@@ -30,6 +31,13 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
     choiceRows,
     (row) => row.course_id,
     (row) => row.student_id,
+  );
+  // Each course's teacher SET, aggregated from the course_teachers junction — the single
+  // source of a course's teachers, exactly as studentKeys is aggregated from choices.
+  const teachersOf = groupByInto(
+    courseTeacherRows,
+    (row) => row.course_id,
+    (row) => row.teacher_id,
   );
   const dependentsOf = groupByInto(
     overlapRows,
@@ -52,7 +60,7 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
     .filter((course) => directStudents.has(course.id) && !mergeParentIds.has(course.id))
     .map((course) => ({
       id: course.id,
-      teacherKey: course.teacher_id,
+      teacherKeys: teachersOf.get(course.id) ?? [],
       hours: course.hours_per_week,
       studentKeys: unique([...studentsOf(course.id), ...(dependentsOf.get(course.id) ?? []).flatMap(studentsOf)]),
     }));
@@ -60,12 +68,12 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
   const virtualCourses: GroupingCourse[] = [...childrenOf.entries()].map(([parentId, childIds]) => {
     const parent = courseById.get(parentId);
     // Merge rows are fetched by parent_course_id IN courseIds, so the parent is always
-    // present; fail loudly rather than fabricating a phantom (teacherKey:null, hours:0).
+    // present; fail loudly rather than fabricating a phantom (teacherKeys:[], hours:0).
     if (!parent)
       throw new DomainError("INTERNAL_SERVER_ERROR", `Merge parent ${parentId} missing from the plan-cohort catalog`);
     return {
       id: parentId,
-      teacherKey: parent.teacher_id,
+      teacherKeys: teachersOf.get(parentId) ?? [],
       hours: parent.hours_per_week,
       studentKeys: unique([...studentsOf(parentId), ...childIds.flatMap(studentsOf)]),
     };
@@ -84,19 +92,29 @@ type CourseRow = {
   level: string;
   group_index: number;
   hours_per_week: number;
-  teacher_id: string | null;
 };
 
 const fetchCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CourseRow[]> =>
   unwrapMany(
     await supabase
       .from("courses")
-      .select("id, name, level, group_index, hours_per_week, teacher_id")
+      .select("id, name, level, group_index, hours_per_week")
       .eq("plan_id", planId)
       .eq("cohort", cohort)
       .order("id"),
     `Failed to load courses for plan ${planId} cohort ${cohort}`,
   );
+
+const fetchCourseTeachers = async (
+  supabase: Supabase,
+  courseIds: string[],
+): Promise<{ course_id: string; teacher_id: string }[]> => {
+  if (courseIds.length === 0) return [];
+  return unwrapMany(
+    await supabase.from("course_teachers").select("course_id, teacher_id").in("course_id", courseIds),
+    "Failed to load course teachers",
+  );
+};
 
 const fetchChoices = async (
   supabase: Supabase,
@@ -150,7 +168,7 @@ const compositeName = (course: CourseRow | undefined): string => {
 const collectWarnings = (courses: GroupingCourse[], mergeChildIds: Set<string>): ComputeWarning[] =>
   courses.flatMap((course) => {
     const warnings: ComputeWarning[] = [];
-    if (course.teacherKey === null) {
+    if (course.teacherKeys.length === 0) {
       warnings.push({ courseId: course.id, kind: "no-teacher", message: `Course ${course.id} has no teacher.` });
     }
     if (course.studentKeys.length === 0) {

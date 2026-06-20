@@ -28,12 +28,16 @@ export async function seedPlanCatalog(supabase: SupabaseClient, planId: string):
   const courses = rebind(rows.courses);
   const course_overlaps = rebind(rows.course_overlaps);
   const course_merges = rebind(rows.course_merges);
+  const course_teachers = rebind(rows.course_teachers);
   const students = rebind(rows.students);
   const student_choices = rebind(rows.student_choices);
 
   // FK-respecting order; the plan row already exists (createPlan made it).
   if (teachers.length) throwOn("teachers", (await supabase.from("teachers").insert(teachers)).error);
   if (courses.length) throwOn("courses", (await supabase.from("courses").insert(courses)).error);
+  // course_teachers composite-FKs both courses and teachers — insert after both exist.
+  if (course_teachers.length)
+    throwOn("course_teachers", (await supabase.from("course_teachers").insert(course_teachers)).error);
   if (course_overlaps.length)
     throwOn("course_overlaps", (await supabase.from("course_overlaps").insert(course_overlaps)).error);
   if (course_merges.length)
@@ -44,7 +48,7 @@ export async function seedPlanCatalog(supabase: SupabaseClient, planId: string):
 
   // The plans row's identity is `id` (not a denormalized plan_id) — rebind to the owned plan.
   const plans = rows.plans.map((p) => ({ ...p, id: planId }));
-  return { plans, teachers, courses, course_overlaps, course_merges, students, student_choices };
+  return { plans, teachers, courses, course_overlaps, course_merges, course_teachers, students, student_choices };
 }
 
 function throwOn(table: string, error: { message: string } | null): void {

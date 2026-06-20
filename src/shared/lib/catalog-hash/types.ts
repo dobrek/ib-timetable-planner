@@ -7,7 +7,7 @@
 
 export type GroupingCourse = {
   id: string;
-  teacherKey: string | null;
+  teacherKeys: string[];
   studentKeys: string[];
   hours: number;
 };

@@ -15,7 +15,7 @@ export const computeCatalogHash = async (snapshot: CatalogSnapshot): Promise<str
     snapshot
       .map((course) => ({
         id: course.id,
-        teacherKey: course.teacherKey,
+        teacherKeys: [...course.teacherKeys].sort(),
         hours: course.hours,
         studentKeys: [...course.studentKeys].sort(),
       }))

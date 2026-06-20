@@ -30,6 +30,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 const PLAN_TABLES = [
   "teachers",
   "courses",
+  "course_teachers",
   "students",
   "student_choices",
   "course_overlaps",
@@ -110,6 +111,23 @@ const PLAN_TABLES = [
       if (course.teacher_id === null) continue;
       expect(cloneTeacherIds.has(course.teacher_id)).toBe(true);
       expect(sourceTeacherIds.has(course.teacher_id)).toBe(false);
+    }
+
+    // course_teachers double-remap: every cloned junction row references the clone's
+    // own course AND its own teacher — never a source-plan id (the composite FKs would
+    // have failed the clone loudly otherwise; this asserts the remap, not just survival).
+    const sourceCourseIds = await idsOf("courses", sourcePlanId);
+    const cloneCourseIds = await idsOf("courses", cloneId);
+    const { data: clonedCourseTeachers } = await supabase
+      .from("course_teachers")
+      .select("course_id, teacher_id")
+      .eq("plan_id", cloneId);
+    expect((clonedCourseTeachers ?? []).length).toBeGreaterThan(0);
+    for (const link of clonedCourseTeachers ?? []) {
+      expect(cloneCourseIds.has(link.course_id)).toBe(true);
+      expect(sourceCourseIds.has(link.course_id)).toBe(false);
+      expect(cloneTeacherIds.has(link.teacher_id)).toBe(true);
+      expect(sourceTeacherIds.has(link.teacher_id)).toBe(false);
     }
 
     // teachers.code duplicates across plans without conflict (per-plan unique).

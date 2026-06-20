@@ -9,6 +9,7 @@ export type CatalogCourse = {
   group_index: number;
   hours_per_week: number;
   teacher_code: string | null;
+  teacher_codes: Set<string>;
 };
 
 export type CohortData = {
@@ -38,6 +39,7 @@ export type CourseRow = {
 };
 export type OverlapRow = { id: string; plan_id: string; base_course_id: string; dependent_course_id: string };
 export type MergeRow = { id: string; plan_id: string; parent_course_id: string; child_course_id: string };
+export type CourseTeacherRow = { id: string; plan_id: string; course_id: string; teacher_id: string };
 export type StudentRow = { id: string; plan_id: string; cohort: Cohort; full_name: string };
 export type ChoiceRow = { id: string; plan_id: string; student_id: string; course_id: string };
 
@@ -47,6 +49,7 @@ export type PlanCatalogRows = {
   courses: CourseRow[];
   course_overlaps: OverlapRow[];
   course_merges: MergeRow[];
+  course_teachers: CourseTeacherRow[];
   students: StudentRow[];
   student_choices: ChoiceRow[];
 };
@@ -63,6 +66,8 @@ export type PlanStats = {
   overlapsY2: number;
   mergesY1: number;
   mergesY2: number;
+  courseTeachersY1: number;
+  courseTeachersY2: number;
 };
 
 export function parseCSV(filepath: string): string[][];

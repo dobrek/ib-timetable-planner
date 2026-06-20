@@ -4,7 +4,8 @@ import { cellKey } from "./collisions";
 /**
  * One teacher-availability cell as it arrives on the island (a JSON-serializable board
  * prop — `Map`/`Set` can't cross the server→island boundary). `teacherKey` equals the DB
- * `teacher_id`, matching `GroupingCourse.teacherKey`.
+ * `teacher_id`, matching a member of `GroupingCourse.teacherKeys` (availability is authored
+ * per individual teacher, so the index stays single-teacher-keyed; only consumers fan out).
  */
 export type BoardAvailabilityCell = {
   teacherKey: string;

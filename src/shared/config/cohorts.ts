@@ -9,7 +9,7 @@ import type { Database } from "@/shared/api/database.types";
 
 export type Cohort = Database["public"]["Enums"]["cohort"];
 
-/** A cohort presented for tabs/selects: enum value + school-year display label. */
+/** A cohort presented for tabs/selects: enum value + display label. */
 export type CohortOption = { value: Cohort; label: string };
 
 export const COHORT_VALUES = ["dp1", "dp2"] as const satisfies readonly Cohort[];

@@ -137,7 +137,7 @@ const fetchMerges = async (
 /**
  * Rebuilds the composite name token (the fixture adapter's `id`) from catalog
  * columns, mirroring `subjectName`: `'none'` level and `0` group_index are the
- * "absent" sentinels (see `snippets/*.csv.sql`), dropped before joining; spaces
+ * "absent" sentinels, dropped before joining; spaces
  * become underscores.
  */
 const compositeName = (course: CourseRow | undefined): string => {

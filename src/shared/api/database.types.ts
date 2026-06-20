@@ -183,6 +183,52 @@ export type Database = {
           },
         ]
       }
+      course_teachers: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          plan_id: string
+          teacher_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          plan_id: string
+          teacher_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          plan_id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_teachers_course_fkey"
+            columns: ["plan_id", "course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["plan_id", "id"]
+          },
+          {
+            foreignKeyName: "course_teachers_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_teachers_teacher_fkey"
+            columns: ["plan_id", "teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["plan_id", "id"]
+          },
+        ]
+      }
       courses: {
         Row: {
           cohort: Database["public"]["Enums"]["cohort"]
@@ -511,6 +557,10 @@ export type Database = {
           p_groupings: Json
           p_plan_id: string
         }
+        Returns: undefined
+      }
+      replace_course_teachers: {
+        Args: { p_course_id: string; p_plan_id: string; p_teacher_ids: Json }
         Returns: undefined
       }
     }

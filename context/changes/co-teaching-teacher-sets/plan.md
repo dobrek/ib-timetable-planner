@@ -557,15 +557,15 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [ ] 1.1 `supabase db reset` applies all migrations cleanly
-- [ ] 1.2 `database.types.ts` regenerated and includes `course_teachers` + `replace_course_teachers`
-- [ ] 1.3 Existing integration suite passes with no regression
-- [ ] 1.4 Lint + structure pass (`pnpm lint` && `pnpm steiger`)
-- [ ] 1.5 Build stays clean (`pnpm build`)
+- [x] 1.1 `supabase db reset` applies all migrations cleanly
+- [x] 1.2 `database.types.ts` regenerated and includes `course_teachers` + `replace_course_teachers`
+- [x] 1.3 Existing integration suite passes with no regression
+- [x] 1.4 Lint + structure pass (`pnpm lint` && `pnpm steiger`)
+- [x] 1.5 Build stays clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 1.6 `course_teachers` RLS enabled; `has_table_privilege('anon',…,'insert')`=false AND `('authenticated',…)`=true (proven by query, not by reading); RPC callable
+- [x] 1.6 `course_teachers` RLS enabled; `has_table_privilege('anon',…,'insert')`=false AND `('authenticated',…)`=true (proven by query, not by reading); RPC callable
 
 ### Phase 2: Constraint Core + Board Read Path + Catalog Hash
 

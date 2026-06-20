@@ -1,10 +1,10 @@
 ---
 change_id: test-plan-refresh-2026-06-18
 title: Refresh test-plan.md guide for the post-demo domain-fidelity change wave
-status: implemented
+status: archived
 created: 2026-06-18
-updated: 2026-06-19
-archived_at: null
+updated: 2026-06-20
+archived_at: 2026-06-20T16:14:18Z
 ---
 
 ## Notes

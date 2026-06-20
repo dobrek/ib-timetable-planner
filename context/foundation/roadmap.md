@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-06-18
-updated: 2026-06-18
+updated: 2026-06-20
 prd_version: 1
 main_goal: quality
 top_blocker: decisions
@@ -29,7 +29,7 @@ The IB timetable editor shipped and was demoed to its plan authors. Design and t
 
 | ID   | Change ID                            | Outcome (user can …)                                                                       | Prerequisites | PRD refs                          | Status   |
 | ---- | ------------------------------------ | ------------------------------------------------------------------------------------------ | ------------- | --------------------------------- | -------- |
-| S-01 | dp1-dp2-cohort-naming                | see cohorts labelled **DP1 / DP2** everywhere instead of "Year 1 / Year 2"                 | —             | FR-004                            | ready    |
+| S-01 | dp1-dp2-cohort-naming                | see cohorts labelled **DP1 / DP2** everywhere instead of "Year 1 / Year 2"                 | —             | FR-004                            | done     |
 | S-02 | co-teaching-teacher-sets             | assign two+ teachers to a course; both count as occupied for conflict + availability       | —             | FR-001, FR-012                    | ready    |
 | S-03 | bi-weekly-week-aware-validation      | mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot           | S-02          | FR-002, FR-003, FR-012, US-03     | proposed |
 | S-04 | two-cohort-board-cross-cohort        | open either cohort, switch freely; a teacher occupied in one cohort's slot/week blocks the other | S-02, S-03    | FR-005, FR-006, FR-012            | proposed |
@@ -88,7 +88,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Lowest-risk slice in the change — a display-label relabel in `src/shared/config/cohorts.ts` and any hardcoded UI strings, with zero touch to the constraint core or schema. Sequenced first as a clean, correctness-neutral win that removes a daily friction the demo flagged; can ship independently of every other slice. Risk is only completeness (every surface relabelled, no stray "Year 1" string).
-- **Status:** ready
+- **Status:** done
 
 ### S-02: Co-teaching (teacher sets)
 
@@ -220,3 +220,5 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 ## Done
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips that item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived. Do NOT pre-populate.)
+
+- **S-01: Author sees cohorts labelled **"DP1"** and **"DP2"** throughout the UI, replacing the "Year 1" / "Year 2" display labels. The `dp1` / `dp2` data values are unchanged.** — Archived 2026-06-20 → `context/archive/2026-06-20-dp1-dp2-cohort-naming/`. Lesson: —.

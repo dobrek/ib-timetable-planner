@@ -395,13 +395,13 @@ No data or schema migration. The only contract change is the teacher filter URL 
 
 #### Automated
 
-- [x] 3.1 Completeness grep over `src/` returns only intentional matches
-- [x] 3.2 `grep "Diploma Programme Year" supabase/` returns nothing
-- [x] 3.3 `grep` for "y12"/"y13" in CLAUDE.md/README returns nothing
-- [x] 3.4 Production build is clean: `pnpm build`
-- [x] 3.5 Lint passes: `pnpm lint`
+- [x] 3.1 Completeness grep over `src/` returns only intentional matches — dcafbc8
+- [x] 3.2 `grep "Diploma Programme Year" supabase/` returns nothing — dcafbc8
+- [x] 3.3 `grep` for "y12"/"y13" in CLAUDE.md/README returns nothing — dcafbc8
+- [x] 3.4 Production build is clean: `pnpm build` — dcafbc8
+- [x] 3.5 Lint passes: `pnpm lint` — dcafbc8
 
 #### Manual
 
-- [x] 3.6 Reworded comments and CLAUDE.md/README `dp1/dp2` mentions read correctly
-- [x] 3.7 No remaining `supabase/snippets/` file references the dropped `cohorts` table
+- [x] 3.6 Reworded comments and CLAUDE.md/README `dp1/dp2` mentions read correctly — dcafbc8
+- [x] 3.7 No remaining `supabase/snippets/` file references the dropped `cohorts` table — dcafbc8

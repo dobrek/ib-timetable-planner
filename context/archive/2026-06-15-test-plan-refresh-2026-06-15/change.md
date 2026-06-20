@@ -1,10 +1,10 @@
 ---
 change_id: test-plan-refresh-2026-06-15
 title: Refresh test-plan guide after FSD refactor and rollout drift
-status: implemented
+status: archived
 created: 2026-06-15
-updated: 2026-06-15
-archived_at: null
+updated: 2026-06-20
+archived_at: 2026-06-20T00:00:00Z
 ---
 
 ## Notes

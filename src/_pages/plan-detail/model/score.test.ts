@@ -4,7 +4,7 @@ import type { GroupingCourse } from "./grouping";
 
 const course = (id: string, hours: number, studentKeys: string[]): GroupingCourse => ({
   id,
-  teacherKey: null,
+  teacherKeys: [],
   studentKeys,
   hours,
 });

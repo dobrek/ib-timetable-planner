@@ -60,10 +60,7 @@ export const loadPlannerData = async (
   assertNoQueryErrors("Planner board", [groupingsResult, placementsResult, overridesResult, availabilityResult]);
 
   const [teacherNames, studentNames] = await Promise.all([
-    fetchTeacherNames(
-      supabase,
-      unique(catalog.courses.map((course) => course.teacherKey).filter((key) => key !== null)),
-    ),
+    fetchTeacherNames(supabase, unique(catalog.courses.flatMap((course) => course.teacherKeys))),
     fetchStudentNames(supabase, unique(catalog.courses.flatMap((course) => course.studentKeys))),
   ]);
 

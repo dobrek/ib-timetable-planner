@@ -557,24 +557,24 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [x] 1.1 `supabase db reset` applies all migrations cleanly
-- [x] 1.2 `database.types.ts` regenerated and includes `course_teachers` + `replace_course_teachers`
-- [x] 1.3 Existing integration suite passes with no regression
-- [x] 1.4 Lint + structure pass (`pnpm lint` && `pnpm steiger`)
-- [x] 1.5 Build stays clean (`pnpm build`)
+- [x] 1.1 `supabase db reset` applies all migrations cleanly — 6bcca1a
+- [x] 1.2 `database.types.ts` regenerated and includes `course_teachers` + `replace_course_teachers` — 6bcca1a
+- [x] 1.3 Existing integration suite passes with no regression — 6bcca1a
+- [x] 1.4 Lint + structure pass (`pnpm lint` && `pnpm steiger`) — 6bcca1a
+- [x] 1.5 Build stays clean (`pnpm build`) — 6bcca1a
 
 #### Manual
 
-- [x] 1.6 `course_teachers` RLS enabled; `has_table_privilege('anon',…,'insert')`=false AND `('authenticated',…)`=true (proven by query, not by reading); RPC callable
+- [x] 1.6 `course_teachers` RLS enabled; `has_table_privilege('anon',…,'insert')`=false AND `('authenticated',…)`=true (proven by query, not by reading); RPC callable — 6bcca1a
 
 ### Phase 2: Constraint Core + Board Read Path + Catalog Hash
 
 #### Automated
 
-- [ ] 2.1 Constraint-core + hash unit tests pass (`pnpm test`)
-- [ ] 2.2 Load / clone-junction-remap / adapter-parity integration tests pass
-- [ ] 2.3 Type change reconciles — build is clean (`pnpm build`)
-- [ ] 2.4 Structure + lint pass (`pnpm steiger` && `pnpm lint`)
+- [x] 2.1 Constraint-core + hash unit tests pass (`pnpm test`)
+- [x] 2.2 Load / clone-junction-remap / adapter-parity integration tests pass
+- [x] 2.3 Type change reconciles — build is clean (`pnpm build`)
+- [x] 2.4 Structure + lint pass (`pnpm steiger` && `pnpm lint`)
 
 #### Manual
 
@@ -614,9 +614,9 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [ ] 5.1 `gen-seed.mjs` runs; second run byte-identical
-- [ ] 5.2 Generator aborts loudly on a zero-teacher course
-- [ ] 5.3 `supabase db reset` loads the regenerated seed cleanly
+- [x] 5.1 `gen-seed.mjs` runs; second run byte-identical
+- [x] 5.2 Generator aborts loudly on a zero-teacher course
+- [x] 5.3 `supabase db reset` loads the regenerated seed cleanly
 
 #### Manual
 

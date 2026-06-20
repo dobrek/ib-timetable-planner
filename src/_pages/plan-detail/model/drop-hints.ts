@@ -106,10 +106,11 @@ export const deriveDropHints = (
   const candidates = new Map<string, GroupingCourse[]>();
   for (const [key, { occupants }] of bucketByCell(occupied, catalogById)) candidates.set(key, occupants);
   for (const member of context.members) {
-    if (member.teacherKey === null) continue;
-    for (const byTeacher of [availability.strongUnavailableByTeacher, availability.softUnavailableByTeacher]) {
-      const unavailableCells = byTeacher.get(member.teacherKey);
-      if (unavailableCells) for (const key of unavailableCells) if (!candidates.has(key)) candidates.set(key, []);
+    for (const teacherKey of member.teacherKeys) {
+      for (const byTeacher of [availability.strongUnavailableByTeacher, availability.softUnavailableByTeacher]) {
+        const unavailableCells = byTeacher.get(teacherKey);
+        if (unavailableCells) for (const key of unavailableCells) if (!candidates.has(key)) candidates.set(key, []);
+      }
     }
   }
 
@@ -160,8 +161,9 @@ const classifyCell = (
   return soft ? "warn" : null;
 };
 
+// A member is unavailable at a cell iff ANY of its co-teachers is unavailable there.
 const isStrongUnavailable = (member: GroupingCourse, key: string, availability: AvailabilityIndex): boolean =>
-  member.teacherKey !== null && (availability.strongUnavailableByTeacher.get(member.teacherKey)?.has(key) ?? false);
+  member.teacherKeys.some((teacherKey) => availability.strongUnavailableByTeacher.get(teacherKey)?.has(key) ?? false);
 
 const isSoftUnavailable = (member: GroupingCourse, key: string, availability: AvailabilityIndex): boolean =>
-  member.teacherKey !== null && (availability.softUnavailableByTeacher.get(member.teacherKey)?.has(key) ?? false);
+  member.teacherKeys.some((teacherKey) => availability.softUnavailableByTeacher.get(teacherKey)?.has(key) ?? false);

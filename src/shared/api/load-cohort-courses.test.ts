@@ -27,9 +27,14 @@ describe("loadCohortCourses — bug #5: phantom parents / double-count", () => {
   it("emits a merge parent with direct choices exactly once, with real meta and unioned students", async () => {
     const supabase = fakeSupabase({
       courses: [
-        { id: "P", name: "Phys", level: "HL", group_index: 0, hours_per_week: 4, teacher_id: "T1" },
-        { id: "C1", name: "PhysA", level: "HL", group_index: 1, hours_per_week: 0, teacher_id: "T1" },
-        { id: "C2", name: "PhysB", level: "HL", group_index: 2, hours_per_week: 0, teacher_id: "T2" },
+        { id: "P", name: "Phys", level: "HL", group_index: 0, hours_per_week: 4 },
+        { id: "C1", name: "PhysA", level: "HL", group_index: 1, hours_per_week: 0 },
+        { id: "C2", name: "PhysB", level: "HL", group_index: 2, hours_per_week: 0 },
+      ],
+      course_teachers: [
+        { course_id: "P", teacher_id: "T1" },
+        { course_id: "C1", teacher_id: "T1" },
+        { course_id: "C2", teacher_id: "T2" },
       ],
       student_choices: [
         { course_id: "P", student_id: "s1" },
@@ -50,7 +55,7 @@ describe("loadCohortCourses — bug #5: phantom parents / double-count", () => {
 
     const parents = courses.filter((course) => course.id === "P");
     expect(parents).toHaveLength(1);
-    expect(parents[0].teacherKey).toBe("T1"); // real parent meta, not a fabricated null
+    expect(parents[0].teacherKeys).toEqual(["T1"]); // real parent meta, sourced from the junction
     expect(parents[0].hours).toBe(4);
     expect([...parents[0].studentKeys].sort()).toEqual(["s1", "s2", "s3"]);
   });

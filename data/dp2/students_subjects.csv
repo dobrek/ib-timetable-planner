@@ -6,6 +6,7 @@ A Amelie,Math AA,HL,2
 A Amelie,Geography,SL,
 A Amelie,TOK,,1
 A Amelie,CAS,,1
+A Amelie,Advisory,,
 B Pauline,English A,SL,
 B Pauline,Spanish B,AB,
 B Pauline,BM,SL,
@@ -13,6 +14,7 @@ B Pauline,Biology,HL,
 B Pauline,Math AA,HL,2
 B Pauline,Chemistry,HL,
 B Pauline,TOK,,1
+B Pauline,Advisory,,
 B Pauline,CAS,,1
 B Szymon,Polish A,SL,2
 B Szymon,English B,HL,2
@@ -22,6 +24,7 @@ B Szymon,Math AA,HL,1
 B Szymon,German B,SL,
 B Szymon,TOK,,1
 B Szymon,CAS,,1
+B Szymon,Advisory,,
 B Maria,Polish A,HL,
 B Maria,English B,HL,1
 B Maria,Psychology,HL,
@@ -30,6 +33,7 @@ B Maria,Math AI,SL,
 B Maria,Spanish B,AB,
 B Maria,TOK,,1
 B Maria,CAS,,1
+B Maria,Advisory,,
 B Stanisław,Polish A,SL,1
 B Stanisław,English B,HL,1
 B Stanisław,Psychology,SL,
@@ -38,6 +42,7 @@ B Stanisław,Math AA,HL,1
 B Stanisław,Computer Science,SL,
 B Stanisław,TOK,,1
 B Stanisław,CAS,,1
+B Stanisław,Advisory,,
 C Pola,Polish A,SL,1
 C Pola,English B,HL,1
 C Pola,Psychology,SL,
@@ -46,6 +51,7 @@ C Pola,Math AA,HL,2
 C Pola,Chemistry,HL,
 C Pola,TOK,,1
 C Pola,CAS,,1
+C Pola,Advisory,,
 C Suchyeon,English A,SL,
 C Suchyeon,SSSTS,SL,
 C Suchyeon,Spanish B,AB,
@@ -54,6 +60,7 @@ C Suchyeon,Biology,HL,
 C Suchyeon,Math AA,HL,2
 C Suchyeon,TOK,,2
 C Suchyeon,CAS,,2
+C Suchyeon,Advisory,,
 C Natalia,Polish A,SL,1
 C Natalia,English B,HL,1
 C Natalia,BM,HL,
@@ -62,6 +69,7 @@ C Natalia,Math AA,HL,2
 C Natalia,Spanish B,AB,
 C Natalia,TOK,,2
 C Natalia,CAS,,2
+C Natalia,Advisory,,
 C Tymothy,English A,HL,
 C Tymothy,Spanish B,HL,
 C Tymothy,History,SL,
@@ -70,6 +78,7 @@ C Tymothy,Math AI,SL,
 C Tymothy,Psychology,HL,
 C Tymothy,TOK,,1
 C Tymothy,CAS,,1
+C Tymothy,Advisory,,
 D Alicja,Polish A,SL,2
 D Alicja,English B,HL,2
 D Alicja,BM,SL,
@@ -78,6 +87,7 @@ D Alicja,Math AA,HL,2
 D Alicja,Geography,SL,
 D Alicja,TOK,,1
 D Alicja,CAS,,1
+D Alicja,Advisory,,
 G Mahmud,SSSTS,SL,
 G Mahmud,English B,HL,1
 G Mahmud,BM,SL,
@@ -86,6 +96,7 @@ G Mahmud,Physics,HL,
 G Mahmud,Math AA,HL,1
 G Mahmud,TOK,,1
 G Mahmud,CAS,,1
+G Mahmud,Advisory,,
 H Jungwoo,English A,SL,
 H Jungwoo,Spanish B,AB,
 H Jungwoo,BM,SL,
@@ -94,6 +105,7 @@ H Jungwoo,Math AA,HL,2
 H Jungwoo,Chemistry,HL,
 H Jungwoo,TOK,,3
 H Jungwoo,CAS,,3
+H Jungwoo,Advisory,,
 K Zuzanna,Polish A,SL,2
 K Zuzanna,English B,HL,2
 K Zuzanna,BM,SL,
@@ -102,6 +114,7 @@ K Zuzanna,Math AA,SL,
 K Zuzanna,Chemistry,HL,
 K Zuzanna,TOK,,3
 K Zuzanna,CAS,,3
+K Zuzanna,Advisory,,
 K Chaeyoung,SSSTS,SL,
 K Chaeyoung,English A,SL,
 K Chaeyoung,BM,HL,
@@ -110,6 +123,7 @@ K Chaeyoung,Math AA,HL,2
 K Chaeyoung,Biology,SL,
 K Chaeyoung,TOK,,2
 K Chaeyoung,CAS,,2
+K Chaeyoung,Advisory,,
 K Gwanho,English A,SL,
 K Gwanho,Spanish B,AB,
 K Gwanho,BM,SL,
@@ -118,6 +132,7 @@ K Gwanho,Math AA,HL,1
 K Gwanho,Computer Science,HL,
 K Gwanho,TOK,,3
 K Gwanho,CAS,,3
+K Gwanho,Advisory,,
 K Yuuki,SSSTS,SL,
 K Yuuki,English B,HL,1
 K Yuuki,BM,HL,
@@ -126,6 +141,7 @@ K Yuuki,Math AA,SL,
 K Yuuki,Geography,HL,
 K Yuuki,TOK,,2
 K Yuuki,CAS,,2
+K Yuuki,Advisory,,
 K Oskar,English A,SL,
 K Oskar,German B,SL,
 K Oskar,History,SL,
@@ -134,6 +150,7 @@ K Oskar,Math AA,HL,1
 K Oskar,Physics,HL,
 K Oskar,TOK,,1
 K Oskar,CAS,,1
+K Oskar,Advisory,,
 L Hwiseong,Polish A,SL,1
 L Hwiseong,English B,HL,1
 L Hwiseong,BM,HL,
@@ -142,6 +159,7 @@ L Hwiseong,Math AA,HL,1
 L Hwiseong,Chemistry,SL,
 L Hwiseong,TOK,,2
 L Hwiseong,CAS,,2
+L Hwiseong,Advisory,,
 L Songhyeon,English A,SL,
 L Songhyeon,Spanish B,AB,
 L Songhyeon,BM,SL,
@@ -150,6 +168,7 @@ L Songhyeon,Math AA,HL,2
 L Songhyeon,Chemistry,HL,
 L Songhyeon,TOK,,3
 L Songhyeon,CAS,,3
+L Songhyeon,Advisory,,
 L Maria,Polish A,SL,2
 L Maria,English B,HL,2
 L Maria,Spanish B,AB,
@@ -158,6 +177,7 @@ L Maria,Biology,HL,
 L Maria,Math AA,HL,2
 L Maria,TOK,,3
 L Maria,CAS,,3
+L Maria,Advisory,,
 M Małgorzata,Polish A,SL,2
 M Małgorzata,English B,HL,2
 M Małgorzata,History,HL,
@@ -166,6 +186,7 @@ M Małgorzata,Math AA,HL,2
 M Małgorzata,BM,SL,
 M Małgorzata,TOK,,3
 M Małgorzata,CAS,,3
+M Małgorzata,Advisory,,
 N Anastasiia,English A,HL,
 N Anastasiia,Spanish B,AB,
 N Anastasiia,BM,HL,
@@ -174,6 +195,7 @@ N Anastasiia,Computer Science,SL,
 N Anastasiia,Math AA,HL,2
 N Anastasiia,TOK,,2
 N Anastasiia,CAS,,2
+N Anastasiia,Advisory,,
 O Hyena,English A,SL,
 O Hyena,Spanish B,SL,
 O Hyena,BM,SL,
@@ -182,6 +204,7 @@ O Hyena,Math AA,HL,1
 O Hyena,Chemistry,HL,
 O Hyena,TOK,,3
 O Hyena,CAS,,3
+O Hyena,Advisory,,
 O Konstanty,Polish A,SL,2
 O Konstanty,English B,HL,2
 O Konstanty,History,HL,
@@ -190,6 +213,7 @@ O Konstanty,Math AA,HL,1
 O Konstanty,German B,AB,
 O Konstanty,TOK,,1
 O Konstanty,CAS,,1
+O Konstanty,Advisory,,
 P Ik,SSSTS,SL,
 P Ik,English B,HL,2
 P Ik,BM,SL,
@@ -198,6 +222,7 @@ P Ik,Math AA,HL,1
 P Ik,Physics,HL,
 P Ik,TOK,,3
 P Ik,CAS,,3
+P Ik,Advisory,,
 P Julian,Polish A,SL,1
 P Julian,English B,HL,1
 P Julian,Geography,SL,
@@ -206,6 +231,7 @@ P Julian,Math AA,SL,
 P Julian,Chemistry,HL,
 P Julian,TOK,,2
 P Julian,CAS,,2
+P Julian,Advisory,,
 R Krzysztof,Polish A,SL,1
 R Krzysztof,English B,HL,1
 R Krzysztof,BM,HL,
@@ -214,6 +240,7 @@ R Krzysztof,Math AA,HL,1
 R Krzysztof,Computer Science,SL,
 R Krzysztof,TOK,,2
 R Krzysztof,CAS,,2
+R Krzysztof,Advisory,,
 S Ryotaro,English A,SL,
 S Ryotaro,Spanish B,AB,
 S Ryotaro,BM,HL,
@@ -222,6 +249,7 @@ S Ryotaro,Math AA,HL,1
 S Ryotaro,Geography,HL,
 S Ryotaro,TOK,,2
 S Ryotaro,CAS,,2
+S Ryotaro,Advisory,,
 S Pola,Polish A,SL,2
 S Pola,English B,HL,2
 S Pola,BM,SL,
@@ -230,6 +258,7 @@ S Pola,Math AA,SL,
 S Pola,Chemistry,HL,
 S Pola,TOK,,3
 S Pola,CAS,,3
+S Pola,Advisory,,
 S Bianca,Polish A,SL,1
 S Bianca,English B,HL,1
 S Bianca,Psychology,SL,
@@ -238,6 +267,7 @@ S Bianca,Math AA,SL,
 S Bianca,Biology,HL,
 S Bianca,TOK,,1
 S Bianca,CAS,,1
+S Bianca,Advisory,,
 T Zuzanna,Polish A,SL,2
 T Zuzanna,English B,HL,2
 T Zuzanna,BM,SL,
@@ -246,6 +276,7 @@ T Zuzanna,Math AA,HL,1
 T Zuzanna,Chemistry,SL,
 T Zuzanna,TOK,,3
 T Zuzanna,CAS,,3
+T Zuzanna,Advisory,,
 T Kseniia,English A,SL,
 T Kseniia,Spanish B,AB,
 T Kseniia,BM,HL,
@@ -254,6 +285,7 @@ T Kseniia,Math AA,HL,2
 T Kseniia,Geography,HL,
 T Kseniia,TOK,,2
 T Kseniia,CAS,,2
+T Kseniia,Advisory,,
 W Oliwia,Polish A,SL,2
 W Oliwia,English B,HL,2
 W Oliwia,BM,SL,
@@ -262,6 +294,7 @@ W Oliwia,Math AA,SL,
 W Oliwia,Chemistry,HL,
 W Oliwia,TOK,,3
 W Oliwia,CAS,,3
+W Oliwia,Advisory,,
 Y Chan,English A,SL,
 Y Chan,Spanish B,AB,
 Y Chan,BM,SL,
@@ -270,6 +303,7 @@ Y Chan,Math AA,HL,2
 Y Chan,Chemistry,HL,
 Y Chan,TOK,,3
 Y Chan,CAS,,3
+Y Chan,Advisory,,
 Z Julia,Polish A,SL,1
 Z Julia,English B,HL,1
 Z Julia,BM,HL,
@@ -278,3 +312,4 @@ Z Julia,Math AA,SL,
 Z Julia,Spanish B,AB,
 Z Julia,TOK,,2
 Z Julia,CAS,,2
+Z Julia,Advisory,,

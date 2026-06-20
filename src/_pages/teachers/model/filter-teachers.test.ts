@@ -32,7 +32,7 @@ const teachers: TeacherRow[] = [
 ];
 
 describe("filterTeachers", () => {
-  it("returns all teachers when query is empty and year is all", () => {
+  it("returns all teachers when query is empty and cohort is all", () => {
     expect(filterTeachers(teachers, "", "all").map((t) => t.id)).toEqual(["t1", "t2", "t3"]);
   });
 
@@ -48,22 +48,22 @@ describe("filterTeachers", () => {
     expect(filterTeachers(teachers, "physics", "all").map((t) => t.id)).toEqual(["t1"]);
   });
 
-  it("filters to teachers with Y1 assignments when year is y1", () => {
-    expect(filterTeachers(teachers, "", "y1").map((t) => t.id)).toEqual(["t1", "t2"]);
+  it("filters to teachers with DP1 assignments when cohort is dp1", () => {
+    expect(filterTeachers(teachers, "", "dp1").map((t) => t.id)).toEqual(["t1", "t2"]);
   });
 
-  it("filters to teachers with Y2 assignments when year is y2", () => {
-    expect(filterTeachers(teachers, "", "y2").map((t) => t.id)).toEqual(["t1"]);
+  it("filters to teachers with DP2 assignments when cohort is dp2", () => {
+    expect(filterTeachers(teachers, "", "dp2").map((t) => t.id)).toEqual(["t1"]);
   });
 
-  it("combines text search and year filter", () => {
-    expect(filterTeachers(teachers, "english", "y1").map((t) => t.id)).toEqual(["t2"]);
-    expect(filterTeachers(teachers, "english", "y2")).toEqual([]);
+  it("combines text search and cohort filter", () => {
+    expect(filterTeachers(teachers, "english", "dp1").map((t) => t.id)).toEqual(["t2"]);
+    expect(filterTeachers(teachers, "english", "dp2")).toEqual([]);
   });
 
   it("does not mutate its inputs", () => {
     const snapshot = JSON.stringify(teachers);
-    filterTeachers(teachers, "ap", "y1");
+    filterTeachers(teachers, "ap", "dp1");
     expect(JSON.stringify(teachers)).toBe(snapshot);
   });
 });

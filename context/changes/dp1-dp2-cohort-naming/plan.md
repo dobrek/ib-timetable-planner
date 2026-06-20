@@ -365,25 +365,25 @@ No data or schema migration. The only contract change is the teacher filter URL 
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `pnpm test`
-- [x] 1.2 Production build is clean: `pnpm build`
-- [x] 1.3 Lint passes: `pnpm lint`
+- [x] 1.1 Unit tests pass: `pnpm test` — 301702c
+- [x] 1.2 Production build is clean: `pnpm build` — 301702c
+- [x] 1.3 Lint passes: `pnpm lint` — 301702c
 
 #### Manual
 
-- [x] 1.4 Student catalog tabs and student form cohort select show "DP1" / "DP2"
-- [x] 1.5 Course catalog tabs and course form cohort select show "DP1" / "DP2"
-- [x] 1.6 Teacher catalog filter buttons show "DP1" / "DP2" (auto-cascaded)
+- [x] 1.4 Student catalog tabs and student form cohort select show "DP1" / "DP2" — 301702c
+- [x] 1.5 Course catalog tabs and course form cohort select show "DP1" / "DP2" — 301702c
+- [x] 1.6 Teacher catalog filter buttons show "DP1" / "DP2" (auto-cascaded) — 301702c
 
 ### Phase 2: Teachers slice — finish relabel + single-source the cohort filter
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `pnpm test`
-- [ ] 2.2 FSD structure check passes: `pnpm steiger`
-- [ ] 2.3 Lint passes: `pnpm lint`
-- [ ] 2.4 Production build is clean: `pnpm build`
-- [ ] 2.5 No `y1`/`y2`/`YearFilter` token remains in the teachers slice (grep)
+- [x] 2.1 Unit tests pass: `pnpm test`
+- [x] 2.2 FSD structure check passes: `pnpm steiger`
+- [x] 2.3 Lint passes: `pnpm lint`
+- [x] 2.4 Production build is clean: `pnpm build`
+- [x] 2.5 No `y1`/`y2`/`YearFilter` token remains in the teachers slice (grep)
 
 #### Manual
 

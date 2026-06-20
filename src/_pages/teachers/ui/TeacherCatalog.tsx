@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import { COHORTS } from "@/shared/config";
 import { Button, Input, Toaster } from "@/shared/ui";
-import { filterTeachers, type YearFilter } from "../model/filter-teachers";
+import { filterTeachers, type CohortFilter } from "../model/filter-teachers";
 import { useCatalogDialogs } from "../model/use-catalog-dialogs";
 import { useCatalogFilters } from "../model/use-catalog-filters";
 import type { TeacherRow } from "../model/teacher";
@@ -19,21 +19,18 @@ type Props = {
 };
 
 /**
- * Teacher catalog island for one plan: flat table with Y1/Y2 assignment columns,
- * text+year filters, and create/edit/delete + availability via dialogs. Assignments are
+ * Teacher catalog island for one plan: flat table with DP1/DP2 assignment columns,
+ * text+cohort filters, and create/edit/delete + availability via dialogs. Assignments are
  * read-only (authored on the plan's courses page).
  */
 export default function TeacherCatalog({ planId, teachers, days, periods }: Props) {
   const filters = useCatalogFilters();
   const dialogs = useCatalogDialogs();
-  const rows = filterTeachers(teachers, filters.query, filters.year);
+  const rows = filterTeachers(teachers, filters.query, filters.cohort);
 
-  const yearOptions: { value: YearFilter; label: string }[] = [
-    { value: "all", label: "All years" },
-    ...COHORTS.map((cohort, index): { value: YearFilter; label: string } => ({
-      value: index === 0 ? "y1" : "y2",
-      label: cohort.label,
-    })),
+  const cohortOptions: { value: CohortFilter; label: string }[] = [
+    { value: "all", label: "All cohorts" },
+    ...COHORTS.map((cohort) => ({ value: cohort.value, label: cohort.label })),
   ];
 
   return (
@@ -60,15 +57,15 @@ export default function TeacherCatalog({ planId, teachers, days, periods }: Prop
           className="max-w-sm"
           aria-label="Search teachers"
         />
-        <div className="flex items-center gap-1" role="group" aria-label="Filter by year">
-          {yearOptions.map((option) => (
+        <div className="flex items-center gap-1" role="group" aria-label="Filter by cohort">
+          {cohortOptions.map((option) => (
             <Button
               key={option.value}
-              variant={filters.year === option.value ? "default" : "outline"}
+              variant={filters.cohort === option.value ? "default" : "outline"}
               size="sm"
-              aria-pressed={filters.year === option.value}
+              aria-pressed={filters.cohort === option.value}
               onClick={() => {
-                filters.setYear(option.value);
+                filters.setCohort(option.value);
               }}
             >
               {option.label}
@@ -80,7 +77,7 @@ export default function TeacherCatalog({ planId, teachers, days, periods }: Prop
       <TeacherTable
         rows={rows}
         totalCount={teachers.length}
-        yearFilter={filters.year}
+        cohortFilter={filters.cohort}
         onEdit={dialogs.openEdit}
         onDelete={dialogs.openDelete}
         onEditAvailability={dialogs.openAvailability}

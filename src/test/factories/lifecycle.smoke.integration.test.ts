@@ -42,7 +42,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     // shifts them (and the gen-seed stats) together — update both, deliberately.
     expect(catalog.teachers).toHaveLength(18);
     expect(catalog.courses.filter((c) => c.cohort === "dp1")).toHaveLength(39);
-    expect(catalog.courses.filter((c) => c.cohort === "dp2")).toHaveLength(44);
+    expect(catalog.courses.filter((c) => c.cohort === "dp2")).toHaveLength(45);
     expect(catalog.students).toHaveLength(26 + 35);
     expect(catalog.student_choices.length).toBeGreaterThan(0);
 
@@ -51,7 +51,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       .from("courses")
       .select("*", { count: "exact", head: true })
       .eq("plan_id", planId);
-    expect(courseCount).toBe(39 + 44);
+    expect(courseCount).toBe(39 + 45);
 
     // Output builder: drive the real insertPlacement to write a placements row.
     const dp1Course = catalog.courses.find((c) => c.cohort === "dp1");

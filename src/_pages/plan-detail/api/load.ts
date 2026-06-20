@@ -11,7 +11,7 @@ import type { SlotOverride } from "../model/slot-bundle";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** The board is single-cohort for now (S-01 scope): Year 1. Year 2 arrives with S-09. */
+/** The board is single-cohort for now (S-01 scope): dp1. The second cohort (dp2) arrives with S-04. */
 const BOARD_COHORT: Cohort = "dp1";
 
 export type PlannerData = { planName: string; props: PlannerBoardProps };
@@ -23,7 +23,7 @@ export type PlannerPageResult = Result<PlannerData, PlannerPageError>;
 
 /**
  * Assemble everything the planner island needs for one plan: the grid dimensions,
- * the Year-1 cohort, the palette hints, persisted placements, and the validation
+ * the dp1 cohort, the palette hints, persisted placements, and the validation
  * catalog. Returns a `Result` so the page can set the right HTTP status without
  * top-level `return`s in Astro frontmatter (which trips a type-checked-lint bug).
  * Genuine DB failures throw and surface as a 500.

@@ -21,7 +21,7 @@ type Props = {
 };
 
 /**
- * Catalog island for one plan: cross-cohort course list as Year 1 / Year 2 tabs with a
+ * Catalog island for one plan: cross-cohort course list as DP1 / DP2 tabs with a
  * teacher multi-select filter, a hide-merged toggle, plus create/edit/delete and overlap
  * authoring via dialogs. Composite merge parents carry a "Merged" badge beside the name
  * but remain fully editable. Overlap edits update in-memory so the catalog stays live

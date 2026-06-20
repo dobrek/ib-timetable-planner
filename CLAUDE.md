@@ -7,7 +7,7 @@
 - **Workers runtime, both dev and prod.** No Node-only APIs (`fs`, `child_process`, `net`, native modules). Confirm `pnpm build` stays clean.
 - **FSD layout is steiger-enforced.** `pnpm steiger` is a CI gate (`--fail-on-warnings`). Respect layer import direction: `app` → `_pages` → `shared`; never import upward. Config: @steiger.config.ts.
 - **Supabase is the runtime source of truth** for catalog, students, teachers, placements. `data/*.csv` are reference fixtures only — never read at runtime.
-- **Placement/constraint validation has a <200ms budget** per drag-drop. The two-cohort (Y12/Y13) constraint core lives in `src/_pages/plan-detail/model/` — read it before touching constraint logic; don't reinvent it.
+- **Placement/constraint validation has a <200ms budget** per drag-drop. The two-cohort (dp1/dp2) constraint core lives in `src/_pages/plan-detail/model/` — read it before touching constraint logic; don't reinvent it.
 - **Auth is deny-by-default** in `src/middleware.ts`. Don't widen the allowlist without reason.
 - Don't bypass `lefthook` with `--no-verify`.
 

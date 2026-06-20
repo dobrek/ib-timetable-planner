@@ -88,7 +88,7 @@ public/             # Static assets
 wrangler.jsonc      # Cloudflare Workers configuration
 ```
 
-> The two-cohort (Y12/Y13) constraint/validation core lives in `src/_pages/plan-detail/model/`.
+> The two-cohort (dp1/dp2) constraint/validation core lives in `src/_pages/plan-detail/model/`.
 
 ## Environment Profiles
 

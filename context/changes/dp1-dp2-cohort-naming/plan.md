@@ -379,29 +379,29 @@ No data or schema migration. The only contract change is the teacher filter URL 
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `pnpm test`
-- [x] 2.2 FSD structure check passes: `pnpm steiger`
-- [x] 2.3 Lint passes: `pnpm lint`
-- [x] 2.4 Production build is clean: `pnpm build`
-- [x] 2.5 No `y1`/`y2`/`YearFilter` token remains in the teachers slice (grep)
+- [x] 2.1 Unit tests pass: `pnpm test` — 1fd9e98
+- [x] 2.2 FSD structure check passes: `pnpm steiger` — 1fd9e98
+- [x] 2.3 Lint passes: `pnpm lint` — 1fd9e98
+- [x] 2.4 Production build is clean: `pnpm build` — 1fd9e98
+- [x] 2.5 No `y1`/`y2`/`YearFilter` token remains in the teachers slice (grep) — 1fd9e98
 
 #### Manual
 
-- [ ] 2.6 Teacher table headers read "DP1 - Courses" / "DP2 - Courses"
-- [ ] 2.7 Filter row shows "All cohorts" / "DP1" / "DP2"; filtering + column dimming work
-- [ ] 2.8 Selecting a cohort updates URL to `?cohort=dp1`/`?cohort=dp2`; reload preserves; clear → clean URL
+- [x] 2.6 Teacher table headers read "DP1 - Courses" / "DP2 - Courses" — 1fd9e98
+- [x] 2.7 Filter row shows "All cohorts" / "DP1" / "DP2"; filtering + column dimming work — 1fd9e98
+- [x] 2.8 Selecting a cohort updates URL to `?cohort=dp1`/`?cohort=dp2`; reload preserves; clear → clean URL — 1fd9e98
 
 ### Phase 3: Documentation & dead-code hygiene
 
 #### Automated
 
-- [ ] 3.1 Completeness grep over `src/` returns only intentional matches
-- [ ] 3.2 `grep "Diploma Programme Year" supabase/` returns nothing
-- [ ] 3.3 `grep` for "y12"/"y13" in CLAUDE.md/README returns nothing
-- [ ] 3.4 Production build is clean: `pnpm build`
-- [ ] 3.5 Lint passes: `pnpm lint`
+- [x] 3.1 Completeness grep over `src/` returns only intentional matches
+- [x] 3.2 `grep "Diploma Programme Year" supabase/` returns nothing
+- [x] 3.3 `grep` for "y12"/"y13" in CLAUDE.md/README returns nothing
+- [x] 3.4 Production build is clean: `pnpm build`
+- [x] 3.5 Lint passes: `pnpm lint`
 
 #### Manual
 
-- [ ] 3.6 Reworded comments and CLAUDE.md/README `dp1/dp2` mentions read correctly
-- [ ] 3.7 No remaining `supabase/snippets/` file references the dropped `cohorts` table
+- [x] 3.6 Reworded comments and CLAUDE.md/README `dp1/dp2` mentions read correctly
+- [x] 3.7 No remaining `supabase/snippets/` file references the dropped `cohorts` table

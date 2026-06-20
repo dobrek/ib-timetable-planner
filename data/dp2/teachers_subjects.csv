@@ -1,5 +1,6 @@
 KK,Polish A,SL,1,4
 KK,Polish A,HL,,2
+KK,Advisory,,,1
 MD,Polish A,SL,2,4
 SD,English A,SL,,4
 SD,English A,HL,,2
@@ -38,6 +39,7 @@ SA,BM,HL,,6
 SA,BM,SL,,4
 OT,Chemistry,HL,,2
 OT,Chemistry,SL,,4
+OT,Advisory,,,1
 BS,Physics,HL,,2
 BS,Physics,SL,,4
 OS,Computer Science,SL,,4

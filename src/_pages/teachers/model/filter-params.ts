@@ -1,26 +1,28 @@
-import type { YearFilter } from "./filter-teachers";
+import { COHORT_VALUES } from "@/shared/config";
+import type { CohortFilter } from "./filter-teachers";
 
 /**
  * Teacher catalog filter state mirrored into the URL query so a post-mutation
- * `navigate(pathname + search)` preserves the text search and year toggle.
+ * `navigate(pathname + search)` preserves the text search and cohort toggle.
  * Pure projections — `filterTeachers` does the actual filtering.
  */
 export type TeacherFilters = {
   query: string;
-  year: YearFilter;
+  cohort: CohortFilter;
 };
 
-const VALID_YEARS = new Set<YearFilter>(["all", "y1", "y2"]);
+const VALID_COHORTS = new Set<CohortFilter>(["all", ...COHORT_VALUES]);
 
-/** Parse teacher filters from a URL query string. Defaults: empty query, year "all". */
+/** Parse teacher filters from a URL query string. Defaults: empty query, cohort "all". */
 export const readFilterParams = (search: string): TeacherFilters => {
   const params = new URLSearchParams(search);
-  const requestedYear = params.get("year");
-  const year = requestedYear && VALID_YEARS.has(requestedYear as YearFilter) ? (requestedYear as YearFilter) : "all";
+  const requestedCohort = params.get("cohort");
+  const cohort =
+    requestedCohort && VALID_COHORTS.has(requestedCohort as CohortFilter) ? (requestedCohort as CohortFilter) : "all";
 
   return {
     query: params.get("q") ?? "",
-    year,
+    cohort,
   };
 };
 
@@ -28,6 +30,6 @@ export const readFilterParams = (search: string): TeacherFilters => {
 export const toFilterSearch = (filters: TeacherFilters): string => {
   const params = new URLSearchParams();
   if (filters.query) params.set("q", filters.query);
-  if (filters.year !== "all") params.set("year", filters.year);
+  if (filters.cohort !== "all") params.set("cohort", filters.cohort);
   return params.toString();
 };

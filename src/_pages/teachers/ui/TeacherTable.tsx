@@ -1,5 +1,5 @@
 import { CalendarOff, MoreHorizontal, Plus } from "lucide-react";
-import type { Cohort } from "@/shared/config";
+import { cohortLabel, type Cohort } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import {
   Badge,
@@ -16,14 +16,14 @@ import {
   TableRow,
 } from "@/shared/ui";
 import { formatCourseBadgeLabel } from "@/shared/lib/course-label";
-import type { YearFilter } from "../model/filter-teachers";
+import type { CohortFilter } from "../model/filter-teachers";
 import { sortTeachers } from "../model/sort-teachers";
 import type { CourseAssignment, TeacherRow } from "../model/teacher";
 
 type Props = {
   rows: TeacherRow[];
   totalCount: number;
-  yearFilter: YearFilter;
+  cohortFilter: CohortFilter;
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
   onEditAvailability: (teacher: TeacherRow) => void;
@@ -33,7 +33,7 @@ type Props = {
 export default function TeacherTable({
   rows,
   totalCount,
-  yearFilter,
+  cohortFilter,
   onEdit,
   onDelete,
   onEditAvailability,
@@ -62,18 +62,22 @@ export default function TeacherTable({
           <TableRow>
             <TableHead>Code</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead className={cn(cohortGroupClass(yearFilter, "y1"))}>Year 1 - Courses</TableHead>
-            <TableHead className={cn("text-right", cohortGroupClass(yearFilter, "y1"))}>h</TableHead>
-            <TableHead className={cn(cohortGroupClass(yearFilter, "y2"))}>Year 2 - Courses</TableHead>
-            <TableHead className={cn("text-right", cohortGroupClass(yearFilter, "y2"))}>h</TableHead>
-            <TableHead className={cn("text-right", totalColumnClass(yearFilter))}>Total h</TableHead>
+            <TableHead
+              className={cn(cohortGroupClass(cohortFilter, "dp1"))}
+            >{`${cohortLabel("dp1")} - Courses`}</TableHead>
+            <TableHead className={cn("text-right", cohortGroupClass(cohortFilter, "dp1"))}>h</TableHead>
+            <TableHead
+              className={cn(cohortGroupClass(cohortFilter, "dp2"))}
+            >{`${cohortLabel("dp2")} - Courses`}</TableHead>
+            <TableHead className={cn("text-right", cohortGroupClass(cohortFilter, "dp2"))}>h</TableHead>
+            <TableHead className={cn("text-right", totalColumnClass(cohortFilter))}>Total h</TableHead>
             <TableHead className="w-12" aria-label="Actions" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortTeachers(rows).map((row) => {
-            const y1h = cohortHours(row.assignments, "dp1");
-            const y2h = cohortHours(row.assignments, "dp2");
+            const dp1h = cohortHours(row.assignments, "dp1");
+            const dp2h = cohortHours(row.assignments, "dp2");
 
             return (
               <TableRow key={row.id}>
@@ -84,15 +88,15 @@ export default function TeacherTable({
                   </span>
                 </TableCell>
                 <TableCell>{row.fullName ?? "—"}</TableCell>
-                <TableCell className={cn(cohortGroupClass(yearFilter, "y1"))}>
+                <TableCell className={cn(cohortGroupClass(cohortFilter, "dp1"))}>
                   <AssignmentBadges assignments={cohortAssignments(row.assignments, "dp1")} />
                 </TableCell>
-                <TableCell className={cn("text-right", cohortGroupClass(yearFilter, "y1"))}>{y1h}</TableCell>
-                <TableCell className={cn(cohortGroupClass(yearFilter, "y2"))}>
+                <TableCell className={cn("text-right", cohortGroupClass(cohortFilter, "dp1"))}>{dp1h}</TableCell>
+                <TableCell className={cn(cohortGroupClass(cohortFilter, "dp2"))}>
                   <AssignmentBadges assignments={cohortAssignments(row.assignments, "dp2")} />
                 </TableCell>
-                <TableCell className={cn("text-right", cohortGroupClass(yearFilter, "y2"))}>{y2h}</TableCell>
-                <TableCell className={cn("text-right", totalColumnClass(yearFilter))}>{y1h + y2h}</TableCell>
+                <TableCell className={cn("text-right", cohortGroupClass(cohortFilter, "dp2"))}>{dp2h}</TableCell>
+                <TableCell className={cn("text-right", totalColumnClass(cohortFilter))}>{dp1h + dp2h}</TableCell>
                 <TableCell className="text-right">
                   <TeacherRowActions
                     row={row}
@@ -204,13 +208,13 @@ function AvailabilityBadge({
   );
 }
 
-function cohortGroupClass(yearFilter: YearFilter, cohort: "y1" | "y2") {
-  if (yearFilter === "all" || yearFilter === cohort) return undefined;
+function cohortGroupClass(cohortFilter: CohortFilter, cohort: Cohort) {
+  if (cohortFilter === "all" || cohortFilter === cohort) return undefined;
   return "opacity-40";
 }
 
-function totalColumnClass(yearFilter: YearFilter) {
-  return yearFilter === "all" ? undefined : "opacity-60";
+function totalColumnClass(cohortFilter: CohortFilter) {
+  return cohortFilter === "all" ? undefined : "opacity-60";
 }
 
 function cohortHours(assignments: readonly CourseAssignment[], cohort: Cohort): number {

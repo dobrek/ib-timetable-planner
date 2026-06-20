@@ -365,15 +365,15 @@ No data or schema migration. The only contract change is the teacher filter URL 
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass: `pnpm test`
-- [ ] 1.2 Production build is clean: `pnpm build`
-- [ ] 1.3 Lint passes: `pnpm lint`
+- [x] 1.1 Unit tests pass: `pnpm test`
+- [x] 1.2 Production build is clean: `pnpm build`
+- [x] 1.3 Lint passes: `pnpm lint`
 
 #### Manual
 
-- [ ] 1.4 Student catalog tabs and student form cohort select show "DP1" / "DP2"
-- [ ] 1.5 Course catalog tabs and course form cohort select show "DP1" / "DP2"
-- [ ] 1.6 Teacher catalog filter buttons show "DP1" / "DP2" (auto-cascaded)
+- [x] 1.4 Student catalog tabs and student form cohort select show "DP1" / "DP2"
+- [x] 1.5 Course catalog tabs and course form cohort select show "DP1" / "DP2"
+- [x] 1.6 Teacher catalog filter buttons show "DP1" / "DP2" (auto-cascaded)
 
 ### Phase 2: Teachers slice — finish relabel + single-source the cohort filter
 

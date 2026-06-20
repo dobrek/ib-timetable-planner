@@ -15,8 +15,8 @@ export type CohortOption = { value: Cohort; label: string };
 export const COHORT_VALUES = ["dp1", "dp2"] as const satisfies readonly Cohort[];
 
 export const COHORTS: readonly CohortOption[] = [
-  { value: "dp1", label: "Year 1" },
-  { value: "dp2", label: "Year 2" },
+  { value: "dp1", label: "DP1" },
+  { value: "dp2", label: "DP2" },
 ];
 
 /** Shared Zod field for cohort inputs — the authoritative gate mirrors the DB enum. */

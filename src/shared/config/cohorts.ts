@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Database } from "@/shared/api/database.types";
 
 /**
- * The fixed two-cohort programme structure (Year 1 / Year 2 of the IB DP), single-sourced
+ * The fixed two-cohort programme structure (the two IB DP cohorts, dp1 / dp2), single-sourced
  * from the generated `cohort` enum. Replaces the dropped `cohorts` table: the set is
  * declared-fixed, so it lives as config, not data. Order is display order (`dp1` < `dp2`).
  */

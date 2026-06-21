@@ -23,6 +23,7 @@ const input = {
   groupIndex: 0 as const,
   hoursPerWeek: 4,
   cohort: "dp1" as const,
+  weekMode: "agnostic" as const,
   teacherIds: ["teacher-1"],
 };
 

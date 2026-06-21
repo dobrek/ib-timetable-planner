@@ -16,6 +16,7 @@ const placement = (id: string, courseId: string, day: number, period: number): P
   courseId,
   day,
   period,
+  week: "both",
 });
 
 const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({ id, memberIds, coverageCount: 1, score: 1 });

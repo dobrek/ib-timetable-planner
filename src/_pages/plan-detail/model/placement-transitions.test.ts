@@ -29,6 +29,7 @@ const p = (id: string, courseId: string, day: number, period: number, pending?: 
   courseId,
   day,
   period,
+  week: "both",
   ...(pending ? { pending } : {}),
 });
 
@@ -39,6 +40,7 @@ const server = (id: string, courseId: string, day: number, period: number): Plan
   courseId,
   day,
   period,
+  week: "both",
 });
 
 describe("add transitions", () => {
@@ -56,21 +58,21 @@ describe("add transitions", () => {
 
   it("addOptimistic appends a new placement with pending true", () => {
     const prev = [p("p1", "B", 2, 2)];
-    expect(addOptimistic(prev, "temp", "A", cell(1, 1))).toEqual([
+    expect(addOptimistic(prev, "temp", "A", cell(1, 1), "both")).toEqual([
       p("p1", "B", 2, 2),
-      { id: "temp", courseId: "A", day: 1, period: 1, pending: true },
+      p("temp", "A", 1, 1, true),
     ]);
   });
 
   it("addOptimistic does not mutate the input array", () => {
     const prev = [p("p1", "B", 2, 2)];
     const snapshot = [...prev];
-    addOptimistic(prev, "temp", "A", cell(1, 1));
+    addOptimistic(prev, "temp", "A", cell(1, 1), "both");
     expect(prev).toEqual(snapshot);
   });
 
   it("addReconcile replaces the temp-id row with the server row", () => {
-    const prev = [p("p1", "B", 2, 2), { id: "temp", courseId: "A", day: 1, period: 1, pending: true }];
+    const prev = [p("p1", "B", 2, 2), p("temp", "A", 1, 1, true)];
     expect(addReconcile(prev, "temp", server("real", "A", 1, 1))).toEqual([
       p("p1", "B", 2, 2),
       server("real", "A", 1, 1),
@@ -79,19 +81,19 @@ describe("add transitions", () => {
 
   it("addReconcile leaves other placements untouched", () => {
     const other = p("p1", "B", 2, 2);
-    const prev = [other, { id: "temp", courseId: "A", day: 1, period: 1, pending: true }];
+    const prev = [other, p("temp", "A", 1, 1, true)];
     const result = addReconcile(prev, "temp", server("real", "A", 1, 1));
     expect(result[0]).toEqual(other);
   });
 
   it("addRollback removes the temp-id row", () => {
-    const prev = [p("p1", "B", 2, 2), { id: "temp", courseId: "A", day: 1, period: 1, pending: true }];
+    const prev = [p("p1", "B", 2, 2), p("temp", "A", 1, 1, true)];
     expect(addRollback(prev, "temp")).toEqual([p("p1", "B", 2, 2)]);
   });
 
   it("addRollback leaves other placements untouched", () => {
     const other = p("p1", "B", 2, 2);
-    const prev = [other, { id: "temp", courseId: "A", day: 1, period: 1, pending: true }];
+    const prev = [other, p("temp", "A", 1, 1, true)];
     const result = addRollback(prev, "temp");
     expect(result).toEqual([other]);
   });
@@ -123,31 +125,23 @@ describe("group batch transitions", () => {
       addManyOptimistic(
         prev,
         [
-          { tempId: "t1", courseId: "A" },
-          { tempId: "t2", courseId: "B" },
+          { tempId: "t1", courseId: "A", week: "both" },
+          { tempId: "t2", courseId: "B", week: "both" },
         ],
         cell(1, 1),
       ),
-    ).toEqual([
-      p("p1", "X", 2, 2),
-      { id: "t1", courseId: "A", day: 1, period: 1, pending: true },
-      { id: "t2", courseId: "B", day: 1, period: 1, pending: true },
-    ]);
+    ).toEqual([p("p1", "X", 2, 2), p("t1", "A", 1, 1, true), p("t2", "B", 1, 1, true)]);
   });
 
   it("addManyOptimistic does not mutate the input array", () => {
     const prev = [p("p1", "X", 2, 2)];
     const snapshot = [...prev];
-    addManyOptimistic(prev, [{ tempId: "t1", courseId: "A" }], cell(1, 1));
+    addManyOptimistic(prev, [{ tempId: "t1", courseId: "A", week: "both" }], cell(1, 1));
     expect(prev).toEqual(snapshot);
   });
 
   it("settleMany reconciles and rolls back in a single pass", () => {
-    const prev = [
-      p("p1", "X", 2, 2),
-      { id: "t1", courseId: "A", day: 1, period: 1, pending: true },
-      { id: "t2", courseId: "B", day: 1, period: 1, pending: true },
-    ];
+    const prev = [p("p1", "X", 2, 2), p("t1", "A", 1, 1, true), p("t2", "B", 1, 1, true)];
     expect(
       settleMany(prev, [
         { tempId: "t1", result: server("real1", "A", 1, 1) },
@@ -157,10 +151,7 @@ describe("group batch transitions", () => {
   });
 
   it("settleMany reconciles every row when all members succeed", () => {
-    const prev = [
-      { id: "t1", courseId: "A", day: 1, period: 1, pending: true },
-      { id: "t2", courseId: "B", day: 1, period: 1, pending: true },
-    ];
+    const prev = [p("t1", "A", 1, 1, true), p("t2", "B", 1, 1, true)];
     expect(
       settleMany(prev, [
         { tempId: "t1", result: server("real1", "A", 1, 1) },
@@ -170,11 +161,7 @@ describe("group batch transitions", () => {
   });
 
   it("settleMany removes every row when all members fail", () => {
-    const prev = [
-      p("p1", "X", 2, 2),
-      { id: "t1", courseId: "A", day: 1, period: 1, pending: true },
-      { id: "t2", courseId: "B", day: 1, period: 1, pending: true },
-    ];
+    const prev = [p("p1", "X", 2, 2), p("t1", "A", 1, 1, true), p("t2", "B", 1, 1, true)];
     expect(
       settleMany(prev, [
         { tempId: "t1", result: null },
@@ -189,7 +176,7 @@ describe("group batch transitions", () => {
   });
 
   it("settleMany does not mutate the input array", () => {
-    const prev = [{ id: "t1", courseId: "A", day: 1, period: 1, pending: true }];
+    const prev = [p("t1", "A", 1, 1, true)];
     const snapshot = [...prev];
     settleMany(prev, [{ tempId: "t1", result: null }]);
     expect(prev).toEqual(snapshot);
@@ -238,6 +225,7 @@ describe("move transitions", () => {
         oldId: "p1",
         origin: { day: 1, period: 1 },
         courseId: "A",
+        week: "both",
       },
     });
   });
@@ -279,15 +267,14 @@ describe("move transitions", () => {
         oldId: "p1",
         origin: { day: 3, period: 4 },
         courseId: "C",
+        week: "both",
       },
     });
   });
 
   it("moveOptimistic updates day/period and sets pending true", () => {
     const prev = [p("p1", "A", 1, 1)];
-    expect(moveOptimistic(prev, "p1", cell(2, 3))).toEqual([
-      { id: "p1", courseId: "A", day: 2, period: 3, pending: true },
-    ]);
+    expect(moveOptimistic(prev, "p1", cell(2, 3))).toEqual([p("p1", "A", 2, 3, true)]);
   });
 
   it("moveOptimistic leaves other placements untouched", () => {
@@ -298,14 +285,14 @@ describe("move transitions", () => {
   });
 
   it("moveReconcile replaces the old row with the server-created row", () => {
-    const prev = [{ id: "p1", courseId: "A", day: 2, period: 3, pending: true }];
+    const prev = [p("p1", "A", 2, 3, true)];
     expect(moveReconcile(prev, "p1", server("new", "A", 2, 3))).toEqual([server("new", "A", 2, 3)]);
   });
 
   it("moveRollback restores origin coordinates and clears pending", () => {
-    const prev = [{ id: "p1", courseId: "A", day: 2, period: 3, pending: true }];
+    const prev = [p("p1", "A", 2, 3, true)];
     expect(moveRollback(prev, "p1", { day: 1, period: 1 })).toEqual([
-      { id: "p1", courseId: "A", day: 1, period: 1, pending: false },
+      { id: "p1", courseId: "A", day: 1, period: 1, week: "both", pending: false },
     ]);
   });
 });
@@ -367,7 +354,7 @@ describe("bundle move/remove transitions", () => {
   it("moveManyOptimistic moves movers to the target (pending) and drops mergers in one pass", () => {
     const prev = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1), p("t_b", "B", 2, 2), p("t_c", "C", 2, 2)];
     expect(moveManyOptimistic(prev, ["s_a"], ["s_b"], cell(2, 2))).toEqual([
-      { id: "s_a", courseId: "A", day: 2, period: 2, pending: true },
+      { id: "s_a", courseId: "A", day: 2, period: 2, week: "both", pending: true },
       p("t_b", "B", 2, 2),
       p("t_c", "C", 2, 2),
     ]);

@@ -14,8 +14,8 @@ LB,Math AA,SL,,4
 MC,Biology,SL,,4
 MC,Biology,HL,,6
 MC,ESS,SL,,4
-MC,CAS,,1,1
-MC,CAS,,2,1
+MC,CAS,,1,1,biweekly
+MC,CAS,,2,1,biweekly
 NE,Geography,HL,,2
 NE,Geography,SL,,4
 NR,Spanish B,AB+SL+HL,,2
@@ -35,5 +35,5 @@ SA,BM,SL,,4
 SD,English A,SL,,4
 SD,English A,HL,,2
 SD,SSSTS,SL,,2
-SD,EE,,1,1
-SD,EE,,2,1
+SD,EE,,1,1,biweekly
+SD,EE,,2,1,biweekly

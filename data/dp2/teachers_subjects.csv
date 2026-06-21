@@ -5,9 +5,9 @@ MD,Polish A,SL,2,4
 SD,English A,SL,,4
 SD,English A,HL,,2
 SD,SSSTS,SL,,2
-SD,EE,,1,1
-SD,EE,,2,1
-SD,EE,,3,1
+SD,EE,,1,1,biweekly
+SD,EE,,2,1,biweekly
+SD,EE,,3,1,biweekly
 MC,Biology,SL,,4
 MC,Biology,HL,,6
 AP,Math AI,SL,,4
@@ -20,9 +20,9 @@ PS,Psychology,SL,,4
 PS,Psychology,HL,,2
 JC,English B,HL,1,6
 MM,English B,HL,2,6
-MM,CAS,,1,1
-MM,CAS,,2,1
-MM,CAS,,3,1
+MM,CAS,,1,1,biweekly
+MM,CAS,,2,1,biweekly
+MM,CAS,,3,1,biweekly
 NR,Spanish B,AB,,4
 NR,Spanish B,SL,,2
 NR,Spanish B,SL+HL,,4

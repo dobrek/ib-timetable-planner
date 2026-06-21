@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cohortSchema } from "@/shared/config";
+import { cohortSchema, weekModeSchema } from "@/shared/config";
 import { LEVEL_NONE } from "./course";
 
 /**
@@ -41,6 +41,8 @@ export const courseInput = z.object({
   groupIndex: z.literal(COURSE_GROUP_INDICES),
   hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
   cohort: cohortSchema,
+  // Fortnightly eligibility: `agnostic` (meets every week) | `biweekly` (week A or B only).
+  weekMode: weekModeSchema.default("agnostic"),
   // A course is co-taught by a set of one-or-more equal teachers (app-enforced ≥1).
   teacherIds: z.array(z.uuid()).min(1, "At least one teacher is required"),
 });

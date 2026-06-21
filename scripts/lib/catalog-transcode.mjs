@@ -57,6 +57,15 @@ const normHours = (raw) => {
   const parsed = parseInt(s, 10);
   return Number.isNaN(parsed) ? 4 : parsed;
 };
+// Week mode: an empty/absent field means the course meets every week (`agnostic`);
+// `biweekly` marks a fortnightly (week A or B only) course. Any other token is a
+// fixture typo — fail loud, joining the module's other data-consistency aborts.
+const normWeekMode = (raw) => {
+  const s = (raw ?? "").trim();
+  if (s === "") return "agnostic";
+  if (s === "agnostic" || s === "biweekly") return s;
+  throw new Error(`Invalid week_mode "${s}" — expected "agnostic", "biweekly", or empty.`);
+};
 const ckey = (name, level, gi) => `${name}\x00${level}\x00${gi}`;
 const lkey = (name, level) => `${name}\x00${level}`;
 
@@ -79,10 +88,19 @@ export function buildCohort(label, studentsFile, teachersFile) {
     const level = normLevel(cols[2]);
     const gi = normGI(cols[3]);
     const hours = normHours(cols[4]);
+    const weekMode = normWeekMode(cols[5]);
     const k = ckey(name, level, gi);
     const existing = catalog.get(k);
     if (existing) existing.teacher_codes.add(code);
-    else catalog.set(k, { name, level, group_index: gi, hours_per_week: hours, teacher_codes: new Set([code]) });
+    else
+      catalog.set(k, {
+        name,
+        level,
+        group_index: gi,
+        hours_per_week: hours,
+        week_mode: weekMode,
+        teacher_codes: new Set([code]),
+      });
   }
 
   // 2. Index (name, level) → existing group_indices for single-group back-fill
@@ -128,7 +146,14 @@ export function buildCohort(label, studentsFile, teachersFile) {
       // gi=0, no existing teacher course → new student-only course
     }
     // New course (student-only or explicit non-zero gi not in teacher list)
-    catalog.set(k, { name, level, group_index: gi, hours_per_week: 4, teacher_codes: new Set() });
+    catalog.set(k, {
+      name,
+      level,
+      group_index: gi,
+      hours_per_week: 4,
+      week_mode: "agnostic",
+      teacher_codes: new Set(),
+    });
     if (!levelGIs.has(lk)) levelGIs.set(lk, []);
     levelGIs.get(lk).push(gi);
     choiceResolution.set(k, k);
@@ -148,7 +173,15 @@ export function enrichFromMergesAndOverlaps(catalog, overlapRows, mergeRows, lab
       [cols[2], normLevel(cols[3])],
     ]) {
       const k = ckey(name, level, 0);
-      if (!catalog.has(k)) catalog.set(k, { name, level, group_index: 0, hours_per_week: 4, teacher_codes: new Set() });
+      if (!catalog.has(k))
+        catalog.set(k, {
+          name,
+          level,
+          group_index: 0,
+          hours_per_week: 4,
+          week_mode: "agnostic",
+          teacher_codes: new Set(),
+        });
     }
   }
   // Overlap: cols[0..2] = base_name, base_level, base_gi; cols[3..5] = dep_name, dep_level, dep_gi
@@ -165,7 +198,14 @@ export function enrichFromMergesAndOverlaps(catalog, overlapRows, mergeRows, lab
     ]) {
       const k = ckey(name, level, gi);
       if (!catalog.has(k))
-        catalog.set(k, { name, level, group_index: gi, hours_per_week: 4, teacher_codes: new Set() });
+        catalog.set(k, {
+          name,
+          level,
+          group_index: gi,
+          hours_per_week: 4,
+          week_mode: "agnostic",
+          teacher_codes: new Set(),
+        });
     }
   }
 
@@ -379,6 +419,7 @@ export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
         level: c.level,
         group_index: c.group_index,
         hours_per_week: c.hours_per_week,
+        week_mode: c.week_mode,
       });
     }
     return rows;

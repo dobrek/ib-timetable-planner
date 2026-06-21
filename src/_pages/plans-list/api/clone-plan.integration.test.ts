@@ -272,6 +272,53 @@ const PLAN_TABLES = [
     expect(row.teacher_id).not.toBe(srcTeacher.id);
   });
 
+  it("preserves week columns (week_mode, week, opposite_week) through clone", async () => {
+    // Self-contained source: a CSV-seeded catalog (carries bi-weekly EE/CAS), a bi-weekly
+    // placement on week 'a', and an opposite-week grouping marker inserted directly (the RPC
+    // gains opposite_week in Phase 3; here we assert clone_plan copies the column).
+    const srcId = await createFactoryPlan(supabase, { name: "Week Clone Source" });
+    const catalog = await seedPlanCatalog(supabase, srcId);
+    const biweekly = catalog.courses.find((c) => c.cohort === "dp1" && c.week_mode === "biweekly");
+    if (!biweekly) throw new Error("seed has no bi-weekly dp1 course");
+
+    await supabase
+      .from("placements")
+      .insert({ plan_id: srcId, cohort: "dp1", day: 4, period: 5, course_id: biweekly.id, week: "a" });
+
+    const { data: grouping, error: groupingError } = await supabase
+      .from("course_groupings")
+      .insert({ plan_id: srcId, cohort: "dp1", coverage_count: 1, score: 1, catalog_hash: "wk", opposite_week: true })
+      .select("id")
+      .single();
+    if (groupingError) throw groupingError;
+    await supabase
+      .from("course_grouping_members")
+      .insert({ plan_id: srcId, grouping_id: grouping.id, course_id: biweekly.id });
+
+    const cloneId = await clonePlan(srcId, "Week Clone Dest");
+
+    // week_mode carried on courses (both states present).
+    const { data: clonedCourses } = await supabase.from("courses").select("week_mode").eq("plan_id", cloneId);
+    expect((clonedCourses ?? []).some((c) => c.week_mode === "biweekly")).toBe(true);
+    expect((clonedCourses ?? []).some((c) => c.week_mode === "agnostic")).toBe(true);
+
+    // week carried on placements.
+    const { data: clonedPlacements } = await supabase
+      .from("placements")
+      .select("week")
+      .eq("plan_id", cloneId)
+      .eq("cohort", "dp1");
+    expect((clonedPlacements ?? []).some((p) => p.week === "a")).toBe(true);
+
+    // opposite_week carried on groupings.
+    const { data: clonedGroupings } = await supabase
+      .from("course_groupings")
+      .select("opposite_week")
+      .eq("plan_id", cloneId)
+      .eq("cohort", "dp1");
+    expect((clonedGroupings ?? []).some((g) => g.opposite_week)).toBe(true);
+  });
+
   it("cloning the same source twice produces two independent plans", async () => {
     const firstId = await clonePlan(sourcePlanId, "Clone Twice 1");
     const secondId = await clonePlan(sourcePlanId, "Clone Twice 2");

@@ -83,7 +83,7 @@ test.describe("co-teaching teacher sets", () => {
     await expect(teacherRow(page, soleTeacher)).toBeVisible();
 
     // Add a co-teacher so the course no longer depends solely on `soleTeacher`.
-    await page.goto(`/plans/${plan.id}/courses`);
+    await gotoStable(page, `/plans/${plan.id}/courses`);
     await clickToReveal(
       courseRow(page, courseName).getByRole("button", { name: "Course actions" }),
       page.getByRole("menuitem"),
@@ -125,10 +125,23 @@ async function clickToReveal(opener: Locator, revealed: Locator): Promise<void> 
   }).toPass({ timeout: 20_000 });
 }
 
+/**
+ * Hard-navigate to `path`, retrying past a lost race with an in-flight client navigation.
+ * A just-completed action may still be running its post-success refresh (`refreshPage` →
+ * an `astro:transitions/client` `navigate()`); a real `page.goto` issued before that soft
+ * nav settles is aborted by it (`net::ERR_ABORTED`). Retrying lands once it is done. On a
+ * fresh page (no nav in flight) the first attempt succeeds and `toPass` returns at once.
+ */
+async function gotoStable(page: Page, path: string): Promise<void> {
+  await expect(async () => {
+    await page.goto(path);
+  }).toPass({ timeout: 20_000 });
+}
+
 /** Create a uniquely named plan; returns its id (from the board URL) and name (for teardown). */
 async function createPlan(page: Page): Promise<{ id: string; name: string }> {
   const name = `E2E co-teaching ${randomUUID()}`;
-  await page.goto("/plans");
+  await gotoStable(page, "/plans");
   const dialog = page.getByRole("dialog");
   await clickToReveal(
     page.getByRole("button", { name: "New plan" }),
@@ -143,7 +156,7 @@ async function createPlan(page: Page): Promise<{ id: string; name: string }> {
 
 /** Add a teacher (code only → its display label is the code) and confirm the row landed. */
 async function createTeacher(page: Page, planId: string, code: string): Promise<void> {
-  await page.goto(`/plans/${planId}/teachers`);
+  await gotoStable(page, `/plans/${planId}/teachers`);
   const dialog = page.getByRole("dialog");
   // On an empty plan the header and the empty-state both offer "New teacher"; the header is first.
   await clickToReveal(
@@ -162,7 +175,7 @@ async function createCourse(
   planId: string,
   { name, hours, teacherCodes }: { name: string; hours: string; teacherCodes: string[] },
 ): Promise<Locator> {
-  await page.goto(`/plans/${planId}/courses`);
+  await gotoStable(page, `/plans/${planId}/courses`);
   const dialog = page.getByRole("dialog");
   await clickToReveal(
     page.getByRole("button", { name: "New course" }),
@@ -190,7 +203,7 @@ async function createCourse(
 
 /** Open the teacher's confirm-delete dialog and click its Delete button (the actual attempt). */
 async function confirmTeacherDelete(page: Page, planId: string, code: string): Promise<void> {
-  await page.goto(`/plans/${planId}/teachers`);
+  await gotoStable(page, `/plans/${planId}/teachers`);
   await clickToReveal(
     teacherRow(page, code).getByRole("button", { name: "Teacher actions" }),
     page.getByRole("menuitem"),
@@ -203,7 +216,7 @@ async function confirmTeacherDelete(page: Page, planId: string, code: string): P
 
 /** Tear down: deleting the plan cascades to its courses, teachers, and junction rows. */
 async function deletePlan(page: Page, planName: string): Promise<void> {
-  await page.goto("/plans");
+  await gotoStable(page, "/plans");
   await clickToReveal(page.getByRole("button", { name: `Actions for ${planName}` }), page.getByRole("menuitem"));
   await page.getByRole("menuitem", { name: "Delete" }).click();
   const dialog = page.getByRole("alertdialog");

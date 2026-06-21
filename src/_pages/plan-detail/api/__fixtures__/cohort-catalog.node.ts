@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { WeekMode } from "@/shared/config";
 import type { GroupingCourse } from "../../model/grouping";
 import { groupBy, unique } from "@/shared/lib/collections";
 
@@ -18,6 +19,7 @@ export const loadFixtureCourses = (dir: string): GroupingCourse[] => {
     subject: subjectName(row[1], row[2], row[3]),
     teacher: row[0],
     hours: Number(row[4]) || 0,
+    weekMode: normWeekMode(row[5]),
   }));
 
   const overlapList = overlapRows.map((row) => ({
@@ -44,7 +46,13 @@ export const loadFixtureCourses = (dir: string): GroupingCourse[] => {
   const courses: GroupingCourse[] = [...bySubject].map(([key, values]) => {
     const studentKeys = unique(values.map(({ student }) => student).concat(overlapsFor(key).flatMap(allStudentsFor)));
     const meta = metaList.find((m) => m.subject === key);
-    return { id: key, teacherKeys: teachersFor(key), studentKeys, hours: meta?.hours ?? 0 };
+    return {
+      id: key,
+      teacherKeys: teachersFor(key),
+      studentKeys,
+      hours: meta?.hours ?? 0,
+      weekMode: meta?.weekMode ?? "agnostic",
+    };
   });
 
   const virtualCourses: GroupingCourse[] = [...groupBy(mergeList, ({ subject }) => subject)].map(([key, values]) => {
@@ -54,6 +62,7 @@ export const loadFixtureCourses = (dir: string): GroupingCourse[] => {
       teacherKeys: teachersFor(key),
       studentKeys: values.flatMap(({ merge }) => allStudentsFor(merge)),
       hours: meta?.hours ?? 0,
+      weekMode: meta?.weekMode ?? "agnostic",
     };
   });
 
@@ -62,6 +71,10 @@ export const loadFixtureCourses = (dir: string): GroupingCourse[] => {
 
 const subjectName = (subject: string, level?: string, group?: string): string =>
   [subject, level, group].filter(Boolean).join("-").replaceAll(/ /g, "_");
+
+// Mirrors the seed transcode's normWeekMode: empty/absent ⇒ agnostic; the two enum tokens
+// pass through. Keeps this fixture's projection byte-for-byte aligned with loadCohortCourses.
+const normWeekMode = (raw: string | undefined): WeekMode => (raw?.trim() === "biweekly" ? "biweekly" : "agnostic");
 
 const parseCSV = (filePath: string): string[][] =>
   readFileSync(filePath, "utf-8")

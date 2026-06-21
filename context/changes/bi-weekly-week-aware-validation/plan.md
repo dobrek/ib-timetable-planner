@@ -704,32 +704,32 @@ resetting.
 
 #### Automated
 
-- [x] 2.1 Constraint + collisions unit tests pass (incl. week cases)
-- [x] 2.2 Type/lint/build clean
-- [x] 2.3 Per-drag validation within <200ms budget
+- [x] 2.1 Constraint + collisions unit tests pass (incl. week cases) — eb9e222
+- [x] 2.2 Type/lint/build clean — eb9e222
+- [x] 2.3 Per-drag validation within <200ms budget — eb9e222
 
 #### Manual
 
-- [x] 2.4 Opposite-week shared slot shows no destructive ring; cell valid
-- [x] 2.5 Same-week version shows the destructive ring
-- [x] 2.6 Agnostic + bi-weekly sharing a teacher/student still collides
+- [x] 2.4 Opposite-week shared slot shows no destructive ring; cell valid — eb9e222
+- [x] 2.5 Same-week version shows the destructive ring — eb9e222
+- [x] 2.6 Agnostic + bi-weekly sharing a teacher/student still collides — eb9e222
 - [ ] 2.7 Collision dialog explains a same-week clash legibly
 
 ### Phase 3: Catalog + Enumeration v1
 
 #### Automated
 
-- [ ] 3.1 Enumeration unit tests pass (opposite-week emission + edge classification)
-- [ ] 3.2 Catalog-hash test reflects `weekMode`
-- [ ] 3.3 Integration: compute→persist round-trips `opposite_week`; clone preserves it
-- [ ] 3.4 Enumeration result-space within caps for the seed catalog
-- [ ] 3.5 Type/lint/build/steiger clean
+- [x] 3.1 Enumeration unit tests pass (opposite-week emission + edge classification)
+- [x] 3.2 Catalog-hash test reflects `weekMode`
+- [x] 3.3 Integration: compute→persist round-trips `opposite_week`; clone preserves it
+- [x] 3.4 Enumeration result-space within caps for the seed catalog
+- [x] 3.5 Type/lint/build/steiger clean
 
 #### Manual
 
 - [ ] 3.6 Palette suggests EE+CAS opposite-week grouping with A/B badge
-- [ ] 3.7 Agnostic-only catalogs produce identical groupings to before
-- [ ] 3.8 Editing a course's `weekMode` marks prior groupings stale
+- [x] 3.7 Agnostic-only catalogs produce identical groupings to before
+- [x] 3.8 Editing a course's `weekMode` marks prior groupings stale
 
 ### Phase 4: Course Authoring UI
 

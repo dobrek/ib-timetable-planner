@@ -6,6 +6,7 @@ import type { GroupDrag } from "../model/drag";
 import type { PlannerGrouping } from "../model/grouping";
 import type { HoursStat } from "../model/hours";
 import { cn } from "@/shared/lib/class-names";
+import { Badge } from "@/shared/ui";
 
 type Props = {
   grouping: PlannerGrouping;
@@ -57,6 +58,11 @@ export default function GroupingBox({ grouping, names, hours }: Props) {
       <div data-slot="grouping-header" className="flex items-center gap-2 rounded-t-lg px-3 py-2 text-sm font-medium">
         <GripVertical className="text-muted-foreground size-4" />
         <span>{grouping.memberIds.length} courses</span>
+        {grouping.oppositeWeek && (
+          <Badge data-slot="opposite-week-badge" variant="secondary" title="Members run on alternating weeks (A/B)">
+            A/B
+          </Badge>
+        )}
         <span data-slot="students-counter" className="text-muted-foreground ml-auto shrink-0 tabular-nums">
           {grouping.coverageCount} students
         </span>

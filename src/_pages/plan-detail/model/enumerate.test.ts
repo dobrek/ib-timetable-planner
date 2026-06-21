@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { enumerateVariants } from "./enumerate";
+import type { WeekMode } from "@/shared/config";
+import { enumerateOppositeWeekPairs, enumerateVariants } from "./enumerate";
 import type { GroupingCourse } from "./grouping";
 
-const course = (id: string, teacher: string | null, studentKeys: string[]): GroupingCourse => ({
+const course = (
+  id: string,
+  teacher: string | null,
+  studentKeys: string[],
+  weekMode: WeekMode = "agnostic",
+): GroupingCourse => ({
   id,
   teacherKeys: teacher === null ? [] : [teacher],
   studentKeys,
   hours: 4,
+  weekMode,
 });
 
 // A conflicts with B (shared teacher t1); A and C are compatible; B and C are compatible
@@ -56,5 +63,28 @@ describe("enumerateVariants", () => {
     const results = enumerateVariants(seed, [seed, course("X", "t1", ["s2"]), course("Y", null, ["s1"])], 100);
     expect(results).toHaveLength(1);
     expect(results[0].map((c) => c.id)).toEqual(["S"]);
+  });
+});
+
+describe("enumerateOppositeWeekPairs", () => {
+  it("emits each both-bi-weekly conflicting pair, sorted first-member-first", () => {
+    // A and B share teacher t1 and are both bi-weekly → a soft (opposite-week) edge.
+    const A = course("A", "t1", ["s1"], "biweekly");
+    const B = course("B", "t1", ["s2"], "biweekly");
+    const C = course("C", "t2", ["s3"], "agnostic");
+    const pairs = enumerateOppositeWeekPairs([B, A, C]).map(([a, b]) => [a.id, b.id]);
+    expect(pairs).toEqual([["A", "B"]]);
+  });
+
+  it("excludes a conflicting pair when either course is agnostic (hard edge)", () => {
+    const A = course("A", "t1", ["s1"], "biweekly");
+    const B = course("B", "t1", ["s2"], "agnostic"); // agnostic ⇒ hard edge, never opposite-week
+    expect(enumerateOppositeWeekPairs([A, B])).toEqual([]);
+  });
+
+  it("excludes a both-bi-weekly pair that does not conflict (no edge)", () => {
+    const A = course("A", "t1", ["s1"], "biweekly");
+    const B = course("B", "t2", ["s2"], "biweekly"); // disjoint teacher + students → no conflict
+    expect(enumerateOppositeWeekPairs([A, B])).toEqual([]);
   });
 });

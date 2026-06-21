@@ -8,6 +8,7 @@ type GroupingPayload = {
   coverage_count: number;
   score: number;
   member_ids: string[];
+  opposite_week: boolean;
 };
 
 /**
@@ -44,6 +45,7 @@ const toDistinctMemberSets = (results: GroupingResult[]): GroupingPayload[] => {
           coverage_count: variant.coverageCount,
           score: variant.score,
           member_ids: variant.memberIds,
+          opposite_week: variant.oppositeWeek ?? false,
         });
       }
     }

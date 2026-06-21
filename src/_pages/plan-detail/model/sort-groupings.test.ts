@@ -7,6 +7,7 @@ const grouping = (id: string, coverageCount: number, courseCount: number): Plann
   coverageCount,
   memberIds: Array.from({ length: courseCount }, (_, i) => `${id}-c${i}`),
   score: 0,
+  oppositeWeek: false,
 });
 
 describe("sortGroupingsForPalette", () => {

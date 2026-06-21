@@ -64,3 +64,24 @@ const setKey = (set: GroupingCourse[]): string =>
     .map((c) => c.id)
     .toSorted()
     .join(",");
+
+/**
+ * Each unordered both-bi-weekly **conflicting** pair (a soft edge: `hasIntersection` AND both
+ * `weekMode === "biweekly"`), surfaced as a placeable opposite-week (A/B) grouping. A soft pair
+ * can never be in a true-parallel set, so `enumerateVariants` already excludes it — this is the
+ * additive v1 pass that recovers it. O(edges) over the catalog; ids sorted so each pair is the
+ * lexicographically-first member first (deterministic, dedup-friendly).
+ */
+export const enumerateOppositeWeekPairs = (courses: GroupingCourse[]): [GroupingCourse, GroupingCourse][] => {
+  const sorted = courses.toSorted((a, b) => a.id.localeCompare(b.id));
+  const pairs: [GroupingCourse, GroupingCourse][] = [];
+  for (let i = 0; i < sorted.length; i++)
+    for (let j = i + 1; j < sorted.length; j++)
+      if (
+        sorted[i].weekMode === "biweekly" &&
+        sorted[j].weekMode === "biweekly" &&
+        hasIntersection(sorted[i], [sorted[j]])
+      )
+        pairs.push([sorted[i], sorted[j]]);
+  return pairs;
+};

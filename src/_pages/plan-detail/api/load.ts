@@ -48,7 +48,7 @@ export const loadPlannerData = async (
   const [groupingsResult, placementsResult, overridesResult, availabilityResult, catalog] = await Promise.all([
     supabase
       .from("course_groupings")
-      .select("id, coverage_count, score, course_grouping_members(course_id)")
+      .select("id, coverage_count, score, opposite_week, course_grouping_members(course_id)")
       .eq("plan_id", id)
       .eq("cohort", BOARD_COHORT),
     supabase.from("placements").select("id, course_id, day, period, week").eq("plan_id", id).eq("cohort", BOARD_COHORT),
@@ -68,6 +68,7 @@ export const loadPlannerData = async (
     id: row.id,
     coverageCount: row.coverage_count,
     score: row.score,
+    oppositeWeek: row.opposite_week,
     memberIds: row.course_grouping_members.map((member) => member.course_id),
   }));
 

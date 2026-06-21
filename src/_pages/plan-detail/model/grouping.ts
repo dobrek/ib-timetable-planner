@@ -9,6 +9,8 @@ export type GroupingVariant = {
   rank: number;
   score: number;
   memberIds: string[];
+  /** True for a both-bi-weekly conflicting pair surfaced as a placeable opposite-week (A/B) share. */
+  oppositeWeek?: boolean;
 };
 
 export type GroupingResult = {
@@ -22,4 +24,6 @@ export type PlannerGrouping = {
   memberIds: string[];
   coverageCount: number;
   score: number;
+  /** True when this is an opposite-week (A/B) share — members run on alternating weeks. */
+  oppositeWeek: boolean;
 };

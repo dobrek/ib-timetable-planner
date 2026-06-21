@@ -78,3 +78,53 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(await isGroupingStale(supabase, { planId, cohort: COHORT })).toBe(false);
   });
 });
+
+// dp1 carries the CAS↔EE overlap and both courses are bi-weekly, so the v1 opposite-week pass
+// surfaces them as a placeable opposite-week (A/B) grouping. Verifies the marker round-trips
+// compute → persist → read.
+(hasEnv ? describe : describe.skip)("computeGroupings opposite-week pairs (dp1)", () => {
+  let supabase: SupabaseClient<Database>;
+  let planId: string;
+
+  beforeAll(async () => {
+    if (!SUPABASE_URL || !SERVICE_KEY) return;
+    supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
+    planId = await createPlan(supabase);
+    await seedPlanCatalog(supabase, planId);
+  });
+
+  afterAll(async () => {
+    await teardown(supabase);
+  });
+
+  it("emits an EE+CAS opposite-week grouping and persists opposite_week=true", async () => {
+    const response = await computeGroupingsFor(supabase, { planId, cohort: "dp1" });
+
+    // The compute result carries oppositeWeek variants whose members are an EE/CAS pair.
+    const oppositeVariants = response.groupings.flatMap((r) => r.variants).filter((v) => v.oppositeWeek === true);
+    expect(oppositeVariants.length).toBeGreaterThan(0);
+    const eeCasPair = oppositeVariants.find((v) => {
+      const names = v.memberIds.map((id) => response.names.get(id) ?? id);
+      return names.some((n) => n.startsWith("EE")) && names.some((n) => n.startsWith("CAS"));
+    });
+    expect(eeCasPair, "an EE+CAS opposite-week pair should be emitted").toBeTruthy();
+
+    // Persisted: at least one course_groupings row carries opposite_week=true.
+    const { data: oppositeRows } = await supabase
+      .from("course_groupings")
+      .select("id, opposite_week")
+      .eq("plan_id", planId)
+      .eq("cohort", "dp1")
+      .eq("opposite_week", true);
+    expect((oppositeRows ?? []).length).toBeGreaterThan(0);
+
+    // And a plain true-parallel grouping persists opposite_week=false (marker is per-row).
+    const { data: parallelRows } = await supabase
+      .from("course_groupings")
+      .select("id")
+      .eq("plan_id", planId)
+      .eq("cohort", "dp1")
+      .eq("opposite_week", false);
+    expect((parallelRows ?? []).length).toBeGreaterThan(0);
+  });
+});

@@ -24,9 +24,7 @@ export function resolveDropWeek(weekMode: WeekMode, placements: LocalPlacement[]
  * first → `a`, second → `b` (v1 groupings are pairs; alternation generalizes deterministically).
  */
 export function oppositeWeekAssignment(memberIds: string[]): Map<string, PlacementWeek> {
-  const assignment = new Map<string, PlacementWeek>();
-  [...memberIds].sort().forEach((id, index) => assignment.set(id, index % 2 === 0 ? "a" : "b"));
-  return assignment;
+  return new Map([...memberIds].sort().map((id, index): [string, PlacementWeek] => [id, index % 2 === 0 ? "a" : "b"]));
 }
 
 // --- Add ---

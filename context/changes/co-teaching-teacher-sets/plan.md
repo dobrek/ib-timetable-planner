@@ -47,7 +47,7 @@ Bottom-up by data flow, keeping the build green at each phase boundary. Phase 1 
 ## Critical Implementation Details
 
 - **Catalog-hash sort is code-point, not `localeCompare`.** The new `teacherKeys` array must be sorted with `[...course.teacherKeys].sort()` — mirror the existing `studentKeys` line. The fixed-digest test locks this; using `localeCompare` would silently diverge the JS hash from its locked digest. The shape change invalidates all persisted `catalog_hash` values once; this self-heals (the clone flow and out-of-date detection recompute JS-side). Regenerate the fixed-digest fixture in the same commit.
-- **Deterministic seed.** `gen-seed.mjs` / `catalog-transcode.mjs` rely on a fixed `randomUUID()` call order to keep `seed.sql` byte-identical across runs (documented at `gen-seed.mjs:8-13`). Insert the new junction-row UUID generation at a fixed point in the canonical emission order.
+- **Deterministic seed.** `gen-seed.mjs` / `catalog-transcode.mjs` rely on a fixed `randomUUID()` call order to keep `seed.sql` **structurally identical (UUIDs masked)** across runs — the UUIDs themselves are freshly minted each run, so the invariant is structural, not literal byte equality (the guard test `seed-transcode-identity.test.ts` masks UUIDs before comparing; documented at `gen-seed.mjs:8-13`). Insert the new junction-row UUID generation at a fixed point in the canonical emission order.
 - **Drop-last ordering is load-bearing.** `courses.teacher_id` must remain until every read and write path sources teachers from the junction (end of Phase 5). Dropping it earlier turns the build red.
 - **`replace_course_teachers` must be `security invoker`** (not `definer`) so the `authenticated` RLS policy on `course_teachers` still gates the write — exactly as `replace_cohort_groupings` documents.
 - **The column DROP deviates from the additive-migration guideline.** Acceptable pre-prod (no production data; precedent: the destructive re-baseline `20260611180006`). Noted so it isn't flagged as an accident in review.
@@ -391,13 +391,13 @@ Make the generator emit junction rows for the (already-authored) co-taught fixtu
 
 **Intent**: Emit a `course_teachers` insert block (copy the `course_merges` block) and abort loudly if any course resolves to zero teachers.
 
-**Contract**: New `course_teachers` block; zero-teacher abort joins the generator's existing loud data-consistency aborts. Preserve the fixed `randomUUID()` call order (`gen-seed.mjs:8-13`) — insert the new UUID generation at a fixed point in canonical emission order so `seed.sql` stays byte-identical.
+**Contract**: New `course_teachers` block; zero-teacher abort joins the generator's existing loud data-consistency aborts. Preserve the fixed `randomUUID()` call order (`gen-seed.mjs:8-13`) — insert the new UUID generation at a fixed point in canonical emission order so `seed.sql` stays structurally identical (UUIDs masked) across runs.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] `node scripts/gen-seed.mjs > supabase/seed.sql` runs; a second run is byte-identical
+- [ ] `node scripts/gen-seed.mjs > supabase/seed.sql` runs; a second run is structurally identical (UUIDs masked — see `seed-transcode-identity.test.ts`)
 - [ ] Generator aborts loudly when a course resolves to zero teachers (verified by a temporary bad fixture)
 - [ ] `supabase db reset` loads the regenerated seed cleanly
 

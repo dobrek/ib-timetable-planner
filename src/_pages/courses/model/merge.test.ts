@@ -8,7 +8,7 @@ const child = (overrides: Partial<MergeChildInput>): MergeChildInput => ({
   name: "German B",
   level: "SL",
   cohort: "dp1",
-  teacherId: TEACHER,
+  teacherIds: [TEACHER],
   ...overrides,
 });
 
@@ -17,7 +17,7 @@ describe("deriveMergeParent", () => {
     const result = deriveMergeParent([child({ id: "a", level: "AB" }), child({ id: "b", level: "SL" })]);
     expect(result).toEqual({
       ok: true,
-      parent: { name: "German B", level: "AB+SL", teacherId: TEACHER, cohort: "dp1" },
+      parent: { name: "German B", level: "AB+SL", teacherIds: [TEACHER], cohort: "dp1" },
     });
   });
 
@@ -64,20 +64,36 @@ describe("deriveMergeParent", () => {
     expect(result).toEqual({ ok: false, reason: "mismatched-name" });
   });
 
-  it("rejects a missing teacher", () => {
+  it("rejects a missing teacher (empty set)", () => {
     const result = deriveMergeParent([
-      child({ id: "a", level: "AB", teacherId: null }),
+      child({ id: "a", level: "AB", teacherIds: [] }),
       child({ id: "b", level: "SL" }),
     ]);
     expect(result).toEqual({ ok: false, reason: "missing-teacher" });
   });
 
-  it("rejects mismatched teachers", () => {
+  it("rejects mismatched teacher sets", () => {
     const result = deriveMergeParent([
-      child({ id: "a", level: "AB", teacherId: "teacher-1" }),
-      child({ id: "b", level: "SL", teacherId: "teacher-2" }),
+      child({ id: "a", level: "AB", teacherIds: ["teacher-1"] }),
+      child({ id: "b", level: "SL", teacherIds: ["teacher-2"] }),
     ]);
     expect(result).toEqual({ ok: false, reason: "mismatched-teacher" });
+  });
+
+  it("rejects a partial teacher-set overlap (sets must be equal, not just intersect)", () => {
+    const result = deriveMergeParent([
+      child({ id: "a", level: "AB", teacherIds: ["t1", "t2"] }),
+      child({ id: "b", level: "SL", teacherIds: ["t1", "t3"] }),
+    ]);
+    expect(result).toEqual({ ok: false, reason: "mismatched-teacher" });
+  });
+
+  it("merges children sharing the same co-teacher set (order-independent), carrying the set", () => {
+    const result = deriveMergeParent([
+      child({ id: "a", level: "AB", teacherIds: ["t1", "t2"] }),
+      child({ id: "b", level: "SL", teacherIds: ["t2", "t1"] }),
+    ]);
+    expect(result.ok && result.parent.teacherIds).toEqual(["t1", "t2"]);
   });
 
   it("rejects duplicate levels", () => {

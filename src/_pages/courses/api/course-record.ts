@@ -1,10 +1,12 @@
 import type { CourseInput } from "../model/schemas";
 
-/** Map camelCase course input to its snake_case `courses` row shape (create and update). */
+/**
+ * Map camelCase course input to its snake_case `courses` row shape (create and update).
+ * Teachers live in the `course_teachers` junction (written separately), not on this row.
+ */
 export const toCourseRecord = (input: CourseInput) => ({
   plan_id: input.planId,
   cohort: input.cohort,
-  teacher_id: input.teacherId,
   name: input.name,
   level: input.level,
   group_index: input.groupIndex,

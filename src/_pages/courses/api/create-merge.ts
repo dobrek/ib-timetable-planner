@@ -24,13 +24,16 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
     throw new DomainError("NOT_FOUND", "One or more courses no longer exist.");
   }
 
+  // Phase 3: feed teacherIds derived from the legacy scalar so the build stays green
+  // against the new merge model. Phase 4 §3/§3a sources the set from course_teachers
+  // and persists the parent's set into the junction (this scalar path is interim).
   const derivation = deriveMergeParent(
     childRows.map((c) => ({
       id: c.id,
       name: c.name,
       level: c.level,
       cohort: c.cohort,
-      teacherId: c.teacher_id,
+      teacherIds: c.teacher_id ? [c.teacher_id] : [],
     })),
   );
   if (!derivation.ok) {
@@ -49,7 +52,7 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
           .insert({
             plan_id: input.planId,
             cohort: derivation.parent.cohort,
-            teacher_id: derivation.parent.teacherId,
+            teacher_id: derivation.parent.teacherIds[0] ?? null,
             name: derivation.parent.name,
             level: derivation.parent.level,
             group_index: 0,

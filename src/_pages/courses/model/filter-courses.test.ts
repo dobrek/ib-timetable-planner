@@ -3,25 +3,25 @@ import type { Cohort } from "@/shared/config";
 import { filterCourses } from "./filter-courses";
 import type { CourseRow } from "./course";
 
-const row = (id: string, cohort: Cohort, teacherId: string | null): CourseRow => ({
+const row = (id: string, cohort: Cohort, teacherIds: string[]): CourseRow => ({
   id,
   cohort,
   name: `Course ${id}`,
   level: "SL",
   groupIndex: 0,
   hours: 4,
-  teacherId,
-  teacherLabel: teacherId,
+  teacherIds,
+  teacherLabels: teacherIds,
   isMerged: false,
   mergeChildIds: [],
   overlaps: [],
 });
 
 const courses: CourseRow[] = [
-  row("a", "dp1", "t1"),
-  row("b", "dp1", "t2"),
-  row("c", "dp2", "t1"),
-  row("d", "dp1", null),
+  row("a", "dp1", ["t1"]),
+  row("b", "dp1", ["t2"]),
+  row("c", "dp2", ["t1"]),
+  row("d", "dp1", []),
 ];
 
 describe("filterCourses", () => {
@@ -41,8 +41,14 @@ describe("filterCourses", () => {
     expect(filterCourses(courses, "dp1", ["t1"]).some((r) => r.id === "d")).toBe(false);
   });
 
+  it("keeps a co-taught row when any of its teachers is selected", () => {
+    const coTaught: CourseRow[] = [row("x", "dp1", ["t2", "t3"])];
+    expect(filterCourses(coTaught, "dp1", ["t3"]).map((r) => r.id)).toEqual(["x"]);
+    expect(filterCourses(coTaught, "dp1", ["t9"]).map((r) => r.id)).toEqual([]);
+  });
+
   it("drops merged courses when hideMerged is set", () => {
-    const withMerged: CourseRow[] = [...courses, { ...row("e", "dp1", "t1"), isMerged: true }];
+    const withMerged: CourseRow[] = [...courses, { ...row("e", "dp1", ["t1"]), isMerged: true }];
     expect(filterCourses(withMerged, "dp1", [], true).map((r) => r.id)).toEqual(["a", "b", "d"]);
     expect(filterCourses(withMerged, "dp1", [], false).map((r) => r.id)).toEqual(["a", "b", "d", "e"]);
   });

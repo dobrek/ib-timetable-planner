@@ -12,7 +12,7 @@ const validCourse = {
   groupIndex: 1 as const,
   hoursPerWeek: 4,
   cohort: "dp1" as const,
-  teacherId: UUID_B,
+  teacherIds: [UUID_B],
 };
 
 describe("courseInput", () => {
@@ -60,13 +60,21 @@ describe("courseInput", () => {
     expect(courseInput.safeParse({ ...validCourse, hoursPerWeek: 3.5 }).success).toBe(false);
   });
 
-  it("rejects a missing teacherId", () => {
-    const { teacherId: _omit, ...withoutTeacher } = validCourse;
-    expect(courseInput.safeParse(withoutTeacher).success).toBe(false);
+  it("accepts multiple co-teachers", () => {
+    expect(courseInput.parse({ ...validCourse, teacherIds: [UUID_A, UUID_B] }).teacherIds).toEqual([UUID_A, UUID_B]);
   });
 
-  it("rejects an empty teacherId", () => {
-    expect(courseInput.safeParse({ ...validCourse, teacherId: "" }).success).toBe(false);
+  it("rejects a missing teacherIds", () => {
+    const { teacherIds: _omit, ...withoutTeachers } = validCourse;
+    expect(courseInput.safeParse(withoutTeachers).success).toBe(false);
+  });
+
+  it("rejects an empty teacherIds set (.min(1))", () => {
+    expect(courseInput.safeParse({ ...validCourse, teacherIds: [] }).success).toBe(false);
+  });
+
+  it("rejects a non-uuid teacher id", () => {
+    expect(courseInput.safeParse({ ...validCourse, teacherIds: ["not-a-uuid"] }).success).toBe(false);
   });
 
   it("rejects an unknown cohort value", () => {

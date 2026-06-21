@@ -107,7 +107,8 @@ export default function MergeBuilderDialog({ open, onClose, planId, courses, cou
                     {derivation.parent.name} <span className="text-muted-foreground">({derivation.parent.level})</span>
                   </p>
                   <p className="text-muted-foreground">
-                    Teacher: {teacherLabelById.get(derivation.parent.teacherId) ?? "—"}
+                    {derivation.parent.teacherIds.length === 1 ? "Teacher" : "Teachers"}:{" "}
+                    {derivation.parent.teacherIds.map((id) => teacherLabelById.get(id) ?? id).join(", ")}
                   </p>
                 </div>
               ) : (
@@ -180,7 +181,7 @@ function useMergeBuilder(
       name: course.name,
       level: course.level,
       cohort: course.cohort,
-      teacherId: course.teacherId,
+      teacherIds: course.teacherIds,
     })),
   );
 

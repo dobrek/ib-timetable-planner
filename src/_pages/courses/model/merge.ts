@@ -15,14 +15,14 @@ export type MergeChildInput = {
   name: string;
   level: string;
   cohort: Cohort;
-  teacherId: string | null;
+  teacherIds: string[];
 };
 
-/** The derived composite-parent spec. `cohort`/`teacherId` are validated across children. */
+/** The derived composite-parent spec. `cohort`/`teacherIds` are validated across children. */
 export type MergeParentSpec = {
   name: string;
   level: string;
-  teacherId: string;
+  teacherIds: string[];
   cohort: Cohort;
 };
 
@@ -40,10 +40,10 @@ export type MergeDerivation = { ok: true; parent: MergeParentSpec } | { ok: fals
 
 /**
  * Validate a candidate merge and derive its composite parent. Rules, in order:
- * ≥2 children, single shared cohort, exact-equal shared name, single shared
- * (non-null) teacher, and distinct levels. On success the composite `level` joins
- * the distinct child levels in IB order (`AB, SL, HL`) with any others appended in
- * input order, so `AB+SL` is produced regardless of selection order.
+ * ≥2 children, single shared cohort, exact-equal shared name, an identical non-empty
+ * teacher *set* shared by every child, and distinct levels. On success the composite
+ * `level` joins the distinct child levels in IB order (`AB, SL, HL`) with any others
+ * appended in input order, so `AB+SL` is produced regardless of selection order.
  */
 export const deriveMergeParent = (children: MergeChildInput[]): MergeDerivation => {
   if (children.length < 2) return { ok: false, reason: "too-few-children" };
@@ -54,16 +54,22 @@ export const deriveMergeParent = (children: MergeChildInput[]): MergeDerivation 
   const name = children[0].name;
   if (children.some((child) => child.name !== name)) return { ok: false, reason: "mismatched-name" };
 
-  const teacherId = children[0].teacherId;
-  if (teacherId === null || children.some((child) => child.teacherId === null))
-    return { ok: false, reason: "missing-teacher" };
-  if (children.some((child) => child.teacherId !== teacherId)) return { ok: false, reason: "mismatched-teacher" };
+  const teacherIds = children[0].teacherIds;
+  if (children.some((child) => child.teacherIds.length === 0)) return { ok: false, reason: "missing-teacher" };
+  if (children.some((child) => !sameTeacherSet(child.teacherIds, teacherIds)))
+    return { ok: false, reason: "mismatched-teacher" };
 
   const levels = children.map((child) => child.level);
   if (new Set(levels).size !== levels.length) return { ok: false, reason: "duplicate-levels" };
 
-  // teacherId is narrowed to a non-null string by the missing-teacher guard above.
-  return { ok: true, parent: { name, level: compositeLevel(levels), teacherId, cohort } };
+  // Every child shares the same non-empty set; carry it (deduped) onto the parent.
+  return { ok: true, parent: { name, level: compositeLevel(levels), teacherIds: [...new Set(teacherIds)], cohort } };
+};
+
+/** Set equality over teacher ids (order-independent). */
+const sameTeacherSet = (a: string[], b: string[]): boolean => {
+  const bSet = new Set(b);
+  return a.length === b.length && a.every((id) => bSet.has(id));
 };
 
 /** Human-readable rendering of a failure reason, for inline form errors and action messages. */

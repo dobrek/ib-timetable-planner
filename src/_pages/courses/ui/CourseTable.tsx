@@ -56,7 +56,19 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
               <TableCell>{row.level === LEVEL_NONE ? "—" : row.level}</TableCell>
               <TableCell>{formatGroupCell(row.groupIndex)}</TableCell>
               <TableCell className="text-right">{row.hours}</TableCell>
-              <TableCell>{row.teacherLabel ?? "—"}</TableCell>
+              <TableCell>
+                {row.teacherLabels.length === 0 ? (
+                  "—"
+                ) : (
+                  <span className="flex flex-wrap gap-2">
+                    {row.teacherLabels.map((label, i) => (
+                      <Badge key={row.teacherIds[i]} variant="secondary">
+                        {label}
+                      </Badge>
+                    ))}
+                  </span>
+                )}
+              </TableCell>
               <TableCell className="text-right">
                 <CourseRowActions
                   row={row}

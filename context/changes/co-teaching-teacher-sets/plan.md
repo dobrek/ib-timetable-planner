@@ -639,9 +639,9 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [x] 7.1 `pnpm test:e2e` passes including `co-teaching.spec.ts` (authoring round-trip + delete-guard)
-- [x] 7.2 Specs run green in `chromium` without affecting `chromium-guard`
+- [x] 7.1 `pnpm test:e2e` passes including `co-teaching.spec.ts` (authoring round-trip + delete-guard) — c85e3e3
+- [x] 7.2 Specs run green in `chromium` without affecting `chromium-guard` — c85e3e3
 
 #### Manual
 
-- [x] 7.3 Forced-failure run confirms the assertions are meaningful (not vacuous)
+- [x] 7.3 Forced-failure run confirms the assertions are meaningful (not vacuous) — c85e3e3

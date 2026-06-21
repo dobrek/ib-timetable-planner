@@ -687,18 +687,18 @@ resetting.
 
 #### Automated
 
-- [ ] 1.1 Migrations apply cleanly (`supabase db reset`)
-- [ ] 1.2 Generated types compile (`astro sync && lint`)
-- [ ] 1.3 `weeksDisjoint` unit tests pass (`pnpm test`)
-- [ ] 1.4 Integration: placement week round-trip, `updatePlacementWeek`, clone preserves columns
-- [ ] 1.5 Seed regenerates deterministically; EE/CAS `biweekly` in both cohorts
-- [ ] 1.6 Build clean (`pnpm build`)
-- [ ] 1.7 FSD check passes (`pnpm steiger`)
+- [x] 1.1 Migrations apply cleanly (`supabase db reset`)
+- [x] 1.2 Generated types compile (`astro sync && lint`)
+- [x] 1.3 `weeksDisjoint` unit tests pass (`pnpm test`)
+- [x] 1.4 Integration: placement week round-trip, `updatePlacementWeek`, clone preserves columns
+- [x] 1.5 Seed regenerates deterministically; EE/CAS `biweekly` in both cohorts
+- [x] 1.6 Build clean (`pnpm build`)
+- [x] 1.7 FSD check passes (`pnpm steiger`)
 
 #### Manual
 
-- [ ] 1.8 Studio shows EE/CAS `biweekly` in DP1+DP2; others `agnostic`
-- [ ] 1.9 Board/placement behavior visually unchanged (all `both`)
+- [x] 1.8 Studio shows EE/CAS `biweekly` in DP1+DP2; others `agnostic`
+- [x] 1.9 Board/placement behavior visually unchanged (all `both`)
 
 ### Phase 2: Board Validator
 

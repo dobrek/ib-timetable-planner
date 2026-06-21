@@ -53,7 +53,7 @@ function serializePlan(planName, rows) {
   sql.push(
     inserts(
       "courses",
-      ["id", "plan_id", "cohort", "name", "level", "group_index", "hours_per_week"],
+      ["id", "plan_id", "cohort", "name", "level", "group_index", "hours_per_week", "week_mode"],
       rows.courses.map((r) => [
         q(r.id),
         q(r.plan_id),
@@ -62,6 +62,7 @@ function serializePlan(planName, rows) {
         q(r.level),
         r.group_index,
         r.hours_per_week,
+        q(r.week_mode),
       ]),
     ),
   );

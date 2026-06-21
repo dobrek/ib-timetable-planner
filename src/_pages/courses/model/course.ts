@@ -1,4 +1,4 @@
-import type { Cohort } from "@/shared/config";
+import type { Cohort, WeekMode } from "@/shared/config";
 
 /**
  * View-models assembled server-side in `plans/[id]/courses.astro` and handed to the catalog
@@ -18,6 +18,8 @@ export type CourseRow = {
   level: string;
   groupIndex: number;
   hours: number;
+  /** Fortnightly eligibility — `agnostic` (every week) or `biweekly` (week A or B only). */
+  weekMode: WeekMode;
   /** The course's co-teacher ids (set; ≥1 for app-authored courses). */
   teacherIds: string[];
   /** Display labels for `teacherIds`, resolved at load (parallel array, same order). */

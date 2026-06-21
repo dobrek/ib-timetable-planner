@@ -1,4 +1,5 @@
 import { err, ok, type Result } from "@/shared/lib/result";
+import type { PlacementWeek } from "@/shared/config";
 import type { CellData } from "./drag";
 import { occupiesCell, type LocalPlacement, type PlannerPlacement } from "./placement";
 
@@ -13,8 +14,9 @@ export function addOptimistic(
   tempId: string,
   courseId: string,
   cell: CellData,
+  week: PlacementWeek,
 ): LocalPlacement[] {
-  return [...prev, { id: tempId, courseId, day: cell.day, period: cell.period, pending: true }];
+  return [...prev, { id: tempId, courseId, day: cell.day, period: cell.period, week, pending: true }];
 }
 
 export function addReconcile(prev: LocalPlacement[], tempId: string, real: PlannerPlacement): LocalPlacement[] {
@@ -27,7 +29,7 @@ export function addRollback(prev: LocalPlacement[], tempId: string): LocalPlacem
 
 // --- Add group (batch) ---
 
-export type BatchEntry = { tempId: string; courseId: string };
+export type BatchEntry = { tempId: string; courseId: string; week: PlacementWeek };
 /** `result: null` means the member failed to persist and rolls back. */
 export type BatchOutcome = { tempId: string; result: PlannerPlacement | null };
 
@@ -38,11 +40,12 @@ export function eligibleMembers(placements: LocalPlacement[], memberIds: string[
 export function addManyOptimistic(prev: LocalPlacement[], entries: BatchEntry[], cell: CellData): LocalPlacement[] {
   return [
     ...prev,
-    ...entries.map(({ tempId, courseId }) => ({
+    ...entries.map(({ tempId, courseId, week }) => ({
       id: tempId,
       courseId,
       day: cell.day,
       period: cell.period,
+      week,
       pending: true,
     })),
   ];
@@ -81,6 +84,8 @@ export type MoveIntent = {
   oldId: string;
   origin: { day: number; period: number };
   courseId: string;
+  /** The moved placement keeps its week — a move is a re-POST that must preserve A/B. */
+  week: PlacementWeek;
 };
 
 export type MoveRejection = "not-found" | "pending" | "same-cell" | "occupied";
@@ -95,7 +100,7 @@ export function moveIntent(
   if (row.pending) return err("pending");
   if (row.day === cell.day && row.period === cell.period) return err("same-cell");
   if (occupiesCell(placements, row.courseId, cell)) return err("occupied");
-  return ok({ oldId: row.id, origin: { day: row.day, period: row.period }, courseId: row.courseId });
+  return ok({ oldId: row.id, origin: { day: row.day, period: row.period }, courseId: row.courseId, week: row.week });
 }
 
 export function moveOptimistic(prev: LocalPlacement[], id: string, cell: CellData): LocalPlacement[] {
@@ -134,6 +139,22 @@ export function removeOptimistic(prev: LocalPlacement[], id: string): LocalPlace
 
 export function removeRollback(prev: LocalPlacement[], row: LocalPlacement): LocalPlacement[] {
   return [...prev, row];
+}
+
+// --- Set week (A/B) ---
+
+/** Optimistically move a chip to the other lane. The row already has a real id (only placed
+ * bi-weekly chips expose the control), so no `pending` gate is needed — the control stays live. */
+export function setWeekOptimistic(prev: LocalPlacement[], id: string, week: PlacementWeek): LocalPlacement[] {
+  return prev.map((p) => (p.id === id ? { ...p, week } : p));
+}
+
+export function setWeekReconcile(prev: LocalPlacement[], id: string, updated: PlannerPlacement): LocalPlacement[] {
+  return prev.map((p) => (p.id === id ? updated : p));
+}
+
+export function setWeekRollback(prev: LocalPlacement[], id: string, prevWeek: PlacementWeek): LocalPlacement[] {
+  return prev.map((p) => (p.id === id ? { ...p, week: prevWeek } : p));
 }
 
 // --- Bundle move/remove (whole-slot batch) ---

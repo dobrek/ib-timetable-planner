@@ -74,6 +74,7 @@ export type Database = {
           coverage_count: number
           created_at: string
           id: string
+          opposite_week: boolean
           plan_id: string
           score: number
         }
@@ -83,6 +84,7 @@ export type Database = {
           coverage_count: number
           created_at?: string
           id?: string
+          opposite_week?: boolean
           plan_id: string
           score: number
         }
@@ -92,6 +94,7 @@ export type Database = {
           coverage_count?: number
           created_at?: string
           id?: string
+          opposite_week?: boolean
           plan_id?: string
           score?: number
         }
@@ -240,6 +243,7 @@ export type Database = {
           name: string
           plan_id: string
           updated_at: string
+          week_mode: Database["public"]["Enums"]["course_week_mode"]
         }
         Insert: {
           cohort: Database["public"]["Enums"]["cohort"]
@@ -251,6 +255,7 @@ export type Database = {
           name: string
           plan_id: string
           updated_at?: string
+          week_mode?: Database["public"]["Enums"]["course_week_mode"]
         }
         Update: {
           cohort?: Database["public"]["Enums"]["cohort"]
@@ -262,6 +267,7 @@ export type Database = {
           name?: string
           plan_id?: string
           updated_at?: string
+          week_mode?: Database["public"]["Enums"]["course_week_mode"]
         }
         Relationships: [
           {
@@ -282,6 +288,7 @@ export type Database = {
           id: string
           period: number
           plan_id: string
+          week: Database["public"]["Enums"]["placement_week"]
         }
         Insert: {
           cohort: Database["public"]["Enums"]["cohort"]
@@ -291,6 +298,7 @@ export type Database = {
           id?: string
           period: number
           plan_id: string
+          week?: Database["public"]["Enums"]["placement_week"]
         }
         Update: {
           cohort?: Database["public"]["Enums"]["cohort"]
@@ -300,6 +308,7 @@ export type Database = {
           id?: string
           period?: number
           plan_id?: string
+          week?: Database["public"]["Enums"]["placement_week"]
         }
         Relationships: [
           {
@@ -557,6 +566,8 @@ export type Database = {
     Enums: {
       availability_severity: "strong" | "soft"
       cohort: "dp1" | "dp2"
+      course_week_mode: "agnostic" | "biweekly"
+      placement_week: "both" | "a" | "b"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -689,6 +700,8 @@ export const Constants = {
     Enums: {
       availability_severity: ["strong", "soft"],
       cohort: ["dp1", "dp2"],
+      course_week_mode: ["agnostic", "biweekly"],
+      placement_week: ["both", "a", "b"],
     },
   },
 } as const

@@ -3,11 +3,14 @@
 
 export type Cohort = "dp1" | "dp2";
 
+export type WeekMode = "agnostic" | "biweekly";
+
 export type CatalogCourse = {
   name: string;
   level: string;
   group_index: number;
   hours_per_week: number;
+  week_mode: WeekMode;
   teacher_codes: Set<string>;
 };
 
@@ -34,6 +37,7 @@ export type CourseRow = {
   level: string;
   group_index: number;
   hours_per_week: number;
+  week_mode: WeekMode;
 };
 export type OverlapRow = { id: string; plan_id: string; base_course_id: string; dependent_course_id: string };
 export type MergeRow = { id: string; plan_id: string; parent_course_id: string; child_course_id: string };

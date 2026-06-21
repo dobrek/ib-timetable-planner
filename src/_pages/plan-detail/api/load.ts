@@ -51,7 +51,7 @@ export const loadPlannerData = async (
       .select("id, coverage_count, score, course_grouping_members(course_id)")
       .eq("plan_id", id)
       .eq("cohort", BOARD_COHORT),
-    supabase.from("placements").select("id, course_id, day, period").eq("plan_id", id).eq("cohort", BOARD_COHORT),
+    supabase.from("placements").select("id, course_id, day, period, week").eq("plan_id", id).eq("cohort", BOARD_COHORT),
     supabase.from("slot_bundles").select("day, period").eq("plan_id", id).eq("cohort", BOARD_COHORT),
     // Availability is cohort-independent — no cohort filter (S-09: it just works for dp2 later).
     supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
@@ -76,6 +76,7 @@ export const loadPlannerData = async (
     courseId: row.course_id,
     day: row.day,
     period: row.period,
+    week: row.week,
   }));
 
   const overrides: SlotOverride[] = (overridesResult.data ?? []).map((row) => ({

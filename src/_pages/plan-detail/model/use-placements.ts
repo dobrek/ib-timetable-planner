@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { Cohort } from "@/shared/config";
-import { createPlacement, deletePlacement } from "../api/placement-client";
+import type { Cohort, PlacementWeek } from "@/shared/config";
+import { createPlacement, deletePlacement, updatePlacementWeek } from "../api/placement-client";
 import type { CellData } from "./drag";
 import {
   addManyOptimistic,
@@ -20,11 +20,20 @@ import {
   removeOptimistic,
   removeRollback,
   removeTarget,
+  setWeekOptimistic,
+  setWeekReconcile,
+  setWeekRollback,
   settleMany,
   type BatchOutcome,
   type PlacementError,
 } from "./placement-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement";
+
+/**
+ * The week a freshly-dropped course takes. Phase 1 default: every placement is `both`
+ * (no behavior change). Phase 5 resolves a bi-weekly course to a concrete `a`/`b` here.
+ */
+const DROP_WEEK: PlacementWeek = "both";
 
 type UsePlacementsArgs = { planId: string; cohort: Cohort };
 
@@ -35,6 +44,7 @@ type UsePlacements = {
   addGroup: (memberIds: string[], cell: CellData) => void;
   movePlacement: (placementId: string, cell: CellData) => void;
   removePlacement: (placementId: string) => void;
+  setWeek: (placementId: string, week: PlacementWeek) => void;
   moveBundle: (day: number, period: number, target: CellData) => void;
   removeBundle: (day: number, period: number) => void;
   clearError: () => void;
@@ -66,6 +76,10 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     void persistRemove(placementId);
   }
 
+  function setWeek(placementId: string, week: PlacementWeek) {
+    void persistSetWeek(placementId, week);
+  }
+
   function moveBundle(day: number, period: number, target: CellData) {
     void persistMoveBundle(day, period, target);
   }
@@ -78,10 +92,17 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     if (!canAdd(placementsRef.current, courseId, cell)) return;
 
     const tempId = crypto.randomUUID();
-    setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell));
+    setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell, DROP_WEEK));
 
     try {
-      const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period });
+      const row = await createPlacement({
+        planId,
+        cohort,
+        courseId,
+        day: cell.day,
+        period: cell.period,
+        week: DROP_WEEK,
+      });
       setPlacements((prev) => addReconcile(prev, tempId, row));
     } catch (err: unknown) {
       setPlacements((prev) => addRollback(prev, tempId));
@@ -96,7 +117,7 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
     if (eligible.length === 0) return;
 
-    const entries = eligible.map((courseId) => ({ tempId: crypto.randomUUID(), courseId }));
+    const entries = eligible.map((courseId) => ({ tempId: crypto.randomUUID(), courseId, week: DROP_WEEK }));
     setPlacements((prev) => addManyOptimistic(prev, entries, cell));
 
     try {
@@ -117,11 +138,11 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
   }
 
   async function persistMember(
-    { tempId, courseId }: { tempId: string; courseId: string },
+    { tempId, courseId, week }: { tempId: string; courseId: string; week: PlacementWeek },
     cell: CellData,
   ): Promise<BatchOutcome & { courseId: string }> {
     try {
-      const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period });
+      const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
       return { tempId, courseId, result: row };
     } catch (err: unknown) {
       // The banner names which members failed; keep the underlying reason traceable.
@@ -145,6 +166,7 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
         courseId: intent.courseId,
         day: cell.day,
         period: cell.period,
+        week: intent.week,
       });
       setPlacements((prev) => moveReconcile(prev, intent.oldId, created));
       try {
@@ -206,6 +228,7 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
         courseId: row.courseId,
         day: target.day,
         period: target.period,
+        week: row.week,
       });
       return { tempId: row.id, courseId: row.courseId, result: created };
     } catch (err: unknown) {
@@ -253,6 +276,24 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     }
   }
 
+  // Flip a placed bi-weekly chip between the A and B lanes. Optimistic: set the new week,
+  // persist via updatePlacementWeek, reconcile to the server row; on failure roll back the week.
+  async function persistSetWeek(placementId: string, week: PlacementWeek) {
+    const row = placementsRef.current.find((p) => p.id === placementId);
+    if (!row || row.pending || row.week === week) return;
+    const prevWeek = row.week;
+
+    setPlacements((prev) => setWeekOptimistic(prev, placementId, week));
+
+    try {
+      const updated = await updatePlacementWeek(placementId, week);
+      setPlacements((prev) => setWeekReconcile(prev, placementId, updated));
+    } catch (err: unknown) {
+      setPlacements((prev) => setWeekRollback(prev, placementId, prevWeek));
+      setError(errorOf(err));
+    }
+  }
+
   return {
     placements,
     error,
@@ -260,6 +301,7 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
     addGroup,
     movePlacement,
     removePlacement,
+    setWeek,
     moveBundle,
     removeBundle,
     clearError: () => {

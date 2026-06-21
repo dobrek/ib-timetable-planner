@@ -1,9 +1,13 @@
+import type { PlacementWeek } from "@/shared/config";
+
 /** One placed course-hour. `id` may be a temporary client id until the POST reconciles. */
 export type PlannerPlacement = {
   id: string;
   courseId: string;
   day: number;
   period: number;
+  /** Which fortnightly week this placement runs on. Agnostic courses are always `both`. */
+  week: PlacementWeek;
 };
 
 /**

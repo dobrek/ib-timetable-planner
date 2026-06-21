@@ -16,6 +16,7 @@ const placement = (id: string, courseId: string, day: number, period: number): P
   courseId,
   day,
   period,
+  week: "both",
 });
 
 const catalog = (...courses: GroupingCourse[]): Map<string, GroupingCourse> => new Map(courses.map((c) => [c.id, c]));

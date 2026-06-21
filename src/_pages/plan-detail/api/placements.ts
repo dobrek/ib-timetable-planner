@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PlannerPlacement } from "../model/placement";
 import { UNIQUE_VIOLATION, unwrapRow, unwrapCompleted, type SupabaseClient } from "@/shared/api";
-import { cohortSchema } from "@/shared/config";
+import { cohortSchema, placementWeekSchema, type PlacementWeek } from "@/shared/config";
 import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
 
@@ -13,22 +13,31 @@ export const createPlacementInput = z.object({
   courseId: z.uuid(),
   day: z.int().min(1).max(GRID_BOUNDS.maxDays),
   period: z.int().min(1).max(GRID_BOUNDS.maxPeriods),
+  // Agnostic courses default to `both`; the drop path resolves bi-weekly courses to `a`/`b`.
+  week: placementWeekSchema.default("both"),
 });
 
 export const deletePlacementInput = z.object({
   id: z.uuid(),
 });
 
+export const updatePlacementWeekInput = z.object({
+  id: z.uuid(),
+  week: placementWeekSchema,
+});
+
 export type CreatePlacementInput = z.infer<typeof createPlacementInput>;
 export type DeletePlacementInput = z.infer<typeof deletePlacementInput>;
+export type UpdatePlacementWeekInput = z.infer<typeof updatePlacementWeekInput>;
 
-type PlacementRow = { id: string; course_id: string; day: number; period: number };
+type PlacementRow = { id: string; course_id: string; day: number; period: number; week: PlacementWeek };
 
 const toPlannerPlacement = (row: PlacementRow): PlannerPlacement => ({
   id: row.id,
   courseId: row.course_id,
   day: row.day,
   period: row.period,
+  week: row.week,
 });
 
 /**
@@ -37,11 +46,11 @@ const toPlannerPlacement = (row: PlacementRow): PlannerPlacement => ({
  * client reconciles its optimistic id — never a rollback, never a 500.
  */
 export const insertPlacement = async (supabase: Supabase, input: CreatePlacementInput): Promise<PlannerPlacement> => {
-  const { planId, cohort, courseId, day, period } = input;
+  const { planId, cohort, courseId, day, period, week } = input;
 
   const { data, error } = await supabase
     .from("placements")
-    .insert({ plan_id: planId, cohort, course_id: courseId, day, period })
+    .insert({ plan_id: planId, cohort, course_id: courseId, day, period, week })
     .select()
     .single();
 
@@ -72,4 +81,20 @@ export const insertPlacement = async (supabase: Supabase, input: CreatePlacement
 export const removePlacement = async (supabase: Supabase, input: DeletePlacementInput): Promise<{ id: string }> => {
   unwrapCompleted(await supabase.from("placements").delete().eq("id", input.id), "Failed to delete placement");
   return { id: input.id };
+};
+
+/**
+ * Flip a single placement's fortnightly week (A ↔ B). The insert path is idempotent on the
+ * unique key — which excludes `week` — so changing a placed course's week is an update, not
+ * a re-insert. Used by the per-chip A/B control.
+ */
+export const updatePlacementWeek = async (
+  supabase: Supabase,
+  input: UpdatePlacementWeekInput,
+): Promise<PlannerPlacement> => {
+  const updated = unwrapRow(
+    await supabase.from("placements").update({ week: input.week }).eq("id", input.id).select().single(),
+    { notFound: "Placement not found", failure: "Failed to update placement week" },
+  );
+  return toPlannerPlacement(updated);
 };

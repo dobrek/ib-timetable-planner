@@ -10,6 +10,7 @@ const row = (id: string, cohort: Cohort, teacherIds: string[]): CourseRow => ({
   level: "SL",
   groupIndex: 0,
   hours: 4,
+  weekMode: "agnostic",
   teacherIds,
   teacherLabels: teacherIds,
   isMerged: false,

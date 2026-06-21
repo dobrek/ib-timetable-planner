@@ -12,12 +12,22 @@ const validCourse = {
   groupIndex: 1 as const,
   hoursPerWeek: 4,
   cohort: "dp1" as const,
+  weekMode: "agnostic" as const,
   teacherIds: [UUID_B],
 };
 
 describe("courseInput", () => {
   it("accepts a valid atomic course", () => {
     expect(courseInput.parse(validCourse)).toEqual(validCourse);
+  });
+
+  it("defaults weekMode to agnostic when omitted", () => {
+    const { weekMode: _omitted, ...withoutWeekMode } = validCourse;
+    expect(courseInput.parse(withoutWeekMode).weekMode).toBe("agnostic");
+  });
+
+  it("accepts a bi-weekly course", () => {
+    expect(courseInput.parse({ ...validCourse, weekMode: "biweekly" }).weekMode).toBe("biweekly");
   });
 
   it("trims the name", () => {

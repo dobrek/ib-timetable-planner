@@ -18,8 +18,6 @@ import { loadCohortFixtures, buildPlanRows } from "./lib/catalog-transcode.mjs";
 // ---------------------------------------------------------------------------
 const esc = (s) => String(s).replace(/'/g, "''");
 const q = (s) => `'${esc(s)}'`;
-const NULL = "NULL";
-const qOrNull = (v) => (v == null || v === "" ? NULL : q(v));
 
 function inserts(table, cols, rows) {
   if (rows.length === 0) return "";
@@ -55,12 +53,11 @@ function serializePlan(planName, rows) {
   sql.push(
     inserts(
       "courses",
-      ["id", "plan_id", "cohort", "teacher_id", "name", "level", "group_index", "hours_per_week"],
+      ["id", "plan_id", "cohort", "name", "level", "group_index", "hours_per_week"],
       rows.courses.map((r) => [
         q(r.id),
         q(r.plan_id),
         q(r.cohort),
-        qOrNull(r.teacher_id),
         q(r.name),
         q(r.level),
         r.group_index,

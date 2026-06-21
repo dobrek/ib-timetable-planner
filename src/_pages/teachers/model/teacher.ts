@@ -24,9 +24,9 @@ export type CourseAssignment = {
 export type TeacherAvailabilityCell = { day: number; period: number; severity: AvailabilitySeverity };
 
 /**
- * One teacher row in the catalog table. `assignments` are read-only projections of
- * courses where `teacher_id` points at this teacher, grouped by cohort in the UI.
- * `availability` is the teacher's constrained cells, edited via the availability dialog.
+ * One teacher row in the catalog table. `assignments` are read-only projections of the
+ * courses linked to this teacher via the `course_teachers` junction, grouped by cohort in
+ * the UI. `availability` is the teacher's constrained cells, edited via the availability dialog.
  */
 export type TeacherRow = {
   id: string;

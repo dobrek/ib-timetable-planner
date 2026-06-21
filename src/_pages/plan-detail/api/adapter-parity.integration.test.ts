@@ -61,6 +61,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
           teacherKeys: course.teacherKeys.map((id) => teacherCode.get(id) ?? `?${id}`),
           hours: course.hours,
           studentKeys: course.studentKeys.map((id) => studentName.get(id) ?? `?${id}`),
+          weekMode: course.weekMode,
         },
       ]),
     );
@@ -85,6 +86,9 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       }
       if (db.hours !== fixture.hours) {
         problems.push(`hours: db=${db.hours} fixture=${fixture.hours}`);
+      }
+      if (db.weekMode !== fixture.weekMode) {
+        problems.push(`weekMode: db=${db.weekMode} fixture=${fixture.weekMode}`);
       }
       const dbStudents = new Set(db.studentKeys);
       const fixtureStudents = new Set(fixture.studentKeys);

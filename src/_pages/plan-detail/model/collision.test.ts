@@ -7,6 +7,7 @@ const course = (id: string, teacher: string | null, studentKeys: string[]): Grou
   teacherKeys: teacher === null ? [] : [teacher],
   studentKeys,
   hours: 4,
+  weekMode: "agnostic",
 });
 
 describe("hasIntersection", () => {

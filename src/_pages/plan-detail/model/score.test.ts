@@ -7,6 +7,7 @@ const course = (id: string, hours: number, studentKeys: string[]): GroupingCours
   teacherKeys: [],
   studentKeys,
   hours,
+  weekMode: "agnostic",
 });
 
 describe("scoreVariant", () => {
@@ -22,6 +23,17 @@ describe("scoreVariant", () => {
       course("A", 4, ["s1", "s2"]),
     );
     expect(result.coverageCount).toBe(4);
+  });
+
+  it("computes opposite-week coverageCount as the distinct student union (no double-count)", () => {
+    // Two bi-weekly courses sharing N=3 students {s1,s2,s3}; union is 3, not 4 (s2 shared).
+    const result = scoreVariant(
+      [course("A", 4, ["s1", "s2"]), course("B", 4, ["s2", "s3"])],
+      course("A", 4, ["s1", "s2"]),
+      { oppositeWeek: true },
+    );
+    expect(result.coverageCount).toBe(3);
+    expect(result.oppositeWeek).toBe(true);
   });
 
   it("computes rank as sum of hours * studentCount", () => {

@@ -18,6 +18,7 @@ export const computeCatalogHash = async (snapshot: CatalogSnapshot): Promise<str
         teacherKeys: [...course.teacherKeys].sort(),
         hours: course.hours,
         studentKeys: [...course.studentKeys].sort(),
+        weekMode: course.weekMode,
       }))
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   );

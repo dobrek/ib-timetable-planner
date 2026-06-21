@@ -9,6 +9,7 @@ const course = (id: string, teacher: string | null): GroupingCourse => ({
   teacherKeys: teacher === null ? [] : [teacher],
   hours: 1,
   studentKeys: [],
+  weekMode: "agnostic",
 });
 
 const coTaught = (id: string, teacherKeys: string[]): GroupingCourse => ({
@@ -16,6 +17,7 @@ const coTaught = (id: string, teacherKeys: string[]): GroupingCourse => ({
   teacherKeys,
   hours: 1,
   studentKeys: [],
+  weekMode: "agnostic",
 });
 
 // Week-blind by default (no map ⇒ every course reads as `both`); pass weeks to exercise the relaxation.

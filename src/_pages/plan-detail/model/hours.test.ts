@@ -3,7 +3,13 @@ import { countIncompleteCourses, deriveHours } from "./hours";
 import type { GroupingCourse } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 
-const course = (id: string, hours: number): GroupingCourse => ({ id, teacherKeys: ["t"], studentKeys: ["s"], hours });
+const course = (id: string, hours: number): GroupingCourse => ({
+  id,
+  teacherKeys: ["t"],
+  studentKeys: ["s"],
+  hours,
+  weekMode: "agnostic",
+});
 
 const placement = (id: string, courseId: string, day: number, period: number): PlannerPlacement => ({
   id,

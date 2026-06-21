@@ -8,6 +8,7 @@ const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({
   memberIds,
   coverageCount: 0,
   score: 0,
+  oppositeWeek: false,
 });
 
 const option = (id: string, name: string, groupCount: number): LeadingCourseOption => ({ id, name, groupCount });

@@ -9,6 +9,7 @@ const course = (id: string, teacher: string | null, studentKeys: string[]): Grou
   teacherKeys: teacher === null ? [] : [teacher],
   studentKeys,
   hours: 4,
+  weekMode: "agnostic",
 });
 
 const placement = (id: string, courseId: string, day: number, period: number): PlannerPlacement => ({
@@ -19,7 +20,13 @@ const placement = (id: string, courseId: string, day: number, period: number): P
   week: "both",
 });
 
-const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({ id, memberIds, coverageCount: 1, score: 1 });
+const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({
+  id,
+  memberIds,
+  coverageCount: 1,
+  score: 1,
+  oppositeWeek: false,
+});
 
 const catalog = (...courses: GroupingCourse[]): Map<string, GroupingCourse> => new Map(courses.map((c) => [c.id, c]));
 

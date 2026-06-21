@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config/cohorts";
+import type { WeekMode } from "@/shared/config";
 import { groupByInto, unique } from "@/shared/lib/collections";
 import type { CohortCatalog, ComputeWarning, GroupingCourse } from "@/shared/lib/catalog-hash";
 import { DomainError } from "@/shared/lib/errors";
@@ -62,6 +63,7 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
       id: course.id,
       teacherKeys: teachersOf.get(course.id) ?? [],
       hours: course.hours_per_week,
+      weekMode: course.week_mode,
       studentKeys: unique([...studentsOf(course.id), ...(dependentsOf.get(course.id) ?? []).flatMap(studentsOf)]),
     }));
 
@@ -75,6 +77,8 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
       id: parentId,
       teacherKeys: teachersOf.get(parentId) ?? [],
       hours: parent.hours_per_week,
+      // A merge parent's eligibility derives from its own course row.
+      weekMode: parent.week_mode,
       studentKeys: unique([...studentsOf(parentId), ...childIds.flatMap(studentsOf)]),
     };
   });
@@ -92,13 +96,14 @@ type CourseRow = {
   level: string;
   group_index: number;
   hours_per_week: number;
+  week_mode: WeekMode;
 };
 
 const fetchCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CourseRow[]> =>
   unwrapMany(
     await supabase
       .from("courses")
-      .select("id, name, level, group_index, hours_per_week")
+      .select("id, name, level, group_index, hours_per_week, week_mode")
       .eq("plan_id", planId)
       .eq("cohort", cohort)
       .order("id"),

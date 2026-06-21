@@ -13,6 +13,7 @@ const course = (id: string, teacher: string | null, studentKeys: string[]): Grou
   teacherKeys: teacher === null ? [] : [teacher],
   studentKeys,
   hours: 4,
+  weekMode: "agnostic",
 });
 
 const ctx = (...courses: GroupingCourse[]): BoardContext => ({
@@ -203,7 +204,13 @@ describe("teacherAvailability", () => {
   });
 
   it("fans out one violation per co-teacher unavailable at the cell, naming each", () => {
-    const coTaught: GroupingCourse = { id: "A", teacherKeys: ["t1", "t2"], studentKeys: ["s1"], hours: 4 };
+    const coTaught: GroupingCourse = {
+      id: "A",
+      teacherKeys: ["t1", "t2"],
+      studentKeys: ["s1"],
+      hours: 4,
+      weekMode: "agnostic",
+    };
     const strong = new Map([
       ["t1", new Set(["1:1"])],
       ["t2", new Set(["1:1"])],
@@ -215,7 +222,13 @@ describe("teacherAvailability", () => {
   });
 
   it("flags only the unavailable co-teacher when the other is free at the cell", () => {
-    const coTaught: GroupingCourse = { id: "A", teacherKeys: ["t1", "t2"], studentKeys: ["s1"], hours: 4 };
+    const coTaught: GroupingCourse = {
+      id: "A",
+      teacherKeys: ["t1", "t2"],
+      studentKeys: ["s1"],
+      hours: 4,
+      weekMode: "agnostic",
+    };
     const strong = new Map([["t2", new Set(["1:1"])]]);
     expect(teacherAvailability.explain([coTaught], unavailCtx({ day: 1, period: 1 }, strong))).toEqual([
       { kind: "teacher-unavailable", teacherKey: "t2", courseIds: ["A"], severity: "block" },

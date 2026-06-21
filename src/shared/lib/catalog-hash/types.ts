@@ -5,11 +5,15 @@
  * re-exports these so constraint-core signatures are unchanged.
  */
 
+import type { WeekMode } from "@/shared/config";
+
 export type GroupingCourse = {
   id: string;
   teacherKeys: string[];
   studentKeys: string[];
   hours: number;
+  /** Fortnightly eligibility — drives opposite-week enumeration and the catalog hash. */
+  weekMode: WeekMode;
 };
 
 export type ComputeWarning = {

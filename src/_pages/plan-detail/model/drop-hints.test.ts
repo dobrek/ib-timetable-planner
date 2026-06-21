@@ -1,15 +1,21 @@
 import { describe, expect, it } from "vitest";
+import type { WeekMode } from "@/shared/config";
 import { cellKey } from "./collisions";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 
-const course = (id: string, teacher: string | null, studentKeys: string[]): GroupingCourse => ({
+const course = (
+  id: string,
+  teacher: string | null,
+  studentKeys: string[],
+  weekMode: WeekMode = "agnostic",
+): GroupingCourse => ({
   id,
   teacherKeys: teacher === null ? [] : [teacher],
   studentKeys,
   hours: 4,
-  weekMode: "agnostic",
+  weekMode,
 });
 
 const placement = (id: string, courseId: string, day: number, period: number): PlannerPlacement => ({
@@ -253,5 +259,35 @@ describe("resolveDragHintContext", () => {
       { catalogById: catalog(course("A", "t1", ["s1"])), groupings: [grouping("g1", ["A"])], placements: [] },
     );
     expect(result).toBeNull();
+  });
+});
+
+describe("deriveDropHints — opposite-week (soft edge)", () => {
+  it("marks a soft-conflicting cell opposite-week, not blocked, for a bi-weekly drag over a bi-weekly occupant", () => {
+    const dragged = course("A", "t1", ["s1"], "biweekly");
+    const occupant = course("B", "t1", ["s2"], "biweekly"); // shares teacher t1 → conflict, both biweekly → soft
+    const result = deriveDropHints({ members: [dragged] }, [placement("p1", "B", 1, 1)], catalog(dragged, occupant));
+    expect(result?.get(cellKey(1, 1))).toBe("opposite-week");
+  });
+
+  it("still blocks when the dragged course is agnostic (hard edge)", () => {
+    const dragged = course("A", "t1", ["s1"], "agnostic");
+    const occupant = course("B", "t1", ["s2"], "biweekly");
+    const result = deriveDropHints({ members: [dragged] }, [placement("p1", "B", 1, 1)], catalog(dragged, occupant));
+    expect(result?.get(cellKey(1, 1))).toBe("blocked");
+  });
+
+  it("still blocks when a conflicting occupant is agnostic (hard edge), even if the dragged course is bi-weekly", () => {
+    const dragged = course("A", "t1", ["s1"], "biweekly");
+    const occupant = course("B", "t1", ["s2"], "agnostic");
+    const result = deriveDropHints({ members: [dragged] }, [placement("p1", "B", 1, 1)], catalog(dragged, occupant));
+    expect(result?.get(cellKey(1, 1))).toBe("blocked");
+  });
+
+  it("leaves a non-conflicting cell free even when both courses are bi-weekly", () => {
+    const dragged = course("A", "t1", ["s1"], "biweekly");
+    const occupant = course("C", "t2", ["s9"], "biweekly"); // disjoint teacher + students → no conflict
+    const result = deriveDropHints({ members: [dragged] }, [placement("p1", "C", 1, 1)], catalog(dragged, occupant));
+    expect(result?.has(cellKey(1, 1))).toBe(false);
   });
 });

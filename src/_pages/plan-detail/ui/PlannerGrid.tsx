@@ -1,3 +1,4 @@
+import type { PlacementWeek } from "@/shared/config";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import SlotCell from "./SlotCell";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
@@ -23,6 +24,7 @@ type Props = {
   /** Is `(day, period)` explicitly ungrouped? Drives the per-cell `bundled` derivation. */
   isOverridden: (day: number, period: number) => boolean;
   onRemove: (placementId: string) => void;
+  onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
@@ -39,6 +41,7 @@ export default function PlannerGrid({
   hintMode,
   isOverridden,
   onRemove,
+  onSetWeek,
   onToggleBundle,
   onRemoveBundle,
   onInspect,
@@ -72,6 +75,7 @@ export default function PlannerGrid({
             hintMode={hintMode}
             isOverridden={isOverridden}
             onRemove={onRemove}
+            onSetWeek={onSetWeek}
             onToggleBundle={onToggleBundle}
             onRemoveBundle={onRemoveBundle}
             onInspect={onInspect}
@@ -92,6 +96,7 @@ function PeriodRow({
   hintMode,
   isOverridden,
   onRemove,
+  onSetWeek,
   onToggleBundle,
   onRemoveBundle,
   onInspect,
@@ -105,6 +110,7 @@ function PeriodRow({
   hintMode: HintMode;
   isOverridden: (day: number, period: number) => boolean;
   onRemove: (placementId: string) => void;
+  onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
@@ -129,6 +135,7 @@ function PeriodRow({
             hintMode={hintMode}
             bundled={isBundled(occupants.length, isOverridden(day, period))}
             onRemove={onRemove}
+            onSetWeek={onSetWeek}
             onToggleBundle={onToggleBundle}
             onRemoveBundle={onRemoveBundle}
             onInspect={onInspect}

@@ -15,21 +15,30 @@ import {
   moveReconcile,
   moveRollback,
   occupantPlacementIds,
+  oppositeWeekAssignment,
   partitionBundleMove,
   placementErrorMessage,
   removeManyOptimistic,
   removeOptimistic,
   removeRollback,
   removeTarget,
+  resolveDropWeek,
   settleMany,
 } from "./placement-transitions";
 
-const p = (id: string, courseId: string, day: number, period: number, pending?: boolean): LocalPlacement => ({
+const p = (
+  id: string,
+  courseId: string,
+  day: number,
+  period: number,
+  pending?: boolean,
+  week: LocalPlacement["week"] = "both",
+): LocalPlacement => ({
   id,
   courseId,
   day,
   period,
-  week: "both",
+  week,
   ...(pending ? { pending } : {}),
 });
 
@@ -394,5 +403,36 @@ describe("bundle move/remove transitions", () => {
     const snapshot = [...prev];
     removeManyOptimistic(prev, ["p1"]);
     expect(prev).toEqual(snapshot);
+  });
+});
+
+describe("drop-time week assignment", () => {
+  it("resolveDropWeek returns both for an agnostic course", () => {
+    expect(resolveDropWeek("agnostic", [], cell(1, 1))).toBe("both");
+  });
+
+  it("resolveDropWeek returns a for a bi-weekly course in an empty cell", () => {
+    expect(resolveDropWeek("biweekly", [], cell(1, 1))).toBe("a");
+  });
+
+  it("resolveDropWeek picks the free week when one is already taken", () => {
+    const occupied = [p("x", "X", 1, 1, false, "a")];
+    expect(resolveDropWeek("biweekly", occupied, cell(1, 1))).toBe("b");
+  });
+
+  it("resolveDropWeek falls back to a when both weeks are taken", () => {
+    const occupied = [p("x", "X", 1, 1, false, "a"), p("y", "Y", 1, 1, false, "b")];
+    expect(resolveDropWeek("biweekly", occupied, cell(1, 1))).toBe("a");
+  });
+
+  it("resolveDropWeek ignores occupants in other cells", () => {
+    const elsewhere = [p("x", "X", 2, 2, false, "a")];
+    expect(resolveDropWeek("biweekly", elsewhere, cell(1, 1))).toBe("a");
+  });
+
+  it("oppositeWeekAssignment puts the sorted-first id on a and the second on b", () => {
+    const assignment = oppositeWeekAssignment(["B", "A"]);
+    expect(assignment.get("A")).toBe("a");
+    expect(assignment.get("B")).toBe("b");
   });
 });

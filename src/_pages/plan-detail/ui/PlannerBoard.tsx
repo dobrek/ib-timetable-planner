@@ -35,6 +35,8 @@ import { useSlotBundles } from "../model/use-slot-bundles";
 export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
   const { planId, cohort, days, periods, groupings, names, teacherNames, studentNames, catalog, availability } = props;
 
+  const weekModeByCourseId = useMemo(() => new Map(catalog.map((course) => [course.id, course.weekMode])), [catalog]);
+
   const {
     placements,
     error,
@@ -42,10 +44,11 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     addGroup,
     movePlacement,
     removePlacement,
+    setWeek,
     moveBundle,
     removeBundle,
     clearError,
-  } = usePlacements(props.placements, { planId, cohort });
+  } = usePlacements(props.placements, { planId, cohort, weekModeByCourseId });
   const {
     isOverridden,
     toggleBundle,
@@ -99,10 +102,11 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     }
   }
 
-  // Unknown groupingId → empty member list → no-op.
+  // Unknown groupingId → empty member list → no-op. An opposite-week grouping lands its members
+  // on alternating weeks; a plain grouping resolves each member by its own eligibility.
   function dropGroup(groupingId: string, cell: CellData) {
-    const members = groupings.find((grouping) => grouping.id === groupingId)?.memberIds ?? [];
-    addGroup(members, cell);
+    const grouping = groupings.find((candidate) => candidate.id === groupingId);
+    addGroup(grouping?.memberIds ?? [], cell, { oppositeWeek: grouping?.oppositeWeek ?? false });
   }
 
   if (groupings.length === 0) {
@@ -150,6 +154,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 hintMode={hintMode}
                 isOverridden={isOverridden}
                 onRemove={removePlacement}
+                onSetWeek={setWeek}
                 onToggleBundle={toggleBundle}
                 onRemoveBundle={removeBundle}
                 onInspect={inspection.open}

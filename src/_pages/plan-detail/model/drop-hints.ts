@@ -15,10 +15,13 @@ const NO_AVAILABILITY: AvailabilityIndex = {
 /**
  * Per-cell drag affordance. The map is **sparse**: a cell absent from the map (while
  * a drag is active) is free. `"partial"` is structurally group-only — single-member
- * drags only ever yield free, `"warn"`, or `"blocked"`. `"warn"` (soft-NO) is advisory:
- * it only surfaces on a cell that would otherwise be free. Precedence: blocked > partial > warn > free.
+ * drags only ever yield free, `"warn"`, `"opposite-week"`, or `"blocked"`. `"warn"` (soft-NO)
+ * is advisory: it only surfaces on a cell that would otherwise be free. `"opposite-week"` marks
+ * a cell where a dragged bi-weekly course could legally share on the opposite week — a positive,
+ * non-destructive affordance (week chosen after drop). Precedence: blocked > partial >
+ * opposite-week > warn > free.
  */
-export type DropHint = "partial" | "blocked" | "warn";
+export type DropHint = "partial" | "blocked" | "warn" | "opposite-week";
 
 /** Resolved inputs the derivation needs, independent of which `DragData` kind produced them. */
 export type DragHintContext = {
@@ -137,9 +140,14 @@ const resolveMembers = (
 
 /**
  * A member "hard-fits" a cell iff it would land collision-free AND its teacher is not
- * strong-unavailable there. Roll up with precedence blocked > partial > warn > free:
- * some members don't hard-fit → `"blocked"` (none fit) / `"partial"` (some fit); all hard-fit
- * → `"warn"` if any member's teacher is soft-unavailable there, else free (omit).
+ * strong-unavailable there. A member "soft-fits" (opposite-week) iff it does not hard-fit but
+ * its only blockers are *soft edges* — the member is bi-weekly and every occupant it conflicts
+ * with is also bi-weekly, so the two could share on opposite weeks (the week is chosen after drop).
+ *
+ * Roll up with precedence blocked > partial > opposite-week > warn > free: any member that
+ * hard-conflicts → `"blocked"` (none placeable) / `"partial"` (some placeable); else if any member
+ * soft-fits → `"opposite-week"`; else all hard-fit → `"warn"` if any teacher is soft-unavailable
+ * there, else free (omit).
  *
  * Collision fit is decided by `violatesAny` over the constraint registry. Availability is a
  * board-only constraint (no `test`), so it is NOT inherited by `violatesAny` — both severities
@@ -151,14 +159,31 @@ const classifyCell = (
   key: string,
   availability: AvailabilityIndex,
 ): DropHint | null => {
-  let fits = 0;
+  let hardFits = 0;
+  let softFits = 0;
+  let hardConflicts = 0;
   let soft = false;
   for (const member of members) {
-    if (!violatesAny(member, occupants) && !isStrongUnavailable(member, key, availability)) fits += 1;
+    const strongUnavailable = isStrongUnavailable(member, key, availability);
     if (isSoftUnavailable(member, key, availability)) soft = true;
+    if (!violatesAny(member, occupants) && !strongUnavailable) hardFits += 1;
+    else if (!strongUnavailable && softFitsOppositeWeek(member, occupants)) softFits += 1;
+    else hardConflicts += 1;
   }
-  if (fits < members.length) return fits === 0 ? "blocked" : "partial";
+  if (hardConflicts > 0) return hardFits + softFits === 0 ? "blocked" : "partial";
+  if (softFits > 0) return "opposite-week";
   return soft ? "warn" : null;
+};
+
+/**
+ * A dragged member soft-fits iff it is bi-weekly AND every occupant it conflicts with is also
+ * bi-weekly — the Phase-3 soft-edge rule. Such conflicts are resolvable by placing the member on
+ * the opposite week, so the cell is a legal (non-blocking) drop rather than blocked.
+ */
+const softFitsOppositeWeek = (member: GroupingCourse, occupants: GroupingCourse[]): boolean => {
+  if (member.weekMode !== "biweekly") return false;
+  const conflicting = occupants.filter((occupant) => violatesAny(member, [occupant]));
+  return conflicting.length > 0 && conflicting.every((occupant) => occupant.weekMode === "biweekly");
 };
 
 // A member is unavailable at a cell iff ANY of its co-teachers is unavailable there.

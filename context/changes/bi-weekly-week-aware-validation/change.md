@@ -1,7 +1,7 @@
 ---
 change_id: bi-weekly-week-aware-validation
 title: Bi-weekly week-aware validation
-status: implementing
+status: implemented
 created: 2026-06-21
 updated: 2026-06-21
 archived_at: null

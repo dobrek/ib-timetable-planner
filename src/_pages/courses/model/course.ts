@@ -18,8 +18,10 @@ export type CourseRow = {
   level: string;
   groupIndex: number;
   hours: number;
-  teacherId: string | null;
-  teacherLabel: string | null;
+  /** The course's co-teacher ids (set; ≥1 for app-authored courses). */
+  teacherIds: string[];
+  /** Display labels for `teacherIds`, resolved at load (parallel array, same order). */
+  teacherLabels: string[];
   isMerged: boolean;
   /** Child course ids when this row is a composite merge parent; empty otherwise. */
   mergeChildIds: string[];

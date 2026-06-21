@@ -571,10 +571,10 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [x] 2.1 Constraint-core + hash unit tests pass (`pnpm test`)
-- [x] 2.2 Load / clone-junction-remap / adapter-parity integration tests pass
-- [x] 2.3 Type change reconciles — build is clean (`pnpm build`)
-- [x] 2.4 Structure + lint pass (`pnpm steiger` && `pnpm lint`)
+- [x] 2.1 Constraint-core + hash unit tests pass (`pnpm test`) — e414807
+- [x] 2.2 Load / clone-junction-remap / adapter-parity integration tests pass — e414807
+- [x] 2.3 Type change reconciles — build is clean (`pnpm build`) — e414807
+- [x] 2.4 Structure + lint pass (`pnpm steiger` && `pnpm lint`) — e414807
 
 #### Manual
 
@@ -585,9 +585,9 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [ ] 3.1 Courses unit tests pass (schema `.min(1)`, view-model, create/update)
-- [ ] 3.2 Build is clean (`pnpm build`)
-- [ ] 3.3 Structure + lint pass (`pnpm steiger` && `pnpm lint`)
+- [x] 3.1 Courses unit tests pass (schema `.min(1)`, view-model, create/update)
+- [x] 3.2 Build is clean (`pnpm build`)
+- [x] 3.3 Structure + lint pass (`pnpm steiger` && `pnpm lint`)
 
 #### Manual
 
@@ -614,9 +614,9 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [x] 5.1 `gen-seed.mjs` runs; second run byte-identical
-- [x] 5.2 Generator aborts loudly on a zero-teacher course
-- [x] 5.3 `supabase db reset` loads the regenerated seed cleanly
+- [x] 5.1 `gen-seed.mjs` runs; second run byte-identical — e414807
+- [x] 5.2 Generator aborts loudly on a zero-teacher course — e414807
+- [x] 5.3 `supabase db reset` loads the regenerated seed cleanly — e414807
 
 #### Manual
 

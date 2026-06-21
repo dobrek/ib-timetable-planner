@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@/shared/api";
 
 type QueryResult = { data: unknown; error: { code?: string; message: string } | null };
 
-/** Minimal chainable fake: every query resolves to the one configured result. */
+/** Minimal chainable fake: every query resolves to the one configured result; rpc is a no-op. */
 const fakeSupabase = (result: QueryResult) => {
   const builder = {
     update: () => builder,
@@ -12,7 +12,7 @@ const fakeSupabase = (result: QueryResult) => {
     select: () => builder,
     single: () => Promise.resolve(result),
   };
-  return { from: () => builder } as unknown as SupabaseClient;
+  return { from: () => builder, rpc: () => Promise.resolve({ error: null }) } as unknown as SupabaseClient;
 };
 
 const input = {
@@ -23,7 +23,7 @@ const input = {
   groupIndex: 0 as const,
   hoursPerWeek: 4,
   cohort: "dp1" as const,
-  teacherId: "teacher-1",
+  teacherIds: ["teacher-1"],
 };
 
 describe("updateCourse", () => {

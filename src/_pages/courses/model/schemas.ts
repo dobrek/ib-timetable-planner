@@ -10,7 +10,8 @@ import { LEVEL_NONE } from "./course";
  * functions insert/guard within that plan (composite FKs backstop them).
  *
  * These schemas encode app-layer rules the DB deliberately does NOT enforce:
- *   - `teacherId` is required here, but `courses.teacher_id` is nullable in the DB.
+ *   - `teacherIds` requires at least one teacher here; the DB has no ≥1 trigger (the
+ *     invariant is app-enforced: this `.min(1)`, the delete-guard, and the seed abort).
  * `level` is optional free text (matching the permissive `courses.level` column) so
  * composite merge-parent levels (`AB+SL`, …) round-trip through the editor; an empty
  * level normalizes to `"none"`. `hoursPerWeek` mirrors the DB `check (hours_per_week >= 0)`
@@ -40,8 +41,8 @@ export const courseInput = z.object({
   groupIndex: z.literal(COURSE_GROUP_INDICES),
   hoursPerWeek: z.int().min(0, "Weekly hours cannot be negative"),
   cohort: cohortSchema,
-  // Stricter than the nullable DB column: a course must have a teacher.
-  teacherId: z.uuid("A teacher is required"),
+  // A course is co-taught by a set of one-or-more equal teachers (app-enforced ≥1).
+  teacherIds: z.array(z.uuid()).min(1, "At least one teacher is required"),
 });
 
 export const updateCourseInput = courseInput.extend({

@@ -17,6 +17,7 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  MultiSelect,
   NumberField,
   Select,
   SelectContent,
@@ -170,24 +171,21 @@ export default function CourseFormDialog({ open, onClose, planId, teachers, cour
 
             <FormField
               control={form.control}
-              name="teacherId"
+              name="teacherIds"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Teacher</FormLabel>
-                  <Select value={field.value || undefined} onValueChange={field.onChange} disabled={noTeachers}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a teacher" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {teachers.map((teacher) => (
-                        <SelectItem key={teacher.id} value={teacher.id}>
-                          {teacher.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <FormItem className="flex flex-col">
+                  <FormLabel>Teachers</FormLabel>
+                  <MultiSelect
+                    modal
+                    items={teachers}
+                    selectedIds={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    trigger={field.value.length > 0 ? `${field.value.length} selected` : "Select teachers…"}
+                    triggerClassName="w-full justify-between font-normal"
+                    searchPlaceholder="Search teachers…"
+                    emptyText="No teachers found."
+                  />
                   {noTeachers && (
                     <p className="text-muted-foreground text-sm">
                       No teachers exist yet — add a teacher (S-03) before creating a course.
@@ -249,7 +247,7 @@ const courseFormValues = (planId: string, course: CourseRow): DefaultValues<Cour
   level: course.level,
   groupIndex: toGroupIndex(course.groupIndex),
   hoursPerWeek: course.hours,
-  teacherId: course.teacherId ?? undefined,
+  teacherIds: course.teacherIds,
   cohort: course.cohort,
 });
 
@@ -259,6 +257,6 @@ const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<Co
   level: "",
   groupIndex: 0,
   hoursPerWeek: undefined,
-  teacherId: undefined,
+  teacherIds: [],
   cohort,
 });

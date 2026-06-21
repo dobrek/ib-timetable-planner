@@ -18,6 +18,6 @@ export function filterCourses(
     if (course.cohort !== activeCohort) return false;
     if (hideMerged && course.isMerged) return false;
     if (teacherFilter.size === 0) return true;
-    return course.teacherId !== null && teacherFilter.has(course.teacherId);
+    return course.teacherIds.some((id) => teacherFilter.has(id));
   });
 }

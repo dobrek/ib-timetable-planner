@@ -15,18 +15,19 @@ export const loadCatalog = (supabase: SupabaseClient | null, planId: string): Pr
   withSupabase(supabase, (client) => fetchCatalog(client, planId));
 
 const fetchCatalog = async (client: SupabaseClient, planId: string): Promise<CatalogData> => {
-  const [coursesRes, teachersRes, mergesRes, overlapsRes] = await Promise.all([
+  const [coursesRes, teachersRes, mergesRes, overlapsRes, courseTeachersRes] = await Promise.all([
     client
       .from("courses")
-      .select("id, cohort, name, level, group_index, hours_per_week, teacher_id")
+      .select("id, cohort, name, level, group_index, hours_per_week")
       .eq("plan_id", planId)
       .order("name")
       .limit(500),
     client.from("teachers").select("id, code, full_name").eq("plan_id", planId).order("code").limit(500),
     client.from("course_merges").select("parent_course_id, child_course_id").eq("plan_id", planId).limit(500),
     client.from("course_overlaps").select("base_course_id, dependent_course_id").eq("plan_id", planId).limit(500),
+    client.from("course_teachers").select("course_id, teacher_id").eq("plan_id", planId).limit(2000),
   ]);
-  assertNoQueryErrors("Catalog", [coursesRes, teachersRes, mergesRes, overlapsRes]);
+  assertNoQueryErrors("Catalog", [coursesRes, teachersRes, mergesRes, overlapsRes, courseTeachersRes]);
 
   const teacherLabel = new Map((teachersRes.data ?? []).map((t) => [t.id, teacherDisplayLabel(t)] as const));
 
@@ -35,21 +36,26 @@ const fetchCatalog = async (client: SupabaseClient, planId: string): Promise<Cat
   const childLinksByParent = groupBy(mergesRes.data ?? [], (m) => m.parent_course_id);
   // dependent course id → its base-course links (this course's students also attend those bases).
   const overlapsByDependent = groupBy(overlapsRes.data ?? [], (o) => o.dependent_course_id);
+  // course id → its teacher ids (the co-teacher set, from the course_teachers junction).
+  const teachersByCourse = groupBy(courseTeachersRes.data ?? [], (ct) => ct.course_id);
 
   return {
-    courses: (coursesRes.data ?? []).map((c) => ({
-      id: c.id,
-      cohort: c.cohort,
-      name: c.name,
-      level: c.level,
-      groupIndex: c.group_index,
-      hours: c.hours_per_week,
-      teacherId: c.teacher_id,
-      teacherLabel: c.teacher_id ? (teacherLabel.get(c.teacher_id) ?? null) : null,
-      isMerged: childLinksByParent.has(c.id),
-      mergeChildIds: (childLinksByParent.get(c.id) ?? []).map((m) => m.child_course_id),
-      overlaps: (overlapsByDependent.get(c.id) ?? []).map((o) => o.base_course_id),
-    })),
+    courses: (coursesRes.data ?? []).map((c) => {
+      const teacherIds = (teachersByCourse.get(c.id) ?? []).map((ct) => ct.teacher_id);
+      return {
+        id: c.id,
+        cohort: c.cohort,
+        name: c.name,
+        level: c.level,
+        groupIndex: c.group_index,
+        hours: c.hours_per_week,
+        teacherIds,
+        teacherLabels: teacherIds.map((id) => teacherLabel.get(id) ?? id),
+        isMerged: childLinksByParent.has(c.id),
+        mergeChildIds: (childLinksByParent.get(c.id) ?? []).map((m) => m.child_course_id),
+        overlaps: (overlapsByDependent.get(c.id) ?? []).map((o) => o.base_course_id),
+      };
+    }),
     teachers: (teachersRes.data ?? []).map((t) => ({ id: t.id, label: teacherDisplayLabel(t) })),
   };
 };

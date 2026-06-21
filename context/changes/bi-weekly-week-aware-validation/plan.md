@@ -719,24 +719,24 @@ resetting.
 
 #### Automated
 
-- [x] 3.1 Enumeration unit tests pass (opposite-week emission + edge classification)
-- [x] 3.2 Catalog-hash test reflects `weekMode`
-- [x] 3.3 Integration: compute→persist round-trips `opposite_week`; clone preserves it
-- [x] 3.4 Enumeration result-space within caps for the seed catalog
-- [x] 3.5 Type/lint/build/steiger clean
+- [x] 3.1 Enumeration unit tests pass (opposite-week emission + edge classification) — bc96bfd
+- [x] 3.2 Catalog-hash test reflects `weekMode` — bc96bfd
+- [x] 3.3 Integration: compute→persist round-trips `opposite_week`; clone preserves it — bc96bfd
+- [x] 3.4 Enumeration result-space within caps for the seed catalog — bc96bfd
+- [x] 3.5 Type/lint/build/steiger clean — bc96bfd
 
 #### Manual
 
 - [ ] 3.6 Palette suggests EE+CAS opposite-week grouping with A/B badge
-- [x] 3.7 Agnostic-only catalogs produce identical groupings to before
-- [x] 3.8 Editing a course's `weekMode` marks prior groupings stale
+- [x] 3.7 Agnostic-only catalogs produce identical groupings to before — bc96bfd
+- [x] 3.8 Editing a course's `weekMode` marks prior groupings stale — bc96bfd
 
 ### Phase 4: Course Authoring UI
 
 #### Automated
 
-- [ ] 4.1 Type/lint/build/steiger clean
-- [ ] 4.2 Existing courses-slice unit tests pass
+- [x] 4.1 Type/lint/build/steiger clean
+- [x] 4.2 Existing courses-slice unit tests pass
 
 #### Manual
 

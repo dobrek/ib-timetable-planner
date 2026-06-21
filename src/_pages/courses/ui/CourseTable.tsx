@@ -50,6 +50,7 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
                 <span className="flex flex-wrap items-center gap-2">
                   {row.name}
                   {row.isMerged && <Badge variant="secondary">Merged</Badge>}
+                  {row.weekMode === "biweekly" && <Badge variant="outline">Bi-weekly</Badge>}
                   <OverlapBadge row={row} coursesById={coursesById} onManageOverlaps={onManageOverlaps} />
                 </span>
               </TableCell>

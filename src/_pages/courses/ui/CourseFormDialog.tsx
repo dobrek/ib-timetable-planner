@@ -25,11 +25,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui";
-import { COHORTS, type Cohort } from "@/shared/config";
+import { COHORTS, type Cohort, type WeekMode } from "@/shared/config";
 import { createCourse, updateCourse } from "../api/course-client";
 import { GROUP_OPTIONS } from "../lib/labels";
 import type { CourseRow, TeacherOption } from "../model/course";
 import { courseInput, toGroupIndex, type CourseFormValues, type CourseInput } from "../model/schemas";
+
+/** The two week-eligibility states, in display order. */
+const WEEK_MODE_OPTIONS: readonly { value: WeekMode; label: string }[] = [
+  { value: "agnostic", label: "Every week" },
+  { value: "biweekly", label: "Bi-weekly (A/B)" },
+];
 
 type Props = {
   open: boolean;
@@ -167,6 +173,31 @@ export default function CourseFormDialog({ open, onClose, planId, teachers, cour
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="weekMode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Schedule</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {WEEK_MODE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField
@@ -249,6 +280,7 @@ const courseFormValues = (planId: string, course: CourseRow): DefaultValues<Cour
   hoursPerWeek: course.hours,
   teacherIds: course.teacherIds,
   cohort: course.cohort,
+  weekMode: course.weekMode,
 });
 
 const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<CourseFormValues> => ({
@@ -259,4 +291,5 @@ const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<Co
   hoursPerWeek: undefined,
   teacherIds: [],
   cohort,
+  weekMode: "agnostic",
 });

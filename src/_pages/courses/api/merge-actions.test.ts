@@ -63,28 +63,48 @@ const child = (id: string, level: string) => ({
   cohort: "dp1" as const,
   name: "German B",
   level,
-  teacher_id: "teacher-1",
 });
+
+/** course_teachers rows for the child teacher-set lookup. */
+const links = (...pairs: [course: string, teacher: string][]) =>
+  pairs.map(([course_id, teacher_id]) => ({ course_id, teacher_id }));
 
 const validInput = { planId: "plan-1", childCourseIds: ["a", "b"], hoursPerWeek: 3, cohort: "dp1" as const };
 
 describe("createMerge", () => {
-  it("inserts the composite parent and its links for valid children", async () => {
+  it("inserts the composite parent, its merge links, and its teacher set for valid children", async () => {
     const { client, used } = fakeSupabase({
       "courses:select": { data: [child("a", "AB"), child("b", "SL")], error: null },
+      "course_teachers:select": { data: links(["a", "t1"], ["b", "t1"]), error: null },
       "courses:insert": { data: { id: "parent-1" }, error: null },
       "course_merges:insert": { data: null, error: null },
+      "course_teachers:insert": { data: null, error: null },
     });
 
     await expect(createMerge(client, validInput)).resolves.toEqual({ id: "parent-1" });
+    expect(used).toContain("course_teachers:insert");
     expect(used).not.toContain("courses:delete");
   });
 
-  it("deletes the parent when the link insert fails (no orphan parent)", async () => {
+  it("deletes the parent when the merge-link insert fails (no orphan parent)", async () => {
     const { client, used } = fakeSupabase({
       "courses:select": { data: [child("a", "AB"), child("b", "SL")], error: null },
+      "course_teachers:select": { data: links(["a", "t1"], ["b", "t1"]), error: null },
       "courses:insert": { data: { id: "parent-1" }, error: null },
       "course_merges:insert": { data: null, error: { message: "link failed" } },
+    });
+
+    await expect(createMerge(client, validInput)).rejects.toBeInstanceOf(DomainError);
+    expect(used).toContain("courses:delete");
+  });
+
+  it("deletes the parent when the teacher-link insert fails (no teacher-less composite)", async () => {
+    const { client, used } = fakeSupabase({
+      "courses:select": { data: [child("a", "AB"), child("b", "SL")], error: null },
+      "course_teachers:select": { data: links(["a", "t1"], ["b", "t1"]), error: null },
+      "courses:insert": { data: { id: "parent-1" }, error: null },
+      "course_merges:insert": { data: null, error: null },
+      "course_teachers:insert": { data: null, error: { message: "teacher link failed" } },
     });
 
     await expect(createMerge(client, validInput)).rejects.toBeInstanceOf(DomainError);
@@ -105,6 +125,16 @@ describe("createMerge", () => {
         data: [child("a", "AB"), { ...child("b", "SL"), name: "French B" }],
         error: null,
       },
+      "course_teachers:select": { data: links(["a", "t1"], ["b", "t1"]), error: null },
+    });
+
+    await expect(createMerge(client, validInput)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("rejects with BAD_REQUEST when the children's teacher sets differ", async () => {
+    const { client } = fakeSupabase({
+      "courses:select": { data: [child("a", "AB"), child("b", "SL")], error: null },
+      "course_teachers:select": { data: links(["a", "t1"], ["b", "t2"]), error: null },
     });
 
     await expect(createMerge(client, validInput)).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -113,6 +143,7 @@ describe("createMerge", () => {
   it("rejects with BAD_REQUEST when the input cohort differs from the children's cohort", async () => {
     const { client } = fakeSupabase({
       "courses:select": { data: [child("a", "AB"), child("b", "SL")], error: null },
+      "course_teachers:select": { data: links(["a", "t1"], ["b", "t1"]), error: null },
     });
 
     await expect(createMerge(client, { ...validInput, cohort: "dp2" })).rejects.toMatchObject({

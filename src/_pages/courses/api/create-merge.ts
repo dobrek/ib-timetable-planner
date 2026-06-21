@@ -1,4 +1,5 @@
 import { unwrapMany, unwrapRow, unwrapCompleted, type SupabaseClient } from "@/shared/api";
+import { groupByInto } from "@/shared/lib/collections";
 import type { MergeInput } from "../model/schemas";
 import { deriveMergeParent, mergeReasonMessage } from "../model/merge";
 import { DomainError } from "@/shared/lib/errors";
@@ -6,16 +7,18 @@ import { DUPLICATE_COURSE_MESSAGE } from "./constants";
 import { writeParentWithLinks } from "@/shared/lib/write-parent-with-links";
 
 /**
- * Authoritative create-merge gate. Loads the selected children (pinned to the plan),
- * re-runs `deriveMergeParent` server-side (never trusting the client), inserts the
- * composite parent then its links, and compensates by deleting the parent if the link
- * insert fails (no orphan parent).
+ * Authoritative create-merge gate. Loads the selected children (pinned to the plan) and
+ * their teacher *sets* from the course_teachers junction, re-runs `deriveMergeParent`
+ * server-side (never trusting the client), inserts the composite parent, then its merge
+ * links AND its own course_teachers rows (so the composite session is a real co-taught
+ * course on the board), compensating by deleting the parent — which cascades both link
+ * tables — if any link insert fails (no orphan parent, no teacher-less composite).
  */
 export const createMerge = async (supabase: SupabaseClient, input: MergeInput) => {
   const childRows = unwrapMany(
     await supabase
       .from("courses")
-      .select("id, cohort, name, level, teacher_id")
+      .select("id, cohort, name, level")
       .eq("plan_id", input.planId)
       .in("id", input.childCourseIds),
     "Course lookup failed",
@@ -24,16 +27,28 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
     throw new DomainError("NOT_FOUND", "One or more courses no longer exist.");
   }
 
-  // Phase 3: feed teacherIds derived from the legacy scalar so the build stays green
-  // against the new merge model. Phase 4 §3/§3a sources the set from course_teachers
-  // and persists the parent's set into the junction (this scalar path is interim).
+  // Each child's teacher SET from the junction — the source of truth for the merge rule.
+  const childTeacherLinks = unwrapMany(
+    await supabase
+      .from("course_teachers")
+      .select("course_id, teacher_id")
+      .eq("plan_id", input.planId)
+      .in("course_id", input.childCourseIds),
+    "Course teacher lookup failed",
+  );
+  const teachersByCourse = groupByInto(
+    childTeacherLinks,
+    (link) => link.course_id,
+    (link) => link.teacher_id,
+  );
+
   const derivation = deriveMergeParent(
     childRows.map((c) => ({
       id: c.id,
       name: c.name,
       level: c.level,
       cohort: c.cohort,
-      teacherIds: c.teacher_id ? [c.teacher_id] : [],
+      teacherIds: teachersByCourse.get(c.id) ?? [],
     })),
   );
   if (!derivation.ok) {
@@ -44,6 +59,7 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
     throw new DomainError("BAD_REQUEST", "Selected courses are not in the requested cohort.");
   }
 
+  const parentTeacherIds = derivation.parent.teacherIds;
   return writeParentWithLinks({
     insertParent: async () =>
       unwrapRow(
@@ -52,7 +68,6 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
           .insert({
             plan_id: input.planId,
             cohort: derivation.parent.cohort,
-            teacher_id: derivation.parent.teacherIds[0] ?? null,
             name: derivation.parent.name,
             level: derivation.parent.level,
             group_index: 0,
@@ -73,13 +88,26 @@ export const createMerge = async (supabase: SupabaseClient, input: MergeInput) =
         ),
         "Failed to create merge",
       );
+      // The composite parent is a real course on the board — persist its teacher set in
+      // the junction too, or it would render teacher-less and lose conflict/availability.
+      unwrapCompleted(
+        await supabase.from("course_teachers").insert(
+          parentTeacherIds.map((teacher_id) => ({
+            plan_id: input.planId,
+            course_id: parent.id,
+            teacher_id,
+          })),
+        ),
+        "Failed to assign merge teachers",
+      );
     },
     deleteParent: async (parent) => {
+      // Deleting the parent cascades both course_merges and course_teachers (ON DELETE CASCADE).
       const { error } = await supabase.from("courses").delete().eq("id", parent.id);
       if (error) {
-        // Double fault: the link insert failed AND its compensating cleanup failed,
-        // leaving an orphan parent. Surface it for tracing — the original link error
-        // is still rethrown to the caller by writeParentWithLinks.
+        // Double fault: a link insert failed AND its compensating cleanup failed, leaving an
+        // orphan parent. Surface it for tracing — the original link error is still rethrown
+        // to the caller by writeParentWithLinks.
         // eslint-disable-next-line no-console
         console.error(`[createMerge] orphan parent ${parent.id} left after failed cleanup: ${error.message}`);
       }

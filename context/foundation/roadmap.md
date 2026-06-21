@@ -31,7 +31,7 @@ The IB timetable editor shipped and was demoed to its plan authors. Design and t
 | ---- | ------------------------------------ | ------------------------------------------------------------------------------------------ | ------------- | --------------------------------- | -------- |
 | S-01 | dp1-dp2-cohort-naming                | see cohorts labelled **DP1 / DP2** everywhere instead of "Year 1 / Year 2"                 | —             | FR-004                            | done     |
 | S-02 | co-teaching-teacher-sets             | assign two+ teachers to a course; both count as occupied for conflict + availability       | —             | FR-001, FR-012                    | done     |
-| S-03 | bi-weekly-week-aware-validation      | mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot           | S-02          | FR-002, FR-003, FR-012, US-03     | proposed |
+| S-03 | bi-weekly-week-aware-validation      | mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot           | S-02          | FR-002, FR-003, FR-012, US-03     | done     |
 | S-04 | two-cohort-board-cross-cohort        | open either cohort, switch freely; a teacher occupied in one cohort's slot/week blocks the other | S-02, S-03    | FR-005, FR-006, FR-012            | proposed |
 | S-05 | first-class-bundle-operations        | move / remove / replace a placed grouping as one bundle; ungroup to per-course still works | —             | FR-009, FR-010                    | ready    |
 | S-06 | combined-two-cohort-view             | assemble & edit a collision-free DP1 \| DP2 plan side by side, validated across both cohorts | S-04, S-05    | FR-007, FR-008, FR-012, US-01     | proposed |
@@ -115,7 +115,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
   - How the week (A/B) is chosen at drop time and shown on a placed cell without breaking the existing drop-hint UX — Owner: user / design. Block: no.
   - Whether the grouping/recommendation half must also become week-aware in this slice or can follow — Owner: dev. Block: no (PRD says recommendation "unchanged in spirit" but must become week-aware eventually).
 - **Risk:** The deepest, most invasive change — the PRD's "unified collision rule" spine (collide iff *share a student or teacher* **and** *weeks overlap*) is reworked across schema (course fortnight flag + placement week), the grid, and every occupancy check. Highest single-slice correctness risk before cross-cohort; sequenced after S-02 so the rule is built once over the teacher-set form, and before S-04 because cross-cohort occupancy (FR-006) is itself week-aware and depends on this dimension existing.
-- **Status:** proposed
+- **Status:** done
 
 ### S-04: Two-cohort board — free switching + cross-cohort occupancy
 
@@ -223,3 +223,4 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 
 - **S-01: Author sees cohorts labelled **"DP1"** and **"DP2"** throughout the UI, replacing the "Year 1" / "Year 2" display labels. The `dp1` / `dp2` data values are unchanged.** — Archived 2026-06-20 → `context/archive/2026-06-20-dp1-dp2-cohort-naming/`. Lesson: —.
 - **S-02: assign two+ teachers to a course; both count as occupied for conflict + availability** — Archived 2026-06-21 → `context/archive/2026-06-20-co-teaching-teacher-sets/`. Lesson: —.
+- **S-03: mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot** — Archived 2026-06-21 → `context/archive/2026-06-21-bi-weekly-week-aware-validation/`. Lesson: —.

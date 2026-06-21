@@ -20,7 +20,8 @@ type Props = {
 };
 
 /**
- * Confirms a destructive delete and names the assignment cascade impact.
+ * Confirms a destructive delete. Co-teacher links just drop; deleting the SOLE teacher of
+ * any course is blocked server-side (the ≥1-teacher guard names the orphaned courses).
  */
 export default function DeleteTeacherDialog({ planId, teacher, onClose }: Props) {
   const { confirm, isBusy } = useConfirmAction(() => deleteTeacher({ planId, id: teacher?.id ?? "" }), {
@@ -41,7 +42,7 @@ export default function DeleteTeacherDialog({ planId, teacher, onClose }: Props)
           <AlertDialogTitle>Delete {teacher?.code}?</AlertDialogTitle>
           <AlertDialogDescription>
             {assignmentCount > 0
-              ? `This teacher is assigned to ${assignmentCount} course${assignmentCount === 1 ? "" : "s"}. Deleting will remove their assignment from those courses.`
+              ? `This teacher co-teaches ${assignmentCount} course${assignmentCount === 1 ? "" : "s"}. Deleting drops them as a co-teacher; if they are the only teacher on any course, the deletion is blocked — reassign that course first.`
               : "This permanently removes the teacher from the catalog."}
           </AlertDialogDescription>
         </AlertDialogHeader>

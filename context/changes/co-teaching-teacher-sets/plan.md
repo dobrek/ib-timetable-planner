@@ -585,9 +585,9 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [x] 3.1 Courses unit tests pass (schema `.min(1)`, view-model, create/update)
-- [x] 3.2 Build is clean (`pnpm build`)
-- [x] 3.3 Structure + lint pass (`pnpm steiger` && `pnpm lint`)
+- [x] 3.1 Courses unit tests pass (schema `.min(1)`, view-model, create/update) — 2cedaf0
+- [x] 3.2 Build is clean (`pnpm build`) — 2cedaf0
+- [x] 3.3 Structure + lint pass (`pnpm steiger` && `pnpm lint`) — 2cedaf0
 
 #### Manual
 
@@ -599,10 +599,10 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [ ] 4.1 Teachers loader + delete-guard tests pass
-- [ ] 4.2 Merge set-equality action tests pass
-- [ ] 4.3 Merge-parent persistence integration test passes (parent carries its teacher set on board load)
-- [ ] 4.4 Build + structure + lint clean
+- [x] 4.1 Teachers loader + delete-guard tests pass
+- [x] 4.2 Merge set-equality action tests pass
+- [x] 4.3 Merge-parent persistence integration test passes (parent carries its teacher set on board load)
+- [x] 4.4 Build + structure + lint clean
 
 #### Manual
 

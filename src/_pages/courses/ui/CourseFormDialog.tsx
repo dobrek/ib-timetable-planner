@@ -31,12 +31,6 @@ import { GROUP_OPTIONS } from "../lib/labels";
 import type { CourseRow, TeacherOption } from "../model/course";
 import { courseInput, toGroupIndex, type CourseFormValues, type CourseInput } from "../model/schemas";
 
-/** The two week-eligibility states, in display order. */
-const WEEK_MODE_OPTIONS: readonly { value: WeekMode; label: string }[] = [
-  { value: "agnostic", label: "Every week" },
-  { value: "biweekly", label: "Bi-weekly (A/B)" },
-];
-
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -293,3 +287,9 @@ const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<Co
   cohort,
   weekMode: "agnostic",
 });
+
+/** The two week-eligibility states, in display order. */
+const WEEK_MODE_OPTIONS: readonly { value: WeekMode; label: string }[] = [
+  { value: "agnostic", label: "Every week" },
+  { value: "biweekly", label: "Bi-weekly (A/B)" },
+];

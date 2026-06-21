@@ -217,7 +217,7 @@ function WeekLane({
     <div data-slot="week-lane" data-week={label} className="flex items-stretch gap-1">
       <span
         aria-hidden="true"
-        className="bg-secondary text-muted-foreground flex w-4 shrink-0 items-center justify-center rounded text-[10px] font-medium"
+        className="bg-secondary text-muted-foreground flex w-4 shrink-0 items-center justify-center rounded text-xs font-medium"
       >
         {label}
       </span>
@@ -388,7 +388,7 @@ function WeekToggle({
             event.stopPropagation();
           }}
           className={cn(
-            "px-1 text-[10px] font-medium uppercase",
+            "px-1 text-xs font-medium uppercase",
             week === option
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",

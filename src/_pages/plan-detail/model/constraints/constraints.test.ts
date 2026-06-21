@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PlacementWeek } from "@/shared/config";
 import { duplicateCourse } from "./duplicate-course";
 import { explainCell, violatesAny } from "./index";
 import { studentConflict } from "./student-conflict";
@@ -17,6 +18,12 @@ const course = (id: string, teacher: string | null, studentKeys: string[]): Grou
 const ctx = (...courses: GroupingCourse[]): BoardContext => ({
   cell: { day: 1, period: 1 },
   catalogById: new Map(courses.map((c) => [c.id, c])),
+});
+
+// ctx variant carrying per-course placement weeks, for the opposite-week relaxation cases.
+const ctxWeeks = (weeks: Record<string, PlacementWeek>, ...courses: GroupingCourse[]): BoardContext => ({
+  ...ctx(...courses),
+  weekByCourseId: new Map(Object.entries(weeks)),
 });
 
 describe("duplicateCourse", () => {
@@ -96,6 +103,28 @@ describe("studentConflict", () => {
 
   it("tests true when a student key is shared", () => {
     expect(studentConflict.test?.(course("A", null, ["s1", "s2"]), [course("B", null, ["s3", "s2"])])).toBe(true);
+  });
+
+  it("does not conflict an opposite-week (A/B) pair that shares students", () => {
+    const a = course("A", null, ["s1", "s2"]);
+    const b = course("B", null, ["s2", "s3"]);
+    expect(studentConflict.explain([a, b], ctxWeeks({ A: "a", B: "b" }, a, b))).toEqual([]);
+  });
+
+  it("still conflicts a same-week pair that shares students", () => {
+    const a = course("A", null, ["s1", "s2"]);
+    const b = course("B", null, ["s2", "s3"]);
+    expect(studentConflict.explain([a, b], ctxWeeks({ A: "a", B: "a" }, a, b))).toEqual([
+      { kind: "student", studentKeys: ["s2"], courseIds: ["A", "B"] },
+    ]);
+  });
+
+  it("still conflicts when one course is agnostic (both) and the other single-week shares students", () => {
+    const a = course("A", null, ["s1", "s2"]);
+    const b = course("B", null, ["s2", "s3"]);
+    expect(studentConflict.explain([a, b], ctxWeeks({ A: "both", B: "a" }, a, b))).toEqual([
+      { kind: "student", studentKeys: ["s2"], courseIds: ["A", "B"] },
+    ]);
   });
 });
 

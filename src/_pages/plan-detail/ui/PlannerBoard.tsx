@@ -1,4 +1,5 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
+import type { PlacementWeek } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
@@ -163,6 +164,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         names={names}
         teacherNames={teacherNames}
         studentNames={studentNames}
+        weekByCourseId={inspectedWeeks(inspection.target, placements)}
         onClose={inspection.close}
       />
       <GroupDragOverlay groupings={groupings} names={names} placements={placements} />
@@ -245,6 +247,18 @@ function useCollisionInspection(collisions: Map<string, CellCollisions>) {
 
 const inspectedViolations = (target: CollisionInspectionTarget | null, collisions: Map<string, CellCollisions>) =>
   target ? (collisions.get(cellKey(target.day, target.period))?.violations ?? []) : [];
+
+// The inspected cell's placement weeks (courseId → week), for the dialog's same-week hint.
+const inspectedWeeks = (
+  target: CollisionInspectionTarget | null,
+  placements: LocalPlacement[],
+): Record<string, PlacementWeek> => {
+  if (!target) return {};
+  const weeks: Record<string, PlacementWeek> = {};
+  for (const placement of placements)
+    if (placement.day === target.day && placement.period === target.period) weeks[placement.courseId] = placement.week;
+  return weeks;
+};
 
 function useHours(placements: LocalPlacement[], catalog: GroupingCourse[]) {
   const hours = useMemo(() => deriveHours(placements, catalog), [placements, catalog]);

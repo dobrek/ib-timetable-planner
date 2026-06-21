@@ -1,3 +1,4 @@
+import type { PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "../grouping";
 
 /**
@@ -23,6 +24,9 @@ export type BoardContext = {
   strongUnavailableByTeacher?: Map<string, Set<string>>;
   /** Cells (by `cellKey`) each teacher PREFERS NOT to teach — soft NO → `warn` (Phase 4). */
   softUnavailableByTeacher?: Map<string, Set<string>>;
+  /** Each occupant's placement week (courseId → week), within this cell. Absent ⇒ treat
+   *  as `both` (every week). Drives the opposite-week relaxation in the conflict constraints. */
+  weekByCourseId?: Map<string, PlacementWeek>;
 };
 
 /** A self-contained cell constraint: one file per rule, registered in `index.ts`. */

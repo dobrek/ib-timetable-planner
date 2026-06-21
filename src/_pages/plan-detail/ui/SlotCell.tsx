@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { Link, Trash2, TriangleAlert, Unlink, UserX, X } from "lucide-react";
+import type { PlacementWeek } from "@/shared/config";
 import { Badge } from "@/shared/ui";
 import { Button } from "@/shared/ui";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
@@ -28,6 +29,7 @@ type Props = {
   /** True when this cell behaves as one unit (>=2 occupants, not explicitly ungrouped). */
   bundled: boolean;
   onRemove: (placementId: string) => void;
+  onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
@@ -54,6 +56,7 @@ export default function SlotCell({
   hintMode,
   bundled,
   onRemove,
+  onSetWeek,
   onToggleBundle,
   onRemoveBundle,
   onInspect,
@@ -87,6 +90,26 @@ export default function SlotCell({
   // Sparse map: no entry while a drag is active means "free"; no active drag means "no hint".
   const hintState = hintActive ? (dropHint ?? "free") : undefined;
   const hasHeader = occupants.length >= 2;
+  // Progressive disclosure: lanes appear only once a bi-weekly placement is present; the
+  // ~95% agnostic-only cell renders via the unchanged flat path.
+  const hasBiweekly = occupants.some((occupant) => occupant.week === "a" || occupant.week === "b");
+
+  const renderChip = (placement: LocalPlacement) => (
+    <PlacedChip
+      key={placement.id}
+      placement={placement}
+      name={names[placement.courseId] ?? placement.courseId}
+      blocking={blockingIds?.has(placement.courseId) ?? false}
+      warning={warningIds?.has(placement.courseId) ?? false}
+      unavailable={unavailable?.has(placement.courseId) ?? false}
+      bundled={bundled}
+      onRemove={onRemove}
+      onSetWeek={onSetWeek}
+      onInspect={() => {
+        onInspect({ day, period, courseId: placement.courseId });
+      }}
+    />
+  );
 
   return (
     <div
@@ -163,21 +186,53 @@ export default function SlotCell({
         </div>
       )}
 
-      {occupants.map((placement) => (
-        <PlacedChip
-          key={placement.id}
-          placement={placement}
-          name={names[placement.courseId] ?? placement.courseId}
-          blocking={blockingIds?.has(placement.courseId) ?? false}
-          warning={warningIds?.has(placement.courseId) ?? false}
-          unavailable={unavailable?.has(placement.courseId) ?? false}
-          bundled={bundled}
-          onRemove={onRemove}
-          onInspect={() => {
-            onInspect({ day, period, courseId: placement.courseId });
-          }}
-        />
-      ))}
+      {hasBiweekly ? (
+        <div data-slot="week-lanes" className="flex flex-col gap-1">
+          {/* Agnostic occupants run every week → rendered above the lanes, spanning both. */}
+          {occupants.filter((occupant) => occupant.week === "both").map(renderChip)}
+          <WeekLane label="A" chips={occupants.filter((occupant) => occupant.week === "a")} render={renderChip} />
+          <WeekLane label="B" chips={occupants.filter((occupant) => occupant.week === "b")} render={renderChip} />
+        </div>
+      ) : (
+        occupants.map(renderChip)
+      )}
+    </div>
+  );
+}
+
+/**
+ * One fortnightly lane (A or B) with a thin muted left rail. An empty lane shows a ghost
+ * "free" placeholder so the remaining week capacity is visible. Tokens only.
+ */
+function WeekLane({
+  label,
+  chips,
+  render,
+}: {
+  label: "A" | "B";
+  chips: LocalPlacement[];
+  render: (placement: LocalPlacement) => ReactNode;
+}) {
+  return (
+    <div data-slot="week-lane" data-week={label} className="flex items-stretch gap-1">
+      <span
+        aria-hidden="true"
+        className="bg-secondary text-muted-foreground flex w-4 shrink-0 items-center justify-center rounded text-[10px] font-medium"
+      >
+        {label}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {chips.length > 0 ? (
+          chips.map(render)
+        ) : (
+          <span
+            data-slot="week-lane-ghost"
+            className="border-border text-muted-foreground rounded-md border border-dashed px-1.5 py-1 text-xs"
+          >
+            free
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -190,6 +245,7 @@ function PlacedChip({
   unavailable,
   bundled,
   onRemove,
+  onSetWeek,
   onInspect,
 }: {
   placement: LocalPlacement;
@@ -202,6 +258,7 @@ function PlacedChip({
   unavailable: boolean;
   bundled: boolean;
   onRemove: (placementId: string) => void;
+  onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onInspect: () => void;
 }) {
   const { ref, isDragging } = useDraggable<PlacementDrag>({
@@ -209,6 +266,8 @@ function PlacedChip({
     data: { kind: "placement", placementId: placement.id, courseId: placement.courseId },
     disabled: bundled || placement.pending === true,
   });
+  // A bi-weekly placement always resolves to a single week (a/b); agnostic stays `both`.
+  const isBiweekly = placement.week === "a" || placement.week === "b";
 
   return (
     <div
@@ -254,27 +313,90 @@ function PlacedChip({
           </button>
         </Badge>
       )}
-      {!bundled && (
-        <Button
+      {/* The A/B control gates on week only (it opts out of drag), so a bundled opposite-week
+          pair stays adjustable; the remove button stays bundled-gated like before. */}
+      {(isBiweekly || !bundled) && (
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {isBiweekly && (
+            <WeekToggle
+              week={placement.week}
+              pending={placement.pending === true}
+              onSelect={(week) => {
+                onSetWeek(placement.id, week);
+              }}
+            />
+          )}
+          {!bundled && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              data-slot="remove-placement"
+              aria-label={`Remove ${name}`}
+              disabled={placement.pending}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove(placement.id);
+              }}
+              onPointerDown={(event) => {
+                // Keep the click from starting a drag on the chip.
+                event.stopPropagation();
+              }}
+              className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive size-5 rounded"
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Per-chip A/B control — shown only on a bi-weekly placement (`week ∈ {a,b}`). Moves the chip
+ * between lanes by writing its placement week. Stops pointer-down so it never starts a chip drag.
+ */
+function WeekToggle({
+  week,
+  pending,
+  onSelect,
+}: {
+  week: PlacementWeek;
+  pending: boolean;
+  onSelect: (week: PlacementWeek) => void;
+}) {
+  return (
+    <div
+      data-slot="week-toggle"
+      role="group"
+      aria-label="Week"
+      className="border-border flex overflow-hidden rounded border"
+    >
+      {(["a", "b"] as const).map((option) => (
+        <button
+          key={option}
           type="button"
-          variant="ghost"
-          size="icon"
-          data-slot="remove-placement"
-          aria-label={`Remove ${name}`}
-          disabled={placement.pending}
+          data-slot="week-toggle-option"
+          aria-pressed={week === option}
+          disabled={pending}
           onClick={(event) => {
             event.stopPropagation();
-            onRemove(placement.id);
+            onSelect(option);
           }}
           onPointerDown={(event) => {
-            // Keep the click from starting a drag on the chip.
             event.stopPropagation();
           }}
-          className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive ml-auto size-5 rounded"
+          className={cn(
+            "px-1 text-[10px] font-medium uppercase",
+            week === option
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
         >
-          <X className="size-4" />
-        </Button>
-      )}
+          {option}
+        </button>
+      ))}
     </div>
   );
 }
@@ -290,12 +412,15 @@ const HINT_CLASS: Record<HintMode, Record<DropHint | "free", string>> = {
   "dim-blocked": {
     free: "",
     warn: "bg-warning/10 ring-warning/40 ring-2 ring-inset",
+    // A legal opposite-week share — never dimmed; a distinct primary ring marks "needs A/B".
+    "opposite-week": "bg-primary/5 ring-primary/50 ring-2 ring-inset",
     partial: "bg-muted/60 opacity-70",
     blocked: "bg-muted opacity-40",
   },
   "highlight-free": {
     free: "bg-valid/10 ring-valid ring-2 ring-inset",
     warn: "bg-warning/10 ring-warning/50 ring-2 ring-inset",
+    "opposite-week": "bg-primary/10 ring-primary/60 ring-2 ring-inset",
     partial: "bg-valid/5 ring-valid/40 ring-2 ring-inset",
     blocked: "",
   },

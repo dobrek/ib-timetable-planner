@@ -1,7 +1,33 @@
 import { err, ok, type Result } from "@/shared/lib/result";
-import type { PlacementWeek } from "@/shared/config";
+import type { PlacementWeek, WeekMode } from "@/shared/config";
 import type { CellData } from "./drag";
 import { occupiesCell, type LocalPlacement, type PlannerPlacement } from "./placement";
+
+// --- Drop-time week assignment (invariant: agnostic ⇒ both, biweekly ⇒ a|b) ---
+
+/**
+ * The week a freshly-dropped single course takes. An agnostic course runs every week (`both`);
+ * a bi-weekly course resolves to the first **free** single week in the target cell (the week not
+ * already taken by a same-cell occupant), falling back to `a` — deterministic, and the per-chip
+ * control then swaps it. Never persists a bi-weekly course as `both`.
+ */
+export function resolveDropWeek(weekMode: WeekMode, placements: LocalPlacement[], cell: CellData): PlacementWeek {
+  if (weekMode === "agnostic") return "both";
+  const taken = new Set(placements.filter((p) => p.day === cell.day && p.period === cell.period).map((p) => p.week));
+  if (!taken.has("a")) return "a";
+  if (!taken.has("b")) return "b";
+  return "a";
+}
+
+/**
+ * Assign the members of an opposite-week grouping to alternating weeks — sort the ids, then
+ * first → `a`, second → `b` (v1 groupings are pairs; alternation generalizes deterministically).
+ */
+export function oppositeWeekAssignment(memberIds: string[]): Map<string, PlacementWeek> {
+  const assignment = new Map<string, PlacementWeek>();
+  [...memberIds].sort().forEach((id, index) => assignment.set(id, index % 2 === 0 ? "a" : "b"));
+  return assignment;
+}
 
 // --- Add ---
 

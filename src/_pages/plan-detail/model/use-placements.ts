@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Cohort, PlacementWeek } from "@/shared/config";
+import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { createPlacement, deletePlacement, updatePlacementWeek } from "../api/placement-client";
 import type { CellData } from "./drag";
 import {
@@ -15,11 +15,13 @@ import {
   moveReconcile,
   moveRollback,
   occupantPlacementIds,
+  oppositeWeekAssignment,
   partitionBundleMove,
   removeManyOptimistic,
   removeOptimistic,
   removeRollback,
   removeTarget,
+  resolveDropWeek,
   setWeekOptimistic,
   setWeekReconcile,
   setWeekRollback,
@@ -29,19 +31,18 @@ import {
 } from "./placement-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement";
 
-/**
- * The week a freshly-dropped course takes. Phase 1 default: every placement is `both`
- * (no behavior change). Phase 5 resolves a bi-weekly course to a concrete `a`/`b` here.
- */
-const DROP_WEEK: PlacementWeek = "both";
-
-type UsePlacementsArgs = { planId: string; cohort: Cohort };
+type UsePlacementsArgs = {
+  planId: string;
+  cohort: Cohort;
+  /** courseId → eligibility, so the drop path resolves a bi-weekly course to a concrete week. */
+  weekModeByCourseId: Map<string, WeekMode>;
+};
 
 type UsePlacements = {
   placements: LocalPlacement[];
   error: PlacementError | null;
   addCourse: (courseId: string, cell: CellData) => void;
-  addGroup: (memberIds: string[], cell: CellData) => void;
+  addGroup: (memberIds: string[], cell: CellData, opts?: { oppositeWeek?: boolean }) => void;
   movePlacement: (placementId: string, cell: CellData) => void;
   removePlacement: (placementId: string) => void;
   setWeek: (placementId: string, week: PlacementWeek) => void;
@@ -55,17 +56,22 @@ type UsePlacements = {
  * transitions live in `placement-transitions.ts`; this hook orchestrates React state
  * and async persistence over those pure functions.
  */
-export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: UsePlacementsArgs): UsePlacements {
+export function usePlacements(
+  initial: PlannerPlacement[],
+  { planId, cohort, weekModeByCourseId }: UsePlacementsArgs,
+): UsePlacements {
   const [placements, setPlacements] = useState<LocalPlacement[]>(initial);
   const [error, setError] = useState<PlacementError | null>(null);
   const placementsRef = useLatest(placements);
+
+  const weekModeOf = (courseId: string): WeekMode => weekModeByCourseId.get(courseId) ?? "agnostic";
 
   function addCourse(courseId: string, cell: CellData) {
     void persistAdd(courseId, cell);
   }
 
-  function addGroup(memberIds: string[], cell: CellData) {
-    void persistAddGroup(memberIds, cell);
+  function addGroup(memberIds: string[], cell: CellData, opts?: { oppositeWeek?: boolean }) {
+    void persistAddGroup(memberIds, cell, opts?.oppositeWeek ?? false);
   }
 
   function movePlacement(placementId: string, cell: CellData) {
@@ -91,18 +97,12 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
   async function persistAdd(courseId: string, cell: CellData) {
     if (!canAdd(placementsRef.current, courseId, cell)) return;
 
+    const week = resolveDropWeek(weekModeOf(courseId), placementsRef.current, cell);
     const tempId = crypto.randomUUID();
-    setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell, DROP_WEEK));
+    setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell, week));
 
     try {
-      const row = await createPlacement({
-        planId,
-        cohort,
-        courseId,
-        day: cell.day,
-        period: cell.period,
-        week: DROP_WEEK,
-      });
+      const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
       setPlacements((prev) => addReconcile(prev, tempId, row));
     } catch (err: unknown) {
       setPlacements((prev) => addRollback(prev, tempId));
@@ -113,11 +113,17 @@ export function usePlacements(initial: PlannerPlacement[], { planId, cohort }: U
   // Group fan-out (Option A): N parallel idempotent single inserts. Members already
   // in the cell are silently skipped; the optimistic batch and the settlement each
   // land in one state update so collision/hours derivations recompute once.
-  async function persistAddGroup(memberIds: string[], cell: CellData) {
+  async function persistAddGroup(memberIds: string[], cell: CellData, oppositeWeek: boolean) {
     const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
     if (eligible.length === 0) return;
 
-    const entries = eligible.map((courseId) => ({ tempId: crypto.randomUUID(), courseId, week: DROP_WEEK }));
+    // Opposite-week grouping → members land on alternating weeks (a/b). Otherwise each member
+    // resolves by its own eligibility (agnostic ⇒ both, bi-weekly ⇒ first free week).
+    const weekByMember = oppositeWeek ? oppositeWeekAssignment(eligible) : null;
+    const weekFor = (courseId: string): PlacementWeek =>
+      weekByMember?.get(courseId) ?? resolveDropWeek(weekModeOf(courseId), placementsRef.current, cell);
+
+    const entries = eligible.map((courseId) => ({ tempId: crypto.randomUUID(), courseId, week: weekFor(courseId) }));
     setPlacements((prev) => addManyOptimistic(prev, entries, cell));
 
     try {

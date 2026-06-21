@@ -713,7 +713,7 @@ resetting.
 - [x] 2.4 Opposite-week shared slot shows no destructive ring; cell valid — eb9e222
 - [x] 2.5 Same-week version shows the destructive ring — eb9e222
 - [x] 2.6 Agnostic + bi-weekly sharing a teacher/student still collides — eb9e222
-- [ ] 2.7 Collision dialog explains a same-week clash legibly
+- [x] 2.7 Collision dialog explains a same-week clash legibly
 
 ### Phase 3: Catalog + Enumeration v1
 
@@ -727,7 +727,7 @@ resetting.
 
 #### Manual
 
-- [ ] 3.6 Palette suggests EE+CAS opposite-week grouping with A/B badge
+- [x] 3.6 Palette suggests EE+CAS opposite-week grouping with A/B badge
 - [x] 3.7 Agnostic-only catalogs produce identical groupings to before — bc96bfd
 - [x] 3.8 Editing a course's `weekMode` marks prior groupings stale — bc96bfd
 
@@ -735,28 +735,28 @@ resetting.
 
 #### Automated
 
-- [x] 4.1 Type/lint/build/steiger clean
-- [x] 4.2 Existing courses-slice unit tests pass
+- [x] 4.1 Type/lint/build/steiger clean — 35e778f
+- [x] 4.2 Existing courses-slice unit tests pass — 35e778f
 
 #### Manual
 
-- [ ] 4.3 Create/edit "Bi-weekly" persists `week_mode = biweekly`
-- [ ] 4.4 Course table shows Bi-weekly badge on EE/CAS
-- [ ] 4.5 Switching back to Agnostic clears the badge and persists
+- [x] 4.3 Create/edit "Bi-weekly" persists `week_mode = biweekly`
+- [x] 4.4 Course table shows Bi-weekly badge on EE/CAS
+- [x] 4.5 Switching back to Agnostic clears the badge and persists
 
 ### Phase 5: Board Week UI
 
 #### Automated
 
-- [ ] 5.1 `drop-hints` unit tests pass (incl. soft-aware case)
-- [ ] 5.2 Type/lint/build/steiger clean
-- [ ] 5.3 Full local gate passes (`/verify`)
+- [x] 5.1 `drop-hints` unit tests pass (incl. soft-aware case)
+- [x] 5.2 Type/lint/build/steiger clean
+- [x] 5.3 Full local gate passes (`/verify`)
 
 #### Manual
 
-- [ ] 5.4 Slot with A and B placements renders stacked lanes; ghost on empty lane; agnostic spans both
-- [ ] 5.5 Per-chip A/B control appears only on bi-weekly chips and moves the chip (persisted)
-- [ ] 5.6 Dragging EE+CAS opposite-week grouping auto-assigns opposite weeks, no ring
-- [ ] 5.7 Single bi-weekly drag over soft-conflicting cell shows opposite-week affordance, not blocked
-- [ ] 5.8 Agnostic-only cells unchanged
-- [ ] 5.9 Existing e2e suite passes (`pnpm test:e2e`)
+- [x] 5.4 Slot with A and B placements renders stacked lanes; ghost on empty lane; agnostic spans both
+- [x] 5.5 Per-chip A/B control appears only on bi-weekly chips and moves the chip (persisted)
+- [x] 5.6 Dragging EE+CAS opposite-week grouping auto-assigns opposite weeks, no ring
+- [x] 5.7 Single bi-weekly drag over soft-conflicting cell shows opposite-week affordance, not blocked
+- [x] 5.8 Agnostic-only cells unchanged
+- [x] 5.9 Existing e2e suite passes (`pnpm test:e2e`)

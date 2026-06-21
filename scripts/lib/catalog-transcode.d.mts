@@ -8,7 +8,6 @@ export type CatalogCourse = {
   level: string;
   group_index: number;
   hours_per_week: number;
-  teacher_code: string | null;
   teacher_codes: Set<string>;
 };
 
@@ -31,7 +30,6 @@ export type CourseRow = {
   id: string;
   plan_id: string;
   cohort: Cohort;
-  teacher_id: string | null;
   name: string;
   level: string;
   group_index: number;

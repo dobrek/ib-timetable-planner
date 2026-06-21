@@ -14,7 +14,7 @@ export type GroupingCourse = {
 
 export type ComputeWarning = {
   courseId: string;
-  kind: "no-teacher" | "no-students" | "zero-hours";
+  kind: "no-students" | "zero-hours";
   message: string;
 };
 

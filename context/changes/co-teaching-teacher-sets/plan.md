@@ -599,10 +599,10 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [x] 4.1 Teachers loader + delete-guard tests pass
-- [x] 4.2 Merge set-equality action tests pass
-- [x] 4.3 Merge-parent persistence integration test passes (parent carries its teacher set on board load)
-- [x] 4.4 Build + structure + lint clean
+- [x] 4.1 Teachers loader + delete-guard tests pass — ba6ebfa
+- [x] 4.2 Merge set-equality action tests pass — ba6ebfa
+- [x] 4.3 Merge-parent persistence integration test passes (parent carries its teacher set on board load) — ba6ebfa
+- [x] 4.4 Build + structure + lint clean — ba6ebfa
 
 #### Manual
 
@@ -626,10 +626,10 @@ The per-edge cost goes from O(1) scalar compare to O(N_a × N_b) set intersectio
 
 #### Automated
 
-- [ ] 6.1 Drop migration applies (`supabase db reset`)
-- [ ] 6.2 `database.types.ts` regenerated; no `teacher_id` on `courses`
-- [ ] 6.3 Full `pnpm test` + `pnpm test:integration` pass
-- [ ] 6.4 No dangling `teacher_id`/`teacherKey` refs; build + structure + lint clean
+- [x] 6.1 Drop migration applies (`supabase db reset`)
+- [x] 6.2 `database.types.ts` regenerated; no `teacher_id` on `courses`
+- [x] 6.3 Full `pnpm test` + `pnpm test:integration` pass
+- [x] 6.4 No dangling `teacher_id`/`teacherKey` refs; build + structure + lint clean
 
 #### Manual
 

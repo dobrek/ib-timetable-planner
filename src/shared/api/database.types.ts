@@ -239,7 +239,6 @@ export type Database = {
           level: string
           name: string
           plan_id: string
-          teacher_id: string | null
           updated_at: string
         }
         Insert: {
@@ -251,7 +250,6 @@ export type Database = {
           level: string
           name: string
           plan_id: string
-          teacher_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -263,7 +261,6 @@ export type Database = {
           level?: string
           name?: string
           plan_id?: string
-          teacher_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -273,13 +270,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "plans"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "courses_teacher_fkey"
-            columns: ["plan_id", "teacher_id"]
-            isOneToOne: false
-            referencedRelation: "teachers"
-            referencedColumns: ["plan_id", "id"]
           },
         ]
       }

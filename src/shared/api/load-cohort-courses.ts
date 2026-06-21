@@ -168,9 +168,8 @@ const compositeName = (course: CourseRow | undefined): string => {
 const collectWarnings = (courses: GroupingCourse[], mergeChildIds: Set<string>): ComputeWarning[] =>
   courses.flatMap((course) => {
     const warnings: ComputeWarning[] = [];
-    if (course.teacherKeys.length === 0) {
-      warnings.push({ courseId: course.id, kind: "no-teacher", message: `Course ${course.id} has no teacher.` });
-    }
+    // A course's ≥1-teacher invariant is app-enforced (schema .min(1) + delete-guard + seed
+    // abort), so a teacher-less course can't reach the board — no "no-teacher" warning here.
     if (course.studentKeys.length === 0) {
       warnings.push({ courseId: course.id, kind: "no-students", message: `Course ${course.id} has no students.` });
     }

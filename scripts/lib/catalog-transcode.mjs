@@ -67,13 +67,12 @@ export function buildCohort(label, studentsFile, teachersFile) {
   const teacherRows = parseCSV(teachersFile);
   const studentRows = parseCSV(studentsFile);
 
-  // catalog: ckey → { name, level, group_index, hours_per_week, teacher_code, teacher_codes }
-  // teacher_code is the legacy first-write-wins scalar (still feeds courses.teacher_id during
-  // the transition); teacher_codes is the co-teaching SET that drives course_teachers.
+  // catalog: ckey → { name, level, group_index, hours_per_week, teacher_codes }
+  // teacher_codes is the co-teaching SET of teacher codes that drives course_teachers.
   const catalog = new Map();
 
   // 1. Teacher-sourced courses (authoritative — have codes + hours). Multiple teacher rows
-  // sharing a course key are co-teachers: the first sets the scalar + meta, each adds to the set.
+  // sharing a course key are co-teachers: the first sets the meta, each adds to the teacher set.
   for (const cols of teacherRows) {
     const code = cols[0],
       name = cols[1];
@@ -83,15 +82,7 @@ export function buildCohort(label, studentsFile, teachersFile) {
     const k = ckey(name, level, gi);
     const existing = catalog.get(k);
     if (existing) existing.teacher_codes.add(code);
-    else
-      catalog.set(k, {
-        name,
-        level,
-        group_index: gi,
-        hours_per_week: hours,
-        teacher_code: code,
-        teacher_codes: new Set([code]),
-      });
+    else catalog.set(k, { name, level, group_index: gi, hours_per_week: hours, teacher_codes: new Set([code]) });
   }
 
   // 2. Index (name, level) → existing group_indices for single-group back-fill
@@ -137,7 +128,7 @@ export function buildCohort(label, studentsFile, teachersFile) {
       // gi=0, no existing teacher course → new student-only course
     }
     // New course (student-only or explicit non-zero gi not in teacher list)
-    catalog.set(k, { name, level, group_index: gi, hours_per_week: 4, teacher_code: null, teacher_codes: new Set() });
+    catalog.set(k, { name, level, group_index: gi, hours_per_week: 4, teacher_codes: new Set() });
     if (!levelGIs.has(lk)) levelGIs.set(lk, []);
     levelGIs.get(lk).push(gi);
     choiceResolution.set(k, k);
@@ -157,15 +148,7 @@ export function enrichFromMergesAndOverlaps(catalog, overlapRows, mergeRows, lab
       [cols[2], normLevel(cols[3])],
     ]) {
       const k = ckey(name, level, 0);
-      if (!catalog.has(k))
-        catalog.set(k, {
-          name,
-          level,
-          group_index: 0,
-          hours_per_week: 4,
-          teacher_code: null,
-          teacher_codes: new Set(),
-        });
+      if (!catalog.has(k)) catalog.set(k, { name, level, group_index: 0, hours_per_week: 4, teacher_codes: new Set() });
     }
   }
   // Overlap: cols[0..2] = base_name, base_level, base_gi; cols[3..5] = dep_name, dep_level, dep_gi
@@ -182,14 +165,7 @@ export function enrichFromMergesAndOverlaps(catalog, overlapRows, mergeRows, lab
     ]) {
       const k = ckey(name, level, gi);
       if (!catalog.has(k))
-        catalog.set(k, {
-          name,
-          level,
-          group_index: gi,
-          hours_per_week: 4,
-          teacher_code: null,
-          teacher_codes: new Set(),
-        });
+        catalog.set(k, { name, level, group_index: gi, hours_per_week: 4, teacher_codes: new Set() });
     }
   }
 
@@ -354,12 +330,13 @@ function buildChoices(studentRows, studentIds, courseIds, choiceResolution, cata
 export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
   const planId = randomUUID();
 
-  // Deduplicate teachers across both cohorts by code (within this plan)
+  // Deduplicate teachers across both cohorts by code (within this plan). Drawn from each
+  // course's full teacher SET, so a teacher who only ever co-teaches is still registered.
   const teacherMap = new Map(); // code → uuid
   for (const cohortData of [dp1Data, dp2Data]) {
     for (const [, c] of cohortData.catalog) {
-      if (c.teacher_code && !teacherMap.has(c.teacher_code)) {
-        teacherMap.set(c.teacher_code, randomUUID());
+      for (const code of c.teacher_codes) {
+        if (!teacherMap.has(code)) teacherMap.set(code, randomUUID());
       }
     }
   }
@@ -389,17 +366,15 @@ export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([code, id]) => ({ id, plan_id: planId, code }));
 
-  // courses — Year 1 then Year 2
+  // courses — Year 1 then Year 2. Teachers live in course_teachers (built below), not on
+  // the course row (the legacy courses.teacher_id column was dropped).
   const buildCourses = (catalog, courseIds, cohort) => {
     const rows = [];
     for (const [k, c] of catalog) {
-      const id = courseIds.get(k);
-      const teacher_id = c.teacher_code ? (teacherMap.get(c.teacher_code) ?? null) : null;
       rows.push({
-        id,
+        id: courseIds.get(k),
         plan_id: planId,
         cohort,
-        teacher_id,
         name: c.name,
         level: c.level,
         group_index: c.group_index,

@@ -687,32 +687,32 @@ resetting.
 
 #### Automated
 
-- [x] 1.1 Migrations apply cleanly (`supabase db reset`)
-- [x] 1.2 Generated types compile (`astro sync && lint`)
-- [x] 1.3 `weeksDisjoint` unit tests pass (`pnpm test`)
-- [x] 1.4 Integration: placement week round-trip, `updatePlacementWeek`, clone preserves columns
-- [x] 1.5 Seed regenerates deterministically; EE/CAS `biweekly` in both cohorts
-- [x] 1.6 Build clean (`pnpm build`)
-- [x] 1.7 FSD check passes (`pnpm steiger`)
+- [x] 1.1 Migrations apply cleanly (`supabase db reset`) — 8449d69
+- [x] 1.2 Generated types compile (`astro sync && lint`) — 8449d69
+- [x] 1.3 `weeksDisjoint` unit tests pass (`pnpm test`) — 8449d69
+- [x] 1.4 Integration: placement week round-trip, `updatePlacementWeek`, clone preserves columns — 8449d69
+- [x] 1.5 Seed regenerates deterministically; EE/CAS `biweekly` in both cohorts — 8449d69
+- [x] 1.6 Build clean (`pnpm build`) — 8449d69
+- [x] 1.7 FSD check passes (`pnpm steiger`) — 8449d69
 
 #### Manual
 
-- [x] 1.8 Studio shows EE/CAS `biweekly` in DP1+DP2; others `agnostic`
-- [x] 1.9 Board/placement behavior visually unchanged (all `both`)
+- [x] 1.8 Studio shows EE/CAS `biweekly` in DP1+DP2; others `agnostic` — 8449d69
+- [x] 1.9 Board/placement behavior visually unchanged (all `both`) — 8449d69
 
 ### Phase 2: Board Validator
 
 #### Automated
 
-- [ ] 2.1 Constraint + collisions unit tests pass (incl. week cases)
-- [ ] 2.2 Type/lint/build clean
-- [ ] 2.3 Per-drag validation within <200ms budget
+- [x] 2.1 Constraint + collisions unit tests pass (incl. week cases)
+- [x] 2.2 Type/lint/build clean
+- [x] 2.3 Per-drag validation within <200ms budget
 
 #### Manual
 
-- [ ] 2.4 Opposite-week shared slot shows no destructive ring; cell valid
-- [ ] 2.5 Same-week version shows the destructive ring
-- [ ] 2.6 Agnostic + bi-weekly sharing a teacher/student still collides
+- [x] 2.4 Opposite-week shared slot shows no destructive ring; cell valid
+- [x] 2.5 Same-week version shows the destructive ring
+- [x] 2.6 Agnostic + bi-weekly sharing a teacher/student still collides
 - [ ] 2.7 Collision dialog explains a same-week clash legibly
 
 ### Phase 3: Catalog + Enumeration v1

@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import type { PlacementWeek } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
@@ -15,6 +16,8 @@ type Props = {
   names: Record<string, string>;
   teacherNames: Record<string, string>;
   studentNames: Record<string, string>;
+  /** Inspected cell's placement weeks (courseId → week) — drives the same-week clash hint. */
+  weekByCourseId: Record<string, PlacementWeek>;
   onClose: () => void;
 };
 
@@ -29,6 +32,7 @@ export default function CollisionDetailsDialog({
   names,
   teacherNames,
   studentNames,
+  weekByCourseId,
   onClose,
 }: Props) {
   return (
@@ -46,6 +50,7 @@ export default function CollisionDetailsDialog({
             names={names}
             teacherNames={teacherNames}
             studentNames={studentNames}
+            weekByCourseId={weekByCourseId}
           />
         )}
       </DialogContent>
@@ -59,12 +64,14 @@ function DetailsBody({
   names,
   teacherNames,
   studentNames,
+  weekByCourseId,
 }: {
   target: CollisionInspectionTarget;
   violations: CollisionViolation[];
   names: Record<string, string>;
   teacherNames: Record<string, string>;
   studentNames: Record<string, string>;
+  weekByCourseId: Record<string, PlacementWeek>;
 }) {
   const grouped = groupByKind(violations);
   const unavailableBlock = grouped["teacher-unavailable"].filter((violation) => violation.severity === "block");
@@ -92,6 +99,7 @@ function DetailsBody({
                   {teacherNames[violation.teacherKey] ?? violation.teacherKey} teaches{" "}
                   {violation.courseIds.length === 2 ? "both" : "all"} of:{" "}
                   <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
+                  <SameWeekHint courseIds={violation.courseIds} weekByCourseId={weekByCourseId} />
                 </li>
               ))}
             </ul>
@@ -139,6 +147,7 @@ function DetailsBody({
                   <CourseName id={violation.courseIds[1]} names={names} emphasizedId={target.courseId} /> —{" "}
                   {violation.studentKeys.length} shared student{violation.studentKeys.length === 1 ? "" : "s"}:
                   <p>{violation.studentKeys.map((key) => studentNames[key] ?? key).join(", ")}</p>
+                  <SameWeekHint courseIds={violation.courseIds} weekByCourseId={weekByCourseId} />
                 </li>
               ))}
             </ul>
@@ -187,6 +196,37 @@ function CourseNameList({
     </>
   );
 }
+
+/**
+ * When every course in a clash runs on the same single fortnightly week (A or B), they are
+ * all bi-weekly and the fix is to move one to the other week. Surfaces that legibly. Renders
+ * nothing for week-agnostic (`both`) clashes — those run every week, so there's no other week.
+ */
+function SameWeekHint({
+  courseIds,
+  weekByCourseId,
+}: {
+  courseIds: string[];
+  weekByCourseId: Record<string, PlacementWeek>;
+}) {
+  const week = sharedSingleWeek(courseIds, weekByCourseId);
+  if (!week) return null;
+  return (
+    <p className="text-muted-foreground text-xs">
+      Both run on {weekLabel(week)} — move one to {weekLabel(otherWeek(week))} to resolve.
+    </p>
+  );
+}
+
+/** The single fortnightly week shared by every course id, or null if any is `both`/differs/absent. */
+const sharedSingleWeek = (courseIds: string[], weekByCourseId: Record<string, PlacementWeek>): "a" | "b" | null => {
+  const first = weekByCourseId[courseIds[0]];
+  if (first !== "a" && first !== "b") return null;
+  return courseIds.every((id) => weekByCourseId[id] === first) ? first : null;
+};
+
+const weekLabel = (week: "a" | "b"): string => (week === "a" ? "week A" : "week B");
+const otherWeek = (week: "a" | "b"): "a" | "b" => (week === "a" ? "b" : "a");
 
 /**
  * Keyed by violation kind so each cause renders as its own section. The initializer

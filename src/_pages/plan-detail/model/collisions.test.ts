@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PlacementWeek } from "@/shared/config";
 import { cellKey, deriveCellViolations } from "./collisions";
 import type { CellCollisions } from "./collisions";
 import type { GroupingCourse } from "./grouping";
@@ -11,12 +12,18 @@ const course = (id: string, teacher: string | null, studentKeys: string[]): Grou
   hours: 4,
 });
 
-const placement = (id: string, courseId: string, day: number, period: number): PlannerPlacement => ({
+const placement = (
+  id: string,
+  courseId: string,
+  day: number,
+  period: number,
+  week: PlacementWeek = "both",
+): PlannerPlacement => ({
   id,
   courseId,
   day,
   period,
-  week: "both",
+  week,
 });
 
 const catalog = (...courses: GroupingCourse[]): Map<string, GroupingCourse> => new Map(courses.map((c) => [c.id, c]));
@@ -74,6 +81,33 @@ describe("deriveCellViolations", () => {
   it("does not flag a single-occupant cell", () => {
     const cat = catalog(course("A", "t1", ["s1"]));
     expect(deriveCellViolations([placement("p1", "A", 1, 1)], cat).size).toBe(0);
+  });
+
+  it("threads placement week: an opposite-week pair sharing a teacher and students does not collide", () => {
+    const cat = catalog(course("A", "t1", ["s1", "s2"]), course("B", "t1", ["s2", "s3"]));
+    const result = deriveCellViolations([placement("p1", "A", 1, 1, "a"), placement("p2", "B", 1, 1, "b")], cat);
+    expect(result.has(cellKey(1, 1))).toBe(false);
+  });
+
+  it("threads placement week: the same pair on the same week still collides", () => {
+    const cat = catalog(course("A", "t1", ["s1", "s2"]), course("B", "t1", ["s2", "s3"]));
+    const result = deriveCellViolations([placement("p1", "A", 1, 1, "a"), placement("p2", "B", 1, 1, "a")], cat);
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B"]));
+  });
+
+  it("clears the flag when a participant moves to the other week (recompute)", () => {
+    const cat = catalog(course("A", "t1", ["s1"]), course("B", "t2", ["s1"]));
+    const sameWeek = [placement("p1", "A", 1, 1, "a"), placement("p2", "B", 1, 1, "a")];
+    expect(deriveCellViolations(sameWeek, cat).get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B"]));
+
+    const opposite = [placement("p1", "A", 1, 1, "a"), placement("p2", "B", 1, 1, "b")];
+    expect(deriveCellViolations(opposite, cat).size).toBe(0);
+  });
+
+  it("an agnostic (both) course still collides with a single-week course sharing a teacher", () => {
+    const cat = catalog(course("A", "t1", ["s1"]), course("B", "t1", ["s2"]));
+    const result = deriveCellViolations([placement("p1", "A", 1, 1, "both"), placement("p2", "B", 1, 1, "a")], cat);
+    expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B"]));
   });
 
   it("skips placements whose course is absent from the catalog", () => {

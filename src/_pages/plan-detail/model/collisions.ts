@@ -1,3 +1,4 @@
+import type { PlacementWeek } from "@/shared/config";
 import type { AvailabilityIndex } from "./availability-index";
 import type { CollisionViolation } from "./constraints";
 import { explainCell } from "./constraints";
@@ -46,7 +47,7 @@ export const deriveCellViolations = (
   const cells = bucketByCell(placements, catalogById);
 
   const collisions = new Map<string, CellCollisions>();
-  for (const [key, { cell, occupants }] of cells) {
+  for (const [key, { cell, occupants, weekByCourseId }] of cells) {
     // No <2 short-circuit: teacher-unavailable flags a SINGLE occupant whose teacher
     // can't teach this cell. The other constraints still need >=2 and return [] otherwise.
     const violations = explainCell(occupants, {
@@ -54,6 +55,7 @@ export const deriveCellViolations = (
       catalogById,
       strongUnavailableByTeacher: availability.strongUnavailableByTeacher,
       softUnavailableByTeacher: availability.softUnavailableByTeacher,
+      weekByCourseId,
     });
     if (violations.length > 0) {
       collisions.set(key, {
@@ -73,18 +75,33 @@ export const deriveCellViolations = (
  * Shared by `deriveCellViolations` and the drag-hint derivation (`drop-hints.ts`)
  * so both read occupants the same way.
  */
+export type CellBucket = {
+  cell: { day: number; period: number };
+  occupants: GroupingCourse[];
+  /** courseId → placement week for the occupants of this cell (course is unique per cell). */
+  weekByCourseId: Map<string, PlacementWeek>;
+};
+
 export const bucketByCell = (
   placements: PlannerPlacement[],
   catalogById: Map<string, GroupingCourse>,
-): Map<string, { cell: { day: number; period: number }; occupants: GroupingCourse[] }> => {
-  const cells = new Map<string, { cell: { day: number; period: number }; occupants: GroupingCourse[] }>();
+): Map<string, CellBucket> => {
+  const cells = new Map<string, CellBucket>();
   for (const placement of placements) {
     const course = catalogById.get(placement.courseId);
     if (!course) continue; // not in the validation catalog — cannot judge, skip defensively
     const key = cellKey(placement.day, placement.period);
     const entry = cells.get(key);
-    if (entry) entry.occupants.push(course);
-    else cells.set(key, { cell: { day: placement.day, period: placement.period }, occupants: [course] });
+    if (entry) {
+      entry.occupants.push(course);
+      entry.weekByCourseId.set(course.id, placement.week);
+    } else {
+      cells.set(key, {
+        cell: { day: placement.day, period: placement.period },
+        occupants: [course],
+        weekByCourseId: new Map([[course.id, placement.week]]),
+      });
+    }
   }
   return cells;
 };

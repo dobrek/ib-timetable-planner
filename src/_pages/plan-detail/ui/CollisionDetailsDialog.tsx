@@ -4,6 +4,7 @@ import { cn } from "@/shared/lib/class-names";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CollisionViolation } from "../model/constraints";
+import { otherWeek, sharedSingleWeek, weekLabel } from "../model/week";
 
 /** The inspected cell plus the course whose badge was clicked (emphasized in the body). */
 export type CollisionInspectionTarget = { day: number; period: number; courseId: string };
@@ -217,16 +218,6 @@ function SameWeekHint({
     </p>
   );
 }
-
-/** The single fortnightly week shared by every course id, or null if any is `both`/differs/absent. */
-const sharedSingleWeek = (courseIds: string[], weekByCourseId: Record<string, PlacementWeek>): "a" | "b" | null => {
-  const first = weekByCourseId[courseIds[0]];
-  if (first !== "a" && first !== "b") return null;
-  return courseIds.every((id) => weekByCourseId[id] === first) ? first : null;
-};
-
-const weekLabel = (week: "a" | "b"): string => (week === "a" ? "week A" : "week B");
-const otherWeek = (week: "a" | "b"): "a" | "b" => (week === "a" ? "b" : "a");
 
 /**
  * Keyed by violation kind so each cause renders as its own section. The initializer

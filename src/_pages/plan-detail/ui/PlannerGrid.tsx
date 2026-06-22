@@ -13,6 +13,8 @@ import { groupBy } from "@/shared/lib/collections";
 type Props = {
   days: number;
   periods: number;
+  /** Pre-formatted accessible name for the grid (e.g. "DP1 timetable") — built at the board level. */
+  gridLabel: string;
   placements: LocalPlacement[];
   names: Record<string, string>;
   /** cellKey → flags + structured violations for that cell. */
@@ -34,6 +36,7 @@ type Props = {
 export default function PlannerGrid({
   days,
   periods,
+  gridLabel,
   placements,
   names,
   collisions,
@@ -53,15 +56,25 @@ export default function PlannerGrid({
   return (
     <div data-slot="planner-grid" className="w-max min-w-full">
       <div
+        role="grid"
+        aria-label={gridLabel}
         className="bg-border grid gap-px rounded-lg"
         style={{ gridTemplateColumns: `auto repeat(${days}, minmax(7rem, 1fr))` }}
       >
-        <div className="bg-background p-2" />
-        {dayList.map((day) => (
-          <div key={day} className="bg-background text-muted-foreground p-2 text-center text-xs font-medium">
-            {dayLabel(day)}
-          </div>
-        ))}
+        {/* `contents` keeps each row out of the CSS grid box model while still exposing
+            `role="row"` so cells nest under rows in the accessibility tree. */}
+        <div role="row" className="contents">
+          <div role="presentation" className="bg-background p-2" />
+          {dayList.map((day) => (
+            <div
+              key={day}
+              role="columnheader"
+              className="bg-background text-muted-foreground p-2 text-center text-xs font-medium"
+            >
+              {dayLabel(day)}
+            </div>
+          ))}
+        </div>
 
         {periodList.map((period) => (
           <PeriodRow
@@ -116,8 +129,11 @@ function PeriodRow({
   onInspect: (target: CollisionInspectionTarget) => void;
 }) {
   return (
-    <>
-      <div className="bg-background text-muted-foreground flex items-center justify-center p-2 text-xs font-medium">
+    <div role="row" className="contents">
+      <div
+        role="rowheader"
+        className="bg-background text-muted-foreground flex items-center justify-center p-2 text-xs font-medium"
+      >
         {periodLabel(period)}
       </div>
       {days.map((day) => {
@@ -142,7 +158,7 @@ function PeriodRow({
           />
         );
       })}
-    </>
+    </div>
   );
 }
 

@@ -82,4 +82,5 @@ export {
 } from "./select";
 export { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
+export { ToggleGroup, ToggleGroupItem, toggleGroupItemVariants } from "./toggle-group";
 export { Toaster } from "./sonner";

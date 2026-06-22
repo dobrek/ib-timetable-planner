@@ -8,7 +8,7 @@ import { PlacedChip, type ChipWiring } from "./PlacedChip";
  */
 export function WeekLane({ label, chips, wiring }: { label: "A" | "B"; chips: LocalPlacement[]; wiring: ChipWiring }) {
   return (
-    <div data-slot="week-lane" data-week={label} className="flex items-stretch gap-1">
+    <div data-slot="week-lane" aria-label={`Week ${label}`} className="flex items-stretch gap-1">
       <span
         aria-hidden="true"
         className="bg-secondary text-muted-foreground flex w-4 shrink-0 items-center justify-center rounded text-xs font-medium"
@@ -21,6 +21,7 @@ export function WeekLane({ label, chips, wiring }: { label: "A" | "B"; chips: Lo
         ) : (
           <span
             data-slot="week-lane-ghost"
+            aria-hidden="true"
             className="border-border text-muted-foreground rounded-md border border-dashed px-1.5 py-1 text-xs"
           >
             free

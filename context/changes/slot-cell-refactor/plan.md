@@ -484,11 +484,11 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `pnpm test`
-- [x] 3.2 Type checking passes: `pnpm exec astro check`
-- [x] 3.3 Linting passes: `pnpm lint`
-- [x] 3.4 FSD structure clean: `pnpm steiger --fail-on-warnings`
-- [x] 3.5 Build clean: `pnpm build`
+- [x] 3.1 Unit tests pass: `pnpm test` — e2b6b4e
+- [x] 3.2 Type checking passes: `pnpm exec astro check` — e2b6b4e
+- [x] 3.3 Linting passes: `pnpm lint` — e2b6b4e
+- [x] 3.4 FSD structure clean: `pnpm steiger --fail-on-warnings` — e2b6b4e
+- [x] 3.5 Build clean: `pnpm build` — e2b6b4e
 
 #### Manual
 
@@ -500,19 +500,19 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [ ] 4.1 Unit tests pass: `pnpm test`
-- [ ] 4.2 Type checking passes: `pnpm exec astro check`
-- [ ] 4.3 Linting passes: `pnpm lint`
-- [ ] 4.4 FSD structure clean: `pnpm steiger --fail-on-warnings`
-- [ ] 4.5 Build clean: `pnpm build`
-- [ ] 4.6 New `shared/ui` export present: `grep -q "toggle-group" src/shared/ui/index.ts`
+- [x] 4.1 Unit tests pass: `pnpm test`
+- [x] 4.2 Type checking passes: `pnpm exec astro check`
+- [x] 4.3 Linting passes: `pnpm lint`
+- [x] 4.4 FSD structure clean: `pnpm steiger --fail-on-warnings`
+- [x] 4.5 Build clean: `pnpm build`
+- [x] 4.6 New `shared/ui` export present: `grep -q "toggle-group" src/shared/ui/index.ts`
 
 #### Manual
 
-- [ ] 4.7 Accessibility tree shows grid + named cells (incl. empty) + chip ARIA
-- [ ] 4.8 A/B control is radiogroup/radio, checked + focus ring + arrow nav; write still works
-- [ ] 4.9 Collision badge + week switch still function
-- [ ] 4.10 Playwright role locators resolve cells/chips/week controls
+- [x] 4.7 Accessibility tree shows grid + named cells (incl. empty) + chip ARIA
+- [x] 4.8 A/B control is radiogroup/radio, checked + focus ring + arrow nav; write still works
+- [x] 4.9 Collision badge + week switch still function
+- [x] 4.10 Playwright role locators resolve cells/chips/week controls
 
 ### Phase 5: Convention docs
 

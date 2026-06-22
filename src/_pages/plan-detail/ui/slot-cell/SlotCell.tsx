@@ -4,6 +4,7 @@ import { Link, Trash2, Unlink } from "lucide-react";
 import type { PlacementWeek } from "@/shared/config";
 import { Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
+import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CollisionInspectionTarget } from "../CollisionDetailsDialog";
 import type { CellCollisions } from "../../model/collisions";
 import { cellKey } from "../../model/collisions";
@@ -89,12 +90,9 @@ export default function SlotCell({
     <div
       ref={setCellRef}
       data-slot="slot-cell"
-      data-day={day}
-      data-period={period}
-      data-collision={hasBlocking ? "true" : undefined}
-      data-availability={hasWarning && !hasBlocking ? "soft" : undefined}
-      data-bundled={bundled ? "true" : undefined}
-      data-drop-hint={hintState}
+      role="gridcell"
+      // Named even when empty so an empty drop target is still locatable by role + name.
+      aria-label={`${dayLabel(day)}, ${periodLabel(period)}`}
       className={cn(
         "bg-background flex min-h-16 flex-col gap-1 p-1 transition-colors",
         // One tone, resolved once with ordered precedence — no negated-class ladder.

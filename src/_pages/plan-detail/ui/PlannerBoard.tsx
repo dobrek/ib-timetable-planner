@@ -1,5 +1,5 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
-import type { PlacementWeek } from "@/shared/config";
+import { cohortLabel, type PlacementWeek } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
@@ -147,6 +147,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
               <PlannerGrid
                 days={days}
                 periods={periods}
+                gridLabel={`${cohortLabel(cohort)} timetable`}
                 placements={placements}
                 names={names}
                 collisions={collisions}

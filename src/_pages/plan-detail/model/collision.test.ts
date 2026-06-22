@@ -1,14 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hasIntersection } from "./collision";
-import type { GroupingCourse } from "./grouping";
-
-const course = (id: string, teacher: string | null, studentKeys: string[]): GroupingCourse => ({
-  id,
-  teacherKeys: teacher === null ? [] : [teacher],
-  studentKeys,
-  hours: 4,
-  weekMode: "agnostic",
-});
+import { course } from "./__fixtures__/builders";
 
 describe("hasIntersection", () => {
   it("returns true when same id is in list", () => {

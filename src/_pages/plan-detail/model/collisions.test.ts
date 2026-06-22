@@ -1,33 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { PlacementWeek } from "@/shared/config";
 import { cellKey, deriveCellViolations } from "./collisions";
-import type { CellCollisions } from "./collisions";
-import type { GroupingCourse } from "./grouping";
-import type { PlannerPlacement } from "./placement";
-
-const course = (id: string, teacher: string | null, studentKeys: string[]): GroupingCourse => ({
-  id,
-  teacherKeys: teacher === null ? [] : [teacher],
-  studentKeys,
-  hours: 4,
-  weekMode: "agnostic",
-});
-
-const placement = (
-  id: string,
-  courseId: string,
-  day: number,
-  period: number,
-  week: PlacementWeek = "both",
-): PlannerPlacement => ({
-  id,
-  courseId,
-  day,
-  period,
-  week,
-});
-
-const catalog = (...courses: GroupingCourse[]): Map<string, GroupingCourse> => new Map(courses.map((c) => [c.id, c]));
+import { catalog, course, placement, unionOfViolationCourseIds } from "./__fixtures__/builders";
 
 describe("deriveCellViolations", () => {
   it("flags both courses when two in a cell share a student", () => {
@@ -206,12 +179,3 @@ describe("deriveCellViolations", () => {
     expect(result.get(cellKey(1, 1))?.blockingIds).toEqual(new Set(["A", "B", "C"]));
   });
 });
-
-const unionOfViolationCourseIds = (cell: CellCollisions): Set<string> => {
-  const ids = new Set<string>();
-  for (const violation of cell.violations) {
-    if (violation.kind === "duplicate-course") ids.add(violation.courseId);
-    else for (const id of violation.courseIds) ids.add(id);
-  }
-  return ids;
-};

@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-deprecated -- tseslint.config() is the only way to use extends; core defineConfig has incompatible API */
 import { fixupConfigRules } from "@eslint/compat";
 import { includeIgnoreFile } from "@eslint/config-helpers";
+import { defineConfig } from "eslint/config";
 import eslint from "@eslint/js";
 import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 import eslintPluginAstro from "eslint-plugin-astro";
@@ -12,7 +12,7 @@ import tseslint from "typescript-eslint";
 
 const gitignorePath = path.resolve(import.meta.dirname, ".gitignore");
 
-const baseConfig = tseslint.config({
+const baseConfig = defineConfig({
   extends: [eslint.configs.recommended, tseslint.configs.strictTypeChecked, tseslint.configs.stylisticTypeChecked],
   languageOptions: {
     parserOptions: {
@@ -39,7 +39,7 @@ const baseConfig = tseslint.config({
   },
 });
 
-const ambientDeclConfig = tseslint.config({
+const ambientDeclConfig = defineConfig({
   files: ["**/*.d.ts"],
   rules: {
     // .d.ts files may use interface for namespace augmentation (e.g. App.Locals)
@@ -47,7 +47,7 @@ const ambientDeclConfig = tseslint.config({
   },
 });
 
-const reactConfig = tseslint.config({
+const reactConfig = defineConfig({
   files: ["**/*.{js,jsx,ts,tsx}"],
   extends: fixupConfigRules([pluginReact.configs.flat.recommended]),
   languageOptions: {
@@ -73,14 +73,14 @@ const reactConfig = tseslint.config({
 // author-credentials module) read `process.env` and other Node globals. They live
 // outside src/ and aren't browser code, so give them the Node global scope rather
 // than the React/browser defaults — otherwise `no-undef` flags `process`.
-const nodeMjsConfig = tseslint.config({
+const nodeMjsConfig = defineConfig({
   files: ["**/*.mjs"],
   languageOptions: {
     globals: { process: "readonly", console: "readonly" },
   },
 });
 
-const astroConfig = tseslint.config({
+const astroConfig = defineConfig({
   files: ["**/*.astro"],
   languageOptions: {
     parserOptions: {
@@ -96,7 +96,7 @@ const astroConfig = tseslint.config({
   },
 });
 
-export default tseslint.config(
+export default defineConfig(
   {
     ignores: ["src/shared/api/database.types.ts", "scripts/", "legacy-grouping-algorithm/", "steiger.config.ts"],
   },

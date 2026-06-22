@@ -469,10 +469,10 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `pnpm test`
-- [x] 2.2 Type checking passes: `pnpm exec astro check`
-- [x] 2.3 Linting passes: `pnpm lint` (no useMemo-in-body flag)
-- [x] 2.4 FSD structure clean: `pnpm steiger`
+- [x] 2.1 Unit tests pass: `pnpm test` — bdd6081
+- [x] 2.2 Type checking passes: `pnpm exec astro check` — bdd6081
+- [x] 2.3 Linting passes: `pnpm lint` (no useMemo-in-body flag) — bdd6081
+- [x] 2.4 FSD structure clean: `pnpm steiger` — bdd6081
 
 #### Manual
 
@@ -484,17 +484,17 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `pnpm test`
-- [ ] 3.2 Type checking passes: `pnpm exec astro check`
-- [ ] 3.3 Linting passes: `pnpm lint`
-- [ ] 3.4 FSD structure clean: `pnpm steiger --fail-on-warnings`
-- [ ] 3.5 Build clean: `pnpm build`
+- [x] 3.1 Unit tests pass: `pnpm test`
+- [x] 3.2 Type checking passes: `pnpm exec astro check`
+- [x] 3.3 Linting passes: `pnpm lint`
+- [x] 3.4 FSD structure clean: `pnpm steiger --fail-on-warnings`
+- [x] 3.5 Build clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.6 Board renders identically post-split
-- [ ] 3.7 `PlannerGrid` import resolves; no runtime errors
-- [ ] 3.8 `WeekLane` shows chips + `free` ghost with no `render` prop
+- [x] 3.6 Board renders identically post-split
+- [x] 3.7 `PlannerGrid` import resolves; no runtime errors
+- [x] 3.8 `WeekLane` shows chips + `free` ghost with no `render` prop
 
 ### Phase 4: Accessibility — ToggleGroup, roles/ARIA, data-* swap
 

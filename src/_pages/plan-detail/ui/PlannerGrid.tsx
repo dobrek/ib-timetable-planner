@@ -1,6 +1,6 @@
 import type { PlacementWeek } from "@/shared/config";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
-import SlotCell from "./SlotCell";
+import SlotCell from "./slot-cell";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CellCollisions } from "../model/collisions";
 import type { DropHint } from "../model/drop-hints";

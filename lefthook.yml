@@ -14,3 +14,10 @@ pre-commit:
       run: pnpm exec prettier --write {staged_files}
       glob: "*.{json,css,md}"
       stage_fixed: true
+
+# astro check is a full-program type-check (no staged-file scoping), so it runs on
+# pre-push — a local type signal before CI — rather than slowing every commit.
+pre-push:
+  jobs:
+    - name: check
+      run: pnpm check

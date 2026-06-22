@@ -21,6 +21,7 @@ jobs:
       - uses: ./.github/actions/setup
 
       - run: pnpm astro sync
+      - run: pnpm check
       - run: pnpm lint
       - run: pnpm steiger
       - run: pnpm audit --audit-level=high

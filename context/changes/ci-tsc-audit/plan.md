@@ -248,30 +248,30 @@ None — no schema or data changes. The only ordering constraint is procedural: 
 
 #### Automated
 
-- [x] 1.1 Type-check passes with zero errors: `pnpm exec astro check`
-- [x] 1.2 Unit tests pass: `pnpm test`
-- [x] 1.3 Lint passes: `pnpm lint`
-- [x] 1.4 FSD structure passes: `pnpm steiger`
-- [x] 1.5 Production build succeeds: `pnpm build`
+- [x] 1.1 Type-check passes with zero errors: `pnpm exec astro check` — 1beed2f
+- [x] 1.2 Unit tests pass: `pnpm test` — 1beed2f
+- [x] 1.3 Lint passes: `pnpm lint` — 1beed2f
+- [x] 1.4 FSD structure passes: `pnpm steiger` — 1beed2f
+- [x] 1.5 Production build succeeds: `pnpm build` — 1beed2f
 
 #### Manual
 
-- [x] 1.6 No dead `RowResult` references remain after the A fix
-- [x] 1.7 One action-driven mutation path spot-checked unchanged in the running app
+- [x] 1.6 No dead `RowResult` references remain after the A fix — 1beed2f
+- [x] 1.7 One action-driven mutation path spot-checked unchanged in the running app — 1beed2f
 
 ### Phase 2: Install the type-check gate
 
 #### Automated
 
-- [ ] 2.1 `pnpm check` is runnable and exits 0
-- [ ] 2.2 Full local gate passes in CI order (sync → check → lint → steiger → test → build)
-- [ ] 2.3 Workflow YAML is valid (CI parses on push)
+- [x] 2.1 `pnpm check` is runnable and exits 0
+- [x] 2.2 Full local gate passes in CI order (sync → check → lint → steiger → test → build)
+- [x] 2.3 Workflow YAML is valid (CI parses on push)
 
 #### Manual
 
-- [ ] 2.4 A deliberate type error is caught by `pnpm check`, then reverted
-- [ ] 2.5 CI `verify` job shows `pnpm check` running after `astro sync` and green on the branch
-- [ ] 2.6 `/verify` skill executes the new order and reports the check step
+- [x] 2.4 A deliberate type error is caught by `pnpm check`, then reverted
+- [x] 2.5 CI `verify` job shows `pnpm check` running after `astro sync` and green on the branch
+- [x] 2.6 `/verify` skill executes the new order and reports the check step
 
 ### Phase 3: Capture the lesson
 

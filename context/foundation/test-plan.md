@@ -155,6 +155,13 @@ value.
   so it leads the remaining rollout. Bundle-persistence durability (Risk #7)
   folds into this phase as the bundle slices **S-05 / S-07** ship — the
   reload-restore proof is the same shape (prove restore, not the write).
+  - **Locator substrate now exists (`slot-cell-refactor`, 2026-06-22).** The board
+    previously carried no roles/accessible names, so a role-only e2e could not
+    locate cells/chips/controls. It now exposes `role="grid"`, `gridcell`s named
+    even when empty, chips by course name + `aria-invalid` for collision, and the
+    A/B control as `radio` — so the drag→feedback spec selects board elements by
+    role + name with no `data-*` escape hatch. See `ui-conventions.md` "Role +
+    ARIA as the interactive/grid contract". (Additive enabler; no strategy change.)
 - **Phase 4 owns the whole enriched-dimension wave** (S-02 / S-03 / S-04 /
   S-06), not a single slice — it is the §2 Risk #6 response. **Sequencing flag
   for each slice's `/10x-plan`:** land the parity-harness convention
@@ -311,7 +318,11 @@ Copy it rather than reinventing:
   reserve e2e for genuinely browser-observable ones. The `createPlan` UI-driven
   happy-path mutation e2e and the cross-author/IDOR flow are **deferred** (the
   latter waits on the ownership-column + real-RLS prerequisite — see §3 notes).
-- Drag → validate → feedback e2e is still §3 Phase 3 territory.
+- Drag → validate → feedback e2e is still §3 Phase 3 territory — the board now
+  carries the roles + accessible names this needs (cells as named `gridcell`s,
+  chips by course name + `aria-invalid`, week control as `radio`; see
+  `ui-conventions.md` "Role + ARIA as the interactive/grid contract"), so it is
+  reachable by role-only locators.
 
 ### 6.4 Adding a test for a new API endpoint
 

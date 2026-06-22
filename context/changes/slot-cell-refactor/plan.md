@@ -500,12 +500,12 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [x] 4.1 Unit tests pass: `pnpm test`
-- [x] 4.2 Type checking passes: `pnpm exec astro check`
-- [x] 4.3 Linting passes: `pnpm lint`
-- [x] 4.4 FSD structure clean: `pnpm steiger --fail-on-warnings`
-- [x] 4.5 Build clean: `pnpm build`
-- [x] 4.6 New `shared/ui` export present: `grep -q "toggle-group" src/shared/ui/index.ts`
+- [x] 4.1 Unit tests pass: `pnpm test` — b27f4f3
+- [x] 4.2 Type checking passes: `pnpm exec astro check` — b27f4f3
+- [x] 4.3 Linting passes: `pnpm lint` — b27f4f3
+- [x] 4.4 FSD structure clean: `pnpm steiger --fail-on-warnings` — b27f4f3
+- [x] 4.5 Build clean: `pnpm build` — b27f4f3
+- [x] 4.6 New `shared/ui` export present: `grep -q "toggle-group" src/shared/ui/index.ts` — b27f4f3
 
 #### Manual
 
@@ -518,10 +518,10 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [ ] 5.1 Docs format clean: `pnpm format`
-- [ ] 5.2 Cited intra-repo paths exist (manual grep)
+- [x] 5.1 Docs format clean: `pnpm format`
+- [x] 5.2 Cited intra-repo paths exist (manual grep)
 
 #### Manual
 
-- [ ] 5.3 Each codified rule matches landed code
-- [ ] 5.4 Cohesion caveat unambiguously exempts CollisionDetailsDialog/PlannerBoard
+- [x] 5.3 Each codified rule matches landed code
+- [x] 5.4 Cohesion caveat unambiguously exempts CollisionDetailsDialog/PlannerBoard

@@ -1,5 +1,6 @@
 import type { AvailabilityIndex } from "./availability-index";
 import { bucketByCell, cellKey } from "./collisions";
+import type { CrossCohortIndex } from "./cross-cohort-index";
 import { violatesAny } from "./constraints";
 import type { CellData, DragData } from "./drag";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
@@ -11,6 +12,9 @@ const NO_AVAILABILITY: AvailabilityIndex = {
   strongUnavailableByTeacher: new Map(),
   softUnavailableByTeacher: new Map(),
 };
+
+// Same local-empty-default rationale for the sibling-cohort occupancy index.
+const NO_CROSS_COHORT: CrossCohortIndex = new Map();
 
 /**
  * Per-cell drag affordance. The map is **sparse**: a cell absent from the map (while
@@ -95,6 +99,7 @@ export const deriveDropHints = (
   placements: PlannerPlacement[],
   catalogById: Map<string, GroupingCourse>,
   availability: AvailabilityIndex = NO_AVAILABILITY,
+  occupiedByTeacher: CrossCohortIndex = NO_CROSS_COHORT,
 ): Map<string, DropHint> | null => {
   if (!context) return null;
 
@@ -104,8 +109,8 @@ export const deriveDropHints = (
   const occupied = excluded.size > 0 ? placements.filter((placement) => !excluded.has(placement.id)) : placements;
 
   // Candidate cells = occupied cells PLUS empty cells where a dragged member's teacher is
-  // strong- OR soft-unavailable. Those aren't seen by `classifyCell`'s `violatesAny`
-  // (availability is a board-only constraint with no `test`), so we surface them explicitly.
+  // unavailable OR occupied in the sibling cohort. Those aren't seen by `classifyCell`'s
+  // `violatesAny` (both are board-only constraints with no `test`), so we surface them explicitly.
   const candidates = new Map<string, GroupingCourse[]>();
   for (const [key, { occupants }] of bucketByCell(occupied, catalogById)) candidates.set(key, occupants);
   for (const member of context.members) {
@@ -114,12 +119,14 @@ export const deriveDropHints = (
         const unavailableCells = byTeacher.get(teacherKey);
         if (unavailableCells) for (const key of unavailableCells) if (!candidates.has(key)) candidates.set(key, []);
       }
+      const occupiedCells = occupiedByTeacher.get(teacherKey);
+      if (occupiedCells) for (const key of occupiedCells.keys()) if (!candidates.has(key)) candidates.set(key, []);
     }
   }
 
   const hints = new Map<string, DropHint>();
   for (const [key, occupants] of candidates) {
-    const hint = classifyCell(context.members, occupants, key, availability);
+    const hint = classifyCell(context.members, occupants, key, availability, occupiedByTeacher);
     if (hint) hints.set(key, hint);
   }
 
@@ -158,21 +165,67 @@ const classifyCell = (
   occupants: GroupingCourse[],
   key: string,
   availability: AvailabilityIndex,
+  occupiedByTeacher: CrossCohortIndex,
 ): DropHint | null => {
   let hardFits = 0;
   let softFits = 0;
   let hardConflicts = 0;
   let soft = false;
   for (const member of members) {
-    const strongUnavailable = isStrongUnavailable(member, key, availability);
     if (isSoftUnavailable(member, key, availability)) soft = true;
-    if (!violatesAny(member, occupants) && !strongUnavailable) hardFits += 1;
-    else if (!strongUnavailable && softFitsOppositeWeek(member, occupants)) softFits += 1;
+    // Worst-of the collision verdict and the cross-cohort verdict: a hard conflict from either
+    // axis blocks; an opposite-week escape survives only if NEITHER axis hard-conflicts.
+    const fit = worstFit(
+      memberCollisionFit(member, occupants, key, availability),
+      crossCohortFit(member, key, occupiedByTeacher),
+    );
+    if (fit === "fit") hardFits += 1;
+    else if (fit === "soft") softFits += 1;
     else hardConflicts += 1;
   }
   if (hardConflicts > 0) return hardFits + softFits === 0 ? "blocked" : "partial";
   if (softFits > 0) return "opposite-week";
   return soft ? "warn" : null;
+};
+
+/** A per-member fit verdict on one axis: a clean fit, an opposite-week (soft) escape, or a hard conflict. */
+type MemberFit = "fit" | "soft" | "hard";
+
+const FIT_RANK: Record<MemberFit, number> = { fit: 0, soft: 1, hard: 2 };
+
+const worstFit = (a: MemberFit, b: MemberFit): MemberFit => (FIT_RANK[a] >= FIT_RANK[b] ? a : b);
+
+/** Collision-registry + strong-availability verdict (the pre-cross-cohort classification). */
+const memberCollisionFit = (
+  member: GroupingCourse,
+  occupants: GroupingCourse[],
+  key: string,
+  availability: AvailabilityIndex,
+): MemberFit => {
+  const strongUnavailable = isStrongUnavailable(member, key, availability);
+  if (!violatesAny(member, occupants) && !strongUnavailable) return "fit";
+  if (!strongUnavailable && softFitsOppositeWeek(member, occupants)) return "soft";
+  return "hard";
+};
+
+/**
+ * Cross-cohort verdict for one dragged member at a cell. A sibling occupancy with week `both`
+ * overlaps every week → hard conflict. A single-week (`a`/`b`) sibling occupancy is escapable only
+ * by a bi-weekly member (the week is chosen after drop) → soft; otherwise hard. No sibling
+ * occupancy for any of the member's teachers → clean fit.
+ */
+const crossCohortFit = (member: GroupingCourse, key: string, occupiedByTeacher: CrossCohortIndex): MemberFit => {
+  let soft = false;
+  for (const teacherKey of member.teacherKeys) {
+    const weeks = occupiedByTeacher.get(teacherKey)?.get(key);
+    if (!weeks) continue;
+    for (const week of weeks) {
+      if (week === "both") return "hard";
+      if (member.weekMode === "biweekly") soft = true;
+      else return "hard";
+    }
+  }
+  return soft ? "soft" : "fit";
 };
 
 /**

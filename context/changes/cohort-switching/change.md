@@ -1,7 +1,7 @@
 ---
 change_id: cohort-switching
 title: Cohort switching
-status: plan_reviewed
+status: implementing
 created: 2026-06-22
 updated: 2026-06-22
 archived_at: null

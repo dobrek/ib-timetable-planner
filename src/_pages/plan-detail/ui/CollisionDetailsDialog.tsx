@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { PlacementWeek } from "@/shared/config";
+import { cohortLabel, siblingCohort, type Cohort, type PlacementWeek } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
@@ -19,6 +19,8 @@ type Props = {
   studentNames: Record<string, string>;
   /** Inspected cell's placement weeks (courseId → week) — drives the same-week clash hint. */
   weekByCourseId: Record<string, PlacementWeek>;
+  /** The active cohort — names the *other* cohort in a cross-cohort violation message. */
+  cohort: Cohort;
   onClose: () => void;
 };
 
@@ -34,6 +36,7 @@ export default function CollisionDetailsDialog({
   teacherNames,
   studentNames,
   weekByCourseId,
+  cohort,
   onClose,
 }: Props) {
   return (
@@ -52,6 +55,7 @@ export default function CollisionDetailsDialog({
             teacherNames={teacherNames}
             studentNames={studentNames}
             weekByCourseId={weekByCourseId}
+            cohort={cohort}
           />
         )}
       </DialogContent>
@@ -66,6 +70,7 @@ function DetailsBody({
   teacherNames,
   studentNames,
   weekByCourseId,
+  cohort,
 }: {
   target: CollisionInspectionTarget;
   violations: CollisionViolation[];
@@ -73,6 +78,7 @@ function DetailsBody({
   teacherNames: Record<string, string>;
   studentNames: Record<string, string>;
   weekByCourseId: Record<string, PlacementWeek>;
+  cohort: Cohort;
 }) {
   const grouped = groupByKind(violations);
   const unavailableBlock = grouped["teacher-unavailable"].filter((violation) => violation.severity === "block");
@@ -101,6 +107,21 @@ function DetailsBody({
                   {violation.courseIds.length === 2 ? "both" : "all"} of:{" "}
                   <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
                   <SameWeekHint courseIds={violation.courseIds} weekByCourseId={weekByCourseId} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {grouped["cross-cohort-teacher"].length > 0 && (
+          <section data-slot="collision-section-cross-cohort" className="space-y-1">
+            <h3 className="text-foreground text-sm font-semibold">Other cohort</h3>
+            <ul className="space-y-1">
+              {grouped["cross-cohort-teacher"].map((violation) => (
+                <li key={`${violation.teacherKey}:${violation.courseIds.join(":")}`}>
+                  {teacherNames[violation.teacherKey] ?? violation.teacherKey} is also teaching in{" "}
+                  {cohortLabel(siblingCohort(cohort))} at this time:{" "}
+                  <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
                 </li>
               ))}
             </ul>
@@ -227,7 +248,13 @@ function SameWeekHint({
 type ViolationsByKind = { [K in CollisionViolation["kind"]]: Extract<CollisionViolation, { kind: K }>[] };
 
 const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
-  const groups: ViolationsByKind = { teacher: [], student: [], "duplicate-course": [], "teacher-unavailable": [] };
+  const groups: ViolationsByKind = {
+    teacher: [],
+    student: [],
+    "duplicate-course": [],
+    "teacher-unavailable": [],
+    "cross-cohort-teacher": [],
+  };
   for (const violation of violations) {
     switch (violation.kind) {
       case "teacher":
@@ -241,6 +268,9 @@ const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
         break;
       case "teacher-unavailable":
         groups["teacher-unavailable"].push(violation);
+        break;
+      case "cross-cohort-teacher":
+        groups["cross-cohort-teacher"].push(violation);
         break;
     }
   }

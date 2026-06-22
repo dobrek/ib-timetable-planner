@@ -1,7 +1,7 @@
 ---
 change_id: parity-harness-enriched-validators
 title: Parity-harness convention for enriched validator classes (test-plan Phase 4)
-status: implementing
+status: implemented
 created: 2026-06-22
 updated: 2026-06-22
 archived_at: null

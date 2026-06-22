@@ -1,5 +1,6 @@
 import type { PlacementWeek } from "@/shared/config";
 import type { AvailabilityIndex } from "./availability-index";
+import type { CrossCohortIndex } from "./cross-cohort-index";
 import type { CollisionViolation } from "./constraints";
 import { explainCell } from "./constraints";
 import type { GroupingCourse } from "./grouping";
@@ -30,6 +31,10 @@ const NO_AVAILABILITY: AvailabilityIndex = {
   softUnavailableByTeacher: new Map(),
 };
 
+// Local empty default so callers without a sibling cohort need no index (kept here rather than
+// imported from `cross-cohort-index` to avoid a runtime cycle via `collisions` → `cellKey`).
+const NO_CROSS_COHORT: CrossCohortIndex = new Map();
+
 /**
  * Per-cell collision derivation from current placement state and the validation
  * catalog. For each multi-occupancy cell, the constraint registry enumerates every
@@ -43,6 +48,7 @@ export const deriveCellViolations = (
   placements: PlannerPlacement[],
   catalogById: Map<string, GroupingCourse>,
   availability: AvailabilityIndex = NO_AVAILABILITY,
+  occupiedByTeacher: CrossCohortIndex = NO_CROSS_COHORT,
 ): Map<string, CellCollisions> => {
   const cells = bucketByCell(placements, catalogById);
 
@@ -56,6 +62,7 @@ export const deriveCellViolations = (
       strongUnavailableByTeacher: availability.strongUnavailableByTeacher,
       softUnavailableByTeacher: availability.softUnavailableByTeacher,
       weekByCourseId,
+      occupiedByTeacher,
     });
     if (violations.length > 0) {
       collisions.set(key, {

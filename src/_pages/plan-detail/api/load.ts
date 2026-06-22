@@ -1,17 +1,18 @@
 import { loadCohortCourses, assertNoQueryErrors, unwrapMany, type SupabaseClient } from "@/shared/api";
-import { type Cohort } from "@/shared/config";
+import { siblingCohort, type Cohort } from "@/shared/config";
 import { parseGridPreset } from "@/shared/lib/grid";
 import { unique } from "@/shared/lib/collections";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { BoardAvailabilityCell } from "../model/availability-index";
+import type { SiblingOccupancyCell } from "../model/cross-cohort-index";
 import type { PlannerBoardProps } from "../model/drag";
-import type { PlannerGrouping } from "../model/grouping";
+import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
 import type { PlannerPlacement } from "../model/placement";
 import type { SlotOverride } from "../model/slot-bundle";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** The board is single-cohort for now (S-01 scope): dp1. The second cohort (dp2) arrives with S-04. */
+/** The board is single-cohort for now (S-01 scope): dp1. The cohort switcher arrives with S-04 Phase 2. */
 const BOARD_COHORT: Cohort = "dp1";
 
 export type PlannerData = { planName: string; props: PlannerBoardProps };
@@ -45,7 +46,17 @@ export const loadPlannerData = async (
 
   const { days, periods } = parseGridPreset(plan.slot_grid_preset);
 
-  const [groupingsResult, placementsResult, overridesResult, availabilityResult, catalog] = await Promise.all([
+  const sibling = siblingCohort(BOARD_COHORT);
+
+  const [
+    groupingsResult,
+    placementsResult,
+    overridesResult,
+    availabilityResult,
+    siblingPlacementsResult,
+    catalog,
+    siblingCatalog,
+  ] = await Promise.all([
     supabase
       .from("course_groupings")
       .select("id, coverage_count, score, opposite_week, course_grouping_members(course_id)")
@@ -55,9 +66,18 @@ export const loadPlannerData = async (
     supabase.from("slot_bundles").select("day, period").eq("plan_id", id).eq("cohort", BOARD_COHORT),
     // Availability is cohort-independent — no cohort filter (S-09: it just works for dp2 later).
     supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
+    // Sibling-cohort occupancy (read-only committed snapshot) for the cross-cohort teacher rule.
+    supabase.from("placements").select("course_id, day, period, week").eq("plan_id", id).eq("cohort", sibling),
     loadCohortCourses(supabase, id, BOARD_COHORT),
+    loadCohortCourses(supabase, id, sibling),
   ]);
-  assertNoQueryErrors("Planner board", [groupingsResult, placementsResult, overridesResult, availabilityResult]);
+  assertNoQueryErrors("Planner board", [
+    groupingsResult,
+    placementsResult,
+    overridesResult,
+    availabilityResult,
+    siblingPlacementsResult,
+  ]);
 
   const [teacherNames, studentNames] = await Promise.all([
     fetchTeacherNames(supabase, unique(catalog.courses.flatMap((course) => course.teacherKeys))),
@@ -92,6 +112,8 @@ export const loadPlannerData = async (
     severity: row.severity,
   }));
 
+  const crossCohortOccupancy = projectSiblingOccupancy(siblingPlacementsResult.data ?? [], siblingCatalog.courses);
+
   return ok({
     planName: plan.name,
     props: {
@@ -107,7 +129,32 @@ export const loadPlannerData = async (
       overrides,
       catalog: catalog.courses,
       availability,
+      crossCohortOccupancy,
     },
+  });
+};
+
+/**
+ * Project the sibling cohort's committed placements into a co-teacher-expanded
+ * `SiblingOccupancyCell[]` — one row per (teacher, cell, week). The board ships only this flat
+ * index (not full sibling objects); the island rebuilds the `Map` via `buildCrossCohortIndex`.
+ * A sibling placement whose course is absent from the sibling catalog is skipped (mirrors
+ * `bucketByCell`'s defensive skip).
+ */
+const projectSiblingOccupancy = (
+  placements: { course_id: string; day: number; period: number; week: PlannerPlacement["week"] }[],
+  siblingCourses: GroupingCourse[],
+): SiblingOccupancyCell[] => {
+  const teachersByCourse = new Map(siblingCourses.map((course) => [course.id, course.teacherKeys]));
+  return placements.flatMap((row) => {
+    const teacherKeys = teachersByCourse.get(row.course_id);
+    if (!teacherKeys) return []; // course not in the sibling catalog — cannot attribute, skip
+    return teacherKeys.map((teacherKey) => ({
+      teacherKey,
+      day: row.day,
+      period: row.period,
+      week: row.week,
+    }));
   });
 };
 

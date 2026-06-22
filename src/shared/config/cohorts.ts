@@ -24,3 +24,6 @@ export const cohortSchema = z.enum(COHORT_VALUES);
 
 export const cohortLabel = (cohort: Cohort): string =>
   COHORTS.find((option) => option.value === cohort)?.label ?? cohort;
+
+/** The other cohort in the fixed two-value set — used to pick which sibling to project and label. */
+export const siblingCohort = (cohort: Cohort): Cohort => (cohort === "dp1" ? "dp2" : "dp1");

@@ -14,6 +14,7 @@ import type { PlacementWeek } from "@/shared/config";
 import type { AvailabilityIndex } from "../availability-index";
 import type { CellCollisions } from "../collisions";
 import type { BoardContext } from "../constraints";
+import type { CrossCohortIndex } from "../cross-cohort-index";
 import type { GroupingCourse } from "../grouping";
 import type { PlannerPlacement } from "../placement";
 
@@ -24,6 +25,12 @@ export const course = (id: string, teacher: string | null, studentKeys: string[]
   studentKeys,
   hours: 4,
   weekMode: "agnostic",
+});
+
+/** A bi-weekly single-teacher course — eligible for the opposite-week (A/B) relaxation. */
+export const biweekly = (id: string, teacher: string | null, studentKeys: string[] = []): GroupingCourse => ({
+  ...course(id, teacher, studentKeys),
+  weekMode: "biweekly",
 });
 
 /** A co-taught course carrying a teacher set. `studentKeys` defaults `[]`. */
@@ -90,6 +97,19 @@ export const avail = (opts: {
   strongUnavailableByTeacher: toCellSets(opts.strong),
   softUnavailableByTeacher: toCellSets(opts.soft),
 });
+
+/**
+ * A `CrossCohortIndex` for `deriveCellViolations` / `deriveDropHints`, built from
+ * `teacherKey → { cellKey → week[] }` so harness rows stay literal rather than hand-rolling the
+ * nested `Map`/`Set`. Mirrors `avail` for the cross-cohort axis.
+ */
+export const occupiedBy = (byTeacher: Record<string, Record<string, PlacementWeek[]>>): CrossCohortIndex =>
+  new Map(
+    Object.entries(byTeacher).map(([teacher, cells]) => [
+      teacher,
+      new Map(Object.entries(cells).map(([cell, weeks]) => [cell, new Set(weeks)])),
+    ]),
+  );
 
 /** Union of every course id cited across a cell's violations (the blocking ∪ warn invariant oracle). */
 export const unionOfViolationCourseIds = (cell: CellCollisions): Set<string> => {

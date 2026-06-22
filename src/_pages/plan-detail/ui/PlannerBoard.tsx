@@ -15,6 +15,8 @@ import PlannerPalette from "./PlannerPalette";
 import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../lib/drag-hint-mode";
 import { buildAvailabilityIndex } from "../model/availability-index";
 import type { AvailabilityIndex } from "../model/availability-index";
+import { buildCrossCohortIndex } from "../model/cross-cohort-index";
+import type { CrossCohortIndex } from "../model/cross-cohort-index";
 import type { CellData, DragData, PlannerBoardProps } from "../model/drag";
 import { cellKey, deriveCellViolations } from "../model/collisions";
 import type { CellCollisions } from "../model/collisions";
@@ -34,6 +36,7 @@ import { useSlotBundles } from "../model/use-slot-bundles";
  */
 export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
   const { planId, cohort, days, periods, groupings, names, teacherNames, studentNames, catalog, availability } = props;
+  const { crossCohortOccupancy } = props;
 
   const weekModeByCourseId = useMemo(() => new Map(catalog.map((course) => [course.id, course.weekMode])), [catalog]);
 
@@ -57,7 +60,8 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   } = useSlotBundles(props.overrides, { planId, cohort });
   const catalogById = useCatalogById(catalog);
   const availabilityIndex = useAvailabilityIndex(availability);
-  const collisions = useCollisions(placements, catalogById, availabilityIndex);
+  const crossCohortIndex = useCrossCohortIndex(crossCohortOccupancy);
+  const collisions = useCollisions(placements, catalogById, availabilityIndex, crossCohortIndex);
   const inspection = useCollisionInspection(collisions);
   const { hours, incompleteCount } = useHours(placements, catalog);
   const { dropHints, startDragHints, clearDragHints } = useDragHints(
@@ -65,6 +69,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     placements,
     groupings,
     availabilityIndex,
+    crossCohortIndex,
   );
   const { hintMode, setHintMode } = useHintMode();
 
@@ -171,6 +176,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         teacherNames={teacherNames}
         studentNames={studentNames}
         weekByCourseId={inspectedWeeks(inspection.target, placements)}
+        cohort={cohort}
         onClose={inspection.close}
       />
       <GroupDragOverlay groupings={groupings} names={names} placements={placements} />
@@ -188,14 +194,20 @@ function useAvailabilityIndex(availability: PlannerBoardProps["availability"]) {
   return useMemo(() => buildAvailabilityIndex(availability), [availability]);
 }
 
+// Index the raw sibling-occupancy cells (a serializable prop) into the cross-cohort Map.
+function useCrossCohortIndex(occupancy: PlannerBoardProps["crossCohortOccupancy"]) {
+  return useMemo(() => buildCrossCohortIndex(occupancy), [occupancy]);
+}
+
 function useCollisions(
   placements: LocalPlacement[],
   catalogById: Map<string, GroupingCourse>,
   availability: AvailabilityIndex,
+  occupiedByTeacher: CrossCohortIndex,
 ) {
   return useMemo(
-    () => deriveCellViolations(placements, catalogById, availability),
-    [placements, catalogById, availability],
+    () => deriveCellViolations(placements, catalogById, availability, occupiedByTeacher),
+    [placements, catalogById, availability, occupiedByTeacher],
   );
 }
 
@@ -207,11 +219,12 @@ function useDragHints(
   placements: LocalPlacement[],
   groupings: PlannerGrouping[],
   availability: AvailabilityIndex,
+  occupiedByTeacher: CrossCohortIndex,
 ) {
   const [context, setContext] = useState<DragHintContext | null>(null);
   const dropHints = useMemo(
-    () => deriveDropHints(context, placements, catalogById, availability),
-    [context, placements, catalogById, availability],
+    () => deriveDropHints(context, placements, catalogById, availability, occupiedByTeacher),
+    [context, placements, catalogById, availability, occupiedByTeacher],
   );
   return {
     dropHints,

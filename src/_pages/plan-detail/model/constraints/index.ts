@@ -1,4 +1,5 @@
 import type { GroupingCourse } from "../grouping";
+import { crossCohortTeacher } from "./cross-cohort-teacher";
 import { duplicateCourse } from "./duplicate-course";
 import { studentConflict } from "./student-conflict";
 import { teacherAvailability } from "./teacher-availability";
@@ -11,6 +12,7 @@ export const CELL_CONSTRAINTS: CellConstraint[] = [
   teacherConflict,
   studentConflict,
   teacherAvailability,
+  crossCohortTeacher,
 ];
 
 /** Enumerates every violation in a cell across all registered constraints. */

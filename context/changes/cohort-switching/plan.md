@@ -313,11 +313,11 @@ None — no schema or data migration. The change is additive at the type level (
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Unit + parity tests pass (incl. the six new guards): `pnpm test`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Lint passes: `pnpm lint`
-- [x] 1.5 Build is clean (Workers runtime): `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check` — 4de99f7
+- [x] 1.2 Unit + parity tests pass (incl. the six new guards): `pnpm test` — 4de99f7
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — 4de99f7
+- [x] 1.4 Lint passes: `pnpm lint` — 4de99f7
+- [x] 1.5 Build is clean (Workers runtime): `pnpm build` — 4de99f7
 
 #### Manual
 
@@ -330,11 +330,11 @@ None — no schema or data migration. The change is additive at the type level (
 
 #### Automated
 
-- [ ] 2.1 Type check passes: `pnpm check`
-- [ ] 2.2 Unit + parity tests pass: `pnpm test`
-- [ ] 2.3 FSD structure check passes: `pnpm steiger`
-- [ ] 2.4 Lint passes: `pnpm lint`
-- [ ] 2.5 Build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check`
+- [x] 2.2 Unit + parity tests pass: `pnpm test`
+- [x] 2.3 FSD structure check passes: `pnpm steiger`
+- [x] 2.4 Lint passes: `pnpm lint`
+- [x] 2.5 Build is clean: `pnpm build`
 
 #### Manual
 

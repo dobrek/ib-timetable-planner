@@ -3,10 +3,13 @@ import SidebarLayout from "@/app/layouts/SidebarLayout.astro";
 import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import { createClient } from "@/shared/api";
+import { cohortSchema } from "@/shared/config";
 import { loadPlannerData } from "@/_pages/plan-detail/api";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
-const result = await loadPlannerData(supabase, Astro.params.id);
+// `?cohort=` selects the active cohort; missing/garbage coerces to dp1 (no error page).
+const cohort = cohortSchema.catch("dp1").parse(Astro.url.searchParams.get("cohort"));
+const result = await loadPlannerData(supabase, Astro.params.id, cohort);
 if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
 ---
 

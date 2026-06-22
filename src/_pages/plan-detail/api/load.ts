@@ -12,9 +12,6 @@ import type { SlotOverride } from "../model/slot-bundle";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** The board is single-cohort for now (S-01 scope): dp1. The cohort switcher arrives with S-04 Phase 2. */
-const BOARD_COHORT: Cohort = "dp1";
-
 export type PlannerData = { planName: string; props: PlannerBoardProps };
 
 /** Expected absences: a missing plan vs. a misconfigured/empty environment. */
@@ -24,14 +21,16 @@ export type PlannerPageResult = Result<PlannerData, PlannerPageError>;
 
 /**
  * Assemble everything the planner island needs for one plan: the grid dimensions,
- * the dp1 cohort, the palette hints, persisted placements, and the validation
- * catalog. Returns a `Result` so the page can set the right HTTP status without
+ * the active cohort, the palette hints, persisted placements, and the validation
+ * catalog. The sibling cohort (`siblingCohort(cohort)`) is projected into the
+ * cross-cohort occupancy index. Returns a `Result` so the page can set the right HTTP status without
  * top-level `return`s in Astro frontmatter (which trips a type-checked-lint bug).
  * Genuine DB failures throw and surface as a 500.
  */
 export const loadPlannerData = async (
   supabase: SupabaseClient | null,
   id: string | undefined,
+  cohort: Cohort,
 ): Promise<PlannerPageResult> => {
   if (!supabase) return err({ kind: "unavailable", message: "Supabase is not configured" });
   if (!id || !UUID_RE.test(id)) return err({ kind: "not-found" });
@@ -46,7 +45,7 @@ export const loadPlannerData = async (
 
   const { days, periods } = parseGridPreset(plan.slot_grid_preset);
 
-  const sibling = siblingCohort(BOARD_COHORT);
+  const sibling = siblingCohort(cohort);
 
   const [
     groupingsResult,
@@ -61,14 +60,14 @@ export const loadPlannerData = async (
       .from("course_groupings")
       .select("id, coverage_count, score, opposite_week, course_grouping_members(course_id)")
       .eq("plan_id", id)
-      .eq("cohort", BOARD_COHORT),
-    supabase.from("placements").select("id, course_id, day, period, week").eq("plan_id", id).eq("cohort", BOARD_COHORT),
-    supabase.from("slot_bundles").select("day, period").eq("plan_id", id).eq("cohort", BOARD_COHORT),
+      .eq("cohort", cohort),
+    supabase.from("placements").select("id, course_id, day, period, week").eq("plan_id", id).eq("cohort", cohort),
+    supabase.from("slot_bundles").select("day, period").eq("plan_id", id).eq("cohort", cohort),
     // Availability is cohort-independent — no cohort filter (S-09: it just works for dp2 later).
     supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
     // Sibling-cohort occupancy (read-only committed snapshot) for the cross-cohort teacher rule.
     supabase.from("placements").select("course_id, day, period, week").eq("plan_id", id).eq("cohort", sibling),
-    loadCohortCourses(supabase, id, BOARD_COHORT),
+    loadCohortCourses(supabase, id, cohort),
     loadCohortCourses(supabase, id, sibling),
   ]);
   assertNoQueryErrors("Planner board", [
@@ -118,7 +117,7 @@ export const loadPlannerData = async (
     planName: plan.name,
     props: {
       planId: plan.id,
-      cohort: BOARD_COHORT,
+      cohort,
       days,
       periods,
       groupings,

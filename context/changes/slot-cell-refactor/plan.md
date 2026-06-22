@@ -453,32 +453,32 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `pnpm test`
-- [x] 1.2 New model tests exist and pass: `pnpm test -- cell-tone week`
-- [x] 1.3 Type checking passes: `pnpm exec astro check`
-- [x] 1.4 Linting passes: `pnpm lint`
-- [x] 1.5 FSD structure clean: `pnpm steiger`
+- [x] 1.1 Unit tests pass: `pnpm test` — 3ad8231
+- [x] 1.2 New model tests exist and pass: `pnpm test -- cell-tone week` — 3ad8231
+- [x] 1.3 Type checking passes: `pnpm exec astro check` — 3ad8231
+- [x] 1.4 Linting passes: `pnpm lint` — 3ad8231
+- [x] 1.5 FSD structure clean: `pnpm steiger` — 3ad8231
 
 #### Manual
 
-- [ ] 1.6 Cell tones render identically for each state (visual diff)
-- [ ] 1.7 Bi-weekly lanes partition correctly; `free` ghost shows
-- [ ] 1.8 `CollisionDetailsDialog` same-week hint unchanged
+- [x] 1.6 Cell tones render identically for each state (visual diff)
+- [x] 1.7 Bi-weekly lanes partition correctly; `free` ghost shows
+- [x] 1.8 `CollisionDetailsDialog` same-week hint unchanged
 
 ### Phase 2: Interaction-safety + dnd hook
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `pnpm test`
-- [ ] 2.2 Type checking passes: `pnpm exec astro check`
-- [ ] 2.3 Linting passes: `pnpm lint` (no useMemo-in-body flag)
-- [ ] 2.4 FSD structure clean: `pnpm steiger`
+- [x] 2.1 Unit tests pass: `pnpm test`
+- [x] 2.2 Type checking passes: `pnpm exec astro check`
+- [x] 2.3 Linting passes: `pnpm lint` (no useMemo-in-body flag)
+- [x] 2.4 FSD structure clean: `pnpm steiger`
 
 #### Manual
 
-- [ ] 2.5 All five interactive controls remain drag-inert
-- [ ] 2.6 Bundle body drag + loose chip drag still work
-- [ ] 2.7 Drop-target highlight + dragging opacity unchanged
+- [x] 2.5 All five interactive controls remain drag-inert
+- [x] 2.6 Bundle body drag + loose chip drag still work
+- [x] 2.7 Drop-target highlight + dragging opacity unchanged
 
 ### Phase 3: Folder split + cva
 

@@ -30,9 +30,9 @@ export const groupCellOccupants = (
 ): Map<string, CellOccupant[]> => {
   const byCell = groupBy(placements, (placement) => cellKey(placement.day, placement.period));
   const result = new Map<string, CellOccupant[]>();
-  for (const [key, placements] of byCell) {
+  for (const [key, cellPlacements] of byCell) {
     const cellCollisions = collisions.get(key);
-    const occupants = placements.map((placement) => toOccupant(placement, names, cellCollisions));
+    const occupants = cellPlacements.map((placement) => toOccupant(placement, names, cellCollisions));
     occupants.sort(compareByName);
     result.set(key, occupants);
   }

@@ -416,11 +416,11 @@ so by the green suite.
 
 #### Automated
 
-- [x] 3.1 Full suite still green: `pnpm test`
-- [x] 3.2 Type-check clean: `pnpm check`
-- [x] 3.3 Lint + structure clean: `pnpm lint` && `pnpm steiger`
+- [x] 3.1 Full suite still green: `pnpm test` — 034dd25
+- [x] 3.2 Type-check clean: `pnpm check` — 034dd25
+- [x] 3.3 Lint + structure clean: `pnpm lint` && `pnpm steiger` — 034dd25
 
 #### Manual
 
-- [x] 3.4 test-plan §3/§5/§6 read consistently; §6 example reference resolves to the real file
-- [x] 3.5 §6 oracle-discipline wording matches harness behavior
+- [x] 3.4 test-plan §3/§5/§6 read consistently; §6 example reference resolves to the real file — 034dd25
+- [x] 3.5 §6 oracle-discipline wording matches harness behavior — 034dd25

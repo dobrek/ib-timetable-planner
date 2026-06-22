@@ -248,16 +248,16 @@ None — no schema or data changes. The only ordering constraint is procedural: 
 
 #### Automated
 
-- [ ] 1.1 Type-check passes with zero errors: `pnpm exec astro check`
-- [ ] 1.2 Unit tests pass: `pnpm test`
-- [ ] 1.3 Lint passes: `pnpm lint`
-- [ ] 1.4 FSD structure passes: `pnpm steiger`
-- [ ] 1.5 Production build succeeds: `pnpm build`
+- [x] 1.1 Type-check passes with zero errors: `pnpm exec astro check`
+- [x] 1.2 Unit tests pass: `pnpm test`
+- [x] 1.3 Lint passes: `pnpm lint`
+- [x] 1.4 FSD structure passes: `pnpm steiger`
+- [x] 1.5 Production build succeeds: `pnpm build`
 
 #### Manual
 
-- [ ] 1.6 No dead `RowResult` references remain after the A fix
-- [ ] 1.7 One action-driven mutation path spot-checked unchanged in the running app
+- [x] 1.6 No dead `RowResult` references remain after the A fix
+- [x] 1.7 One action-driven mutation path spot-checked unchanged in the running app
 
 ### Phase 2: Install the type-check gate
 

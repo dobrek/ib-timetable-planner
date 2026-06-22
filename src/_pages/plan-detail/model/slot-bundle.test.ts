@@ -39,7 +39,7 @@ describe("hasOverride", () => {
   });
 
   it("ignores the pending flag (an in-flight ungroup still reads as overridden)", () => {
-    expect(hasOverride([{ day: 3, period: 4, pending: true }], 3, 4)).toBe(true);
+    expect(hasOverride([{ day: 3, period: 4, pending: true } as LocalSlotOverride], 3, 4)).toBe(true);
   });
 
   it("is false for an empty override set", () => {

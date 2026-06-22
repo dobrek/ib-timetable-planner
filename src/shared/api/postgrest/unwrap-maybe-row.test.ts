@@ -8,7 +8,7 @@ describe("unwrapMaybeRow", () => {
   });
 
   it("returns null when zero rows matched (no error)", () => {
-    expect(unwrapMaybeRow<{ hash: string }>({ data: null, error: null }, "Read failed")).toBeNull();
+    expect(unwrapMaybeRow({ data: null as { hash: string } | null, error: null }, "Read failed")).toBeNull();
   });
 
   it("maps any error to INTERNAL_SERVER_ERROR with the failure prefix", () => {

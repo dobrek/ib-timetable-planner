@@ -1,9 +1,10 @@
 import { toDomainError, type PostgrestError, type RowMessages } from "./to-domain-error";
 
-type RowResult<T> = { data: T; error: null } | { data: null; error: PostgrestError };
-
 /** Unwrap a single-row mutation result, translating PostgREST errors into DomainErrors. */
-export function unwrapRow<T>(result: RowResult<T>, messages: RowMessages): T {
+export function unwrapRow<R extends { data: unknown; error: PostgrestError | null }>(
+  result: R,
+  messages: RowMessages,
+): NonNullable<R["data"]> {
   if (result.error) throw toDomainError(result.error, messages);
-  return result.data;
+  return result.data as NonNullable<R["data"]>;
 }

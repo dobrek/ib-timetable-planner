@@ -6,12 +6,11 @@ import { Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CollisionInspectionTarget } from "../CollisionDetailsDialog";
-import type { CellCollisions } from "../../model/collisions";
 import { cellKey } from "../../model/collisions";
+import type { CellOccupant } from "../../model/cell-occupants";
 import type { BundleDrag, CellData } from "../../model/drag";
 import type { DropHint } from "../../model/drop-hints";
 import type { HintMode } from "../../lib/drag-hint-mode";
-import type { LocalPlacement } from "../../model/placement";
 import { resolveCellTone } from "../../model/cell-tone";
 import { hasBiweekly, partitionByWeek } from "../../model/week";
 import { toneClass } from "./tone-class";
@@ -22,10 +21,7 @@ import { WeekLane } from "./WeekLane";
 type Props = {
   day: number;
   period: number;
-  occupants: LocalPlacement[];
-  names: Record<string, string>;
-  /** Flags + structured violations for this cell (undefined when collision-free). */
-  collisions: CellCollisions | undefined;
+  occupants: CellOccupant[];
   /** Drag hint for this cell (undefined = free while a drag is active, or no drag — see `hintActive`). */
   dropHint: DropHint | undefined;
   /** True while any drag is active; distinguishes "free" (undefined hint) from "no drag". */
@@ -55,8 +51,6 @@ export default function SlotCell({
   day,
   period,
   occupants,
-  names,
-  collisions,
   dropHint,
   hintActive,
   hintMode,
@@ -69,24 +63,27 @@ export default function SlotCell({
 }: Props) {
   const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled);
 
-  const hasBlocking = (collisions?.blockingIds.size ?? 0) > 0;
-  const hasWarning = (collisions?.warningIds.size ?? 0) > 0;
+  // Cell tone is an exact derivation of the per-occupant flags: `hasBlocking ≡ any occupant
+  // blocking`, same for warning — so the cell needs no `CellCollisions` record of its own.
+  const hasBlocking = occupants.some((o) => o.blocking);
+  const hasWarning = occupants.some((o) => o.warning);
   // Sparse map: no entry while a drag is active means "free"; no active drag means "no hint".
   const hintState = hintActive ? (dropHint ?? "free") : undefined;
   const hasHeader = occupants.length >= 2;
   // Progressive disclosure: lanes appear only once a bi-weekly placement is present; the
   // ~95% agnostic-only cell renders via the unchanged flat path.
-  const biweekly = hasBiweekly(occupants);
+  const biweekly = hasBiweekly(occupants, (o) => o.placement.week);
   // One pass groups occupants by week, replacing three inline `.filter()` re-scans of the same
   // array. Only computed for the lane branch — the ~95% agnostic-only cell skips the allocation.
-  const byWeek = biweekly ? partitionByWeek(occupants) : null;
+  const byWeek = biweekly ? partitionByWeek(occupants, (o) => o.placement.week) : null;
   // One ordered, exhaustive precedence resolution replaces the negated-class ladder; the
   // opacity axis (`isDragging`) and the grab cursor compose separately below.
   const tone = resolveCellTone({ hasBlocking, isDropTarget, hasWarning, hintState, bundled });
-  // The cell-level data shared by every chip; each chip resolves its own per-course flags.
+  // The cell-level handlers shared by every chip. Each chip carries its own resolved
+  // `CellOccupant` (name + flags), so this wiring holds only the slot-level identity + callbacks.
   // NOTE: this is a fresh object each render, so it would defeat a `React.memo(PlacedChip)` —
   // stabilize it (e.g. `useMemo` in a named hook) before adding that memo, or the memo no-ops.
-  const chipWiring: ChipWiring = { day, period, names, collisions, bundled, onRemove, onSetWeek, onInspect };
+  const chipWiring: ChipWiring = { day, period, bundled, onRemove, onSetWeek, onInspect };
 
   return (
     <div
@@ -142,14 +139,14 @@ export default function SlotCell({
       {byWeek ? (
         <div data-slot="week-lanes" className="flex flex-col gap-1">
           {/* Agnostic occupants run every week → rendered above the lanes, spanning both. */}
-          {byWeek.both.map((placement) => (
-            <PlacedChip key={placement.id} placement={placement} {...chipWiring} />
+          {byWeek.both.map((occupant) => (
+            <PlacedChip key={occupant.placement.id} occupant={occupant} {...chipWiring} />
           ))}
           <WeekLane label="A" chips={byWeek.a} wiring={chipWiring} />
           <WeekLane label="B" chips={byWeek.b} wiring={chipWiring} />
         </div>
       ) : (
-        occupants.map((placement) => <PlacedChip key={placement.id} placement={placement} {...chipWiring} />)
+        occupants.map((occupant) => <PlacedChip key={occupant.placement.id} occupant={occupant} {...chipWiring} />)
       )}
     </div>
   );

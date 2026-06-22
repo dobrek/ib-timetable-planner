@@ -41,12 +41,14 @@ describe("isBiweekly", () => {
 
 describe("hasBiweekly", () => {
   it("is true when any occupant is biweekly", () => {
-    expect(hasBiweekly([{ week: "both" }, { week: "a" }])).toBe(true);
+    const occupants: { week: PlacementWeek }[] = [{ week: "both" }, { week: "a" }];
+    expect(hasBiweekly(occupants, (o) => o.week)).toBe(true);
   });
 
   it("is false when every occupant is agnostic", () => {
-    expect(hasBiweekly([{ week: "both" }, { week: "both" }])).toBe(false);
-    expect(hasBiweekly([])).toBe(false);
+    const occupants: { week: PlacementWeek }[] = [{ week: "both" }, { week: "both" }];
+    expect(hasBiweekly(occupants, (o) => o.week)).toBe(false);
+    expect(hasBiweekly([] as { week: PlacementWeek }[], (o) => o.week)).toBe(false);
   });
 });
 
@@ -59,7 +61,7 @@ describe("partitionByWeek", () => {
       { id: "4", week: "a" as const },
       { id: "5", week: "both" as const },
     ];
-    expect(partitionByWeek(occupants)).toEqual({
+    expect(partitionByWeek(occupants, (o) => o.week)).toEqual({
       both: [
         { id: "2", week: "both" },
         { id: "5", week: "both" },
@@ -73,7 +75,7 @@ describe("partitionByWeek", () => {
   });
 
   it("returns empty groups for empty input", () => {
-    expect(partitionByWeek([])).toEqual({ both: [], a: [], b: [] });
+    expect(partitionByWeek([] as { week: PlacementWeek }[], (o) => o.week)).toEqual({ both: [], a: [], b: [] });
   });
 });
 

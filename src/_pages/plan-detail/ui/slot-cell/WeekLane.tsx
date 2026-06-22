@@ -1,4 +1,4 @@
-import type { LocalPlacement } from "../../model/placement";
+import type { CellOccupant } from "../../model/cell-occupants";
 import { PlacedChip, type ChipWiring } from "./PlacedChip";
 
 /**
@@ -6,7 +6,7 @@ import { PlacedChip, type ChipWiring } from "./PlacedChip";
  * placeholder so the remaining week capacity is visible. Renders its chips by importing
  * `PlacedChip` directly — no `render` callback threaded in. Tokens only.
  */
-export function WeekLane({ label, chips, wiring }: { label: "A" | "B"; chips: LocalPlacement[]; wiring: ChipWiring }) {
+export function WeekLane({ label, chips, wiring }: { label: "A" | "B"; chips: CellOccupant[]; wiring: ChipWiring }) {
   return (
     <div data-slot="week-lane" aria-label={`Week ${label}`} className="flex items-stretch gap-1">
       <span
@@ -17,7 +17,7 @@ export function WeekLane({ label, chips, wiring }: { label: "A" | "B"; chips: Lo
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {chips.length > 0 ? (
-          chips.map((placement) => <PlacedChip key={placement.id} placement={placement} {...wiring} />)
+          chips.map((occupant) => <PlacedChip key={occupant.placement.id} occupant={occupant} {...wiring} />)
         ) : (
           <span
             data-slot="week-lane-ghost"

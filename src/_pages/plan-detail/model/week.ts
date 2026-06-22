@@ -21,20 +21,25 @@ export const weeksDisjoint = (a: PlacementWeek, b: PlacementWeek): boolean => a 
 /** A bi-weekly placement resolves to a single fortnightly week (`a`/`b`); agnostic stays `both`. */
 export const isBiweekly = (week: PlacementWeek): boolean => week === "a" || week === "b";
 
-/** Any occupant biweekly → the cell needs A/B lanes. */
-export const hasBiweekly = (occupants: { week: PlacementWeek }[]): boolean =>
-  occupants.some((occupant) => isBiweekly(occupant.week));
+/** Any occupant biweekly → the cell needs A/B lanes. `weekOf` selects the week from each occupant. */
+export const hasBiweekly = <T>(occupants: T[], weekOf: (occupant: T) => PlacementWeek): boolean =>
+  occupants.some((occupant) => isBiweekly(weekOf(occupant)));
 
 /**
  * Split occupants into the three week groups in one pass, replacing repeated `.filter()`
  * re-scans. Agnostic (`both`) occupants run every week and render above the lanes; `a`/`b`
- * occupants fall into their lane. Input order is preserved within each group.
+ * occupants fall into their lane. Input order is preserved within each group. `weekOf` selects
+ * the week from each occupant, so the helper works on any shape that exposes a `PlacementWeek`.
  */
-export const partitionByWeek = <T extends { week: PlacementWeek }>(occupants: T[]): { both: T[]; a: T[]; b: T[] } => {
+export const partitionByWeek = <T>(
+  occupants: T[],
+  weekOf: (occupant: T) => PlacementWeek,
+): { both: T[]; a: T[]; b: T[] } => {
   const groups: { both: T[]; a: T[]; b: T[] } = { both: [], a: [], b: [] };
   for (const occupant of occupants) {
-    if (occupant.week === "a") groups.a.push(occupant);
-    else if (occupant.week === "b") groups.b.push(occupant);
+    const week = weekOf(occupant);
+    if (week === "a") groups.a.push(occupant);
+    else if (week === "b") groups.b.push(occupant);
     else groups.both.push(occupant);
   }
   return groups;

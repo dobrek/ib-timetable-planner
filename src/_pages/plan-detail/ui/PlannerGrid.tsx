@@ -3,22 +3,19 @@ import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import SlotCell from "./slot-cell";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CellCollisions } from "../model/collisions";
+import { groupCellOccupants, type CellOccupant } from "../model/cell-occupants";
 import type { DropHint } from "../model/drop-hints";
 import type { HintMode } from "../lib/drag-hint-mode";
 import type { LocalPlacement } from "../model/placement";
 import { isBundled } from "../model/slot-bundle";
 import { cellKey } from "../model/collisions";
-import { groupBy } from "@/shared/lib/collections";
 
-type Props = {
-  days: number;
-  periods: number;
-  /** Pre-formatted accessible name for the grid (e.g. "DP1 timetable") — built at the board level. */
-  gridLabel: string;
-  placements: LocalPlacement[];
-  names: Record<string, string>;
-  /** cellKey → flags + structured violations for that cell. */
-  collisions: Map<string, CellCollisions>;
+/**
+ * The cell wiring shared by `PlannerGrid` and its `PeriodRow` pass-through: handlers plus the
+ * cell-level drag-hint state. Declared once instead of verbatim in both the grid `Props` and the
+ * row params. Per-cell data (occupants, the row's resolved hint) is added on top at each level.
+ */
+type CellWiring = {
   /** cellKey → drag hint (sparse: absent = free); null when no drag is active. */
   dropHints: Map<string, DropHint> | null;
   /** Encoding for the hint cells while a drag is active. */
@@ -30,6 +27,17 @@ type Props = {
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
+};
+
+type Props = CellWiring & {
+  days: number;
+  periods: number;
+  /** Pre-formatted accessible name for the grid (e.g. "DP1 timetable") — built at the board level. */
+  gridLabel: string;
+  placements: LocalPlacement[];
+  names: Record<string, string>;
+  /** cellKey → flags + structured violations for that cell. */
+  collisions: Map<string, CellCollisions>;
 };
 
 /** The 10×5 (period × day) slot grid. Each cell is a droppable; cells are multi-occupancy. */
@@ -51,7 +59,9 @@ export default function PlannerGrid({
 }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
-  const byCell = groupByCell(placements, names);
+  // Resolve each occupant's display name + collision flags once, here, where `names`/`collisions`
+  // are held — the cell/chip components below never see the map or a `CellCollisions` record.
+  const byCell = groupCellOccupants(placements, names, collisions);
 
   return (
     <div data-slot="planner-grid" className="w-max min-w-full">
@@ -82,8 +92,6 @@ export default function PlannerGrid({
             period={period}
             days={dayList}
             byCell={byCell}
-            names={names}
-            collisions={collisions}
             dropHints={dropHints}
             hintMode={hintMode}
             isOverridden={isOverridden}
@@ -103,8 +111,6 @@ function PeriodRow({
   period,
   days,
   byCell,
-  names,
-  collisions,
   dropHints,
   hintMode,
   isOverridden,
@@ -113,20 +119,10 @@ function PeriodRow({
   onToggleBundle,
   onRemoveBundle,
   onInspect,
-}: {
+}: CellWiring & {
   period: number;
   days: number[];
-  byCell: Map<string, LocalPlacement[]>;
-  names: Record<string, string>;
-  collisions: Map<string, CellCollisions>;
-  dropHints: Map<string, DropHint> | null;
-  hintMode: HintMode;
-  isOverridden: (day: number, period: number) => boolean;
-  onRemove: (placementId: string) => void;
-  onSetWeek: (placementId: string, week: PlacementWeek) => void;
-  onToggleBundle: (day: number, period: number, bundled: boolean) => void;
-  onRemoveBundle: (day: number, period: number) => void;
-  onInspect: (target: CollisionInspectionTarget) => void;
+  byCell: Map<string, CellOccupant[]>;
 }) {
   return (
     <div role="row" className="contents">
@@ -144,8 +140,6 @@ function PeriodRow({
             day={day}
             period={period}
             occupants={occupants}
-            names={names}
-            collisions={collisions.get(cellKey(day, period))}
             dropHint={dropHints?.get(cellKey(day, period))}
             hintActive={dropHints !== null}
             hintMode={hintMode}
@@ -161,19 +155,3 @@ function PeriodRow({
     </div>
   );
 }
-
-/**
- * Group placements by cell, with each cell's occupants in a deterministic order
- * (display name, then courseId) so the chip order is stable across reloads — the DB
- * read has no inherent ordering.
- */
-const groupByCell = (placements: LocalPlacement[], names: Record<string, string>): Map<string, LocalPlacement[]> => {
-  const map = groupBy(placements, (placement) => cellKey(placement.day, placement.period));
-  for (const occupants of map.values()) occupants.sort((a, b) => compareByName(a, b, names));
-  return map;
-};
-
-const compareByName = (a: LocalPlacement, b: LocalPlacement, names: Record<string, string>): number => {
-  const byName = (names[a.courseId] ?? a.courseId).localeCompare(names[b.courseId] ?? b.courseId);
-  return byName !== 0 ? byName : a.courseId.localeCompare(b.courseId);
-};

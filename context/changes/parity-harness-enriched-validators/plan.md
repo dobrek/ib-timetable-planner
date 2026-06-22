@@ -388,15 +388,15 @@ so by the green suite.
 
 #### Automated
 
-- [ ] 1.1 Unit suite passes unchanged: `pnpm test`
-- [ ] 1.2 Type-check clean: `pnpm check`
-- [ ] 1.3 Lint clean: `pnpm lint`
-- [ ] 1.4 FSD structure clean: `pnpm steiger`
+- [x] 1.1 Unit suite passes unchanged: `pnpm test`
+- [x] 1.2 Type-check clean: `pnpm check`
+- [x] 1.3 Lint clean: `pnpm lint`
+- [x] 1.4 FSD structure clean: `pnpm steiger`
 
 #### Manual
 
-- [ ] 1.5 Diff of the four files shows only builder removal + import + `ctx`→named-variant rewrites (no changed assertions)
-- [ ] 1.6 Stashing the builder module breaks the four files' imports (proves real consumption)
+- [x] 1.5 Diff of the four files shows only builder removal + import + `ctx`→named-variant rewrites (no changed assertions)
+- [x] 1.6 Stashing the builder module breaks the four files' imports (proves real consumption)
 
 ### Phase 2: Author collision-parity.test.ts (the Risk #6 guard)
 

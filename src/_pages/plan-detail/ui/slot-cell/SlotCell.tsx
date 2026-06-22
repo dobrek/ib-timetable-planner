@@ -77,13 +77,15 @@ export default function SlotCell({
   // Progressive disclosure: lanes appear only once a bi-weekly placement is present; the
   // ~95% agnostic-only cell renders via the unchanged flat path.
   const biweekly = hasBiweekly(occupants);
-  // One pass groups occupants by week (used only in the lane branch), replacing three inline
-  // `.filter()` re-scans of the same array.
-  const byWeek = partitionByWeek(occupants);
+  // One pass groups occupants by week, replacing three inline `.filter()` re-scans of the same
+  // array. Only computed for the lane branch — the ~95% agnostic-only cell skips the allocation.
+  const byWeek = biweekly ? partitionByWeek(occupants) : null;
   // One ordered, exhaustive precedence resolution replaces the negated-class ladder; the
   // opacity axis (`isDragging`) and the grab cursor compose separately below.
   const tone = resolveCellTone({ hasBlocking, isDropTarget, hasWarning, hintState, bundled });
   // The cell-level data shared by every chip; each chip resolves its own per-course flags.
+  // NOTE: this is a fresh object each render, so it would defeat a `React.memo(PlacedChip)` —
+  // stabilize it (e.g. `useMemo` in a named hook) before adding that memo, or the memo no-ops.
   const chipWiring: ChipWiring = { day, period, names, collisions, bundled, onRemove, onSetWeek, onInspect };
 
   return (
@@ -137,7 +139,7 @@ export default function SlotCell({
         </div>
       )}
 
-      {biweekly ? (
+      {byWeek ? (
         <div data-slot="week-lanes" className="flex flex-col gap-1">
           {/* Agnostic occupants run every week → rendered above the lanes, spanning both. */}
           {byWeek.both.map((placement) => (

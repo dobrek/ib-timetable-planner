@@ -28,7 +28,10 @@ exemplars; model new specs on them.
 - **Role-based locators first:** `getByRole` / `getByLabel` / `getByText`. Never
   CSS selectors, XPath, or DOM structure. The agent sees the accessibility tree,
   not pixels. Disambiguate by scoping to a container (e.g. the row), not by
-  `nth-child`.
+  `nth-child`. The planner board carries the roles + accessible names this needs:
+  cells (`gridcell`, named even when empty), chips (by course name +
+  `aria-invalid` for collision), and the A/B `radio` controls are reached by role
+  - name — visual-state logic (tone/hint coloring) is unit-tested, never selected on.
 - **Each test is independently runnable** — its own setup, action, assertion, and
   cleanup, safe under parallel random order. No shared state between tests.
 - **Unique test data.** Suffix created entities with `randomUUID()` so parallel

@@ -17,8 +17,11 @@ Every component file reads top-down from **what** to **how**:
 3. **Exported component** — destructures hooks, renders declarative JSX
 4. **Private behavior hooks** — state, effects, memos, action handlers
 5. **Private sub-components** (if any) — tightly coupled presentational children
+6. **Module-level constants / lookup tables and pure helpers** — at the file **bottom**, after the sub-components
 
 Open the file, see the component shape immediately; scroll down only for implementation detail. Function declarations are hoisted, so hooks defined below the component are valid.
+
+The trailing-constants rule (item 6) documents an existing slice norm, not a new one: `HINT_CLASS`/`toneClass` (`ui/slot-cell/tone-class.ts`), `PLUGINS` (`PlannerBoard`), and `groupByCell` (`PlannerGrid`) already sit at the bottom of their files. `const`-bound pure helpers (`mergeRefs`, `stopDrag`) follow the same rule.
 
 ## Hook granularity
 
@@ -44,6 +47,7 @@ Promote a co-located hook to `model/` only when a second consumer appears.
 
 - Components are **declarative JSX templates**: no `useState`, `useEffect`, `useMemo`, or async handlers in the component body.
 - **Simple prop transforms** are allowed inline: `const noTeachers = teachers.length === 0`, `.map().filter()` derivations with no state.
+- **dnd-kit integration extracts to a named private hook** below the component (like any behavioral flow), e.g. `useCellDnd` in `ui/slot-cell/SlotCell.tsx` owns the `useDroppable`/`useDraggable` calls and the merged ref — so the body holds no raw `useMemo`/`useState`. `GroupingBox`/`PlannerBoard` still inline their dnd hooks and `PlannerBoard.weekModeByCourseId` is still an inline-body memo; these are flagged for the same extraction when next touched (not forced by this rule).
 
 ## File naming
 
@@ -56,6 +60,21 @@ Promote a co-located hook to `model/` only when a second consumer appears.
 
 - One default export per `ui/` file.
 - Private children (`OverlapBadge`, `CourseRowActions`) stay unexported inside their parent file when tightly coupled.
+
+## Folder-with-barrel graduation (cohesion test)
+
+A `ui/` component graduates from a single file to a **folder-with-pure-barrel** when it has **3+ private sub-components serving *unrelated* concerns**, *or* it exceeds ~250 lines **and** its children are not one cohesive concern. The folder keeps one public surface: `index.ts` is a pure barrel re-exporting only the default (`export { default } from "./SlotCell";`). Mirrors the existing `model/constraints/` barrel idiom; `ui/slot-cell/` is the worked example (orchestrator + `PlacedChip`/`WeekLane`/`WeekToggle` + `tone-class`/`drag-inert`).
+
+The cohesion qualifier is load-bearing — it is a cohesion test, not a raw line/child count. Files whose children serve **one** concern are **not** flagged even past the thresholds: `CollisionDetailsDialog` (257 lines, 4 children — all "render one violation") and `PlannerBoard` (private hooks, one orchestration concern) stay single-file.
+
+## Role + ARIA as the interactive/grid contract
+
+Interactive and grid components must carry roles + accessible names sufficient for **role-based e2e** (the e2e suite selects by role + name, never CSS/`data-*`):
+
+- A timetable *is* a grid: `role="grid"` (+ `aria-label`), `role="row"` (use `display:contents` so the row wrapper stays out of the CSS-grid box model), `columnheader`/`rowheader`, and `gridcell`s with accessible names — **named even when empty** so an empty drop target is still locatable.
+- **User-perceivable state is expressed via ARIA**, asserted on the role-located element: `aria-invalid` (collision/blocking), `aria-checked` (the A/B `ToggleGroup type="single"` → `radiogroup`/`radio`), `disabled` (pending). These carry to assistive tech *and* to Playwright.
+- **`data-*` is for component identity only** (`data-slot`) — never the test contract. Stateful/coordinate `data-*` (`data-collision`, `data-day`, …) is removed; ARIA + accessible names are the single source of truth.
+- **Visual-only logic** (tone precedence, hint encoding, ring colors) is **unit-tested** (`model/cell-tone`, `ui/slot-cell/tone-class`, `model/drop-hints`), not e2e-asserted; e2e asserts the *outcome* (placement landed/rejected), not the intermediate coloring.
 
 ## Root page component
 

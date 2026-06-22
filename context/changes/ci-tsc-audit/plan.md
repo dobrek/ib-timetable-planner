@@ -263,22 +263,22 @@ None — no schema or data changes. The only ordering constraint is procedural: 
 
 #### Automated
 
-- [x] 2.1 `pnpm check` is runnable and exits 0
-- [x] 2.2 Full local gate passes in CI order (sync → check → lint → steiger → test → build)
-- [x] 2.3 Workflow YAML is valid (CI parses on push)
+- [x] 2.1 `pnpm check` is runnable and exits 0 — 6cd5a29
+- [x] 2.2 Full local gate passes in CI order (sync → check → lint → steiger → test → build) — 6cd5a29
+- [x] 2.3 Workflow YAML is valid (CI parses on push) — 6cd5a29
 
 #### Manual
 
-- [x] 2.4 A deliberate type error is caught by `pnpm check`, then reverted
-- [x] 2.5 CI `verify` job shows `pnpm check` running after `astro sync` and green on the branch
-- [x] 2.6 `/verify` skill executes the new order and reports the check step
+- [x] 2.4 A deliberate type error is caught by `pnpm check`, then reverted — 6cd5a29
+- [x] 2.5 CI `verify` job shows `pnpm check` running after `astro sync` and green on the branch — 6cd5a29
+- [x] 2.6 `/verify` skill executes the new order and reports the check step — 6cd5a29
 
 ### Phase 3: Capture the lesson
 
 #### Automated
 
-- [ ] 3.1 `lessons.md` present: `test -f context/foundation/lessons.md`
+- [x] 3.1 `lessons.md` present: `test -f context/foundation/lessons.md`
 
 #### Manual
 
-- [ ] 3.2 New lesson is consistent with existing Context/Problem/Rule/Applies-to entries
+- [x] 3.2 New lesson is consistent with existing Context/Problem/Rule/Applies-to entries

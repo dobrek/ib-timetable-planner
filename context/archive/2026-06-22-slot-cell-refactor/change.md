@@ -1,10 +1,10 @@
 ---
 change_id: slot-cell-refactor
 title: Slot cell refactor
-status: implemented
+status: archived
 created: 2026-06-22
 updated: 2026-06-22
-archived_at: null
+archived_at: 2026-06-22T13:15:39Z
 ---
 
 ## Notes

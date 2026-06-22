@@ -277,8 +277,8 @@ None — no schema or data changes. The only ordering constraint is procedural: 
 
 #### Automated
 
-- [x] 3.1 `lessons.md` present: `test -f context/foundation/lessons.md`
+- [x] 3.1 `lessons.md` present: `test -f context/foundation/lessons.md` — 85905a8
 
 #### Manual
 
-- [x] 3.2 New lesson is consistent with existing Context/Problem/Rule/Applies-to entries
+- [x] 3.2 New lesson is consistent with existing Context/Problem/Rule/Applies-to entries — 85905a8

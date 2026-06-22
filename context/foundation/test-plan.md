@@ -117,7 +117,7 @@ value.
 | 1   | Validator trust core (independent oracle) — **complete (absorbed)** | Prove a false-positive cannot pass the core; covers the domain persist path (the placements/grouping route migrated to Actions). | #1                                           | unit (independent oracle)                                                 | complete    | — (absorbed into organic feature/refactor growth; no discrete change) |
 | 2   | Auth + Astro Actions boundary + RLS / PII                           | Prove every Action self-enforces session, no cross-author read/mutate, and error translation holds.                              | #5 (unauth half), #3 (Actions)               | **e2e (Playwright, workerd preview) + integration (local Supabase + auth)** — hybrid | complete    | `context/archive/2026-06-15-testing-auth-actions-boundary-rls/`        |
 | 3   | Drag → validate → feedback loop + persistence reload-restore — **next active** | Prove a real collision visibly reads "invalid" and placed work survives reload; fold in bundle-persistence durability as S-05 / S-07 ship. | #2, #4 (reload-restore)                      | component / integration (planner island); persistence integration; ≤1 e2e | not started | —                                                                     |
-| 4   | Parity harness for new validator classes (owns the enriched-dimension wave) | Lock a convention + fixture harness so each enriched validator class (roadmap S-02 / S-03 / S-04 / S-06) ships with a false-positive parity guard — the §2 Risk #6 response. | #1-class, #6 (enriched family)               | gates + table-driven fixture harness                                      | not started | —                                                                     |
+| 4   | Parity harness for new validator classes (owns the enriched-dimension wave) | Lock a convention + fixture harness so each enriched validator class (roadmap S-02 / S-03 / S-04 / S-06) ships with a false-positive parity guard — the §2 Risk #6 response. | #1-class, #6 (enriched family)               | gates + table-driven fixture harness                                      | complete    | `context/changes/parity-harness-enriched-validators/`                 |
 
 **Notes.**
 
@@ -169,6 +169,18 @@ value.
   edits `teacher-conflict` / `teacher-availability`), with
   **before S-03's unified-rule rewrite** as the latest-acceptable bound. Do not
   let the first enriched class ship without the parity guard in place.
+  - **Landed 2026-06-22 (`parity-harness-enriched-validators`).** The convention
+    + the table-driven harness shipped: `src/_pages/plan-detail/model/collision-parity.test.ts`
+    asserts the board-path parity matrix through `deriveCellViolations` (the stable
+    boundary), with the **S-02 (co-teaching) and S-03 (bi-weekly)** false-positive
+    classes **backfilled** (both shipped before the guard existed). A shared
+    `model/__fixtures__/builders.ts` underpins it and the four migrated model test
+    files. The **S-04 (cross-cohort) and S-06 (combined two-cohort)** rows are
+    `it.todo` placeholders — they cannot be expressed until `deriveCellViolations`
+    gains a cross-cohort occupancy parameter (the S-04 slice). Each appends its
+    per-class fixtures (and flips its `it.todo` to a live row) as that slice ships;
+    Phase 4 "complete" means the convention + harness are in place, not that every
+    enriched class is guarded yet.
 
 **Status vocabulary** (fixed — parser literals): `not started` → `change
 opened` → `researched` → `planned` → `implementing` → `complete`.
@@ -218,12 +230,20 @@ phase lands; before that, the gate is `planned`.
 | new-validator-class parity fixture | CI on PR | required after §3 Phase 4 | a new collision class shipping without a false-positive guard |
 | pre-prod smoke | between merge + prod | optional | environment-specific (workerd / Supabase) failures |
 
-> **Current enforcement (as of 2026-06-18).** With §3 Phase 1 (absorbed) and
+> **Current enforcement (as of 2026-06-22).** With §3 Phase 1 (absorbed) and
 > Phase 2 **complete**, the **unit + integration** and **auth + RLS ownership
 > integration** gates are now **live**. The **drag→feedback e2e / island
 > integration** gate is still **planned** (enforced once §3 Phase 3 — the next
-> active phase — lands), and **new-validator-class parity** stays planned
-> pending §3 Phase 4.
+> active phase — lands). The **new-validator-class parity** gate is now **live**
+> with §3 Phase 4 landed (`parity-harness-enriched-validators`): the harness runs
+> in the existing `pnpm test` unit lane that already gates CI — no new CI job.
+> "Live" means the **convention is in force and the harness exists**, enforced by
+> **review plus the `it.todo` reminders** for the not-yet-built S-04/S-06 classes,
+> **not** by a CI failure on an unguarded new class (an `it.todo` is pending, not a
+> failing test — the suite stays green). Adding a new enriched class without its
+> parity fixture is caught at review, cued by the visible `it.todo` gap, not by a
+> red build. **`/10x-test-plan` remains the orchestrator of record** for rollout
+> state — this note reflects, not replaces, that source of truth.
 
 ## 6. Cookbook Patterns
 
@@ -338,7 +358,40 @@ Copy it rather than reinventing:
   `DomainError`→`ActionError` translation, and persistence under RLS —
   without re-testing the already-covered `src/_pages/courses/api` domain logic.
 
-### 6.6 Per-rollout-phase notes
+### 6.6 Adding a new-validator-class parity fixture
+
+When a new enriched validator class ships (roadmap S-02 / S-03 / S-04 / S-06 —
+the §2 Risk #6 family), it must land with a false-positive parity guard. The
+convention:
+
+- **One file, append a `describe()` per class.** All parity fixtures live in
+  `src/_pages/plan-detail/model/collision-parity.test.ts`. Add a new
+  `describe("<class> (S-0N) parity")` (or flip the class's existing `it.todo`
+  block to live rows) — do not start a second harness file.
+- **Assert through the stable boundary.** Run fixtures through
+  `deriveCellViolations` (the authoritative committed-placement verdict), **not**
+  `explainCell` or an internal constraint — that boundary is what survives the
+  S-03/S-04 internal rewrites (§1 principle #4).
+- **Expected values come from requirements, never recomputed from the validator.**
+  This is the oracle-problem anti-pattern (§2 Risk #1/#6 guidance): hand-type the
+  literal expected violations from the FR/US that defines the class. A test whose
+  oracle is lifted from the code under test proves nothing.
+- **Include negative-parity (accepted) rows.** A guard that only checks rejects
+  can pass by rejecting everything. Every class table carries `valid` rows (the
+  over-rejection guard) alongside the `invalid`/`warn` rows.
+- **Use the shared builders.** Build fixtures from
+  `model/__fixtures__/builders.ts` (`course`, `coTaught`, `placement`, `catalog`,
+  `avail`, …) — no inline per-file builder definitions.
+- **Prove it's a real oracle.** Before committing, run the integrity probe:
+  temporarily break the constraint (e.g. force `weeksDisjoint` true) and confirm a
+  fixture reddens; revert. If nothing reddens, the oracle is inert.
+- **Run** with `pnpm test` — the harness is a unit test in the existing CI lane;
+  no new CI job. `it.todo` rows for not-yet-built classes render as pending (a
+  visible guard gap), not failures.
+- **Live example**: `src/_pages/plan-detail/model/collision-parity.test.ts`
+  (S-02 / S-03 backfilled; S-04 / S-06 as `it.todo`).
+
+### 6.7 Per-rollout-phase notes
 
 (Optional. After each phase lands, `/10x-implement` appends a 2–3 line note
 here capturing anything surprising the rollout phase taught.)

@@ -41,7 +41,7 @@ afterAll(async () => {
   });
 
   it("ships name records covering every teacher and student key in the catalog", async () => {
-    const result = await loadPlannerData(supabase, planId);
+    const result = await loadPlannerData(supabase, planId, "dp1");
     if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
     const { catalog, teacherNames, studentNames } = result.value.props;
 
@@ -57,7 +57,7 @@ afterAll(async () => {
   });
 
   it("resolves a teacher without full_name to their code", async () => {
-    const result = await loadPlannerData(supabase, planId);
+    const result = await loadPlannerData(supabase, planId, "dp1");
     if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
     const { teacherNames } = result.value.props;
 
@@ -91,7 +91,7 @@ afterAll(async () => {
 
     await addAvailability(supabase, { planId, teacherId: teacher.id, day: 3, period: 2, severity: "strong" });
 
-    const result = await loadPlannerData(supabase, planId);
+    const result = await loadPlannerData(supabase, planId, "dp1");
     if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
     expect(result.value.props.availability).toEqual([
       { teacherKey: teacher.id, day: 3, period: 2, severity: "strong" },

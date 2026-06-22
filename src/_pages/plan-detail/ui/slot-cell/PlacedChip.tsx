@@ -5,24 +5,21 @@ import type { PlacementWeek } from "@/shared/config";
 import { Badge, Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import type { CollisionInspectionTarget } from "../CollisionDetailsDialog";
-import type { CellCollisions } from "../../model/collisions";
+import type { CellOccupant } from "../../model/cell-occupants";
 import type { PlacementDrag } from "../../model/drag";
-import type { LocalPlacement } from "../../model/placement";
 import { isBiweekly } from "../../model/week";
 import { stopDrag } from "./drag-inert";
 import { WeekToggle } from "./WeekToggle";
 
 /**
- * The cell-level data every chip in a cell shares. The chip resolves its own per-course flags
- * (name, blocking/warning/unavailable) from these, so neither `SlotCell` nor `WeekLane` has to
- * thread per-chip props or a `render` callback — each just hands the same wiring to every chip.
+ * The cell-level wiring every chip in a cell shares — slot identity plus the callbacks. Each chip
+ * carries its own resolved `CellOccupant` (name + blocking/warning/unavailable flags), so neither
+ * `SlotCell` nor `WeekLane` has to thread per-chip props or a `render` callback — each just hands
+ * the same wiring to every chip.
  */
 export type ChipWiring = {
   day: number;
   period: number;
-  names: Record<string, string>;
-  /** Flags + structured violations for the cell (undefined when collision-free). */
-  collisions: CellCollisions | undefined;
   bundled: boolean;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
@@ -36,26 +33,21 @@ export type ChipWiring = {
  * own drag and remove go inert — the whole slot drags as one unit.
  */
 export function PlacedChip({
-  placement,
+  occupant,
   day,
   period,
-  names,
-  collisions,
   bundled,
   onRemove,
   onSetWeek,
   onInspect,
-}: ChipWiring & { placement: LocalPlacement }) {
+}: ChipWiring & { occupant: CellOccupant }) {
+  const { placement, name, blocking, warning, unavailable } = occupant;
   const { ref, isDragging } = useDraggable<PlacementDrag>({
     id: placement.id,
     data: { kind: "placement", placementId: placement.id, courseId: placement.courseId },
     disabled: bundled || placement.pending === true,
   });
 
-  const name = names[placement.courseId] ?? placement.courseId;
-  const blocking = collisions?.blockingIds.has(placement.courseId) ?? false;
-  const warning = collisions?.warningIds.has(placement.courseId) ?? false;
-  const unavailable = collisions?.unavailableIds.has(placement.courseId) ?? false;
   // A bi-weekly placement always resolves to a single week (a/b); agnostic stays `both`.
   const biweekly = isBiweekly(placement.week);
 

@@ -174,15 +174,15 @@ None — no schema, data, or API change.
 
 #### Automated
 
-- [ ] 1.1 Type-check passes: `pnpm check`
-- [ ] 1.2 Unit tests pass (incl. new `cell-occupants.test.ts` and updated `week.test.ts`): `pnpm test`
-- [ ] 1.3 Linting passes: `pnpm lint`
-- [ ] 1.4 FSD structure passes: `pnpm steiger`
-- [ ] 1.5 Production build is clean: `pnpm build`
+- [x] 1.1 Type-check passes: `pnpm check`
+- [x] 1.2 Unit tests pass (incl. new `cell-occupants.test.ts` and updated `week.test.ts`): `pnpm test`
+- [x] 1.3 Linting passes: `pnpm lint`
+- [x] 1.4 FSD structure passes: `pnpm steiger`
+- [x] 1.5 Production build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.6 Chips render correct names (not ids); collision/unavailable badges on the right chips, open the dialog for the right course
-- [ ] 1.7 Cell outlines and per-chip blocking/warning tones unchanged
-- [ ] 1.8 Week A/B lanes, drag-drop (single + bundle), group/ungroup/bulk-remove behave identically
-- [ ] 1.9 No regression in palette, error banner, collision dialog, group drag overlay
+- [x] 1.6 Chips render correct names (not ids); collision/unavailable badges on the right chips, open the dialog for the right course
+- [x] 1.7 Cell outlines and per-chip blocking/warning tones unchanged
+- [x] 1.8 Week A/B lanes, drag-drop (single + bundle), group/ungroup/bulk-remove behave identically
+- [x] 1.9 No regression in palette, error banner, collision dialog, group drag overlay

@@ -1,7 +1,7 @@
 ---
 change_id: planner-prop-drilling
 title: Planner prop drilling
-status: plan_reviewed
+status: implementing
 created: 2026-06-22
 updated: 2026-06-22
 archived_at: null

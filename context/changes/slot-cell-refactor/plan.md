@@ -518,8 +518,8 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [x] 5.1 Docs format clean: `pnpm format`
-- [x] 5.2 Cited intra-repo paths exist (manual grep)
+- [x] 5.1 Docs format clean: `pnpm format` — 45f0bbc
+- [x] 5.2 Cited intra-repo paths exist (manual grep) — 45f0bbc
 
 #### Manual
 

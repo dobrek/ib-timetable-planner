@@ -388,29 +388,29 @@ so by the green suite.
 
 #### Automated
 
-- [x] 1.1 Unit suite passes unchanged: `pnpm test`
-- [x] 1.2 Type-check clean: `pnpm check`
-- [x] 1.3 Lint clean: `pnpm lint`
-- [x] 1.4 FSD structure clean: `pnpm steiger`
+- [x] 1.1 Unit suite passes unchanged: `pnpm test` — 5fdacc2
+- [x] 1.2 Type-check clean: `pnpm check` — 5fdacc2
+- [x] 1.3 Lint clean: `pnpm lint` — 5fdacc2
+- [x] 1.4 FSD structure clean: `pnpm steiger` — 5fdacc2
 
 #### Manual
 
-- [x] 1.5 Diff of the four files shows only builder removal + import + `ctx`→named-variant rewrites (no changed assertions)
-- [x] 1.6 Stashing the builder module breaks the four files' imports (proves real consumption)
+- [x] 1.5 Diff of the four files shows only builder removal + import + `ctx`→named-variant rewrites (no changed assertions) — 5fdacc2
+- [x] 1.6 Stashing the builder module breaks the four files' imports (proves real consumption) — 5fdacc2
 
 ### Phase 2: Author collision-parity.test.ts (the Risk #6 guard)
 
 #### Automated
 
-- [ ] 2.1 New harness passes: `pnpm test`
-- [ ] 2.2 Type-check clean: `pnpm check`
-- [ ] 2.3 Lint clean: `pnpm lint`
-- [ ] 2.4 FSD structure clean: `pnpm steiger`
+- [x] 2.1 New harness passes: `pnpm test`
+- [x] 2.2 Type-check clean: `pnpm check`
+- [x] 2.3 Lint clean: `pnpm lint`
+- [x] 2.4 FSD structure clean: `pnpm steiger`
 
 #### Manual
 
-- [ ] 2.5 Oracle-integrity probe: breaking a constraint reddens ≥1 S-02 and ≥1 S-03 fixture; reverted
-- [ ] 2.6 S-04/S-06 `it.todo` placeholders render as pending in the report
+- [x] 2.5 Oracle-integrity probe: breaking a constraint reddens ≥1 S-02 and ≥1 S-03 fixture; reverted
+- [x] 2.6 S-04/S-06 `it.todo` placeholders render as pending in the report
 
 ### Phase 3: Convention doc + test-plan rollout status
 

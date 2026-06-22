@@ -1,4 +1,9 @@
-import { useMemo, type ReactNode } from "react";
+import {
+  useMemo,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { Link, Trash2, TriangleAlert, Unlink, UserX, X } from "lucide-react";
 import type { PlacementWeek } from "@/shared/config";
@@ -63,26 +68,7 @@ export default function SlotCell({
   onRemoveBundle,
   onInspect,
 }: Props) {
-  const { ref: dropRef, isDropTarget } = useDroppable<CellData>({ id: cellKey(day, period), data: { day, period } });
-  // Whole-slot drag: the entire bundled cell is the drag surface (no handle). We deliberately
-  // avoid a handle on the header — dnd-kit's default `preventActivation` short-circuits for any
-  // target inside a handle, so header buttons would start a drag instead of clicking. With no
-  // handle, the interactive `<button>`s (toggle, trash, conflict badge) are auto-excluded from
-  // activation, while grabbing a chip or the cell body moves the slot as one unit. Only active
-  // while bundled, so loose chips keep their own per-chip drags.
-  const { ref: dragRef, isDragging } = useDraggable<BundleDrag>({
-    id: `bundle:${cellKey(day, period)}`,
-    data: { kind: "bundle", day, period },
-    disabled: !bundled,
-  });
-  // The cell is both a droppable and a bundle draggable; merge the two stable callback refs.
-  const setCellRef = useMemo(
-    () => (node: Element | null) => {
-      dropRef(node);
-      dragRef(node);
-    },
-    [dropRef, dragRef],
-  );
+  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled);
 
   const blockingIds = collisions?.blockingIds;
   const warningIds = collisions?.warningIds;
@@ -148,15 +134,9 @@ export default function SlotCell({
             size="icon"
             data-slot="toggle-bundle"
             aria-label={bundled ? "Ungroup slot" : "Group slot"}
-            onClick={(event) => {
-              event.stopPropagation();
+            {...stopDrag(() => {
               onToggleBundle(day, period, bundled);
-            }}
-            onPointerDown={(event) => {
-              // The <button> is auto-excluded from drag activation (dnd-kit's preventActivation
-              // treats it as interactive); stopPropagation is just defensive belt-and-braces.
-              event.stopPropagation();
-            }}
+            })}
             className="text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded"
           >
             {bundled ? <Link className="size-3.5" /> : <Unlink className="size-3.5" />}
@@ -168,13 +148,9 @@ export default function SlotCell({
               size="icon"
               data-slot="remove-bundle"
               aria-label="Remove all from slot"
-              onClick={(event) => {
-                event.stopPropagation();
+              {...stopDrag(() => {
                 onRemoveBundle(day, period);
-              }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
+              })}
               className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive size-5 rounded"
             >
               <Trash2 className="size-3.5" />
@@ -195,6 +171,32 @@ export default function SlotCell({
       )}
     </div>
   );
+}
+
+/**
+ * The cell's dnd-kit integration as one named behavioral flow. The cell is both a droppable and
+ * (while bundled) the whole-slot bundle draggable; this hook owns both registrations and the
+ * merged ref, returning the merged callback plus the two reactive flags. Extracting it keeps the
+ * component body declarative — no raw `useMemo` — and names the dnd flow the way the slice's
+ * design goals ask for.
+ */
+function useCellDnd(day: number, period: number, bundled: boolean) {
+  const { ref: dropRef, isDropTarget } = useDroppable<CellData>({ id: cellKey(day, period), data: { day, period } });
+  // Whole-slot drag: the entire bundled cell is the drag surface (no handle). We deliberately
+  // avoid a handle on the header — dnd-kit's default `preventActivation` short-circuits for any
+  // target inside a handle, so header buttons would start a drag instead of clicking. With no
+  // handle, the interactive `<button>`s (toggle, trash, conflict badge) are auto-excluded from
+  // activation, while grabbing a chip or the cell body moves the slot as one unit. Only active
+  // while bundled, so loose chips keep their own per-chip drags.
+  const { ref: dragRef, isDragging } = useDraggable<BundleDrag>({
+    id: `bundle:${cellKey(day, period)}`,
+    data: { kind: "bundle", day, period },
+    disabled: !bundled,
+  });
+  // The cell is both a droppable and a bundle draggable; merge the two stable callback refs.
+  // Kept local (a single consumer today) per "promote on second consumer".
+  const setCellRef = useMemo(() => mergeRefs(dropRef, dragRef), [dropRef, dragRef]);
+  return { setCellRef, isDropTarget, isDragging };
 }
 
 /**
@@ -296,14 +298,7 @@ function PlacedChip({
           <button
             type="button"
             aria-label={unavailable ? "Show teacher-unavailable details" : "Show collision details"}
-            onClick={(event) => {
-              event.stopPropagation();
-              onInspect();
-            }}
-            onPointerDown={(event) => {
-              // Keep the click from starting a drag on the chip.
-              event.stopPropagation();
-            }}
+            {...stopDrag(onInspect)}
           >
             {unavailable ? <UserX className="size-3" /> : <TriangleAlert className="size-3" />}
             <span className="sr-only sm:not-sr-only">{unavailable ? "unavailable" : "collision"}</span>
@@ -331,14 +326,9 @@ function PlacedChip({
               data-slot="remove-placement"
               aria-label={`Remove ${name}`}
               disabled={placement.pending}
-              onClick={(event) => {
-                event.stopPropagation();
+              {...stopDrag(() => {
                 onRemove(placement.id);
-              }}
-              onPointerDown={(event) => {
-                // Keep the click from starting a drag on the chip.
-                event.stopPropagation();
-              }}
+              })}
               className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive size-5 rounded"
             >
               <X className="size-4" />
@@ -377,13 +367,9 @@ function WeekToggle({
           data-slot="week-toggle-option"
           aria-pressed={week === option}
           disabled={pending}
-          onClick={(event) => {
-            event.stopPropagation();
+          {...stopDrag(() => {
             onSelect(option);
-          }}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-          }}
+          })}
           className={cn(
             "px-1 text-xs font-medium uppercase",
             week === option
@@ -397,6 +383,30 @@ function WeekToggle({
     </div>
   );
 }
+
+/** Merge several dnd-kit callback refs into one — local to `useCellDnd`'s two-ref cell. */
+const mergeRefs =
+  (...refs: ((node: Element | null) => void)[]) =>
+  (node: Element | null) => {
+    for (const ref of refs) ref(node);
+  };
+
+/**
+ * Pair an interactive child's click with the drag-inert affordance: pointer-down stops the
+ * cell/chip drag from starting, and the click runs the business handler after stopping
+ * propagation. Centralizes the formerly 5×-repeated stopPropagation pair so a new control can't
+ * silently re-enable drag-on-click. (dnd-kit already auto-excludes `<button>`s from activation;
+ * the pointer-down stop is the documented belt-and-braces.)
+ */
+const stopDrag = (onClick: () => void) => ({
+  onPointerDown: (event: ReactPointerEvent) => {
+    event.stopPropagation();
+  },
+  onClick: (event: ReactMouseEvent) => {
+    event.stopPropagation();
+    onClick();
+  },
+});
 
 /**
  * The single `CellTone → Tailwind` lookup, replacing the negated-class ladder. Precedence is

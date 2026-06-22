@@ -11,6 +11,8 @@ import type { BundleDrag, CellData, PlacementDrag } from "../model/drag";
 import type { DropHint } from "../model/drop-hints";
 import type { HintMode } from "../lib/drag-hint-mode";
 import type { LocalPlacement } from "../model/placement";
+import { resolveCellTone, type CellTone } from "../model/cell-tone";
+import { hasBiweekly, isBiweekly, partitionByWeek } from "../model/week";
 import { cn } from "@/shared/lib/class-names";
 
 type Props = {
@@ -92,7 +94,13 @@ export default function SlotCell({
   const hasHeader = occupants.length >= 2;
   // Progressive disclosure: lanes appear only once a bi-weekly placement is present; the
   // ~95% agnostic-only cell renders via the unchanged flat path.
-  const hasBiweekly = occupants.some((occupant) => occupant.week === "a" || occupant.week === "b");
+  const biweekly = hasBiweekly(occupants);
+  // One pass groups occupants by week (used only in the lane branch), replacing three inline
+  // `.filter()` re-scans of the same array.
+  const byWeek = partitionByWeek(occupants);
+  // One ordered, exhaustive precedence resolution replaces the negated-class ladder; the
+  // opacity axis (`isDragging`) and the grab cursor compose separately below.
+  const tone = resolveCellTone({ hasBlocking, isDropTarget, hasWarning, hintState, bundled });
 
   const renderChip = (placement: LocalPlacement) => (
     <PlacedChip
@@ -123,23 +131,12 @@ export default function SlotCell({
       data-drop-hint={hintState}
       className={cn(
         "bg-background flex min-h-16 flex-col gap-1 p-1 transition-colors",
-        // Hint treatment is gated off when hover/blocking apply: those rings/bg must win, and
-        // since every Tailwind ring sets the same custom property, co-occurrence can't be resolved
-        // by className order — so we emit no hint class at all in those cases.
-        hintState && !isDropTarget && !hasBlocking && HINT_CLASS[hintMode][hintState],
-        // Soft-NO amber ring (static; no active drag). Loses to blocking, the drop target, and
-        // the active-drag hint — slotted into the same ring ladder as collision.
-        hasWarning && !hasBlocking && !isDropTarget && !hintState && "ring-warning bg-warning/5 ring-2 ring-inset",
-        // Faint containment cue, gated off so the collision/warn/drop-target rings still win.
-        bundled &&
-          !hasBlocking &&
-          !hasWarning &&
-          !isDropTarget &&
-          "bg-accent/40 ring-ring rounded-md ring-1 ring-inset",
-        // The whole bundled cell is grabbable; interactive children opt out of the drag.
+        // One tone, resolved once with ordered precedence — no negated-class ladder.
+        toneClass(tone, hintMode),
+        // The whole bundled cell is grabbable; interactive children opt out of the drag. This is
+        // an interaction affordance, not a tone, so it composes independently of the cell tone.
         bundled && "cursor-grab active:cursor-grabbing",
-        hasBlocking && "ring-destructive ring-2 ring-inset",
-        isDropTarget && "bg-accent ring-ring ring-2 ring-inset",
+        // Opacity axis is independent of tone: a dragging origin cell dims regardless of its tone.
         isDragging && "opacity-60",
       )}
     >
@@ -186,12 +183,12 @@ export default function SlotCell({
         </div>
       )}
 
-      {hasBiweekly ? (
+      {biweekly ? (
         <div data-slot="week-lanes" className="flex flex-col gap-1">
           {/* Agnostic occupants run every week → rendered above the lanes, spanning both. */}
-          {occupants.filter((occupant) => occupant.week === "both").map(renderChip)}
-          <WeekLane label="A" chips={occupants.filter((occupant) => occupant.week === "a")} render={renderChip} />
-          <WeekLane label="B" chips={occupants.filter((occupant) => occupant.week === "b")} render={renderChip} />
+          {byWeek.both.map(renderChip)}
+          <WeekLane label="A" chips={byWeek.a} render={renderChip} />
+          <WeekLane label="B" chips={byWeek.b} render={renderChip} />
         </div>
       ) : (
         occupants.map(renderChip)
@@ -267,7 +264,7 @@ function PlacedChip({
     disabled: bundled || placement.pending === true,
   });
   // A bi-weekly placement always resolves to a single week (a/b); agnostic stays `both`.
-  const isBiweekly = placement.week === "a" || placement.week === "b";
+  const biweekly = isBiweekly(placement.week);
 
   return (
     <div
@@ -315,9 +312,9 @@ function PlacedChip({
       )}
       {/* The A/B control gates on week only (it opts out of drag), so a bundled opposite-week
           pair stays adjustable; the remove button stays bundled-gated like before. */}
-      {(isBiweekly || !bundled) && (
+      {(biweekly || !bundled) && (
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
-          {isBiweekly && (
+          {biweekly && (
             <WeekToggle
               week={placement.week}
               pending={placement.pending === true}
@@ -399,6 +396,27 @@ function WeekToggle({
       ))}
     </div>
   );
+}
+
+/**
+ * The single `CellTone → Tailwind` lookup, replacing the negated-class ladder. Precedence is
+ * already decided by `resolveCellTone`; this only maps the chosen tone to its ring/bg classes.
+ * The `hint` case indexes the per-mode `HINT_CLASS` table. (Moves to `tone-class.ts` in Phase 3.)
+ */
+function toneClass(tone: CellTone, hintMode: HintMode): string {
+  if (typeof tone === "object") return HINT_CLASS[hintMode][tone.hint];
+  switch (tone) {
+    case "blocking":
+      return "ring-destructive ring-2 ring-inset";
+    case "drop-target":
+      return "bg-accent ring-ring ring-2 ring-inset";
+    case "warning":
+      return "ring-warning bg-warning/5 ring-2 ring-inset";
+    case "bundled":
+      return "bg-accent/40 ring-ring rounded-md ring-1 ring-inset";
+    case "base":
+      return "";
+  }
 }
 
 /**

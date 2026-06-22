@@ -453,11 +453,11 @@ Codify the four conventions the landed code now demonstrates, plus one e2e ratio
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass: `pnpm test`
-- [ ] 1.2 New model tests exist and pass: `pnpm test -- cell-tone week`
-- [ ] 1.3 Type checking passes: `pnpm exec astro check`
-- [ ] 1.4 Linting passes: `pnpm lint`
-- [ ] 1.5 FSD structure clean: `pnpm steiger`
+- [x] 1.1 Unit tests pass: `pnpm test`
+- [x] 1.2 New model tests exist and pass: `pnpm test -- cell-tone week`
+- [x] 1.3 Type checking passes: `pnpm exec astro check`
+- [x] 1.4 Linting passes: `pnpm lint`
+- [x] 1.5 FSD structure clean: `pnpm steiger`
 
 #### Manual
 

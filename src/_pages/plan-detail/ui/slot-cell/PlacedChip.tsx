@@ -63,9 +63,9 @@ export function PlacedChip({
     <div
       ref={ref}
       data-slot="placed-chip"
-      data-course-id={placement.courseId}
-      data-conflicted={blocking ? "true" : undefined}
-      data-warning={warning && !blocking ? "true" : undefined}
+      aria-roledescription="placement"
+      // Blocking (collision/strong-NO) is the invalid state; the Badge already styles aria-invalid.
+      aria-invalid={blocking}
       className={cn(
         chipTone({ tone: blocking ? "blocking" : warning ? "warning" : "neutral" }),
         placement.pending && "opacity-60",

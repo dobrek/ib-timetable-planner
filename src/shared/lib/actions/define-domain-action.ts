@@ -1,4 +1,4 @@
-import { defineAction } from "astro:actions";
+import { defineAction, type ActionAPIContext } from "astro:actions";
 import type * as z from "zod/v4/core";
 import type { SupabaseClient } from "@/shared/api";
 import { requireSession } from "./require-session";
@@ -14,12 +14,13 @@ export function defineDomainAction<TInputSchema extends z.$ZodType, TOutput>(opt
   input: TInputSchema;
   run: (supabase: SupabaseClient, input: z.output<TInputSchema>) => Promise<TOutput>;
 }) {
-  return defineAction({
+  const handler = (input: z.output<TInputSchema>, context: ActionAPIContext): Promise<TOutput> => {
+    requireSession(context);
+    const supabase = requireSupabase(context);
+    return runDomain(() => options.run(supabase, input));
+  };
+  return defineAction<TOutput, undefined, TInputSchema>({
     input: options.input,
-    handler: (input, context) => {
-      requireSession(context);
-      const supabase = requireSupabase(context);
-      return runDomain(() => options.run(supabase, input));
-    },
+    handler: handler as never,
   });
 }

@@ -1,5 +1,5 @@
 import type { AvailabilitySeverity } from "@/shared/config";
-import { cellKey } from "./collisions";
+import { cellKey } from "./cell-key";
 
 /**
  * One teacher-availability cell as it arrives on the island (a JSON-serializable board

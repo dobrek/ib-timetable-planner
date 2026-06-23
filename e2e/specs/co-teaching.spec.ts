@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { clickToReveal, createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../support/planner";
 
 // Co-teaching teacher sets — browser-level coverage (plan Phase 7).
 //
@@ -22,7 +22,7 @@ test.describe("co-teaching teacher sets", () => {
   test.describe.configure({ timeout: 90_000 });
 
   test("co-taught course renders teacher chips and persists the set across reload and edit", async ({ page }) => {
-    const plan = await createPlan(page);
+    const plan = await createPlan(page, "co-teaching");
     const teacherA = `TA-${shortId()}`;
     const teacherB = `TB-${shortId()}`;
     const courseName = `Co-taught ${shortId()}`;
@@ -63,7 +63,7 @@ test.describe("co-teaching teacher sets", () => {
   test("deleting a sole teacher is blocked and names the orphaned course; a co-teacher deletes cleanly", async ({
     page,
   }) => {
-    const plan = await createPlan(page);
+    const plan = await createPlan(page, "co-teaching");
     const soleTeacher = `TA-${shortId()}`;
     const coTeacher = `TB-${shortId()}`;
     const courseName = `Solo ${shortId()}`;
@@ -105,69 +105,9 @@ test.describe("co-teaching teacher sets", () => {
   });
 });
 
-/** Short unique suffix for collision-free parallel test data. */
-const shortId = () => randomUUID().slice(0, 8);
-
 /** A table row located by the text it contains (the header row never matches entity text). */
 const courseRow = (page: Page, name: string): Locator => page.getByRole("row").filter({ hasText: name });
 const teacherRow = (page: Page, code: string): Locator => page.getByRole("row").filter({ hasText: code });
-
-/**
- * Click `opener` until `revealed` appears. Survives the cold-start hydration race: an Astro
- * `client:load` island renders its trigger via SSR, so the button is clickable *before* React
- * attaches the handler — a too-early click is silently dropped. Retrying the click (the same
- * idiom as auth.setup.ts) is deterministic where a bare click is timing-dependent.
- */
-async function clickToReveal(opener: Locator, revealed: Locator): Promise<void> {
-  await expect(async () => {
-    await opener.click();
-    await expect(revealed.first()).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 20_000 });
-}
-
-/**
- * Hard-navigate to `path`, retrying past a lost race with an in-flight client navigation.
- * A just-completed action may still be running its post-success refresh (`refreshPage` →
- * an `astro:transitions/client` `navigate()`); a real `page.goto` issued before that soft
- * nav settles is aborted by it (`net::ERR_ABORTED`). Retrying lands once it is done. On a
- * fresh page (no nav in flight) the first attempt succeeds and `toPass` returns at once.
- */
-async function gotoStable(page: Page, path: string): Promise<void> {
-  await expect(async () => {
-    await page.goto(path);
-  }).toPass({ timeout: 20_000 });
-}
-
-/** Create a uniquely named plan; returns its id (from the board URL) and name (for teardown). */
-async function createPlan(page: Page): Promise<{ id: string; name: string }> {
-  const name = `E2E co-teaching ${randomUUID()}`;
-  await gotoStable(page, "/plans");
-  const dialog = page.getByRole("dialog");
-  await clickToReveal(
-    page.getByRole("button", { name: "New plan" }),
-    dialog.getByRole("heading", { name: "New plan" }),
-  );
-  await dialog.getByRole("textbox", { name: "Name" }).fill(name);
-  await dialog.getByRole("button", { name: "Create plan" }).click();
-  // Creating a plan navigates into its (empty) board at /plans/<uuid>.
-  await page.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
-  return { id: new URL(page.url()).pathname.split("/")[2], name };
-}
-
-/** Add a teacher (code only → its display label is the code) and confirm the row landed. */
-async function createTeacher(page: Page, planId: string, code: string): Promise<void> {
-  await gotoStable(page, `/plans/${planId}/teachers`);
-  const dialog = page.getByRole("dialog");
-  // On an empty plan the header and the empty-state both offer "New teacher"; the header is first.
-  await clickToReveal(
-    page.getByRole("button", { name: "New teacher" }).first(),
-    dialog.getByRole("heading", { name: "New teacher" }),
-  );
-  await dialog.getByLabel("Code").fill(code);
-  await dialog.getByRole("button", { name: "Create teacher" }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page.getByRole("cell", { name: code, exact: true })).toBeVisible();
-}
 
 /** Author a course co-taught by `teacherCodes` via the multi-select; returns its table row. */
 async function createCourse(
@@ -212,15 +152,4 @@ async function confirmTeacherDelete(page: Page, planId: string, code: string): P
   const dialog = page.getByRole("alertdialog");
   await expect(dialog.getByRole("heading", { name: `Delete ${code}?` })).toBeVisible();
   await dialog.getByRole("button", { name: "Delete" }).click();
-}
-
-/** Tear down: deleting the plan cascades to its courses, teachers, and junction rows. */
-async function deletePlan(page: Page, planName: string): Promise<void> {
-  await gotoStable(page, "/plans");
-  await clickToReveal(page.getByRole("button", { name: `Actions for ${planName}` }), page.getByRole("menuitem"));
-  await page.getByRole("menuitem", { name: "Delete" }).click();
-  const dialog = page.getByRole("alertdialog");
-  await expect(dialog.getByRole("heading", { name: `Delete ${planName}?` })).toBeVisible();
-  await dialog.getByRole("button", { name: "Delete" }).click();
-  await expect(page.getByRole("link", { name: planName })).toHaveCount(0);
 }

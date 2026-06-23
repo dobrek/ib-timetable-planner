@@ -1,20 +1,10 @@
-import type { AvailabilityIndex } from "./availability-index";
+import { type AvailabilityIndex, EMPTY_AVAILABILITY_INDEX } from "./availability-index";
 import { bucketByCell, cellKey } from "./collisions";
-import type { CrossCohortIndex } from "./cross-cohort-index";
+import { type CrossCohortIndex, EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort-index";
 import { violatesAny } from "./constraints";
 import type { CellData, DragData } from "./drag";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { PlannerPlacement } from "./placement";
-
-// Local empty default so callers without availability need no index (kept here rather than
-// imported from `availability-index` to avoid a runtime cycle via `collisions`).
-const NO_AVAILABILITY: AvailabilityIndex = {
-  strongUnavailableByTeacher: new Map(),
-  softUnavailableByTeacher: new Map(),
-};
-
-// Same local-empty-default rationale for the sibling-cohort occupancy index.
-const NO_CROSS_COHORT: CrossCohortIndex = new Map();
 
 /**
  * Per-cell drag affordance. The map is **sparse**: a cell absent from the map (while
@@ -98,8 +88,8 @@ export const deriveDropHints = (
   context: DragHintContext | null,
   placements: PlannerPlacement[],
   catalogById: Map<string, GroupingCourse>,
-  availability: AvailabilityIndex = NO_AVAILABILITY,
-  occupiedByTeacher: CrossCohortIndex = NO_CROSS_COHORT,
+  availability: AvailabilityIndex = EMPTY_AVAILABILITY_INDEX,
+  occupiedByTeacher: CrossCohortIndex = EMPTY_CROSS_COHORT_INDEX,
 ): Map<string, DropHint> | null => {
   if (!context) return null;
 

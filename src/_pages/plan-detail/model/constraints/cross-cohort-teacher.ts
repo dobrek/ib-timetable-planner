@@ -1,3 +1,4 @@
+import { cellKey } from "../cell-key";
 import { weeksDisjoint } from "../week";
 import type { CellConstraint, CollisionViolation } from "./types";
 
@@ -10,16 +11,16 @@ import type { CellConstraint, CollisionViolation } from "./types";
  * operation validates whichever cohort is active.
  *
  * Board-only: it omits `test`, so it never enters grouping enumeration or the <200ms drag fast
- * path. Reuses `weeksDisjoint` (kept a named export in `week.ts` for exactly this). The cell key is
- * formatted inline to mirror `collisions.cellKey` (`${day}:${period}`) without importing it — the
- * constraint registry and `collisions` form an import cycle (see `teacher-availability.ts`).
+ * path. Reuses `weeksDisjoint` (kept a named export in `week.ts` for exactly this) and `cellKey`
+ * from the dependency-free `cell-key` leaf (importing it from `collisions` would close the
+ * constraint-registry ⇄ `collisions` cycle; the leaf module sidesteps that).
  */
 export const crossCohortTeacher: CellConstraint = {
   id: "cross-cohort-teacher",
   explain: (occupants, ctx): CollisionViolation[] => {
     const occupied = ctx.occupiedByTeacher;
     if (!occupied) return []; // single-cohort regression path
-    const key = `${ctx.cell.day}:${ctx.cell.period}`;
+    const key = cellKey(ctx.cell.day, ctx.cell.period);
     return occupants.flatMap((course): CollisionViolation[] => {
       const occupantWeek = ctx.weekByCourseId?.get(course.id) ?? "both";
       return course.teacherKeys.flatMap((teacherKey): CollisionViolation[] => {

@@ -1,13 +1,15 @@
 import type { PlacementWeek } from "@/shared/config";
-import type { AvailabilityIndex } from "./availability-index";
-import type { CrossCohortIndex } from "./cross-cohort-index";
+import { type AvailabilityIndex, EMPTY_AVAILABILITY_INDEX } from "./availability-index";
+import { cellKey } from "./cell-key";
+import { type CrossCohortIndex, EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort-index";
 import type { CollisionViolation } from "./constraints";
 import { explainCell } from "./constraints";
 import type { GroupingCourse } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 
-/** Canonical `(day, period)` cell identity, shared by the grid, droppables, and the collision map. */
-export const cellKey = (day: number, period: number): string => `${day}:${period}`;
+// Re-exported from its dependency-free leaf module so existing `from "./collisions"` importers
+// (grid, droppables, slot-bundle, tests) keep their import site unchanged.
+export { cellKey };
 
 export type CellCollisions = {
   /** Course ids in BLOCKING violations (collisions + strong-NO) — drives the destructive
@@ -23,18 +25,6 @@ export type CellCollisions = {
   violations: CollisionViolation[];
 };
 
-// Local empty default so 2-arg callers (and the no-availability case) need no index. Kept
-// here rather than imported from `availability-index` to avoid a runtime import cycle
-// (availability-index → collisions for `cellKey`).
-const NO_AVAILABILITY: AvailabilityIndex = {
-  strongUnavailableByTeacher: new Map(),
-  softUnavailableByTeacher: new Map(),
-};
-
-// Local empty default so callers without a sibling cohort need no index (kept here rather than
-// imported from `cross-cohort-index` to avoid a runtime cycle via `collisions` → `cellKey`).
-const NO_CROSS_COHORT: CrossCohortIndex = new Map();
-
 /**
  * Per-cell collision derivation from current placement state and the validation
  * catalog. For each multi-occupancy cell, the constraint registry enumerates every
@@ -47,8 +37,8 @@ const NO_CROSS_COHORT: CrossCohortIndex = new Map();
 export const deriveCellViolations = (
   placements: PlannerPlacement[],
   catalogById: Map<string, GroupingCourse>,
-  availability: AvailabilityIndex = NO_AVAILABILITY,
-  occupiedByTeacher: CrossCohortIndex = NO_CROSS_COHORT,
+  availability: AvailabilityIndex = EMPTY_AVAILABILITY_INDEX,
+  occupiedByTeacher: CrossCohortIndex = EMPTY_CROSS_COHORT_INDEX,
 ): Map<string, CellCollisions> => {
   const cells = bucketByCell(placements, catalogById);
 

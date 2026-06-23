@@ -396,6 +396,29 @@ convention:
 (Optional. After each phase lands, `/10x-implement` appends a 2–3 line note
 here capturing anything surprising the rollout phase taught.)
 
+### 6.8 Adding a React/hook (jsdom) test
+
+The repo's second Vitest project — `dom` (jsdom) — runs alongside the node `unit`
+project under the same `pnpm test` (shipped in §3 Phase 3,
+`testing-drag-validate-feedback`). Use it for React component/hook tests.
+
+- **Location**: a co-located `*.test.tsx` sibling next to the source (e.g.
+  `src/_pages/plan-detail/model/use-placements.test.tsx`). The `.tsx` extension is
+  what routes a file to the `dom` project — node `unit` collects `*.test.ts`, `dom`
+  collects `*.test.tsx`, so the two lanes never overlap.
+- **Environment**: jsdom. Matchers (`@testing-library/jest-dom`) and RTL
+  auto-cleanup are wired once in `src/test/setup-dom.ts` (the `dom` project's
+  `setupFiles`); the `astro:*` virtual-module stubs are inherited from the root
+  config via `extends: true`, so slice code reaching `@/shared/*` stays importable.
+- **Hooks**: drive them with `renderHook` from `@testing-library/react`; mock the
+  async boundary (e.g. `vi.mock("../api/placement-client")`) and settle
+  optimistic→reconcile/rollback transitions with `await waitFor(...)`, never a
+  synchronous read.
+- **First example**: `src/_pages/plan-detail/model/use-placements.test.tsx`
+  (Risk #2 optimistic reconciliation). Smoke/infra check:
+  `src/test/dom-lane.test.tsx`.
+- **Run locally**: `pnpm test` (runs both projects).
+
 ## 7. What We Deliberately Don't Test
 
 Exclusions agreed during the rollout (Phase 2 interview, Q5). Future

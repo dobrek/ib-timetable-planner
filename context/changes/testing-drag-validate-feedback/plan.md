@@ -482,16 +482,16 @@ failure), removing the duplicate-on-reload hazard that Phase 3 documents at `use
 
 #### Automated
 
-- [ ] 1.1 Type-check passes: `pnpm check`
-- [ ] 1.2 Lint passes: `pnpm lint`
-- [ ] 1.3 FSD structure check passes: `pnpm steiger`
-- [ ] 1.4 Both Vitest projects run and pass: `pnpm test`
-- [ ] 1.5 Production build stays clean: `pnpm build`
+- [x] 1.1 Type-check passes: `pnpm check`
+- [x] 1.2 Lint passes: `pnpm lint`
+- [x] 1.3 FSD structure check passes: `pnpm steiger`
+- [x] 1.4 Both Vitest projects run and pass: `pnpm test`
+- [x] 1.5 Production build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.6 `pnpm test` output shows two named projects (`unit`, `dom`)
-- [ ] 1.7 Smoke `.test.tsx` fails loudly on misconfig (intentional break, reverted)
+- [x] 1.6 `pnpm test` output shows two named projects (`unit`, `dom`)
+- [x] 1.7 Smoke `.test.tsx` fails loudly on misconfig (intentional break, reverted)
 
 ### Phase 2: Risk #2 — optimistic reconciliation hook test
 

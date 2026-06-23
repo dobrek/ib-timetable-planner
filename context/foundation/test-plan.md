@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-06-18 (refresh — post-demo domain-fidelity change wave)
+> Last updated: 2026-06-23 (status — Phase 3 complete + archived; all rollout phases 0–4 done)
 
 ## 1. Strategy
 
@@ -116,7 +116,7 @@ value.
 | 0   | Integration harness + CI lane                                       | Stand up the DB-test infrastructure (plan-rooted factories, scenario builders, CI integration lane) the rollout assumed.         | enabler; #1, #3 (persist half), #4 (partial) | integration (factory harness) + CI lane                                   | complete    | `context/changes/data-for-e2e-and-integration-tests/`                 |
 | 1   | Validator trust core (independent oracle) — **complete (absorbed)** | Prove a false-positive cannot pass the core; covers the domain persist path (the placements/grouping route migrated to Actions). | #1                                           | unit (independent oracle)                                                 | complete    | — (absorbed into organic feature/refactor growth; no discrete change) |
 | 2   | Auth + Astro Actions boundary + RLS / PII                           | Prove every Action self-enforces session, no cross-author read/mutate, and error translation holds.                              | #5 (unauth half), #3 (Actions)               | **e2e (Playwright, workerd preview) + integration (local Supabase + auth)** — hybrid | complete    | `context/archive/2026-06-15-testing-auth-actions-boundary-rls/`        |
-| 3   | Drag → validate → feedback loop + persistence reload-restore — **next active** | Prove a real collision visibly reads "invalid" and placed work survives reload; fold in bundle-persistence durability as S-05 / S-07 ship. | #2, #4 (reload-restore)                      | component / integration (planner island); persistence integration; ≤1 e2e | change opened | `context/changes/testing-drag-validate-feedback/`                     |
+| 3   | Drag → validate → feedback loop + persistence reload-restore         | Prove a real collision visibly reads "invalid" and placed work survives reload; fold in bundle-persistence durability as S-05 / S-07 ship. | #2, #4 (reload-restore)                      | component / integration (planner island); persistence integration; ≤1 e2e | complete    | `context/archive/2026-06-23-testing-drag-validate-feedback/`          |
 | 4   | Parity harness for new validator classes (owns the enriched-dimension wave) | Lock a convention + fixture harness so each enriched validator class (roadmap S-02 / S-03 / S-04 / S-06) ships with a false-positive parity guard — the §2 Risk #6 response. | #1-class, #6 (enriched family)               | gates + table-driven fixture harness                                      | complete    | `context/changes/parity-harness-enriched-validators/`                 |
 
 **Notes.**
@@ -150,11 +150,17 @@ value.
   pattern is established) and the **cross-author / IDOR half of #5** (waits on
   the ownership-column + real-RLS prerequisite above — candidate Phase 2.5).
   See §6.3 for the reusable harness pointer.
-- **Phase 3 is the next active phase.** The optimistic drag → validate →
-  feedback reconciliation loop is the #1 under-tested worry (interview Q3 + Q4),
-  so it leads the remaining rollout. Bundle-persistence durability (Risk #7)
-  folds into this phase as the bundle slices **S-05 / S-07** ship — the
-  reload-restore proof is the same shape (prove restore, not the write).
+- **Phase 3 landed (`testing-drag-validate-feedback`, archived 2026-06-23).** The
+  optimistic drag → validate → feedback reconciliation loop was the #1 under-tested
+  worry (interview Q3 + Q4), so it led the remaining rollout: a `use-placements`
+  hook test (optimistic reconcile/rollback + verdict recompute off settled state),
+  a `loadPlannerData` reload-restore integration suite (weeks both/a/b), and one
+  `drag-validate-feedback` e2e proving a real collision renders `aria-invalid`.
+  **Bundle-persistence durability (Risk #7) was deferred, not delivered** — S-05 /
+  S-07 have not shipped, so it folds into a later phase when those slices land; the
+  reload-restore proof there is the same shape (prove restore, not the write). A
+  follow-up is also flagged to make the non-atomic move atomic (the duplicate-on-
+  reload hazard Phase 3 documented at `use-placements.ts:177-182`).
   - **Locator substrate now exists (`slot-cell-refactor`, 2026-06-22).** The board
     previously carried no roles/accessible names, so a role-only e2e could not
     locate cells/chips/controls. It now exposes `role="grid"`, `gridcell`s named
@@ -194,7 +200,7 @@ The classic test base for this project. AI-native tools (if any) carry a
 |-------|------|---------|-------|
 | unit | Vitest | 4.1.9 | `vitest.config.ts`; **55 unit** test files — 53 co-located `*.test.ts` siblings under the FSD slices + 2 infra-guard suites in `src/test/` (`no-seed-coupling`, `seed-transcode-identity`). |
 | integration | Vitest | 4.1.9 | `vitest.integration.config.ts`; **10 integration** suites (the Phase 2 `action-boundary.integration.test.ts` is the +1 over the prior refresh's 9); plan-rooted scenario factory harness at `src/test/factories/`; requires the local Supabase stack (`pnpm test:integration`). Live **CI integration lane**: regenerate seed → boot a trimmed Supabase stack → `pnpm test:integration --maxWorkers=2` (the 2-worker cap is a CI runner-resource hedge). Mutations/compute flow through **Astro Actions only** — a real Action over `/_actions/*`; the placements/grouping API route is gone. |
-| e2e | Playwright (`@playwright/test`) | 1.61.0 | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). **4 e2e specs** in `e2e/specs/` (`auth`, `auth-guard`, `action-unauth`, `seed`); `e2e/auth.setup.ts` is the **setup project**, not a spec. Three Playwright **projects** — `setup` (logs in once → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs) — distinct from the spec count. `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e remains §3 Phase 3. |
+| e2e | Playwright (`@playwright/test`) | 1.61.0 | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). **7 e2e specs** in `e2e/specs/` (`auth`, `auth-guard`, `action-unauth`, `seed`, `cohort-switching`, `co-teaching`, `drag-validate-feedback`); `e2e/auth.setup.ts` is the **setup project**, not a spec. Shared board/catalog plumbing lives in `e2e/support/` (`planner.ts`, `board.ts`, `catalog.ts`). Three Playwright **projects** — `setup` (logs in once → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs) — distinct from the spec count. `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e landed in §3 Phase 3 (`drag-validate-feedback.spec.ts`). |
 | edge runtime | n/a | — | Code runs on Cloudflare Workers (workerd) in dev and prod — edge-safe libs only, no Node APIs (`fs`, `child_process`, native). |
 
 **Versions pinned (verified 2026-06-18):** astro **6.4.8**, vitest **4.1.9**,

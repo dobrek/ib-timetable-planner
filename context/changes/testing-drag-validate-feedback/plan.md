@@ -482,30 +482,30 @@ failure), removing the duplicate-on-reload hazard that Phase 3 documents at `use
 
 #### Automated
 
-- [x] 1.1 Type-check passes: `pnpm check`
-- [x] 1.2 Lint passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Both Vitest projects run and pass: `pnpm test`
-- [x] 1.5 Production build stays clean: `pnpm build`
+- [x] 1.1 Type-check passes: `pnpm check` — a98601c
+- [x] 1.2 Lint passes: `pnpm lint` — a98601c
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — a98601c
+- [x] 1.4 Both Vitest projects run and pass: `pnpm test` — a98601c
+- [x] 1.5 Production build stays clean: `pnpm build` — a98601c
 
 #### Manual
 
-- [x] 1.6 `pnpm test` output shows two named projects (`unit`, `dom`)
-- [x] 1.7 Smoke `.test.tsx` fails loudly on misconfig (intentional break, reverted)
+- [x] 1.6 `pnpm test` output shows two named projects (`unit`, `dom`) — a98601c
+- [x] 1.7 Smoke `.test.tsx` fails loudly on misconfig (intentional break, reverted) — a98601c
 
 ### Phase 2: Risk #2 — optimistic reconciliation hook test
 
 #### Automated
 
-- [ ] 2.1 Type-check passes: `pnpm check`
-- [ ] 2.2 Lint passes: `pnpm lint`
-- [ ] 2.3 Hook test passes in the `dom` project: `pnpm test`
-- [ ] 2.4 Oracle integrity: breaking a transition reddens the test; revert
+- [x] 2.1 Type-check passes: `pnpm check`
+- [x] 2.2 Lint passes: `pnpm lint`
+- [x] 2.3 Hook test passes in the `dom` project: `pnpm test`
+- [x] 2.4 Oracle integrity: breaking a transition reddens the test; revert
 
 #### Manual
 
-- [ ] 2.5 Asserts through hook return + `deriveCellViolations`, not internal wiring
-- [ ] 2.6 Week both vs a/b verdict branches both exercised
+- [x] 2.5 Asserts through hook return + `deriveCellViolations`, not internal wiring
+- [x] 2.6 Week both vs a/b verdict branches both exercised
 
 ### Phase 3: Risk #2 + #4 — persistence integration
 

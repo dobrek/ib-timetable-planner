@@ -230,11 +230,14 @@ phase lands; before that, the gate is `planned`.
 | new-validator-class parity fixture | CI on PR | required after §3 Phase 4 | a new collision class shipping without a false-positive guard |
 | pre-prod smoke | between merge + prod | optional | environment-specific (workerd / Supabase) failures |
 
-> **Current enforcement (as of 2026-06-22).** With §3 Phase 1 (absorbed) and
-> Phase 2 **complete**, the **unit + integration** and **auth + RLS ownership
-> integration** gates are now **live**. The **drag→feedback e2e / island
-> integration** gate is still **planned** (enforced once §3 Phase 3 — the next
-> active phase — lands). The **new-validator-class parity** gate is now **live**
+> **Current enforcement (as of 2026-06-23).** With §3 Phase 1 (absorbed),
+> Phase 2, and Phase 3 (`testing-drag-validate-feedback`) **complete**, the
+> **unit + integration**, **auth + RLS ownership integration**, and
+> **drag→feedback e2e / island integration** gates are now **live**. The
+> drag→feedback gate runs `e2e/specs/drag-validate-feedback.spec.ts` (a real
+> collision rendering `aria-invalid`) plus the jsdom `dom` lane hook test and the
+> `loadPlannerData` reload-restore integration suite. The **new-validator-class
+> parity** gate is now **live**
 > with §3 Phase 4 landed (`parity-harness-enriched-validators`): the harness runs
 > in the existing `pnpm test` unit lane that already gates CI — no new CI job.
 > "Live" means the **convention is in force and the harness exists**, enforced by
@@ -338,11 +341,20 @@ Copy it rather than reinventing:
   reserve e2e for genuinely browser-observable ones. The `createPlan` UI-driven
   happy-path mutation e2e and the cross-author/IDOR flow are **deferred** (the
   latter waits on the ownership-column + real-RLS prerequisite — see §3 notes).
-- Drag → validate → feedback e2e is still §3 Phase 3 territory — the board now
-  carries the roles + accessible names this needs (cells as named `gridcell`s,
-  chips by course name + `aria-invalid`, week control as `radio`; see
-  `ui-conventions.md` "Role + ARIA as the interactive/grid contract"), so it is
-  reachable by role-only locators.
+- **Board drag/locators are shared, not copied.** The dnd-kit stepped-pointer
+  drag (`placeFromPalette`) and the role-based board locators (`cell`,
+  `paletteChip`, `placedChip`, `collisionBadge`, `computeGroupings`) live in
+  `e2e/support/board.ts`; course/student authoring lives in
+  `e2e/support/catalog.ts`. dnd-kit's pointer sensor is **not** driven by
+  Playwright's high-level `dragTo` — reuse `placeFromPalette` (the canonical
+  recipe) rather than reinventing the stepped `page.mouse` sequence.
+- Drag → validate → feedback e2e **landed** (§3 Phase 3,
+  `e2e/specs/drag-validate-feedback.spec.ts`): a real collision renders
+  `aria-invalid="true"` on the placed chip, with the clean drop reading `"false"`
+  first (over-rejection guard). The board carries the roles + accessible names
+  this needs (cells as named `gridcell`s, chips by course name + `aria-invalid`,
+  week control as `radio`; see `ui-conventions.md` "Role + ARIA as the
+  interactive/grid contract"), so it is reachable by role-only locators.
 
 ### 6.4 Adding a test for a new API endpoint
 

@@ -1,5 +1,7 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { clickToReveal, createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../support/planner";
+import { collisionBadge, computeGroupings, display, placeFromPalette, placedChip } from "../support/board";
+import { createCourse, createStudent } from "../support/catalog";
+import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../support/planner";
 
 // Cohort switching + cross-cohort teacher occupancy — browser-level coverage (plan Phase 3,
 // context/changes/cohort-switching/plan.md).
@@ -82,136 +84,11 @@ test.describe("cohort switching + cross-cohort teacher occupancy", () => {
   });
 });
 
-/** The board's display name for a course: spaces collapse to underscores (no level/group here). */
-const display = (name: string) => name.replaceAll(/ /g, "_");
-
-/** Escape a string for safe embedding in a RegExp locator name. */
-const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-// --- Board locators (role-based; see e2e/CLAUDE.md "Role + ARIA as the grid contract") -------
-
-/** A timetable cell by its accessible name, e.g. "Wed, P5". */
-const cell = (page: Page, name: string): Locator => page.getByRole("gridcell", { name, exact: true });
-
-/** The palette source chip for `display` (named "<display> <placed>/<required>"); never the placed chip. */
-const paletteChip = (page: Page, displayName: string): Locator =>
-  page.getByRole("button", { name: new RegExp(`^${escapeRegExp(displayName)}\\s+\\d+/\\d+$`) });
-
-/** The placed chip in `slot` for `display` (a draggable with role=button, name starts with the course). */
-const placedChip = (page: Page, slot: string, displayName: string): Locator =>
-  cell(page, slot).getByRole("button", { name: new RegExp(`^${escapeRegExp(displayName)}`) });
-
-/** The chip's collision badge — present only when the cell is in a blocking violation. */
-const collisionBadge = (page: Page, slot: string): Locator =>
-  cell(page, slot).getByRole("button", { name: "Show collision details", exact: true });
-
 /** The "Other cohort" cross-cohort violation line inside the open collision dialog. */
 const otherCohortViolation = (page: Page): Locator =>
   page.getByRole("dialog").getByRole("listitem").filter({ hasText: "is also teaching in" });
 
-// --- Flow helpers (shared plumbing lives in ../support/planner) -------------------------------
-
-/** Author a single-teacher course in `cohort` (DP1|DP2); returns once its catalog row is visible. */
-async function createCourse(
-  page: Page,
-  planId: string,
-  { name, cohort, teacher }: { name: string; cohort: "DP1" | "DP2"; teacher: string },
-): Promise<void> {
-  await gotoStable(page, `/plans/${planId}/courses`);
-  const dialog = page.getByRole("dialog");
-  await clickToReveal(
-    page.getByRole("button", { name: "New course" }),
-    dialog.getByRole("heading", { name: "New course" }),
-  );
-  await dialog.getByLabel("Name").fill(name);
-  await dialog.getByLabel("Weekly hours").fill("2");
-  await selectFromCombobox(page, dialog.getByRole("combobox", { name: "Cohort" }), cohort);
-  await pickInMultiSelect(page, dialog.getByRole("button", { name: "Select teachers…" }), teacher, "1 selected");
-  await dialog.getByRole("button", { name: "Create course" }).click();
-  await expect(dialog).toBeHidden();
-  // Courses land under the active cohort tab; select it so the row is on-screen before asserting.
-  await page.getByRole("tab", { name: cohort }).click();
-  await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
-}
-
-/** Author a student in `cohort` choosing exactly `course` (makes that course placeable). */
-async function createStudent(
-  page: Page,
-  planId: string,
-  { name, cohort, course }: { name: string; cohort: "DP1" | "DP2"; course: string },
-): Promise<void> {
-  await gotoStable(page, `/plans/${planId}/students`);
-  const dialog = page.getByRole("dialog");
-  await clickToReveal(
-    page.getByRole("button", { name: "New student" }).first(),
-    dialog.getByRole("heading", { name: "New student" }),
-  );
-  await dialog.getByLabel("Name").fill(name);
-  // Cohort must be set BEFORE choosing courses — choices are filtered to the selected cohort.
-  await selectFromCombobox(page, dialog.getByRole("combobox", { name: "Cohort" }), cohort);
-  await pickInMultiSelect(page, dialog.getByRole("button", { name: "Select courses…" }), course, "1 selected");
-  await dialog.getByRole("button", { name: "Create student" }).click();
-  await expect(dialog).toBeHidden();
-  await page.getByRole("tab", { name: cohort }).click();
-  await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
-}
-
-/** Pick `option` in a shadcn/Radix Select (the visible listbox option, not the hidden native one). */
-async function selectFromCombobox(page: Page, trigger: Locator, option: string): Promise<void> {
-  await trigger.click();
-  await page.getByRole("option", { name: option, exact: true }).click();
-  await expect(trigger).toContainText(option);
-}
-
-/**
- * Choose `option` in a portalled multi-select popover and confirm the trigger's count label.
- * The popover is modal and lives outside the dialog subtree, so Escape (closing only the popover,
- * not the form dialog) must dismiss it before the footer is interactive again.
- */
-async function pickInMultiSelect(page: Page, trigger: Locator, option: string, expectLabel: string): Promise<void> {
-  await trigger.click();
-  await page.getByRole("option", { name: option, exact: true }).click();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: expectLabel })).toBeVisible();
-}
-
-/** From the empty-state board, compute the grouping palette and wait for `display`'s chip to land. */
-async function computeGroupings(page: Page, displayName: string): Promise<void> {
-  await page.getByRole("button", { name: "Compute groupings" }).click();
-  // The action persists groupings then `location.reload()`s; the palette chip appears post-reload.
-  await expect(paletteChip(page, displayName)).toBeVisible({ timeout: 20_000 });
-}
-
-/**
- * Drag the palette chip for `display` onto `slot`. dnd-kit's pointer sensor is NOT driven by
- * Playwright's high-level `dragTo` (a single move misses the activation + collision pass), so we
- * issue a stepped pointer sequence by hand: press, nudge past the threshold, traverse in steps,
- * settle for collision detection, release. Wrapped in `toPass` and made idempotent (skip if the
- * chip is already in the cell) so a rare missed drop retries without double-placing.
- */
-async function placeFromPalette(page: Page, displayName: string, slot: string): Promise<void> {
-  const landed = placedChip(page, slot, displayName);
-  await expect(async () => {
-    if ((await landed.count()) > 0) return; // already placed on a previous attempt
-    const source = paletteChip(page, displayName);
-    const target = cell(page, slot);
-    const a = await source.boundingBox();
-    const b = await target.boundingBox();
-    if (!a || !b) throw new Error("drag source or target not visible");
-    const sx = a.x + a.width / 2;
-    const sy = a.y + a.height / 2;
-    const tx = b.x + b.width / 2;
-    const ty = b.y + b.height / 2;
-    await page.mouse.move(sx, sy);
-    await page.mouse.down();
-    await page.mouse.move(sx + 6, sy + 6, { steps: 3 }); // cross the activation distance
-    await page.mouse.move((sx + tx) / 2, (sy + ty) / 2, { steps: 10 });
-    await page.mouse.move(tx, ty, { steps: 10 });
-    await page.mouse.move(tx, ty, { steps: 3 }); // settle so the cell wins collision detection
-    await page.mouse.up();
-    await expect(landed).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 20_000 });
-}
+// --- Spec-specific flow helpers (shared board/catalog plumbing lives in ../support) -----------
 
 /**
  * Switch the active cohort via the switcher control (full SSR remount). Asserts the switcher now

@@ -511,28 +511,28 @@ failure), removing the duplicate-on-reload hazard that Phase 3 documents at `use
 
 #### Automated
 
-- [x] 3.1 Integration suite passes: `pnpm test:integration`
-- [x] 3.2 Type-check passes: `pnpm check`
-- [x] 3.3 Lint passes: `pnpm lint`
-- [x] 3.4 No-seed-coupling guard stays green: `pnpm test`
+- [x] 3.1 Integration suite passes: `pnpm test:integration` — 683ef90
+- [x] 3.2 Type-check passes: `pnpm check` — 683ef90
+- [x] 3.3 Lint passes: `pnpm lint` — 683ef90
+- [x] 3.4 No-seed-coupling guard stays green: `pnpm test` — 683ef90
 
 #### Manual
 
-- [x] 3.5 Reload-restore asserts restored `props.placements`, not just the write
-- [x] 3.6 Move-duplicate test genuinely depends on non-atomic behavior; comment flags follow-up
-- [x] 3.7 Week a/b restore covered, not just `both`
+- [x] 3.5 Reload-restore asserts restored `props.placements`, not just the write — 683ef90
+- [x] 3.6 Move-duplicate test genuinely depends on non-atomic behavior; comment flags follow-up — 683ef90
+- [x] 3.7 Week a/b restore covered, not just `both` — 683ef90
 
 ### Phase 4: Risk #2 — drag→feedback e2e + promote shared board helpers
 
 #### Automated
 
-- [ ] 4.1 New drag→feedback spec passes: `pnpm test:e2e`
-- [ ] 4.2 Refactored `cohort-switching.spec.ts` still passes: `pnpm test:e2e`
-- [ ] 4.3 Lint passes: `pnpm lint`
-- [ ] 4.4 Structure unaffected: `pnpm steiger`
+- [x] 4.1 New drag→feedback spec passes: `pnpm test:e2e`
+- [x] 4.2 Refactored `cohort-switching.spec.ts` still passes: `pnpm test:e2e`
+- [x] 4.3 Lint passes: `pnpm lint`
+- [x] 4.4 Structure unaffected: `pnpm steiger`
 
 #### Manual
 
-- [ ] 4.5 Drag genuinely places (clean chip renders before the colliding drop)
-- [ ] 4.6 `aria-invalid` read via role+name, no `data-*` escape hatch
-- [ ] 4.7 Promotion behavior-preserving: `cohort-switching.spec.ts` diff is import-only
+- [x] 4.5 Drag genuinely places (clean chip renders before the colliding drop)
+- [x] 4.6 `aria-invalid` read via role+name, no `data-*` escape hatch
+- [x] 4.7 Promotion behavior-preserving: `cohort-switching.spec.ts` diff is import-only

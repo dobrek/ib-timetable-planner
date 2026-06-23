@@ -330,11 +330,11 @@ None — no schema or data migration. The change is additive at the type level (
 
 #### Automated
 
-- [x] 2.1 Type check passes: `pnpm check`
-- [x] 2.2 Unit + parity tests pass: `pnpm test`
-- [x] 2.3 FSD structure check passes: `pnpm steiger`
-- [x] 2.4 Lint passes: `pnpm lint`
-- [x] 2.5 Build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check` — 77bda96
+- [x] 2.2 Unit + parity tests pass: `pnpm test` — 77bda96
+- [x] 2.3 FSD structure check passes: `pnpm steiger` — 77bda96
+- [x] 2.4 Lint passes: `pnpm lint` — 77bda96
+- [x] 2.5 Build is clean: `pnpm build` — 77bda96
 
 #### Manual
 
@@ -348,9 +348,9 @@ None — no schema or data migration. The change is additive at the type level (
 
 #### Automated
 
-- [ ] 3.1 E2E suite passes against workerd preview: `pnpm test:e2e`
-- [ ] 3.2 Full local gate passes: `/verify`
+- [x] 3.1 E2E suite passes against workerd preview: `pnpm test:e2e`
+- [x] 3.2 Full local gate passes: `/verify`
 
 #### Manual
 
-- [ ] 3.3 Spec fails when the cross-cohort constraint is reverted (protects the real risk)
+- [x] 3.3 Spec fails when the cross-cohort constraint is reverted (protects the real risk)

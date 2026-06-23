@@ -32,7 +32,7 @@ The IB timetable editor shipped and was demoed to its plan authors. Design and t
 | S-01 | dp1-dp2-cohort-naming                | see cohorts labelled **DP1 / DP2** everywhere instead of "Year 1 / Year 2"                 | —             | FR-004                            | done     |
 | S-02 | co-teaching-teacher-sets             | assign two+ teachers to a course; both count as occupied for conflict + availability       | —             | FR-001, FR-012                    | done     |
 | S-03 | bi-weekly-week-aware-validation      | mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot           | S-02          | FR-002, FR-003, FR-012, US-03     | done     |
-| S-04 | two-cohort-board-cross-cohort        | open either cohort, switch freely; a teacher occupied in one cohort's slot/week blocks the other | S-02, S-03    | FR-005, FR-006, FR-012            | proposed |
+| S-04 | cohort-switching                     | open either cohort, switch freely; a teacher occupied in one cohort's slot/week blocks the other | S-02, S-03    | FR-005, FR-006, FR-012            | done |
 | S-05 | first-class-bundle-operations        | move / remove / replace a placed grouping as one bundle; ungroup to per-course still works | —             | FR-009, FR-010                    | ready    |
 | S-06 | combined-two-cohort-view             | assemble & edit a collision-free DP1 \| DP2 plan side by side, validated across both cohorts | S-04, S-05    | FR-007, FR-008, FR-012, US-01     | proposed |
 | S-07 | bundle-holding-container             | lift a bundle off-board onto a holding shelf, then place it back later; survives refresh   | S-05          | FR-011, US-02                     | proposed |

@@ -1,10 +1,10 @@
 ---
 change_id: parity-harness-enriched-validators
 title: Parity-harness convention for enriched validator classes (test-plan Phase 4)
-status: implemented
+status: archived
 created: 2026-06-22
-updated: 2026-06-22
-archived_at: null
+updated: 2026-06-23
+archived_at: 2026-06-23T12:15:58Z
 ---
 
 ## Notes
@@ -13,7 +13,7 @@ Test-plan §3 **Phase 4** — lock a convention + table-driven fixture harness s
 enriched validator class ships with a false-positive parity guard (the §2 Risk #6
 response, scored High × High).
 
-**Why now:** the sequencing flag said land this *before S-03's unified-rule rewrite*
+**Why now:** the sequencing flag said land this _before S-03's unified-rule rewrite_
 (latest-acceptable bound). S-02 and S-03 have both already shipped without the formal
 guard — so this is overdue. The immediate consumer is **S-04** (two-cohort
 cross-cohort occupancy), the next enriched class; this harness must be in place before

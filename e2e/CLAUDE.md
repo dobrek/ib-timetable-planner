@@ -5,6 +5,15 @@ tests stable by default — apply them rather than reinventing per spec. The fou
 specs already here (`seed`, `auth`, `auth-guard`, `action-unauth`) are the
 exemplars; model new specs on them.
 
+**Reuse shared plumbing — don't copy it.** Cross-cutting infrastructure (the
+hydration-race `clickToReveal`, the `gotoStable` navigation retry, `shortId`, and
+`createPlan`/`createTeacher`/`deletePlan` entity lifecycle) lives in
+`e2e/support/planner.ts`. Import from there rather than re-declaring per spec —
+these are plumbing with no test-specific meaning, and copies drift. `support/*.ts`
+is not a `*.spec.ts`/`*.setup.ts` file, so Playwright does not collect it as a test.
+Keep feature-specific authoring (course/student forms, board locators) local to the
+spec; promote a helper to `support/` only once a second spec needs it.
+
 ## Harness topology (see `playwright.config.ts`)
 
 - **Real workerd, always.** `webServer` runs `pnpm build && pnpm preview`

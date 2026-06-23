@@ -3,7 +3,7 @@ import { cohortLabel, type PlacementWeek } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
-import CohortSwitcher from "./CohortSwitcher";
+import BoardHeader from "./BoardHeader";
 import CollisionDetailsDialog from "./CollisionDetailsDialog";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
@@ -118,10 +118,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   if (groupings.length === 0) {
     return (
       <>
-        <div className="flex shrink-0 items-center gap-3 border-b px-6 py-2">
-          <h1 className="text-base font-semibold">{planName}</h1>
-          <CohortSwitcher planId={planId} cohort={cohort} />
-        </div>
+        <BoardHeader planName={planName} planId={planId} cohort={cohort} />
         <div data-slot="planner-board" className="p-6">
           <ComputeGroupingsEmptyState planId={planId} cohort={cohort} />
         </div>

@@ -1,3 +1,4 @@
+import { cellKey } from "../cell-key";
 import type { CellConstraint, CollisionViolation } from "./types";
 
 /**
@@ -10,9 +11,9 @@ import type { CellConstraint, CollisionViolation } from "./types";
  * Reads `ctx.strongUnavailableByTeacher` / `ctx.softUnavailableByTeacher` (teacherKey →
  * set of `cellKey`; availability is authored per individual teacher). Strong wins if a
  * teacher is somehow both at one cell (the tri-state authoring model makes a cell exactly
- * one of available/soft/strong). The cell key is formatted inline to mirror
- * `collisions.cellKey` (`${day}:${period}`) without importing it — the constraint
- * registry and `collisions` form an import cycle.
+ * one of available/soft/strong). Uses `cellKey` from the dependency-free `cell-key` leaf
+ * (importing it from `collisions` would close the constraint-registry ⇄ `collisions` cycle;
+ * the leaf module sidesteps that).
  */
 export const teacherAvailability: CellConstraint = {
   id: "teacher-availability",
@@ -20,7 +21,7 @@ export const teacherAvailability: CellConstraint = {
     const strong = ctx.strongUnavailableByTeacher;
     const soft = ctx.softUnavailableByTeacher;
     if (!strong && !soft) return [];
-    const key = `${ctx.cell.day}:${ctx.cell.period}`;
+    const key = cellKey(ctx.cell.day, ctx.cell.period);
     // The `: CollisionViolation[]` annotation pins `severity`'s literal. An empty
     // teacherKeys set yields no violations (no null guard, the studentKeys blueprint).
     return occupants.flatMap((course): CollisionViolation[] =>

@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { clickToReveal, createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../support/planner";
 
 // Cohort switching + cross-cohort teacher occupancy — browser-level coverage (plan Phase 3,
 // context/changes/cohort-switching/plan.md).
@@ -44,7 +44,7 @@ test.describe("cohort switching + cross-cohort teacher occupancy", () => {
     const dp2Display = display(dp2Course);
     const slot = "Wed, P5";
 
-    const plan = await createPlan(page);
+    const plan = await createPlan(page, "cohort-switching");
 
     // One teacher, teaching a placeable course in EACH cohort. A course is placeable only once a
     // student in its cohort chooses it (the grouping catalog is choice-driven), so each course
@@ -82,9 +82,6 @@ test.describe("cohort switching + cross-cohort teacher occupancy", () => {
   });
 });
 
-/** Short unique suffix for collision-free parallel test data. */
-const shortId = () => randomUUID().slice(0, 8);
-
 /** The board's display name for a course: spaces collapse to underscores (no level/group here). */
 const display = (name: string) => name.replaceAll(/ /g, "_");
 
@@ -112,56 +109,7 @@ const collisionBadge = (page: Page, slot: string): Locator =>
 const otherCohortViolation = (page: Page): Locator =>
   page.getByRole("dialog").getByRole("listitem").filter({ hasText: "is also teaching in" });
 
-// --- Flow helpers ----------------------------------------------------------------------------
-
-/**
- * Click `opener` until `revealed` appears. Survives the cold-start hydration race: an Astro
- * `client:load` island renders its trigger via SSR, so the button is clickable *before* React
- * attaches the handler — a too-early click is silently dropped. (Same idiom as co-teaching.spec.)
- */
-async function clickToReveal(opener: Locator, revealed: Locator): Promise<void> {
-  await expect(async () => {
-    await opener.click();
-    await expect(revealed.first()).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 20_000 });
-}
-
-/** Hard-navigate, retrying past a lost race with an in-flight client navigation (ERR_ABORTED). */
-async function gotoStable(page: Page, path: string): Promise<void> {
-  await expect(async () => {
-    await page.goto(path);
-  }).toPass({ timeout: 20_000 });
-}
-
-/** Create a uniquely named plan; returns its id (from the board URL) and name (for teardown). */
-async function createPlan(page: Page): Promise<{ id: string; name: string }> {
-  const name = `E2E cohort-switching ${randomUUID()}`;
-  await gotoStable(page, "/plans");
-  const dialog = page.getByRole("dialog");
-  await clickToReveal(
-    page.getByRole("button", { name: "New plan" }),
-    dialog.getByRole("heading", { name: "New plan" }),
-  );
-  await dialog.getByRole("textbox", { name: "Name" }).fill(name);
-  await dialog.getByRole("button", { name: "Create plan" }).click();
-  await page.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
-  return { id: new URL(page.url()).pathname.split("/")[2], name };
-}
-
-/** Add a teacher (code only → its display label is the code) and confirm the row landed. */
-async function createTeacher(page: Page, planId: string, code: string): Promise<void> {
-  await gotoStable(page, `/plans/${planId}/teachers`);
-  const dialog = page.getByRole("dialog");
-  // On an empty plan the header and the empty-state both offer "New teacher"; the header is first.
-  await clickToReveal(
-    page.getByRole("button", { name: "New teacher" }).first(),
-    dialog.getByRole("heading", { name: "New teacher" }),
-  );
-  await dialog.getByLabel("Code").fill(code);
-  await dialog.getByRole("button", { name: "Create teacher" }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page.getByRole("cell", { name: code, exact: true })).toBeVisible();
-}
+// --- Flow helpers (shared plumbing lives in ../support/planner) -------------------------------
 
 /** Author a single-teacher course in `cohort` (DP1|DP2); returns once its catalog row is visible. */
 async function createCourse(
@@ -290,15 +238,4 @@ async function openCollisionDialog(page: Page, slot: string): Promise<void> {
 async function closeDialog(page: Page): Promise<void> {
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
-}
-
-/** Tear down: deleting the plan cascades to its courses, teachers, students, and placements. */
-async function deletePlan(page: Page, planName: string): Promise<void> {
-  await gotoStable(page, "/plans");
-  await clickToReveal(page.getByRole("button", { name: `Actions for ${planName}` }), page.getByRole("menuitem"));
-  await page.getByRole("menuitem", { name: "Delete" }).click();
-  const dialog = page.getByRole("alertdialog");
-  await expect(dialog.getByRole("heading", { name: `Delete ${planName}?` })).toBeVisible();
-  await dialog.getByRole("button", { name: "Delete" }).click();
-  await expect(page.getByRole("link", { name: planName })).toHaveCount(0);
 }

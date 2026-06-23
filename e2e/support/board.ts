@@ -10,7 +10,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 export const display = (name: string): string => name.replaceAll(/ /g, "_");
 
 /** Escape a string for safe embedding in a RegExp locator name. */
-export const escapeRegExp = (value: string): string => value.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (value: string): string => value.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // --- Board locators (role-based; see e2e/CLAUDE.md "Role + ARIA as the grid contract") -------
 

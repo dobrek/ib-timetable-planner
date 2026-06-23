@@ -5,15 +5,36 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
-    environment: "node",
-    include: ["src/**/*.test.ts"],
-    exclude: ["src/**/*.integration.test.ts"],
     // Stub Astro virtual modules so slice code reaching them through the
     // `@/shared/api` barrel (env-reading `createClient`) and the action wrapper
-    // (`ActionError`/`defineAction`) is importable under Vitest.
+    // (`ActionError`/`defineAction`) is importable under Vitest. Lives on the root
+    // so `extends: true` projects inherit it.
     alias: {
       "astro:env/server": fileURLToPath(new URL("./test/stubs/astro-env-server.ts", import.meta.url)),
       "astro:actions": fileURLToPath(new URL("./test/stubs/astro-actions.ts", import.meta.url)),
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["src/**/*.test.ts"],
+          exclude: ["src/**/*.integration.test.ts"],
+        },
+      },
+      {
+        // jsdom lane for React/hook tests. Inherits the root plugins + `astro:*`
+        // alias via `extends: true`; `*.test.tsx` only, so the node `unit` project
+        // (`*.test.ts`) and this lane never collect the same file.
+        extends: true,
+        test: {
+          name: "dom",
+          environment: "jsdom",
+          include: ["src/**/*.test.tsx"],
+          setupFiles: ["./src/test/setup-dom.ts"],
+        },
+      },
+    ],
   },
 });

@@ -1,19 +1,21 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { clickToReveal, gotoStable } from "../support/planner";
 
 test("create and delete plan", async ({ page }) => {
   const planName = `Test Plan ${randomUUID()}`;
 
   // Go to plans list
-  await page.goto("/plans");
+  await gotoStable(page, "/plans");
 
-  // Click new plan button
-  await page.getByRole("button", { name: "New plan" }).click();
-
-  // Create plan
-
+  // Open the New plan dialog. The trigger is an Astro `client:load` island button rendered via
+  // SSR, so it is clickable before React attaches its handler — a bare click can be dropped on a
+  // cold start. `clickToReveal` retries until the dialog heading appears (see e2e/CLAUDE.md).
   const createPlanDialog = page.getByRole("dialog");
-  await expect(createPlanDialog.getByRole("heading", { name: `New plan` })).toBeVisible();
+  await clickToReveal(
+    page.getByRole("button", { name: "New plan" }),
+    createPlanDialog.getByRole("heading", { name: "New plan" }),
+  );
   await createPlanDialog.getByRole("textbox", { name: "Name" }).click();
   await createPlanDialog.getByRole("textbox", { name: "Name" }).fill(planName);
   await createPlanDialog.getByRole("button", { name: "Create plan" }).click();
@@ -22,8 +24,12 @@ test("create and delete plan", async ({ page }) => {
   await page.getByRole("link", { name: "Plans" }).click();
   await expect(page.getByRole("link", { name: planName })).toBeVisible();
 
-  // Clean up
-  await page.getByRole("button", { name: `Actions for ${planName}` }).click();
+  // Clean up. The row's actions menu is likewise island-driven — retry the open until the
+  // Delete item is revealed before clicking it.
+  await clickToReveal(
+    page.getByRole("button", { name: `Actions for ${planName}` }),
+    page.getByRole("menuitem", { name: "Delete" }),
+  );
   await page.getByRole("menuitem", { name: "Delete" }).click();
 
   const deletePlanDialog = page.getByRole("alertdialog");

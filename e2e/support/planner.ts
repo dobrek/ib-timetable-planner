@@ -5,9 +5,10 @@ import { randomUUID } from "node:crypto";
 //
 // These are pure infrastructure (navigation retries, the hydration-race click, plan/teacher
 // creation, plan teardown) with no test-specific meaning, so they live here rather than being
-// copy-pasted into each spec. Spec-specific authoring (courses/students, whose forms differ per
-// feature) stays local to each spec. Not a `*.spec.ts`/`*.setup.ts` file, so Playwright's default
-// testMatch does not collect it as a test (see playwright.config.ts).
+// copy-pasted into each spec. Course/student authoring + the board drag/locators now have a
+// second consumer (drag-validate-feedback.spec.ts), so they are promoted to ../support/catalog.ts
+// and ../support/board.ts respectively. Not a `*.spec.ts`/`*.setup.ts` file, so Playwright's
+// default testMatch does not collect it as a test (see playwright.config.ts).
 
 /** Short unique suffix for collision-free parallel test data. */
 export const shortId = (): string => randomUUID().slice(0, 8);

@@ -497,30 +497,30 @@ failure), removing the duplicate-on-reload hazard that Phase 3 documents at `use
 
 #### Automated
 
-- [x] 2.1 Type-check passes: `pnpm check`
-- [x] 2.2 Lint passes: `pnpm lint`
-- [x] 2.3 Hook test passes in the `dom` project: `pnpm test`
-- [x] 2.4 Oracle integrity: breaking a transition reddens the test; revert
+- [x] 2.1 Type-check passes: `pnpm check` — a54150e
+- [x] 2.2 Lint passes: `pnpm lint` — a54150e
+- [x] 2.3 Hook test passes in the `dom` project: `pnpm test` — a54150e
+- [x] 2.4 Oracle integrity: breaking a transition reddens the test; revert — a54150e
 
 #### Manual
 
-- [x] 2.5 Asserts through hook return + `deriveCellViolations`, not internal wiring
-- [x] 2.6 Week both vs a/b verdict branches both exercised
+- [x] 2.5 Asserts through hook return + `deriveCellViolations`, not internal wiring — a54150e
+- [x] 2.6 Week both vs a/b verdict branches both exercised — a54150e
 
 ### Phase 3: Risk #2 + #4 — persistence integration
 
 #### Automated
 
-- [ ] 3.1 Integration suite passes: `pnpm test:integration`
-- [ ] 3.2 Type-check passes: `pnpm check`
-- [ ] 3.3 Lint passes: `pnpm lint`
-- [ ] 3.4 No-seed-coupling guard stays green: `pnpm test`
+- [x] 3.1 Integration suite passes: `pnpm test:integration`
+- [x] 3.2 Type-check passes: `pnpm check`
+- [x] 3.3 Lint passes: `pnpm lint`
+- [x] 3.4 No-seed-coupling guard stays green: `pnpm test`
 
 #### Manual
 
-- [ ] 3.5 Reload-restore asserts restored `props.placements`, not just the write
-- [ ] 3.6 Move-duplicate test genuinely depends on non-atomic behavior; comment flags follow-up
-- [ ] 3.7 Week a/b restore covered, not just `both`
+- [x] 3.5 Reload-restore asserts restored `props.placements`, not just the write
+- [x] 3.6 Move-duplicate test genuinely depends on non-atomic behavior; comment flags follow-up
+- [x] 3.7 Week a/b restore covered, not just `both`
 
 ### Phase 4: Risk #2 — drag→feedback e2e + promote shared board helpers
 

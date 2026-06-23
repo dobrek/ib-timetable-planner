@@ -1,9 +1,9 @@
 ---
 change_id: cohort-switching
 title: Cohort switching
-status: implementing
+status: implemented
 created: 2026-06-22
-updated: 2026-06-22
+updated: 2026-06-23
 archived_at: null
 ---
 

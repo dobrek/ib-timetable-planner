@@ -321,10 +321,10 @@ None — no schema or data migration. The change is additive at the type level (
 
 #### Manual
 
-- [ ] 1.6 Cross-cohort same-week clash shows destructive ring + dialog entry (DP2 seeded)
-- [ ] 1.7 Opposite-week not flagged; agnostic `both` flags every week
-- [ ] 1.8 Drag hint matches committed cell after drop
-- [ ] 1.9 Per-drag validation stays within the <200ms budget
+- [x] 1.6 Cross-cohort same-week clash shows destructive ring + dialog entry (DP2 seeded)
+- [x] 1.7 Opposite-week not flagged; agnostic `both` flags every week
+- [x] 1.8 Drag hint matches committed cell after drop
+- [x] 1.9 Per-drag validation stays within the <200ms budget
 
 ### Phase 2: Cohort switcher (UI + route)
 
@@ -338,19 +338,19 @@ None — no schema or data migration. The change is additive at the type level (
 
 #### Manual
 
-- [ ] 2.6 `/plans/{id}` defaults to DP1, switcher shows DP1 active
-- [ ] 2.7 Clicking DP2 navigates + remounts onto DP2; switcher reflects DP2
-- [ ] 2.8 Invalid `?cohort=` falls back to DP1 (no error page)
-- [ ] 2.9 Cross-cohort flags are symmetric across the switch
-- [ ] 2.10 Switcher reachable on a cohort with no groupings (empty state)
+- [x] 2.6 `/plans/{id}` defaults to DP1, switcher shows DP1 active
+- [x] 2.7 Clicking DP2 navigates + remounts onto DP2; switcher reflects DP2
+- [x] 2.8 Invalid `?cohort=` falls back to DP1 (no error page)
+- [x] 2.9 Cross-cohort flags are symmetric across the switch
+- [x] 2.10 Switcher reachable on a cohort with no groupings (empty state)
 
 ### Phase 3: End-to-end spec
 
 #### Automated
 
-- [x] 3.1 E2E suite passes against workerd preview: `pnpm test:e2e`
-- [x] 3.2 Full local gate passes: `/verify`
+- [x] 3.1 E2E suite passes against workerd preview: `pnpm test:e2e` — ba4192f
+- [x] 3.2 Full local gate passes: `/verify` — ba4192f
 
 #### Manual
 
-- [x] 3.3 Spec fails when the cross-cohort constraint is reverted (protects the real risk)
+- [x] 3.3 Spec fails when the cross-cohort constraint is reverted (protects the real risk) — ba4192f

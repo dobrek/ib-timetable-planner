@@ -526,13 +526,13 @@ failure), removing the duplicate-on-reload hazard that Phase 3 documents at `use
 
 #### Automated
 
-- [x] 4.1 New drag→feedback spec passes: `pnpm test:e2e`
-- [x] 4.2 Refactored `cohort-switching.spec.ts` still passes: `pnpm test:e2e`
-- [x] 4.3 Lint passes: `pnpm lint`
-- [x] 4.4 Structure unaffected: `pnpm steiger`
+- [x] 4.1 New drag→feedback spec passes: `pnpm test:e2e` — 419aa3d
+- [x] 4.2 Refactored `cohort-switching.spec.ts` still passes: `pnpm test:e2e` — 419aa3d
+- [x] 4.3 Lint passes: `pnpm lint` — 419aa3d
+- [x] 4.4 Structure unaffected: `pnpm steiger` — 419aa3d
 
 #### Manual
 
-- [x] 4.5 Drag genuinely places (clean chip renders before the colliding drop)
-- [x] 4.6 `aria-invalid` read via role+name, no `data-*` escape hatch
-- [x] 4.7 Promotion behavior-preserving: `cohort-switching.spec.ts` diff is import-only
+- [x] 4.5 Drag genuinely places (clean chip renders before the colliding drop) — 419aa3d
+- [x] 4.6 `aria-invalid` read via role+name, no `data-*` escape hatch — 419aa3d
+- [x] 4.7 Promotion behavior-preserving: `cohort-switching.spec.ts` diff is import-only — 419aa3d

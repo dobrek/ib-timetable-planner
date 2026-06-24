@@ -317,38 +317,38 @@ None. No schema, migration, RPC, or Action changes. `catalog_hash` already exist
 
 #### Manual
 
-- [ ] 1.7 `stale: false` on unchanged catalog; `stale: true` after a catalog edit
-- [ ] 1.8 No-groupings plan still renders the empty state with no extra query
+- [x] 1.7 `stale: false` on unchanged catalog; `stale: true` after a catalog edit
+- [x] 1.8 No-groupings plan still renders the empty state with no extra query
 
 ### Phase 2: Palette-view orchestration + recompute panel
 
 #### Automated
 
-- [x] 2.1 Type checking passes: `pnpm exec astro check`
-- [x] 2.2 Linting passes: `pnpm lint`
-- [x] 2.3 FSD structure check passes: `pnpm steiger`
-- [x] 2.4 Unit suite passes (incl. `palette-view` + panel tests): `pnpm test`
-- [x] 2.5 Build stays clean: `pnpm build`
+- [x] 2.1 Type checking passes: `pnpm exec astro check` — 763583b
+- [x] 2.2 Linting passes: `pnpm lint` — 763583b
+- [x] 2.3 FSD structure check passes: `pnpm steiger` — 763583b
+- [x] 2.4 Unit suite passes (incl. `palette-view` + panel tests): `pnpm test` — 763583b
+- [x] 2.5 Build stays clean: `pnpm build` — 763583b
 
 #### Manual
 
-- [ ] 2.6 `groupings.length === 0` literal gone from `PlannerBoard`; empty/stale/ready flow through `resolvePaletteView`
-- [ ] 2.7 Stale: recompute panel replaces the palette column; grid stays visible/interactive; no layout shift
-- [ ] 2.8 Empty-state layout unchanged (centered compute prompt, no grid)
-- [ ] 2.9 Recompute → busy → reload → panel gone, normal palette returns (returning palette = success)
-- [ ] 2.10 Placements identical before and after recompute
-- [ ] 2.11 Cohort switch re-evaluates staleness independently (dp1/dp2)
-- [ ] 2.12 Failed recompute surfaces an inline error and keeps the panel for retry (no refreshPage)
-- [ ] 2.13 Fresh (unchanged) catalog renders the normal palette, no panel
+- [x] 2.6 `groupings.length === 0` literal gone from `PlannerBoard`; empty/stale/ready flow through `resolvePaletteView`
+- [x] 2.7 Stale: recompute panel replaces the palette column; grid stays visible/interactive; no layout shift
+- [x] 2.8 Empty-state layout unchanged (centered compute prompt, no grid)
+- [x] 2.9 Recompute → busy → reload → panel gone, normal palette returns (returning palette = success)
+- [x] 2.10 Placements identical before and after recompute
+- [x] 2.11 Cohort switch re-evaluates staleness independently (dp1/dp2)
+- [x] 2.12 Failed recompute surfaces an inline error and keeps the panel for retry (no refreshPage)
+- [x] 2.13 Fresh (unchanged) catalog renders the normal palette, no panel
 
 ### Phase 3: E2E coverage (stale → recompute round-trip)
 
 #### Automated
 
-- [ ] 3.1 New spec passes on workerd: `pnpm test:e2e` (or `pnpm exec playwright test grouping-staleness`)
-- [ ] 3.2 Spec is type-checked: `pnpm exec astro check`
+- [x] 3.1 New spec passes on workerd: `pnpm test:e2e` (or `pnpm exec playwright test grouping-staleness`)
+- [x] 3.2 Spec is type-checked: `pnpm exec astro check`
 
 #### Manual
 
-- [ ] 3.3 Spec/trace confirms panel appears only after the catalog edit; palette returns after Recompute
-- [ ] 3.4 Over-staleness guard (step 3) fails if the load-path hash is deliberately broken, then reverted
+- [x] 3.3 Spec/trace confirms panel appears only after the catalog edit; palette returns after Recompute
+- [x] 3.4 Over-staleness guard (step 3) fails if the load-path hash is deliberately broken, then reverted

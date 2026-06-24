@@ -1,7 +1,7 @@
 ---
 change_id: grouping-refresh-stale-version
 title: Grouping refresh stale version
-status: implementing
+status: implemented
 created: 2026-06-24
 updated: 2026-06-24
 archived_at: null

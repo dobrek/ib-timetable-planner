@@ -345,8 +345,8 @@ None. No schema, migration, RPC, or Action changes. `catalog_hash` already exist
 
 #### Automated
 
-- [x] 3.1 New spec passes on workerd: `pnpm test:e2e` (or `pnpm exec playwright test grouping-staleness`)
-- [x] 3.2 Spec is type-checked: `pnpm exec astro check`
+- [x] 3.1 New spec passes on workerd: `pnpm test:e2e` (or `pnpm exec playwright test grouping-staleness`) — 6c6cdca
+- [x] 3.2 Spec is type-checked: `pnpm exec astro check` — 6c6cdca
 
 #### Manual
 

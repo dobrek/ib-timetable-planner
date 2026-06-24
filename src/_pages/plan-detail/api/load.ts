@@ -8,6 +8,7 @@ import type { SiblingOccupancyCell } from "../model/cross-cohort-index";
 import type { PlannerBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
 import type { PlannerPlacement } from "../model/placement";
+import { isGroupingStale } from "./staleness";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -103,6 +104,13 @@ export const loadPlannerData = async (
 
   const crossCohortOccupancy = projectSiblingOccupancy(siblingPlacementsResult.data ?? [], siblingCatalog.courses);
 
+  // Per-cohort palette staleness: hash the catalog we already loaded against the stored
+  // grouping hash. Sequential after the parallel load (it needs `catalog`), off the per-drop
+  // budget, and guarded behind `groupings.length > 0` — a plan with no groupings renders the
+  // empty state, so the stored hash is always null there (it would read "stale" for nothing).
+  const stale =
+    groupings.length > 0 ? await isGroupingStale(supabase, { planId: id, cohort, catalog: catalog.courses }) : false;
+
   return ok({
     planName: plan.name,
     props: {
@@ -111,6 +119,7 @@ export const loadPlannerData = async (
       days,
       periods,
       groupings,
+      stale,
       names: Object.fromEntries(catalog.names),
       teacherNames,
       studentNames,

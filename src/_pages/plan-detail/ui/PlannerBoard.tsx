@@ -144,7 +144,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 collisions={collisions}
                 dropHints={dropHints}
                 hintMode={hintMode}
-                isOverridden={isExploded}
+                isExploded={isExploded}
                 onRemove={removePlacement}
                 onSetWeek={setWeek}
                 onToggleBundle={toggleExploded}

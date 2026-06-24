@@ -476,32 +476,32 @@ No production data exists (README rollback note), so the legacy `slot_bundles` u
 
 #### Automated
 
-- [x] 3.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` pass
-- [x] 3.2 Unit tests pass for the member-set transitions + `bundleId` populated from the server row (no temp-bundle-id reconciliation) + cleanup expectation: `pnpm test`
-- [x] 3.3 Phase 2 integration tests still pass
-- [x] 3.4 No `slot_bundles`/`useSlotBundles`/`slot-bundle` reference remains in `src/` (grep clean)
+- [x] 3.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` pass — 3f8a546
+- [x] 3.2 Unit tests pass for the member-set transitions + `bundleId` populated from the server row (no temp-bundle-id reconciliation) + cleanup expectation: `pnpm test` — 3f8a546
+- [x] 3.3 Phase 2 integration tests still pass — 3f8a546
+- [x] 3.4 No `slot_bundles`/`useSlotBundles`/`slot-bundle` reference remains in `src/` (grep clean) — 3f8a546
 
 #### Manual
 
-- [x] 3.5 Place / single move / whole-bundle move (empty) / merge (occupied) / single remove / whole remove all work and persist across reload
-- [x] 3.6 No transient duplicate-course flag mid-operation (no-flicker invariant holds)
-- [x] 3.7 Drag latency visually unchanged (<200ms budget)
+- [x] 3.5 Place / single move / whole-bundle move (empty) / merge (occupied) / single remove / whole remove all work and persist across reload — 3f8a546
+- [x] 3.6 No transient duplicate-course flag mid-operation (no-flicker invariant holds) — 3f8a546
+- [x] 3.7 Drag latency visually unchanged (<200ms budget) — 3f8a546
 
 ### Phase 4: UI integration & ungroup-as-presentation
 
 #### Automated
 
-- [ ] 4.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` pass
-- [ ] 4.2 Unit/component tests for the explode-state predicate and toggle pass: `pnpm test`
-- [ ] 4.3 `pnpm test:integration` passes
+- [x] 4.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` pass
+- [x] 4.2 Unit/component tests for the explode-state predicate and toggle pass: `pnpm test`
+- [x] 4.3 `pnpm test:integration` passes
 
 #### Manual
 
-- [ ] 4.4 Group/ungroup toggle expands/collapses in-session; reload returns to grouped default
-- [ ] 4.5 Per-chip drag/remove live when ungrouped, inert when grouped (FR-010 unchanged)
-- [ ] 4.6 Dropping a grouping onto an occupied bundle merges into one bundle that renders as bundled immediately post-drop (existing chrome; no overlap frame)
-- [ ] 4.7 A/B week toggle stays adjustable on a bundled opposite-week pair
-- [ ] 4.8 No `refreshPage()`/`reload()` reachable from any board op
+- [x] 4.4 Group/ungroup toggle expands/collapses in-session; reload returns to grouped default
+- [x] 4.5 Per-chip drag/remove live when ungrouped, inert when grouped (FR-010 unchanged)
+- [x] 4.6 Dropping a grouping onto an occupied bundle merges into one bundle that renders as bundled immediately post-drop (existing chrome; no overlap frame)
+- [x] 4.7 A/B week toggle stays adjustable on a bundled opposite-week pair
+- [x] 4.8 No `refreshPage()`/`reload()` reachable from any board op
 
 ### Phase 5: Retire `slot_bundles` & E2E coverage
 

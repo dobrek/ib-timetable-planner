@@ -20,8 +20,8 @@ type CellWiring = {
   dropHints: Map<string, DropHint> | null;
   /** Encoding for the hint cells while a drag is active. */
   hintMode: HintMode;
-  /** Is `(day, period)` explicitly ungrouped? Drives the per-cell `bundled` derivation. */
-  isOverridden: (day: number, period: number) => boolean;
+  /** Is `(day, period)` currently exploded (ungrouped view)? Drives the per-cell `bundled` derivation. */
+  isExploded: (day: number, period: number) => boolean;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
@@ -50,7 +50,7 @@ export default function PlannerGrid({
   collisions,
   dropHints,
   hintMode,
-  isOverridden,
+  isExploded,
   onRemove,
   onSetWeek,
   onToggleBundle,
@@ -94,7 +94,7 @@ export default function PlannerGrid({
             byCell={byCell}
             dropHints={dropHints}
             hintMode={hintMode}
-            isOverridden={isOverridden}
+            isExploded={isExploded}
             onRemove={onRemove}
             onSetWeek={onSetWeek}
             onToggleBundle={onToggleBundle}
@@ -113,7 +113,7 @@ function PeriodRow({
   byCell,
   dropHints,
   hintMode,
-  isOverridden,
+  isExploded,
   onRemove,
   onSetWeek,
   onToggleBundle,
@@ -143,7 +143,7 @@ function PeriodRow({
             dropHint={dropHints?.get(cellKey(day, period))}
             hintActive={dropHints !== null}
             hintMode={hintMode}
-            bundled={isBundled(occupants.length, isOverridden(day, period))}
+            bundled={isBundled(occupants.length, isExploded(day, period))}
             onRemove={onRemove}
             onSetWeek={onSetWeek}
             onToggleBundle={onToggleBundle}

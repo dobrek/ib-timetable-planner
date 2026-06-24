@@ -1,7 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Database } from "@/shared/api";
-import { computeGroupingsFor, createPlan, seedPlanCatalog, teardown } from "@/test/factories";
+import { loadCohortCourses, type Database } from "@/shared/api";
+import {
+  addStudentWithChoices,
+  computeGroupingsFor,
+  createPlan,
+  seedPlanCatalog,
+  teardown,
+  type SeededCatalog,
+} from "@/test/factories";
 import { isGroupingStale } from "./staleness";
 
 // Exercises the full compute path against a factory-owned plan seeded with the real
@@ -21,12 +28,13 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 (hasEnv ? describe : describe.skip)("computeGroupings action path (dp2)", () => {
   let supabase: SupabaseClient<Database>;
   let planId: string;
+  let seededCatalog: SeededCatalog;
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
     planId = await createPlan(supabase);
-    await seedPlanCatalog(supabase, planId);
+    seededCatalog = await seedPlanCatalog(supabase, planId);
   });
 
   afterAll(async () => {
@@ -74,8 +82,23 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       .eq("course_groupings.cohort", COHORT);
     expect(memberCount ?? 0).toBeGreaterThan(0);
 
-    // Staleness helper: freshly persisted → not stale.
-    expect(await isGroupingStale(supabase, { planId, cohort: COHORT })).toBe(false);
+    // Staleness helper: freshly persisted → not stale (hash the catalog the loader already has).
+    const { courses } = await loadCohortCourses(supabase, planId, COHORT);
+    expect(await isGroupingStale(supabase, { planId, cohort: COHORT, catalog: courses })).toBe(false);
+
+    // …and a catalog-affecting mutation flips it stale: add a student choosing an existing
+    // dp2 course (grows that course's studentKeys → the catalog hash shifts). Re-load the
+    // catalog so the detector hashes the post-mutation projection.
+    const dp2CourseId = seededCatalog.courses.find((c) => c.cohort === COHORT)?.id;
+    if (!dp2CourseId) throw new Error("seeded catalog should contain a dp2 course");
+    await addStudentWithChoices(supabase, {
+      planId,
+      cohort: COHORT,
+      fullName: `Staleness probe ${planId}`,
+      courseIds: [dp2CourseId],
+    });
+    const { courses: mutatedCourses } = await loadCohortCourses(supabase, planId, COHORT);
+    expect(await isGroupingStale(supabase, { planId, cohort: COHORT, catalog: mutatedCourses })).toBe(true);
   });
 });
 

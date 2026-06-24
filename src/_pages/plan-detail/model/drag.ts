@@ -22,6 +22,8 @@ export type PlannerBoardProps = {
   days: number;
   periods: number;
   groupings: PlannerGrouping[];
+  /** Per-cohort palette staleness (live catalog hash ≠ stored grouping hash); drives the palette notice only. */
+  stale: boolean;
   /** courseId → display name, resolved at the edge (never baked into drag payloads). */
   names: Record<string, string>;
   /** teacherKey → display name (`full_name ?? code`), resolved at the edge — never baked into drag payloads or violations. */

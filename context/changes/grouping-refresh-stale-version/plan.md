@@ -308,12 +308,12 @@ None. No schema, migration, RPC, or Action changes. `catalog_hash` already exist
 
 #### Automated
 
-- [ ] 1.1 Type checking passes: `pnpm exec astro check`
-- [ ] 1.2 Linting passes: `pnpm lint`
-- [ ] 1.3 FSD structure check passes: `pnpm steiger`
-- [ ] 1.4 Unit suite passes: `pnpm test`
-- [ ] 1.5 Integration suite passes (local Supabase up): `pnpm test:integration`
-- [ ] 1.6 Build stays clean: `pnpm build`
+- [x] 1.1 Type checking passes: `pnpm exec astro check`
+- [x] 1.2 Linting passes: `pnpm lint`
+- [x] 1.3 FSD structure check passes: `pnpm steiger`
+- [x] 1.4 Unit suite passes: `pnpm test`
+- [x] 1.5 Integration suite passes (local Supabase up): `pnpm test:integration`
+- [x] 1.6 Build stays clean: `pnpm build`
 
 #### Manual
 

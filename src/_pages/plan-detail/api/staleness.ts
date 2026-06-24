@@ -1,21 +1,21 @@
-import { loadCohortCourses, unwrapMaybeRow, type SupabaseClient } from "@/shared/api";
+import { unwrapMaybeRow, type SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config";
-import { computeCatalogHash } from "@/shared/lib/catalog-hash";
+import { computeCatalogHash, type GroupingCourse } from "@/shared/lib/catalog-hash";
 
 type Supabase = SupabaseClient;
 
 /**
- * The out-of-date primitive S-06 surfaces in the UI (no UI here). Computes the
- * current catalog hash and compares it to the `catalog_hash` stored on the latest
- * `course_groupings` row for `(plan_id, cohort)`. Stale when no rows exist, the
- * stored hash is absent, or it differs from the current catalog.
+ * The out-of-date primitive the palette surfaces in the UI. Hashes the live catalog
+ * projection the caller already loaded and compares it to the `catalog_hash` stored on
+ * the latest `course_groupings` row for `(plan_id, cohort)`. Stale when no rows exist,
+ * the stored hash is absent, or it differs from the current catalog. Takes the catalog
+ * rather than re-fetching it, so the board load runs no second `loadCohortCourses`.
  */
 export const isGroupingStale = async (
   supabase: Supabase,
-  params: { planId: string; cohort: Cohort },
+  params: { planId: string; cohort: Cohort; catalog: GroupingCourse[] },
 ): Promise<boolean> => {
-  const { courses } = await loadCohortCourses(supabase, params.planId, params.cohort);
-  const currentHash = await computeCatalogHash(courses);
+  const currentHash = await computeCatalogHash(params.catalog);
 
   const stored = unwrapMaybeRow(
     await supabase

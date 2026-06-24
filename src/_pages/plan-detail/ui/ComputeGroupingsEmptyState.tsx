@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import type { Cohort } from "@/shared/config";
+import { refreshPage } from "@/shared/lib/forms";
 import { Button } from "@/shared/ui";
 import { computeGroupings } from "../api/grouping-client";
 
@@ -50,7 +51,7 @@ function useComputeGroupings(planId: string, cohort: Cohort) {
     try {
       const result = await computeGroupings({ planId, cohort });
       if (result.error) throw new Error(result.error);
-      location.reload();
+      await refreshPage();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error computing groupings");
       setLoading(false);

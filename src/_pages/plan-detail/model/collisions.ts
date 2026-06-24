@@ -8,7 +8,7 @@ import type { GroupingCourse } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 
 // Re-exported from its dependency-free leaf module so existing `from "./collisions"` importers
-// (grid, droppables, slot-bundle, tests) keep their import site unchanged.
+// (grid, droppables, slot cells, tests) keep their import site unchanged.
 export { cellKey };
 
 export type CellCollisions = {

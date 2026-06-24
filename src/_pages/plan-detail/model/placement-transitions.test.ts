@@ -11,16 +11,12 @@ import {
   groupFailureMessage,
   moveIntent,
   moveManyOptimistic,
-  moveOptimistic,
-  moveReconcile,
-  moveRollback,
-  occupantPlacementIds,
+  moveManyRollback,
   oppositeWeekAssignment,
   partitionBundleMove,
   placementErrorMessage,
   removeManyOptimistic,
-  removeOptimistic,
-  removeRollback,
+  removeManyRollback,
   removeTarget,
   resolveDropWeek,
   settleMany,
@@ -44,12 +40,13 @@ const p = (
 
 const cell = (day: number, period: number): CellData => ({ day, period });
 
-const server = (id: string, courseId: string, day: number, period: number): PlannerPlacement => ({
+const server = (id: string, courseId: string, day: number, period: number, bundleId?: string): PlannerPlacement => ({
   id,
   courseId,
   day,
   period,
   week: "both",
+  ...(bundleId ? { bundleId } : {}),
 });
 
 describe("add transitions", () => {
@@ -191,6 +188,15 @@ describe("group batch transitions", () => {
     expect(prev).toEqual(snapshot);
   });
 
+  it("settleMany carries the server row's bundleId onto the reconciled placement", () => {
+    // The optimistic row has no bundleId until settle; the whole-row swap pulls it in from the
+    // server row — no temp-bundle-id reconciliation index needed (forward use: S-07/S-08).
+    const prev = [p("t1", "A", 1, 1, true)];
+    const settled = settleMany(prev, [{ tempId: "t1", result: server("real1", "A", 1, 1, "bundle-1") }]);
+    expect(settled).toEqual([server("real1", "A", 1, 1, "bundle-1")]);
+    expect(settled[0].bundleId).toBe("bundle-1");
+  });
+
   it("groupFailureMessage formats a single failure", () => {
     expect(groupFailureMessage(["Math HL"], 6)).toBe("1 of 6 courses failed to save: Math HL");
   });
@@ -280,30 +286,6 @@ describe("move transitions", () => {
       },
     });
   });
-
-  it("moveOptimistic updates day/period and sets pending true", () => {
-    const prev = [p("p1", "A", 1, 1)];
-    expect(moveOptimistic(prev, "p1", cell(2, 3))).toEqual([p("p1", "A", 2, 3, true)]);
-  });
-
-  it("moveOptimistic leaves other placements untouched", () => {
-    const other = p("p2", "B", 5, 5);
-    const prev = [p("p1", "A", 1, 1), other];
-    const result = moveOptimistic(prev, "p1", cell(2, 3));
-    expect(result[1]).toEqual(other);
-  });
-
-  it("moveReconcile replaces the old row with the server-created row", () => {
-    const prev = [p("p1", "A", 2, 3, true)];
-    expect(moveReconcile(prev, "p1", server("new", "A", 2, 3))).toEqual([server("new", "A", 2, 3)]);
-  });
-
-  it("moveRollback restores origin coordinates and clears pending", () => {
-    const prev = [p("p1", "A", 2, 3, true)];
-    expect(moveRollback(prev, "p1", { day: 1, period: 1 })).toEqual([
-      { id: "p1", courseId: "A", day: 1, period: 1, week: "both", pending: false },
-    ]);
-  });
 });
 
 describe("remove transitions", () => {
@@ -325,24 +307,9 @@ describe("remove transitions", () => {
       error: "pending",
     });
   });
-
-  it("removeOptimistic filters out the placement", () => {
-    const prev = [p("p1", "A", 1, 1), p("p2", "B", 2, 2)];
-    expect(removeOptimistic(prev, "p1")).toEqual([p("p2", "B", 2, 2)]);
-  });
-
-  it("removeRollback appends the row back", () => {
-    const row = p("p1", "A", 1, 1);
-    expect(removeRollback([p("p2", "B", 2, 2)], row)).toEqual([p("p2", "B", 2, 2), row]);
-  });
 });
 
 describe("bundle move/remove transitions", () => {
-  it("occupantPlacementIds returns every id at the cell and nothing else", () => {
-    const placements = [p("p1", "A", 1, 1), p("p2", "B", 1, 1), p("p3", "C", 2, 2)];
-    expect(occupantPlacementIds(placements, cell(1, 1))).toEqual(["p1", "p2"]);
-  });
-
   it("partitionBundleMove classifies a course absent at the target as a mover", () => {
     const placements = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1)];
     expect(partitionBundleMove(placements, ["s_a", "s_b"], cell(2, 2))).toEqual({
@@ -403,6 +370,34 @@ describe("bundle move/remove transitions", () => {
     const snapshot = [...prev];
     removeManyOptimistic(prev, ["p1"]);
     expect(prev).toEqual(snapshot);
+  });
+
+  it("moveManyRollback restores the source occupants, drops the moved movers, and leaves twins in place", () => {
+    // Pre-move: source (1,1) holds A, B; target (2,2) holds a B twin. The optimistic move sent
+    // s_a to (2,2) and filtered the merger s_b. Rollback must restore A+B at the source, remove
+    // the moved s_a from the target, and leave the untouched twin t_b alone.
+    const original = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1)];
+    const twin = p("t_b", "B", 2, 2);
+    const optimistic = moveManyOptimistic([...original, twin], ["s_a"], ["s_b"], cell(2, 2));
+    const rolledBack = moveManyRollback(optimistic, ["s_a"], original);
+
+    expect(rolledBack).toContainEqual(twin);
+    expect(rolledBack.filter((r) => r.id === "s_a")).toEqual([p("s_a", "A", 1, 1)]); // back at source, not pending
+    expect(
+      rolledBack
+        .filter((r) => r.day === 1 && r.period === 1)
+        .map((r) => r.courseId)
+        .sort(),
+    ).toEqual(["A", "B"]);
+  });
+
+  it("removeManyRollback restores the optimistically-removed rows", () => {
+    const removed = [p("p1", "A", 1, 1), p("p2", "B", 1, 1)];
+    expect(removeManyRollback([p("p3", "C", 2, 2)], removed)).toEqual([
+      p("p3", "C", 2, 2),
+      p("p1", "A", 1, 1),
+      p("p2", "B", 1, 1),
+    ]);
   });
 });
 

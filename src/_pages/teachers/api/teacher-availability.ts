@@ -6,8 +6,8 @@ import { GRID_BOUNDS } from "@/shared/lib/grid";
 /**
  * Teacher-availability persistence: tri-state per-cell edits (set a severity / clear a
  * cell) plus a whole-column bulk op. Schemas + framework-free domain functions co-located
- * like `plan-detail/api/slot-bundles.ts` (the marker-table template). Every write carries
- * `planId` + `teacherId`; the composite FK pins both to a real plan teacher.
+ * per the coordinate-keyed marker-table template. Every write carries `planId` + `teacherId`;
+ * the composite FK pins both to a real plan teacher.
  *
  * Storage severity is `strong`/`soft` here — the board's `block`/`warn` render vocabulary
  * is a separate concern mapped only in the validator.

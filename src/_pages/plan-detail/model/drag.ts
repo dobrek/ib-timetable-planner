@@ -3,7 +3,6 @@ import type { BoardAvailabilityCell } from "./availability-index";
 import type { SiblingOccupancyCell } from "./cross-cohort-index";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { PlannerPlacement } from "./placement";
-import type { SlotOverride } from "./slot-bundle";
 
 /** Drag payload carried on the draggable's `data`. Identity is opaque ids — never names. */
 export type CourseDrag = { kind: "course"; courseId: string };
@@ -30,8 +29,6 @@ export type PlannerBoardProps = {
   /** studentKey → full name, resolved at the edge — never baked into drag payloads or violations. */
   studentNames: Record<string, string>;
   placements: PlannerPlacement[];
-  /** Persisted unbundled overrides (cells the planner explicitly ungrouped). */
-  overrides: SlotOverride[];
   /** Validation catalog: `GroupingCourse[]` keyed by course id. */
   catalog: GroupingCourse[];
   /** Plan-scoped teacher availability (all teachers, cohort-independent), raw cells the

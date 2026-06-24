@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
-import { createPlacement, deletePlacement, updatePlacementWeek } from "../api/placement-client";
+import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
 import type { CellData } from "./drag";
 import {
   addManyOptimistic,
@@ -11,15 +11,11 @@ import {
   eligibleMembers,
   moveIntent,
   moveManyOptimistic,
-  moveOptimistic,
-  moveReconcile,
-  moveRollback,
-  occupantPlacementIds,
+  moveManyRollback,
   oppositeWeekAssignment,
   partitionBundleMove,
   removeManyOptimistic,
-  removeOptimistic,
-  removeRollback,
+  removeManyRollback,
   removeTarget,
   resolveDropWeek,
   setWeekOptimistic,
@@ -53,8 +49,13 @@ type UsePlacements = {
 
 /**
  * Owns island-local placement state and the optimistic write path. Guards and state
- * transitions live in `placement-transitions.ts`; this hook orchestrates React state
- * and async persistence over those pure functions.
+ * transitions live in `placement-transitions.ts`; this hook orchestrates React state and
+ * async persistence over those pure functions.
+ *
+ * Every mutation is one transactional RPC over a member-set: `placeCourse` (add — one call
+ * per member), `moveBundleMembers` (move/merge — single move and whole-bundle move are
+ * M-of-one vs M-of-all), `removeBundleMembers` (remove). The board call sites stay ergonomic
+ * (`addCourse`, `movePlacement`, `moveBundle`, …); each is a thin wrapper over the primitive.
  */
 export function usePlacements(
   initial: PlannerPlacement[],
@@ -75,11 +76,17 @@ export function usePlacements(
   }
 
   function movePlacement(placementId: string, cell: CellData) {
-    void persistMove(placementId, cell);
+    const result = moveIntent(placementsRef.current, placementId, cell);
+    if (!result.ok) return; // not-found / pending / same-cell / occupied (own twin)
+    const { value: intent } = result;
+    void persistMoveMembers(intent.origin, [intent.courseId], cell);
   }
 
   function removePlacement(placementId: string) {
-    void persistRemove(placementId);
+    const result = removeTarget(placementsRef.current, placementId);
+    if (!result.ok) return; // not-found / pending
+    const { value: row } = result;
+    void persistRemoveMembers({ day: row.day, period: row.period }, [row.courseId]);
   }
 
   function setWeek(placementId: string, week: PlacementWeek) {
@@ -87,12 +94,15 @@ export function usePlacements(
   }
 
   function moveBundle(day: number, period: number, target: CellData) {
-    void persistMoveBundle(day, period, target);
+    void persistMoveMembers({ day, period }, courseIdsAt(day, period), target);
   }
 
   function removeBundle(day: number, period: number) {
-    void persistRemoveBundle(day, period);
+    void persistRemoveMembers({ day, period }, courseIdsAt(day, period));
   }
+
+  const courseIdsAt = (day: number, period: number): string[] =>
+    placementsRef.current.filter((p) => p.day === day && p.period === period).map((p) => p.courseId);
 
   async function persistAdd(courseId: string, cell: CellData) {
     if (!canAdd(placementsRef.current, courseId, cell)) return;
@@ -102,7 +112,7 @@ export function usePlacements(
     setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell, week));
 
     try {
-      const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
+      const row = await placeCourse({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
       setPlacements((prev) => addReconcile(prev, tempId, row));
     } catch (err: unknown) {
       setPlacements((prev) => addRollback(prev, tempId));
@@ -110,9 +120,9 @@ export function usePlacements(
     }
   }
 
-  // Group fan-out (Option A): N parallel idempotent single inserts. Members already
-  // in the cell are silently skipped; the optimistic batch and the settlement each
-  // land in one state update so collision/hours derivations recompute once.
+  // Group fan-out: one idempotent place_course per eligible member. They share the cell's
+  // bundle (find-or-create), members already in the cell are skipped, and the optimistic batch
+  // and settlement each land in one state update so collision/hours derivations recompute once.
   async function persistAddGroup(memberIds: string[], cell: CellData, oppositeWeek: boolean) {
     const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
     if (eligible.length === 0) return;
@@ -148,137 +158,90 @@ export function usePlacements(
     cell: CellData,
   ): Promise<BatchOutcome & { courseId: string }> {
     try {
-      const row = await createPlacement({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
+      const row = await placeCourse({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
       return { tempId, courseId, result: row };
     } catch (err: unknown) {
       // The banner names which members failed; keep the underlying reason traceable.
       // eslint-disable-next-line no-console
-      console.error(`[persistAddGroup] insert failed for course ${courseId}: ${messageOf(err)}`);
+      console.error(`[persistAddGroup] place failed for course ${courseId}: ${messageOf(err)}`);
       return { tempId, courseId, result: null };
     }
   }
 
-  async function persistMove(placementId: string, cell: CellData) {
-    const result = moveIntent(placementsRef.current, placementId, cell);
-    if (!result.ok) return;
-    const { value: intent } = result;
-
-    setPlacements((prev) => moveOptimistic(prev, intent.oldId, cell));
-
-    try {
-      const created = await createPlacement({
-        planId,
-        cohort,
-        courseId: intent.courseId,
-        day: cell.day,
-        period: cell.period,
-        week: intent.week,
-      });
-      setPlacements((prev) => moveReconcile(prev, intent.oldId, created));
-      try {
-        await deletePlacement(intent.oldId);
-      } catch (err: unknown) {
-        setError({ kind: "message", message: `Move saved but old cell cleanup failed: ${messageOf(err)}` });
-      }
-    } catch (err: unknown) {
-      setPlacements((prev) => moveRollback(prev, intent.oldId, intent.origin));
-      setError(errorOf(err));
-    }
-  }
-
-  async function persistRemove(placementId: string) {
-    const result = removeTarget(placementsRef.current, placementId);
-    if (!result.ok) return;
-    const { value: row } = result;
-
-    setPlacements((prev) => removeOptimistic(prev, placementId));
-
-    try {
-      await deletePlacement(placementId);
-    } catch (err: unknown) {
-      setPlacements((prev) => removeRollback(prev, row));
-      setError(errorOf(err));
-    }
-  }
-
-  // Whole-slot move (POST-new for movers, DELETE-old for movers + mergers), applied as a
-  // single optimistic setPlacements so the board derives only the initial and final states —
-  // never a transient duplicate. The table is never touched; bundled-ness is destination state.
-  async function persistMoveBundle(day: number, period: number, target: CellData) {
-    if (target.day === day && target.period === period) return; // same-cell no-op
-    const ids = occupantPlacementIds(placementsRef.current, { day, period });
-    if (ids.length === 0) return;
-    const occupants = placementsRef.current.filter((p) => ids.includes(p.id));
+  // The unified member-set move (single move, whole-bundle move, merge). One optimistic
+  // `moveManyOptimistic` pass (movers → target + pending; mergers filtered, never moved onto a
+  // twin), one atomic `moveBundleMembers` RPC, one `settleMany` pass swapping the movers for the
+  // server rows (id preserved on relocation). The board derives only the initial and final
+  // states — never a transient duplicate. An atomic failure rolls the whole move back.
+  async function persistMoveMembers(source: CellData, courseIds: string[], target: CellData) {
+    if (target.day === source.day && target.period === source.period) return; // same-cell no-op
+    const courseSet = new Set(courseIds);
+    const occupants = placementsRef.current.filter(
+      (p) => p.day === source.day && p.period === source.period && courseSet.has(p.courseId),
+    );
+    if (occupants.length === 0) return;
     if (occupants.some((p) => p.pending)) return; // batch analogue of moveIntent's pending reject
 
-    const { movers, mergers } = partitionBundleMove(placementsRef.current, ids, target);
+    const { movers, mergers } = partitionBundleMove(
+      placementsRef.current,
+      occupants.map((p) => p.id),
+      target,
+    );
     const moverRows = occupants.filter((p) => movers.includes(p.id));
 
     setPlacements((prev) => moveManyOptimistic(prev, movers, mergers, target));
 
-    const outcomes = await Promise.all(moverRows.map((row) => persistMover(row, target)));
-    setPlacements((prev) => settleMany(prev, outcomes));
-
-    // Source empties: delete every original row. Best-effort — cleanup failures are surfaced.
-    await Promise.all([...movers, ...mergers].map((id) => deleteOld(id)));
-
-    const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
-    if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: moverRows.length });
-  }
-
-  async function persistMover(row: LocalPlacement, target: CellData): Promise<BatchOutcome & { courseId: string }> {
     try {
-      const created = await createPlacement({
+      const serverRows = await moveBundleMembers({
         planId,
         cohort,
-        courseId: row.courseId,
-        day: target.day,
-        period: target.period,
-        week: row.week,
+        day: source.day,
+        period: source.period,
+        courseIds,
+        targetDay: target.day,
+        targetPeriod: target.period,
       });
-      return { tempId: row.id, courseId: row.courseId, result: created };
+      // Reconcile each mover by course → its server row (relocation preserves the placement id,
+      // so settleMany matches by the unchanged id and picks up the settled bundleId).
+      const serverByCourse = new Map(serverRows.map((row) => [row.courseId, row]));
+      const outcomes: (BatchOutcome & { courseId: string })[] = moverRows.map((row) => ({
+        tempId: row.id,
+        courseId: row.courseId,
+        result: serverByCourse.get(row.courseId) ?? null,
+      }));
+      setPlacements((prev) => settleMany(prev, outcomes));
+
+      const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
+      if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: moverRows.length });
     } catch (err: unknown) {
-      // eslint-disable-next-line no-console
-      console.error(`[moveBundle] insert failed for course ${row.courseId}: ${messageOf(err)}`);
-      return { tempId: row.id, courseId: row.courseId, result: null };
+      setPlacements((prev) => moveManyRollback(prev, movers, occupants));
+      setError(errorOf(err));
     }
   }
 
-  async function deleteOld(id: string) {
-    try {
-      await deletePlacement(id);
-    } catch (err: unknown) {
-      setError({ kind: "message", message: `Move saved but old cell cleanup failed: ${messageOf(err)}` });
-    }
-  }
-
-  // Whole-slot bulk remove in one optimistic setPlacements; failed deletes are restored so
-  // island state stays consistent with the DB, and the failures are surfaced.
-  async function persistRemoveBundle(day: number, period: number) {
-    const occupants = placementsRef.current.filter((p) => p.day === day && p.period === period);
+  // The unified member-set remove (single remove, whole-bundle remove). One optimistic pass,
+  // one atomic `removeBundleMembers` RPC (which deletes the bundle at == 0 membership); a
+  // failure restores the removed rows.
+  async function persistRemoveMembers(cell: CellData, courseIds: string[]) {
+    const courseSet = new Set(courseIds);
+    const occupants = placementsRef.current.filter(
+      (p) => p.day === cell.day && p.period === cell.period && courseSet.has(p.courseId),
+    );
     if (occupants.length === 0) return;
     if (occupants.some((p) => p.pending)) return; // batch analogue of removeTarget's pending reject
 
-    const ids = occupants.map((p) => p.id);
-    setPlacements((prev) => removeManyOptimistic(prev, ids));
-
-    const failed = (await Promise.all(occupants.map((row) => deleteOccupant(row)))).filter(
-      (row): row is LocalPlacement => row !== null,
+    setPlacements((prev) =>
+      removeManyOptimistic(
+        prev,
+        occupants.map((p) => p.id),
+      ),
     );
-    if (failed.length > 0) {
-      setPlacements((prev) => [...prev, ...failed]);
-      setError({ kind: "groupFailure", failedCourseIds: failed.map((row) => row.courseId), attempted: ids.length });
-    }
-  }
 
-  async function deleteOccupant(row: LocalPlacement): Promise<LocalPlacement | null> {
     try {
-      await deletePlacement(row.id);
-      return null;
+      await removeBundleMembers({ planId, cohort, day: cell.day, period: cell.period, courseIds });
     } catch (err: unknown) {
-      // eslint-disable-next-line no-console
-      console.error(`[removeBundle] delete failed for course ${row.courseId}: ${messageOf(err)}`);
-      return row;
+      setPlacements((prev) => removeManyRollback(prev, occupants));
+      setError(errorOf(err));
     }
   }
 

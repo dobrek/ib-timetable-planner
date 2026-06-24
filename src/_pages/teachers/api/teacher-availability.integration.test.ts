@@ -6,11 +6,11 @@ import { clearCell, setCell, setColumn, setRow } from "./teacher-availability";
 
 // Drives the availability domain functions directly against local Supabase with the
 // service_role/secret client (bypasses RLS for setup + assertions), mirroring the
-// slot-bundles harness. The Astro Action couples to astro:env, so we exercise the same
+// marker-table harness. The Astro Action couples to astro:env, so we exercise the same
 // domain functions the handler runs rather than the HTTP layer. Skips when unavailable.
 //
 // Coverage (plan.md Phase 2 #2): set/clear/bulk round-trips, upsert-overwrites-severity,
-// unique-constraint idempotency. Unlike slot_bundles, availability needs a real teacher
+// unique-constraint idempotency. Unlike a coordinate-only marker table, availability needs a real teacher
 // (composite FK to teachers (plan_id, id)), so each test seeds a bare plan + one teacher.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;

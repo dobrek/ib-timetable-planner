@@ -459,33 +459,33 @@ No production data exists (README rollback note), so the legacy `slot_bundles` u
 
 #### Automated
 
-- [x] 2.1 Migrations apply cleanly: `pnpm exec supabase db reset`
-- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm build` pass
-- [x] 2.3 Integration test: `place_course` creates a 1-member bundle; second call reuses it
-- [x] 2.4 Integration test: `place_course` idempotent on duplicate course-hour
-- [x] 2.5 Integration test: `move_bundle_members` into empty cell relocates + preserves bundle id + deletes source
-- [x] 2.6 Integration test: `move_bundle_members` into occupied cell merges (source deleted, duplicate movers dropped)
-- [x] 2.7 Integration test: `remove_bundle_members` deletes bundle exactly at membership 0
+- [x] 2.1 Migrations apply cleanly: `pnpm exec supabase db reset` — 042f0af
+- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm build` pass — 042f0af
+- [x] 2.3 Integration test: `place_course` creates a 1-member bundle; second call reuses it — 042f0af
+- [x] 2.4 Integration test: `place_course` idempotent on duplicate course-hour — 042f0af
+- [x] 2.5 Integration test: `move_bundle_members` into empty cell relocates + preserves bundle id + deletes source — 042f0af
+- [x] 2.6 Integration test: `move_bundle_members` into occupied cell merges (source deleted, duplicate movers dropped) — 042f0af
+- [x] 2.7 Integration test: `remove_bundle_members` deletes bundle exactly at membership 0 — 042f0af
 
 #### Manual
 
-- [x] 2.8 A merge that empties the source leaves no orphan `bundles` row
-- [x] 2.9 RLS gates the RPCs (anon rejected — invoker semantics)
+- [x] 2.8 A merge that empties the source leaves no orphan `bundles` row — 042f0af
+- [x] 2.9 RLS gates the RPCs (anon rejected — invoker semantics) — 042f0af
 
 ### Phase 3: Bundle-aware persistence + unified member-set model
 
 #### Automated
 
-- [ ] 3.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` pass
-- [ ] 3.2 Unit tests pass for the member-set transitions + `bundleId` populated from the server row (no temp-bundle-id reconciliation) + cleanup expectation: `pnpm test`
-- [ ] 3.3 Phase 2 integration tests still pass
-- [ ] 3.4 No `slot_bundles`/`useSlotBundles`/`slot-bundle` reference remains in `src/` (grep clean)
+- [x] 3.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` pass
+- [x] 3.2 Unit tests pass for the member-set transitions + `bundleId` populated from the server row (no temp-bundle-id reconciliation) + cleanup expectation: `pnpm test`
+- [x] 3.3 Phase 2 integration tests still pass
+- [x] 3.4 No `slot_bundles`/`useSlotBundles`/`slot-bundle` reference remains in `src/` (grep clean)
 
 #### Manual
 
-- [ ] 3.5 Place / single move / whole-bundle move (empty) / merge (occupied) / single remove / whole remove all work and persist across reload
-- [ ] 3.6 No transient duplicate-course flag mid-operation (no-flicker invariant holds)
-- [ ] 3.7 Drag latency visually unchanged (<200ms budget)
+- [x] 3.5 Place / single move / whole-bundle move (empty) / merge (occupied) / single remove / whole remove all work and persist across reload
+- [x] 3.6 No transient duplicate-course flag mid-operation (no-flicker invariant holds)
+- [x] 3.7 Drag latency visually unchanged (<200ms budget)
 
 ### Phase 4: UI integration & ungroup-as-presentation
 

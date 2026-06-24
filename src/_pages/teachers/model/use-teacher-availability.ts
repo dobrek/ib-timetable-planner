@@ -38,7 +38,7 @@ export type UseTeacherAvailability = {
 
 /**
  * Owns island-local availability state and its optimistic write path — the same shape as
- * `useSlotBundles` (optimistic state + the api client + pure transitions, seeded from the
+ * `usePlacements` (optimistic state + the api client + pure transitions, seeded from the
  * teacher row): `useLatest` ref guard, dispatch optimistically, reconcile on success,
  * roll back to the captured prior state on failure. Failures surface through `error`,
  * rendered as an inline banner in the dialog.

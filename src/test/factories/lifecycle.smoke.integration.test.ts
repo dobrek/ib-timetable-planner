@@ -1,15 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
-import {
-  addMerge,
-  addStudentWithChoices,
-  createPlan,
-  placeCourse,
-  seedPlanCatalog,
-  teardown,
-  ungroupSlot,
-} from "./index";
+import { addMerge, addStudentWithChoices, createPlan, placeCourse, seedPlanCatalog, teardown } from "./index";
 
 // Smoke test for the scenario-factory lifecycle (plan.md Phase 2 #2.3):
 // createPlan + seedPlanCatalog build an owned, fully-cataloged plan, an output
@@ -71,8 +63,8 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       .eq("plan_id", planId);
     expect(placementCount).toBe(1);
 
-    // Input builders: a merge (two dp1 courses), an ungrouped slot, and a student
-    // with choices each write their own row under the owned plan.
+    // Input builders: a merge (two dp1 courses) and a student with choices each write
+    // their own row under the owned plan.
     const dp1Courses = catalog.courses.filter((c) => c.cohort === "dp1");
     if (dp1Courses.length < 2) throw new Error("expected at least two dp1 courses in the seeded catalog");
     await addMerge(supabase, {
@@ -80,7 +72,6 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       parentCourseId: dp1Courses[0].id,
       childCourseId: dp1Courses[1].id,
     });
-    await ungroupSlot(supabase, { planId, cohort: "dp1", day: 2, period: 3 });
     const { studentId } = await addStudentWithChoices(supabase, {
       planId,
       cohort: "dp1",
@@ -96,8 +87,10 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       .eq("parent_course_id", dp1Courses[0].id)
       .eq("child_course_id", dp1Courses[1].id);
     expect(mergeCount).toBe(1);
+    // The earlier placeCourse find-or-created exactly one bundle for its cell (bundled-ness
+    // now comes from the occupant set + its bundle row, not a persisted override marker).
     const { count: bundleCount } = await supabase
-      .from("slot_bundles")
+      .from("bundles")
       .select("*", { count: "exact", head: true })
       .eq("plan_id", planId);
     expect(bundleCount).toBe(1);

@@ -211,4 +211,12 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(await placementsAt(5, 1)).toHaveLength(0);
     expect(await bundleExists(bundle)).toBe(false);
   });
+
+  it("move from an empty source cell fails loudly (no silent no-op)", async () => {
+    // No placement at (6, 1): the source bundle is absent. A stale/duplicate/concurrent
+    // call must raise, not silently take the 0 = 0 whole-bundle branch and return [].
+    await expect(move({ day: 6, period: 1 }, [courseA], { day: 6, period: 2 })).rejects.toThrow(
+      /no bundle at source cell/,
+    );
+  });
 });

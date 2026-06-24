@@ -3,6 +3,11 @@ import type { PlacementWeek, WeekMode } from "@/shared/config";
 import type { CellData } from "./drag";
 import { occupiesCell, type LocalPlacement, type PlannerPlacement } from "./placement";
 
+// These stay as small, separately-testable pure transitions (add/move/remove × single/many).
+// The "one member-set primitive" the plan describes is composed one level up in
+// `use-placements.ts`, which drives them as M-of-one (single) or M-of-many (group/bundle)
+// over a single `setPlacements` pass — the unification is in the orchestrator, not here.
+
 // --- Drop-time week assignment (invariant: agnostic ⇒ both, biweekly ⇒ a|b) ---
 
 /**

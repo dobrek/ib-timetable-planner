@@ -44,6 +44,15 @@ begin
     from public.bundles
    where plan_id = p_plan_id and cohort = p_cohort and day = p_day and period = p_period;
 
+  -- A move from an empty source cell is impossible by construction: the client always
+  -- holds the placements it is moving. Fail loudly so a stale/duplicate/concurrent call is
+  -- diagnosable, rather than silently taking the 0 = 0 whole-bundle branch and returning an
+  -- empty set (which the optimistic client mis-reads as a failed group op).
+  if v_source_bundle_id is null then
+    raise exception 'move_bundle_members: no bundle at source cell (cohort=%, day=%, period=%)',
+      p_cohort, p_day, p_period;
+  end if;
+
   -- The target bundle, iff the target cell is already occupied.
   select id into v_target_bundle_id
     from public.bundles

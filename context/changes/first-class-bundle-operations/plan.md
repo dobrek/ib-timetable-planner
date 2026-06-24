@@ -491,30 +491,30 @@ No production data exists (README rollback note), so the legacy `slot_bundles` u
 
 #### Automated
 
-- [x] 4.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` pass
-- [x] 4.2 Unit/component tests for the explode-state predicate and toggle pass: `pnpm test`
-- [x] 4.3 `pnpm test:integration` passes
+- [x] 4.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` pass — 8398258
+- [x] 4.2 Unit/component tests for the explode-state predicate and toggle pass: `pnpm test` — 8398258
+- [x] 4.3 `pnpm test:integration` passes — 8398258
 
 #### Manual
 
-- [x] 4.4 Group/ungroup toggle expands/collapses in-session; reload returns to grouped default
-- [x] 4.5 Per-chip drag/remove live when ungrouped, inert when grouped (FR-010 unchanged)
-- [x] 4.6 Dropping a grouping onto an occupied bundle merges into one bundle that renders as bundled immediately post-drop (existing chrome; no overlap frame)
-- [x] 4.7 A/B week toggle stays adjustable on a bundled opposite-week pair
-- [x] 4.8 No `refreshPage()`/`reload()` reachable from any board op
+- [x] 4.4 Group/ungroup toggle expands/collapses in-session; reload returns to grouped default — 8398258
+- [x] 4.5 Per-chip drag/remove live when ungrouped, inert when grouped (FR-010 unchanged) — 8398258
+- [x] 4.6 Dropping a grouping onto an occupied bundle merges into one bundle that renders as bundled immediately post-drop (existing chrome; no overlap frame) — 8398258
+- [x] 4.7 A/B week toggle stays adjustable on a bundled opposite-week pair — 8398258
+- [x] 4.8 No `refreshPage()`/`reload()` reachable from any board op — 8398258
 
 ### Phase 5: Retire `slot_bundles` & E2E coverage
 
 #### Automated
 
-- [ ] 5.1 Drop migration applies cleanly: `pnpm exec supabase db reset`; `db diff` clean
-- [ ] 5.2 Full local CI gate passes via `/verify`
-- [ ] 5.3 `pnpm test:integration` passes (RPC + clone bundle preservation)
-- [ ] 5.4 `pnpm test:e2e` passes, including new bundle move/remove/merge/ungroup specs
-- [ ] 5.5 No `slot_bundles` reference remains in `src/` or `supabase/` except historical migrations (grep clean)
+- [x] 5.1 Drop migration applies cleanly: `pnpm exec supabase db reset`; `db diff` clean
+- [x] 5.2 Full local CI gate passes via `/verify`
+- [x] 5.3 `pnpm test:integration` passes (RPC + clone bundle preservation)
+- [x] 5.4 `pnpm test:e2e` passes, including new bundle move/remove/merge/ungroup specs
+- [x] 5.5 No `slot_bundles` reference remains in `src/` or `supabase/` except historical migrations (grep clean)
 
 #### Manual
 
-- [ ] 5.6 E2E suite shows no duplicated board-setup blocks (shared helpers)
-- [ ] 5.7 Clean `db reset` + full app smoke (place → group → move → merge → ungroup → remove) works end-to-end
-- [ ] 5.8 `clone_plan` from the UI produces a plan with bundles intact
+- [x] 5.6 E2E suite shows no duplicated board-setup blocks (shared helpers)
+- [x] 5.7 Clean `db reset` + full app smoke (place → group → move → merge → ungroup → remove) works end-to-end
+- [x] 5.8 `clone_plan` from the UI produces a plan with bundles intact

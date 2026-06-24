@@ -399,41 +399,6 @@ export type Database = {
         }
         Relationships: []
       }
-      slot_bundles: {
-        Row: {
-          cohort: Database["public"]["Enums"]["cohort"]
-          created_at: string
-          day: number
-          id: string
-          period: number
-          plan_id: string
-        }
-        Insert: {
-          cohort: Database["public"]["Enums"]["cohort"]
-          created_at?: string
-          day: number
-          id?: string
-          period: number
-          plan_id: string
-        }
-        Update: {
-          cohort?: Database["public"]["Enums"]["cohort"]
-          created_at?: string
-          day?: number
-          id?: string
-          period?: number
-          plan_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "slot_bundles_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       student_choices: {
         Row: {
           course_id: string

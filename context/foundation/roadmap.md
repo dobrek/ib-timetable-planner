@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-06-18
-updated: 2026-06-21
+updated: 2026-06-24
 prd_version: 1
 main_goal: quality
 top_blocker: decisions
@@ -33,7 +33,7 @@ The IB timetable editor shipped and was demoed to its plan authors. Design and t
 | S-02 | co-teaching-teacher-sets             | assign two+ teachers to a course; both count as occupied for conflict + availability       | —             | FR-001, FR-012                    | done     |
 | S-03 | bi-weekly-week-aware-validation      | mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot           | S-02          | FR-002, FR-003, FR-012, US-03     | done     |
 | S-04 | cohort-switching                     | open either cohort, switch freely; a teacher occupied in one cohort's slot/week blocks the other | S-02, S-03    | FR-005, FR-006, FR-012            | done |
-| S-05 | first-class-bundle-operations        | move / remove / replace a placed grouping as one bundle; ungroup to per-course still works | —             | FR-009, FR-010                    | ready    |
+| S-05 | first-class-bundle-operations        | move / remove / replace a placed grouping as one bundle; ungroup to per-course still works | —             | FR-009, FR-010                    | done     |
 | S-06 | combined-two-cohort-view             | assemble & edit a collision-free DP1 \| DP2 plan side by side, validated across both cohorts | S-04, S-05    | FR-007, FR-008, FR-012, US-01     | proposed |
 | S-07 | bundle-holding-container             | lift a bundle off-board onto a holding shelf, then place it back later; survives refresh   | S-05          | FR-011, US-02                     | proposed |
 | S-08 | editing-undo-redo                    | undo / redo recent editing operations (move, remove, replace, ungroup, lift, place-back)   | S-05, S-07    | FR-013                            | blocked  |
@@ -142,7 +142,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
   - Whether a bundle gains a persistent identity row or is reconstituted from its placements at move time (today's move is delete+recreate) — Owner: dev. Block: no (drives whether the holding container in S-07 can persist a parked bundle as a unit).
   - "Replace" interaction: pick the replacement grouping from the recommendation panel vs. a dedicated swap affordance — Owner: user / design. Block: no.
 - **Risk:** Head of the bundle track, independent of the constraint-core chain (different files), so it runs in parallel with S-02→S-04. The model change (bundle move becomes atomic and identity-bearing instead of delete+recreate) is intrinsic to this slice — no separate foundation. Carries FR-010 as preserved behaviour, so the existing ungroup / opt-out path must not regress. Its identity decision is load-bearing for S-07 and S-08.
-- **Status:** ready
+- **Status:** done
 
 ### S-06: Combined two-cohort view  *(north star)*
 
@@ -224,3 +224,4 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **S-01: Author sees cohorts labelled **"DP1"** and **"DP2"** throughout the UI, replacing the "Year 1" / "Year 2" display labels. The `dp1` / `dp2` data values are unchanged.** — Archived 2026-06-20 → `context/archive/2026-06-20-dp1-dp2-cohort-naming/`. Lesson: —.
 - **S-02: assign two+ teachers to a course; both count as occupied for conflict + availability** — Archived 2026-06-21 → `context/archive/2026-06-20-co-teaching-teacher-sets/`. Lesson: —.
 - **S-03: mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot** — Archived 2026-06-21 → `context/archive/2026-06-21-bi-weekly-week-aware-validation/`. Lesson: —.
+- **S-05: A placed grouping is a first-class bundle the author can **move** (relocate all its courses atomically, re-validated at the destination, within its own cohort), **remove** (delete the whole bundle at once), or **replace** (swap its contents for a different compatible grouping on the same slot). Ungrouping to operate on individual courses — remove one course, move one course — keeps working exactly as today (the `slot_bundles` opt-out).** — Archived 2026-06-24 → `context/archive/2026-06-23-first-class-bundle-operations/`. Lesson: —.

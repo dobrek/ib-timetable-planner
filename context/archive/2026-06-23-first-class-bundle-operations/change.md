@@ -1,10 +1,10 @@
 ---
 change_id: first-class-bundle-operations
 title: First class bundle operations
-status: impl_reviewed
+status: archived
 created: 2026-06-23
 updated: 2026-06-24
-archived_at: null
+archived_at: 2026-06-24T13:03:51Z
 ---
 
 ## Notes

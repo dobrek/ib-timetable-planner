@@ -34,6 +34,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      bundles: {
+        Row: {
+          cohort: Database["public"]["Enums"]["cohort"]
+          created_at: string
+          day: number | null
+          id: string
+          period: number | null
+          plan_id: string
+          status: string
+        }
+        Insert: {
+          cohort: Database["public"]["Enums"]["cohort"]
+          created_at?: string
+          day?: number | null
+          id?: string
+          period?: number | null
+          plan_id: string
+          status?: string
+        }
+        Update: {
+          cohort?: Database["public"]["Enums"]["cohort"]
+          created_at?: string
+          day?: number | null
+          id?: string
+          period?: number | null
+          plan_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundles_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_grouping_members: {
         Row: {
           course_id: string
@@ -281,6 +319,7 @@ export type Database = {
       }
       placements: {
         Row: {
+          bundle_id: string
           cohort: Database["public"]["Enums"]["cohort"]
           course_id: string
           created_at: string
@@ -291,6 +330,7 @@ export type Database = {
           week: Database["public"]["Enums"]["placement_week"]
         }
         Insert: {
+          bundle_id: string
           cohort: Database["public"]["Enums"]["cohort"]
           course_id: string
           created_at?: string
@@ -301,6 +341,7 @@ export type Database = {
           week?: Database["public"]["Enums"]["placement_week"]
         }
         Update: {
+          bundle_id?: string
           cohort?: Database["public"]["Enums"]["cohort"]
           course_id?: string
           created_at?: string
@@ -311,6 +352,13 @@ export type Database = {
           week?: Database["public"]["Enums"]["placement_week"]
         }
         Relationships: [
+          {
+            foreignKeyName: "placements_bundle_fkey"
+            columns: ["plan_id", "bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["plan_id", "id"]
+          },
           {
             foreignKeyName: "placements_course_fkey"
             columns: ["plan_id", "course_id"]

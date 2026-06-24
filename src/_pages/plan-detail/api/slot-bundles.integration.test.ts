@@ -9,8 +9,10 @@ import { deleteOverride, insertOverride } from "./slot-bundles";
 // couples to astro:env, so we exercise the same domain functions the handler runs
 // rather than the HTTP layer. Skips when the env/stack is unavailable.
 //
-// Coverage (plan.md Phase 1 #9): override insert idempotency, insert→delete
-// round-trip, and clone_plan copying an override to the cloned plan by coordinate.
+// Coverage (plan.md Phase 1 #9): override insert idempotency and insert→delete
+// round-trip. (clone_plan no longer copies slot_bundles overrides — first-class
+// bundles replaced that, so the former clone-by-coordinate test was dropped; the
+// whole slot_bundles stack is retired in a later phase.)
 //
 // Each test owns a freshly-created BARE plan rather than a clone of the shared seed:
 // slot_bundles only needs a valid plans FK (it carries its own cohort/day/period and
@@ -64,17 +66,6 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     return count ?? 0;
   };
 
-  const listOverrides = async (planId: string): Promise<{ cohort: string; day: number; period: number }[]> => {
-    const { data, error } = await supabase
-      .from("slot_bundles")
-      .select("cohort, day, period")
-      .eq("plan_id", planId)
-      .order("day")
-      .order("period");
-    if (error) throw error;
-    return data;
-  };
-
   it("inserts an override idempotently, then deletes it (round-trip)", async () => {
     const planId = await bare("round-trip");
     const cell = { planId, cohort: "dp1" as const, day: 3, period: 4 };
@@ -92,23 +83,5 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     // Deleting an absent override is a no-op, not an error.
     await deleteOverride(supabase, cell);
     expect(await countOverrides(planId, 3, 4)).toBe(0);
-  });
-
-  it("clone_plan copies an override to the cloned plan by coordinate", async () => {
-    const sourceId = await bare("clone source");
-    await insertOverride(supabase, { planId: sourceId, cohort: "dp1", day: 2, period: 5 });
-
-    const { data: cloneId, error } = await supabase.rpc("clone_plan", {
-      p_source_plan_id: sourceId,
-      p_name: `Slot Bundle Test — clone (${RUN_ID})`,
-    });
-    if (error) throw error;
-    createdPlanIds.push(cloneId);
-
-    // The clone carries the override at (2,5)...
-    expect(await countOverrides(cloneId, 2, 5)).toBe(1);
-    // ...and exactly the source's override set — nothing added or dropped. The source is a
-    // bare plan, so this is deterministically {(2,5)} regardless of dev-DB state.
-    expect(await listOverrides(cloneId)).toEqual(await listOverrides(sourceId));
   });
 });

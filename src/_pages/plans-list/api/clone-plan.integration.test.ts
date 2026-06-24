@@ -36,6 +36,7 @@ const PLAN_TABLES = [
   "course_overlaps",
   "course_merges",
   "placements",
+  "bundles",
   "course_groupings",
   "course_grouping_members",
 ] as const;
@@ -183,7 +184,7 @@ const PLAN_TABLES = [
     const [courseA, courseB] = (warmCourses ?? []).map((c) => c.id);
     if (!courseA || !courseB) throw new Error("warm clone has fewer than two dp1 courses");
 
-    await supabase.from("placements").insert({ plan_id: warmId, cohort: "dp1", day: 1, period: 1, course_id: courseA });
+    await placeCourse(supabase, { planId: warmId, cohort: "dp1", courseId: courseA, day: 1, period: 1 });
     const { error: rpcError } = await supabase.rpc("replace_cohort_groupings", {
       p_plan_id: warmId,
       p_cohort: "dp1",
@@ -236,11 +237,54 @@ const PLAN_TABLES = [
     }
   });
 
+  it("clones bundles with fresh ids and placements referencing them (no source-plan leaks)", async () => {
+    // Self-contained source: a CSV-seeded catalog + two placements at distinct cells, so the
+    // clone must remap two bundles. Bundle identity (the UUID) is freshly minted per the clone
+    // discipline; each cloned placement.bundle_id must point at the clone's OWN bundle, never
+    // the source's — the composite FK (plan_id, bundle_id) would have failed the clone loudly
+    // otherwise, so this asserts the remap, not just survival.
+    const srcId = await createFactoryPlan(supabase, { name: "Bundle Clone Source" });
+    const catalog = await seedPlanCatalog(supabase, srcId);
+    const dp1 = catalog.courses.filter((c) => c.cohort === "dp1");
+    if (dp1.length < 2) throw new Error("seed needs two dp1 courses");
+    await placeCourse(supabase, { planId: srcId, cohort: "dp1", courseId: dp1[0].id, day: 1, period: 1 });
+    await placeCourse(supabase, { planId: srcId, cohort: "dp1", courseId: dp1[1].id, day: 2, period: 2 });
+
+    const cloneId = await clonePlan(srcId, "Bundle Clone Dest");
+
+    const bundleIds = async (planId: string): Promise<Set<string>> => {
+      const { data } = await supabase.from("bundles").select("id").eq("plan_id", planId);
+      return new Set((data ?? []).map((b) => b.id));
+    };
+    const srcBundleIds = await bundleIds(srcId);
+    const cloneBundleIds = await bundleIds(cloneId);
+
+    // One bundle per non-empty cell, count preserved, ids freshly minted (no overlap with source).
+    expect(cloneBundleIds.size).toBe(2);
+    expect(cloneBundleIds.size).toBe(srcBundleIds.size);
+    for (const id of cloneBundleIds) expect(srcBundleIds.has(id), "bundle id leaked from source").toBe(false);
+
+    // Every cloned placement references one of the clone's OWN bundles, never the source's.
+    const { data: clonePlacements } = await supabase
+      .from("placements")
+      .select("bundle_id, day, period")
+      .eq("plan_id", cloneId);
+    expect((clonePlacements ?? []).length).toBe(2);
+    for (const p of clonePlacements ?? []) {
+      expect(cloneBundleIds.has(p.bundle_id)).toBe(true);
+      expect(srcBundleIds.has(p.bundle_id), "placement references a source-plan bundle").toBe(false);
+    }
+
+    // The cloned bundles carry the cells over (one bundle per cell), coords copied verbatim.
+    const { data: cloneBundles } = await supabase.from("bundles").select("day, period").eq("plan_id", cloneId);
+    const cellKey = (r: { day: number | null; period: number | null }) => `${r.day}:${r.period}`;
+    expect(new Set((cloneBundles ?? []).map(cellKey))).toEqual(new Set(["1:1", "2:2"]));
+  });
+
   it("clones teacher_availability with teacher_id remapped to the clone's teachers", async () => {
     // Self-contained bare plan + one teacher + one availability cell — isolated from any
-    // availability already on the seed plan (e.g. inserted by hand during manual testing),
-    // mirroring the slot-bundles harness. Asserts the cell carries over with its teacher_id
-    // remapped through _teacher_map (not coordinate-only like slot_bundles).
+    // availability already on the seed plan (e.g. inserted by hand during manual testing).
+    // Asserts the cell carries over with its teacher_id remapped through _teacher_map.
     const srcPlanId = await createFactoryPlan(supabase, { name: "Avail Clone Source" });
 
     const { data: srcTeacher, error: teacherError } = await supabase
@@ -281,9 +325,7 @@ const PLAN_TABLES = [
     const biweekly = catalog.courses.find((c) => c.cohort === "dp1" && c.week_mode === "biweekly");
     if (!biweekly) throw new Error("seed has no bi-weekly dp1 course");
 
-    await supabase
-      .from("placements")
-      .insert({ plan_id: srcId, cohort: "dp1", day: 4, period: 5, course_id: biweekly.id, week: "a" });
+    await placeCourse(supabase, { planId: srcId, cohort: "dp1", courseId: biweekly.id, day: 4, period: 5, week: "a" });
 
     const { data: grouping, error: groupingError } = await supabase
       .from("course_groupings")

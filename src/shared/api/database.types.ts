@@ -597,6 +597,71 @@ export type Database = {
         Args: { p_name: string; p_source_plan_id: string }
         Returns: string
       }
+      move_bundle_members: {
+        Args: {
+          p_cohort: Database["public"]["Enums"]["cohort"]
+          p_course_ids: string[]
+          p_day: number
+          p_period: number
+          p_plan_id: string
+          p_target_day: number
+          p_target_period: number
+        }
+        Returns: {
+          bundle_id: string
+          cohort: Database["public"]["Enums"]["cohort"]
+          course_id: string
+          created_at: string
+          day: number
+          id: string
+          period: number
+          plan_id: string
+          week: Database["public"]["Enums"]["placement_week"]
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "placements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      place_course: {
+        Args: {
+          p_cohort: Database["public"]["Enums"]["cohort"]
+          p_course_id: string
+          p_day: number
+          p_period: number
+          p_plan_id: string
+          p_week?: Database["public"]["Enums"]["placement_week"]
+        }
+        Returns: {
+          bundle_id: string
+          cohort: Database["public"]["Enums"]["cohort"]
+          course_id: string
+          created_at: string
+          day: number
+          id: string
+          period: number
+          plan_id: string
+          week: Database["public"]["Enums"]["placement_week"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "placements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      remove_bundle_members: {
+        Args: {
+          p_cohort: Database["public"]["Enums"]["cohort"]
+          p_course_ids: string[]
+          p_day: number
+          p_period: number
+          p_plan_id: string
+        }
+        Returns: undefined
+      }
       replace_cohort_groupings: {
         Args: {
           p_catalog_hash: string

@@ -441,36 +441,36 @@ No production data exists (README rollback note), so the legacy `slot_bundles` u
 
 #### Automated
 
-- [x] 1.1 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
-- [x] 1.2 `supabase db diff` reports clean after reset
-- [x] 1.3 Type checking passes: `pnpm check`
-- [x] 1.4 Linting passes: `pnpm lint`
-- [x] 1.5 Build stays clean: `pnpm build`
-- [x] 1.6 Integration test: bundle-aware arrange helper (`place-course.ts`) seeds non-null `bundle_id` (one bundle per non-empty cell); existing integration suite green against `NOT NULL` (`pnpm test:integration`)
-- [x] 1.7 Integration test: `clone_plan` remaps `bundle_id`s, one bundle per cloned cell
+- [x] 1.1 Migrations apply cleanly from scratch: `pnpm exec supabase db reset` — f6fce30
+- [x] 1.2 `supabase db diff` reports clean after reset — f6fce30
+- [x] 1.3 Type checking passes: `pnpm check` — f6fce30
+- [x] 1.4 Linting passes: `pnpm lint` — f6fce30
+- [x] 1.5 Build stays clean: `pnpm build` — f6fce30
+- [x] 1.6 Integration test: bundle-aware arrange helper (`place-course.ts`) seeds non-null `bundle_id` (one bundle per non-empty cell); existing integration suite green against `NOT NULL` (`pnpm test:integration`) — f6fce30
+- [x] 1.7 Integration test: `clone_plan` remaps `bundle_id`s, one bundle per cloned cell — f6fce30
 
 #### Manual
 
-- [x] 1.8 Board renders identically post-reset (no UI reads `bundle_id` yet)
-- [x] 1.9 `has_table_privilege('anon','public.bundles','INSERT')` is `false` (by query)
-- [x] 1.10 Partial unique index rejects a second placed bundle on the same cell
+- [x] 1.8 Board renders identically post-reset (no UI reads `bundle_id` yet) — f6fce30
+- [x] 1.9 `has_table_privilege('anon','public.bundles','INSERT')` is `false` (by query) — f6fce30
+- [x] 1.10 Partial unique index rejects a second placed bundle on the same cell — f6fce30
 
 ### Phase 2: Transactional bundle RPCs
 
 #### Automated
 
-- [ ] 2.1 Migrations apply cleanly: `pnpm exec supabase db reset`
-- [ ] 2.2 `pnpm check`, `pnpm lint`, `pnpm build` pass
-- [ ] 2.3 Integration test: `place_course` creates a 1-member bundle; second call reuses it
-- [ ] 2.4 Integration test: `place_course` idempotent on duplicate course-hour
-- [ ] 2.5 Integration test: `move_bundle_members` into empty cell relocates + preserves bundle id + deletes source
-- [ ] 2.6 Integration test: `move_bundle_members` into occupied cell merges (source deleted, duplicate movers dropped)
-- [ ] 2.7 Integration test: `remove_bundle_members` deletes bundle exactly at membership 0
+- [x] 2.1 Migrations apply cleanly: `pnpm exec supabase db reset`
+- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm build` pass
+- [x] 2.3 Integration test: `place_course` creates a 1-member bundle; second call reuses it
+- [x] 2.4 Integration test: `place_course` idempotent on duplicate course-hour
+- [x] 2.5 Integration test: `move_bundle_members` into empty cell relocates + preserves bundle id + deletes source
+- [x] 2.6 Integration test: `move_bundle_members` into occupied cell merges (source deleted, duplicate movers dropped)
+- [x] 2.7 Integration test: `remove_bundle_members` deletes bundle exactly at membership 0
 
 #### Manual
 
-- [ ] 2.8 A merge that empties the source leaves no orphan `bundles` row
-- [ ] 2.9 RLS gates the RPCs (anon rejected — invoker semantics)
+- [x] 2.8 A merge that empties the source leaves no orphan `bundles` row
+- [x] 2.9 RLS gates the RPCs (anon rejected — invoker semantics)
 
 ### Phase 3: Bundle-aware persistence + unified member-set model
 

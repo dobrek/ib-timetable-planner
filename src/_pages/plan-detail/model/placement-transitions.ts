@@ -127,22 +127,6 @@ export function moveIntent(
   return ok({ oldId: row.id, origin: { day: row.day, period: row.period }, courseId: row.courseId, week: row.week });
 }
 
-export function moveOptimistic(prev: LocalPlacement[], id: string, cell: CellData): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? { ...p, day: cell.day, period: cell.period, pending: true } : p));
-}
-
-export function moveReconcile(prev: LocalPlacement[], id: string, created: PlannerPlacement): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? created : p));
-}
-
-export function moveRollback(
-  prev: LocalPlacement[],
-  id: string,
-  origin: { day: number; period: number },
-): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? { ...p, ...origin, pending: false } : p));
-}
-
 // --- Remove ---
 
 export type RemoveRejection = "not-found" | "pending";
@@ -155,14 +139,6 @@ export function removeTarget(
   if (!row) return err("not-found");
   if (row.pending) return err("pending");
   return ok(row);
-}
-
-export function removeOptimistic(prev: LocalPlacement[], id: string): LocalPlacement[] {
-  return prev.filter((p) => p.id !== id);
-}
-
-export function removeRollback(prev: LocalPlacement[], row: LocalPlacement): LocalPlacement[] {
-  return [...prev, row];
 }
 
 // --- Set week (A/B) ---
@@ -182,11 +158,6 @@ export function setWeekRollback(prev: LocalPlacement[], id: string, prevWeek: Pl
 }
 
 // --- Bundle move/remove (whole-slot batch) ---
-
-/** Every placement id sitting at a cell — the membership of a whole-slot drag/remove. */
-export function occupantPlacementIds(placements: LocalPlacement[], cell: CellData): string[] {
-  return placements.filter((p) => p.day === cell.day && p.period === cell.period).map((p) => p.id);
-}
 
 export type BundlePartition = { movers: string[]; mergers: string[] };
 
@@ -234,4 +205,24 @@ export function moveManyOptimistic(
 export function removeManyOptimistic(prev: LocalPlacement[], ids: string[]): LocalPlacement[] {
   const idSet = new Set(ids);
   return prev.filter((p) => !idSet.has(p.id));
+}
+
+/**
+ * Roll a member-set move back to its pre-move state after an atomic-op failure: drop the
+ * optimistically-moved movers (now at the target, `pending`) and restore the original
+ * occupant rows at the source. The merger twins at the target were never touched, so they
+ * stay as-is. One pass — the board re-derives only the rolled-back state, no flicker.
+ */
+export function moveManyRollback(
+  prev: LocalPlacement[],
+  moverIds: string[],
+  originalOccupants: LocalPlacement[],
+): LocalPlacement[] {
+  const moverSet = new Set(moverIds);
+  return [...prev.filter((p) => !moverSet.has(p.id)), ...originalOccupants];
+}
+
+/** Restore optimistically-removed rows after a failed whole-slot remove (rollback). */
+export function removeManyRollback(prev: LocalPlacement[], rows: LocalPlacement[]): LocalPlacement[] {
+  return [...prev, ...rows];
 }

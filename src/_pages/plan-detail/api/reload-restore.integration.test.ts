@@ -3,7 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { createPlan as createFactoryPlan, placeCourse, seedPlanCatalog, teardown } from "@/test/factories";
 import { loadPlannerData } from "./load";
-import { insertPlacement } from "./placements";
 import type { PlannerPlacement } from "../model/placement";
 
 // Risk #4 (placed work survives reload) + Risk #2 (the move-duplicate hazard) driven through the
@@ -139,10 +138,11 @@ async function loadPlacements(supabase: SupabaseClient<Database>, planId: string
         period: 1,
         week: "both" as const,
       };
-      const first = await insertPlacement(supabase, args);
-      const second = await insertPlacement(supabase, args);
+      const first = await placeCourse(supabase, args);
+      const second = await placeCourse(supabase, args);
 
-      // placements_unique (plan, cohort, day, period, course) → second insert loads the existing row.
+      // place_course is idempotent on placements_unique (plan, cohort, day, period, course) →
+      // the second call returns the existing row, never a duplicate or error.
       expect(second.id).toBe(first.id);
 
       const restored = await loadPlacements(supabase, planId);

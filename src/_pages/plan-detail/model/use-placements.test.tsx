@@ -1,24 +1,27 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
-import { createPlacement, deletePlacement, updatePlacementWeek } from "../api/placement-client";
+import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
 import { catalog, course, placement } from "./__fixtures__/builders";
 import { cellKey, deriveCellViolations } from "./collisions";
 import type { PlannerPlacement } from "./placement";
 import { usePlacements } from "./use-placements";
 
 // The async boundary under test is the orchestration glue, so the network edge is mocked.
-// The pure transitions it composes (`addReconcile`, `moveRollback`, …) are already unit-covered
-// in `placement-transitions.test.ts`; here we drive the public hook API and assert the
-// optimistic→settled lifecycle, then re-derive the verdict off the settled state.
+// The pure transitions it composes (`addReconcile`, `moveManyRollback`, …) are already
+// unit-covered in `placement-transitions.test.ts`; here we drive the public hook API and
+// assert the optimistic→settled lifecycle over the member-set RPCs, then re-derive the
+// verdict off the settled state.
 vi.mock("../api/placement-client", () => ({
-  createPlacement: vi.fn(),
-  deletePlacement: vi.fn(),
+  placeCourse: vi.fn(),
+  moveBundleMembers: vi.fn(),
+  removeBundleMembers: vi.fn(),
   updatePlacementWeek: vi.fn(),
 }));
 
-const createMock = vi.mocked(createPlacement);
-const deleteMock = vi.mocked(deletePlacement);
+const placeMock = vi.mocked(placeCourse);
+const moveMock = vi.mocked(moveBundleMembers);
+const removeMock = vi.mocked(removeBundleMembers);
 const updateWeekMock = vi.mocked(updatePlacementWeek);
 
 const PLAN_ID = "plan-1";
@@ -35,19 +38,34 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-/** Server-faithful default: echo the persisted args back as a row with a stable id, like the real insert. */
+/** Server-faithful defaults: echo args back as rows with stable ids + bundle ids, like the real RPCs. */
 function serverEcho(prefix = "srv"): void {
   let n = 0;
-  createMock.mockImplementation((createArgs) =>
+  placeMock.mockImplementation((placeArgs) =>
     Promise.resolve({
       id: `${prefix}-${++n}`,
-      courseId: createArgs.courseId,
-      day: createArgs.day,
-      period: createArgs.period,
-      week: createArgs.week,
+      courseId: placeArgs.courseId,
+      day: placeArgs.day,
+      period: placeArgs.period,
+      week: placeArgs.week,
+      bundleId: `bundle-${placeArgs.day}-${placeArgs.period}`,
     }),
   );
-  deleteMock.mockResolvedValue(undefined);
+  // The real RPC relocates rows (id preserved); the mock echoes one settled row per moved course,
+  // which the hook reconciles by course — the exact id is irrelevant to the lifecycle assertions.
+  moveMock.mockImplementation((moveArgs) =>
+    Promise.resolve(
+      moveArgs.courseIds.map((courseId) => ({
+        id: `moved-${courseId}`,
+        courseId,
+        day: moveArgs.targetDay,
+        period: moveArgs.targetPeriod,
+        week: "both" as const,
+        bundleId: `bundle-${moveArgs.targetDay}-${moveArgs.targetPeriod}`,
+      })),
+    ),
+  );
+  removeMock.mockResolvedValue(undefined);
   updateWeekMock.mockImplementation((id, week) => Promise.resolve({ id, courseId: "echo", day: 1, period: 1, week }));
 }
 
@@ -66,9 +84,9 @@ afterEach(() => {
 });
 
 describe("usePlacements — add", () => {
-  it("shows an optimistic pending row immediately, then reconciles to the server id", async () => {
-    const create = deferred<PlannerPlacement>();
-    createMock.mockReturnValueOnce(create.promise);
+  it("shows an optimistic pending row immediately, then reconciles to the server row", async () => {
+    const place = deferred<PlannerPlacement>();
+    placeMock.mockReturnValueOnce(place.promise);
 
     const { result } = renderHook(() => usePlacements([], args()));
 
@@ -82,8 +100,8 @@ describe("usePlacements — add", () => {
     const tempId = result.current.placements[0].id;
 
     await act(async () => {
-      create.resolve({ id: "srv-1", courseId: "c1", day: 1, period: 1, week: "both" });
-      await create.promise;
+      place.resolve({ id: "srv-1", courseId: "c1", day: 1, period: 1, week: "both", bundleId: "bundle-1-1" });
+      await place.promise;
     });
 
     await waitFor(() => {
@@ -91,11 +109,12 @@ describe("usePlacements — add", () => {
     });
     expect(result.current.placements[0].id).not.toBe(tempId);
     expect(result.current.placements[0].pending).toBeUndefined();
+    expect(result.current.placements[0].bundleId).toBe("bundle-1-1");
     expect(result.current.error).toBeNull();
   });
 
-  it("rolls back the optimistic row and sets an error when the insert rejects", async () => {
-    createMock.mockRejectedValueOnce(new Error("insert boom"));
+  it("rolls back the optimistic row and sets an error when the place rejects", async () => {
+    placeMock.mockRejectedValueOnce(new Error("place boom"));
 
     const { result } = renderHook(() => usePlacements([], args()));
 
@@ -106,33 +125,46 @@ describe("usePlacements — add", () => {
     await waitFor(() => {
       expect(result.current.placements).toHaveLength(0);
     });
-    expect(result.current.error).toEqual({ kind: "message", message: "insert boom" });
+    expect(result.current.error).toEqual({ kind: "message", message: "place boom" });
   });
 });
 
 describe("usePlacements — move", () => {
   const seeded: PlannerPlacement[] = [placement("p1", "c1", 1, 1)];
 
-  it("reconciles the destination then cleans up the origin row (no error)", async () => {
+  it("shows the chip at the target (pending) then settles it via one atomic RPC — no separate delete", async () => {
+    const move = deferred<PlannerPlacement[]>();
+    moveMock.mockReturnValueOnce(move.promise);
+
     const { result } = renderHook(() => usePlacements(seeded, args()));
 
     act(() => {
       result.current.movePlacement("p1", { day: 2, period: 3 });
     });
 
+    // Optimistic single pass: the chip sits at the target, pending, with no transient duplicate.
+    expect(result.current.placements).toHaveLength(1);
+    expect(result.current.placements[0]).toMatchObject({ courseId: "c1", day: 2, period: 3, pending: true });
+
+    await act(async () => {
+      move.resolve([{ id: "p1", courseId: "c1", day: 2, period: 3, week: "both", bundleId: "bundle-2-3" }]);
+      await move.promise;
+    });
+
     await waitFor(() => {
-      expect(result.current.placements[0].id).toBe("srv-1");
+      expect(result.current.placements[0].pending).toBeFalsy();
     });
     expect(result.current.placements).toHaveLength(1);
-    expect(result.current.placements[0]).toMatchObject({ courseId: "c1", day: 2, period: 3 });
-    expect(result.current.placements[0].pending).toBeUndefined();
-    // Origin row cleanup: the old id is DELETEd, and the move reports no error.
-    expect(deleteMock).toHaveBeenCalledWith("p1");
+    expect(result.current.placements[0]).toMatchObject({ courseId: "c1", day: 2, period: 3, bundleId: "bundle-2-3" });
+    expect(moveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ day: 1, period: 1, courseIds: ["c1"], targetDay: 2, targetPeriod: 3 }),
+    );
+    expect(removeMock).not.toHaveBeenCalled(); // atomic — no best-effort origin delete
     expect(result.current.error).toBeNull();
   });
 
-  it("rolls the chip back to its origin and sets an error when the destination insert rejects", async () => {
-    createMock.mockRejectedValueOnce(new Error("move boom"));
+  it("rolls the whole move back to the origin and sets an error when the RPC rejects", async () => {
+    moveMock.mockRejectedValueOnce(new Error("move boom"));
 
     const { result } = renderHook(() => usePlacements(seeded, args()));
 
@@ -144,11 +176,86 @@ describe("usePlacements — move", () => {
       expect(result.current.error).not.toBeNull();
     });
     expect(result.current.placements).toHaveLength(1);
-    expect(result.current.placements[0]).toMatchObject({ id: "p1", day: 1, period: 1 });
+    expect(result.current.placements[0]).toMatchObject({ id: "p1", courseId: "c1", day: 1, period: 1 });
     expect(result.current.placements[0].pending).toBeFalsy();
-    // A failed destination insert must NOT delete the origin row.
-    expect(deleteMock).not.toHaveBeenCalled();
     expect(result.current.error).toEqual({ kind: "message", message: "move boom" });
+  });
+});
+
+describe("usePlacements — moveBundle (whole cell)", () => {
+  const twoAtCell: PlannerPlacement[] = [placement("p1", "c1", 1, 1), placement("p2", "c2", 1, 1)];
+
+  it("relocates every occupant to the target in one member-set move", async () => {
+    const { result } = renderHook(() => usePlacements(twoAtCell, args()));
+
+    act(() => {
+      result.current.moveBundle(1, 1, { day: 2, period: 2 });
+    });
+
+    await waitFor(() => {
+      expect(result.current.placements.every((p) => !p.pending)).toBe(true);
+    });
+    expect(result.current.placements).toHaveLength(2);
+    expect(result.current.placements.every((p) => p.day === 2 && p.period === 2)).toBe(true);
+    expect(moveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ day: 1, period: 1, courseIds: ["c1", "c2"], targetDay: 2, targetPeriod: 2 }),
+    );
+    expect(result.current.error).toBeNull();
+  });
+});
+
+describe("usePlacements — remove", () => {
+  const seeded: PlannerPlacement[] = [placement("p1", "c1", 1, 1)];
+
+  it("optimistically removes the chip and calls removeBundleMembers with the cell + course", async () => {
+    const { result } = renderHook(() => usePlacements(seeded, args()));
+
+    act(() => {
+      result.current.removePlacement("p1");
+    });
+
+    expect(result.current.placements).toHaveLength(0); // optimistic
+    await waitFor(() => {
+      expect(removeMock).toHaveBeenCalled();
+    });
+    expect(removeMock).toHaveBeenCalledWith(expect.objectContaining({ day: 1, period: 1, courseIds: ["c1"] }));
+    expect(result.current.error).toBeNull();
+  });
+
+  it("restores the chip and sets an error when the remove RPC rejects", async () => {
+    removeMock.mockRejectedValueOnce(new Error("remove boom"));
+
+    const { result } = renderHook(() => usePlacements(seeded, args()));
+
+    act(() => {
+      result.current.removePlacement("p1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+    expect(result.current.placements).toHaveLength(1);
+    expect(result.current.placements[0]).toMatchObject({ id: "p1", courseId: "c1", day: 1, period: 1 });
+    expect(result.current.error).toEqual({ kind: "message", message: "remove boom" });
+  });
+});
+
+describe("usePlacements — removeBundle (whole cell)", () => {
+  const twoAtCell: PlannerPlacement[] = [placement("p1", "c1", 1, 1), placement("p2", "c2", 1, 1)];
+
+  it("removes every occupant at the cell in one member-set remove", async () => {
+    const { result } = renderHook(() => usePlacements(twoAtCell, args()));
+
+    act(() => {
+      result.current.removeBundle(1, 1);
+    });
+
+    expect(result.current.placements).toHaveLength(0);
+    await waitFor(() => {
+      expect(removeMock).toHaveBeenCalled();
+    });
+    expect(removeMock).toHaveBeenCalledWith(expect.objectContaining({ day: 1, period: 1, courseIds: ["c1", "c2"] }));
+    expect(result.current.error).toBeNull();
   });
 });
 

@@ -8,6 +8,14 @@ export type PlannerPlacement = {
   period: number;
   /** Which fortnightly week this placement runs on. Agnostic courses are always `both`. */
   week: PlacementWeek;
+  /**
+   * The bundle this placement belongs to. The server always supplies it (`bundle_id` is
+   * `NOT NULL`); it is `undefined` only on an unsettled optimistic row, before `settleMany`
+   * swaps in the server row. Carried for forward use (S-07 park / S-08 undo) — no S-05 code
+   * reads it: bundled-ness for render is occupant-count-derived, and move/remove identify the
+   * bundle by cell + member set, not by this handle.
+   */
+  bundleId?: string;
 };
 
 /**

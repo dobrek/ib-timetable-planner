@@ -28,7 +28,7 @@ import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
 import { placementErrorMessage } from "../model/placement-transitions";
 import { usePlacements } from "../model/use-placements";
-import { useSlotBundles } from "../model/use-slot-bundles";
+import { useExplodedCells } from "../model/use-exploded-cells";
 
 /**
  * Planner island root: orchestrates placement state, collision/hours derivations,
@@ -53,12 +53,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     removeBundle,
     clearError,
   } = usePlacements(props.placements, { planId, cohort, weekModeByCourseId });
-  const {
-    isOverridden,
-    toggleBundle,
-    error: slotBundleError,
-    clearError: clearSlotBundleError,
-  } = useSlotBundles(props.overrides, { planId, cohort });
+  const { isExploded, toggleExploded } = useExplodedCells();
   const catalogById = useCatalogById(catalog);
   const availabilityIndex = useAvailabilityIndex(availability);
   const crossCohortIndex = useCrossCohortIndex(crossCohortOccupancy);
@@ -74,8 +69,8 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   );
   const { hintMode, setHintMode } = useHintMode();
 
-  // The placement and slot-bundle write paths share the single ErrorBanner (both PlacementError).
-  const banner = error ?? slotBundleError;
+  // Only the placement write path can error now — ungroup is ephemeral UI state (no writes).
+  const banner = error;
 
   // Capture the dragged identity so the hint map has an input; the source's `data` is the
   // same opaque `DragData` the drop handler reads (undefined only if dropped from nowhere).
@@ -135,15 +130,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
           <PlannerPalette groupings={groupings} names={names} hours={hours} />
 
           <div className="flex min-h-0 flex-col gap-3">
-            {banner && (
-              <ErrorBanner
-                message={placementErrorMessage(banner, names)}
-                onDismiss={() => {
-                  clearError();
-                  clearSlotBundleError();
-                }}
-              />
-            )}
+            {banner && <ErrorBanner message={placementErrorMessage(banner, names)} onDismiss={clearError} />}
             <div className="flex shrink-0 justify-end">
               <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
             </div>
@@ -157,10 +144,10 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 collisions={collisions}
                 dropHints={dropHints}
                 hintMode={hintMode}
-                isOverridden={isOverridden}
+                isOverridden={isExploded}
                 onRemove={removePlacement}
                 onSetWeek={setWeek}
-                onToggleBundle={toggleBundle}
+                onToggleBundle={toggleExploded}
                 onRemoveBundle={removeBundle}
                 onInspect={inspection.open}
               />

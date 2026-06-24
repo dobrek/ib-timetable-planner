@@ -3,7 +3,7 @@ import type { TeacherAvailabilityCell } from "./teacher";
 
 /**
  * Pure, coordinate-keyed optimistic transitions for the tri-state availability grid —
- * adapted from `plan-detail/model/slot-bundle.ts` but severity-bearing (a cell may
+ * adapted from the coordinate-keyed marker-table pattern but severity-bearing (a cell may
  * already exist with a different severity), not binary. Every function returns a new
  * array and never mutates; cells are keyed by `(day, period)`.
  */

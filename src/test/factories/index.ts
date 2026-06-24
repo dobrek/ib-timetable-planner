@@ -7,6 +7,5 @@ export { addAvailability, type AddAvailabilityInput } from "./add-availability";
 export { addMerge, type AddMergeInput } from "./add-merge";
 export { addStudentWithChoices, type AddStudentWithChoicesInput } from "./add-student-with-choices";
 export { placeCourse } from "./place-course";
-export { ungroupSlot } from "./ungroup-slot";
 export { computeGroupingsFor } from "./compute-groupings-for";
 export { registerPlan, teardown } from "./teardown";

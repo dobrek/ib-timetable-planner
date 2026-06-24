@@ -8,7 +8,6 @@ import type { SiblingOccupancyCell } from "../model/cross-cohort-index";
 import type { PlannerBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
 import type { PlannerPlacement } from "../model/placement";
-import type { SlotOverride } from "../model/slot-bundle";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -47,33 +46,28 @@ export const loadPlannerData = async (
 
   const sibling = siblingCohort(cohort);
 
-  const [
-    groupingsResult,
-    placementsResult,
-    overridesResult,
-    availabilityResult,
-    siblingPlacementsResult,
-    catalog,
-    siblingCatalog,
-  ] = await Promise.all([
-    supabase
-      .from("course_groupings")
-      .select("id, coverage_count, score, opposite_week, course_grouping_members(course_id)")
-      .eq("plan_id", id)
-      .eq("cohort", cohort),
-    supabase.from("placements").select("id, course_id, day, period, week").eq("plan_id", id).eq("cohort", cohort),
-    supabase.from("slot_bundles").select("day, period").eq("plan_id", id).eq("cohort", cohort),
-    // Availability is cohort-independent — no cohort filter (S-09: it just works for dp2 later).
-    supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
-    // Sibling-cohort occupancy (read-only committed snapshot) for the cross-cohort teacher rule.
-    supabase.from("placements").select("course_id, day, period, week").eq("plan_id", id).eq("cohort", sibling),
-    loadCohortCourses(supabase, id, cohort),
-    loadCohortCourses(supabase, id, sibling),
-  ]);
+  const [groupingsResult, placementsResult, availabilityResult, siblingPlacementsResult, catalog, siblingCatalog] =
+    await Promise.all([
+      supabase
+        .from("course_groupings")
+        .select("id, coverage_count, score, opposite_week, course_grouping_members(course_id)")
+        .eq("plan_id", id)
+        .eq("cohort", cohort),
+      supabase
+        .from("placements")
+        .select("id, course_id, day, period, week, bundle_id")
+        .eq("plan_id", id)
+        .eq("cohort", cohort),
+      // Availability is cohort-independent — no cohort filter (S-09: it just works for dp2 later).
+      supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
+      // Sibling-cohort occupancy (read-only committed snapshot) for the cross-cohort teacher rule.
+      supabase.from("placements").select("course_id, day, period, week").eq("plan_id", id).eq("cohort", sibling),
+      loadCohortCourses(supabase, id, cohort),
+      loadCohortCourses(supabase, id, sibling),
+    ]);
   assertNoQueryErrors("Planner board", [
     groupingsResult,
     placementsResult,
-    overridesResult,
     availabilityResult,
     siblingPlacementsResult,
   ]);
@@ -97,11 +91,7 @@ export const loadPlannerData = async (
     day: row.day,
     period: row.period,
     week: row.week,
-  }));
-
-  const overrides: SlotOverride[] = (overridesResult.data ?? []).map((row) => ({
-    day: row.day,
-    period: row.period,
+    bundleId: row.bundle_id,
   }));
 
   const availability: BoardAvailabilityCell[] = (availabilityResult.data ?? []).map((row) => ({
@@ -125,7 +115,6 @@ export const loadPlannerData = async (
       teacherNames,
       studentNames,
       placements,
-      overrides,
       catalog: catalog.courses,
       availability,
       crossCohortOccupancy,

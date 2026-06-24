@@ -104,7 +104,7 @@ export default function SlotCell({
       )}
     >
       {hasHeader && (
-        <div data-slot="slot-bundle-header" className="flex items-center justify-between rounded px-0.5">
+        <div data-slot="bundle-header" className="flex items-center justify-between rounded px-0.5">
           <Button
             type="button"
             variant="ghost"

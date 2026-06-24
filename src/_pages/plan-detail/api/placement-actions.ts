@@ -1,15 +1,18 @@
 import { defineDomainAction } from "@/shared/lib/actions";
 import {
-  createPlacementInput,
-  deletePlacementInput,
-  insertPlacement,
-  removePlacement,
+  moveBundleMembers,
+  moveBundleMembersInput,
+  placeCourse,
+  placeCourseInput,
+  removeBundleMembers,
+  removeBundleMembersInput,
   updatePlacementWeek,
   updatePlacementWeekInput,
 } from "./placements";
 
 export const placementActions = {
-  createPlacement: defineDomainAction({ input: createPlacementInput, run: insertPlacement }),
-  deletePlacement: defineDomainAction({ input: deletePlacementInput, run: removePlacement }),
+  placeCourse: defineDomainAction({ input: placeCourseInput, run: placeCourse }),
+  moveBundleMembers: defineDomainAction({ input: moveBundleMembersInput, run: moveBundleMembers }),
+  removeBundleMembers: defineDomainAction({ input: removeBundleMembersInput, run: removeBundleMembers }),
   updatePlacementWeek: defineDomainAction({ input: updatePlacementWeekInput, run: updatePlacementWeek }),
 };

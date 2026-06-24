@@ -7,7 +7,7 @@ import { groupCellOccupants, type CellOccupant } from "../model/cell-occupants";
 import type { DropHint } from "../model/drop-hints";
 import type { HintMode } from "../lib/drag-hint-mode";
 import type { LocalPlacement } from "../model/placement";
-import { isBundled } from "../model/slot-bundle";
+import { isBundled } from "../model/exploded-cells";
 import { cellKey } from "../model/collisions";
 
 /**

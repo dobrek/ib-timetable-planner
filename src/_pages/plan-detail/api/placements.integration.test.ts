@@ -2,9 +2,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { createPlan as createFactoryPlan, seedPlanCatalog, teardown } from "@/test/factories";
-import { insertPlacement, updatePlacementWeek } from "./placements";
+import { placeCourse, updatePlacementWeek } from "./placements";
 
-// Drives the real insertPlacement / updatePlacementWeek domain functions against the
+// Drives the real placeCourse / updatePlacementWeek domain functions against the
 // local Supabase with the service_role client (bypasses RLS for setup + assertions).
 // Skips when the env/stack is unavailable.
 //
@@ -50,7 +50,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   });
 
   it("defaults an agnostic placement to week=both and round-trips it", async () => {
-    const placement = await insertPlacement(supabase, {
+    const placement = await placeCourse(supabase, {
       planId,
       cohort: "dp1",
       courseId: agnosticCourseId,
@@ -65,7 +65,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   });
 
   it("inserts a bi-weekly placement on week a and flips it to b via updatePlacementWeek", async () => {
-    const placement = await insertPlacement(supabase, {
+    const placement = await placeCourse(supabase, {
       planId,
       cohort: "dp1",
       courseId: biweeklyCourseId,

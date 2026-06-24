@@ -308,12 +308,12 @@ None. No schema, migration, RPC, or Action changes. `catalog_hash` already exist
 
 #### Automated
 
-- [x] 1.1 Type checking passes: `pnpm exec astro check`
-- [x] 1.2 Linting passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Unit suite passes: `pnpm test`
-- [x] 1.5 Integration suite passes (local Supabase up): `pnpm test:integration`
-- [x] 1.6 Build stays clean: `pnpm build`
+- [x] 1.1 Type checking passes: `pnpm exec astro check` — e457157
+- [x] 1.2 Linting passes: `pnpm lint` — e457157
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — e457157
+- [x] 1.4 Unit suite passes: `pnpm test` — e457157
+- [x] 1.5 Integration suite passes (local Supabase up): `pnpm test:integration` — e457157
+- [x] 1.6 Build stays clean: `pnpm build` — e457157
 
 #### Manual
 
@@ -324,11 +324,11 @@ None. No schema, migration, RPC, or Action changes. `catalog_hash` already exist
 
 #### Automated
 
-- [ ] 2.1 Type checking passes: `pnpm exec astro check`
-- [ ] 2.2 Linting passes: `pnpm lint`
-- [ ] 2.3 FSD structure check passes: `pnpm steiger`
-- [ ] 2.4 Unit suite passes (incl. `palette-view` + panel tests): `pnpm test`
-- [ ] 2.5 Build stays clean: `pnpm build`
+- [x] 2.1 Type checking passes: `pnpm exec astro check`
+- [x] 2.2 Linting passes: `pnpm lint`
+- [x] 2.3 FSD structure check passes: `pnpm steiger`
+- [x] 2.4 Unit suite passes (incl. `palette-view` + panel tests): `pnpm test`
+- [x] 2.5 Build stays clean: `pnpm build`
 
 #### Manual
 

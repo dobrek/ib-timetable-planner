@@ -507,14 +507,14 @@ No production data exists (README rollback note), so the legacy `slot_bundles` u
 
 #### Automated
 
-- [x] 5.1 Drop migration applies cleanly: `pnpm exec supabase db reset`; `db diff` clean
-- [x] 5.2 Full local CI gate passes via `/verify`
-- [x] 5.3 `pnpm test:integration` passes (RPC + clone bundle preservation)
-- [x] 5.4 `pnpm test:e2e` passes, including new bundle move/remove/merge/ungroup specs
-- [x] 5.5 No `slot_bundles` reference remains in `src/` or `supabase/` except historical migrations (grep clean)
+- [x] 5.1 Drop migration applies cleanly: `pnpm exec supabase db reset`; `db diff` clean — 770b893
+- [x] 5.2 Full local CI gate passes via `/verify` — 770b893
+- [x] 5.3 `pnpm test:integration` passes (RPC + clone bundle preservation) — 770b893
+- [x] 5.4 `pnpm test:e2e` passes, including new bundle move/remove/merge/ungroup specs — 770b893
+- [x] 5.5 No `slot_bundles` reference remains in `src/` or `supabase/` except historical migrations (grep clean) — 770b893
 
 #### Manual
 
-- [x] 5.6 E2E suite shows no duplicated board-setup blocks (shared helpers)
-- [x] 5.7 Clean `db reset` + full app smoke (place → group → move → merge → ungroup → remove) works end-to-end
-- [x] 5.8 `clone_plan` from the UI produces a plan with bundles intact
+- [x] 5.6 E2E suite shows no duplicated board-setup blocks (shared helpers) — 770b893
+- [x] 5.7 Clean `db reset` + full app smoke (place → group → move → merge → ungroup → remove) works end-to-end — 770b893
+- [x] 5.8 `clone_plan` from the UI produces a plan with bundles intact — 770b893

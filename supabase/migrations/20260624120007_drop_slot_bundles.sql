@@ -1,0 +1,15 @@
+-- Drop the legacy slot_bundles opt-out table — the destructive-drop-last step of
+-- first-class-bundle-operations (S-05).
+--
+-- slot_bundles stored inverted opt-out markers ("this cell is UNgrouped") keyed by
+-- (plan_id, cohort, day, period). That model is fully retired: placements.bundle_id
+-- (20260624120000..2) is now the source of truth for bundle membership, and ungroup
+-- is presentation-only in-session UI state (no persistence) after Phases 3–4. No app
+-- code reads or writes the table, and clone_plan stopped cloning it in
+-- 20260624120003_clone_plan_with_bundles.sql.
+--
+-- Safe to drop with no CASCADE: nothing references slot_bundles. Its RLS policy,
+-- index, and the plans FK drop with the table; role grants on a dropped table go with
+-- it. This migration must land after every slot_bundles-touching migration (it is the
+-- newest), so by the time it runs clone_plan no longer references the table.
+drop table public.slot_bundles;

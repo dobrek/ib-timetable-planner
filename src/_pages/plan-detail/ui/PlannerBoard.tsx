@@ -10,6 +10,7 @@ import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import DragHintModeToggle from "./DragHintModeToggle";
 import ErrorBanner from "./ErrorBanner";
 import GroupDragOverlay from "./GroupDragOverlay";
+import GroupingStalePanel from "./GroupingStalePanel";
 import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
@@ -23,6 +24,7 @@ import { cellKey, deriveCellViolations } from "../model/collisions";
 import type { CellCollisions } from "../model/collisions";
 import { deriveDropHints, resolveDragHintContext } from "../model/drop-hints";
 import type { DragHintContext } from "../model/drop-hints";
+import { resolvePaletteView } from "../model/palette-view";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
 import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
@@ -36,7 +38,8 @@ import { useExplodedCells } from "../model/use-exploded-cells";
  * remove a course is the chip's "×".
  */
 export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
-  const { planId, cohort, days, periods, groupings, names, teacherNames, studentNames, catalog, availability } = props;
+  const { planId, cohort, days, periods, groupings, stale, names, teacherNames, studentNames, catalog, availability } =
+    props;
   const { crossCohortOccupancy } = props;
 
   const weekModeByCourseId = useMemo(() => new Map(catalog.map((course) => [course.id, course.weekMode])), [catalog]);
@@ -110,7 +113,11 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     addGroup(grouping?.memberIds ?? [], cell, { oppositeWeek: grouping?.oppositeWeek ?? false });
   }
 
-  if (groupings.length === 0) {
+  // One decision over the left column's three states, mirroring the `switch (data.kind)` drop
+  // dispatch: the orchestrator resolves the view once; each view is a dumb component.
+  const paletteView = resolvePaletteView({ groupingsCount: groupings.length, stale });
+
+  if (paletteView === "empty") {
     return (
       <>
         <BoardHeader planName={planName} planId={planId} cohort={cohort} />
@@ -127,7 +134,11 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         <PlanSummaryBar planName={planName} incompleteCount={incompleteCount} planId={planId} cohort={cohort} />
 
         <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
-          <PlannerPalette groupings={groupings} names={names} hours={hours} />
+          {paletteView === "stale" ? (
+            <GroupingStalePanel planId={planId} cohort={cohort} />
+          ) : (
+            <PlannerPalette groupings={groupings} names={names} hours={hours} />
+          )}
 
           <div className="flex min-h-0 flex-col gap-3">
             {banner && <ErrorBanner message={placementErrorMessage(banner, names)} onDismiss={clearError} />}

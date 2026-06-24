@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PlannerPlacement } from "../model/placement";
-import { UNIQUE_VIOLATION, unwrapRow, unwrapCompleted, type SupabaseClient } from "@/shared/api";
-import { cohortSchema, placementWeekSchema, type PlacementWeek } from "@/shared/config";
+import { UNIQUE_VIOLATION, unwrapRow, unwrapMaybeRow, unwrapCompleted, type SupabaseClient } from "@/shared/api";
+import { cohortSchema, placementWeekSchema, type Cohort, type PlacementWeek } from "@/shared/config";
 import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
 
@@ -41,16 +41,24 @@ const toPlannerPlacement = (row: PlacementRow): PlannerPlacement => ({
 });
 
 /**
- * Insert a single course-hour. Idempotent on placements_unique: if the same
- * course-hour already sits in the cell, load and return the existing row so the
- * client reconciles its optimistic id — never a rollback, never a 500.
+ * Insert a single course-hour into its cell's bundle. Idempotent on placements_unique:
+ * if the same course-hour already sits in the cell, load and return the existing row so
+ * the client reconciles its optimistic id — never a rollback, never a 500.
+ *
+ * PHASE-1 BRIDGE: `placements.bundle_id` is now `NOT NULL`, so every placement must name
+ * its bundle. Until the atomic `place_course` RPC lands (Phase 2) and the persistence
+ * layer is folded onto it (Phase 3), this find-or-creates the cell's placed bundle, then
+ * inserts the placement with that id — a raw two-step with no RPC dependency. The
+ * returned shape is unchanged (no `bundleId` yet); render still derives bundled-ness from
+ * occupant count, so nothing reads the new column this phase.
  */
 export const insertPlacement = async (supabase: Supabase, input: CreatePlacementInput): Promise<PlannerPlacement> => {
   const { planId, cohort, courseId, day, period, week } = input;
+  const bundleId = await findOrCreatePlacedBundle(supabase, { planId, cohort, day, period });
 
   const { data, error } = await supabase
     .from("placements")
-    .insert({ plan_id: planId, cohort, course_id: courseId, day, period, week })
+    .insert({ plan_id: planId, cohort, course_id: courseId, day, period, week, bundle_id: bundleId })
     .select()
     .single();
 
@@ -97,4 +105,48 @@ export const updatePlacementWeek = async (
     { notFound: "Placement not found", failure: "Failed to update placement week" },
   );
   return toPlannerPlacement(updated);
+};
+
+type BundleCell = { planId: string; cohort: Cohort; day: number; period: number };
+
+/**
+ * Find-or-create the cell's placed bundle, returning its id. PHASE-1 BRIDGE only — the
+ * `place_course` RPC absorbs this into one atomic upsert in Phase 2. Handles the create
+ * race (the move path POSTs movers in parallel, so two inserts can target one new cell):
+ * on a `bundles_cell_unique` violation, re-read the winner's row rather than fail.
+ */
+const findOrCreatePlacedBundle = async (supabase: Supabase, cell: BundleCell): Promise<string> => {
+  const existing = await selectBundleId(supabase, cell);
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("bundles")
+    .insert({ plan_id: cell.planId, cohort: cell.cohort, status: "placed", day: cell.day, period: cell.period })
+    .select("id")
+    .single();
+
+  if (error?.code === UNIQUE_VIOLATION) {
+    const raced = await selectBundleId(supabase, cell);
+    if (raced) return raced;
+    throw new DomainError("INTERNAL_SERVER_ERROR", "Bundle vanished after a unique-violation re-read");
+  }
+  if (error) {
+    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to create bundle: ${error.message}`);
+  }
+  return data.id;
+};
+
+const selectBundleId = async (supabase: Supabase, cell: BundleCell): Promise<string | null> => {
+  const row = unwrapMaybeRow(
+    await supabase
+      .from("bundles")
+      .select("id")
+      .eq("plan_id", cell.planId)
+      .eq("cohort", cell.cohort)
+      .eq("day", cell.day)
+      .eq("period", cell.period)
+      .maybeSingle(),
+    "Failed to load bundle for cell",
+  );
+  return row?.id ?? null;
 };

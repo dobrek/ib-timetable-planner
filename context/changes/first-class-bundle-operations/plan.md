@@ -441,19 +441,19 @@ No production data exists (README rollback note), so the legacy `slot_bundles` u
 
 #### Automated
 
-- [ ] 1.1 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
-- [ ] 1.2 `supabase db diff` reports clean after reset
-- [ ] 1.3 Type checking passes: `pnpm check`
-- [ ] 1.4 Linting passes: `pnpm lint`
-- [ ] 1.5 Build stays clean: `pnpm build`
-- [ ] 1.6 Integration test: bundle-aware arrange helper (`place-course.ts`) seeds non-null `bundle_id` (one bundle per non-empty cell); existing integration suite green against `NOT NULL` (`pnpm test:integration`)
-- [ ] 1.7 Integration test: `clone_plan` remaps `bundle_id`s, one bundle per cloned cell
+- [x] 1.1 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
+- [x] 1.2 `supabase db diff` reports clean after reset
+- [x] 1.3 Type checking passes: `pnpm check`
+- [x] 1.4 Linting passes: `pnpm lint`
+- [x] 1.5 Build stays clean: `pnpm build`
+- [x] 1.6 Integration test: bundle-aware arrange helper (`place-course.ts`) seeds non-null `bundle_id` (one bundle per non-empty cell); existing integration suite green against `NOT NULL` (`pnpm test:integration`)
+- [x] 1.7 Integration test: `clone_plan` remaps `bundle_id`s, one bundle per cloned cell
 
 #### Manual
 
-- [ ] 1.8 Board renders identically post-reset (no UI reads `bundle_id` yet)
-- [ ] 1.9 `has_table_privilege('anon','public.bundles','INSERT')` is `false` (by query)
-- [ ] 1.10 Partial unique index rejects a second placed bundle on the same cell
+- [x] 1.8 Board renders identically post-reset (no UI reads `bundle_id` yet)
+- [x] 1.9 `has_table_privilege('anon','public.bundles','INSERT')` is `false` (by query)
+- [x] 1.10 Partial unique index rejects a second placed bundle on the same cell
 
 ### Phase 2: Transactional bundle RPCs
 

@@ -2,6 +2,7 @@ import type { PlacementWeek } from "@/shared/config";
 import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import SlotCell from "./slot-cell";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
+import type { CellData } from "../model/drag";
 import type { CellCollisions } from "../model/collisions";
 import { groupCellOccupants, type CellOccupant } from "../model/cell-occupants";
 import type { DropHint } from "../model/drop-hints";
@@ -22,10 +23,13 @@ type CellWiring = {
   hintMode: HintMode;
   /** Is `(day, period)` currently exploded (ungrouped view)? Drives the per-cell `bundled` derivation. */
   isExploded: (day: number, period: number) => boolean;
+  /** The cell a duplicate just landed on (with a nonce), or null; the matching cell pulses + scrolls. */
+  justDuplicated: (CellData & { nonce: number }) | null;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
+  onDuplicateBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 };
 
@@ -51,10 +55,12 @@ export default function PlannerGrid({
   dropHints,
   hintMode,
   isExploded,
+  justDuplicated,
   onRemove,
   onSetWeek,
   onToggleBundle,
   onRemoveBundle,
+  onDuplicateBundle,
   onInspect,
 }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
@@ -95,10 +101,12 @@ export default function PlannerGrid({
             dropHints={dropHints}
             hintMode={hintMode}
             isExploded={isExploded}
+            justDuplicated={justDuplicated}
             onRemove={onRemove}
             onSetWeek={onSetWeek}
             onToggleBundle={onToggleBundle}
             onRemoveBundle={onRemoveBundle}
+            onDuplicateBundle={onDuplicateBundle}
             onInspect={onInspect}
           />
         ))}
@@ -114,10 +122,12 @@ function PeriodRow({
   dropHints,
   hintMode,
   isExploded,
+  justDuplicated,
   onRemove,
   onSetWeek,
   onToggleBundle,
   onRemoveBundle,
+  onDuplicateBundle,
   onInspect,
 }: CellWiring & {
   period: number;
@@ -144,10 +154,14 @@ function PeriodRow({
             hintActive={dropHints !== null}
             hintMode={hintMode}
             bundled={isBundled(occupants.length, isExploded(day, period))}
+            justDuplicated={
+              justDuplicated !== null && cellKey(justDuplicated.day, justDuplicated.period) === cellKey(day, period)
+            }
             onRemove={onRemove}
             onSetWeek={onSetWeek}
             onToggleBundle={onToggleBundle}
             onRemoveBundle={onRemoveBundle}
+            onDuplicateBundle={onDuplicateBundle}
             onInspect={onInspect}
           />
         );

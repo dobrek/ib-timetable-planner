@@ -76,10 +76,11 @@ describe("SlotCell — duplicate affordance", () => {
     expect(onDuplicateBundle).toHaveBeenCalledWith(2, 3);
   });
 
-  it("shows an always-visible duplicate icon on a single-occupant cell (no header)", () => {
+  it("shows the always-visible duplicate icon on a single-occupant cell (header present, no toggle)", () => {
     renderCell([occupant("A", "Alpha")], false);
     expect(screen.getByRole("button", { name: "Duplicate Alpha to next free slot" })).toBeInTheDocument();
-    // No header on a single-occupant cell → no group/ungroup toggle and no header duplicate.
+    // The single-occupant header carries only the duplicate — no group/ungroup toggle (grouping
+    // needs >=2), and the duplicate is name-specific, not the generic bundle label.
     expect(screen.queryByRole("button", { name: /^(Ungroup|Group) slot$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Duplicate slot to next free slot" })).not.toBeInTheDocument();
   });

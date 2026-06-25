@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { Copy, Link, Trash2, Unlink } from "lucide-react";
 import type { PlacementWeek } from "@/shared/config";
-import { Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CollisionInspectionTarget } from "../CollisionDetailsDialog";
@@ -14,7 +12,7 @@ import type { HintMode } from "../../lib/drag-hint-mode";
 import { resolveCellTone } from "../../model/cell-tone";
 import { hasBiweekly, partitionByWeek } from "../../model/week";
 import { toneClass } from "./tone-class";
-import { stopDrag } from "./drag-inert";
+import { SlotHeader } from "./SlotHeader";
 import { PlacedChip, type ChipWiring } from "./PlacedChip";
 import { WeekLane } from "./WeekLane";
 
@@ -46,9 +44,9 @@ type Props = {
  * destructive outline; conflicting chips are badged. The flag is a reactive derivation,
  * so it clears the instant a participant moves or is removed.
  *
- * When the cell holds >=2 courses it grows a header strip carrying a group/ungroup toggle
- * and (while bundled) a bulk-remove trash. While bundled the header doubles as the
- * whole-slot drag handle and the per-chip drag/remove affordances go inert.
+ * Every non-empty cell renders a `SlotHeader` control strip: a duplicate control always, a
+ * group/ungroup toggle once it holds >=2 courses, and a bulk-remove trash while bundled. While
+ * bundled the whole cell is the drag surface and the per-chip drag/remove affordances go inert.
  */
 export default function SlotCell({
   day,
@@ -74,7 +72,12 @@ export default function SlotCell({
   const hasWarning = occupants.some((o) => o.warning);
   // Sparse map: no entry while a drag is active means "free"; no active drag means "no hint".
   const hintState = hintActive ? (dropHint ?? "free") : undefined;
-  const hasHeader = occupants.length >= 2;
+  // Every non-empty cell shows the control strip; the toggle only matters once grouping does (>=2).
+  const hasOccupants = occupants.length > 0;
+  const showToggle = occupants.length >= 2;
+  // A single occupant names itself in the duplicate label; a bundle just says "slot".
+  const duplicateLabel =
+    occupants.length === 1 ? `Duplicate ${occupants[0].name} to next free slot` : "Duplicate slot to next free slot";
   // Progressive disclosure: lanes appear only once a bi-weekly placement is present; the
   // ~95% agnostic-only cell renders via the unchanged flat path.
   const biweekly = hasBiweekly(occupants, (o) => o.placement.week);
@@ -98,8 +101,7 @@ export default function SlotCell({
       // Named even when empty so an empty drop target is still locatable by role + name.
       aria-label={`${dayLabel(day)}, ${periodLabel(period)}`}
       className={cn(
-        // `relative` anchors the single-occupant duplicate control absolutely within the cell.
-        "bg-background relative flex min-h-16 flex-col gap-1 p-1 transition-colors",
+        "bg-background flex min-h-16 flex-col gap-1 p-1 transition-colors",
         // One tone, resolved once with ordered precedence — no negated-class ladder.
         toneClass(tone, hintMode),
         // The whole bundled cell is grabbable; interactive children opt out of the drag. This is
@@ -112,54 +114,17 @@ export default function SlotCell({
         justDuplicated && "ring-ring ring-2 ring-inset motion-safe:animate-pulse",
       )}
     >
-      {hasHeader && (
-        <div data-slot="bundle-header" className="flex items-center justify-between rounded px-0.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            data-slot="toggle-bundle"
-            aria-label={bundled ? "Ungroup slot" : "Group slot"}
-            {...stopDrag(() => {
-              onToggleBundle(day, period, bundled);
-            })}
-            className="text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded"
-          >
-            {bundled ? <Link className="size-3.5" /> : <Unlink className="size-3.5" />}
-          </Button>
-          {/* Duplicate + (bundled-only) trash group at the right. Unlike the trash, the duplicate
-              button shows for EVERY ≥2 cell — grouped or exploded — so ungrouping never hides it. */}
-          <div className="flex items-center gap-0.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              data-slot="duplicate-bundle"
-              aria-label="Duplicate slot to next free slot"
-              {...stopDrag(() => {
-                onDuplicateBundle(day, period);
-              })}
-              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded"
-            >
-              <Copy className="size-3.5" />
-            </Button>
-            {bundled && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                data-slot="remove-bundle"
-                aria-label="Remove all from slot"
-                {...stopDrag(() => {
-                  onRemoveBundle(day, period);
-                })}
-                className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive size-5 rounded"
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            )}
-          </div>
-        </div>
+      {hasOccupants && (
+        <SlotHeader
+          day={day}
+          period={period}
+          bundled={bundled}
+          showToggle={showToggle}
+          duplicateLabel={duplicateLabel}
+          onToggleBundle={onToggleBundle}
+          onDuplicateBundle={onDuplicateBundle}
+          onRemoveBundle={onRemoveBundle}
+        />
       )}
 
       {byWeek ? (
@@ -173,25 +138,6 @@ export default function SlotCell({
         </div>
       ) : (
         occupants.map((occupant) => <PlacedChip key={occupant.placement.id} occupant={occupant} {...chipWiring} />)
-      )}
-
-      {/* Single-occupant cells have no header; the duplicate affordance is an always-visible sibling
-          control (never a PlacedChip prop), parked in the cell's free bottom-right so it doesn't
-          overlap the chip's remove/A-B controls. */}
-      {occupants.length === 1 && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          data-slot="duplicate-single"
-          aria-label={`Duplicate ${occupants[0].name} to next free slot`}
-          {...stopDrag(() => {
-            onDuplicateBundle(day, period);
-          })}
-          className="text-muted-foreground hover:bg-accent hover:text-accent-foreground absolute right-0.5 bottom-0.5 size-5 rounded"
-        >
-          <Copy className="size-3.5" />
-        </Button>
       )}
     </div>
   );

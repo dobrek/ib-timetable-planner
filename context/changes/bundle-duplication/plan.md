@@ -330,25 +330,25 @@ None. No schema, RPC, Action, or Zod changes. The feature is client-only and reu
 
 #### Automated
 
-- [x] 1.1 `findDuplicateTarget` unit tests pass (tier preference, skipped/blocked empties, availability + cross-cohort hints, anchored-after-source scan + wrap, never lands before source unless wrapping, copy-context source-excluded, no-slot → null)
-- [x] 1.2 Week-faithful fan-out + `duplicateBundle` unit tests pass (weeks preserved, pending/empty no-ops, no-slot message error)
-- [x] 1.3 Type check passes: `pnpm check`
-- [x] 1.4 Lint passes: `pnpm lint`
-- [x] 1.5 FSD structure passes: `pnpm steiger`
+- [x] 1.1 `findDuplicateTarget` unit tests pass (tier preference, skipped/blocked empties, availability + cross-cohort hints, anchored-after-source scan + wrap, never lands before source unless wrapping, copy-context source-excluded, no-slot → null) — a58e7aa
+- [x] 1.2 Week-faithful fan-out + `duplicateBundle` unit tests pass (weeks preserved, pending/empty no-ops, no-slot message error) — a58e7aa
+- [x] 1.3 Type check passes: `pnpm check` — a58e7aa
+- [x] 1.4 Lint passes: `pnpm lint` — a58e7aa
+- [x] 1.5 FSD structure passes: `pnpm steiger` — a58e7aa
 
 #### Manual
 
-- [x] 1.6 Confirmed the search reuses `deriveDropHints` + `bucketByCell` and the copy context omits exclude/origin
+- [x] 1.6 Confirmed the search reuses `deriveDropHints` + `bucketByCell` and the copy context omits exclude/origin — a58e7aa
 
 ### Phase 2: UI — affordances, threading, and success feedback
 
 #### Automated
 
-- [ ] 2.1 `SlotCell.test.tsx` passes (duplicate on grouped + exploded ≥2 cells and single cells; calls handler; trash unchanged)
-- [ ] 2.2 Type check passes: `pnpm check`
-- [ ] 2.3 Lint passes: `pnpm lint`
-- [ ] 2.4 FSD structure passes: `pnpm steiger`
-- [ ] 2.5 Production build clean: `pnpm build`
+- [x] 2.1 `SlotCell.test.tsx` passes (duplicate on grouped + exploded ≥2 cells and single cells; calls handler; trash unchanged)
+- [x] 2.2 Type check passes: `pnpm check`
+- [x] 2.3 Lint passes: `pnpm lint`
+- [x] 2.4 FSD structure passes: `pnpm steiger`
+- [x] 2.5 Production build clean: `pnpm build`
 
 #### Manual
 

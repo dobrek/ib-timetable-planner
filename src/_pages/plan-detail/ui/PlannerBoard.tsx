@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { cohortLabel, type PlacementWeek } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
@@ -50,6 +50,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   const {
     placements,
     error,
+    lastDuplicated,
     addCourse,
     addGroup,
     movePlacement,
@@ -57,6 +58,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     setWeek,
     moveBundle,
     removeBundle,
+    duplicateBundle,
     clearError,
   } = usePlacements(props.placements, {
     planId,
@@ -68,6 +70,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     days,
     periods,
   });
+  const justDuplicated = useDuplicateHighlight(lastDuplicated);
   const { isExploded, toggleExploded } = useExplodedCells();
   const collisions = useCollisions(placements, catalogById, availabilityIndex, crossCohortIndex);
   const inspection = useCollisionInspection(collisions);
@@ -165,10 +168,12 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 dropHints={dropHints}
                 hintMode={hintMode}
                 isExploded={isExploded}
+                justDuplicated={justDuplicated}
                 onRemove={removePlacement}
                 onSetWeek={setWeek}
                 onToggleBundle={toggleExploded}
                 onRemoveBundle={removeBundle}
+                onDuplicateBundle={duplicateBundle}
                 onInspect={inspection.open}
               />
             </div>
@@ -241,6 +246,27 @@ function useDragHints(
       setContext(null);
     },
   };
+}
+
+// Turns the hook's `lastDuplicated` outcome into a transient, self-clearing highlight the grid
+// reads. The highlight is *derived* during render (active unless its nonce has been cleared), so no
+// state is set synchronously in the effect; the effect only schedules the clear. `lastDuplicated`
+// is a fresh object (bumped nonce) on every duplicate, so a same-cell repeat re-arms the timer and
+// re-fires the highlight; the timer is cleared on unmount. The board owns this lifecycle.
+const DUPLICATE_HIGHLIGHT_MS = 1200;
+
+function useDuplicateHighlight(last: (CellData & { nonce: number }) | null) {
+  const [clearedNonce, setClearedNonce] = useState<number | null>(null);
+  useEffect(() => {
+    if (!last) return;
+    const timer = setTimeout(() => {
+      setClearedNonce(last.nonce);
+    }, DUPLICATE_HIGHLIGHT_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [last]);
+  return last && last.nonce !== clearedNonce ? last : null;
 }
 
 // Per-device hint encoding, persisted in localStorage. `useSyncExternalStore` returns the

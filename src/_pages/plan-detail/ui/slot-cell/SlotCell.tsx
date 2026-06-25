@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { Link, Trash2, Unlink } from "lucide-react";
+import { Copy, Link, Trash2, Unlink } from "lucide-react";
 import type { PlacementWeek } from "@/shared/config";
 import { Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
@@ -30,10 +30,13 @@ type Props = {
   hintMode: HintMode;
   /** True when this cell behaves as one unit (>=2 occupants, not explicitly ungrouped). */
   bundled: boolean;
+  /** True for the cell a duplicate just landed on — drives scroll-into-view + a one-shot pulse. */
+  justDuplicated: boolean;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
+  onDuplicateBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 };
 
@@ -55,13 +58,17 @@ export default function SlotCell({
   hintActive,
   hintMode,
   bundled,
+  justDuplicated,
   onRemove,
   onSetWeek,
   onToggleBundle,
   onRemoveBundle,
+  onDuplicateBundle,
   onInspect,
 }: Props) {
-  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled);
+  // The cell node + scroll-on-duplicate live inside the dnd hook so the node ref stays internal
+  // (never exposed/written across the render boundary — keeps the refs lint rule satisfied).
+  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled, justDuplicated);
 
   // Cell tone is an exact derivation of the per-occupant flags: `hasBlocking ≡ any occupant
   // blocking`, same for warning — so the cell needs no `CellCollisions` record of its own.
@@ -93,7 +100,8 @@ export default function SlotCell({
       // Named even when empty so an empty drop target is still locatable by role + name.
       aria-label={`${dayLabel(day)}, ${periodLabel(period)}`}
       className={cn(
-        "bg-background flex min-h-16 flex-col gap-1 p-1 transition-colors",
+        // `relative` anchors the single-occupant duplicate control absolutely within the cell.
+        "bg-background relative flex min-h-16 flex-col gap-1 p-1 transition-colors",
         // One tone, resolved once with ordered precedence — no negated-class ladder.
         toneClass(tone, hintMode),
         // The whole bundled cell is grabbable; interactive children opt out of the drag. This is
@@ -101,6 +109,9 @@ export default function SlotCell({
         bundled && "cursor-grab active:cursor-grabbing",
         // Opacity axis is independent of tone: a dragging origin cell dims regardless of its tone.
         isDragging && "opacity-60",
+        // One-shot "the copy landed here" highlight (semantic ring token). Pulse is motion-safe;
+        // reduced-motion keeps the static ring. Self-clears when the board drops the highlight.
+        justDuplicated && "ring-ring ring-2 ring-inset motion-safe:animate-pulse",
       )}
     >
       {hasHeader && (
@@ -118,21 +129,38 @@ export default function SlotCell({
           >
             {bundled ? <Link className="size-3.5" /> : <Unlink className="size-3.5" />}
           </Button>
-          {bundled && (
+          {/* Duplicate + (bundled-only) trash group at the right. Unlike the trash, the duplicate
+              button shows for EVERY ≥2 cell — grouped or exploded — so ungrouping never hides it. */}
+          <div className="flex items-center gap-0.5">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              data-slot="remove-bundle"
-              aria-label="Remove all from slot"
+              data-slot="duplicate-bundle"
+              aria-label="Duplicate slot to next free slot"
               {...stopDrag(() => {
-                onRemoveBundle(day, period);
+                onDuplicateBundle(day, period);
               })}
-              className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive size-5 rounded"
+              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded"
             >
-              <Trash2 className="size-3.5" />
+              <Copy className="size-3.5" />
             </Button>
-          )}
+            {bundled && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                data-slot="remove-bundle"
+                aria-label="Remove all from slot"
+                {...stopDrag(() => {
+                  onRemoveBundle(day, period);
+                })}
+                className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive size-5 rounded"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -148,6 +176,25 @@ export default function SlotCell({
       ) : (
         occupants.map((occupant) => <PlacedChip key={occupant.placement.id} occupant={occupant} {...chipWiring} />)
       )}
+
+      {/* Single-occupant cells have no header; the duplicate affordance is an always-visible sibling
+          control (never a PlacedChip prop), parked in the cell's free bottom-right so it doesn't
+          overlap the chip's remove/A-B controls. */}
+      {occupants.length === 1 && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          data-slot="duplicate-single"
+          aria-label={`Duplicate ${occupants[0].name} to next free slot`}
+          {...stopDrag(() => {
+            onDuplicateBundle(day, period);
+          })}
+          className="text-muted-foreground hover:bg-accent hover:text-accent-foreground absolute right-0.5 bottom-0.5 size-5 rounded"
+        >
+          <Copy className="size-3.5" />
+        </Button>
+      )}
     </div>
   );
 }
@@ -159,7 +206,7 @@ export default function SlotCell({
  * component body declarative — no raw `useMemo` — and names the dnd flow the way the slice's
  * design goals ask for.
  */
-function useCellDnd(day: number, period: number, bundled: boolean) {
+function useCellDnd(day: number, period: number, bundled: boolean, justDuplicated: boolean) {
   const { ref: dropRef, isDropTarget } = useDroppable<CellData>({ id: cellKey(day, period), data: { day, period } });
   // Whole-slot drag: the entire bundled cell is the drag surface (no handle). We deliberately
   // avoid a handle on the header — dnd-kit's default `preventActivation` short-circuits for any
@@ -173,8 +220,26 @@ function useCellDnd(day: number, period: number, bundled: boolean) {
     disabled: !bundled,
   });
   // The cell is both a droppable and a bundle draggable; merge the two stable callback refs.
-  // Kept local (a single consumer today) per "promote on second consumer".
-  const setCellRef = useMemo(() => mergeRefs(dropRef, dragRef), [dropRef, dragRef]);
+  const mergedDndRef = useMemo(() => mergeRefs(dropRef, dragRef), [dropRef, dragRef]);
+  // One more callback ref captures the DOM node locally for `scrollIntoView`. Writing `nodeRef`
+  // inside a ref callback (not during render) keeps the refs lint rule satisfied; the node never
+  // leaves this hook. `mergedDndRef` is stable, so dnd-kit isn't re-bound every render.
+  const nodeRef = useRef<Element | null>(null);
+  const setCellRef = useCallback(
+    (node: Element | null) => {
+      nodeRef.current = node;
+      mergedDndRef(node);
+    },
+    [mergedDndRef],
+  );
+
+  // When a duplicate lands here, bring the cell on-screen (the grid is overflow-auto, so the target
+  // may be off-screen). Rising edge of `justDuplicated`; the motion-safe pulse is applied in the
+  // markup, but the scroll always runs — reduced-motion still needs to see where the copy went.
+  useEffect(() => {
+    if (justDuplicated) nodeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [justDuplicated]);
+
   return { setCellRef, isDropTarget, isDragging };
 }
 

@@ -1,9 +1,9 @@
 ---
 change_id: companion-course
 title: Companion-course filter — second cascading select to narrow groupings
-status: plan_reviewed
+status: implementing
 created: 2026-06-24
-updated: 2026-06-24
+updated: 2026-06-25
 archived_at: null
 ---
 

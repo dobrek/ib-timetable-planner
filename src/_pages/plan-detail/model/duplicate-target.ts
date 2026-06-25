@@ -1,7 +1,7 @@
 import type { AvailabilityIndex } from "./availability-index";
 import { bucketByCell, cellKey } from "./collisions";
 import type { CrossCohortIndex } from "./cross-cohort-index";
-import { deriveDropHints } from "./drop-hints";
+import { deriveDropHints, type DropHint } from "./drop-hints";
 import type { CellData } from "./drag";
 import type { GroupingCourse } from "./grouping";
 import type { PlannerPlacement } from "./placement";
@@ -41,31 +41,29 @@ export function findDuplicateTarget({
   days,
   periods,
 }: FindDuplicateTargetArgs): CellData | undefined {
-  // Copy context: no exclude/origin, so the what-if judges every cell against the FULL board.
   const hints = deriveDropHints({ members }, placements, catalogById, availability, occupiedByTeacher);
-  const buckets = bucketByCell(placements, catalogById);
-  const order = columnMajorOrder(days, periods);
+  const occupied = bucketByCell(placements, catalogById);
 
-  // Rotate the scan to begin at the cell AFTER the source (column-major), wrapping the grid.
-  const start = (source.day - 1) * periods + (source.period - 1) + 1;
+  const emptyCells = rotatedColumnMajor(days, periods, source).filter(
+    (cell) => !occupied.has(cellKey(cell.day, cell.period)),
+  );
 
-  let strictlyFree: CellData | undefined;
-  let nonBlocking: CellData | undefined;
-  for (let i = 0; i < order.length; i++) {
-    const { day, period } = order[(start + i) % order.length];
-    const key = cellKey(day, period);
-    if (buckets.has(key)) continue; // only EMPTY cells (skips the source itself)
-    const hint = hints?.get(key); // an empty cell can still be warn / blocked / opposite-week
-    if (hint === undefined) strictlyFree ??= { day, period };
-    else if (hint === "warn" || hint === "opposite-week") nonBlocking ??= { day, period };
-    // "blocked" / "partial" → skip
-  }
-  return strictlyFree ?? nonBlocking;
+  const hintAt = (cell: CellData): DropHint | undefined => hints?.get(cellKey(cell.day, cell.period));
+
+  return (
+    emptyCells.find((cell) => hintAt(cell) === undefined) ?? emptyCells.find((cell) => isNonBlocking(hintAt(cell)))
+  );
 }
 
-/** Column-major cell order: day outer, period inner. */
-const columnMajorOrder = (days: number, periods: number): CellData[] => {
-  const order: CellData[] = [];
-  for (let day = 1; day <= days; day++) for (let period = 1; period <= periods; period++) order.push({ day, period });
-  return order;
+const isNonBlocking = (hint: DropHint | undefined): hint is "warn" | "opposite-week" =>
+  hint === "warn" || hint === "opposite-week";
+
+/** Column-major order starting at the cell AFTER `source`, wrapping around the grid. */
+const rotatedColumnMajor = (days: number, periods: number, source: CellData): CellData[] => {
+  const total = days * periods;
+  const start = (source.day - 1) * periods + (source.period - 1) + 1;
+  return Array.from({ length: total }, (_, i) => {
+    const idx = (start + i) % total;
+    return { day: Math.floor(idx / periods) + 1, period: (idx % periods) + 1 };
+  });
 };

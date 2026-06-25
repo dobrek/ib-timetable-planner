@@ -28,7 +28,8 @@ export type FindDuplicateTargetArgs = {
  * Reuses `deriveDropHints` (a **copy** context — `{ members }`, no `excludePlacementIds`/`origin`,
  * so the source stays on the board and is never picked) and `bucketByCell` (the empty-cell test),
  * so it can't drift from drag-time validity. Two-tier: prefer a strictly-free empty cell (no hint
- * entry); fall back to a non-blocking empty cell (`warn` / `opposite-week`); else `null`.
+ * entry); fall back to a non-blocking empty cell (`warn` / `opposite-week`); else `undefined`
+ * (mirrors `Array.prototype.find` — a `find*` returns `undefined` when nothing matches).
  */
 export function findDuplicateTarget({
   source,
@@ -39,7 +40,7 @@ export function findDuplicateTarget({
   occupiedByTeacher,
   days,
   periods,
-}: FindDuplicateTargetArgs): CellData | null {
+}: FindDuplicateTargetArgs): CellData | undefined {
   // Copy context: no exclude/origin, so the what-if judges every cell against the FULL board.
   const hints = deriveDropHints({ members }, placements, catalogById, availability, occupiedByTeacher);
   const buckets = bucketByCell(placements, catalogById);
@@ -48,8 +49,8 @@ export function findDuplicateTarget({
   // Rotate the scan to begin at the cell AFTER the source (column-major), wrapping the grid.
   const start = (source.day - 1) * periods + (source.period - 1) + 1;
 
-  let strictlyFree: CellData | null = null;
-  let nonBlocking: CellData | null = null;
+  let strictlyFree: CellData | undefined;
+  let nonBlocking: CellData | undefined;
   for (let i = 0; i < order.length; i++) {
     const { day, period } = order[(start + i) % order.length];
     const key = cellKey(day, period);
@@ -59,7 +60,7 @@ export function findDuplicateTarget({
     else if (hint === "warn" || hint === "opposite-week") nonBlocking ??= { day, period };
     // "blocked" / "partial" → skip
   }
-  return strictlyFree ?? nonBlocking ?? null;
+  return strictlyFree ?? nonBlocking;
 }
 
 /** Column-major cell order: day outer, period inner. */

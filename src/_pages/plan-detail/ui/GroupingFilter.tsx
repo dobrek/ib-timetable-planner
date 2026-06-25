@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/shared/ui";
 import { leadingCourseOptions, sortByGroupCount, sortByName } from "../model/leading-course-options";
+import type { LeadingCourseOption } from "../model/leading-course-options";
 import type { PlannerGrouping } from "../model/grouping";
 
 type Props = {
@@ -21,12 +22,16 @@ type Props = {
   names: Record<string, string>;
   value: string | null;
   onChange: (courseId: string | null) => void;
+  companionValue: string | null;
+  onCompanionChange: (courseId: string | null) => void;
+  companionOptions: LeadingCourseOption[];
 };
 
 type SortOrder = "by-groups" | "alphabetic";
 
-/** Sentinel for the cleared filter — Radix Select reserves "" for the placeholder. */
+/** Sentinels for the cleared filters — Radix Select reserves "" for the placeholder. */
 const ALL = "__all__";
+const ANY_COMPANION = "__any__";
 
 /**
  * Leading-course filter: pick a course and the palette shows only groupings whose
@@ -35,8 +40,21 @@ const ALL = "__all__";
  * with its group count, so every choice narrows to something. Options default to
  * fewest-groupings-first (most constrained surface first); an icon-button toggle
  * switches to alphabetic order. Clearing returns all groupings.
+ *
+ * Below it sits a cascading companion-course filter, disabled until a leading course
+ * is chosen. Its `companionOptions` (co-occurring courses, leading excluded, always
+ * alphabetical) are computed by the owning hook; this component only renders them and
+ * reports selection. The leading sort toggle governs the leading list only.
  */
-export default function GroupingFilter({ groupings, names, value, onChange }: Props) {
+export default function GroupingFilter({
+  groupings,
+  names,
+  value,
+  onChange,
+  companionValue,
+  onCompanionChange,
+  companionOptions,
+}: Props) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("by-groups");
   const base = leadingCourseOptions(groupings, names);
   const courses = sortOrder === "by-groups" ? sortByGroupCount(base) : sortByName(base);
@@ -70,12 +88,32 @@ export default function GroupingFilter({ groupings, names, value, onChange }: Pr
           onChange(next === ALL ? null : next);
         }}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full" aria-label="Leading course">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>All groupings</SelectItem>
           {courses.map((course) => (
+            <SelectItem key={course.id} value={course.id}>
+              {`${course.name} (${course.groupCount})`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-muted-foreground mt-1 font-medium">Companion course</span>
+      <Select
+        value={companionValue ?? ANY_COMPANION}
+        onValueChange={(next) => {
+          onCompanionChange(next === ANY_COMPANION ? null : next);
+        }}
+        disabled={value === null}
+      >
+        <SelectTrigger className="w-full" aria-label="Companion course">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ANY_COMPANION}>Any companion</SelectItem>
+          {companionOptions.map((course) => (
             <SelectItem key={course.id} value={course.id}>
               {`${course.name} (${course.groupCount})`}
             </SelectItem>

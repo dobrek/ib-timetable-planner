@@ -226,30 +226,30 @@ None — no schema, data, or persisted-state changes.
 
 #### Automated
 
-- [x] 1.1 Type checking passes: `pnpm check`
-- [x] 1.2 Unit tests pass: `pnpm test`
-- [x] 1.3 Linting passes: `pnpm lint`
-- [x] 1.4 FSD structure check passes: `pnpm steiger`
-- [x] 1.5 Production build stays clean: `pnpm build`
+- [x] 1.1 Type checking passes: `pnpm check` — 49d6a56
+- [x] 1.2 Unit tests pass: `pnpm test` — 49d6a56
+- [x] 1.3 Linting passes: `pnpm lint` — 49d6a56
+- [x] 1.4 FSD structure check passes: `pnpm steiger` — 49d6a56
+- [x] 1.5 Production build stays clean: `pnpm build` — 49d6a56
 
 #### Manual
 
-- [x] 1.6 New `model/` functions are pure, single-purpose, newspaper-ordered, consistent with `leading-course-options.ts`
+- [x] 1.6 New `model/` functions are pure, single-purpose, newspaper-ordered, consistent with `leading-course-options.ts` — 49d6a56
 
 ### Phase 2: UI wiring (hook + second Select + RTL test)
 
 #### Automated
 
-- [ ] 2.1 Type checking passes: `pnpm check`
-- [ ] 2.2 Unit + RTL tests pass: `pnpm test`
-- [ ] 2.3 Linting passes: `pnpm lint`
-- [ ] 2.4 FSD structure check passes: `pnpm steiger`
-- [ ] 2.5 Production build stays clean: `pnpm build`
+- [x] 2.1 Type checking passes: `pnpm check`
+- [x] 2.2 Unit + RTL tests pass: `pnpm test`
+- [x] 2.3 Linting passes: `pnpm lint`
+- [x] 2.4 FSD structure check passes: `pnpm steiger`
+- [x] 2.5 Production build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.6 Leading select enables the companion; options are co-occurring only, alphabetical, leading absent
-- [ ] 2.7 Selecting a companion narrows the list to both-course groupings
-- [ ] 2.8 Changing/clearing the leading course resets (and disables) the companion
-- [ ] 2.9 Cohort switch + reload returns both selects to cleared state
-- [ ] 2.10 No regression to the leading filter, its sort toggle, or palette drag-and-drop
+- [x] 2.6 Leading select enables the companion; options are co-occurring only, alphabetical, leading absent
+- [x] 2.7 Selecting a companion narrows the list to both-course groupings
+- [x] 2.8 Changing/clearing the leading course resets (and disables) the companion
+- [x] 2.9 Cohort switch + reload returns both selects to cleared state
+- [x] 2.10 No regression to the leading filter, its sort toggle, or palette drag-and-drop

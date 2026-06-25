@@ -43,6 +43,9 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   const { crossCohortOccupancy } = props;
 
   const weekModeByCourseId = useMemo(() => new Map(catalog.map((course) => [course.id, course.weekMode])), [catalog]);
+  const catalogById = useCatalogById(catalog);
+  const availabilityIndex = useAvailabilityIndex(availability);
+  const crossCohortIndex = useCrossCohortIndex(crossCohortOccupancy);
 
   const {
     placements,
@@ -55,11 +58,17 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     moveBundle,
     removeBundle,
     clearError,
-  } = usePlacements(props.placements, { planId, cohort, weekModeByCourseId });
+  } = usePlacements(props.placements, {
+    planId,
+    cohort,
+    weekModeByCourseId,
+    catalogById,
+    availabilityIndex,
+    crossCohortIndex,
+    days,
+    periods,
+  });
   const { isExploded, toggleExploded } = useExplodedCells();
-  const catalogById = useCatalogById(catalog);
-  const availabilityIndex = useAvailabilityIndex(availability);
-  const crossCohortIndex = useCrossCohortIndex(crossCohortOccupancy);
   const collisions = useCollisions(placements, catalogById, availabilityIndex, crossCohortIndex);
   const inspection = useCollisionInspection(collisions);
   const { hours, incompleteCount } = useHours(placements, catalog);

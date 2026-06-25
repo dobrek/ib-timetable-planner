@@ -375,9 +375,9 @@ None. No schema, RPC, Action, or Zod changes. The feature is client-only and reu
 
 #### Automated
 
-- [x] 4.1 Duplicate E2E spec passes (next-period-down target after source, source retained): `pnpm test:e2e`
-- [x] 4.2 Full local CI gate green: `/verify`
+- [x] 4.1 Duplicate E2E spec passes (next-period-down target after source, source retained): `pnpm test:e2e` — da34987
+- [x] 4.2 Full local CI gate green: `/verify` — da34987
 
 #### Manual
 
-- [x] 4.3 Observed the E2E run drive the real board end-to-end through workerd → Supabase — both specs (bundle + single-occupant) green on the workerd preview; live Playwright session against the preview confirmed the gesture + UI
+- [x] 4.3 Observed the E2E run drive the real board end-to-end through workerd → Supabase — both specs (bundle + single-occupant) green on the workerd preview; live Playwright session against the preview confirmed the gesture + UI — da34987

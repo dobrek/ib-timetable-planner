@@ -226,15 +226,15 @@ None — no schema, data, or persisted-state changes.
 
 #### Automated
 
-- [ ] 1.1 Type checking passes: `pnpm check`
-- [ ] 1.2 Unit tests pass: `pnpm test`
-- [ ] 1.3 Linting passes: `pnpm lint`
-- [ ] 1.4 FSD structure check passes: `pnpm steiger`
-- [ ] 1.5 Production build stays clean: `pnpm build`
+- [x] 1.1 Type checking passes: `pnpm check`
+- [x] 1.2 Unit tests pass: `pnpm test`
+- [x] 1.3 Linting passes: `pnpm lint`
+- [x] 1.4 FSD structure check passes: `pnpm steiger`
+- [x] 1.5 Production build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.6 New `model/` functions are pure, single-purpose, newspaper-ordered, consistent with `leading-course-options.ts`
+- [x] 1.6 New `model/` functions are pure, single-purpose, newspaper-ordered, consistent with `leading-course-options.ts`
 
 ### Phase 2: UI wiring (hook + second Select + RTL test)
 

@@ -171,6 +171,27 @@ export async function removeBundle(page: Page, slot: string): Promise<void> {
   await cell(page, slot).getByRole("button", { name: "Remove all from slot", exact: true }).click();
 }
 
+/**
+ * Duplicate the cell at `fromSlot` and wait for the copy to land at `toSlot` (the deterministic
+ * next-conflict-free target). The duplicate control is the bundle-header Copy button on a ≥2 cell or
+ * the always-visible single-occupant Copy icon — both share the "Duplicate …" accessible-name prefix
+ * and each cell exposes exactly one. Idempotent + retried like `moveBundle`/`placeFromPalette`: the
+ * verb is a no-op while the source is still optimistically pending, so retry until the copy appears,
+ * skipping if it already landed (so no double-copy). `member` is one course known to be in the source.
+ * `force: true` for the same reason as `clickBundleToggle`: a non-bundled cell's dnd-kit draggable is
+ * `aria-disabled`, which Playwright inherits onto the nested button as a false "disabled".
+ */
+export async function duplicateInto(page: Page, fromSlot: string, toSlot: string, member: string): Promise<void> {
+  const landed = placedChip(page, toSlot, member);
+  await expect(async () => {
+    if ((await landed.count()) > 0) return; // already duplicated on a previous attempt
+    await cell(page, fromSlot)
+      .getByRole("button", { name: /^Duplicate\b/ })
+      .click({ force: true });
+    await expect(landed).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 // --- Board assertions --------------------------------------------------------------------------
 
 /** Assert `slot` renders as a bundle (the group/ungroup toggle is present, reading "Ungroup slot"). */

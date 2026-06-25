@@ -344,11 +344,11 @@ None. No schema, RPC, Action, or Zod changes. The feature is client-only and reu
 
 #### Automated
 
-- [x] 2.1 `SlotCell.test.tsx` passes (duplicate on grouped + exploded ≥2 cells and single cells; calls handler; trash unchanged)
-- [x] 2.2 Type check passes: `pnpm check`
-- [x] 2.3 Lint passes: `pnpm lint`
-- [x] 2.4 FSD structure passes: `pnpm steiger`
-- [x] 2.5 Production build clean: `pnpm build`
+- [x] 2.1 `SlotCell.test.tsx` passes (duplicate on grouped + exploded ≥2 cells and single cells; calls handler; trash unchanged) — 5e36473
+- [x] 2.2 Type check passes: `pnpm check` — 5e36473
+- [x] 2.3 Lint passes: `pnpm lint` — 5e36473
+- [x] 2.4 FSD structure passes: `pnpm steiger` — 5e36473
+- [x] 2.5 Production build clean: `pnpm build` — 5e36473
 
 #### Manual
 
@@ -365,11 +365,11 @@ None. No schema, RPC, Action, or Zod changes. The feature is client-only and reu
 
 #### Automated
 
-- [ ] 3.1 Duplicate integration test passes: `pnpm test:integration`
+- [x] 3.1 Duplicate integration test passes: `pnpm test:integration`
 
 #### Manual
 
-- [ ] 3.2 Verified the assertion fails when bundle independence is broken
+- [x] 3.2 Verified the assertion fails when bundle independence is broken (temporarily inverted `not.toBe` → `toBe`; failed with distinct UUIDs, then reverted)
 
 ### Phase 4: E2E test + full verification
 

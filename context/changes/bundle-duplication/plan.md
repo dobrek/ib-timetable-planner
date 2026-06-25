@@ -330,15 +330,15 @@ None. No schema, RPC, Action, or Zod changes. The feature is client-only and reu
 
 #### Automated
 
-- [ ] 1.1 `findDuplicateTarget` unit tests pass (tier preference, skipped/blocked empties, availability + cross-cohort hints, anchored-after-source scan + wrap, never lands before source unless wrapping, copy-context source-excluded, no-slot → null)
-- [ ] 1.2 Week-faithful fan-out + `duplicateBundle` unit tests pass (weeks preserved, pending/empty no-ops, no-slot message error)
-- [ ] 1.3 Type check passes: `pnpm check`
-- [ ] 1.4 Lint passes: `pnpm lint`
-- [ ] 1.5 FSD structure passes: `pnpm steiger`
+- [x] 1.1 `findDuplicateTarget` unit tests pass (tier preference, skipped/blocked empties, availability + cross-cohort hints, anchored-after-source scan + wrap, never lands before source unless wrapping, copy-context source-excluded, no-slot → null)
+- [x] 1.2 Week-faithful fan-out + `duplicateBundle` unit tests pass (weeks preserved, pending/empty no-ops, no-slot message error)
+- [x] 1.3 Type check passes: `pnpm check`
+- [x] 1.4 Lint passes: `pnpm lint`
+- [x] 1.5 FSD structure passes: `pnpm steiger`
 
 #### Manual
 
-- [ ] 1.6 Confirmed the search reuses `deriveDropHints` + `bucketByCell` and the copy context omits exclude/origin
+- [x] 1.6 Confirmed the search reuses `deriveDropHints` + `bucketByCell` and the copy context omits exclude/origin
 
 ### Phase 2: UI — affordances, threading, and success feedback
 

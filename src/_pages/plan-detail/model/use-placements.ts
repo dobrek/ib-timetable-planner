@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
+import type { AvailabilityIndex } from "./availability-index";
+import type { CrossCohortIndex } from "./cross-cohort-index";
 import type { CellData } from "./drag";
+import { findDuplicateTarget } from "./duplicate-target";
+import type { GroupingCourse } from "./grouping";
 import {
   addManyOptimistic,
   addOptimistic,
@@ -32,18 +36,35 @@ type UsePlacementsArgs = {
   cohort: Cohort;
   /** courseId → eligibility, so the drop path resolves a bi-weekly course to a concrete week. */
   weekModeByCourseId: Map<string, WeekMode>;
+  /** Oracle inputs (already computed at the board) the duplicate search reuses. */
+  catalogById: Map<string, GroupingCourse>;
+  availabilityIndex: AvailabilityIndex;
+  crossCohortIndex: CrossCohortIndex;
+  days: number;
+  periods: number;
 };
+
+/** Transient outcome of a successful duplicate: the target cell, plus a nonce so a same-cell
+ *  re-duplicate (impossible today, but cheap to guarantee) still re-fires the board's feedback. */
+type DuplicateOutcome = CellData & { nonce: number };
 
 type UsePlacements = {
   placements: LocalPlacement[];
   error: PlacementError | null;
+  /** The most recent duplicate's landing cell (with a fresh nonce); null until the first duplicate. */
+  lastDuplicated: DuplicateOutcome | null;
   addCourse: (courseId: string, cell: CellData) => void;
-  addGroup: (memberIds: string[], cell: CellData, opts?: { oppositeWeek?: boolean }) => void;
+  addGroup: (
+    memberIds: string[],
+    cell: CellData,
+    opts?: { oppositeWeek?: boolean; weekByMember?: Map<string, PlacementWeek> },
+  ) => void;
   movePlacement: (placementId: string, cell: CellData) => void;
   removePlacement: (placementId: string) => void;
   setWeek: (placementId: string, week: PlacementWeek) => void;
   moveBundle: (day: number, period: number, target: CellData) => void;
   removeBundle: (day: number, period: number) => void;
+  duplicateBundle: (day: number, period: number) => void;
   clearError: () => void;
 };
 
@@ -59,10 +80,20 @@ type UsePlacements = {
  */
 export function usePlacements(
   initial: PlannerPlacement[],
-  { planId, cohort, weekModeByCourseId }: UsePlacementsArgs,
+  {
+    planId,
+    cohort,
+    weekModeByCourseId,
+    catalogById,
+    availabilityIndex,
+    crossCohortIndex,
+    days,
+    periods,
+  }: UsePlacementsArgs,
 ): UsePlacements {
   const [placements, setPlacements] = useState<LocalPlacement[]>(initial);
   const [error, setError] = useState<PlacementError | null>(null);
+  const [lastDuplicated, setLastDuplicated] = useState<DuplicateOutcome | null>(null);
   const placementsRef = useLatest(placements);
 
   const weekModeOf = (courseId: string): WeekMode => weekModeByCourseId.get(courseId) ?? "agnostic";
@@ -71,8 +102,12 @@ export function usePlacements(
     void persistAdd(courseId, cell);
   }
 
-  function addGroup(memberIds: string[], cell: CellData, opts?: { oppositeWeek?: boolean }) {
-    void persistAddGroup(memberIds, cell, opts?.oppositeWeek ?? false);
+  function addGroup(
+    memberIds: string[],
+    cell: CellData,
+    opts?: { oppositeWeek?: boolean; weekByMember?: Map<string, PlacementWeek> },
+  ) {
+    void persistAddGroup(memberIds, cell, opts?.oppositeWeek ?? false, opts?.weekByMember);
   }
 
   function movePlacement(placementId: string, cell: CellData) {
@@ -101,6 +136,48 @@ export function usePlacements(
     void persistRemoveMembers({ day, period }, courseIdsAt(day, period));
   }
 
+  // The missing third whole-slot verb. Reads the source cell's occupants (and their weeks),
+  // runs the pure conflict-free search (a COPY context — the source stays on the board), and
+  // either fans the member-set out at the target with the source weeks mirrored or sets the
+  // message error. On success it publishes the target (fresh nonce) so the board scrolls + pulses.
+  function duplicateBundle(day: number, period: number) {
+    const occupants = placementsRef.current.filter((p) => p.day === day && p.period === period);
+    if (occupants.length === 0) return; // empty-source no-op
+    if (occupants.some((p) => p.pending)) return; // pending-source no-op (mirrors move/remove)
+
+    // Only occupants resolvable in the validation catalog can be searched + placed.
+    const placeable = occupants.filter((p) => catalogById.has(p.courseId));
+    if (placeable.length === 0) return;
+    const members = placeable
+      .map((p) => catalogById.get(p.courseId))
+      .filter((course): course is GroupingCourse => course !== undefined);
+
+    const target = findDuplicateTarget({
+      source: { day, period },
+      members,
+      placements: placementsRef.current,
+      catalogById,
+      availability: availabilityIndex,
+      occupiedByTeacher: crossCohortIndex,
+      days,
+      periods,
+    });
+    if (!target) {
+      setError({ kind: "message", message: "No empty slot available to duplicate into" });
+      return;
+    }
+
+    // Mirror the source's exact A/B layout — carry each member's week explicitly so the fan-out
+    // does not re-resolve it (which could swap A/B between members for a bi-weekly pair).
+    const weekByMember = new Map(placeable.map((p) => [p.courseId, p.week] as const));
+    addGroup(
+      placeable.map((p) => p.courseId),
+      target,
+      { weekByMember },
+    );
+    setLastDuplicated((prev) => ({ ...target, nonce: (prev?.nonce ?? 0) + 1 }));
+  }
+
   const courseIdsAt = (day: number, period: number): string[] =>
     placementsRef.current.filter((p) => p.day === day && p.period === period).map((p) => p.courseId);
 
@@ -123,15 +200,23 @@ export function usePlacements(
   // Group fan-out: one idempotent place_course per eligible member. They share the cell's
   // bundle (find-or-create), members already in the cell are skipped, and the optimistic batch
   // and settlement each land in one state update so collision/hours derivations recompute once.
-  async function persistAddGroup(memberIds: string[], cell: CellData, oppositeWeek: boolean) {
+  async function persistAddGroup(
+    memberIds: string[],
+    cell: CellData,
+    oppositeWeek: boolean,
+    weekByMember?: Map<string, PlacementWeek>,
+  ) {
     const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
     if (eligible.length === 0) return;
 
-    // Opposite-week grouping → members land on alternating weeks (a/b). Otherwise each member
-    // resolves by its own eligibility (agnostic ⇒ both, bi-weekly ⇒ first free week).
-    const weekByMember = oppositeWeek ? oppositeWeekAssignment(eligible) : null;
+    // Week precedence: an explicit per-member week (a duplicate mirroring the source's A/B layout)
+    // wins; else an opposite-week grouping alternates a/b; else each member resolves by its own
+    // eligibility (agnostic ⇒ both, bi-weekly ⇒ first free week).
+    const oppositeWeekByMember = oppositeWeek ? oppositeWeekAssignment(eligible) : null;
     const weekFor = (courseId: string): PlacementWeek =>
-      weekByMember?.get(courseId) ?? resolveDropWeek(weekModeOf(courseId), placementsRef.current, cell);
+      weekByMember?.get(courseId) ??
+      oppositeWeekByMember?.get(courseId) ??
+      resolveDropWeek(weekModeOf(courseId), placementsRef.current, cell);
 
     const entries = eligible.map((courseId) => ({ tempId: crypto.randomUUID(), courseId, week: weekFor(courseId) }));
     setPlacements((prev) => addManyOptimistic(prev, entries, cell));
@@ -266,6 +351,7 @@ export function usePlacements(
   return {
     placements,
     error,
+    lastDuplicated,
     addCourse,
     addGroup,
     movePlacement,
@@ -273,6 +359,7 @@ export function usePlacements(
     setWeek,
     moveBundle,
     removeBundle,
+    duplicateBundle,
     clearError: () => {
       setError(null);
     },

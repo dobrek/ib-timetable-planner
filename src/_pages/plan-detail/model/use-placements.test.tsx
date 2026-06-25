@@ -2,8 +2,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
-import { catalog, course, placement } from "./__fixtures__/builders";
+import { EMPTY_AVAILABILITY_INDEX } from "./availability-index";
+import { biweekly, catalog, course, placement } from "./__fixtures__/builders";
 import { cellKey, deriveCellViolations } from "./collisions";
+import { EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort-index";
+import type { GroupingCourse } from "./grouping";
 import type { PlannerPlacement } from "./placement";
 import { usePlacements } from "./use-placements";
 
@@ -69,10 +72,20 @@ function serverEcho(prefix = "srv"): void {
   updateWeekMock.mockImplementation((id, week) => Promise.resolve({ id, courseId: "echo", day: 1, period: 1, week }));
 }
 
-const args = (weekModeByCourseId: Map<string, WeekMode> = new Map()) => ({
+const args = (
+  weekModeByCourseId: Map<string, WeekMode> = new Map(),
+  opts: { catalog?: GroupingCourse[]; days?: number; periods?: number } = {},
+) => ({
   planId: PLAN_ID,
   cohort: COHORT,
   weekModeByCourseId,
+  // Oracle inputs the duplicate search reuses. Defaults keep the existing add/move/remove tests
+  // (which never duplicate) working with an empty catalog + full-size grid.
+  catalogById: new Map((opts.catalog ?? []).map((c) => [c.id, c] as const)),
+  availabilityIndex: EMPTY_AVAILABILITY_INDEX,
+  crossCohortIndex: EMPTY_CROSS_COHORT_INDEX,
+  days: opts.days ?? 5,
+  periods: opts.periods ?? 10,
 });
 
 beforeEach(() => {
@@ -371,5 +384,159 @@ describe("usePlacements — verdict recomputes off settled state", () => {
     expect(weeks).toEqual<PlacementWeek[]>(["a", "b"]);
     const verdict = deriveCellViolations(result.current.placements, catalogById);
     expect(verdict.has(cellKey(1, 1))).toBe(false);
+  });
+});
+
+/** placeCourse calls keyed by courseId → the week it was placed on (the assertion of interest). */
+const weeksByCourse = (): Record<string, PlacementWeek> =>
+  Object.fromEntries(placeMock.mock.calls.map(([a]) => [a.courseId, a.week]));
+
+describe("usePlacements — duplicateBundle", () => {
+  it("mirrors each source member's A/B week into the next free cell (week-faithful)", async () => {
+    const a = biweekly("A", "ta");
+    const b = biweekly("B", "tb");
+    const initial = [placement("p1", "A", 1, 1, "a"), placement("p2", "B", 1, 1, "b")];
+    const { result } = renderHook(() =>
+      usePlacements(initial, args(new Map(), { catalog: [a, b], days: 2, periods: 2 })),
+    );
+
+    await act(async () => {
+      result.current.duplicateBundle(1, 1);
+      await Promise.resolve(); // let the optimistic fan-out settle inside act
+    });
+
+    // Landed at the next column-major free cell after the source (1,1) → (1,2).
+    expect(placeMock).toHaveBeenCalledTimes(2);
+    for (const [callArgs] of placeMock.mock.calls) {
+      expect(callArgs.day).toBe(1);
+      expect(callArgs.period).toBe(2);
+    }
+    // The exact A/B layout is reproduced, not re-resolved.
+    expect(weeksByCourse()).toEqual({ A: "a", B: "b" });
+    expect(result.current.lastDuplicated).toMatchObject({ day: 1, period: 2, nonce: 1 });
+    expect(result.current.error).toBeNull();
+  });
+
+  it("is a no-op when any source row is still pending", () => {
+    const a = course("A", "ta");
+    const pendingRow: PlannerPlacement & { pending?: boolean } = {
+      id: "p1",
+      courseId: "A",
+      day: 1,
+      period: 1,
+      week: "both",
+      pending: true,
+    };
+    const { result } = renderHook(() => usePlacements([pendingRow], args(new Map(), { catalog: [a] })));
+
+    act(() => {
+      result.current.duplicateBundle(1, 1);
+    });
+
+    expect(placeMock).not.toHaveBeenCalled();
+    expect(result.current.lastDuplicated).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("is a no-op when the source cell is empty", () => {
+    const a = course("A", "ta");
+    const { result } = renderHook(() => usePlacements([placement("p1", "A", 1, 1)], args(new Map(), { catalog: [a] })));
+
+    act(() => {
+      result.current.duplicateBundle(2, 2); // nothing placed here
+    });
+
+    expect(placeMock).not.toHaveBeenCalled();
+    expect(result.current.lastDuplicated).toBeNull();
+  });
+
+  it("sets the message error and places nothing when no empty slot qualifies", () => {
+    const a = course("A", "ta");
+    const b = course("B", "tb");
+    // 1×2 grid: source at (1,1), the only other cell (1,2) occupied → no empty cell anywhere.
+    const initial = [placement("p1", "A", 1, 1), placement("p2", "B", 1, 2)];
+    const { result } = renderHook(() =>
+      usePlacements(initial, args(new Map(), { catalog: [a, b], days: 1, periods: 2 })),
+    );
+
+    act(() => {
+      result.current.duplicateBundle(1, 1);
+    });
+
+    expect(placeMock).not.toHaveBeenCalled();
+    expect(result.current.error).toEqual({ kind: "message", message: "No empty slot available to duplicate into" });
+    expect(result.current.lastDuplicated).toBeNull();
+  });
+
+  it("bumps the nonce on each successful duplicate so a repeat re-fires the feedback", async () => {
+    const a = course("A", "ta");
+    const { result } = renderHook(() =>
+      usePlacements([placement("p1", "A", 1, 1)], args(new Map(), { catalog: [a], days: 3, periods: 3 })),
+    );
+
+    await act(async () => {
+      result.current.duplicateBundle(1, 1);
+      await Promise.resolve();
+    });
+    expect(result.current.lastDuplicated?.nonce).toBe(1);
+
+    await act(async () => {
+      result.current.duplicateBundle(1, 1); // source still there → next free cell again
+      await Promise.resolve();
+    });
+    expect(result.current.lastDuplicated?.nonce).toBe(2);
+  });
+});
+
+describe("usePlacements — addGroup week precedence", () => {
+  it("uses an explicit weekByMember over resolveDropWeek", async () => {
+    const a = biweekly("A", "ta");
+    const { result } = renderHook(() => usePlacements([], args(new Map([["A", "biweekly"]]), { catalog: [a] })));
+
+    await act(async () => {
+      result.current.addGroup(["A"], { day: 1, period: 1 }, { weekByMember: new Map([["A", "b"]]) });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(placeMock).toHaveBeenCalledTimes(1);
+    });
+    expect(weeksByCourse()).toEqual({ A: "b" }); // resolveDropWeek would have chosen "a"
+  });
+
+  it("falls back to resolveDropWeek for the plain grouping-drop path (agnostic ⇒ both)", async () => {
+    const a = course("A", "ta");
+    const { result } = renderHook(() => usePlacements([], args(new Map(), { catalog: [a] })));
+
+    await act(async () => {
+      result.current.addGroup(["A"], { day: 1, period: 1 });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(placeMock).toHaveBeenCalledTimes(1);
+    });
+    expect(weeksByCourse()).toEqual({ A: "both" });
+  });
+
+  it("alternates a/b for an opposite-week grouping when no explicit weeks are given", async () => {
+    const a = biweekly("A", "ta");
+    const b = biweekly("B", "tb");
+    const modes = new Map<string, WeekMode>([
+      ["A", "biweekly"],
+      ["B", "biweekly"],
+    ]);
+    const { result } = renderHook(() => usePlacements([], args(modes, { catalog: [a, b] })));
+
+    await act(async () => {
+      result.current.addGroup(["A", "B"], { day: 1, period: 1 }, { oppositeWeek: true });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(placeMock).toHaveBeenCalledTimes(2);
+    });
+    // oppositeWeekAssignment sorts ids then alternates: A → a, B → b.
+    expect(weeksByCourse()).toEqual({ A: "a", B: "b" });
   });
 });

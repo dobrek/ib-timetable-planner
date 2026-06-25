@@ -130,4 +130,37 @@ describe("GroupingFilter companion select", () => {
     fireEvent.click(screen.getByRole("option", { name: "Beta (1)" }));
     expect(props.onCompanionChange).toHaveBeenCalledWith("c-b");
   });
+
+  it("reflects the stale reset in the rendered Select — the companion trigger returns to 'Any companion' after the leading course changes", () => {
+    // Wire the real hook to the component so the reset propagates hook → prop → rendered Select.
+    function Wired() {
+      const filter = usePaletteFilter(GROUPINGS, NAMES);
+      return (
+        <GroupingFilter
+          groupings={GROUPINGS}
+          names={NAMES}
+          value={filter.leadingCourseId}
+          onChange={filter.setLeadingCourseId}
+          companionValue={filter.companionCourseId}
+          onCompanionChange={filter.setCompanionCourseId}
+          companionOptions={filter.companionOptions}
+        />
+      );
+    }
+    render(<Wired />);
+    const leading = screen.getByRole("combobox", { name: "Leading course" });
+    const companion = screen.getByRole("combobox", { name: "Companion course" });
+
+    // Pick leading Alpha, then companion Beta (co-occurs with Alpha in g1).
+    fireEvent.keyDown(leading, { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Alpha (2)" }));
+    fireEvent.keyDown(companion, { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Beta (1)" }));
+    expect(companion).toHaveTextContent("Beta (1)");
+
+    // Switch leading to Delta — Beta no longer co-occurs, so the rendered companion resets.
+    fireEvent.keyDown(leading, { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Delta (1)" }));
+    expect(companion).toHaveTextContent("Any companion");
+  });
 });

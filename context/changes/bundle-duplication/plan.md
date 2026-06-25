@@ -352,13 +352,13 @@ None. No schema, RPC, Action, or Zod changes. The feature is client-only and reu
 
 #### Manual
 
-- [x] 2.6 Grouped bundle duplicates to next free slot; source unchanged; target scrolls in + pulses — Playwright: Seed Plan B Mon,P5 (4-course bundle) → independent copy at Mon,P6, source retained, view scrolled to target
+- [x] 2.6 Grouped bundle duplicates to next free slot; source unchanged; target scrolls in + pulses — Playwright: Seed Plan B Mon,P5 (4-course bundle) → independent copy at Mon,P6, source retained. NOTE: scroll-into-view removed post-review as overengineering; the pulse highlight is retained
 - [x] 2.7 Ungrouped bundle duplicates identically (ungrouping has no impact) — `SlotCell.test.tsx` proves the header duplicate shows + calls the handler on an exploded ≥2 cell; `duplicateBundle` reads placements, not the (render-only) exploded state
 - [x] 2.8 Single-occupant cell duplicates via the always-visible icon — E2E `duplicate-bundle.spec.ts` single-occupant case
 - [x] 2.9 Clicking a duplicate control never starts a drag — `stopDrag` wrapper; E2E + live clicks duplicated without moving/dragging the source
 - [x] 2.10 Full grid surfaces the "no empty slot" banner — `usePlacements` unit test sets `{ kind: "message", "No empty slot available to duplicate into" }`; `PlannerBoard` renders it via `ErrorBanner`
 - [x] 2.11 Bi-weekly A/B layout mirrored on duplicate — integration test (week preserved across cells) + `addGroup` `weekByMember`-precedence unit test
-- [x] 2.12 `prefers-reduced-motion` suppresses the pulse; scroll still runs — pulse is `motion-safe:animate-pulse`; `scrollIntoView` runs unconditionally in the effect (scroll observed live)
+- [x] 2.12 `prefers-reduced-motion` suppresses the pulse — pulse is `motion-safe:animate-pulse` (reduced-motion keeps the static ring). NOTE: scroll-into-view removed post-review, so there is no longer a scroll to run
 - [x] 2.13 Controls + pulse correct in light and dark (semantic tokens) — Playwright: controls render correctly in both themes; only semantic tokens used (`text-muted-foreground`, `hover:bg-accent`, `ring-ring`)
 
 ### Phase 3: Integration test — bundle independence + week faithfulness

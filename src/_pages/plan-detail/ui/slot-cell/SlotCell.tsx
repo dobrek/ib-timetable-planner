@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { Copy, Link, Trash2, Unlink } from "lucide-react";
 import type { PlacementWeek } from "@/shared/config";
@@ -30,7 +30,7 @@ type Props = {
   hintMode: HintMode;
   /** True when this cell behaves as one unit (>=2 occupants, not explicitly ungrouped). */
   bundled: boolean;
-  /** True for the cell a duplicate just landed on — drives scroll-into-view + a one-shot pulse. */
+  /** True for the cell a duplicate just landed on — drives a one-shot highlight pulse. */
   justDuplicated: boolean;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
@@ -66,9 +66,7 @@ export default function SlotCell({
   onDuplicateBundle,
   onInspect,
 }: Props) {
-  // The cell node + scroll-on-duplicate live inside the dnd hook so the node ref stays internal
-  // (never exposed/written across the render boundary — keeps the refs lint rule satisfied).
-  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled, justDuplicated);
+  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled);
 
   // Cell tone is an exact derivation of the per-occupant flags: `hasBlocking ≡ any occupant
   // blocking`, same for warning — so the cell needs no `CellCollisions` record of its own.
@@ -206,7 +204,7 @@ export default function SlotCell({
  * component body declarative — no raw `useMemo` — and names the dnd flow the way the slice's
  * design goals ask for.
  */
-function useCellDnd(day: number, period: number, bundled: boolean, justDuplicated: boolean) {
+function useCellDnd(day: number, period: number, bundled: boolean) {
   const { ref: dropRef, isDropTarget } = useDroppable<CellData>({ id: cellKey(day, period), data: { day, period } });
   // Whole-slot drag: the entire bundled cell is the drag surface (no handle). We deliberately
   // avoid a handle on the header — dnd-kit's default `preventActivation` short-circuits for any
@@ -220,26 +218,8 @@ function useCellDnd(day: number, period: number, bundled: boolean, justDuplicate
     disabled: !bundled,
   });
   // The cell is both a droppable and a bundle draggable; merge the two stable callback refs.
-  const mergedDndRef = useMemo(() => mergeRefs(dropRef, dragRef), [dropRef, dragRef]);
-  // One more callback ref captures the DOM node locally for `scrollIntoView`. Writing `nodeRef`
-  // inside a ref callback (not during render) keeps the refs lint rule satisfied; the node never
-  // leaves this hook. `mergedDndRef` is stable, so dnd-kit isn't re-bound every render.
-  const nodeRef = useRef<Element | null>(null);
-  const setCellRef = useCallback(
-    (node: Element | null) => {
-      nodeRef.current = node;
-      mergedDndRef(node);
-    },
-    [mergedDndRef],
-  );
-
-  // When a duplicate lands here, bring the cell on-screen (the grid is overflow-auto, so the target
-  // may be off-screen). Rising edge of `justDuplicated`; the motion-safe pulse is applied in the
-  // markup, but the scroll always runs — reduced-motion still needs to see where the copy went.
-  useEffect(() => {
-    if (justDuplicated) nodeRef.current?.scrollIntoView({ block: "nearest" });
-  }, [justDuplicated]);
-
+  // Kept local (a single consumer today) per "promote on second consumer".
+  const setCellRef = useMemo(() => mergeRefs(dropRef, dragRef), [dropRef, dragRef]);
   return { setCellRef, isDropTarget, isDragging };
 }
 

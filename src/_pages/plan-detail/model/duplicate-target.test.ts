@@ -180,7 +180,7 @@ describe("findDuplicateTarget", () => {
     const a = course("A", "t1", ["s1"]);
     const x = course("X", "t1", ["s9"]); // shares teacher t1 → blocks A
     // Only two cells: source (1,1) and (1,2). (1,2) is blocked for A. A move would lift the source
-    // off and could pick (1,1); a copy keeps it occupied → no legal empty cell → null.
+    // off and could pick (1,1); a copy keeps it occupied → no legal empty cell → undefined.
     const target = findDuplicateTarget({
       source: { day: 1, period: 1 },
       members: [a],
@@ -189,10 +189,10 @@ describe("findDuplicateTarget", () => {
       days: 1,
       periods: 2,
     });
-    expect(target).toBeNull();
+    expect(target).toBeUndefined();
   });
 
-  it("returns null when the grid is full (no empty cell)", () => {
+  it("returns undefined when the grid is full (no empty cell)", () => {
     const a = course("A", "t1", ["s1"]);
     const b = course("B", "t2", ["s2"]);
     const target = findDuplicateTarget({
@@ -203,7 +203,7 @@ describe("findDuplicateTarget", () => {
       days: 1,
       periods: 2,
     });
-    expect(target).toBeNull();
+    expect(target).toBeUndefined();
   });
 
   it("wraps to reach the earliest free slot when only a pre-source cell is free", () => {

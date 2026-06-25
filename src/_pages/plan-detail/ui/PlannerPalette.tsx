@@ -37,7 +37,7 @@ export default function PlannerPalette({ groupings, names, hours }: PlannerPalet
   } = usePaletteFilter(sortedGroupings, names);
 
   return (
-    <aside data-slot="planner-palette" className="flex min-h-0 flex-col gap-3">
+    <aside data-slot="planner-palette" className="flex min-h-0 flex-col gap-6">
       <div className="shrink-0">
         <GroupingFilter
           groupings={groupings}

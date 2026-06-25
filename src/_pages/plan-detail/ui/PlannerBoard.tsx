@@ -133,7 +133,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
       <div className="flex min-h-0 flex-1 flex-col">
         <PlanSummaryBar planName={planName} incompleteCount={incompleteCount} planId={planId} cohort={cohort} />
 
-        <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
+        <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[18rem_1fr]">
           {paletteView === "stale" ? (
             <GroupingStalePanel planId={planId} cohort={cohort} />
           ) : (

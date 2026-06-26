@@ -502,22 +502,22 @@ Five additive migrations (shelf tables, `shelve_bundle`, `unshelve_bundle`, `del
 
 #### Automated
 
-- [x] 2.1 Type checking passes: `pnpm check`
-- [x] 2.2 Linting + FSD pass: `pnpm lint` && `pnpm steiger`
-- [x] 2.3 Build is clean: `pnpm build`
-- [x] 2.4 Unit suite green: `pnpm test`
+- [x] 2.1 Type checking passes: `pnpm check` — bfac89e
+- [x] 2.2 Linting + FSD pass: `pnpm lint` && `pnpm steiger` — bfac89e
+- [x] 2.3 Build is clean: `pnpm build` — bfac89e
+- [x] 2.4 Unit suite green: `pnpm test` — bfac89e
 
 #### Manual
 
-- [x] 2.5 Loading the plan returns `parkedBundles` in island props for the right cohort only
+- [x] 2.5 Loading the plan returns `parkedBundles` in island props for the right cohort only — bfac89e
 
 ### Phase 3: Model — types, transitions, hook verbs
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass (`shelf-transitions.test.ts` + suite): `pnpm test`
-- [ ] 3.2 Type checking passes: `pnpm check`
-- [ ] 3.3 Linting + FSD pass: `pnpm lint` && `pnpm steiger`
+- [x] 3.1 Unit tests pass (`shelf-transitions.test.ts` + suite): `pnpm test`
+- [x] 3.2 Type checking passes: `pnpm check`
+- [x] 3.3 Linting + FSD pass: `pnpm lint` && `pnpm steiger`
 
 ### Phase 4: UI — drawer, lift button, drag wiring
 

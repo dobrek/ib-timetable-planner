@@ -69,6 +69,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     crossCohortIndex,
     days,
     periods,
+    initialParked: props.parkedBundles,
   });
   const justDuplicated = useDuplicateHighlight(lastDuplicated);
   const { isExploded, toggleExploded } = useExplodedCells();

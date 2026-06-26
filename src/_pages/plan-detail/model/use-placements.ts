@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
+import { deleteShelfBundle, shelveBundle as shelveBundleRpc, unshelveBundle } from "../api/shelf-client";
 import type { AvailabilityIndex } from "./availability-index";
 import type { CrossCohortIndex } from "./cross-cohort-index";
 import type { CellData } from "./drag";
@@ -29,6 +30,15 @@ import {
   type BatchOutcome,
   type PlacementError,
 } from "./placement-transitions";
+import type { LocalParkedBundle, ParkedBundle } from "./parked";
+import {
+  membersAtCell,
+  parkAddOptimistic,
+  parkReconcile,
+  parkRollback,
+  unparkOptimistic,
+  unparkRollback,
+} from "./shelf-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement";
 
 type UsePlacementsArgs = {
@@ -42,6 +52,8 @@ type UsePlacementsArgs = {
   crossCohortIndex: CrossCohortIndex;
   days: number;
   periods: number;
+  /** Server-durable parked bundles for this cohort, seeding the shelf store. */
+  initialParked?: ParkedBundle[];
 };
 
 /** Transient outcome of a successful duplicate: the target cell, plus a nonce so a same-cell
@@ -65,6 +77,14 @@ type UsePlacements = {
   moveBundle: (day: number, period: number, target: CellData) => void;
   removeBundle: (day: number, period: number) => void;
   duplicateBundle: (day: number, period: number) => void;
+  /** Parked (shelved) bundles in island-local state. */
+  parkedBundles: LocalParkedBundle[];
+  /** Lift the bundle at a cell off the board into the shelf (two-store atomic). */
+  shelveBundle: (day: number, period: number) => void;
+  /** Place a parked bundle's courses back at a target cell (merge if occupied; two-store atomic). */
+  placeBack: (shelfBundleId: string, target: CellData) => void;
+  /** Discard a parked card outright (the card's "×") — shelf-store-only. */
+  removeParked: (shelfBundleId: string) => void;
   clearError: () => void;
 };
 
@@ -89,12 +109,15 @@ export function usePlacements(
     crossCohortIndex,
     days,
     periods,
+    initialParked = [],
   }: UsePlacementsArgs,
 ): UsePlacements {
   const [placements, setPlacements] = useState<LocalPlacement[]>(initial);
+  const [parkedBundles, setParkedBundles] = useState<LocalParkedBundle[]>(initialParked);
   const [error, setError] = useState<PlacementError | null>(null);
   const [lastDuplicated, setLastDuplicated] = useState<DuplicateOutcome | null>(null);
   const placementsRef = useLatest(placements);
+  const parkedBundlesRef = useLatest(parkedBundles);
 
   const weekModeOf = (courseId: string): WeekMode => weekModeByCourseId.get(courseId) ?? "agnostic";
 
@@ -181,6 +204,18 @@ export function usePlacements(
 
   const courseIdsAt = (day: number, period: number): string[] =>
     placementsRef.current.filter((p) => p.day === day && p.period === period).map((p) => p.courseId);
+
+  function shelveBundle(day: number, period: number) {
+    void persistShelve(day, period);
+  }
+
+  function placeBack(shelfBundleId: string, target: CellData) {
+    void persistPlaceBack(shelfBundleId, target);
+  }
+
+  function removeParked(shelfBundleId: string) {
+    void persistRemoveParked(shelfBundleId);
+  }
 
   async function persistAdd(courseId: string, cell: CellData) {
     if (!canAdd(placementsRef.current, courseId, cell)) return;
@@ -349,6 +384,110 @@ export function usePlacements(
     }
   }
 
+  // Park: lift a cell's bundle off the board into the shelf in ONE two-store optimistic pass —
+  // remove the board placements AND add a pending parked card carrying their (course, week) set.
+  // One atomic `shelve_bundle` RPC; reconcile the card's temp id to the server shelf id. A failed
+  // RPC rolls BOTH stores back (placements restored, pending card dropped).
+  async function persistShelve(day: number, period: number) {
+    const occupants = placementsRef.current.filter((p) => p.day === day && p.period === period);
+    if (occupants.length === 0) return; // empty-cell no-op
+    if (occupants.some((p) => p.pending)) return; // pending-source no-op (mirrors move/remove)
+
+    const members = membersAtCell(placementsRef.current, day, period);
+    const tempId = crypto.randomUUID();
+
+    setPlacements((prev) =>
+      removeManyOptimistic(
+        prev,
+        occupants.map((p) => p.id),
+      ),
+    );
+    setParkedBundles((prev) => parkAddOptimistic(prev, tempId, members));
+
+    try {
+      const parked = await shelveBundleRpc({ planId, cohort, day, period });
+      setParkedBundles((prev) => parkReconcile(prev, tempId, parked.id));
+    } catch (err: unknown) {
+      setPlacements((prev) => removeManyRollback(prev, occupants));
+      setParkedBundles((prev) => parkRollback(prev, tempId));
+      setError(errorOf(err));
+    }
+  }
+
+  // Place-back: drop a parked bundle's courses onto a target cell. Filter the members through
+  // `eligibleMembers` FIRST so a course already present at an occupied target is left out of the
+  // optimistic add (the merge case — `place_course` returns the existing row there, which can't
+  // reconcile a duplicate temp chip). One atomic `unshelve_bundle` RPC still places ALL shelf
+  // courses server-side (idempotent on the present one); the filter only governs the overlay.
+  // Reconcile the temp placements by courseId (like persistMoveMembers). A failure rolls BOTH
+  // stores back (card restored, temp placements dropped).
+  async function persistPlaceBack(shelfBundleId: string, target: CellData) {
+    const card = parkedBundlesRef.current.find((b) => b.id === shelfBundleId);
+    if (!card || card.pending) return; // unknown / not-yet-reconciled card
+
+    const weekByMember = new Map(card.members.map((m) => [m.courseId, m.week] as const));
+    const eligible = eligibleMembers(
+      placementsRef.current,
+      card.members.map((m) => m.courseId),
+      target,
+    );
+    const entries = eligible.map((courseId) => ({
+      tempId: crypto.randomUUID(),
+      courseId,
+      week: weekByMember.get(courseId) ?? "both",
+    }));
+
+    setParkedBundles((prev) => unparkOptimistic(prev, shelfBundleId));
+    setPlacements((prev) => addManyOptimistic(prev, entries, target));
+
+    try {
+      const serverRows = await unshelveBundle({
+        planId,
+        cohort,
+        shelfBundleId,
+        targetDay: target.day,
+        targetPeriod: target.period,
+      });
+      // Match each temp placement to its server row by course (place_course preserves no temp id).
+      const serverByCourse = new Map(serverRows.map((row) => [row.courseId, row]));
+      const outcomes: (BatchOutcome & { courseId: string })[] = entries.map((entry) => ({
+        tempId: entry.tempId,
+        courseId: entry.courseId,
+        result: serverByCourse.get(entry.courseId) ?? null,
+      }));
+      setPlacements((prev) => settleMany(prev, outcomes));
+
+      const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
+      if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: entries.length });
+    } catch (err: unknown) {
+      setParkedBundles((prev) => unparkRollback(prev, card));
+      setPlacements((prev) =>
+        settleMany(
+          prev,
+          entries.map(({ tempId }) => ({ tempId, result: null })),
+        ),
+      );
+      setError(errorOf(err));
+    }
+  }
+
+  // Discard a parked card outright (the card's "×"). Shelf-store-only — no board placements
+  // involved, so no two-store coordination. Optimistic remove → one `delete_shelf_bundle` RPC;
+  // a failure restores the card.
+  async function persistRemoveParked(shelfBundleId: string) {
+    const card = parkedBundlesRef.current.find((b) => b.id === shelfBundleId);
+    if (!card || card.pending) return; // unknown / not-yet-reconciled card
+
+    setParkedBundles((prev) => unparkOptimistic(prev, shelfBundleId));
+
+    try {
+      await deleteShelfBundle({ planId, shelfBundleId });
+    } catch (err: unknown) {
+      setParkedBundles((prev) => unparkRollback(prev, card));
+      setError(errorOf(err));
+    }
+  }
+
   return {
     placements,
     error,
@@ -361,6 +500,10 @@ export function usePlacements(
     moveBundle,
     removeBundle,
     duplicateBundle,
+    parkedBundles,
+    shelveBundle,
+    placeBack,
+    removeParked,
     clearError: () => {
       setError(null);
     },

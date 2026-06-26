@@ -69,9 +69,7 @@ test.describe("bundle holding container (shelf)", () => {
     await deletePlan(page, plan.name);
   });
 
-  test("a palette grouping parks directly onto the shelf; re-dropping it notifies instead of duplicating", async ({
-    page,
-  }) => {
+  test("a palette grouping parks directly onto the shelf; re-dropping it parks a second copy", async ({ page }) => {
     const id = shortId();
     const alphaCourse = `Alpha ${id}`;
     const bravoCourse = `Bravo ${id}`;
@@ -86,15 +84,19 @@ test.describe("bundle holding container (shelf)", () => {
     await parkGroupingFromPalette(page, 2);
     await expect(parkedBadge(page)).toHaveText(/1\s+parked/);
 
-    // Expand and confirm exactly one parked card.
+    // Open + pin the drawer so it stays expanded across the next drop (stable target, no auto-collapse).
     await parkedBadge(page).click();
+    await shelf(page).getByRole("button", { name: "Pin shelf open" }).click();
     await expect(parkedCard(page)).toHaveCount(1);
 
-    // Re-drop the SAME grouping → notified it already exists, NOT duplicated (still one card).
-    await steppedDrag(page, groupingBox(page, 2), shelf(page));
-    await expect(page.getByText("This bundle is already on the shelf")).toBeVisible();
-    await expect(parkedCard(page)).toHaveCount(1);
-    await expect(parkedBadge(page)).toHaveText(/1\s+parked/);
+    // Re-drop the SAME grouping → parks a SECOND copy (duplicating is intentional, by author decision).
+    // Guard the retry on the card count so a missed drop retries without ever over-parking.
+    await expect(async () => {
+      if ((await parkedCard(page).count()) >= 2) return;
+      await steppedDrag(page, groupingBox(page, 2), shelf(page));
+      await expect(parkedCard(page)).toHaveCount(2, { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(parkedBadge(page)).toHaveText(/2\s+parked/);
 
     await deletePlan(page, plan.name);
   });

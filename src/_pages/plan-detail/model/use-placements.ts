@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
-import { deleteShelfBundle, shelveBundle as shelveBundleRpc, unshelveBundle } from "../api/shelf-client";
+import { deleteShelfBundle, shelveBundle as shelveBundleRpc, shelveCourses, unshelveBundle } from "../api/shelf-client";
 import type { AvailabilityIndex } from "./availability-index";
 import type { CrossCohortIndex } from "./cross-cohort-index";
 import type { CellData } from "./drag";
@@ -30,7 +30,7 @@ import {
   type BatchOutcome,
   type PlacementError,
 } from "./placement-transitions";
-import type { LocalParkedBundle, ParkedBundle } from "./parked";
+import type { LocalParkedBundle, ParkedBundle, ParkedMember } from "./parked";
 import {
   membersAtCell,
   parkAddOptimistic,
@@ -83,6 +83,8 @@ type UsePlacements = {
   shelveBundle: (day: number, period: number) => void;
   /** Place a parked bundle's courses back at a target cell (merge if occupied; two-store atomic). */
   placeBack: (shelfBundleId: string, target: CellData) => void;
+  /** Park an arbitrary course-set directly onto the shelf (e.g. a palette grouping) — shelf-store-only. */
+  parkMembers: (members: ParkedMember[]) => void;
   /** Discard a parked card outright (the card's "×") — shelf-store-only. */
   removeParked: (shelfBundleId: string) => void;
   clearError: () => void;
@@ -211,6 +213,10 @@ export function usePlacements(
 
   function placeBack(shelfBundleId: string, target: CellData) {
     void persistPlaceBack(shelfBundleId, target);
+  }
+
+  function parkMembers(members: ParkedMember[]) {
+    void persistParkMembers(members);
   }
 
   function removeParked(shelfBundleId: string) {
@@ -414,6 +420,24 @@ export function usePlacements(
     }
   }
 
+  // Park a course-set directly onto the shelf (no board placements involved) — the off-board
+  // analogue of persistShelve, for a palette grouping that was never placed. Optimistic add of a
+  // pending card, one atomic `shelve_courses` RPC, reconcile the temp id; a failure drops the card.
+  // Dedup against an already-parked identical set is the caller's concern (it owns the notice).
+  async function persistParkMembers(members: ParkedMember[]) {
+    if (members.length === 0) return;
+    const tempId = crypto.randomUUID();
+    setParkedBundles((prev) => parkAddOptimistic(prev, tempId, members));
+
+    try {
+      const parked = await shelveCourses({ planId, cohort, members });
+      setParkedBundles((prev) => parkReconcile(prev, tempId, parked.id));
+    } catch (err: unknown) {
+      setParkedBundles((prev) => parkRollback(prev, tempId));
+      setError(errorOf(err));
+    }
+  }
+
   // Place-back: drop a parked bundle's courses onto a target cell. Filter the members through
   // `eligibleMembers` FIRST so a course already present at an occupied target is left out of the
   // optimistic add (the merge case — `place_course` returns the existing row there, which can't
@@ -503,6 +527,7 @@ export function usePlacements(
     parkedBundles,
     shelveBundle,
     placeBack,
+    parkMembers,
     removeParked,
     clearError: () => {
       setError(null);

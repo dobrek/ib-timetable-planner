@@ -1,6 +1,6 @@
 import { actions } from "astro:actions";
 import type { Cohort } from "@/shared/config";
-import type { ParkedBundle } from "../model/parked";
+import type { ParkedBundle, ParkedMember } from "../model/parked";
 import type { PlannerPlacement } from "../model/placement";
 
 /** Lift the bundle at a cell off the board into the shelf; returns the new parked card (empty members). */
@@ -32,4 +32,15 @@ export async function unshelveBundle(args: {
 export async function deleteShelfBundle(args: { planId: string; shelfBundleId: string }): Promise<void> {
   const { error } = await actions.deleteShelfBundle(args);
   if (error) throw new Error(error.message);
+}
+
+/** Park an arbitrary course-set directly (a palette grouping never placed on the board). */
+export async function shelveCourses(args: {
+  planId: string;
+  cohort: Cohort;
+  members: ParkedMember[];
+}): Promise<ParkedBundle> {
+  const { data, error } = await actions.shelveCourses(args);
+  if (error) throw new Error(error.message);
+  return data;
 }

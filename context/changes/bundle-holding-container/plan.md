@@ -487,29 +487,29 @@ Five additive migrations (shelf tables, `shelve_bundle`, `unshelve_bundle`, `del
 
 #### Automated
 
-- [x] 1.1 Migrations apply cleanly: `pnpm exec supabase db reset`
-- [x] 1.2 Generated `Database` types include the new tables
-- [x] 1.3 Type checking passes: `pnpm check`
-- [x] 1.4 Integration tests pass: `pnpm test:integration`
-- [x] 1.5 Linting passes: `pnpm lint`
+- [x] 1.1 Migrations apply cleanly: `pnpm exec supabase db reset` — 57de00f
+- [x] 1.2 Generated `Database` types include the new tables — 57de00f
+- [x] 1.3 Type checking passes: `pnpm check` — 57de00f
+- [x] 1.4 Integration tests pass: `pnpm test:integration` — 57de00f
+- [x] 1.5 Linting passes: `pnpm lint` — 57de00f
 
 #### Manual
 
-- [x] 1.6 `db advisors` clean + `has_table_privilege('anon', …)` is false on shelf tables
-- [x] 1.7 Manual `shelve_bundle` / `unshelve_bundle` in Studio behaves correctly
+- [x] 1.6 `db advisors` clean + `has_table_privilege('anon', …)` is false on shelf tables — 57de00f
+- [x] 1.7 Manual `shelve_bundle` / `unshelve_bundle` in Studio behaves correctly — 57de00f
 
 ### Phase 2: Transport & load — actions, client, server read
 
 #### Automated
 
-- [ ] 2.1 Type checking passes: `pnpm check`
-- [ ] 2.2 Linting + FSD pass: `pnpm lint` && `pnpm steiger`
-- [ ] 2.3 Build is clean: `pnpm build`
-- [ ] 2.4 Unit suite green: `pnpm test`
+- [x] 2.1 Type checking passes: `pnpm check`
+- [x] 2.2 Linting + FSD pass: `pnpm lint` && `pnpm steiger`
+- [x] 2.3 Build is clean: `pnpm build`
+- [x] 2.4 Unit suite green: `pnpm test`
 
 #### Manual
 
-- [ ] 2.5 Loading the plan returns `parkedBundles` in island props for the right cohort only
+- [x] 2.5 Loading the plan returns `parkedBundles` in island props for the right cohort only
 
 ### Phase 3: Model — types, transitions, hook verbs
 

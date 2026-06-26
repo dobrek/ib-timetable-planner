@@ -2,6 +2,7 @@ import type { Cohort } from "@/shared/config";
 import type { BoardAvailabilityCell } from "./availability-index";
 import type { SiblingOccupancyCell } from "./cross-cohort-index";
 import type { GroupingCourse, PlannerGrouping } from "./grouping";
+import type { ParkedBundle } from "./parked";
 import type { PlannerPlacement } from "./placement";
 
 /** Drag payload carried on the draggable's `data`. Identity is opaque ids — never names. */
@@ -39,4 +40,6 @@ export type PlannerBoardProps = {
   /** Sibling-cohort teacher occupancy (co-teacher-expanded, week-rich), raw cells the island
    *  indexes into the cross-cohort Map. Drives the board-only `cross-cohort-teacher` rule. */
   crossCohortOccupancy: SiblingOccupancyCell[];
+  /** Parked (shelved) bundles for this cohort — the server-durable off-board set (S-07). */
+  parkedBundles: ParkedBundle[];
 };

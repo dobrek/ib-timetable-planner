@@ -7,6 +7,7 @@ import type { BoardAvailabilityCell } from "../model/availability-index";
 import type { SiblingOccupancyCell } from "../model/cross-cohort-index";
 import type { PlannerBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
+import type { ParkedBundle } from "../model/parked";
 import type { PlannerPlacement } from "../model/placement";
 import { isGroupingStale } from "./staleness";
 
@@ -47,30 +48,44 @@ export const loadPlannerData = async (
 
   const sibling = siblingCohort(cohort);
 
-  const [groupingsResult, placementsResult, availabilityResult, siblingPlacementsResult, catalog, siblingCatalog] =
-    await Promise.all([
-      supabase
-        .from("course_groupings")
-        .select("id, coverage_count, score, opposite_week, course_grouping_members(course_id)")
-        .eq("plan_id", id)
-        .eq("cohort", cohort),
-      supabase
-        .from("placements")
-        .select("id, course_id, day, period, week, bundle_id")
-        .eq("plan_id", id)
-        .eq("cohort", cohort),
-      // Availability is cohort-independent — no cohort filter (S-09: it just works for dp2 later).
-      supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
-      // Sibling-cohort occupancy (read-only committed snapshot) for the cross-cohort teacher rule.
-      supabase.from("placements").select("course_id, day, period, week").eq("plan_id", id).eq("cohort", sibling),
-      loadCohortCourses(supabase, id, cohort),
-      loadCohortCourses(supabase, id, sibling),
-    ]);
+  const [
+    groupingsResult,
+    placementsResult,
+    availabilityResult,
+    siblingPlacementsResult,
+    shelfBundlesResult,
+    catalog,
+    siblingCatalog,
+  ] = await Promise.all([
+    supabase
+      .from("course_groupings")
+      .select("id, coverage_count, score, opposite_week, course_grouping_members(course_id)")
+      .eq("plan_id", id)
+      .eq("cohort", cohort),
+    supabase
+      .from("placements")
+      .select("id, course_id, day, period, week, bundle_id")
+      .eq("plan_id", id)
+      .eq("cohort", cohort),
+    // Availability is cohort-independent — no cohort filter (S-09: it just works for dp2 later).
+    supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
+    // Sibling-cohort occupancy (read-only committed snapshot) for the cross-cohort teacher rule.
+    supabase.from("placements").select("course_id, day, period, week").eq("plan_id", id).eq("cohort", sibling),
+    // Parked (shelved) bundles for this cohort — the durable off-board set (S-07).
+    supabase
+      .from("shelf_bundles")
+      .select("id, shelf_bundle_courses(course_id, week)")
+      .eq("plan_id", id)
+      .eq("cohort", cohort),
+    loadCohortCourses(supabase, id, cohort),
+    loadCohortCourses(supabase, id, sibling),
+  ]);
   assertNoQueryErrors("Planner board", [
     groupingsResult,
     placementsResult,
     availabilityResult,
     siblingPlacementsResult,
+    shelfBundlesResult,
   ]);
 
   const [teacherNames, studentNames] = await Promise.all([
@@ -104,6 +119,11 @@ export const loadPlannerData = async (
 
   const crossCohortOccupancy = projectSiblingOccupancy(siblingPlacementsResult.data ?? [], siblingCatalog.courses);
 
+  const parkedBundles: ParkedBundle[] = (shelfBundlesResult.data ?? []).map((row) => ({
+    id: row.id,
+    members: row.shelf_bundle_courses.map((member) => ({ courseId: member.course_id, week: member.week })),
+  }));
+
   // Per-cohort palette staleness: hash the catalog we already loaded against the stored
   // grouping hash. Sequential after the parallel load (it needs `catalog`), off the per-drop
   // budget, and guarded behind `groupings.length > 0` — a plan with no groupings renders the
@@ -127,6 +147,7 @@ export const loadPlannerData = async (
       catalog: catalog.courses,
       availability,
       crossCohortOccupancy,
+      parkedBundles,
     },
   });
 };

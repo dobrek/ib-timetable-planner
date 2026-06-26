@@ -50,7 +50,7 @@ export type MoveBundleMembersInput = z.infer<typeof moveBundleMembersInput>;
 export type RemoveBundleMembersInput = z.infer<typeof removeBundleMembersInput>;
 export type UpdatePlacementWeekInput = z.infer<typeof updatePlacementWeekInput>;
 
-type PlacementRow = {
+export type PlacementRow = {
   id: string;
   course_id: string;
   day: number;
@@ -59,7 +59,7 @@ type PlacementRow = {
   bundle_id: string;
 };
 
-const toPlannerPlacement = (row: PlacementRow): PlannerPlacement => ({
+export const toPlannerPlacement = (row: PlacementRow): PlannerPlacement => ({
   id: row.id,
   courseId: row.course_id,
   day: row.day,

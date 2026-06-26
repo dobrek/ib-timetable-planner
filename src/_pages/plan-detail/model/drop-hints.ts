@@ -74,6 +74,9 @@ export const resolveDragHintContext = (data: DragData, deps: ResolveDeps): DragH
         origin: { day: data.day, period: data.period },
       };
     }
+    // A parked card carries no validation hints — place-back re-validates on drop, not via hints.
+    case "parked":
+      return null;
   }
 };
 

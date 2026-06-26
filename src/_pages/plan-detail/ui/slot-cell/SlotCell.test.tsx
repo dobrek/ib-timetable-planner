@@ -38,6 +38,7 @@ const renderCell = (occupants: CellOccupant[], bundled: boolean, overrides: Part
     onToggleBundle: vi.fn(),
     onRemoveBundle: vi.fn(),
     onDuplicateBundle,
+    onLiftBundle: vi.fn(),
     onInspect: vi.fn(),
     ...overrides,
   };

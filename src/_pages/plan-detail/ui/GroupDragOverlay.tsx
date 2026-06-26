@@ -2,12 +2,14 @@ import { DragOverlay } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
 import type { DragData } from "../model/drag";
 import type { PlannerGrouping } from "../model/grouping";
+import type { LocalParkedBundle } from "../model/parked";
 import type { LocalPlacement } from "../model/placement";
 
 type Props = {
   groupings: PlannerGrouping[];
   names: Record<string, string>;
   placements: LocalPlacement[];
+  parkedBundles: LocalParkedBundle[];
 };
 
 /**
@@ -17,7 +19,7 @@ type Props = {
  * Course/placement drags keep their default source-element feedback — the overlay disables
  * itself for those kinds.
  */
-export default function GroupDragOverlay({ groupings, names, placements }: Props) {
+export default function GroupDragOverlay({ groupings, names, placements, parkedBundles }: Props) {
   return (
     <DragOverlay dropAnimation={null} disabled={(source) => !isOverlayKind(source?.data)}>
       {(source) => {
@@ -31,6 +33,10 @@ export default function GroupDragOverlay({ groupings, names, placements }: Props
             .filter((placement) => placement.day === data.day && placement.period === data.period)
             .map((placement) => placement.courseId);
           return memberIds.length > 0 ? <OverlayCard memberIds={memberIds} names={names} /> : null;
+        }
+        if (data.kind === "parked") {
+          const parked = parkedBundles.find((bundle) => bundle.id === data.shelfBundleId);
+          return parked ? <OverlayCard memberIds={parked.members.map((m) => m.courseId)} names={names} /> : null;
         }
         return null;
       }}
@@ -58,5 +64,5 @@ function OverlayCard({ memberIds, names }: { memberIds: string[]; names: Record<
 
 function isOverlayKind(data: unknown): boolean {
   const kind = (data as DragData | undefined)?.kind;
-  return kind === "grouping" || kind === "bundle";
+  return kind === "grouping" || kind === "bundle" || kind === "parked";
 }

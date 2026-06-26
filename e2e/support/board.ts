@@ -69,7 +69,7 @@ export async function computeGroupings(page: Page, ready: string | Locator): Pro
  * traverse in steps, settle for collision detection, release. The single primitive every board
  * drag is built on — palette place, whole-bundle move, loose-chip move.
  */
-async function steppedDrag(page: Page, source: Locator, target: Locator): Promise<void> {
+export async function steppedDrag(page: Page, source: Locator, target: Locator): Promise<void> {
   const a = await source.boundingBox();
   const b = await target.boundingBox();
   if (!a || !b) throw new Error("drag source or target not visible");

@@ -30,6 +30,7 @@ type CellWiring = {
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
   onDuplicateBundle: (day: number, period: number) => void;
+  onLiftBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 };
 
@@ -61,6 +62,7 @@ export default function PlannerGrid({
   onToggleBundle,
   onRemoveBundle,
   onDuplicateBundle,
+  onLiftBundle,
   onInspect,
 }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
@@ -107,6 +109,7 @@ export default function PlannerGrid({
             onToggleBundle={onToggleBundle}
             onRemoveBundle={onRemoveBundle}
             onDuplicateBundle={onDuplicateBundle}
+            onLiftBundle={onLiftBundle}
             onInspect={onInspect}
           />
         ))}
@@ -128,6 +131,7 @@ function PeriodRow({
   onToggleBundle,
   onRemoveBundle,
   onDuplicateBundle,
+  onLiftBundle,
   onInspect,
 }: CellWiring & {
   period: number;
@@ -162,6 +166,7 @@ function PeriodRow({
             onToggleBundle={onToggleBundle}
             onRemoveBundle={onRemoveBundle}
             onDuplicateBundle={onDuplicateBundle}
+            onLiftBundle={onLiftBundle}
             onInspect={onInspect}
           />
         );

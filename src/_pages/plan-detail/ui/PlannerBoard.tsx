@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 import { cohortLabel, type PlacementWeek } from "@/shared/config";
+import { Toaster } from "@/shared/ui";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
@@ -30,7 +32,9 @@ import { resolvePaletteView } from "../model/palette-view";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
 import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
-import { placementErrorMessage } from "../model/placement-transitions";
+import { oppositeWeekAssignment, placementErrorMessage } from "../model/placement-transitions";
+import { isCourseSetParked } from "../model/shelf-transitions";
+import type { ParkedMember } from "../model/parked";
 import { usePlacements } from "../model/use-placements";
 import { useExplodedCells } from "../model/use-exploded-cells";
 
@@ -64,6 +68,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     parkedBundles,
     shelveBundle,
     placeBack,
+    parkMembers,
     removeParked,
     clearError,
   } = usePlacements(props.placements, {
@@ -115,13 +120,17 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     const cell = isShelfTarget(targetData) ? null : targetData;
     switch (data.kind) {
       case "course":
+        // Onto a cell → place; onto the shelf → park the single course directly.
         if (cell) addCourse(data.courseId, cell);
+        else parkToShelf([{ courseId: data.courseId, week: defaultParkedWeek(data.courseId) }]);
         break;
       case "placement":
         if (cell) movePlacement(data.placementId, cell);
         break;
       case "grouping":
+        // Onto a cell → fan the members in; onto the shelf → park the grouping directly.
         if (cell) dropGroup(data.groupingId, cell);
+        else parkToShelf(groupingMembers(data.groupingId));
         break;
       case "bundle":
         // Onto a cell → move/merge; onto the shelf → lift the whole bundle off the board.
@@ -150,6 +159,40 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     const grouping = groupings.find((candidate) => candidate.id === groupingId);
     addGroup(grouping?.memberIds ?? [], cell, { oppositeWeek: grouping?.oppositeWeek ?? false });
   }
+
+  // Park a course-set onto the shelf. If an identical set is already parked, notify rather than
+  // duplicate it (the only entry point where the same unit can be parked twice). Mirrors the
+  // lift's auto-collapse so the drawer behaves the same however a bundle gets parked.
+  function parkToShelf(members: ParkedMember[]) {
+    if (members.length === 0) return;
+    if (
+      isCourseSetParked(
+        parkedBundles,
+        members.map((member) => member.courseId),
+      )
+    ) {
+      toast("This bundle is already on the shelf");
+      return;
+    }
+    parkMembers(members);
+    collapseUnlessPinned();
+  }
+
+  // Resolve a palette grouping's off-board formation: an opposite-week share alternates a/b; every
+  // other member takes its intrinsic default (bi-weekly → `a`, agnostic → `both`). No target cell
+  // is involved, so there is no occupancy to resolve against (unlike a board drop).
+  function groupingMembers(groupingId: string): ParkedMember[] {
+    const grouping = groupings.find((candidate) => candidate.id === groupingId);
+    if (!grouping) return [];
+    const weekByMember = grouping.oppositeWeek ? oppositeWeekAssignment(grouping.memberIds) : null;
+    return grouping.memberIds.map((courseId) => ({
+      courseId,
+      week: weekByMember?.get(courseId) ?? defaultParkedWeek(courseId),
+    }));
+  }
+
+  const defaultParkedWeek = (courseId: string): PlacementWeek =>
+    weekModeByCourseId.get(courseId) === "biweekly" ? "a" : "both";
 
   // One decision over the left column's three states, mirroring the `switch (data.kind)` drop
   // dispatch: the orchestrator resolves the view once; each view is a dumb component.
@@ -237,6 +280,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         onClose={inspection.close}
       />
       <GroupDragOverlay groupings={groupings} names={names} placements={placements} parkedBundles={parkedBundles} />
+      <Toaster />
     </DragDropProvider>
   );
 }

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
-import { deleteShelfBundle, shelveBundle, unshelveBundle } from "../api/shelf-client";
+import { deleteShelfBundle, shelveBundle, shelveCourses, unshelveBundle } from "../api/shelf-client";
 import { EMPTY_AVAILABILITY_INDEX } from "./availability-index";
 import { biweekly, catalog, course, placement } from "./__fixtures__/builders";
 import { cellKey, deriveCellViolations } from "./collisions";
@@ -26,6 +26,7 @@ vi.mock("../api/shelf-client", () => ({
   shelveBundle: vi.fn(),
   unshelveBundle: vi.fn(),
   deleteShelfBundle: vi.fn(),
+  shelveCourses: vi.fn(),
 }));
 
 const placeMock = vi.mocked(placeCourse);
@@ -35,6 +36,7 @@ const updateWeekMock = vi.mocked(updatePlacementWeek);
 const shelveMock = vi.mocked(shelveBundle);
 const unshelveMock = vi.mocked(unshelveBundle);
 const deleteShelfMock = vi.mocked(deleteShelfBundle);
+const shelveCoursesMock = vi.mocked(shelveCourses);
 
 const PLAN_ID = "plan-1";
 const COHORT: Cohort = "dp1";
@@ -82,6 +84,7 @@ function serverEcho(prefix = "srv"): void {
   shelveMock.mockImplementation((a) => Promise.resolve({ id: `shelf-${a.day}-${a.period}`, members: [] }));
   unshelveMock.mockResolvedValue([]);
   deleteShelfMock.mockResolvedValue(undefined);
+  shelveCoursesMock.mockImplementation((a) => Promise.resolve({ id: "shelf-courses", members: a.members }));
 }
 
 const args = (
@@ -740,5 +743,65 @@ describe("usePlacements — removeParked (discard)", () => {
     });
     expect(deleteShelfMock).not.toHaveBeenCalled();
     expect(result.current.parkedBundles).toHaveLength(1);
+  });
+});
+
+describe("usePlacements — parkMembers (park a course-set directly)", () => {
+  const members = [
+    { courseId: "c1", week: "a" as const },
+    { courseId: "c2", week: "b" as const },
+  ];
+
+  it("adds a pending card immediately, then reconciles its id; no board placements touched", async () => {
+    const park = deferred<{ id: string; members: typeof members }>();
+    shelveCoursesMock.mockReturnValueOnce(park.promise);
+
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: [] }));
+
+    act(() => {
+      result.current.parkMembers(members);
+    });
+
+    expect(result.current.parkedBundles).toHaveLength(1);
+    expect(result.current.parkedBundles[0].pending).toBe(true);
+    expect(result.current.parkedBundles[0].members).toEqual(members);
+    expect(result.current.placements).toHaveLength(0); // shelf-only
+
+    await act(async () => {
+      park.resolve({ id: "shelf-7", members });
+      await park.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.parkedBundles[0].id).toBe("shelf-7");
+    });
+    expect(result.current.parkedBundles[0].pending).toBeUndefined();
+    expect(shelveCoursesMock).toHaveBeenCalledWith(expect.objectContaining({ members }));
+    expect(result.current.error).toBeNull();
+  });
+
+  it("drops the pending card and sets an error when the RPC rejects", async () => {
+    shelveCoursesMock.mockRejectedValueOnce(new Error("park boom"));
+
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: [] }));
+
+    act(() => {
+      result.current.parkMembers(members);
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+    expect(result.current.parkedBundles).toHaveLength(0);
+    expect(result.current.error).toEqual({ kind: "message", message: "park boom" });
+  });
+
+  it("is a no-op for an empty member-set", () => {
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: [] }));
+    act(() => {
+      result.current.parkMembers([]);
+    });
+    expect(shelveCoursesMock).not.toHaveBeenCalled();
+    expect(result.current.parkedBundles).toHaveLength(0);
   });
 });

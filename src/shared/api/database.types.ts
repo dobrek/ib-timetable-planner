@@ -742,6 +742,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      shelve_courses: {
+        Args: {
+          p_cohort: Database["public"]["Enums"]["cohort"]
+          p_course_ids: string[]
+          p_plan_id: string
+          p_weeks: Database["public"]["Enums"]["placement_week"][]
+        }
+        Returns: {
+          cohort: Database["public"]["Enums"]["cohort"]
+          created_at: string
+          id: string
+          plan_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shelf_bundles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       unshelve_bundle: {
         Args: {
           p_cohort: Database["public"]["Enums"]["cohort"]

@@ -68,6 +68,36 @@ test.describe("bundle holding container (shelf)", () => {
 
     await deletePlan(page, plan.name);
   });
+
+  test("a palette grouping parks directly onto the shelf; re-dropping it notifies instead of duplicating", async ({
+    page,
+  }) => {
+    const id = shortId();
+    const alphaCourse = `Alpha ${id}`;
+    const bravoCourse = `Bravo ${id}`;
+
+    const plan = await createPlan(page, "shelf-park-grouping");
+    await provisionCourses(page, plan.id, id, [alphaCourse, bravoCourse]);
+
+    await gotoStable(page, `/plans/${plan.id}`);
+    await computeGroupings(page, groupingBox(page, 2));
+
+    // Park the grouping straight from the palette (never placed on the board) onto the shelf.
+    await parkGroupingFromPalette(page, 2);
+    await expect(parkedBadge(page)).toHaveText(/1\s+parked/);
+
+    // Expand and confirm exactly one parked card.
+    await parkedBadge(page).click();
+    await expect(parkedCard(page)).toHaveCount(1);
+
+    // Re-drop the SAME grouping → notified it already exists, NOT duplicated (still one card).
+    await steppedDrag(page, groupingBox(page, 2), shelf(page));
+    await expect(page.getByText("This bundle is already on the shelf")).toBeVisible();
+    await expect(parkedCard(page)).toHaveCount(1);
+    await expect(parkedBadge(page)).toHaveText(/1\s+parked/);
+
+    await deletePlan(page, plan.name);
+  });
 });
 
 // --- Shelf locators + gestures (local to this first shelf spec; promote on a second consumer) ---
@@ -95,9 +125,23 @@ async function liftToShelf(page: Page, slot: string): Promise<void> {
  */
 const parkedBadge = (page: Page) => page.getByRole("button", { name: /^\d+ parked/ });
 
-/** The expanded shelf drawer is a named complementary landmark; the parked card carries its roledescription. */
-const parkedCard = (page: Page) =>
-  page.getByRole("complementary", { name: "Shelf" }).locator('[aria-roledescription="parked bundle"]');
+/** The shelf drawer — a named complementary landmark (collapsed tab or expanded panel), and the drop target for parking. */
+const shelf = (page: Page) => page.getByRole("complementary", { name: "Shelf" });
+
+/** The parked card(s) inside the shelf drawer (each carries the `parked bundle` roledescription). */
+const parkedCard = (page: Page) => shelf(page).locator('[aria-roledescription="parked bundle"]');
+
+/**
+ * Drag a `count`-member palette grouping box onto the shelf to park it directly. Idempotent +
+ * retried like the other board verbs — skip once the badge shows a parked bundle.
+ */
+async function parkGroupingFromPalette(page: Page, count: number): Promise<void> {
+  await expect(async () => {
+    if ((await parkedBadge(page).count()) > 0) return; // already parked
+    await steppedDrag(page, groupingBox(page, count), shelf(page));
+    await expect(parkedBadge(page)).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+}
 
 /**
  * Drag the parked card onto `toSlot` and wait for it to land. Idempotent + retried like the board

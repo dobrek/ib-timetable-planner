@@ -1,9 +1,9 @@
 import { useDraggable } from "@dnd-kit/react";
 import { GripVertical, X } from "lucide-react";
 import type { ParkedDrag } from "../../model/drag";
-import type { LocalParkedBundle } from "../../model/parked";
+import type { LocalParkedBundle, ParkedMember } from "../../model/parked";
 import { cn } from "@/shared/lib/class-names";
-import { Button } from "@/shared/ui";
+import { Badge, Button } from "@/shared/ui";
 import { stopDrag } from "../slot-cell/drag-inert";
 
 type Props = {
@@ -13,11 +13,13 @@ type Props = {
 };
 
 /**
- * A parked bundle card: the `GroupingBox` shell (header "N courses" + member rows) reused for the
- * off-board unit, but **neutral and flag-free** — a parked bundle isn't validated, so no collision
- * flag, no A/B toggle, no `aria-invalid`. The whole card is the `parked` draggable (drop it on a
- * slot to place it back); the ghost "×" discards the whole card outright (gone, not placed back —
- * the only non-place-back exit from the shelf). Semantic tokens only.
+ * A parked bundle card: the `GroupingBox` shell reused for the off-board unit, but **neutral and
+ * flag-free** — a parked bundle isn't validated, so no collision flag, no A/B *toggle*, no
+ * `aria-invalid`. It is **week-aware** though: it carries each member's parked A/B week, so the
+ * card surfaces an "A/B" summary badge and a per-member week tag (a read-only formation cue, not a
+ * control). The redundant "N courses" count is dropped — the member rows already show it. The whole
+ * card is the `parked` draggable (drop it on a slot to place it back); the ghost "×" discards it
+ * outright (the only non-place-back exit from the shelf). Semantic tokens only.
  */
 export default function ParkedBundleCard({ bundle, names, onRemove }: Props) {
   const { ref, isDragging } = useDraggable<ParkedDrag>({
@@ -25,7 +27,7 @@ export default function ParkedBundleCard({ bundle, names, onRemove }: Props) {
     data: { kind: "parked", shelfBundleId: bundle.id },
     disabled: bundle.pending === true,
   });
-  const count = bundle.members.length;
+  const weekAware = bundle.members.some((member) => member.week !== "both");
 
   return (
     <div
@@ -40,9 +42,11 @@ export default function ParkedBundleCard({ bundle, names, onRemove }: Props) {
     >
       <div className="flex items-center gap-2 px-3 py-2 text-sm font-medium">
         <GripVertical className="text-muted-foreground size-4" />
-        <span>
-          {count} {count === 1 ? "course" : "courses"}
-        </span>
+        {weekAware && (
+          <Badge data-slot="parked-week-badge" variant="secondary" title="Members run on specific weeks (A/B)">
+            A/B
+          </Badge>
+        )}
         <Button
           type="button"
           variant="ghost"
@@ -60,11 +64,20 @@ export default function ParkedBundleCard({ bundle, names, onRemove }: Props) {
       </div>
       <ul className="space-y-1 px-2 pb-2">
         {bundle.members.map((member) => (
-          <li key={member.courseId} className="truncate rounded-md border px-2 py-1.5 text-sm">
-            {names[member.courseId] ?? member.courseId}
+          <li key={member.courseId} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
+            <span className="truncate">{names[member.courseId] ?? member.courseId}</span>
+            <WeekTag week={member.week} />
           </li>
         ))}
       </ul>
     </div>
+  );
+}
+
+/** A read-only week cue on a member row — "A"/"B" for a week-specific course, nothing for `both`. */
+function WeekTag({ week }: { week: ParkedMember["week"] }) {
+  if (week === "both") return null;
+  return (
+    <span className="text-muted-foreground ml-auto shrink-0 text-xs font-semibold uppercase tabular-nums">{week}</span>
   );
 }

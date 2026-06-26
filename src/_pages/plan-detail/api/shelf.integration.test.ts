@@ -216,6 +216,23 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(restored[0].week).toBe("a");
   });
 
+  it("shelve_courses parks an arbitrary course-set directly with the given weeks", async () => {
+    // The off-board park (a palette grouping never placed): no cell, no placements read.
+    const { data, error } = await supabase.rpc("shelve_courses", {
+      p_plan_id: planId,
+      p_cohort: "dp1",
+      p_course_ids: [courseA, biweekly],
+      p_weeks: ["both", "a"],
+    });
+    if (error) throw error;
+    expect(data.cohort).toBe("dp1");
+
+    const parked = await shelfCourses(data.id);
+    expect(new Set(parked.map((p) => p.course_id))).toEqual(new Set([courseA, biweekly]));
+    expect(parked.find((p) => p.course_id === biweekly)?.week).toBe("a");
+    expect(parked.find((p) => p.course_id === courseA)?.week).toBe("both");
+  });
+
   it("discard: delete_shelf_bundle removes the header and cascades its courses (plan-/cohort-scoped)", async () => {
     // A dp1 shelf to discard, and a dp2 sibling shelf that must stay untouched.
     await place(5, 1, courseA, undefined, "dp1");

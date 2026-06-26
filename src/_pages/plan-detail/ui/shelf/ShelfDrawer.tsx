@@ -73,7 +73,7 @@ export default function ShelfDrawer({
       data-expanded="true"
       aria-label="Shelf"
       className={cn(
-        "bg-background flex w-60 shrink-0 flex-col gap-3 rounded-lg border p-3",
+        "bg-background flex max-h-full min-h-0 w-60 shrink-0 flex-col gap-3 rounded-lg border p-3",
         isDropTarget && "ring-ring ring-2",
       )}
     >
@@ -104,10 +104,14 @@ export default function ShelfDrawer({
             size="icon"
             data-slot="shelf-collapse"
             aria-label="Collapse shelf"
+            // A pinned drawer stays open, so collapsing is a no-op — disable it rather than letting
+            // the click silently do nothing (unpin first to collapse). The title spells out why.
+            disabled={pinned}
+            title={pinned ? "Unpin to collapse" : "Collapse shelf"}
             onClick={() => {
               onExpandedChange(false);
             }}
-            className="text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded"
+            className="text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded disabled:pointer-events-none disabled:opacity-40"
           >
             <ChevronRight className="size-3.5" />
           </Button>

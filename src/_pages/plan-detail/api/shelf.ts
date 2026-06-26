@@ -3,7 +3,7 @@ import { toPlannerPlacement } from "./placements";
 import type { ParkedBundle } from "../model/parked";
 import type { PlannerPlacement } from "../model/placement";
 import type { SupabaseClient } from "@/shared/api";
-import { cohortSchema } from "@/shared/config";
+import { cohortSchema, placementWeekSchema } from "@/shared/config";
 import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
 
@@ -35,9 +35,17 @@ export const deleteShelfBundleInput = z.object({
   shelfBundleId: z.uuid(),
 });
 
+/** Park an arbitrary course-set directly (e.g. a palette grouping never placed on the board). */
+export const shelveCoursesInput = z.object({
+  planId: z.uuid(),
+  cohort: cohortSchema,
+  members: z.array(z.object({ courseId: z.uuid(), week: placementWeekSchema })).min(1),
+});
+
 export type ShelveBundleInput = z.infer<typeof shelveBundleInput>;
 export type UnshelveBundleInput = z.infer<typeof unshelveBundleInput>;
 export type DeleteShelfBundleInput = z.infer<typeof deleteShelfBundleInput>;
+export type ShelveCoursesInput = z.infer<typeof shelveCoursesInput>;
 
 /**
  * Lift the placed bundle at a cell off the board, capturing its courses + weeks into the
@@ -84,4 +92,20 @@ export const deleteShelfBundle = async (supabase: Supabase, input: DeleteShelfBu
     p_shelf_bundle_id: input.shelfBundleId,
   });
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to delete shelf bundle: ${error.message}`);
+};
+
+/**
+ * Park an arbitrary course-set onto the shelf via the `shelve_courses` RPC — the off-board
+ * analogue of `shelveBundle`, for parking a palette grouping that was never placed. Returns the
+ * new parked bundle; its members are the ones we sent (the server stored exactly those).
+ */
+export const shelveCourses = async (supabase: Supabase, input: ShelveCoursesInput): Promise<ParkedBundle> => {
+  const { data, error } = await supabase.rpc("shelve_courses", {
+    p_plan_id: input.planId,
+    p_cohort: input.cohort,
+    p_course_ids: input.members.map((member) => member.courseId),
+    p_weeks: input.members.map((member) => member.week),
+  });
+  if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to shelve courses: ${error.message}`);
+  return { id: data.id, members: input.members };
 };

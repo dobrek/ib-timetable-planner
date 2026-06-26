@@ -399,6 +399,84 @@ export type Database = {
         }
         Relationships: []
       }
+      shelf_bundle_courses: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          plan_id: string
+          shelf_bundle_id: string
+          week: Database["public"]["Enums"]["placement_week"]
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          plan_id: string
+          shelf_bundle_id: string
+          week?: Database["public"]["Enums"]["placement_week"]
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          plan_id?: string
+          shelf_bundle_id?: string
+          week?: Database["public"]["Enums"]["placement_week"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shelf_bundle_courses_course_fkey"
+            columns: ["plan_id", "course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["plan_id", "id"]
+          },
+          {
+            foreignKeyName: "shelf_bundle_courses_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shelf_bundle_courses_shelf_bundle_fkey"
+            columns: ["plan_id", "shelf_bundle_id"]
+            isOneToOne: false
+            referencedRelation: "shelf_bundles"
+            referencedColumns: ["plan_id", "id"]
+          },
+        ]
+      }
+      shelf_bundles: {
+        Row: {
+          cohort: Database["public"]["Enums"]["cohort"]
+          created_at: string
+          id: string
+          plan_id: string
+        }
+        Insert: {
+          cohort: Database["public"]["Enums"]["cohort"]
+          created_at?: string
+          id?: string
+          plan_id: string
+        }
+        Update: {
+          cohort?: Database["public"]["Enums"]["cohort"]
+          created_at?: string
+          id?: string
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shelf_bundles_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_choices: {
         Row: {
           course_id: string
@@ -562,6 +640,10 @@ export type Database = {
         Args: { p_name: string; p_source_plan_id: string }
         Returns: string
       }
+      delete_shelf_bundle: {
+        Args: { p_plan_id: string; p_shelf_bundle_id: string }
+        Returns: undefined
+      }
       move_bundle_members: {
         Args: {
           p_cohort: Database["public"]["Enums"]["cohort"]
@@ -639,6 +721,52 @@ export type Database = {
       replace_course_teachers: {
         Args: { p_course_id: string; p_plan_id: string; p_teacher_ids: Json }
         Returns: undefined
+      }
+      shelve_bundle: {
+        Args: {
+          p_cohort: Database["public"]["Enums"]["cohort"]
+          p_day: number
+          p_period: number
+          p_plan_id: string
+        }
+        Returns: {
+          cohort: Database["public"]["Enums"]["cohort"]
+          created_at: string
+          id: string
+          plan_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shelf_bundles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      unshelve_bundle: {
+        Args: {
+          p_cohort: Database["public"]["Enums"]["cohort"]
+          p_plan_id: string
+          p_shelf_bundle_id: string
+          p_target_day: number
+          p_target_period: number
+        }
+        Returns: {
+          bundle_id: string
+          cohort: Database["public"]["Enums"]["cohort"]
+          course_id: string
+          created_at: string
+          day: number
+          id: string
+          period: number
+          plan_id: string
+          week: Database["public"]["Enums"]["placement_week"]
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "placements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
     }
     Enums: {

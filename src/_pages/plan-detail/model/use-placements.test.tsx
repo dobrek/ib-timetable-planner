@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
+import { deleteShelfBundle, shelveBundle, unshelveBundle } from "../api/shelf-client";
 import { EMPTY_AVAILABILITY_INDEX } from "./availability-index";
 import { biweekly, catalog, course, placement } from "./__fixtures__/builders";
 import { cellKey, deriveCellViolations } from "./collisions";
@@ -21,11 +22,19 @@ vi.mock("../api/placement-client", () => ({
   removeBundleMembers: vi.fn(),
   updatePlacementWeek: vi.fn(),
 }));
+vi.mock("../api/shelf-client", () => ({
+  shelveBundle: vi.fn(),
+  unshelveBundle: vi.fn(),
+  deleteShelfBundle: vi.fn(),
+}));
 
 const placeMock = vi.mocked(placeCourse);
 const moveMock = vi.mocked(moveBundleMembers);
 const removeMock = vi.mocked(removeBundleMembers);
 const updateWeekMock = vi.mocked(updatePlacementWeek);
+const shelveMock = vi.mocked(shelveBundle);
+const unshelveMock = vi.mocked(unshelveBundle);
+const deleteShelfMock = vi.mocked(deleteShelfBundle);
 
 const PLAN_ID = "plan-1";
 const COHORT: Cohort = "dp1";
@@ -70,6 +79,9 @@ function serverEcho(prefix = "srv"): void {
   );
   removeMock.mockResolvedValue(undefined);
   updateWeekMock.mockImplementation((id, week) => Promise.resolve({ id, courseId: "echo", day: 1, period: 1, week }));
+  shelveMock.mockImplementation((a) => Promise.resolve({ id: `shelf-${a.day}-${a.period}`, members: [] }));
+  unshelveMock.mockResolvedValue([]);
+  deleteShelfMock.mockResolvedValue(undefined);
 }
 
 const args = (
@@ -538,5 +550,195 @@ describe("usePlacements — addGroup week precedence", () => {
     });
     // oppositeWeekAssignment sorts ids then alternates: A → a, B → b.
     expect(weeksByCourse()).toEqual({ A: "a", B: "b" });
+  });
+});
+
+// The S-07 two-store atomic verbs: park/place-back mutate the board store AND the parked
+// store together; a failed RPC must roll BOTH back. Discard is parked-store-only.
+describe("usePlacements — shelveBundle (park)", () => {
+  const twoAtCell: PlannerPlacement[] = [placement("p1", "c1", 1, 1), placement("p2", "c2", 1, 1)];
+
+  it("removes the cell's placements and adds a pending parked card, then reconciles the card id", async () => {
+    const shelve = deferred<{ id: string; members: [] }>();
+    shelveMock.mockReturnValueOnce(shelve.promise);
+
+    const { result } = renderHook(() => usePlacements(twoAtCell, { ...args(), initialParked: [] }));
+
+    act(() => {
+      result.current.shelveBundle(1, 1);
+    });
+
+    // Two-store optimistic: placements gone, a pending card carrying the members present.
+    expect(result.current.placements).toHaveLength(0);
+    expect(result.current.parkedBundles).toHaveLength(1);
+    expect(result.current.parkedBundles[0].pending).toBe(true);
+    expect(result.current.parkedBundles[0].members.map((m) => m.courseId).sort()).toEqual(["c1", "c2"]);
+    const tempId = result.current.parkedBundles[0].id;
+
+    await act(async () => {
+      shelve.resolve({ id: "shelf-9", members: [] });
+      await shelve.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.parkedBundles[0].id).toBe("shelf-9");
+    });
+    expect(result.current.parkedBundles[0].id).not.toBe(tempId);
+    expect(result.current.parkedBundles[0].pending).toBeUndefined();
+    expect(shelveMock).toHaveBeenCalledWith(expect.objectContaining({ day: 1, period: 1 }));
+    expect(result.current.error).toBeNull();
+  });
+
+  it("rolls BOTH stores back when the shelve RPC rejects", async () => {
+    shelveMock.mockRejectedValueOnce(new Error("shelve boom"));
+
+    const { result } = renderHook(() => usePlacements(twoAtCell, { ...args(), initialParked: [] }));
+
+    act(() => {
+      result.current.shelveBundle(1, 1);
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+    expect(result.current.placements).toHaveLength(2); // restored
+    expect(result.current.parkedBundles).toHaveLength(0); // pending card dropped
+    expect(result.current.error).toEqual({ kind: "message", message: "shelve boom" });
+  });
+
+  it("is a no-op on an empty cell", () => {
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: [] }));
+    act(() => {
+      result.current.shelveBundle(3, 3);
+    });
+    expect(shelveMock).not.toHaveBeenCalled();
+    expect(result.current.parkedBundles).toHaveLength(0);
+  });
+});
+
+describe("usePlacements — placeBack", () => {
+  const parked = [
+    {
+      id: "s1",
+      members: [
+        { courseId: "c1", week: "both" as const },
+        { courseId: "c2", week: "both" as const },
+      ],
+    },
+  ];
+
+  it("removes the card and adds placements at the target, reconciling by courseId", async () => {
+    unshelveMock.mockResolvedValueOnce([
+      { id: "srv-1", courseId: "c1", day: 2, period: 2, week: "both", bundleId: "bundle-2-2" },
+      { id: "srv-2", courseId: "c2", day: 2, period: 2, week: "both", bundleId: "bundle-2-2" },
+    ]);
+
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: parked }));
+
+    act(() => {
+      result.current.placeBack("s1", { day: 2, period: 2 });
+    });
+
+    // Optimistic: card gone, two pending placements at the target.
+    expect(result.current.parkedBundles).toHaveLength(0);
+    expect(result.current.placements).toHaveLength(2);
+    expect(result.current.placements.every((p) => p.day === 2 && p.period === 2 && p.pending)).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.placements.every((p) => !p.pending)).toBe(true);
+    });
+    expect(result.current.placements.map((p) => p.id).sort()).toEqual(["srv-1", "srv-2"]);
+    expect(unshelveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ shelfBundleId: "s1", targetDay: 2, targetPeriod: 2 }),
+    );
+    expect(result.current.error).toBeNull();
+  });
+
+  it("drops a member already present at an occupied target from the optimistic add (merge, no duplicate)", async () => {
+    const seeded = [placement("existing", "c2", 2, 2)]; // c2 twin already at target
+    unshelveMock.mockResolvedValueOnce([
+      { id: "srv-1", courseId: "c1", day: 2, period: 2, week: "both", bundleId: "bundle-2-2" },
+      { id: "existing", courseId: "c2", day: 2, period: 2, week: "both", bundleId: "bundle-2-2" },
+    ]);
+
+    const { result } = renderHook(() => usePlacements(seeded, { ...args(), initialParked: parked }));
+
+    act(() => {
+      result.current.placeBack("s1", { day: 2, period: 2 });
+    });
+
+    // Only c1 added optimistically; c2's twin is untouched → exactly one c2 row, no duplicate.
+    expect(result.current.placements).toHaveLength(2);
+    expect(result.current.placements.filter((p) => p.courseId === "c2")).toHaveLength(1);
+
+    await waitFor(() => {
+      expect(result.current.placements.every((p) => !p.pending)).toBe(true);
+    });
+    expect(result.current.placements.filter((p) => p.courseId === "c2")).toHaveLength(1);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("rolls BOTH stores back when the unshelve RPC rejects", async () => {
+    unshelveMock.mockRejectedValueOnce(new Error("unshelve boom"));
+
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: parked }));
+
+    act(() => {
+      result.current.placeBack("s1", { day: 2, period: 2 });
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+    expect(result.current.parkedBundles).toHaveLength(1); // card restored
+    expect(result.current.parkedBundles[0].id).toBe("s1");
+    expect(result.current.placements).toHaveLength(0); // temp placements dropped
+    expect(result.current.error).toEqual({ kind: "message", message: "unshelve boom" });
+  });
+});
+
+describe("usePlacements — removeParked (discard)", () => {
+  const parked = [{ id: "s1", members: [{ courseId: "c1", week: "both" as const }] }];
+
+  it("discards the card optimistically and calls deleteShelfBundle", async () => {
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: parked }));
+
+    act(() => {
+      result.current.removeParked("s1");
+    });
+
+    expect(result.current.parkedBundles).toHaveLength(0); // optimistic
+    await waitFor(() => {
+      expect(deleteShelfMock).toHaveBeenCalled();
+    });
+    expect(deleteShelfMock).toHaveBeenCalledWith(expect.objectContaining({ shelfBundleId: "s1" }));
+    expect(result.current.error).toBeNull();
+  });
+
+  it("restores the card when the delete RPC rejects", async () => {
+    deleteShelfMock.mockRejectedValueOnce(new Error("discard boom"));
+
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: parked }));
+
+    act(() => {
+      result.current.removeParked("s1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+    expect(result.current.parkedBundles).toHaveLength(1);
+    expect(result.current.parkedBundles[0].id).toBe("s1");
+    expect(result.current.error).toEqual({ kind: "message", message: "discard boom" });
+  });
+
+  it("is a no-op for a pending card", () => {
+    const pendingParked = [{ id: "tmp", members: [{ courseId: "c1", week: "both" as const }], pending: true }];
+    const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: pendingParked }));
+    act(() => {
+      result.current.removeParked("tmp");
+    });
+    expect(deleteShelfMock).not.toHaveBeenCalled();
+    expect(result.current.parkedBundles).toHaveLength(1);
   });
 });

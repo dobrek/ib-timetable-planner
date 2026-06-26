@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { toast } from "sonner";
 import { cohortLabel, type PlacementWeek } from "@/shared/config";
-import { Toaster } from "@/shared/ui";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
@@ -33,7 +31,6 @@ import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
 import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
 import { oppositeWeekAssignment, placementErrorMessage } from "../model/placement-transitions";
-import { isCourseSetParked } from "../model/shelf-transitions";
 import type { ParkedMember } from "../model/parked";
 import { usePlacements } from "../model/use-placements";
 import { useExplodedCells } from "../model/use-exploded-cells";
@@ -160,20 +157,11 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     addGroup(grouping?.memberIds ?? [], cell, { oppositeWeek: grouping?.oppositeWeek ?? false });
   }
 
-  // Park a course-set onto the shelf. If an identical set is already parked, notify rather than
-  // duplicate it (the only entry point where the same unit can be parked twice). Mirrors the
-  // lift's auto-collapse so the drawer behaves the same however a bundle gets parked.
+  // Park a course-set onto the shelf. Re-dropping an already-parked set deliberately parks it
+  // again (a second card) — by author decision after user testing. Mirrors the lift's
+  // auto-collapse so the drawer behaves the same however a bundle gets parked.
   function parkToShelf(members: ParkedMember[]) {
     if (members.length === 0) return;
-    if (
-      isCourseSetParked(
-        parkedBundles,
-        members.map((member) => member.courseId),
-      )
-    ) {
-      toast("This bundle is already on the shelf");
-      return;
-    }
     parkMembers(members);
     collapseUnlessPinned();
   }
@@ -280,7 +268,6 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         onClose={inspection.close}
       />
       <GroupDragOverlay groupings={groupings} names={names} placements={placements} parkedBundles={parkedBundles} />
-      <Toaster />
     </DragDropProvider>
   );
 }

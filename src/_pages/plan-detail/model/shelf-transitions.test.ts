@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { LocalParkedBundle, ParkedMember } from "./parked";
 import type { LocalPlacement } from "./placement";
 import {
-  isCourseSetParked,
   membersAtCell,
   parkAddOptimistic,
   parkReconcile,
@@ -70,22 +69,6 @@ describe("unpark transitions", () => {
   it("unparkRollback restores the removed card", () => {
     const removed = card("s1", [member("X"), member("Y", "b")]);
     expect(unparkRollback([card("s2", [member("A")])], removed)).toEqual([card("s2", [member("A")]), removed]);
-  });
-});
-
-describe("isCourseSetParked", () => {
-  const prev = [card("s1", [member("A"), member("B")]), card("s2", [member("C")])];
-
-  it("matches an existing course-set regardless of order or week", () => {
-    expect(isCourseSetParked(prev, ["B", "A"])).toBe(true); // order-independent
-    expect(isCourseSetParked(prev, ["C"])).toBe(true);
-  });
-
-  it("does not match a different set (superset, subset, or disjoint)", () => {
-    expect(isCourseSetParked(prev, ["A"])).toBe(false); // subset of s1
-    expect(isCourseSetParked(prev, ["A", "B", "C"])).toBe(false); // superset
-    expect(isCourseSetParked(prev, ["D"])).toBe(false); // disjoint
-    expect(isCourseSetParked([], ["A"])).toBe(false); // empty shelf
   });
 });
 

@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-06-18
-updated: 2026-06-24
+updated: 2026-06-26
 prd_version: 1
 main_goal: quality
 top_blocker: decisions
@@ -35,7 +35,7 @@ The IB timetable editor shipped and was demoed to its plan authors. Design and t
 | S-04 | cohort-switching                     | open either cohort, switch freely; a teacher occupied in one cohort's slot/week blocks the other | S-02, S-03    | FR-005, FR-006, FR-012            | done |
 | S-05 | first-class-bundle-operations        | move / remove / replace a placed grouping as one bundle; ungroup to per-course still works | —             | FR-009, FR-010                    | done     |
 | S-06 | combined-two-cohort-view             | assemble & edit a collision-free DP1 \| DP2 plan side by side, validated across both cohorts | S-04, S-05    | FR-007, FR-008, FR-012, US-01     | proposed |
-| S-07 | bundle-holding-container             | lift a bundle off-board onto a holding shelf, then place it back later; survives refresh   | S-05          | FR-011, US-02                     | proposed |
+| S-07 | bundle-holding-container             | lift a bundle off-board onto a holding shelf, then place it back later; survives refresh   | S-05          | FR-011, US-02                     | done     |
 | S-08 | editing-undo-redo                    | undo / redo recent editing operations (move, remove, replace, ungroup, lift, place-back)   | S-05, S-07    | FR-013                            | blocked  |
 
 ## Streams
@@ -168,7 +168,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **Unknowns:**
   - Where a parked bundle persists for refresh-durability (a `holding` state on the bundle in Supabase vs. guarded `localStorage`) — Owner: dev. Block: no (note lessons.md: guard `localStorage` with try/catch, not just a `typeof window` check).
 - **Risk:** Depends only on bundle identity from S-05, so it runs in parallel with the constraint chain and the combined view. Lower correctness risk (a parked bundle is explicitly unvalidated), but the durability NFR (no silent loss of a parked bundle) is the load-bearing requirement. Sequenced after S-05 because lifting a bundle as a unit requires the first-class bundle to exist.
-- **Status:** proposed
+- **Status:** done
 
 ### S-08: Editing undo / redo
 
@@ -225,3 +225,4 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **S-02: assign two+ teachers to a course; both count as occupied for conflict + availability** — Archived 2026-06-21 → `context/archive/2026-06-20-co-teaching-teacher-sets/`. Lesson: —.
 - **S-03: mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot** — Archived 2026-06-21 → `context/archive/2026-06-21-bi-weekly-week-aware-validation/`. Lesson: —.
 - **S-05: A placed grouping is a first-class bundle the author can **move** (relocate all its courses atomically, re-validated at the destination, within its own cohort), **remove** (delete the whole bundle at once), or **replace** (swap its contents for a different compatible grouping on the same slot). Ungrouping to operate on individual courses — remove one course, move one course — keeps working exactly as today (the `slot_bundles` opt-out).** — Archived 2026-06-24 → `context/archive/2026-06-23-first-class-bundle-operations/`. Lesson: —.
+- **S-07: Author can lift a bundle off the board into a temporary holding container (a shelf that holds multiple parked bundles), rearrange the board, then drag a parked bundle back onto a now-suitable slot. A parked bundle is off-board — it holds no slot and is **not** validated while parked; collisions are evaluated only on drop-back, within its cohort's constraints. A parked bundle survives an accidental browser refresh or tab close.** — Archived 2026-06-26 → `context/archive/2026-06-26-bundle-holding-container/`. Lesson: —.

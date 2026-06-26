@@ -7,8 +7,8 @@ import { DomainError } from "@/shared/lib/errors";
 
 type Supabase = SupabaseClient;
 
-const dayField = z.int().min(1).max(GRID_BOUNDS.maxDays);
-const periodField = z.int().min(1).max(GRID_BOUNDS.maxPeriods);
+export const dayField = z.int().min(1).max(GRID_BOUNDS.maxDays);
+export const periodField = z.int().min(1).max(GRID_BOUNDS.maxPeriods);
 
 export const placeCourseInput = z.object({
   planId: z.uuid(),

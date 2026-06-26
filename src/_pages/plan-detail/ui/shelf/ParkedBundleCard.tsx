@@ -13,8 +13,9 @@ type Props = {
 };
 
 /**
- * A parked bundle card: the `GroupingBox` shell reused for the off-board unit, but **neutral and
- * flag-free** — a parked bundle isn't validated, so no collision flag, no A/B *toggle*, no
+ * A parked bundle card: a standalone component that **mirrors `GroupingBox`'s layout/classes** for
+ * the off-board unit (not the same component), as a **neutral, week-aware variant** — a parked
+ * bundle isn't validated, so no collision flag, no A/B *toggle*, no
  * `aria-invalid`. It is **week-aware** though: it carries each member's parked A/B week, so the
  * card surfaces an "A/B" summary badge and a per-member week tag (a read-only formation cue, not a
  * control). The redundant "N courses" count is dropped — the member rows already show it. The whole

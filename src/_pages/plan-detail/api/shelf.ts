@@ -1,16 +1,12 @@
 import { z } from "zod";
-import { toPlannerPlacement } from "./placements";
+import { dayField, periodField, toPlannerPlacement } from "./placements";
 import type { ParkedBundle } from "../model/parked";
 import type { PlannerPlacement } from "../model/placement";
 import type { SupabaseClient } from "@/shared/api";
 import { cohortSchema, placementWeekSchema } from "@/shared/config";
-import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
 
 type Supabase = SupabaseClient;
-
-const dayField = z.int().min(1).max(GRID_BOUNDS.maxDays);
-const periodField = z.int().min(1).max(GRID_BOUNDS.maxPeriods);
 
 /** Lift the bundle at a cell off the board into the shelf. */
 export const shelveBundleInput = z.object({

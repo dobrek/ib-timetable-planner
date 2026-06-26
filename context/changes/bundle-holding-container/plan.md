@@ -479,6 +479,18 @@ Five additive migrations (shelf tables, `shelve_bundle`, `unshelve_bundle`, `del
 - Drag dispatch: `src/_pages/plan-detail/ui/PlannerBoard.tsx:97-119`
 - UI seams: `SlotHeader.tsx`, `GroupingBox.tsx`, `PlannerPalette.tsx`, `PlanSummaryBar.tsx`, `GroupDragOverlay.tsx`, `lib/drag-hint-mode.ts`
 
+## Delta from plan (post-implementation)
+
+Built after the four planned phases (PR #62 author-review refinements; also recorded in `change.md`). Promoted here so the plan stays the ground truth.
+
+- **Direct-park: park a palette grouping straight onto the shelf** (no board round-trip). Adds a **6th migration** `supabase/migrations/20260626120005_shelve_courses_fn.sql` — `shelve_courses(p_plan_id, p_cohort, p_course_ids uuid[], p_weeks placement_week[]) returns public.shelf_bundles`, the off-board analogue of `shelve_bundle` (takes the `(course, week)` set explicitly via `unnest`, since a palette grouping has no placements to read). Same posture: `security invoker`, `set search_path = ''`, `public.`-qualified. This revises "Five additive migrations" (Migration Notes) → **six**.
+- **`parkMembers` verb** on `use-placements.ts` — a shelf-store-only optimistic add (no board placements touched) backing the `course→shelf` / `grouping→shelf` drop dispatch in `PlannerBoard.tsx`. Wired through `shelf.ts` (`shelveCourses` domain fn + `shelveCoursesInput`), `shelf-actions.ts`, `shelf-client.ts`.
+- **`drop-hints.ts`** gains a `case "parked": return null` — parked cards carry no drag hints; place-back re-validates on drop. (Out of the original plan's file list.)
+- **2nd E2E spec** in `e2e/specs/shelf-durability.spec.ts` — palette grouping parks directly, and a re-drop of an already-parked bundle intentionally parks a **second copy** (the documented revert of the dedup guard; see `change.md`).
+- **Drawer/card polish** (see `change.md` for the full rationale): `ShelfDrawer` refactored to one persistent `<aside>` with a `w-9 ↔ w-60` width transition; board grid `1fr → minmax(0,1fr)` to stop the shelf column being cropped; parked card + drag ghost sized to board-chip metrics (`text-xs`); the parked card's "N courses" header replaced with a week-aware A/B summary badge + per-member week tag.
+
+This does **not** add the out-of-scope "clear shelf" / "place all back" bulk action — direct-park is still single-unit.
+
 ## Progress
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles. See `references/progress-format.md`.

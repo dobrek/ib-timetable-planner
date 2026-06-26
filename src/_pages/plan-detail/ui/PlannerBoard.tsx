@@ -211,7 +211,13 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
           cohort={cohort}
         />
 
-        <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[18rem_1fr_auto]">
+        {/* `minmax(0,1fr)` on the board column (not bare `1fr`, whose min is min-content): lets the
+            timetable track shrink + scroll instead of forcing the grid wider than the viewport — so
+            the `auto` shelf column is never cropped when both the sidebar and shelf are expanded. */}
+        <div
+          data-slot="planner-board"
+          className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[18rem_minmax(0,1fr)_auto]"
+        >
           {paletteView === "stale" ? (
             <GroupingStalePanel planId={planId} cohort={cohort} />
           ) : (

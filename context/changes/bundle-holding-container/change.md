@@ -20,3 +20,13 @@ Author review of the shipped feature surfaced six follow-ups, all addressed on t
 3. A palette grouping (or promoted single course) can be parked **directly** by dragging it onto the shelf — new `shelve_courses` RPC + `parkMembers` verb (no board round-trip).
 4. The collapse button is disabled while the drawer is pinned (was a confusing silent no-op).
 5. ~~Parking a course-set already on the shelf notifies instead of duplicating~~ — **reverted after user testing**: dropping an already-parked bundle intentionally parks a second copy (duplicates). The dedup guard + toast were removed.
+
+### Drawer polish — collapse/expand animation + grid overflow fix
+
+Follow-up UI pass on the shelf drawer:
+
+- **`ShelfDrawer` refactored to one persistent `<aside>`.** Previously two separate `return` branches each hand-rolled the aside shell (ref, `data-slot`, `aria-label`, base styles, drop ring), which duplicated markup *and* meant the open/closed states mounted as different trees — nothing to animate. Now a single aside with the **same width-transition recipe as `SidebarLayout`'s rail** (`overflow-hidden transition-[width] duration-200 motion-reduce:transition-none`) animates `w-9 ↔ w-60`. The collapsed tab and expanded body both stay mounted and toggle via their display class (`hidden`/`flex`) rather than the HTML `hidden` attribute — a `.flex` utility would override `[hidden]` and leave the tab visible. Why: the user asked for collapse/expand animation; reusing the sidebar pattern keeps it consistent and drops the shell duplication at the same time.
+
+- **Board grid `1fr` → `minmax(0,1fr)`** (`PlannerBoard.tsx`). With the left sidebar expanded *and* the shelf expanded, the shelf was cropped off the viewport. A bare `1fr` is `minmax(auto, 1fr)`, so the timetable column couldn't shrink below its min-content and forced the grid wider than `<main>` (`overflow-hidden`), clipping the rightmost (shelf) column. `minmax(0,1fr)` lets the timetable track shrink and scroll inside its own `overflow-auto` wrapper, so the fixed palette and `auto` shelf column always stay on-screen.
+
+Verified: lint, steiger, `pnpm build` (types) clean. Shelf E2E DOM/a11y contract unchanged (`aria-label="Shelf"`, the `Open shelf (N parked)` tab label, pin/collapse buttons, `data-slot`/`data-expanded` hooks all preserved).

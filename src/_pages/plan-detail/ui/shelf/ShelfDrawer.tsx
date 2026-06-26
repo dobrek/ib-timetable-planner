@@ -18,13 +18,21 @@ type Props = {
   onRemoveParked: (shelfBundleId: string) => void;
 };
 
+/** Shared recipe for the two header icon buttons (pin, collapse) — mirrors `SidebarLayout`'s rail. */
+const SHELF_ICON_BUTTON = "text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded";
+
 /**
  * The collapsible right-edge shelf drawer (3rd grid column). The whole aside is the island-wide
  * `shelf` droppable, so dragging a bundle onto it (even the collapsed tab) parks it — the board's
- * drop dispatch guards the target kind. Idle it is a thin tab showing the parked count; expanding
- * reflows the grid **once** (the `auto` grid column widens) — never mid-drag, so a parked card can
- * be dragged *out* onto a still-visible slot. Mirrors `PlannerPalette`'s aside structure
- * (shrink-0 header / min-h-0 flex-1 overflow-y-auto list). Neutral, semantic tokens only.
+ * drop dispatch guards the target kind. Idle it is a thin tab showing the parked count.
+ *
+ * One persistent `<aside>` whose width animates between the thin tab (`w-9`) and the open drawer
+ * (`w-60`), mirroring `SidebarLayout`'s rail (`overflow-hidden transition-[width] duration-200
+ * motion-reduce:transition-none`). Both the collapsed tab and the expanded body stay mounted and are
+ * toggled by their display class, so the swap never remounts — the box just animates and clips. The
+ * 3rd grid track is `auto`, so it tracks this width and the board reflows in step. That reflow only
+ * ever fires on a click (expand) or after a drop (auto-collapse), never mid-drag — so a parked card
+ * can still be dragged *out* onto a slot that stays visible. Neutral, semantic tokens only.
  */
 export default function ShelfDrawer({
   parkedBundles,
@@ -38,45 +46,83 @@ export default function ShelfDrawer({
   const { ref, isDropTarget } = useDroppable<ShelfData>({ id: "shelf", data: { kind: "shelf" } });
   const count = parkedBundles.length;
 
-  if (!expanded) {
-    return (
-      <aside
-        ref={ref}
-        data-slot="shelf-drawer"
-        data-expanded="false"
-        aria-label="Shelf"
-        className={cn(
-          "bg-background flex w-9 shrink-0 flex-col items-center rounded-lg border",
-          isDropTarget && "ring-ring ring-2",
-        )}
-      >
-        <button
-          type="button"
-          data-slot="shelf-expand"
-          aria-label={`Open shelf (${count} parked)`}
-          onClick={() => {
-            onExpandedChange(true);
-          }}
-          className="text-muted-foreground hover:text-foreground flex flex-1 flex-col items-center gap-2 py-3"
-        >
-          <Inbox className="size-4" />
-          <span className="text-xs font-medium tabular-nums">{count}</span>
-        </button>
-      </aside>
-    );
-  }
-
   return (
     <aside
       ref={ref}
       data-slot="shelf-drawer"
-      data-expanded="true"
+      data-expanded={expanded}
       aria-label="Shelf"
       className={cn(
-        "bg-background flex max-h-full min-h-0 w-60 shrink-0 flex-col gap-3 rounded-lg border p-3",
+        "bg-background flex max-h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-lg border",
+        "transition-[width] duration-200 motion-reduce:transition-none",
+        expanded ? "w-60" : "w-9",
         isDropTarget && "ring-ring ring-2",
       )}
     >
+      <CollapsedTab
+        count={count}
+        hidden={expanded}
+        onExpand={() => {
+          onExpandedChange(true);
+        }}
+      />
+      <ExpandedShelf
+        hidden={!expanded}
+        count={count}
+        pinned={pinned}
+        parkedBundles={parkedBundles}
+        names={names}
+        onPinnedChange={onPinnedChange}
+        onExpandedChange={onExpandedChange}
+        onRemoveParked={onRemoveParked}
+      />
+    </aside>
+  );
+}
+
+/** Idle state: a full-height tab showing the parked count; the whole thing expands the drawer. */
+function CollapsedTab({ count, hidden, onExpand }: { count: number; hidden: boolean; onExpand: () => void }) {
+  return (
+    <button
+      type="button"
+      data-slot="shelf-expand"
+      aria-label={`Open shelf (${count} parked)`}
+      onClick={onExpand}
+      // Toggle display via the class (not the `hidden` attr): a `.flex` utility would override
+      // `[hidden]` and keep the tab on screen. `hidden` drops it from layout and the a11y tree.
+      className={cn(
+        "text-muted-foreground hover:text-foreground flex-col items-center gap-2 py-3",
+        hidden ? "hidden" : "flex flex-1",
+      )}
+    >
+      <Inbox className="size-4" />
+      <span className="text-xs font-medium tabular-nums">{count}</span>
+    </button>
+  );
+}
+
+/** Open state: header (count, pin, collapse) over the scrollable list of parked bundles. */
+function ExpandedShelf({
+  hidden,
+  count,
+  pinned,
+  parkedBundles,
+  names,
+  onPinnedChange,
+  onExpandedChange,
+  onRemoveParked,
+}: {
+  hidden: boolean;
+  count: number;
+  pinned: boolean;
+  parkedBundles: LocalParkedBundle[];
+  names: Record<string, string>;
+  onPinnedChange: (pinned: boolean) => void;
+  onExpandedChange: (expanded: boolean) => void;
+  onRemoveParked: (shelfBundleId: string) => void;
+}) {
+  return (
+    <div className={cn("min-h-0 flex-1 flex-col gap-3 p-3", hidden ? "hidden" : "flex")}>
       <header className="flex shrink-0 items-center gap-2 text-sm font-medium">
         <Inbox className="text-muted-foreground size-4" />
         <span>Shelf</span>
@@ -94,7 +140,7 @@ export default function ShelfDrawer({
             onClick={() => {
               onPinnedChange(!pinned);
             }}
-            className="text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded"
+            className={SHELF_ICON_BUTTON}
           >
             {pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
           </Button>
@@ -111,7 +157,7 @@ export default function ShelfDrawer({
             onClick={() => {
               onExpandedChange(false);
             }}
-            className="text-muted-foreground hover:bg-accent hover:text-accent-foreground size-5 rounded disabled:pointer-events-none disabled:opacity-40"
+            className={cn(SHELF_ICON_BUTTON, "disabled:pointer-events-none disabled:opacity-40")}
           >
             <ChevronRight className="size-3.5" />
           </Button>
@@ -128,6 +174,6 @@ export default function ShelfDrawer({
           ))
         )}
       </div>
-    </aside>
+    </div>
   );
 }

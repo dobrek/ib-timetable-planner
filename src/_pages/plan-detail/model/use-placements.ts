@@ -139,7 +139,8 @@ export function usePlacements(
   // The missing third whole-slot verb. Reads the source cell's occupants (and their weeks),
   // runs the pure conflict-free search (a COPY context — the source stays on the board), and
   // either fans the member-set out at the target with the source weeks mirrored or sets the
-  // message error. On success it publishes the target (fresh nonce) so the board scrolls + pulses.
+  // message error. On dispatch it publishes the target (fresh nonce) so the board pulses it —
+  // optimistically, before the fan-out settles (a fully-failed copy briefly pulses the emptied cell).
   function duplicateBundle(day: number, period: number) {
     const occupants = placementsRef.current.filter((p) => p.day === day && p.period === period);
     if (occupants.length === 0) return; // empty-source no-op

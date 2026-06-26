@@ -23,7 +23,7 @@ type CellWiring = {
   hintMode: HintMode;
   /** Is `(day, period)` currently exploded (ungrouped view)? Drives the per-cell `bundled` derivation. */
   isExploded: (day: number, period: number) => boolean;
-  /** The cell a duplicate just landed on (with a nonce), or null; the matching cell pulses + scrolls. */
+  /** The cell a duplicate just landed on (with a nonce), or null; the matching cell pulses. */
   justDuplicated: (CellData & { nonce: number }) | null;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;

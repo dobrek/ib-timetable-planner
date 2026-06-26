@@ -17,7 +17,8 @@ import {
 //
 // Coverage (plan.md Phase 1 #6): round-trip (shelve tears down placements + empties the
 // bundle row; unshelve restores with a fresh bundle_id), merge-onto-occupied, cohort-scope
-// isolation, clone carries the shelf under fresh ids, A/B week fidelity, and discard
+// isolation, cohort-integrity (unshelve places into the shelf's OWN stored cohort, never the
+// caller's), clone carries the shelf under fresh ids, A/B week fidelity, and discard
 // (delete_shelf_bundle cascades its courses and is plan-/cohort-scoped).
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -201,6 +202,25 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       .eq("plan_id", planId)
       .eq("cohort", "dp1");
     expect((dp1Rows ?? []).some((r) => r.id === dp1Shelf.id)).toBe(true);
+  });
+
+  it("cohort-integrity: unshelve places the bundle into its OWN stored cohort, ignoring a wrong caller cohort", async () => {
+    // Park a dp1 bundle, then place it back with the WRONG caller cohort (dp2). Because
+    // place_course does not couple a course to a cohort, a trusted p_cohort would land the
+    // dp1 course on the dp2 board. unshelve_bundle must derive the cohort from the shelf row,
+    // so the bundle returns to dp1 regardless of what the caller passes (the S-06 safety net).
+    await place(6, 1, courseA, undefined, "dp1");
+    const shelf = await shelve(6, 1, "dp1");
+    expect(shelf.cohort).toBe("dp1");
+
+    const restored = await unshelve(shelf.id, 6, 2, "dp2"); // caller lies: passes dp2
+    expect(restored).toHaveLength(1);
+    expect(restored.every((p) => p.cohort === "dp1")).toBe(true);
+
+    // Landed on dp1 (the shelf's stored cohort), never on dp2 (the wrong caller cohort).
+    expect(await placementsAt(6, 2, "dp1")).toHaveLength(1);
+    expect(await placementsAt(6, 2, "dp2")).toHaveLength(0);
+    expect(await shelfBundleExists(shelf.id)).toBe(false);
   });
 
   it("week fidelity: an A/B parked course round-trips its week", async () => {

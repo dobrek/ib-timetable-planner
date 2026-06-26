@@ -72,13 +72,28 @@ test.describe("bundle holding container (shelf)", () => {
 
 // --- Shelf locators + gestures (local to this first shelf spec; promote on a second consumer) ---
 
-/** The cell's "Lift to shelf" control. `force` for the same dnd-kit aria-disabled inheritance reason as duplicateInto. */
+/**
+ * Lift the bundle at `slot` to the shelf via its header control, then wait for the cell to empty.
+ * Idempotent + retried like the other board verbs: `shelveBundle` is a no-op while the just-placed
+ * occupants are still optimistically `pending`, so retry the click until the source clears, skipping
+ * once it is already empty (no header → no lift button). `force` for the same dnd-kit aria-disabled
+ * inheritance reason as `duplicateInto`.
+ */
 async function liftToShelf(page: Page, slot: string): Promise<void> {
-  await cell(page, slot).getByRole("button", { name: "Lift to shelf", exact: true }).click({ force: true });
+  const liftButton = cell(page, slot).getByRole("button", { name: "Lift to shelf", exact: true });
+  await expect(async () => {
+    if ((await liftButton.count()) === 0) return; // already lifted → cell empty
+    await liftButton.click({ force: true });
+    await expect(cell(page, slot).getByRole("button")).toHaveCount(0, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
-/** The always-visible "N parked" summary-bar cue (also the expand affordance). Absent when nothing is parked. */
-const parkedBadge = (page: Page) => page.getByRole("button", { name: /\d+ parked/ });
+/**
+ * The always-visible "N parked" summary-bar cue (also the expand affordance). Absent when nothing
+ * is parked. Anchored at the start (`"1 parked — open shelf"`) so it never matches the collapsed
+ * drawer tab (`"Open shelf (1 parked)"`).
+ */
+const parkedBadge = (page: Page) => page.getByRole("button", { name: /^\d+ parked/ });
 
 /** The expanded shelf drawer is a named complementary landmark; the parked card carries its roledescription. */
 const parkedCard = (page: Page) =>

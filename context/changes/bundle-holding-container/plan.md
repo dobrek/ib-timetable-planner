@@ -487,16 +487,16 @@ Five additive migrations (shelf tables, `shelve_bundle`, `unshelve_bundle`, `del
 
 #### Automated
 
-- [ ] 1.1 Migrations apply cleanly: `pnpm exec supabase db reset`
-- [ ] 1.2 Generated `Database` types include the new tables
-- [ ] 1.3 Type checking passes: `pnpm check`
-- [ ] 1.4 Integration tests pass: `pnpm test:integration`
-- [ ] 1.5 Linting passes: `pnpm lint`
+- [x] 1.1 Migrations apply cleanly: `pnpm exec supabase db reset`
+- [x] 1.2 Generated `Database` types include the new tables
+- [x] 1.3 Type checking passes: `pnpm check`
+- [x] 1.4 Integration tests pass: `pnpm test:integration`
+- [x] 1.5 Linting passes: `pnpm lint`
 
 #### Manual
 
-- [ ] 1.6 `db advisors` clean + `has_table_privilege('anon', …)` is false on shelf tables
-- [ ] 1.7 Manual `shelve_bundle` / `unshelve_bundle` in Studio behaves correctly
+- [x] 1.6 `db advisors` clean + `has_table_privilege('anon', …)` is false on shelf tables
+- [x] 1.7 Manual `shelve_bundle` / `unshelve_bundle` in Studio behaves correctly
 
 ### Phase 2: Transport & load — actions, client, server read
 

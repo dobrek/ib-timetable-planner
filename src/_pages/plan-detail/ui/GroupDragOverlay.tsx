@@ -46,14 +46,14 @@ export default function GroupDragOverlay({ groupings, names, placements, parkedB
 
 function OverlayCard({ memberIds, names }: { memberIds: string[]; names: Record<string, string> }) {
   return (
-    <div data-slot="group-drag-overlay" className="bg-background w-64 rounded-lg border shadow-lg">
-      <div className="flex items-center gap-2 px-3 py-2 text-sm font-medium">
+    <div data-slot="group-drag-overlay" className="bg-background w-56 rounded-lg border shadow-lg">
+      <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium">
         <GripVertical className="text-muted-foreground size-4" />
         <span>{memberIds.length} courses</span>
       </div>
       <ul className="space-y-1 px-2 pb-2">
         {memberIds.map((courseId) => (
-          <li key={courseId} className="truncate rounded-md border px-2 py-1.5 text-sm">
+          <li key={courseId} className="truncate rounded-md border px-1.5 py-1 text-xs">
             {names[courseId] ?? courseId}
           </li>
         ))}

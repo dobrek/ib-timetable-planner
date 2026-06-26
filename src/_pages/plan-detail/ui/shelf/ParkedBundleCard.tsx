@@ -40,7 +40,7 @@ export default function ParkedBundleCard({ bundle, names, onRemove }: Props) {
         (bundle.pending === true || isDragging) && "opacity-60",
       )}
     >
-      <div className="flex items-center gap-2 px-3 py-2 text-sm font-medium">
+      <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium">
         <GripVertical className="text-muted-foreground size-4" />
         {weekAware && (
           <Badge data-slot="parked-week-badge" variant="secondary" title="Members run on specific weeks (A/B)">
@@ -64,7 +64,7 @@ export default function ParkedBundleCard({ bundle, names, onRemove }: Props) {
       </div>
       <ul className="space-y-1 px-2 pb-2">
         {bundle.members.map((member) => (
-          <li key={member.courseId} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
+          <li key={member.courseId} className="flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs">
             <span className="truncate">{names[member.courseId] ?? member.courseId}</span>
             <WeekTag week={member.week} />
           </li>

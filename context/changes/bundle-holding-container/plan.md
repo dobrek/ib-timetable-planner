@@ -523,17 +523,17 @@ Five additive migrations (shelf tables, `shelve_bundle`, `unshelve_bundle`, `del
 
 #### Automated
 
-- [x] 4.1 Type checking passes: `pnpm check`
-- [x] 4.2 Linting + FSD structure pass: `pnpm lint` && `pnpm steiger`
-- [x] 4.3 Build is clean: `pnpm build`
-- [x] 4.4 Unit suite green: `pnpm test`
-- [x] 4.5 Durability E2E passes: `pnpm test:e2e`
+- [x] 4.1 Type checking passes: `pnpm check` — b3c47dc
+- [x] 4.2 Linting + FSD structure pass: `pnpm lint` && `pnpm steiger` — b3c47dc
+- [x] 4.3 Build is clean: `pnpm build` — b3c47dc
+- [x] 4.4 Unit suite green: `pnpm test` — b3c47dc
+- [x] 4.5 Durability E2E passes: `pnpm test:e2e` — b3c47dc
 
 #### Manual
 
-- [x] 4.6 Lift via button and via drag-to-edge both park; badge increments
-- [x] 4.7 Drawer expands and reflows the grid once (no mid-drag shift); all cells reachable
-- [x] 4.8 Drag-back onto empty places; onto occupied merges with accept-and-flag
-- [x] 4.9 Reload preserves parked bundles; cohort switch shows only that cohort's set
-- [x] 4.10 Pinned drawer persists across actions; Safari private mode degrades silently
-- [x] 4.11 Parked card uses neutral tokens; light/dark both correct
+- [x] 4.6 Lift via button and via drag-to-edge both park; badge increments — b3c47dc
+- [x] 4.7 Drawer expands and reflows the grid once (no mid-drag shift); all cells reachable — b3c47dc
+- [x] 4.8 Drag-back onto empty places; onto occupied merges with accept-and-flag — b3c47dc
+- [x] 4.9 Reload preserves parked bundles; cohort switch shows only that cohort's set — b3c47dc
+- [x] 4.10 Pinned drawer persists across actions; Safari private mode degrades silently — b3c47dc
+- [x] 4.11 Parked card uses neutral tokens; light/dark both correct — b3c47dc

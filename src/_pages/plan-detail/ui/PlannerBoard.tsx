@@ -14,12 +14,14 @@ import GroupingStalePanel from "./GroupingStalePanel";
 import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
+import ShelfDrawer from "./shelf/ShelfDrawer";
 import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../lib/drag-hint-mode";
+import { DEFAULT_SHELF_PINNED, readShelfPinned, subscribeShelfPinned, writeShelfPinned } from "../lib/shelf-pinned";
 import { buildAvailabilityIndex } from "../model/availability-index";
 import type { AvailabilityIndex } from "../model/availability-index";
 import { buildCrossCohortIndex } from "../model/cross-cohort-index";
 import type { CrossCohortIndex } from "../model/cross-cohort-index";
-import type { CellData, DragData, PlannerBoardProps } from "../model/drag";
+import type { CellData, DragData, DropTargetData, PlannerBoardProps, ShelfData } from "../model/drag";
 import { cellKey, deriveCellViolations } from "../model/collisions";
 import type { CellCollisions } from "../model/collisions";
 import { deriveDropHints, resolveDragHintContext } from "../model/drop-hints";
@@ -59,6 +61,10 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     moveBundle,
     removeBundle,
     duplicateBundle,
+    parkedBundles,
+    shelveBundle,
+    placeBack,
+    removeParked,
     clearError,
   } = usePlacements(props.placements, {
     planId,
@@ -71,6 +77,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     periods,
     initialParked: props.parkedBundles,
   });
+  const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
   const justDuplicated = useDuplicateHighlight(lastDuplicated);
   const { isExploded, toggleExploded } = useExplodedCells();
   const collisions = useCollisions(placements, catalogById, availabilityIndex, crossCohortIndex);
@@ -102,21 +109,39 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     if (!source || !target) return; // dropped outside any cell — no-op (removal is via "×")
 
     const data = source.data as DragData;
-    const cell = target.data as CellData;
+    const targetData = target.data as DropTargetData;
+    // The shelf droppable is island-wide, so dnd-kit can route ANY draggable onto it; resolve a
+    // concrete cell only when the target is a cell, and guard each source kind on the target kind.
+    const cell = isShelfTarget(targetData) ? null : targetData;
     switch (data.kind) {
       case "course":
-        addCourse(data.courseId, cell);
+        if (cell) addCourse(data.courseId, cell);
         break;
       case "placement":
-        movePlacement(data.placementId, cell);
+        if (cell) movePlacement(data.placementId, cell);
         break;
       case "grouping":
-        dropGroup(data.groupingId, cell);
+        if (cell) dropGroup(data.groupingId, cell);
         break;
       case "bundle":
-        moveBundle(data.day, data.period, cell);
+        // Onto a cell → move/merge; onto the shelf → lift the whole bundle off the board.
+        if (cell) moveBundle(data.day, data.period, cell);
+        else liftBundle(data.day, data.period);
+        break;
+      case "parked":
+        // Onto a cell → place the parked bundle back (merge if occupied); onto the shelf → no-op.
+        if (cell) {
+          placeBack(data.shelfBundleId, cell);
+          collapseUnlessPinned();
+        }
         break;
     }
+  }
+
+  // Lift the bundle at a cell to the shelf (the button affordance and drag-to-shelf both call this).
+  function liftBundle(day: number, period: number) {
+    shelveBundle(day, period);
+    collapseUnlessPinned();
   }
 
   // Unknown groupingId → empty member list → no-op. An opposite-week grouping lands its members
@@ -144,9 +169,18 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
   return (
     <DragDropProvider plugins={PLUGINS} onDragStart={handleDragStart} onDragEnd={handleDrop}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <PlanSummaryBar planName={planName} incompleteCount={incompleteCount} planId={planId} cohort={cohort} />
+        <PlanSummaryBar
+          planName={planName}
+          incompleteCount={incompleteCount}
+          parkedCount={parkedBundles.length}
+          onExpandShelf={() => {
+            setExpanded(true);
+          }}
+          planId={planId}
+          cohort={cohort}
+        />
 
-        <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[18rem_1fr]">
+        <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[18rem_1fr_auto]">
           {paletteView === "stale" ? (
             <GroupingStalePanel planId={planId} cohort={cohort} />
           ) : (
@@ -175,10 +209,21 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
                 onToggleBundle={toggleExploded}
                 onRemoveBundle={removeBundle}
                 onDuplicateBundle={duplicateBundle}
+                onLiftBundle={liftBundle}
                 onInspect={inspection.open}
               />
             </div>
           </div>
+
+          <ShelfDrawer
+            parkedBundles={parkedBundles}
+            names={names}
+            expanded={shelfExpanded}
+            pinned={pinned}
+            onExpandedChange={setExpanded}
+            onPinnedChange={setPinned}
+            onRemoveParked={removeParked}
+          />
         </div>
       </div>
       <CollisionDetailsDialog
@@ -191,7 +236,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         cohort={cohort}
         onClose={inspection.close}
       />
-      <GroupDragOverlay groupings={groupings} names={names} placements={placements} />
+      <GroupDragOverlay groupings={groupings} names={names} placements={placements} parkedBundles={parkedBundles} />
     </DragDropProvider>
   );
 }
@@ -278,6 +323,28 @@ function useHintMode() {
   const hintMode = useSyncExternalStore(subscribeHintMode, readHintMode, () => DEFAULT_HINT_MODE);
   return { hintMode, setHintMode: writeHintMode };
 }
+
+// Owns the shelf drawer's open/closed disclosure. `pinned` is the per-device persisted pref
+// (useSyncExternalStore: server snapshot = default, so hydration can't mismatch); `expanded` is
+// the runtime toggle. A pinned drawer is always open and never auto-collapses; lift / place-back
+// collapse it only when not pinned. The grid reflows once when `shelfExpanded` flips — and only on
+// these explicit toggles, never mid-drag (no drag mutates this state).
+function useShelfDisclosure() {
+  const pinned = useSyncExternalStore(subscribeShelfPinned, readShelfPinned, () => DEFAULT_SHELF_PINNED);
+  const [expanded, setExpanded] = useState(false);
+  return {
+    shelfExpanded: expanded || pinned,
+    pinned,
+    setExpanded,
+    setPinned: writeShelfPinned,
+    collapseUnlessPinned: () => {
+      if (!pinned) setExpanded(false);
+    },
+  };
+}
+
+/** Discriminate the drop target: the shelf droppable carries `{kind:"shelf"}`; a cell carries `{day,period}` (no `kind`). */
+const isShelfTarget = (target: DropTargetData): target is ShelfData => "kind" in target;
 
 function useCollisionInspection(collisions: Map<string, CellCollisions>) {
   const [target, setTarget] = useState<CollisionInspectionTarget | null>(null);

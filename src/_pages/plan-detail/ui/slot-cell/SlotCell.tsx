@@ -35,6 +35,7 @@ type Props = {
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
   onDuplicateBundle: (day: number, period: number) => void;
+  onLiftBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 };
 
@@ -62,6 +63,7 @@ export default function SlotCell({
   onToggleBundle,
   onRemoveBundle,
   onDuplicateBundle,
+  onLiftBundle,
   onInspect,
 }: Props) {
   const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled);
@@ -123,6 +125,7 @@ export default function SlotCell({
           duplicateLabel={duplicateLabel}
           onToggleBundle={onToggleBundle}
           onDuplicateBundle={onDuplicateBundle}
+          onLiftBundle={onLiftBundle}
           onRemoveBundle={onRemoveBundle}
         />
       )}

@@ -11,10 +11,16 @@ export type PlacementDrag = { kind: "placement"; placementId: string; courseId: 
 export type GroupDrag = { kind: "grouping"; groupingId: string };
 /** Whole-slot drag: moves every placement at the source cell as one unit. */
 export type BundleDrag = { kind: "bundle"; day: number; period: number };
-export type DragData = CourseDrag | PlacementDrag | GroupDrag | BundleDrag;
+/** A parked (shelved) card dragged back toward a slot (S-07 place-back). */
+export type ParkedDrag = { kind: "parked"; shelfBundleId: string };
+export type DragData = CourseDrag | PlacementDrag | GroupDrag | BundleDrag | ParkedDrag;
 
 /** Drop payload carried on a cell droppable's `data`. */
 export type CellData = { day: number; period: number };
+/** Drop payload carried on the island-wide shelf droppable's `data` (S-07 lift). */
+export type ShelfData = { kind: "shelf" };
+/** The drop-target union the board's drop handler discriminates: a cell or the shelf. */
+export type DropTargetData = CellData | ShelfData;
 
 /** Props assembled server-side in `plans/[id]/index.astro` and handed to the island. */
 export type PlannerBoardProps = {

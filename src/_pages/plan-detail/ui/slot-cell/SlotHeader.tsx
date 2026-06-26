@@ -1,4 +1,4 @@
-import { Copy, Link, Trash2, Unlink } from "lucide-react";
+import { Copy, Inbox, Link, Trash2, Unlink } from "lucide-react";
 import { SlotHeaderButton } from "./SlotHeaderButton";
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
   duplicateLabel: string;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onDuplicateBundle: (day: number, period: number) => void;
+  onLiftBundle: (day: number, period: number) => void;
   onRemoveBundle: (day: number, period: number) => void;
 };
 
@@ -29,6 +30,7 @@ export function SlotHeader({
   duplicateLabel,
   onToggleBundle,
   onDuplicateBundle,
+  onLiftBundle,
   onRemoveBundle,
 }: Props) {
   return (
@@ -55,6 +57,15 @@ export function SlotHeader({
           }}
         >
           <Copy className="size-3.5" />
+        </SlotHeaderButton>
+        <SlotHeaderButton
+          dataSlot="lift-to-shelf"
+          label="Lift to shelf"
+          onClick={() => {
+            onLiftBundle(day, period);
+          }}
+        >
+          <Inbox className="size-3.5" />
         </SlotHeaderButton>
         {bundled && (
           <SlotHeaderButton

@@ -380,6 +380,10 @@ None. No schema or migration changes — the combined loader reads existing tabl
 - Parity harness + S-06 todo: `src/_pages/plan-detail/model/collision-parity.test.ts:395`
 - Forward-compat trap: `context/archive/2026-06-22-cohort-switching/research.md:147`
 
+## Addenda (post-plan)
+
+- **Phase 2 §3 — combined-view entry became a 3-way switcher tab, not a sibling link.** Instead of a "Combined view" link *beside* `CohortSwitcher`, the entry was folded into a 3-way `dp1` / `dp2` / `combined` tab control, with both the single-board switcher and the combined-page return affordance rendered through a shared `Tabs` primitive (commits `8e3f2eb`, `7361a3a`). A deliberate post-epilogue UX improvement: token-clean, the `cohort-switching` e2e was updated to match, and no loader / constraint / state logic was touched (the `PlannerBoard.tsx` + `index.astro` guardrails still hold — only the switcher chrome changed).
+
 ## Progress
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles. See `references/progress-format.md`.

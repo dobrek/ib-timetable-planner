@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { cohortLabel, type PlacementWeek } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
 import BoardHeader from "./BoardHeader";
 import CollisionDetailsDialog from "./CollisionDetailsDialog";
-import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import DragHintModeToggle from "./DragHintModeToggle";
 import ErrorBanner from "./ErrorBanner";
@@ -16,11 +15,9 @@ import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import { useHintMode, usePaletteDisclosure, useShelfDisclosure } from "./board-disclosure";
+import { inspectedViolations, inspectedWeeks, useCollisionInspection } from "./board-inspection";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps, ShelfData } from "../model/drag";
-import { cellKey } from "../model/collisions";
-import type { CellCollisions } from "../model/collisions";
 import { resolvePaletteView } from "../model/palette-view";
-import type { LocalPlacement } from "../model/placement";
 import {
   useAvailabilityIndex,
   useCatalogById,
@@ -288,39 +285,6 @@ export default function PlannerBoard({
 
 /** Discriminate the drop target: the shelf droppable carries `{kind:"shelf"}`; a cell carries `{day,period}` (no `kind`). */
 const isShelfTarget = (target: DropTargetData): target is ShelfData => "kind" in target;
-
-function useCollisionInspection(collisions: Map<string, CellCollisions>) {
-  const [target, setTarget] = useState<CollisionInspectionTarget | null>(null);
-
-  // The collision map is a reactive derivation; if the inspected cell's violations
-  // vanish while the dialog is open (participant moved or removed elsewhere, server
-  // reconciliation), close rather than show stale content. Adjust-state-during-render
-  // (not an effect) so the close lands in the same render as the recompute.
-  if (target && !collisions.has(cellKey(target.day, target.period))) setTarget(null);
-
-  return {
-    target,
-    open: setTarget,
-    close: () => {
-      setTarget(null);
-    },
-  };
-}
-
-const inspectedViolations = (target: CollisionInspectionTarget | null, collisions: Map<string, CellCollisions>) =>
-  target ? (collisions.get(cellKey(target.day, target.period))?.violations ?? []) : [];
-
-// The inspected cell's placement weeks (courseId → week), for the dialog's same-week hint.
-const inspectedWeeks = (
-  target: CollisionInspectionTarget | null,
-  placements: LocalPlacement[],
-): Record<string, PlacementWeek> => {
-  if (!target) return {};
-  const weeks: Record<string, PlacementWeek> = {};
-  for (const placement of placements)
-    if (placement.day === target.day && placement.period === target.period) weeks[placement.courseId] = placement.week;
-  return weeks;
-};
 
 // Disable the drop "return" animation. A palette course is *copied* onto the grid —
 // its source stays in the palette — so dnd-kit's default animation flies the drag

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Cohort, PlacementWeek } from "@/shared/config";
+import type { Cohort } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
@@ -12,11 +12,11 @@ import GroupDragOverlay from "./GroupDragOverlay";
 import PairedPlannerGrid, { type PairedColumn } from "./PairedPlannerGrid";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import { useHintMode, usePaletteDisclosure, useShelfDisclosure } from "./board-disclosure";
+import { inspectedViolations, inspectedWeeks } from "./board-inspection";
 import { cellKey } from "../model/collisions";
 import { resolveCombinedDrop } from "../model/combined-drop";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
 import { placementErrorMessage } from "../model/placement-transitions";
-import type { LocalPlacement } from "../model/placement";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
 
 type Props = {
@@ -233,11 +233,7 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
 
       <CollisionDetailsDialog
         target={inspection?.target ?? null}
-        violations={
-          inspection && inspected
-            ? (inspected.collisions.get(cellKey(inspection.target.day, inspection.target.period))?.violations ?? [])
-            : []
-        }
+        violations={inspection && inspected ? inspectedViolations(inspection.target, inspected.collisions) : []}
         names={inspected?.names ?? overlayNames}
         teacherNames={dp1Props.teacherNames}
         studentNames={dp1Props.studentNames}
@@ -258,17 +254,6 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
     </DragDropProvider>
   );
 }
-
-// The inspected cell's placement weeks (courseId → week), for the dialog's same-week hint.
-const inspectedWeeks = (
-  target: CollisionInspectionTarget,
-  placements: LocalPlacement[],
-): Record<string, PlacementWeek> => {
-  const weeks: Record<string, PlacementWeek> = {};
-  for (const placement of placements)
-    if (placement.day === target.day && placement.period === target.period) weeks[placement.courseId] = placement.week;
-  return weeks;
-};
 
 // Disable the drop "return" animation, matching the single-cohort board: a palette course is copied
 // onto the grid (its source stays), so the default fly-back reads as a failed drop.

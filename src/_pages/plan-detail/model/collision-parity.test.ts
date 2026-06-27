@@ -21,7 +21,8 @@
  * asserted through BOTH boundaries — the committed `deriveCellViolations` verdict AND a
  * `deriveDropHints` what-if (drag the last-placed course back onto the cell) — so the board-only
  * drag mirrors (availability, cross-cohort) are genuinely guarded, not just the committed path.
- * S-06 (combined two-cohort) remains an `it.todo` placeholder marking the next guard gap.
+ * S-06 (combined two-cohort) is now covered by the `S06_CASES` rows below — co-teaching ×
+ * bi-weekly × cross-cohort false-positive guards, asserted through both boundaries.
  */
 import { describe, expect, it } from "vitest";
 import type { AvailabilityIndex } from "./availability-index";

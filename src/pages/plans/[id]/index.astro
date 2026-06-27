@@ -5,12 +5,17 @@ import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import { createClient } from "@/shared/api";
 import { cohortSchema } from "@/shared/config";
 import { loadPlannerData } from "@/_pages/plan-detail/api";
+import { COOKIE_NAME, parsePaletteCollapsed } from "@/_pages/plan-detail/lib/palette-collapsed";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 // `?cohort=` selects the active cohort; missing/garbage coerces to dp1 (no error page).
 const cohort = cohortSchema.catch("dp1").parse(Astro.url.searchParams.get("cohort"));
 const result = await loadPlannerData(supabase, Astro.params.id, cohort);
 if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
+
+// Read the per-device palette-collapse pref server-side so the island can seed flash-free
+// initial state (a client-only read would render expanded for one frame then snap shut).
+const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.value);
 ---
 
 {
@@ -20,7 +25,11 @@ if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 
       plan={{ id: result.value.props.planId, name: result.value.planName }}
       fullWidth
     >
-      <PlanDetailPage planName={result.value.planName} boardProps={result.value.props} />
+      <PlanDetailPage
+        planName={result.value.planName}
+        boardProps={result.value.props}
+        paletteCollapsed={paletteCollapsed}
+      />
     </SidebarLayout>
   ) : (
     <SidebarLayout title={result.error.kind === "not-found" ? "Plan not found" : "Unavailable"}>

@@ -386,10 +386,10 @@ None. No schema or data migration — parking reuses the existing `shelf_bundles
 
 #### Automated
 
-- [x] 3.1 Combined park e2e passes: `pnpm test:e2e`
-- [x] 3.2 Refactored `shelf-durability` + `combined-view` specs still pass after locator promotion
-- [x] 3.3 Lint + type check pass: `pnpm lint`, `pnpm check`
+- [x] 3.1 Combined park e2e passes: `pnpm test:e2e` — 067a7f1
+- [x] 3.2 Refactored `shelf-durability` + `combined-view` specs still pass after locator promotion — 067a7f1
+- [x] 3.3 Lint + type check pass: `pnpm lint`, `pnpm check` — 067a7f1
 
 #### Manual
 
-- [x] 3.4 Spec fails when the `parkGroup` branch is reverted (guards the real risk)
+- [x] 3.4 Spec fails when the `parkGroup` branch is reverted (guards the real risk) — 067a7f1

@@ -5,7 +5,7 @@ import type { ParkedDrag } from "../../model/drag";
 import type { LocalParkedBundle, ParkedMember } from "../../model/parked";
 import { cn } from "@/shared/lib/class-names";
 import { Badge, Button } from "@/shared/ui";
-import { stopDrag } from "../slot-cell/drag-inert";
+import { stopDrag } from "../../lib/drag-inert";
 
 type Props = {
   bundle: LocalParkedBundle;

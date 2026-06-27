@@ -3,19 +3,22 @@ import { cohortLabel } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
-import BoardHeader from "./BoardHeader";
-import CollisionDetailsDialog from "./CollisionDetailsDialog";
-import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
-import DragHintModeToggle from "./DragHintModeToggle";
-import ErrorBanner from "./ErrorBanner";
-import GroupDragOverlay from "./GroupDragOverlay";
-import GroupingStalePanel from "./GroupingStalePanel";
-import PlanSummaryBar from "./PlanSummaryBar";
-import PlannerGrid from "./PlannerGrid";
-import PlannerPalette from "./PlannerPalette";
+import {
+  BoardHeader,
+  DragHintModeToggle,
+  ErrorBanner,
+  PlanSummaryBar,
+  inspectedViolations,
+  inspectedWeeks,
+  useCollisionInspection,
+  useHintMode,
+  usePaletteDisclosure,
+  useShelfDisclosure,
+} from "./chrome";
+import { PlannerGrid } from "./grid";
+import { CollisionDetailsDialog, GroupDragOverlay } from "./overlay";
+import { ComputeGroupingsEmptyState, GroupingStalePanel, PlannerPalette } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
-import { useHintMode, usePaletteDisclosure, useShelfDisclosure } from "./board-disclosure";
-import { inspectedViolations, inspectedWeeks, useCollisionInspection } from "./board-inspection";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
 import { resolvePaletteView } from "../model/palette-view";
 import { resolveSingleDrop } from "../model/single-drop";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { CellTone } from "../../model/cell-tone";
-import type { DropHint } from "../../model/drop-hints";
-import type { HintMode } from "../../lib/drag-hint-mode";
+import type { CellTone } from "../../../model/cell-tone";
+import type { DropHint } from "../../../model/drop-hints";
+import type { HintMode } from "../../../lib/drag-hint-mode";
 import { toneClass } from "./tone-class";
 
 // Strings pinned to the pre-refactor ladder (SlotCell.tsx:124–144 + HINT_CLASS). A typo in the

@@ -1,6 +1,6 @@
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui";
-import { isHintMode, type HintMode } from "../lib/drag-hint-mode";
+import { isHintMode, type HintMode } from "../../lib/drag-hint-mode";
 
 type Props = {
   mode: HintMode;

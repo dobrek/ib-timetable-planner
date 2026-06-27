@@ -3,9 +3,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/shared/ui";
 import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import GroupingStalePanel from "./GroupingStalePanel";
 import PlannerPalette from "./PlannerPalette";
-import type { PlannerGrouping } from "../model/grouping";
-import type { HoursStat } from "../model/hours";
-import { resolvePaletteView } from "../model/palette-view";
+import type { PlannerGrouping } from "../../model/grouping";
+import type { HoursStat } from "../../model/hours";
+import { resolvePaletteView } from "../../model/palette-view";
 
 /** One cohort's palette inputs — the slice of board state the panel renders for the active cohort. */
 export type PaletteCohortData = {

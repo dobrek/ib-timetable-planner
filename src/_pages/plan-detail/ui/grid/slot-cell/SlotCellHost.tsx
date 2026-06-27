@@ -1,12 +1,12 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
-import type { CollisionInspectionTarget } from "../CollisionDetailsDialog";
+import type { CollisionInspectionTarget } from "../../overlay/CollisionDetailsDialog";
 import SlotCell from "./SlotCell";
-import { cellKey } from "../../model/collisions";
-import type { CellOccupant } from "../../model/cell-occupants";
-import type { CellData } from "../../model/drag";
-import type { DropHint } from "../../model/drop-hints";
-import type { HintMode } from "../../lib/drag-hint-mode";
-import { isBundled } from "../../model/exploded-cells";
+import { cellKey } from "../../../model/collisions";
+import type { CellOccupant } from "../../../model/cell-occupants";
+import type { CellData } from "../../../model/drag";
+import type { DropHint } from "../../../model/drop-hints";
+import type { HintMode } from "../../../lib/drag-hint-mode";
+import { isBundled } from "../../../model/exploded-cells";
 
 /**
  * The cell wiring shared by every grid that renders cells — handlers plus the cell-level drag-hint

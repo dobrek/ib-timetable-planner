@@ -1,4 +1,4 @@
-import type { CellOccupant } from "../../model/cell-occupants";
+import type { CellOccupant } from "../../../model/cell-occupants";
 import { PlacedChip, type ChipWiring } from "./PlacedChip";
 
 /**

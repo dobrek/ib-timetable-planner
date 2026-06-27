@@ -1,7 +1,7 @@
 import { GripVertical } from "lucide-react";
 import type { Ref } from "react";
 import HoursCounter from "./HoursCounter";
-import type { HoursStat } from "../model/hours";
+import type { HoursStat } from "../../model/hours";
 import { cn } from "@/shared/lib/class-names";
 
 type Props = {

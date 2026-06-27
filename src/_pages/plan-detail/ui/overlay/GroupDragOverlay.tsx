@@ -1,10 +1,10 @@
 import { DragOverlay } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
 import type { Cohort } from "@/shared/config";
-import type { DragData } from "../model/drag";
-import type { PlannerGrouping } from "../model/grouping";
-import type { LocalParkedBundle } from "../model/parked";
-import type { LocalPlacement } from "../model/placement";
+import type { DragData } from "../../model/drag";
+import type { PlannerGrouping } from "../../model/grouping";
+import type { LocalParkedBundle } from "../../model/parked";
+import type { LocalPlacement } from "../../model/placement";
 
 type Props = {
   groupings: PlannerGrouping[];

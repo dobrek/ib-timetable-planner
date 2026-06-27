@@ -1,6 +1,6 @@
-import type { CellTone } from "../../model/cell-tone";
-import type { DropHint } from "../../model/drop-hints";
-import type { HintMode } from "../../lib/drag-hint-mode";
+import type { CellTone } from "../../../model/cell-tone";
+import type { DropHint } from "../../../model/drop-hints";
+import type { HintMode } from "../../../lib/drag-hint-mode";
 
 /**
  * The single `CellTone → Tailwind` lookup, replacing the negated-class ladder. Precedence is

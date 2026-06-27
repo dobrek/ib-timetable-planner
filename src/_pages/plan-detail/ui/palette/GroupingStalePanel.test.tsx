@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cohort } from "@/shared/config";
 import { refreshPage } from "@/shared/lib/forms";
 import GroupingStalePanel from "./GroupingStalePanel";
-import { computeGroupings } from "../api/grouping-client";
+import { computeGroupings } from "../../api/grouping-client";
 
 // The panel's behavior is the unit under test; its two collaborators are mocked.
 // `computeGroupings` is the existing Action wrapper (returns `{ error }`); `refreshPage`
 // re-runs the loader (the success signal). The view dispatch is covered by palette-view.test,
 // the end-to-end swap by the Phase 3 E2E — here we lock the panel's own contract.
-vi.mock("../api/grouping-client", () => ({ computeGroupings: vi.fn() }));
+vi.mock("../../api/grouping-client", () => ({ computeGroupings: vi.fn() }));
 vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn() }));
 
 const computeMock = vi.mocked(computeGroupings);

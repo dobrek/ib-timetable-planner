@@ -1,5 +1,6 @@
 import { DragOverlay } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
+import type { Cohort } from "@/shared/config";
 import type { DragData } from "../model/drag";
 import type { PlannerGrouping } from "../model/grouping";
 import type { LocalParkedBundle } from "../model/parked";
@@ -10,6 +11,9 @@ type Props = {
   names: Record<string, string>;
   placements: LocalPlacement[];
   parkedBundles: LocalParkedBundle[];
+  /** Combined view (S-06): per-cohort placements so a bundle overlay resolves the right cohort's
+   *  cell — both cohorts can occupy the same `day:period`. Absent on the single-cohort board. */
+  placementsByCohort?: Partial<Record<Cohort, LocalPlacement[]>>;
 };
 
 /**
@@ -19,7 +23,7 @@ type Props = {
  * Course/placement drags keep their default source-element feedback — the overlay disables
  * itself for those kinds.
  */
-export default function GroupDragOverlay({ groupings, names, placements, parkedBundles }: Props) {
+export default function GroupDragOverlay({ groupings, names, placements, parkedBundles, placementsByCohort }: Props) {
   return (
     <DragOverlay dropAnimation={null} disabled={(source) => !isOverlayKind(source?.data)}>
       {(source) => {
@@ -29,7 +33,10 @@ export default function GroupDragOverlay({ groupings, names, placements, parkedB
           return grouping ? <OverlayCard memberIds={grouping.memberIds} names={names} /> : null;
         }
         if (data.kind === "bundle") {
-          const memberIds = placements
+          // In the combined view, resolve the dragged cell within its OWN cohort so the overlay
+          // never merges the sibling column's courses at the same day/period.
+          const cellPlacements = (data.cohort ? placementsByCohort?.[data.cohort] : undefined) ?? placements;
+          const memberIds = cellPlacements
             .filter((placement) => placement.day === data.day && placement.period === data.period)
             .map((placement) => placement.courseId);
           return memberIds.length > 0 ? <OverlayCard memberIds={memberIds} names={names} /> : null;

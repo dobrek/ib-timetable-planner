@@ -395,36 +395,36 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Manual
 
-- [ ] 1.5 Single-cohort board still drags/drops/parks correctly (cohort prop absent → unchanged)
+- [x] 1.5 Single-cohort board still drags/drops/parks correctly (cohort prop absent → unchanged)
 
 ### Phase 2: Symmetric loader + route scaffold
 
 #### Automated
 
-- [x] 2.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
-- [x] 2.2 Loader unit/contract test passes (both cohorts editable; cross-index from other; union names; per-cohort stale): `pnpm test`
-- [x] 2.3 `pnpm build` stays clean
+- [x] 2.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass — 0355ef8
+- [x] 2.2 Loader unit/contract test passes (both cohorts editable; cross-index from other; union names; per-cohort stale): `pnpm test` — 0355ef8
+- [x] 2.3 `pnpm build` stays clean — 0355ef8
 
 #### Manual
 
-- [ ] 2.4 `/plans/[id]/combined` loads without error and shows both cohorts' data
-- [ ] 2.5 Header "Combined view" toggle and return link navigate correctly
-- [ ] 2.6 Single-cohort route unaffected
+- [x] 2.4 `/plans/[id]/combined` loads without error and shows both cohorts' data
+- [x] 2.5 Header "Combined view" toggle and return link navigate correctly
+- [x] 2.6 Single-cohort route unaffected
 
 ### Phase 3: Orchestrator shell + paired-column grid
 
 #### Automated
 
-- [ ] 3.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
-- [ ] 3.2 Unit tests for cohort-routing + guard and live-index recompute pass: `pnpm test`
-- [ ] 3.3 `pnpm build` clean
+- [x] 3.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
+- [x] 3.2 Unit tests for cohort-routing + guard and live-index recompute pass: `pnpm test`
+- [x] 3.3 `pnpm build` clean
 
 #### Manual
 
 - [ ] 3.4 Editing DP1 immediately re-validates DP2 (cross-cohort clash on adjacent cell)
 - [ ] 3.5 Cross-cohort bundle drop rejected; sibling cells dim during drag
-- [ ] 3.6 Full editing op set works in both columns
-- [ ] 3.7 Single-cohort board unaffected
+- [x] 3.6 Full editing op set works in both columns
+- [x] 3.7 Single-cohort board unaffected
 
 ### Phase 4: Toggle palette + shared tagged shelf
 

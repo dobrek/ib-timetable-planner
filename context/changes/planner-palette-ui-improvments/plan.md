@@ -258,17 +258,17 @@ No data migration. The cookie defaults to absent → `false` → palette starts 
 
 #### Automated
 
-- [x] 2.1 Type check passes: `pnpm check`
-- [x] 2.2 Linting passes: `pnpm lint`
-- [x] 2.3 FSD structure check passes: `pnpm steiger`
-- [x] 2.4 Unit tests pass (palette collapse + cookie-parse): `pnpm test`
-- [x] 2.5 Production build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check` — d48ae75
+- [x] 2.2 Linting passes: `pnpm lint` — d48ae75
+- [x] 2.3 FSD structure check passes: `pnpm steiger` — d48ae75
+- [x] 2.4 Unit tests pass (palette collapse + cookie-parse): `pnpm test` — d48ae75
+- [x] 2.5 Production build is clean: `pnpm build` — d48ae75
 
 #### Manual
 
-- [x] 2.6 Collapse to `w-9` rail (`Boxes` + count); board reflows; animation respects reduced-motion
-- [x] 2.7 Rail click re-expands to `w-64`; filter + list intact, selection preserved
-- [x] 2.8 Reload persists collapsed/expanded state with no hydration flash
-- [x] 2.9 Dragging a grouping/chip still works; collapse not triggerable mid-drag
-- [x] 2.10 Stale-suggestions state renders at stable `w-64`
-- [x] 2.11 Dev (`http://localhost`) cookie is set and persists across reload
+- [x] 2.6 Collapse to `w-9` rail (`Boxes` + count); board reflows; animation respects reduced-motion — d48ae75
+- [x] 2.7 Rail click re-expands to `w-64`; filter + list intact, selection preserved — d48ae75
+- [x] 2.8 Reload persists collapsed/expanded state with no hydration flash — d48ae75
+- [x] 2.9 Dragging a grouping/chip still works; collapse not triggerable mid-drag — d48ae75
+- [x] 2.10 Stale-suggestions state renders at stable `w-64` — d48ae75
+- [x] 2.11 Dev (`http://localhost`) cookie is set and persists across reload — d48ae75

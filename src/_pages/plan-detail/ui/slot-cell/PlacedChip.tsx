@@ -1,7 +1,7 @@
 import { cva } from "class-variance-authority";
 import { useDraggable } from "@dnd-kit/react";
 import { TriangleAlert, UserX, X } from "lucide-react";
-import type { PlacementWeek } from "@/shared/config";
+import type { Cohort, PlacementWeek } from "@/shared/config";
 import { Badge, Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import type { CollisionInspectionTarget } from "../CollisionDetailsDialog";
@@ -20,6 +20,9 @@ import { WeekToggle } from "./WeekToggle";
 export type ChipWiring = {
   day: number;
   period: number;
+  /** Combined-view opt-in (S-06): stamped onto the single-placement drag so a cross-cohort
+   *  single-course move is guarded. Absent on the single-cohort board. */
+  cohort?: Cohort;
   bundled: boolean;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
@@ -36,6 +39,7 @@ export function PlacedChip({
   occupant,
   day,
   period,
+  cohort,
   bundled,
   onRemove,
   onSetWeek,
@@ -44,7 +48,7 @@ export function PlacedChip({
   const { placement, name, blocking, warning, unavailable } = occupant;
   const { ref, isDragging } = useDraggable<PlacementDrag>({
     id: placement.id,
-    data: { kind: "placement", placementId: placement.id, courseId: placement.courseId },
+    data: { kind: "placement", placementId: placement.id, courseId: placement.courseId, cohort },
     disabled: bundled || placement.pending === true,
   });
 

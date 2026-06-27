@@ -5,18 +5,25 @@ import type { GroupingCourse, PlannerGrouping } from "./grouping";
 import type { ParkedBundle } from "./parked";
 import type { PlannerPlacement } from "./placement";
 
-/** Drag payload carried on the draggable's `data`. Identity is opaque ids — never names. */
+/**
+ * Drag payload carried on the draggable's `data`. Identity is opaque ids — never names.
+ *
+ * The optional `cohort` is the combined-view opt-in (S-06): a per-column wrapper stamps it so a
+ * shared drop handler can route and guard relocating drags by cohort. Single-cohort drags omit it
+ * — the field is absent and behaviour is unchanged. `CourseDrag`/`GroupDrag` stay cohort-free: they
+ * originate from the (cohort-scoped) palette and adopt the target cell's cohort on drop.
+ */
 export type CourseDrag = { kind: "course"; courseId: string };
-export type PlacementDrag = { kind: "placement"; placementId: string; courseId: string };
+export type PlacementDrag = { kind: "placement"; placementId: string; courseId: string; cohort?: Cohort };
 export type GroupDrag = { kind: "grouping"; groupingId: string };
 /** Whole-slot drag: moves every placement at the source cell as one unit. */
-export type BundleDrag = { kind: "bundle"; day: number; period: number };
+export type BundleDrag = { kind: "bundle"; day: number; period: number; cohort?: Cohort };
 /** A parked (shelved) card dragged back toward a slot (S-07 place-back). */
-export type ParkedDrag = { kind: "parked"; shelfBundleId: string };
+export type ParkedDrag = { kind: "parked"; shelfBundleId: string; cohort?: Cohort };
 export type DragData = CourseDrag | PlacementDrag | GroupDrag | BundleDrag | ParkedDrag;
 
-/** Drop payload carried on a cell droppable's `data`. */
-export type CellData = { day: number; period: number };
+/** Drop payload carried on a cell droppable's `data`. `cohort` present only in the combined view. */
+export type CellData = { day: number; period: number; cohort?: Cohort };
 /** Drop payload carried on the island-wide shelf droppable's `data` (S-07 lift). */
 export type ShelfData = { kind: "shelf" };
 /** The drop-target union the board's drop handler discriminates: a cell or the shelf. */

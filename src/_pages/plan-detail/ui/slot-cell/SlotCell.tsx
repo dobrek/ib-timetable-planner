@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import type { PlacementWeek } from "@/shared/config";
+import type { Cohort, PlacementWeek } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CollisionInspectionTarget } from "../CollisionDetailsDialog";
@@ -19,6 +19,9 @@ import { WeekLane } from "./WeekLane";
 type Props = {
   day: number;
   period: number;
+  /** Combined-view opt-in (S-06): when set, namespaces the dnd ids and stamps the drag/drop data so
+   *  a shared handler can route by cohort. Absent on the single-cohort board → today's ids. */
+  cohort?: Cohort;
   occupants: CellOccupant[];
   /** Drag hint for this cell (undefined = free while a drag is active, or no drag — see `hintActive`). */
   dropHint: DropHint | undefined;
@@ -52,6 +55,7 @@ type Props = {
 export default function SlotCell({
   day,
   period,
+  cohort,
   occupants,
   dropHint,
   hintActive,
@@ -66,7 +70,7 @@ export default function SlotCell({
   onLiftBundle,
   onInspect,
 }: Props) {
-  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled);
+  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled, cohort);
 
   // Cell tone is an exact derivation of the per-occupant flags: `hasBlocking ≡ any occupant
   // blocking`, same for warning — so the cell needs no `CellCollisions` record of its own.
@@ -93,7 +97,7 @@ export default function SlotCell({
   // `CellOccupant` (name + flags), so this wiring holds only the slot-level identity + callbacks.
   // NOTE: this is a fresh object each render, so it would defeat a `React.memo(PlacedChip)` —
   // stabilize it (e.g. `useMemo` in a named hook) before adding that memo, or the memo no-ops.
-  const chipWiring: ChipWiring = { day, period, bundled, onRemove, onSetWeek, onInspect };
+  const chipWiring: ChipWiring = { day, period, cohort, bundled, onRemove, onSetWeek, onInspect };
 
   return (
     <div
@@ -153,8 +157,13 @@ export default function SlotCell({
  * component body declarative — no raw `useMemo` — and names the dnd flow the way the slice's
  * design goals ask for.
  */
-function useCellDnd(day: number, period: number, bundled: boolean) {
-  const { ref: dropRef, isDropTarget } = useDroppable<CellData>({ id: cellKey(day, period), data: { day, period } });
+function useCellDnd(day: number, period: number, bundled: boolean, cohort?: Cohort) {
+  // Cohort namespaces the dnd ids in the combined view so two columns sharing day/period space
+  // don't collide under one provider; absent → today's `cellKey`-only ids. The collision/hint
+  // map key stays `cellKey` (cohort never enters it) — each column keeps its own Map.
+  const key = cellKey(day, period);
+  const scopedKey = cohort ? `${cohort}:${key}` : key;
+  const { ref: dropRef, isDropTarget } = useDroppable<CellData>({ id: scopedKey, data: { day, period, cohort } });
   // Whole-slot drag: the entire bundled cell is the drag surface (no handle). We deliberately
   // avoid a handle on the header — dnd-kit's default `preventActivation` short-circuits for any
   // target inside a handle, so header buttons would start a drag instead of clicking. With no
@@ -162,8 +171,8 @@ function useCellDnd(day: number, period: number, bundled: boolean) {
   // activation, while grabbing a chip or the cell body moves the slot as one unit. Only active
   // while bundled, so loose chips keep their own per-chip drags.
   const { ref: dragRef, isDragging } = useDraggable<BundleDrag>({
-    id: `bundle:${cellKey(day, period)}`,
-    data: { kind: "bundle", day, period },
+    id: `bundle:${scopedKey}`,
+    data: { kind: "bundle", day, period, cohort },
     disabled: !bundled,
   });
   // The cell is both a droppable and a bundle draggable; merge the two stable callback refs.

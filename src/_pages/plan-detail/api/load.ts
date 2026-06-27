@@ -4,7 +4,7 @@ import { parseGridPreset } from "@/shared/lib/grid";
 import { unique } from "@/shared/lib/collections";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { BoardAvailabilityCell } from "../model/availability-index";
-import type { SiblingOccupancyCell } from "../model/cross-cohort-index";
+import { projectFromPlacements, type SiblingOccupancyCell } from "../model/cross-cohort-index";
 import type { PlannerBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
 import type { ParkedBundle } from "../model/parked";
@@ -162,19 +162,11 @@ export const loadPlannerData = async (
 const projectSiblingOccupancy = (
   placements: { course_id: string; day: number; period: number; week: PlannerPlacement["week"] }[],
   siblingCourses: GroupingCourse[],
-): SiblingOccupancyCell[] => {
-  const teachersByCourse = new Map(siblingCourses.map((course) => [course.id, course.teacherKeys]));
-  return placements.flatMap((row) => {
-    const teacherKeys = teachersByCourse.get(row.course_id);
-    if (!teacherKeys) return []; // course not in the sibling catalog — cannot attribute, skip
-    return teacherKeys.map((teacherKey) => ({
-      teacherKey,
-      day: row.day,
-      period: row.period,
-      week: row.week,
-    }));
-  });
-};
+): SiblingOccupancyCell[] =>
+  projectFromPlacements(
+    placements.map((row) => ({ courseId: row.course_id, day: row.day, period: row.period, week: row.week })),
+    new Map(siblingCourses.map((course) => [course.id, course.teacherKeys])),
+  );
 
 const fetchTeacherNames = async (supabase: SupabaseClient, ids: string[]): Promise<Record<string, string>> => {
   if (ids.length === 0) return {};

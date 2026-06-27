@@ -13,15 +13,7 @@ export default function BoardHeader({ planName, planId, cohort, children }: Boar
   return (
     <div className="flex shrink-0 items-center gap-3 border-b px-6 py-2">
       <h1 className="text-foreground text-base font-semibold">{planName}</h1>
-      <CohortSwitcher planId={planId} cohort={cohort} />
-      {/* Entry to the additive combined two-cohort assembly view (S-06). Token-styled link. */}
-      <a
-        href={`/plans/${planId}/combined`}
-        data-slot="combined-view-link"
-        className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
-      >
-        Combined view
-      </a>
+      <CohortSwitcher planId={planId} active={cohort} />
       {children}
     </div>
   );

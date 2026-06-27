@@ -31,10 +31,11 @@ export function parsePaletteCollapsed(value: string | undefined): boolean {
 
 /**
  * Client-side cookie write for the collapse toggle. No-op on the server (guards
- * `typeof document`), consistent with the storage-guard idiom in `shelf-pinned.ts`.
- * `Secure` is set only over HTTPS — adding it unconditionally would drop the cookie on
- * `http://localhost` during dev. Scoped to `path=/plans` so it doesn't ride along on
- * every asset/API request.
+ * `typeof document`). Unlike the `localStorage` prefs, no `try/catch` is needed — a
+ * `document.cookie` assignment silently no-ops when cookies are blocked rather than
+ * throwing. `Secure` is set only over HTTPS — adding it unconditionally would drop the
+ * cookie on `http://localhost` during dev. Scoped to `path=/plans` so it doesn't ride
+ * along on every asset/API request.
  */
 export function writePaletteCollapsed(collapsed: boolean): void {
   if (typeof document === "undefined") return;

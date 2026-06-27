@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import type { Cohort } from "@/shared/config";
-import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
-import { defaultPreset, Feedback } from "@dnd-kit/dom";
 import {
+  BoardShell,
   CohortSwitcher,
   DragHintModeToggle,
   ErrorBanner,
@@ -200,8 +199,11 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
   const inspected = inspection ? byCohort[inspection.cohort] : null;
 
   return (
-    <DragDropProvider plugins={PLUGINS} onDragStart={handleDragStart} onDragEnd={handleDrop}>
-      <div className="flex min-h-0 flex-1 flex-col">
+    <BoardShell
+      onDragStart={handleDragStart}
+      onDragEnd={handleDrop}
+      gridDataSlot="combined-board"
+      header={
         <div className="flex shrink-0 items-center gap-3 border-b px-6 py-2">
           <h1 className="text-foreground text-base font-semibold">{planName}</h1>
           <CohortSwitcher planId={planId} active="combined" />
@@ -209,80 +211,72 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
             <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
           </div>
         </div>
-
-        {/* `minmax(0,1fr)` on the board column lets the wide paired grid scroll instead of forcing
-            the layout wider than the viewport — so the `auto` palette/shelf columns are never cropped. */}
-        <div
-          data-slot="combined-board"
-          className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[auto_minmax(0,1fr)_auto]"
-        >
-          <CombinedPalettePanel
-            dp1={paletteData(dp1)}
-            dp2={paletteData(dp2)}
-            activeCohort={paletteCohort}
-            onActiveCohortChange={setPaletteCohort}
-            collapsed={paletteCollapsed}
-            onCollapsedChange={setPaletteCollapsed}
-          />
-
-          <div className="flex min-h-0 flex-col gap-3">
-            {dp1.error && (
-              <ErrorBanner message={placementErrorMessage(dp1.error, dp1.names)} onDismiss={dp1.clearError} />
-            )}
-            {dp2.error && (
-              <ErrorBanner message={placementErrorMessage(dp2.error, dp2.names)} onDismiss={dp2.clearError} />
-            )}
-            <div className="min-h-0 flex-1 overflow-auto">
-              <PairedPlannerGrid
-                days={days}
-                periods={periods}
-                gridLabel={`${planName} combined timetable`}
-                dp1={buildColumn("dp1", dp1)}
-                dp2={buildColumn("dp2", dp2)}
-                activeDragCohort={activeDragCohort}
-              />
-            </div>
+      }
+      palette={
+        <CombinedPalettePanel
+          dp1={paletteData(dp1)}
+          dp2={paletteData(dp2)}
+          activeCohort={paletteCohort}
+          onActiveCohortChange={setPaletteCohort}
+          collapsed={paletteCollapsed}
+          onCollapsedChange={setPaletteCollapsed}
+        />
+      }
+      center={
+        <div className="flex min-h-0 flex-col gap-3">
+          {dp1.error && (
+            <ErrorBanner message={placementErrorMessage(dp1.error, dp1.names)} onDismiss={dp1.clearError} />
+          )}
+          {dp2.error && (
+            <ErrorBanner message={placementErrorMessage(dp2.error, dp2.names)} onDismiss={dp2.clearError} />
+          )}
+          <div className="min-h-0 flex-1 overflow-auto">
+            <PairedPlannerGrid
+              days={days}
+              periods={periods}
+              gridLabel={`${planName} combined timetable`}
+              dp1={buildColumn("dp1", dp1)}
+              dp2={buildColumn("dp2", dp2)}
+              activeDragCohort={activeDragCohort}
+            />
           </div>
-
-          <ShelfDrawer
-            parkedBundles={[...dp1.parkedBundles, ...dp2.parkedBundles]}
-            names={overlayNames}
-            expanded={shelfExpanded}
-            pinned={pinned}
-            cohortById={shelfCohortById}
-            onExpandedChange={setExpanded}
-            onPinnedChange={setPinned}
-            onRemoveParked={removeParked}
-          />
         </div>
-      </div>
-
-      <CollisionDetailsDialog
-        target={inspection?.target ?? null}
-        violations={inspection && inspected ? inspectedViolations(inspection.target, inspected.collisions) : []}
-        names={inspected?.names ?? overlayNames}
-        teacherNames={dp1Props.teacherNames}
-        studentNames={dp1Props.studentNames}
-        weekByCourseId={inspection && inspected ? inspectedWeeks(inspection.target, inspected.placements) : {}}
-        cohort={inspection?.cohort ?? "dp1"}
-        onClose={() => {
-          setInspection(null);
-        }}
-      />
-
-      <GroupDragOverlay
-        groupings={[...dp1.groupings, ...dp2.groupings]}
-        names={overlayNames}
-        placements={[...dp1.placements, ...dp2.placements]}
-        parkedBundles={[...dp1.parkedBundles, ...dp2.parkedBundles]}
-        placementsByCohort={{ dp1: dp1.placements, dp2: dp2.placements }}
-      />
-    </DragDropProvider>
+      }
+      shelf={
+        <ShelfDrawer
+          parkedBundles={[...dp1.parkedBundles, ...dp2.parkedBundles]}
+          names={overlayNames}
+          expanded={shelfExpanded}
+          pinned={pinned}
+          cohortById={shelfCohortById}
+          onExpandedChange={setExpanded}
+          onPinnedChange={setPinned}
+          onRemoveParked={removeParked}
+        />
+      }
+      dialog={
+        <CollisionDetailsDialog
+          target={inspection?.target ?? null}
+          violations={inspection && inspected ? inspectedViolations(inspection.target, inspected.collisions) : []}
+          names={inspected?.names ?? overlayNames}
+          teacherNames={dp1Props.teacherNames}
+          studentNames={dp1Props.studentNames}
+          weekByCourseId={inspection && inspected ? inspectedWeeks(inspection.target, inspected.placements) : {}}
+          cohort={inspection?.cohort ?? "dp1"}
+          onClose={() => {
+            setInspection(null);
+          }}
+        />
+      }
+      overlay={
+        <GroupDragOverlay
+          groupings={[...dp1.groupings, ...dp2.groupings]}
+          names={overlayNames}
+          placements={[...dp1.placements, ...dp2.placements]}
+          parkedBundles={[...dp1.parkedBundles, ...dp2.parkedBundles]}
+          placementsByCohort={{ dp1: dp1.placements, dp2: dp2.placements }}
+        />
+      }
+    />
   );
 }
-
-// Disable the drop "return" animation, matching the single-cohort board: a palette course is copied
-// onto the grid (its source stays), so the default fly-back reads as a failed drop.
-const PLUGINS = defaultPreset.plugins.map((plugin) =>
-  plugin === Feedback ? Feedback.configure({ dropAnimation: null }) : plugin,
-);

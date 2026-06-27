@@ -392,6 +392,71 @@ describe("cross-cohort (S-04) parity", () => {
   it.each(S04_CASES)("$name", assertParity);
 });
 
+// S-06 combined two-cohort — co-teaching (teacher SET) × bi-weekly (per-week) × cross-cohort
+// (sibling occupancy) interacting in ONE cell, proving none of the three enriched axes returns a
+// false-positive "valid" when combined. The harness is cohort-symmetric by construction:
+// `occupiedByTeacher` is "the other cohort's occupancy" with no notion of a primary cohort, so a
+// clash on either co-teacher (cases 1 vs 4) is the same code path in both directions (DP1↔DP2).
+// Each row asserts through BOTH boundaries — committed `deriveCellViolations` and the `deriveDropHints`
+// what-if (FR-001/FR-002/FR-006, US-01).
+const coTaughtBiweekly = (id: string, teacherKeys: string[]): GroupingCourse => ({
+  ...coTaught(id, teacherKeys),
+  weekMode: "biweekly",
+});
+
+const S06_CASES: ParityCase[] = [
+  {
+    name: "invalid — co-taught bi-weekly, a co-teacher busy same-week in the sibling cohort → blocked",
+    placements: [placement("p1", "A", 1, 1, "a")],
+    catalog: catalog(coTaughtBiweekly("A", ["t1", "t2"])),
+    occupiedByTeacher: occupiedBy({ t2: { "1:1": ["a"] } }),
+    cell: CELL,
+    expect: {
+      verdict: "invalid",
+      blockingIds: new Set(["A"]),
+      violations: [{ kind: "cross-cohort-teacher", teacherKey: "t2", courseIds: ["A"] }],
+    },
+    // The bi-weekly member can still escape to the sibling's free week → pre-drop opposite-week.
+    dragHint: "opposite-week",
+  },
+  {
+    name: "valid — co-taught bi-weekly placed opposite the sibling co-teacher's week is accepted (over-rejection guard)",
+    placements: [placement("p1", "A", 1, 1, "b")],
+    catalog: catalog(coTaughtBiweekly("A", ["t1", "t2"])),
+    occupiedByTeacher: occupiedBy({ t2: { "1:1": ["a"] } }),
+    cell: CELL,
+    expect: { verdict: "valid" },
+    dragHint: "opposite-week",
+  },
+  {
+    name: "invalid — co-taught WEEKLY course runs every week, so a fortnightly sibling co-teacher still clashes → blocked",
+    placements: [placement("p1", "A", 1, 1, "both")],
+    catalog: catalog(coTaught("A", ["t1", "t2"])), // agnostic = weekly
+    occupiedByTeacher: occupiedBy({ t2: { "1:1": ["a"] } }),
+    cell: CELL,
+    expect: {
+      verdict: "invalid",
+      blockingIds: new Set(["A"]),
+      violations: [{ kind: "cross-cohort-teacher", teacherKey: "t2", courseIds: ["A"] }],
+    },
+    // A weekly (agnostic) member has no opposite-week escape — it runs every week → hard block.
+    dragHint: "blocked",
+  },
+  {
+    name: "invalid — set membership × cross-cohort: the OTHER co-teacher (t1) busy same-week in the sibling → blocked",
+    placements: [placement("p1", "A", 1, 1, "a")],
+    catalog: catalog(coTaughtBiweekly("A", ["t1", "t2"])),
+    occupiedByTeacher: occupiedBy({ t1: { "1:1": ["a"] } }),
+    cell: CELL,
+    expect: {
+      verdict: "invalid",
+      blockingIds: new Set(["A"]),
+      violations: [{ kind: "cross-cohort-teacher", teacherKey: "t1", courseIds: ["A"] }],
+    },
+    dragHint: "opposite-week",
+  },
+];
+
 describe("combined two-cohort (S-06) parity", () => {
-  it.todo("invalid — co-teaching + bi-weekly + cross-cohort interact without false-positive valid");
+  it.each(S06_CASES)("$name", assertParity);
 });

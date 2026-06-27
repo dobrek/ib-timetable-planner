@@ -128,7 +128,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **Unknowns:**
   - Whether the validator loads both cohorts' placements into context eagerly or fetches the other cohort's occupancy on demand — directly impacts the sub-200 ms budget — Owner: dev. Block: no (perf-driven, resolved in `/10x-plan`).
 - **Risk:** The hardest correctness slice — the symmetric cross-cohort teacher constraint is built from scratch (the never-implemented "Year 1 fixes Year 2" model is replaced by a symmetric one), and it must hold the sub-200 ms budget while now scanning across cohorts. FR-005 (free switching) is folded in because switching is only *safe* once this symmetric constraint exists (the PRD's own reasoning) and the constraint can't be exercised without leaving the `dp1` lock. Could be split (constraint vs. switcher UI) in `/10x-plan` if scope proves large.
-- **Status:** proposed
+- **Status:** done (delivered as the `cohort-switching` change, archived 2026-06-23)
 
 ### S-05: First-class bundle operations
 
@@ -190,7 +190,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 | S-01       | dp1-dp2-cohort-naming           | Relabel cohorts DP1 / DP2 throughout the UI                          | yes                   | Run `/10x-plan dp1-dp2-cohort-naming` — no prerequisites |
 | S-02       | co-teaching-teacher-sets        | Co-teaching: assign multiple teachers per course, both occupied      | yes                   | Run `/10x-plan co-teaching-teacher-sets` — head of constraint chain |
 | S-03       | bi-weekly-week-aware-validation | Bi-weekly courses + week-aware collision validation                  | no                    | Promotes to `ready` once S-02 done |
-| S-04       | two-cohort-board-cross-cohort   | Free cohort switching + symmetric cross-cohort teacher occupancy     | no                    | Promotes to `ready` once S-02 + S-03 done |
+| S-04       | two-cohort-board-cross-cohort   | Free cohort switching + symmetric cross-cohort teacher occupancy     | done                  | Delivered as the `cohort-switching` change — archived 2026-06-23 |
 | S-05       | first-class-bundle-operations   | First-class bundle: move / remove / replace as a unit                | yes                   | Run `/10x-plan first-class-bundle-operations` — parallel with constraint chain |
 | S-06       | combined-two-cohort-view        | Combined DP1 \| DP2 view (north star) — assemble both cohorts        | no                    | Promotes to `ready` once S-04 + S-05 done |
 | S-07       | bundle-holding-container        | Holding container: park a bundle off-board, place it back            | no                    | Promotes to `ready` once S-05 done |
@@ -224,5 +224,6 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **S-01: Author sees cohorts labelled **"DP1"** and **"DP2"** throughout the UI, replacing the "Year 1" / "Year 2" display labels. The `dp1` / `dp2` data values are unchanged.** — Archived 2026-06-20 → `context/archive/2026-06-20-dp1-dp2-cohort-naming/`. Lesson: —.
 - **S-02: assign two+ teachers to a course; both count as occupied for conflict + availability** — Archived 2026-06-21 → `context/archive/2026-06-20-co-teaching-teacher-sets/`. Lesson: —.
 - **S-03: mark a course bi-weekly, pick week A/B; two opposite-week courses share one slot** — Archived 2026-06-21 → `context/archive/2026-06-21-bi-weekly-week-aware-validation/`. Lesson: —.
+- **S-04: open the board on either cohort and switch freely; a teacher occupied in one cohort's slot/week blocks the other (symmetric, week-aware), while availability stays week-agnostic and cohort-independent** — Delivered as the `cohort-switching` change; archived 2026-06-23 → `context/archive/2026-06-22-cohort-switching/`. Lesson: —.
 - **S-05: A placed grouping is a first-class bundle the author can **move** (relocate all its courses atomically, re-validated at the destination, within its own cohort), **remove** (delete the whole bundle at once), or **replace** (swap its contents for a different compatible grouping on the same slot). Ungrouping to operate on individual courses — remove one course, move one course — keeps working exactly as today (the `slot_bundles` opt-out).** — Archived 2026-06-24 → `context/archive/2026-06-23-first-class-bundle-operations/`. Lesson: —.
 - **S-07: Author can lift a bundle off the board into a temporary holding container (a shelf that holds multiple parked bundles), rearrange the board, then drag a parked bundle back onto a now-suitable slot. A parked bundle is off-board — it holds no slot and is **not** validated while parked; collisions are evaluated only on drop-back, within its cohort's constraints. A parked bundle survives an accidental browser refresh or tab close.** — Archived 2026-06-26 → `context/archive/2026-06-26-bundle-holding-container/`. Lesson: —.

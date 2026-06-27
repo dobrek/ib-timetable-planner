@@ -17,7 +17,7 @@ import {
 } from "./chrome";
 import { PlannerGrid } from "./grid";
 import { CollisionDetailsDialog, GroupDragOverlay } from "./overlay";
-import { ComputeGroupingsEmptyState, GroupingStalePanel, PlannerPalette } from "./palette";
+import { ComputeGroupingsEmptyState, PlannerPalette } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
 import { resolvePaletteView } from "../model/palette-view";
@@ -209,17 +209,16 @@ export default function PlannerBoard({
             timetable track shrink + scroll instead of forcing the grid wider than the viewport — so
             the `auto` shelf column is never cropped when both the sidebar and shelf are expanded. */}
         <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
-          {paletteView === "stale" ? (
-            <GroupingStalePanel planId={planId} cohort={cohort} />
-          ) : (
-            <PlannerPalette
-              groupings={groupings}
-              names={names}
-              hours={hours}
-              collapsed={collapsed}
-              onCollapsedChange={setCollapsed}
-            />
-          )}
+          <PlannerPalette
+            groupings={groupings}
+            names={names}
+            hours={hours}
+            stale={paletteView === "stale"}
+            planId={planId}
+            cohort={cohort}
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
+          />
 
           <div className="flex min-h-0 flex-col gap-3">
             {banner && <ErrorBanner message={placementErrorMessage(banner, names)} onDismiss={clearError} />}

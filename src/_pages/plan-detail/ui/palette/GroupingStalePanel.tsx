@@ -20,29 +20,33 @@ type Props = {
  * palette is the success signal). On failure an inline `role="alert"` surfaces and the panel stays
  * put for a retry: the plan-detail board mounts no `<Toaster>`, so a toast would render nowhere —
  * this mirrors the sibling `ComputeGroupingsEmptyState`'s inline-error idiom (no `sonner` here).
+ *
+ * Rendered as the `stale` body of the shared `CollapsibleEdgePanel` (both boards), so it is just the
+ * recompute card — the shell owns the surrounding aside/width/header.
  */
 export default function GroupingStalePanel({ planId, cohort }: Props) {
   const { busy, error, recompute } = useRecomputeGroupings(planId, cohort);
 
   return (
-    <aside data-slot="grouping-stale-panel" className="flex min-h-0 w-64 flex-col gap-3">
-      <div className="border-warning/50 bg-warning/10 text-warning flex flex-col gap-3 rounded-md border p-4">
-        <div className="flex items-start gap-2">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <p className="text-sm">
-            Suggestions are out of date. Your placed timetable is unchanged — recompute to refresh the palette.
-          </p>
-        </div>
-        <Button onClick={recompute} disabled={busy} className="w-fit">
-          {busy ? "Recomputing…" : "Recompute"}
-        </Button>
-        {error && (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        )}
+    <div
+      data-slot="grouping-stale-panel"
+      className="border-warning/50 bg-warning/10 text-warning flex flex-col gap-3 rounded-md border p-4"
+    >
+      <div className="flex items-start gap-2">
+        <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <p className="text-sm">
+          Suggestions are out of date. Your placed timetable is unchanged — recompute to refresh the palette.
+        </p>
       </div>
-    </aside>
+      <Button onClick={recompute} disabled={busy} className="w-fit">
+        {busy ? "Recomputing…" : "Recompute"}
+      </Button>
+      {error && (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

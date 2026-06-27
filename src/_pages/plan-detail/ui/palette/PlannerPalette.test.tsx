@@ -3,6 +3,12 @@ import { act, fireEvent, render, renderHook, screen } from "@testing-library/rea
 import { describe, expect, it, vi } from "vitest";
 import GroupingFilter from "./GroupingFilter";
 import PlannerPalette, { usePaletteFilter } from "./PlannerPalette";
+
+// PlannerPalette now imports GroupingStalePanel (the stale body), which deep-imports
+// `@/shared/lib/forms` → `astro:transitions/client` — an astro virtual module Vitest can't resolve.
+// Mock it (the panel renders the ready body here, so the stale path is never exercised) — mirrors
+// GroupingStalePanel.test's own mock.
+vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn() }));
 import type { HoursStat } from "../../model/hours";
 import type { LeadingCourseOption } from "../../model/leading-course-options";
 import type { PlannerGrouping } from "../../model/grouping";
@@ -175,6 +181,9 @@ describe("PlannerPalette collapse disclosure", () => {
       groupings: GROUPINGS,
       names: NAMES,
       hours: new Map<string, HoursStat>(),
+      stale: false,
+      planId: "plan-1",
+      cohort: "dp1",
       collapsed: false,
       onCollapsedChange: vi.fn(),
       ...overrides,

@@ -10,6 +10,7 @@ import type { PlannerBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping/grouping";
 import type { ParkedBundle } from "../model/placement/parked";
 import type { PlannerPlacement } from "../model/placement/placement";
+import { toPlannerPlacement } from "./placements";
 import { isGroupingStale } from "./staleness";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -96,7 +97,7 @@ export const loadPlannerData = async (
 
   const groupings = mapGroupings(groupingsResult.data ?? []);
 
-  const placements = mapPlacements(placementsResult.data ?? []);
+  const placements = (placementsResult.data ?? []).map(toPlannerPlacement);
 
   const availability = mapAvailability(availabilityResult.data ?? []);
 
@@ -213,7 +214,7 @@ export const loadCombinedPlannerData = async (
   const dp1Inputs: CombinedCohortInputs = {
     cohort: "dp1",
     groupings: dp1GroupingsMapped,
-    placements: mapPlacements(dp1Placements.data ?? []),
+    placements: (dp1Placements.data ?? []).map(toPlannerPlacement),
     catalog: dp1Catalog.courses,
     names: Object.fromEntries(dp1Catalog.names),
     stale: dp1Stale,
@@ -222,7 +223,7 @@ export const loadCombinedPlannerData = async (
   const dp2Inputs: CombinedCohortInputs = {
     cohort: "dp2",
     groupings: dp2GroupingsMapped,
-    placements: mapPlacements(dp2Placements.data ?? []),
+    placements: (dp2Placements.data ?? []).map(toPlannerPlacement),
     catalog: dp2Catalog.courses,
     names: Object.fromEntries(dp2Catalog.names),
     stale: dp2Stale,
@@ -292,25 +293,6 @@ const mapGroupings = (
     score: row.score,
     oppositeWeek: row.opposite_week,
     memberIds: row.course_grouping_members.map((member) => member.course_id),
-  }));
-
-const mapPlacements = (
-  rows: {
-    id: string;
-    course_id: string;
-    day: number;
-    period: number;
-    week: PlannerPlacement["week"];
-    bundle_id: string;
-  }[],
-): PlannerPlacement[] =>
-  rows.map((row) => ({
-    id: row.id,
-    courseId: row.course_id,
-    day: row.day,
-    period: row.period,
-    week: row.week,
-    bundleId: row.bundle_id,
   }));
 
 const mapAvailability = (

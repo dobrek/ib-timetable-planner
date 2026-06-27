@@ -18,6 +18,11 @@ const refreshMock = vi.mocked(refreshPage);
 const PLAN_ID = "plan-1";
 const COHORT: Cohort = "dp1";
 
+// `computeGroupings` now returns the shared `callAction` `{ error: ActionError | undefined }` shape;
+// the panel reads `error.message`. Minimal ActionError fixture for the error-path mock.
+type ComputeResult = Awaited<ReturnType<typeof computeGroupings>>;
+const computeError = (message: string): ComputeResult => ({ error: { message } }) as unknown as ComputeResult;
+
 /** A controllable promise so the busy/pending intermediate state can be observed before settle. */
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -42,7 +47,7 @@ describe("GroupingStalePanel", () => {
   });
 
   it("clicking Recompute invokes computeGroupings with the plan/cohort and shows a busy, disabled button", async () => {
-    const pending = deferred<{ error: string | undefined }>();
+    const pending = deferred<ComputeResult>();
     computeMock.mockReturnValue(pending.promise);
 
     render(<GroupingStalePanel planId={PLAN_ID} cohort={COHORT} />);
@@ -61,7 +66,7 @@ describe("GroupingStalePanel", () => {
   });
 
   it("an error result renders an inline alert, keeps the panel, and never reloads", async () => {
-    computeMock.mockResolvedValue({ error: "Compute failed" });
+    computeMock.mockResolvedValue(computeError("Compute failed"));
 
     render(<GroupingStalePanel planId={PLAN_ID} cohort={COHORT} />);
     fireEvent.click(screen.getByRole("button", { name: "Recompute" }));

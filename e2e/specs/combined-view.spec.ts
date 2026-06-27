@@ -56,8 +56,8 @@ test.describe("combined two-cohort view", () => {
     await computeGroupings(page, dp2Display);
     await placeFromPalette(page, dp2Display, slot);
 
-    // --- Navigate to the combined view via the switcher's "Combined" segment.
-    await page.getByRole("group", { name: "Cohort" }).getByRole("link", { name: "Combined" }).click();
+    // --- Navigate to the combined view via the switcher's "Combined" tab.
+    await page.getByRole("tablist", { name: "Board view" }).getByRole("tab", { name: "Combined" }).click();
     await page.waitForURL(new RegExp(`/plans/${plan.id}/combined`));
 
     // --- The clash is flagged on BOTH adjacent cells at once (the paired-column payoff).

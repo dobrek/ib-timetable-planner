@@ -898,11 +898,11 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [x] 9.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [x] 9.2 Unit suite passes (`pnpm test`) — 686/82
-- [x] 9.3 api integration tests pass (`pnpm test:integration`) — 53/53 (load/placements/shelf/combined/adapter-parity; one transient setup flake re-run green)
-- [x] 9.4 Build clean (`pnpm build`)
-- [x] 9.5 Final full e2e gate green, both routes (`pnpm test:e2e`) — 18/18 passed
+- [x] 9.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`) — 35efdc4
+- [x] 9.2 Unit suite passes (`pnpm test`) — 686/82, 35efdc4
+- [x] 9.3 api integration tests pass (`pnpm test:integration`) — 53/53 (load/placements/shelf/combined/adapter-parity; one transient setup flake re-run green), 35efdc4
+- [x] 9.4 Build clean (`pnpm build`) — 35efdc4
+- [x] 9.5 Final full e2e gate green, both routes (`pnpm test:e2e`) — 18/18 passed, 35efdc4
 
 #### Manual
 

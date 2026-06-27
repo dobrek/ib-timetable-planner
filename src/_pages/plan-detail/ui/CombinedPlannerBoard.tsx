@@ -16,6 +16,8 @@ import { inspectedViolations, inspectedWeeks } from "./board-inspection";
 import { cellKey } from "../model/collisions";
 import { resolveCombinedDrop } from "../model/combined-drop";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
+import type { ParkedMember } from "../model/parked";
+import { defaultParkedWeek, groupingParkedMembers } from "../model/parked-members";
 import { placementErrorMessage } from "../model/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
 
@@ -96,7 +98,8 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
     // A cohort-free palette drag dropped on the cell-less shelf parks under `paletteCohort`.
     const action = resolveCombinedDrop(source.data as DragData, target.data as DropTargetData, paletteCohort);
     if (!action) return;
-    const { actions } = byCohort[action.cohort];
+    const state = byCohort[action.cohort];
+    const { actions } = state;
 
     switch (action.kind) {
       case "addCourse":
@@ -119,6 +122,16 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
         actions.placeBack(action.shelfBundleId, action.cell);
         collapseUnlessPinned();
         break;
+      case "parkCourse":
+        // Palette course dropped on the cell-less shelf → park the single course under the active cohort.
+        parkToShelf(action.cohort, [
+          { courseId: action.courseId, week: defaultParkedWeek(action.courseId, state.weekModeByCourseId) },
+        ]);
+        break;
+      case "parkGroup":
+        // Palette grouping dropped on the shelf → park its resolved members under the active cohort.
+        parkToShelf(action.cohort, groupingParkedMembers(action.groupingId, state.groupings, state.weekModeByCourseId));
+        break;
     }
   }
 
@@ -130,6 +143,14 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
 
   function liftBundle(cohort: Cohort, day: number, period: number) {
     byCohort[cohort].actions.shelveBundle(day, period);
+    collapseUnlessPinned();
+  }
+
+  // Park a resolved member-set under `cohort` (no-op on empty) + auto-collapse unless pinned — the
+  // combined-view analog of the single board's `parkToShelf`, routed to the active cohort's store.
+  function parkToShelf(cohort: Cohort, members: ParkedMember[]) {
+    if (members.length === 0) return;
+    byCohort[cohort].actions.parkMembers(members);
     collapseUnlessPinned();
   }
 

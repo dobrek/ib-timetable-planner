@@ -357,23 +357,23 @@ None. No schema or data migration — parking reuses the existing `shelf_bundles
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Unit tests pass: `pnpm test`
-- [x] 1.3 Lint passes: `pnpm lint`
-- [x] 1.4 Structure check passes: `pnpm steiger`
+- [x] 1.1 Type check passes: `pnpm check` — ecf0f94
+- [x] 1.2 Unit tests pass: `pnpm test` — ecf0f94
+- [x] 1.3 Lint passes: `pnpm lint` — ecf0f94
+- [x] 1.4 Structure check passes: `pnpm steiger` — ecf0f94
 
 #### Manual
 
-- [x] 1.5 New router variants + helper exports read as natural extensions (no catalog/grouping data in the router)
+- [x] 1.5 New router variants + helper exports read as natural extensions (no catalog/grouping data in the router) — ecf0f94
 
 ### Phase 2: Board wiring — both boards onto the model
 
 #### Automated
 
-- [ ] 2.1 Type check passes: `pnpm check`
-- [ ] 2.2 Unit tests pass: `pnpm test`
-- [ ] 2.3 Lint passes (incl. react-compiler purity): `pnpm lint`
-- [ ] 2.4 Production build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check`
+- [x] 2.2 Unit tests pass: `pnpm test`
+- [x] 2.3 Lint passes (incl. react-compiler purity): `pnpm lint`
+- [x] 2.4 Production build is clean: `pnpm build`
 
 #### Manual
 

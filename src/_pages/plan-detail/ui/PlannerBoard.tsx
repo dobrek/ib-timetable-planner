@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { cohortLabel, type PlacementWeek } from "@/shared/config";
+import { cohortLabel } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
@@ -27,8 +27,9 @@ import {
   useDuplicateHighlight,
   useHours,
 } from "../model/use-board-derivations";
-import { oppositeWeekAssignment, placementErrorMessage } from "../model/placement-transitions";
+import { placementErrorMessage } from "../model/placement-transitions";
 import type { ParkedMember } from "../model/parked";
+import { defaultParkedWeek, groupingParkedMembers } from "../model/parked-members";
 import { usePlacements } from "../model/use-placements";
 import { useExplodedCells } from "../model/use-exploded-cells";
 
@@ -121,7 +122,7 @@ export default function PlannerBoard({
       case "course":
         // Onto a cell → place; onto the shelf → park the single course directly.
         if (cell) addCourse(data.courseId, cell);
-        else parkToShelf([{ courseId: data.courseId, week: defaultParkedWeek(data.courseId) }]);
+        else parkToShelf([{ courseId: data.courseId, week: defaultParkedWeek(data.courseId, weekModeByCourseId) }]);
         break;
       case "placement":
         if (cell) movePlacement(data.placementId, cell);
@@ -129,7 +130,7 @@ export default function PlannerBoard({
       case "grouping":
         // Onto a cell → fan the members in; onto the shelf → park the grouping directly.
         if (cell) dropGroup(data.groupingId, cell);
-        else parkToShelf(groupingMembers(data.groupingId));
+        else parkToShelf(groupingParkedMembers(data.groupingId, groupings, weekModeByCourseId));
         break;
       case "bundle":
         // Onto a cell → move/merge; onto the shelf → lift the whole bundle off the board.
@@ -161,28 +162,13 @@ export default function PlannerBoard({
 
   // Park a course-set onto the shelf. Re-dropping an already-parked set deliberately parks it
   // again (a second card) — by author decision after user testing. Mirrors the lift's
-  // auto-collapse so the drawer behaves the same however a bundle gets parked.
+  // auto-collapse so the drawer behaves the same however a bundle gets parked. Members are
+  // resolved by the shared `model/parked-members` helper (the combined board parks identically).
   function parkToShelf(members: ParkedMember[]) {
     if (members.length === 0) return;
     parkMembers(members);
     collapseUnlessPinned();
   }
-
-  // Resolve a palette grouping's off-board formation: an opposite-week share alternates a/b; every
-  // other member takes its intrinsic default (bi-weekly → `a`, agnostic → `both`). No target cell
-  // is involved, so there is no occupancy to resolve against (unlike a board drop).
-  function groupingMembers(groupingId: string): ParkedMember[] {
-    const grouping = groupings.find((candidate) => candidate.id === groupingId);
-    if (!grouping) return [];
-    const weekByMember = grouping.oppositeWeek ? oppositeWeekAssignment(grouping.memberIds) : null;
-    return grouping.memberIds.map((courseId) => ({
-      courseId,
-      week: weekByMember?.get(courseId) ?? defaultParkedWeek(courseId),
-    }));
-  }
-
-  const defaultParkedWeek = (courseId: string): PlacementWeek =>
-    weekModeByCourseId.get(courseId) === "biweekly" ? "a" : "both";
 
   // One decision over the left column's three states, mirroring the `switch (data.kind)` drop
   // dispatch: the orchestrator resolves the view once; each view is a dumb component.

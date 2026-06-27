@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState } from "react";
 import { cohortLabel, type PlacementWeek } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
@@ -15,22 +15,21 @@ import PlanSummaryBar from "./PlanSummaryBar";
 import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
-import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../lib/drag-hint-mode";
-import { writePaletteCollapsed } from "../lib/palette-collapsed";
-import { DEFAULT_SHELF_PINNED, readShelfPinned, subscribeShelfPinned, writeShelfPinned } from "../lib/shelf-pinned";
-import { buildAvailabilityIndex } from "../model/availability-index";
-import type { AvailabilityIndex } from "../model/availability-index";
-import { buildCrossCohortIndex } from "../model/cross-cohort-index";
-import type { CrossCohortIndex } from "../model/cross-cohort-index";
+import { useHintMode, usePaletteDisclosure, useShelfDisclosure } from "./board-disclosure";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps, ShelfData } from "../model/drag";
-import { cellKey, deriveCellViolations } from "../model/collisions";
+import { cellKey } from "../model/collisions";
 import type { CellCollisions } from "../model/collisions";
-import { deriveDropHints, resolveDragHintContext } from "../model/drop-hints";
-import type { DragHintContext } from "../model/drop-hints";
 import { resolvePaletteView } from "../model/palette-view";
-import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
-import { countIncompleteCourses, deriveHours } from "../model/hours";
 import type { LocalPlacement } from "../model/placement";
+import {
+  useAvailabilityIndex,
+  useCatalogById,
+  useCollisions,
+  useCrossCohortIndex,
+  useDragHints,
+  useDuplicateHighlight,
+  useHours,
+} from "../model/use-board-derivations";
 import { oppositeWeekAssignment, placementErrorMessage } from "../model/placement-transitions";
 import type { ParkedMember } from "../model/parked";
 import { usePlacements } from "../model/use-placements";
@@ -287,125 +286,6 @@ export default function PlannerBoard({
   );
 }
 
-// Shared course lookup, built once for both the collision and drag-hint derivations.
-function useCatalogById(catalog: GroupingCourse[]) {
-  return useMemo(() => new Map(catalog.map((course) => [course.id, course])), [catalog]);
-}
-
-// Index the raw availability cells (a serializable prop) into the Maps the derivations read.
-function useAvailabilityIndex(availability: PlannerBoardProps["availability"]) {
-  return useMemo(() => buildAvailabilityIndex(availability), [availability]);
-}
-
-// Index the raw sibling-occupancy cells (a serializable prop) into the cross-cohort Map.
-function useCrossCohortIndex(occupancy: PlannerBoardProps["crossCohortOccupancy"]) {
-  return useMemo(() => buildCrossCohortIndex(occupancy), [occupancy]);
-}
-
-function useCollisions(
-  placements: LocalPlacement[],
-  catalogById: Map<string, GroupingCourse>,
-  availability: AvailabilityIndex,
-  occupiedByTeacher: CrossCohortIndex,
-) {
-  return useMemo(
-    () => deriveCellViolations(placements, catalogById, availability, occupiedByTeacher),
-    [placements, catalogById, availability, occupiedByTeacher],
-  );
-}
-
-// Owns the active-drag identity and derives the per-cell hint map from it. Keyed on live
-// placements so marks stay correct if an optimistic placement settles or rolls back mid-drag.
-// The map is null when no drag is active, so cells render no hint.
-function useDragHints(
-  catalogById: Map<string, GroupingCourse>,
-  placements: LocalPlacement[],
-  groupings: PlannerGrouping[],
-  availability: AvailabilityIndex,
-  occupiedByTeacher: CrossCohortIndex,
-) {
-  const [context, setContext] = useState<DragHintContext | null>(null);
-  const dropHints = useMemo(
-    () => deriveDropHints(context, placements, catalogById, availability, occupiedByTeacher),
-    [context, placements, catalogById, availability, occupiedByTeacher],
-  );
-  return {
-    dropHints,
-    startDragHints: (data: DragData) => {
-      setContext(resolveDragHintContext(data, { catalogById, groupings, placements }));
-    },
-    clearDragHints: () => {
-      setContext(null);
-    },
-  };
-}
-
-// Turns the hook's `lastDuplicated` outcome into a transient, self-clearing highlight the grid
-// reads. The highlight is *derived* during render (active unless its nonce has been cleared), so no
-// state is set synchronously in the effect; the effect only schedules the clear. `lastDuplicated`
-// is a fresh object (bumped nonce) on every duplicate, so a same-cell repeat re-arms the timer and
-// re-fires the highlight; the timer is cleared on unmount. The board owns this lifecycle.
-const DUPLICATE_HIGHLIGHT_MS = 1200;
-
-function useDuplicateHighlight(last: (CellData & { nonce: number }) | null) {
-  const [clearedNonce, setClearedNonce] = useState<number | null>(null);
-  useEffect(() => {
-    if (!last) return;
-    const timer = setTimeout(() => {
-      setClearedNonce(last.nonce);
-    }, DUPLICATE_HIGHLIGHT_MS);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [last]);
-  return last && last.nonce !== clearedNonce ? last : null;
-}
-
-// Per-device hint encoding, persisted in localStorage. `useSyncExternalStore` returns the
-// default during SSR and the hydration render (the island is `client:load`) via the server
-// snapshot, then switches to the stored value — so the toggle's active state can't trip a
-// hydration mismatch. Drags never run at hydration, so the cells themselves can't mismatch.
-function useHintMode() {
-  const hintMode = useSyncExternalStore(subscribeHintMode, readHintMode, () => DEFAULT_HINT_MODE);
-  return { hintMode, setHintMode: writeHintMode };
-}
-
-// Owns the shelf drawer's open/closed disclosure. `pinned` is the per-device persisted pref
-// (useSyncExternalStore: server snapshot = default, so hydration can't mismatch); `expanded` is
-// the runtime toggle. A pinned drawer is always open and never auto-collapses; lift / place-back
-// collapse it only when not pinned. The grid reflows once when `shelfExpanded` flips — and only on
-// these explicit toggles, never mid-drag (no drag mutates this state).
-function useShelfDisclosure() {
-  const pinned = useSyncExternalStore(subscribeShelfPinned, readShelfPinned, () => DEFAULT_SHELF_PINNED);
-  const [expanded, setExpanded] = useState(false);
-  return {
-    shelfExpanded: expanded || pinned,
-    pinned,
-    setExpanded,
-    setPinned: writeShelfPinned,
-    collapseUnlessPinned: () => {
-      if (!pinned) setExpanded(false);
-    },
-  };
-}
-
-// Owns the palette's collapse disclosure. Seeded from the SSR `paletteCollapsed` prop (read from
-// the cookie server-side), so the first client render matches the server and there is no hydration
-// flash. Simpler than the shelf: no `useSyncExternalStore` (the cookie is read once at SSR — cross-
-// tab sync is intentionally omitted, see palette-collapsed.ts) and no pin (the palette is never a
-// drop target, so it never auto-collapses). The toggle writes the cookie so the choice survives a
-// reload; like the shelf, the grid reflows only on these explicit clicks, never mid-drag.
-function usePaletteDisclosure(initialCollapsed: boolean) {
-  const [collapsed, setCollapsed] = useState(initialCollapsed);
-  return {
-    collapsed,
-    setCollapsed: (next: boolean) => {
-      setCollapsed(next);
-      writePaletteCollapsed(next);
-    },
-  };
-}
-
 /** Discriminate the drop target: the shelf droppable carries `{kind:"shelf"}`; a cell carries `{day,period}` (no `kind`). */
 const isShelfTarget = (target: DropTargetData): target is ShelfData => "kind" in target;
 
@@ -441,12 +321,6 @@ const inspectedWeeks = (
     if (placement.day === target.day && placement.period === target.period) weeks[placement.courseId] = placement.week;
   return weeks;
 };
-
-function useHours(placements: LocalPlacement[], catalog: GroupingCourse[]) {
-  const hours = useMemo(() => deriveHours(placements, catalog), [placements, catalog]);
-  const incompleteCount = useMemo(() => countIncompleteCourses(hours), [hours]);
-  return { hours, incompleteCount };
-}
 
 // Disable the drop "return" animation. A palette course is *copied* onto the grid —
 // its source stays in the palette — so dnd-kit's default animation flies the drag

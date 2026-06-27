@@ -33,6 +33,9 @@ type Props = {
   bundled: boolean;
   /** True for the cell a duplicate just landed on — drives a one-shot highlight pulse. */
   justDuplicated: boolean;
+  /** Combined view (S-06): true while a drag is active over the *other* cohort — recede this cell
+   *  as a non-target so accidental cross-cohort drops on adjacent cells are visually discouraged. */
+  dimmed?: boolean;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
@@ -62,6 +65,7 @@ export default function SlotCell({
   hintMode,
   bundled,
   justDuplicated,
+  dimmed,
   onRemove,
   onSetWeek,
   onToggleBundle,
@@ -118,6 +122,8 @@ export default function SlotCell({
         // One-shot "the copy landed here" highlight (semantic ring token). Pulse is motion-safe;
         // reduced-motion keeps the static ring. Self-clears when the board drops the highlight.
         justDuplicated && "ring-ring ring-2 ring-inset motion-safe:animate-pulse",
+        // Sibling-cohort recede during a cross-cohort drag (opacity is not a color token).
+        dimmed && "opacity-40",
       )}
     >
       {hasOccupants && (

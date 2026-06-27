@@ -1,38 +1,9 @@
-import type { PlacementWeek } from "@/shared/config";
-import type { CollisionInspectionTarget } from "./CollisionDetailsDialog";
-import SlotCell from "./slot-cell";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
-import type { CellData } from "../model/drag";
+import { SlotCellHost, type CellWiring } from "./slot-cell/SlotCellHost";
 import type { CellCollisions } from "../model/collisions";
 import { groupCellOccupants, type CellOccupant } from "../model/cell-occupants";
-import type { DropHint } from "../model/drop-hints";
-import type { HintMode } from "../lib/drag-hint-mode";
 import type { LocalPlacement } from "../model/placement";
-import { isBundled } from "../model/exploded-cells";
 import { cellKey } from "../model/collisions";
-
-/**
- * The cell wiring shared by `PlannerGrid` and its `PeriodRow` pass-through: handlers plus the
- * cell-level drag-hint state. Declared once instead of verbatim in both the grid `Props` and the
- * row params. Per-cell data (occupants, the row's resolved hint) is added on top at each level.
- */
-type CellWiring = {
-  /** cellKey → drag hint (sparse: absent = free); null when no drag is active. */
-  dropHints: Map<string, DropHint> | null;
-  /** Encoding for the hint cells while a drag is active. */
-  hintMode: HintMode;
-  /** Is `(day, period)` currently exploded (ungrouped view)? Drives the per-cell `bundled` derivation. */
-  isExploded: (day: number, period: number) => boolean;
-  /** The cell a duplicate just landed on (with a nonce), or null; the matching cell pulses. */
-  justDuplicated: (CellData & { nonce: number }) | null;
-  onRemove: (placementId: string) => void;
-  onSetWeek: (placementId: string, week: PlacementWeek) => void;
-  onToggleBundle: (day: number, period: number, bundled: boolean) => void;
-  onRemoveBundle: (day: number, period: number) => void;
-  onDuplicateBundle: (day: number, period: number) => void;
-  onLiftBundle: (day: number, period: number) => void;
-  onInspect: (target: CollisionInspectionTarget) => void;
-};
 
 type Props = CellWiring & {
   days: number;
@@ -146,31 +117,25 @@ function PeriodRow({
       >
         {periodLabel(period)}
       </div>
-      {days.map((day) => {
-        const occupants = byCell.get(cellKey(day, period)) ?? [];
-        return (
-          <SlotCell
-            key={day}
-            day={day}
-            period={period}
-            occupants={occupants}
-            dropHint={dropHints?.get(cellKey(day, period))}
-            hintActive={dropHints !== null}
-            hintMode={hintMode}
-            bundled={isBundled(occupants.length, isExploded(day, period))}
-            justDuplicated={
-              justDuplicated !== null && cellKey(justDuplicated.day, justDuplicated.period) === cellKey(day, period)
-            }
-            onRemove={onRemove}
-            onSetWeek={onSetWeek}
-            onToggleBundle={onToggleBundle}
-            onRemoveBundle={onRemoveBundle}
-            onDuplicateBundle={onDuplicateBundle}
-            onLiftBundle={onLiftBundle}
-            onInspect={onInspect}
-          />
-        );
-      })}
+      {days.map((day) => (
+        <SlotCellHost
+          key={day}
+          day={day}
+          period={period}
+          occupants={byCell.get(cellKey(day, period)) ?? []}
+          dropHints={dropHints}
+          hintMode={hintMode}
+          isExploded={isExploded}
+          justDuplicated={justDuplicated}
+          onRemove={onRemove}
+          onSetWeek={onSetWeek}
+          onToggleBundle={onToggleBundle}
+          onRemoveBundle={onRemoveBundle}
+          onDuplicateBundle={onDuplicateBundle}
+          onLiftBundle={onLiftBundle}
+          onInspect={onInspect}
+        />
+      ))}
     </div>
   );
 }

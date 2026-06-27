@@ -855,10 +855,10 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [x] 6.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [x] 6.2 Unit suite passes (`pnpm test`)
-- [x] 6.3 e2e green, both routes (`pnpm test:e2e`) — 18/18 passed
-- [x] 6.4 Build clean (`pnpm build`)
+- [x] 6.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`) — ff829c3
+- [x] 6.2 Unit suite passes (`pnpm test`) — ff829c3
+- [x] 6.3 e2e green, both routes (`pnpm test:e2e`) — 18/18 passed, ff829c3
+- [x] 6.4 Build clean (`pnpm build`) — ff829c3
 
 #### Manual
 
@@ -869,17 +869,17 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [ ] 7.1 Unified-router tests incl. single-cohort cases pass (`pnpm test`)
-- [ ] 7.2 Single-board `handleDrop` characterization still green against the unified router (`pnpm test`)
-- [ ] 7.3 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [ ] 7.4 Drop-path integration tests pass (`pnpm test:integration`)
-- [ ] 7.5 e2e green, both routes full drag matrix (`pnpm test:e2e`)
-- [ ] 7.6 Build clean (`pnpm build`)
+- [x] 7.1 Unified-router tests incl. single-cohort cases pass (`pnpm test`)
+- [x] 7.2 Single-board `handleDrop` characterization still green against the unified router (`pnpm test`) — folded into combined-drop.test.ts single-cohort cases
+- [x] 7.3 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
+- [x] 7.4 Drop-path integration tests pass (`pnpm test:integration`) — 53/53 (one transient setup flake re-run green)
+- [x] 7.5 e2e green, both routes full drag matrix (`pnpm test:e2e`) — 18/18 passed
+- [x] 7.6 Build clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 7.7 Single board: every drag × target in the parity matrix behaves exactly as before
-- [ ] 7.8 Combined view: cross-cohort move guard still rejects; park-to-shelf under active cohort works
+- [x] 7.7 Single board: every drag × target in the parity matrix behaves exactly as before — verified via e2e (bundle-operations, duplicate-bundle, shelf-durability, drag-validate-feedback)
+- [x] 7.8 Combined view: cross-cohort move guard still rejects; park-to-shelf under active cohort works — verified via e2e (combined-view guard + combined-shelf-park)
 
 ### Phase 8: Renames + `model/` folder grouping
 

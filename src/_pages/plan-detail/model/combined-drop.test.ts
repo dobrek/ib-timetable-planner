@@ -92,3 +92,78 @@ describe("resolveCombinedDrop — park to shelf", () => {
     expect(resolveCombinedDrop(drag, shelf, "dp2")).toEqual({ kind: "parkGroup", cohort: "dp2", groupingId: "g1" });
   });
 });
+
+// The single board is the degenerate one-cohort case: its cells/drags carry NO cohort (untagged, to
+// preserve the cell aria-label + parked-card tag). Every missing cohort resolves to `activeCohort` —
+// the board's one cohort — so the cross-cohort guard never rejects and the dispatch matches the old
+// single-board `switch (kind)`. These fold in the retired `single-drop.test.ts` cases.
+describe("resolveCombinedDrop — single board (untagged, one cohort)", () => {
+  const bareCell = (day = 1, period = 1): CellData => ({ day, period });
+
+  it("places a palette course on an untagged cell under the board's cohort", () => {
+    expect(resolveCombinedDrop({ kind: "course", courseId: "c1" }, bareCell(2, 3), "dp1")).toEqual({
+      kind: "addCourse",
+      cohort: "dp1",
+      courseId: "c1",
+      cell: bareCell(2, 3),
+    });
+  });
+
+  it("fans a grouping into an untagged cell under the board's cohort", () => {
+    expect(resolveCombinedDrop({ kind: "grouping", groupingId: "g1" }, bareCell(), "dp1")).toEqual({
+      kind: "dropGroup",
+      cohort: "dp1",
+      groupingId: "g1",
+      cell: bareCell(),
+    });
+  });
+
+  it("moves an untagged placement onto an untagged cell — the guard trivially passes", () => {
+    expect(
+      resolveCombinedDrop({ kind: "placement", placementId: "p1", courseId: "c1" }, bareCell(4, 5), "dp1"),
+    ).toEqual({ kind: "movePlacement", cohort: "dp1", placementId: "p1", cell: bareCell(4, 5) });
+  });
+
+  it("moves an untagged bundle onto a cell, and lifts one off onto the shelf", () => {
+    expect(resolveCombinedDrop({ kind: "bundle", day: 1, period: 1 }, bareCell(2, 2), "dp1")).toEqual({
+      kind: "moveBundle",
+      cohort: "dp1",
+      day: 1,
+      period: 1,
+      cell: bareCell(2, 2),
+    });
+    expect(resolveCombinedDrop({ kind: "bundle", day: 2, period: 3 }, shelf, "dp1")).toEqual({
+      kind: "liftBundle",
+      cohort: "dp1",
+      day: 2,
+      period: 3,
+    });
+  });
+
+  it("places an untagged parked card back onto a cell, and no-ops on the shelf", () => {
+    expect(resolveCombinedDrop({ kind: "parked", shelfBundleId: "s1" }, bareCell(3, 3), "dp1")).toEqual({
+      kind: "placeBack",
+      cohort: "dp1",
+      shelfBundleId: "s1",
+      cell: bareCell(3, 3),
+    });
+    expect(resolveCombinedDrop({ kind: "parked", shelfBundleId: "s1" }, shelf, "dp1")).toBeNull();
+  });
+
+  it("parks an untagged palette course / grouping onto the shelf under the board's cohort", () => {
+    expect(resolveCombinedDrop({ kind: "course", courseId: "c1" }, shelf, "dp1")).toEqual({
+      kind: "parkCourse",
+      cohort: "dp1",
+      courseId: "c1",
+    });
+    expect(resolveCombinedDrop({ kind: "grouping", groupingId: "g1" }, shelf, "dp1")).toEqual({
+      kind: "parkGroup",
+      cohort: "dp1",
+      groupingId: "g1",
+    });
+  });
+
+  it("no-ops an untagged placement dropped on the shelf", () => {
+    expect(resolveCombinedDrop({ kind: "placement", placementId: "p1", courseId: "c1" }, shelf, "dp1")).toBeNull();
+  });
+});

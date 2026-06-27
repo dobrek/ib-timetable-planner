@@ -91,18 +91,18 @@ const otherCohortViolation = (page: Page): Locator =>
 // --- Spec-specific flow helpers (shared board/catalog plumbing lives in ../support) -----------
 
 /**
- * Switch the active cohort via the switcher control (full SSR remount). Asserts the switcher now
- * marks `cohort` active (its label is no longer a link, and the sibling cohort is). This holds
- * whether the target board is populated or still on its compute-groupings empty state, so it is
- * the stable proof of the remount; the cohort-correct *board* is then proven by what follows.
+ * Switch the active cohort via the switcher `Tabs` control (full SSR remount). Asserts the remount
+ * landed on `cohort` (its tab is now selected, the sibling's is not). This holds whether the target
+ * board is populated or still on its compute-groupings empty state, so it is the stable proof of the
+ * remount; the cohort-correct *board* is then proven by what follows.
  */
 async function switchCohort(page: Page, cohort: "DP1" | "DP2"): Promise<void> {
   const sibling = cohort === "DP1" ? "DP2" : "DP1";
-  const switcher = page.getByRole("group", { name: "Cohort" });
-  await switcher.getByRole("link", { name: cohort }).click();
+  const switcher = page.getByRole("tablist", { name: "Board view" });
+  await switcher.getByRole("tab", { name: cohort }).click();
   await page.waitForURL(new RegExp(`cohort=${cohort.toLowerCase()}`));
-  await expect(switcher.getByRole("link", { name: sibling })).toBeVisible(); // the other cohort is now the link
-  await expect(switcher.getByRole("link", { name: cohort })).toHaveCount(0); // the active one no longer is
+  await expect(switcher.getByRole("tab", { name: cohort, selected: true })).toBeVisible(); // landed on it
+  await expect(switcher.getByRole("tab", { name: sibling, selected: false })).toBeVisible(); // sibling is not
 }
 
 /** Open the collision details dialog for `slot` and wait for it to render. */

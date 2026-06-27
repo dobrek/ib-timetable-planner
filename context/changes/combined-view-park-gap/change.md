@@ -1,7 +1,7 @@
 ---
 change_id: combined-view-park-gap
 title: Park a palette course or grouping directly onto the shelf in the combined view
-status: implementing
+status: implemented
 created: 2026-06-27
 updated: 2026-06-27
 archived_at: null

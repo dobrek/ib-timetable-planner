@@ -5,7 +5,7 @@ import { groupCellOccupants, type CellOccupant } from "../../model/cell-occupant
 import type { LocalPlacement } from "../../model/placement";
 import { cellKey } from "../../model/collisions";
 
-type Props = CellWiring & {
+type Props = {
   days: number;
   periods: number;
   /** Pre-formatted accessible name for the grid (e.g. "DP1 timetable") — built at the board level. */
@@ -14,28 +14,12 @@ type Props = CellWiring & {
   names: Record<string, string>;
   /** cellKey → flags + structured violations for that cell. */
   collisions: Map<string, CellCollisions>;
+  /** One bundled cell-wiring object, spread into each `SlotCellHost` — mirrors `PairedPlannerGrid`. */
+  wiring: CellWiring;
 };
 
 /** The 10×5 (period × day) slot grid. Each cell is a droppable; cells are multi-occupancy. */
-export default function PlannerGrid({
-  days,
-  periods,
-  gridLabel,
-  placements,
-  names,
-  collisions,
-  dropHints,
-  hintMode,
-  isExploded,
-  justDuplicated,
-  onRemove,
-  onSetWeek,
-  onToggleBundle,
-  onRemoveBundle,
-  onDuplicateBundle,
-  onLiftBundle,
-  onInspect,
-}: Props) {
+export default function PlannerGrid({ days, periods, gridLabel, placements, names, collisions, wiring }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
   // Resolve each occupant's display name + collision flags once, here, where `names`/`collisions`
@@ -66,23 +50,7 @@ export default function PlannerGrid({
         </div>
 
         {periodList.map((period) => (
-          <PeriodRow
-            key={period}
-            period={period}
-            days={dayList}
-            byCell={byCell}
-            dropHints={dropHints}
-            hintMode={hintMode}
-            isExploded={isExploded}
-            justDuplicated={justDuplicated}
-            onRemove={onRemove}
-            onSetWeek={onSetWeek}
-            onToggleBundle={onToggleBundle}
-            onRemoveBundle={onRemoveBundle}
-            onDuplicateBundle={onDuplicateBundle}
-            onLiftBundle={onLiftBundle}
-            onInspect={onInspect}
-          />
+          <PeriodRow key={period} period={period} days={dayList} byCell={byCell} wiring={wiring} />
         ))}
       </div>
     </div>
@@ -93,21 +61,12 @@ function PeriodRow({
   period,
   days,
   byCell,
-  dropHints,
-  hintMode,
-  isExploded,
-  justDuplicated,
-  onRemove,
-  onSetWeek,
-  onToggleBundle,
-  onRemoveBundle,
-  onDuplicateBundle,
-  onLiftBundle,
-  onInspect,
-}: CellWiring & {
+  wiring,
+}: {
   period: number;
   days: number[];
   byCell: Map<string, CellOccupant[]>;
+  wiring: CellWiring;
 }) {
   return (
     <div role="row" className="contents">
@@ -123,17 +82,7 @@ function PeriodRow({
           day={day}
           period={period}
           occupants={byCell.get(cellKey(day, period)) ?? []}
-          dropHints={dropHints}
-          hintMode={hintMode}
-          isExploded={isExploded}
-          justDuplicated={justDuplicated}
-          onRemove={onRemove}
-          onSetWeek={onSetWeek}
-          onToggleBundle={onToggleBundle}
-          onRemoveBundle={onRemoveBundle}
-          onDuplicateBundle={onDuplicateBundle}
-          onLiftBundle={onLiftBundle}
-          onInspect={onInspect}
+          {...wiring}
         />
       ))}
     </div>

@@ -216,6 +216,15 @@ No global store library (Zustand, Context) unless:
 
 The courses slice uses custom hooks + RHF for forms. Overlap edits use in-memory updates; other mutations use `navigate()` to re-run the server loader.
 
+### Cell wiring is a spread, not a Context (amendment — `plan-detail-refactor`)
+
+The plan-detail board threads ~11 per-cell handlers + drag-hint state (`CellWiring`) from the board down to each `SlotCell`. The fix for the prop-drill is a **bundled object + `{...wiring}` spread** (`useCellWiring` → `PlannerGrid`/`PairedPlannerGrid`), **not** a `BoardWiringContext`. The real rationale (beyond the no-Context default above):
+
+- **There is no React Compiler transform** — only the `eslint-plugin-react-compiler` lint rule (`astro.config.mjs` wires `@astrojs/react` with no babel options). So memoization is **all manual**; a new shared value must be referentially stable by hand (`useCellWiring`'s `useMemo`).
+- **`dropHints`/`hintMode` change on every drag tick.** A single broad-fan-out Context value would re-render *every* cell consumer on each hint update — exactly the cost the per-cell prop structure bounds — and the placement/constraint pass already runs against a **<200ms per drag-drop budget**. Context here would be both convention-discouraged *and* a measurable perf regression.
+
+The combined view already proved the spread pattern (`PairedPlannerGrid` spreads `{...column.wiring}`); the single board now adopts it.
+
 ## Astro layouts & inline scripts
 
 Established by the `unify-navigation` change (`src/app/layouts/`).

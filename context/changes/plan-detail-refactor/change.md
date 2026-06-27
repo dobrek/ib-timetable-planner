@@ -1,9 +1,9 @@
 ---
 change_id: plan-detail-refactor
 title: Refactor plan-detail slice — shared board core, kill duplication, group folders
-status: implementing
+status: implemented
 created: 2026-06-27
-updated: 2026-06-27
+updated: 2026-06-28
 archived_at: null
 ---
 

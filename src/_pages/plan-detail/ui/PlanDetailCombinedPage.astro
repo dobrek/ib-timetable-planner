@@ -1,0 +1,45 @@
+---
+import { cohortLabel } from "@/shared/config";
+import type { PlannerBoardProps } from "../model/drag";
+
+type Props = {
+  planName: string;
+  dp1: PlannerBoardProps;
+  dp2: PlannerBoardProps;
+  paletteCollapsed: boolean;
+};
+
+const { planName, dp1, dp2 } = Astro.props;
+const columns = [dp1, dp2];
+---
+
+<div class="flex h-full min-h-0 flex-1 flex-col">
+  {
+    /* Phase 2 scaffold: validates the symmetric loader + route + navigation. Phase 3 replaces the
+      body below with <CombinedPlannerBoard client:load />. */
+  }
+  <div class="flex shrink-0 items-center gap-3 border-b px-6 py-2">
+    <h1 class="text-foreground text-base font-semibold">{planName}</h1>
+    <span class="bg-muted text-muted-foreground rounded-md px-2 py-1 text-sm font-medium">Combined view</span>
+    <a
+      href={`/plans/${dp1.planId}?cohort=dp1`}
+      class="text-muted-foreground hover:text-foreground text-sm transition-colors"
+    >
+      ← Back to single cohort
+    </a>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6 p-6">
+    {
+      columns.map((column) => (
+        <section data-slot="combined-cohort-summary" class="border-border rounded-md border p-4">
+          <h2 class="text-foreground font-medium">{cohortLabel(column.cohort)}</h2>
+          <p class="text-muted-foreground mt-1 text-sm">
+            {column.placements.length} placements · {column.groupings.length} groupings · {column.parkedBundles.length}{" "}
+            parked
+          </p>
+        </section>
+      ))
+    }
+  </div>
+</div>

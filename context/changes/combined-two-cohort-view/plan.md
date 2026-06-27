@@ -388,10 +388,10 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Lint + structure pass: `pnpm lint` and `pnpm steiger`
-- [x] 1.3 Unit tests pass, including new `projectFromPlacements` cases: `pnpm test`
-- [x] 1.4 Existing `use-placements` and `collision-parity` suites still green
+- [x] 1.1 Type check passes: `pnpm check` — 7b4d9ed
+- [x] 1.2 Lint + structure pass: `pnpm lint` and `pnpm steiger` — 7b4d9ed
+- [x] 1.3 Unit tests pass, including new `projectFromPlacements` cases: `pnpm test` — 7b4d9ed
+- [x] 1.4 Existing `use-placements` and `collision-parity` suites still green — 7b4d9ed
 
 #### Manual
 
@@ -401,9 +401,9 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Automated
 
-- [ ] 2.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
-- [ ] 2.2 Loader unit/contract test passes (both cohorts editable; cross-index from other; union names; per-cohort stale): `pnpm test`
-- [ ] 2.3 `pnpm build` stays clean
+- [x] 2.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
+- [x] 2.2 Loader unit/contract test passes (both cohorts editable; cross-index from other; union names; per-cohort stale): `pnpm test`
+- [x] 2.3 `pnpm build` stays clean
 
 #### Manual
 

@@ -3,6 +3,7 @@ import type { Cohort, PlacementWeek } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
+import CohortSwitcher from "./CohortSwitcher";
 import CollisionDetailsDialog, { type CollisionInspectionTarget } from "./CollisionDetailsDialog";
 import CombinedPalettePanel, { type PaletteCohortData } from "./CombinedPalettePanel";
 import DragHintModeToggle from "./DragHintModeToggle";
@@ -177,13 +178,7 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 items-center gap-3 border-b px-6 py-2">
           <h1 className="text-foreground text-base font-semibold">{planName}</h1>
-          <span className="bg-muted text-muted-foreground rounded-md px-2 py-1 text-sm font-medium">Combined view</span>
-          <a
-            href={`/plans/${planId}?cohort=dp1`}
-            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-          >
-            ← Single cohort
-          </a>
+          <CohortSwitcher planId={planId} active="combined" />
           <div className="ml-auto">
             <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
           </div>

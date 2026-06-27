@@ -1,7 +1,7 @@
 ---
 change_id: plan-detail-refactor
 title: Refactor plan-detail slice — shared board core, kill duplication, group folders
-status: implemented
+status: impl_reviewed
 created: 2026-06-27
 updated: 2026-06-28
 archived_at: null
@@ -167,3 +167,15 @@ CollisionDetailsDialog). Board orchestrators + `.astro` route entries stay at `u
 - FSD steiger gate (`--fail-on-warnings`); layer import direction `app → _pages → shared`.
 - Placement/constraint validation <200ms per drag-drop budget — don't regress the constraint core.
 - Behavior-preserving refactor: existing Vitest + integration + e2e suites are the safety net.
+
+### Implementation deviation — Phase 7 router mechanism (recorded at impl-review 2026-06-28)
+
+- The plan made cohort-**tagging** the single board's cells/drags the *primary* mechanism for
+  routing through `resolveCombinedDrop`, calling it "harmless." During implementation this proved
+  **wrong**: the single-board cell `cohort` prop also drives the cell `aria-label` and the
+  parked-card tag, so tagging would have changed visible/ARIA output (a behavior break).
+- Resolved by **inverting** the mechanism: single-board cells/drags stay **untagged** and the
+  `cell.cohort ?? activeCohort` / `data.cohort ?? activeCohort` fallback is the sole mechanism
+  (`model/cross-cohort/drop-router.ts:29-35`). Safe here because one provider → one cohort → an
+  untagged cell deterministically resolves to it; the masking risk the plan warned of cannot bite.
+  Behavior-preserving and covered by `drop-router.test.ts:100-169` single-cohort cases.

@@ -67,6 +67,49 @@ export type CombinedBoardState = ReturnType<typeof useCombinedBoardState>;
 export type CohortBoardState = CombinedBoardState["dp1"];
 export type CohortActions = CohortBoardState["actions"];
 
+/**
+ * The per-cohort board-state assembler — the single seam BOTH boards now share. Composes the same
+ * `useCohortPlacements` → `useCohortDerivations` → `toCohortState` pipeline `useCombinedBoardState`
+ * runs per column, exposed for the single board to call once. `seedIndex` feeds `usePlacements` (the
+ * duplicate-target search only); `freshIndex` feeds the collision/drag-hint derivations.
+ *
+ * The single board has no live cross-cohort sibling, so it passes its ONE static index as BOTH args
+ * — reproducing its previous inline wiring exactly. The combined view cannot call this twice (the
+ * live cross-index forms a cycle: each cohort's fresh index needs the OTHER's placements, which don't
+ * exist until both `usePlacements` run — see `useCombinedBoardState`), so it keeps composing the
+ * pieces directly. The `not.toBe` fresh-identity test guards the cycle the combined path relies on.
+ */
+export function useCohortBoardState(
+  props: PlannerBoardProps,
+  seedIndex: CrossCohortIndex,
+  freshIndex: CrossCohortIndex,
+): CohortBoardState {
+  const base = useCohortPlacements(props, seedIndex);
+  const deriv = useCohortDerivations(props, base, freshIndex);
+  return toCohortState(props, base, deriv);
+}
+
+/**
+ * Build one cohort's live cross-cohort occupancy index from the OTHER column's current placements +
+ * its teacher map. Exported as the named seam of the live cross-index: editing one cohort's
+ * placements yields a fresh index reflecting the change (see `use-cohort-board-state.test.ts`).
+ */
+export const indexFromPlacements = (
+  placements: LocalPlacement[],
+  teacherKeysByCourseId: Map<string, string[]>,
+): CrossCohortIndex =>
+  buildCrossCohortIndex(
+    projectFromPlacements(
+      placements.map((placement) => ({
+        courseId: placement.courseId,
+        day: placement.day,
+        period: placement.period,
+        week: placement.week,
+      })),
+      teacherKeysByCourseId,
+    ),
+  );
+
 // Placement state + the per-cohort index inputs, fed a one-render-lagged cross-index (only
 // `duplicateBundle` reads it). Split from the derivations so both `usePlacements` calls land before
 // either fresh index is built (the live-index cycle — see `useCombinedBoardState`).
@@ -168,46 +211,3 @@ const toCohortState = (
     removeParked: base.api.removeParked,
   },
 });
-
-/**
- * The per-cohort board-state assembler — the single seam BOTH boards now share. Composes the same
- * `useCohortPlacements` → `useCohortDerivations` → `toCohortState` pipeline `useCombinedBoardState`
- * runs per column, exposed for the single board to call once. `seedIndex` feeds `usePlacements` (the
- * duplicate-target search only); `freshIndex` feeds the collision/drag-hint derivations.
- *
- * The single board has no live cross-cohort sibling, so it passes its ONE static index as BOTH args
- * — reproducing its previous inline wiring exactly. The combined view cannot call this twice (the
- * live cross-index forms a cycle: each cohort's fresh index needs the OTHER's placements, which don't
- * exist until both `usePlacements` run — see `useCombinedBoardState`), so it keeps composing the
- * pieces directly. The `not.toBe` fresh-identity test guards the cycle the combined path relies on.
- */
-export function useCohortBoardState(
-  props: PlannerBoardProps,
-  seedIndex: CrossCohortIndex,
-  freshIndex: CrossCohortIndex,
-): CohortBoardState {
-  const base = useCohortPlacements(props, seedIndex);
-  const deriv = useCohortDerivations(props, base, freshIndex);
-  return toCohortState(props, base, deriv);
-}
-
-/**
- * Build one cohort's live cross-cohort occupancy index from the OTHER column's current placements +
- * its teacher map. Exported as the named seam of the live cross-index: editing one cohort's
- * placements yields a fresh index reflecting the change (see `use-cohort-board-state.test.ts`).
- */
-export const indexFromPlacements = (
-  placements: LocalPlacement[],
-  teacherKeysByCourseId: Map<string, string[]>,
-): CrossCohortIndex =>
-  buildCrossCohortIndex(
-    projectFromPlacements(
-      placements.map((placement) => ({
-        courseId: placement.courseId,
-        day: placement.day,
-        period: placement.period,
-        week: placement.week,
-      })),
-      teacherKeysByCourseId,
-    ),
-  );

@@ -271,6 +271,13 @@ so promote them per the e2e convention ("promote a helper to `support/` only onc
 (from `shelf-durability.spec.ts`) and `combinedCell`/`combinedChip` (from `combined-view.spec.ts`) into
 `support/board.ts`; update both existing specs to import them. Keep `provisionCourses` local (test-specific).
 
+> **Addendum (impl-review 2026-06-27):** Only `shelf`, `parkedCard`, `placeBackOnto`, `combinedCell`,
+> `combinedChip` were promoted. `parkedBadge` and `parkGroupingFromPalette` were intentionally kept local:
+> the combined view has no summary-bar badge (so `parkedBadge` still has a single consumer), and the
+> combined park needs a different post-park signal (the shelf's collapsed "Open shelf (N parked)" tab), so
+> the combined spec uses its own `parkGroupingToCombinedShelf` — a genuinely different helper, not a copy.
+> Promoting these would have violated the repo's "promote only on a second consumer" rule. No duplication.
+
 #### 2. Combined park e2e spec
 
 **File**: `e2e/specs/combined-shelf-park.spec.ts` (new)

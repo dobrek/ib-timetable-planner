@@ -9,7 +9,7 @@ tags: [research, codebase, plan-detail, fsd, refactor, dnd-kit, react-compiler, 
 status: complete
 last_updated: 2026-06-27
 last_updated_by: Dobromir Kropielnicki
-last_updated_note: "Resolved the 5 open questions; split the combined-view park-to-shelf gap into a prerequisite change (combined-view-park-gap); this refactor is now fully behavior-preserving and depends on that fix"
+last_updated_note: "Prerequisite combined-view-park-gap verified LANDED + GREEN against live code (HEAD 4039b66); dependency satisfied → ready to plan. Added a verification follow-up; §C parity matrix / Summary §2 / Open-Q1 body is now superseded (pre-park world) — see follow-up for the current source of truth"
 ---
 
 # Research: plan-detail slice refactor
@@ -44,10 +44,12 @@ carefully:
    before the architectural moves.**
 
 2. **Unifying the drop router is not a free extraction — it would silently drop two features.**
-   `resolveCombinedDrop` has no "park" action; the single board's _course→shelf_ and _grouping→shelf_
-   park branches have no equivalent. Unifying as-is deletes them. This item needs design (a park
-   action variant + a target cohort for cohort-free palette drags) and a product decision (does the
-   combined view gain park-to-shelf parity?).
+   ✅ **RESOLVED by `combined-view-park-gap` (landed 2026-06-27).** At research time `resolveCombinedDrop`
+   had no "park" action, so unifying as-is would have deleted the single board's _course→shelf_ and
+   _grouping→shelf_ park branches — which is precisely why the gap was split out and fixed first. The
+   router now carries `parkCourse`/`parkGroup` variants (+ an `activeCohort` arg) and both boards park
+   symmetrically through the shared `model/parked-members.ts` helper, so unification is now ordinary
+   behavior-preserving work. See the verification follow-up at the end of this doc.
 
 3. **The "obvious" fixes collide with conventions — and research changes the verdict on each.**
    - The **wiring Context** (finding #3) is not just convention-discouraged; it is **technically worse
@@ -123,10 +125,14 @@ feature-folder (`ui/palette/`), which the `model/constraints/` barrel already pr
 - **Blind spots a behavior-preserving refactor must respect (no failing test would catch a break):**
   1. Single board `handleDrop` — **no unit test**, no `PlannerBoard.test`. (Combined's
      `resolveCombinedDrop` _is_ tested → unification merges a tested router with an untested one.)
-  2. **course→shelf park** — no unit, no e2e. grouping→shelf park — e2e only.
+  2. **course→shelf / grouping→shelf park** — _was_ "no unit, e2e only"; **now** the router branches
+     (`combined-drop.test.ts`) and member resolution (`parked-members.test.ts`) are unit-tested and a
+     combined-route e2e exists (`combined-shelf-park.spec.ts`). Still uncharacterized: the **single
+     board's `handleDrop`** that wires park (no `PlannerBoard.test`). [combined-view-park-gap]
   3. **Live re-validation inside the combined view** — only the `indexFromPlacements` leaf is tested;
-     the full `useCombinedBoardState` cycle is not, and e2e never mutates in the combined view. "Edit
-     one cohort → sibling re-validates live" is unproven end-to-end.
+     the full `useCombinedBoardState` cycle is not. (`combined-shelf-park.spec.ts` now mutates _inside_
+     the combined view — park + place-back — but "edit one cohort → sibling re-validates live" is still
+     unproven end-to-end.)
   4. `use-board-derivations.ts` — **no test**; the shared assembler routes through it.
   5. Boards, `PairedPlannerGrid`, `CombinedPalettePanel`, `PlanSummaryBar`, `board-disclosure`,
      `board-inspection`, `shelf/*` — no co-located tests; only indirect e2e.
@@ -134,37 +140,44 @@ feature-folder (`ui/palette/`), which the `model/constraints/` barrel already pr
 
 ### C. Board parity — the drop-router unification trap
 
-`resolveCombinedDrop` (`model/combined-drop.ts:10-51`) has **6 action variants and no park**:
-`addCourse | dropGroup | movePlacement | moveBundle | liftBundle | placeBack`.
+> ✅ **RESOLVED by `combined-view-park-gap` (landed 2026-06-27, HEAD `4039b66`).** The park-to-shelf
+> asymmetry described below — the "trap" — no longer exists; both boards now park symmetrically. The
+> matrix and bullets are kept for context, updated inline (✅) to current reality. Full evidence is in
+> the verification follow-up at the end of this doc.
+
+`resolveCombinedDrop` (`model/combined-drop.ts:10-18` type, `:29-60` router) now has **8 action variants
+including park**: `addCourse | dropGroup | movePlacement | moveBundle | liftBundle | placeBack |
+parkCourse | parkGroup` — the last two added by combined-view-park-gap (it was 6-with-no-park at research
+time).
 
 Parity matrix (single board = reference):
 
 | drag × target        | Single `PlannerBoard`                     | Combined `resolveCombinedDrop` | Parity          |
 | -------------------- | ----------------------------------------- | ------------------------------ | --------------- |
 | course × cell        | `addCourse`                               | `addCourse`                    | ✅              |
-| **course × shelf**   | **park course** (`PlannerBoard.tsx:124`)  | **null / no-op**               | ❌ **gap**      |
+| **course × shelf**   | park course (`PlannerBoard.tsx:125`)      | `parkCourse` (`combined-drop.ts:39`) | ✅ _(was ❌; fixed)_ |
 | placement × cell     | `movePlacement`                           | `movePlacement` + cohort guard | ✅              |
 | placement × shelf    | no-op                                     | null                           | ✅              |
 | grouping × cell      | `dropGroup`                               | `dropGroup`                    | ✅              |
-| **grouping × shelf** | **park members** (`PlannerBoard.tsx:132`) | **null / no-op**               | ❌ **gap**      |
+| **grouping × shelf** | park members (`PlannerBoard.tsx:133`)     | `parkGroup` (`combined-drop.ts:42`)  | ✅ _(was ❌; fixed)_ |
 | bundle × cell        | `moveBundle`                              | `moveBundle` + cohort guard    | ✅              |
 | bundle × shelf       | `liftBundle`                              | `liftBundle`                   | ✅              |
 | parked × cell        | `placeBack` + collapse                    | `placeBack` + collapse + guard | ✅              |
 | parked × shelf       | no-op                                     | null                           | ✅ (both no-op) |
 
-- **Unifying onto `resolveCombinedDrop` as it stands deletes course→shelf and grouping→shelf park.**
-  The per-cohort `actions` already expose `parkMembers` and carry `weekModeByCourseId`
-  (`use-cohort-board-state.ts:155,167`), but `CombinedPlannerBoard` never calls them. To unify
-  behavior-preservingly the router needs a **park action variant** (cohort + resolved
-  `ParkedMember[]`), and the cohort-free course/grouping shelf-park needs a **target cohort** — the
-  only signal available in the combined view is `paletteCohort` (`CombinedPlannerBoard.tsx:43,82`).
-- **Open product question**: the combined view currently _cannot_ park a palette course/grouping to
-  the shelf. Is that an intended limitation or an oversight? Unifying is the natural moment to grant
-  parity, but that is a feature change, not a pure refactor.
+- ✅ **Done in combined-view-park-gap.** The router now has the **park action variant** (`parkCourse`/
+  `parkGroup`, carrying `cohort` + id — kept catalog-pure; members are resolved by the board via the
+  shared helper, _not_ inside the router as this bullet originally guessed), and the cohort-free
+  shelf-park resolves its **target cohort** from `paletteCohort` (`CombinedPlannerBoard.tsx:45,84`),
+  passed as the new `activeCohort` arg. `CombinedPlannerBoard` now calls the per-cohort `parkMembers`
+  (`use-cohort-board-state.ts:155,167`) it previously ignored.
+- ✅ **Product question answered: it was a bug, now fixed.** The combined view parks a palette
+  course/grouping to the shelf under the active cohort, mirroring the single board — full parity, no
+  remaining product decision.
 - **Structural divergences a shared `BoardShell` must reconcile:**
   - Single board has an **early return** when `paletteView === "empty"` that renders only
     `BoardHeader` + `ComputeGroupingsEmptyState` and **skips the whole island** (no DragDropProvider,
-    grid, shelf) — `PlannerBoard.tsx:191-200`. Combined **never early-returns**; it handles
+    grid, shelf) — `PlannerBoard.tsx:177-186`. Combined **never early-returns**; it handles
     empty/stale **per cohort inside `CombinedPalettePanel`**, grid always mounted.
   - Single has `PlanSummaryBar` (incomplete/parked badges); combined has a custom inline header with
     `CohortSwitcher`, no summary bar.
@@ -175,8 +188,8 @@ Parity matrix (single board = reference):
     adjust-state-during-render close.
   - Error banner: one (single) vs up to two per-cohort (combined).
 - `@dnd-kit/dom` and `@dnd-kit/react` are both pinned **exact 0.5.0** (`package.json:29-30`). The
-  `PLUGINS` const is **byte-for-byte identical** in both boards (`PlannerBoard.tsx:293-295`,
-  `CombinedPlannerBoard.tsx:260-262`) — a clean shared-shell extraction.
+  `PLUGINS` const is **byte-for-byte identical** in both boards (`PlannerBoard.tsx:279-281`,
+  `CombinedPlannerBoard.tsx:282-284`) — a clean shared-shell extraction.
 
 ### D. React Compiler reality + the cross-cohort cycle
 
@@ -214,7 +227,7 @@ Parity matrix (single board = reference):
 - `CellWiring` = **11 fields** (`ui/slot-cell/SlotCellHost.tsx:17-33`). The **single path** threads them
   by hand through **4 hops** (`PlannerBoard → PlannerGrid → PeriodRow → SlotCellHost → SlotCell`),
   re-listing all 11 at each hop (~44 re-listings). The **paired path already does it right**: builds one
-  `wiring: CellWiring` object (`CombinedPlannerBoard.tsx:155-171`), passes it as one field, and spreads
+  `wiring: CellWiring` object (`CombinedPlannerBoard.tsx:177-193`), passes it as one field, and spreads
   `{...column.wiring}` once (`PairedPlannerGrid.tsx:104`), with one fewer hop (no `PeriodRow`).
 - **Recommended fix: adopt the paired pattern in the single path** — one bundled `wiring` object +
   `{...wiring}` spread. Zero convention friction (it's already in the codebase), removes the
@@ -251,9 +264,10 @@ The user asked to treat `context/foundation/ui-conventions.md` as challengeable 
 
 - `steiger.config.ts` — `fsd.configs.recommended`; `package.json:13` — `steiger src --fail-on-warnings`
 - `src/_pages/plan-detail/index.ts` — vestigial root barrel (exports only `PlannerBoard`; unused externally)
-- `src/_pages/plan-detail/model/combined-drop.ts:10-51` — `CombinedDropAction` (no park) + router + cohort guard
-- `src/_pages/plan-detail/ui/PlannerBoard.tsx:109-185` — single `handleDrop` + park helpers (124,132); `:191-200` empty early-return; `:293-295` PLUGINS
-- `src/_pages/plan-detail/ui/CombinedPlannerBoard.tsx:87-139` — combined drop dispatch; `:260-262` identical PLUGINS
+- `src/_pages/plan-detail/model/combined-drop.ts:10-18,29-60` — `CombinedDropAction` (8 variants incl. `parkCourse`/`parkGroup`) + 3-arg park-capable router + cohort guard
+- `src/_pages/plan-detail/model/parked-members.ts` (+ `.test.ts`) — shared pure member resolver (`defaultParkedWeek`, `groupingParkedMembers`); both boards park through it [combined-view-park-gap]
+- `src/_pages/plan-detail/ui/PlannerBoard.tsx` — single `handleDrop` + park branches (`:125`/`:133`, via the shared `parked-members` helper imported at `:32`); `:177-186` empty early-return; `:279-281` PLUGINS
+- `src/_pages/plan-detail/ui/CombinedPlannerBoard.tsx:89-136` — combined drop dispatch (incl. `parkCourse`/`parkGroup` cases `:125-134`); `:282-284` identical PLUGINS
 - `src/_pages/plan-detail/ui/slot-cell/SlotCellHost.tsx:17-33` — `CellWiring` (11 fields)
 - `src/_pages/plan-detail/ui/PlannerGrid.tsx:76-136` — hand-listed wiring across hops (the laggard)
 - `src/_pages/plan-detail/ui/PairedPlannerGrid.tsx:104` — `{...column.wiring}` spread (the good pattern)
@@ -262,7 +276,7 @@ The user asked to treat `context/foundation/ui-conventions.md` as challengeable 
 - `src/_pages/plan-detail/ui/PlannerBoard.tsx:52,78,87,95` — single board: one static index → seed + fresh
 - `astro.config.mjs:37` / `eslint.config.js:8,62,68` / `package.json:70` — React Compiler is lint-only
 - `context/foundation/ui-conventions.md:7,33,35,64-68,197-203,218-222` — the convention decision points
-- e2e: `e2e/specs/combined-view.spec.ts` (sole combined spec); `e2e/specs/shelf-durability.spec.ts:72,90` (grouping→shelf park)
+- e2e: `e2e/specs/combined-view.spec.ts` + `e2e/specs/combined-shelf-park.spec.ts` (combined park + place-back, added by combined-view-park-gap); `e2e/specs/shelf-durability.spec.ts:72,90` (single-board grouping→shelf park)
 - regression guard: `src/_pages/plan-detail/model/use-cohort-board-state.test.ts` (`not.toBe` fresh-identity)
 
 ## Architecture Insights
@@ -274,9 +288,11 @@ The user asked to treat `context/foundation/ui-conventions.md` as challengeable 
   refactor is "make the single board adopt the combined view's better seams," not "invent new
   abstractions." This also de-risks it: the target patterns are already tested-in-production on the
   combined route.
-- **"Unify the drop router" is the one item that is genuinely a design + product task**, not a
-  mechanical extraction — because of the park-to-shelf asymmetry and the empty-view early-return
-  divergence. Sequence it last and gate it on new tests + a parity decision.
+- **"Unify the drop router" was the one design + product item — now mechanical.** The park-to-shelf
+  asymmetry that made it risky is gone (combined-view-park-gap); both boards park symmetrically through
+  the shared `parked-members.ts` helper. Only the empty-view early-return divergence remains to
+  reconcile — a `BoardShell` concern, not a parity decision. No product gate left; still sequence it
+  after the single-board `handleDrop` characterization test.
 - **No React Compiler means manual memoization is load-bearing**; any new shared value (assembler
   return, a wiring object) must be referentially stable, and broad-fan-out Context values are a
   re-render hazard against the 200ms budget.
@@ -304,9 +320,10 @@ The user asked to treat `context/foundation/ui-conventions.md` as challengeable 
 
 ## Open Questions (decisions for the planning session)
 
-1. **Drop-router unification**: add a park action variant + give cohort-free palette drags a target
-   cohort (from `paletteCohort`) — i.e. grant the combined view **course→shelf / grouping→shelf park
-   parity** (a small feature add)? Or keep the two `handleDrop`s separate and only share the shell?
+1. ✅ **Drop-router unification — ANSWERED & DELIVERED.** The park action variant + `activeCohort`-from-
+   `paletteCohort` were shipped in `combined-view-park-gap`; the combined view has full course→shelf /
+   grouping→shelf park parity. Unification is now a mechanical behavior-preserving step, not an open
+   question.
 2. **Characterization-tests-first**: agree to add tests for single-board `handleDrop` (incl.
    course→shelf park), a `useCombinedBoardState` live-mutation test, and `use-board-derivations`
    before the assembler/shell/router moves? (Strongly recommended.)
@@ -329,7 +346,8 @@ The user asked to treat `context/foundation/ui-conventions.md` as challengeable 
 4. **Shared `useCohortBoardState(props, seed, fresh)`** assembler; single board passes one static index
    as both; pin with the cycle test.
 5. **`BoardShell` + shared `PLUGINS`**; reconcile the empty-view early-return + PlanSummaryBar divergence.
-6. **Unified drop router** (riskiest) — only after step 1; needs the park variant + parity decision.
+6. **Unified drop router** — now mechanical (the park variant + parity were delivered by
+   combined-view-park-gap); still sequence after the single-board `handleDrop` characterization test (step 1).
 7. **Renames** (`collision.ts`→intersects, `combined-drop`/`combined-props`, drop `cellKey` re-export) +
    **`model/` folder grouping**.
 8. **`api/` cleanup** — `grouping-client` → `callAction`/`refreshPage`; dedup `toPlannerPlacement`.
@@ -347,7 +365,7 @@ In the combined view the cohort switcher (`Tabs`) is a **sibling rendered _above
 "Groupings" + count + collapse chevron, `ui/PlannerPalette.tsx:76-95`). The hierarchy reads inverted —
 the switcher looks detached and the panel's identifying header looks subordinate to it. (Note: this
 palette `Tabs` is distinct from the route-level `CohortSwitcher` in the board header that switches
-dp1/dp2/**combined** _views_ — `CombinedPlannerBoard.tsx:181`.)
+dp1/dp2/**combined** _views_ — `CombinedPlannerBoard.tsx:203`.)
 
 **The palette and shelf are the same drawer.** `PALETTE_ICON_BUTTON` (`PlannerPalette.tsx:28`) and
 `SHELF_ICON_BUTTON` (`shelf/ShelfDrawer.tsx:26`) are **byte-for-byte identical**; both render a
@@ -391,7 +409,7 @@ empty/stale.
 
 **Boundary (do not over-apply):** this is the **combined** palette (per-cohort, because one cohort can
 be empty while the other isn't). The **single** board's `empty` state is genuinely board-level — it
-early-returns a full-width compute prompt and skips the whole island (`PlannerBoard.tsx:191-200`),
+early-returns a full-width compute prompt and skips the whole island (`PlannerBoard.tsx:177-186`),
 since with zero groupings there is nothing to place. That divergence stays justified; the unification
 here does not force the single board to change its full-screen empty state. (Still the right moment to
 decide whether the single board's _stale_ column also routes through the shared shell — Open Q.)
@@ -454,9 +472,10 @@ The five open questions are now decided. This change's scope narrows accordingly
 - **Q2 — characterization-tests-first**, written immediately before the seam each protects. Extracting
   the single board's inline `handleDrop` into a pure, tested resolver is the same move as characterizing
   it — the safe on-ramp to the eventual router unification.
-- **Q1 + Q5 — the combined-view park gap is a BUG, split into its own prerequisite change.** The combined
-  view cannot park a palette course/grouping onto the shelf (single view can); `resolveCombinedDrop`
-  returns `null` for course→shelf / grouping→shelf (`combined-drop.ts:30,32`) vs `PlannerBoard.tsx:124,132`.
+- **Q1 + Q5 — the combined-view park gap is a BUG, split into its own prerequisite change.** _(At research
+  time)_ the combined view could not park a palette course/grouping onto the shelf (single view can);
+  `resolveCombinedDrop` returned `null` for course→shelf / grouping→shelf vs `PlannerBoard.tsx`'s park
+  branches. **✅ Now fixed** — those branches return `parkCourse`/`parkGroup` (`combined-drop.ts:39,42`).
   **Decision: fix it FIRST as a separate small PR (new change `combined-view-park-gap`), before this
   refactor.** Rationale: ship the user-facing fix on its own merits, and — crucially — fixing it makes
   the two boards **symmetric**, which dissolves the only risky/behavioral item in this refactor. The
@@ -476,3 +495,80 @@ park-capable `resolveCombinedDrop`, renames, `model/` grouping, `api/` cleanup, 
 **Dependency:** sequence after `combined-view-park-gap` merges (the park-capable `resolveCombinedDrop`
 
 - the lifted `groupingMembers`/`defaultParkedWeek` model helper are produced there and consumed here).
+
+## Follow-up Research 2026-06-27T21:59:06+0200 — prerequisite landed: gap closed? ready to plan?
+
+**Question:** `combined-view-park-gap` just landed. Is the park gap actually closed in live code, is
+the dependency this refactor declared (above) satisfied, and are we ready to write the plan? Verified
+against the live tree at **HEAD `4039b66`** (not against the closure docs — those were trusted-but-checked).
+
+### Verdict — YES on both. Gap closed ✅, dependency satisfied ✅, ready to plan ✅.
+
+**Git topology.** `main` and this branch (`refactor/plan-detail-refactor`) both point at `4039b66`
+(the park-gap archive commit); `git log main..HEAD` is empty → this refactor branch is a **clean base
+sitting exactly on the merged prerequisite**. (The duplicate `cf752bf…067a7f1` line in `git log --graph`
+is the pre-rebase history of the same work — `067a7f1` is the commit the impl-review cites; its content
+is identical to what's now on `main`.)
+
+### Dependency contract — all three deliverables PRESENT in live code
+
+1. **Park-capable `resolveCombinedDrop`** (`model/combined-drop.ts`). Now a **3-arg** function
+   `(data, target, activeCohort: Cohort)` (`:29-33`); `CombinedDropAction` grew from 6 → **8 variants**,
+   adding `parkCourse` / `parkGroup` (`:17-18`). course→shelf returns `{kind:"parkCourse", cohort:
+   activeCohort, courseId}` (`:39`) and grouping→shelf returns `parkGroup` (`:42`) — the two branches
+   that were `null` pre-fix. Router stays **catalog-pure**: park variants carry only ids + cohort, no
+   resolved members.
+2. **Shared member-resolution helper** `model/parked-members.ts` — exports `defaultParkedWeek(courseId,
+   weekModeByCourseId)` and `groupingParkedMembers(groupingId, groupings, weekModeByCourseId)` (note:
+   `groupingParkedMembers`, not the doc's earlier `groupingMembers`). Pure (types + `oppositeWeekAssignment`
+   only), declarative (`.find`/`.map`, no accumulators), co-located `parked-members.test.ts`.
+3. **Both boards migrated onto helper + router.** Combined: `handleDrop` passes `paletteCohort` into the
+   router (`CombinedPlannerBoard.tsx:99`), handles `parkCourse`/`parkGroup` (`:125-134`) via a local
+   `parkToShelf → byCohort[cohort].actions.parkMembers + collapseUnlessPinned`. Single: imports the shared
+   helper (`PlannerBoard.tsx:32`), parks course→shelf (`:125`) and grouping→shelf (`:133`) through it; the
+   old inline resolvers (formerly `PlannerBoard.tsx:174-185`) are **gone** (grep-confirmed: no local
+   `groupingMembers`/`defaultParkedWeek` definitions remain). The two boards are now **symmetric for park**.
+
+### Test + build gate — GREEN on the current tree
+
+`pnpm check` 0 errors/warnings/hints (434 files) · `pnpm lint` clean · `pnpm steiger` no problems ·
+`pnpm test` **659 passed / 79 files** · `pnpm build` clean. New coverage present: `combined-drop.test.ts`
+asserts both park variants **and** active-cohort routing (contrasted against cell drops adopting the
+target cell's cohort); `parked-members.test.ts` covers week/member resolution; `e2e/specs/combined-shelf-park.spec.ts`
+parks a DP1 grouping in the combined view, asserts the card survives + is tagged "Parked from DP1" +
+places back into the DP1 column. (e2e/integration not re-run here — need the Supabase stack; CI's e2e job
+ran them green at the equivalent commit.)
+
+### Consequence for this refactor — the one risky item dissolved, as planned
+
+The "drop-router unification = design + product task" framing (§C, Architecture Insights, Open Q1) is
+**now resolved**: both boards park symmetrically through the shared `parked-members.ts` helper, so unifying
+the single board onto `resolveCombinedDrop` is **ordinary behavior-preserving refactor work** — exactly
+what the *Decisions (resolved 2026-06-27)* section predicted. This refactor is therefore **fully
+behavior-preserving** with no remaining product/design gate.
+
+### ⚠️ Doc-hygiene note for the plan-writer — the §C/pre-park *body* is now superseded
+
+The *Decisions* sections are current; the **earlier research body still describes the pre-park world** and
+should be read with this follow-up as the source of truth. Before (or as the first step of) planning,
+refresh:
+
+- **§C parity matrix (L137-163):** flip `course × shelf` and `grouping × shelf` from ❌ gap → ✅ (`parkCourse`/`parkGroup`);
+  "6 variants and no park" → 8 variants with park.
+- **Inverted refs:** `combined-drop.ts:30,32` (cited in §C and change.md:459 as "the null returns") now
+  point at the function params and **no longer return null** — they return the park actions at `:39,:42`.
+  Two semantically-wrong refs; fix these specifically.
+- **~10 shifted line refs** (line-refresh only): `PlannerBoard.tsx` park branches `:124/:132`→`:125/:133`,
+  empty early-return `:191-200`→`:177-186`, PLUGINS `:293-295`→`:279-281`; `CombinedPlannerBoard.tsx`
+  paletteCohort `:43`→`:45`, drop dispatch `:87-139`→`:89-136`, wiring object `:155-171`→`:177-193`,
+  PLUGINS `:260-262`→`:282-284`. (`use-cohort-board-state.ts:155,167`, `:17`, `:73-129` still valid.)
+- **Blind-spot deltas:** B2 (course→shelf park untested) and B3 (combined e2e never mutates) are now
+  **partially closed** — the router + resolver are unit-tested and `combined-shelf-park.spec.ts` mutates
+  inside the combined view. **Still open:** the single board's `handleDrop` has no `PlannerBoard.test`
+  (grep-confirmed absent) — so the characterization-test-first guidance narrows to "characterize
+  single-board `handleDrop` before extracting/unifying it," not the whole park surface.
+
+### Net: ready for `/10x-plan`
+
+Prerequisite landed and verified; clean green base; the only behavioral risk is gone. The remaining work
+to start planning is doc hygiene (refresh §C refs above) — a cleanup the plan can fold in, not a blocker.

@@ -1,7 +1,7 @@
 ---
 change_id: plan-detail-refactor
 title: Refactor plan-detail slice — shared board core, kill duplication, group folders
-status: preparing
+status: planned
 created: 2026-06-27
 updated: 2026-06-27
 archived_at: null
@@ -150,6 +150,16 @@ CollisionDetailsDialog). Board orchestrators + `.astro` route entries stay at `u
   the park-capable `resolveCombinedDrop` (with a third `activeCohort` arg + `parkCourse`/`parkGroup`
   actions) and lifts `groupingMembers`/`defaultParkedWeek` into a shared `model/` helper — both consumed
   here. See `research.md` → "Decisions (resolved 2026-06-27)".
+- **✅ Dependency satisfied (verified 2026-06-27 @ HEAD `4039b66`).** `combined-view-park-gap` is merged
+  to `main`; this branch is a clean base on top of it. Verified in **live code** (not just the closure
+  docs): 3-arg park-capable `resolveCombinedDrop` (`combined-drop.ts:39,42`), shared pure
+  `model/parked-members.ts` (`defaultParkedWeek` + `groupingParkedMembers`, tested), and **both boards
+  parking symmetrically** through it. Full gate **green** (`check` 0 errors · `lint` · `steiger` ·
+  `test` 659/79 · `build`). The two boards are now symmetric → the drop-router unification is **ordinary
+  behavior-preserving work** (no product gate). **Ready for `/10x-plan`.** One cleanup to fold into the
+  plan: the `research.md` §C parity matrix + ~12 line refs predate the park fix — see the verification
+  follow-up at the end of `research.md` for the refresh list (two refs, `combined-drop.ts:30,32`, are now
+  semantically inverted).
 
 ### Constraints / guardrails
 

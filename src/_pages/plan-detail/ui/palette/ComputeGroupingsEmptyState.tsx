@@ -3,7 +3,7 @@ import { Sparkles } from "lucide-react";
 import type { Cohort } from "@/shared/config";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button } from "@/shared/ui";
-import { computeGroupings } from "../api/grouping-client";
+import { computeGroupings } from "../../api/grouping-client";
 
 type Props = {
   planId: string;

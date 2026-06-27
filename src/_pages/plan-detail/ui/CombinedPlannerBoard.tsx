@@ -3,16 +3,20 @@ import type { Cohort } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
-import CohortSwitcher from "./CohortSwitcher";
-import CollisionDetailsDialog, { type CollisionInspectionTarget } from "./CollisionDetailsDialog";
-import CombinedPalettePanel, { type PaletteCohortData } from "./CombinedPalettePanel";
-import DragHintModeToggle from "./DragHintModeToggle";
-import ErrorBanner from "./ErrorBanner";
-import GroupDragOverlay from "./GroupDragOverlay";
-import PairedPlannerGrid, { type PairedColumn } from "./PairedPlannerGrid";
+import {
+  CohortSwitcher,
+  DragHintModeToggle,
+  ErrorBanner,
+  inspectedViolations,
+  inspectedWeeks,
+  useHintMode,
+  usePaletteDisclosure,
+  useShelfDisclosure,
+} from "./chrome";
+import { PairedPlannerGrid, type PairedColumn } from "./grid";
+import { CollisionDetailsDialog, type CollisionInspectionTarget, GroupDragOverlay } from "./overlay";
+import { CombinedPalettePanel, type PaletteCohortData } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
-import { useHintMode, usePaletteDisclosure, useShelfDisclosure } from "./board-disclosure";
-import { inspectedViolations, inspectedWeeks } from "./board-inspection";
 import { cellKey } from "../model/collisions";
 import { resolveCombinedDrop } from "../model/combined-drop";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";

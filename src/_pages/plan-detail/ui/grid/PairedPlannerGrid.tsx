@@ -2,10 +2,10 @@ import { Fragment } from "react";
 import { cohortLabel, type Cohort } from "@/shared/config";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import { SlotCellHost, type CellWiring } from "./slot-cell/SlotCellHost";
-import type { CellCollisions } from "../model/collisions";
-import { cellKey } from "../model/collisions";
-import { groupCellOccupants } from "../model/cell-occupants";
-import type { LocalPlacement } from "../model/placement";
+import type { CellCollisions } from "../../model/collisions";
+import { cellKey } from "../../model/collisions";
+import { groupCellOccupants } from "../../model/cell-occupants";
+import type { LocalPlacement } from "../../model/placement";
 
 /** One cohort column's render inputs: its placements + name/collision maps and its cell wiring. */
 export type PairedColumn = {

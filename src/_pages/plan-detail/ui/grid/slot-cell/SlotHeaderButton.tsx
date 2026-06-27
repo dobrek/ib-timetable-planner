@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
-import { stopDrag } from "./drag-inert";
+import { stopDrag } from "../../../lib/drag-inert";
 
 /** Hover tone for a header control: a neutral accent, or the destructive red for remove. */
 type Tone = "accent" | "destructive";

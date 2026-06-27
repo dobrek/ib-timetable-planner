@@ -1,9 +1,9 @@
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import { SlotCellHost, type CellWiring } from "./slot-cell/SlotCellHost";
-import type { CellCollisions } from "../model/collisions";
-import { groupCellOccupants, type CellOccupant } from "../model/cell-occupants";
-import type { LocalPlacement } from "../model/placement";
-import { cellKey } from "../model/collisions";
+import type { CellCollisions } from "../../model/collisions";
+import { groupCellOccupants, type CellOccupant } from "../../model/cell-occupants";
+import type { LocalPlacement } from "../../model/placement";
+import { cellKey } from "../../model/collisions";
 
 type Props = CellWiring & {
   days: number;

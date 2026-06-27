@@ -3,8 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
-import { DEFAULT_HINT_MODE } from "../../lib/drag-hint-mode";
-import type { CellOccupant } from "../../model/cell-occupants";
+import { DEFAULT_HINT_MODE } from "../../../lib/drag-hint-mode";
+import type { CellOccupant } from "../../../model/cell-occupants";
 import SlotCell from "./SlotCell";
 
 // Locks the duplicate affordance rules: the header Copy button shows for EVERY ≥2-occupant cell

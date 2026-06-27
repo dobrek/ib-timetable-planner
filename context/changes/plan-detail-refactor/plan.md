@@ -783,10 +783,10 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [x] 1.1 New resolver unit tests pass (`pnpm test`)
-- [x] 1.2 `use-board-derivations` test + extended cycle test pass (`pnpm test`)
-- [x] 1.3 Type gate clean (`pnpm check`)
-- [x] 1.4 Lint + structure clean (`pnpm lint` && `pnpm steiger`)
+- [x] 1.1 New resolver unit tests pass (`pnpm test`) — 965442e
+- [x] 1.2 `use-board-derivations` test + extended cycle test pass (`pnpm test`) — 965442e
+- [x] 1.3 Type gate clean (`pnpm check`) — 965442e
+- [x] 1.4 Lint + structure clean (`pnpm lint` && `pnpm steiger`) — 965442e
 
 #### Manual
 
@@ -796,11 +796,11 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [ ] 2.1 Structure gate clean (`pnpm steiger`)
-- [ ] 2.2 Type gate clean (`pnpm check`)
-- [ ] 2.3 Moved co-located tests still pass (`pnpm test`)
-- [ ] 2.4 Lint clean (`pnpm lint`)
-- [ ] 2.5 Production build clean (`pnpm build`)
+- [x] 2.1 Structure gate clean (`pnpm steiger`)
+- [x] 2.2 Type gate clean (`pnpm check`)
+- [x] 2.3 Moved co-located tests still pass (`pnpm test`)
+- [x] 2.4 Lint clean (`pnpm lint`)
+- [x] 2.5 Production build clean (`pnpm build`)
 
 #### Manual
 

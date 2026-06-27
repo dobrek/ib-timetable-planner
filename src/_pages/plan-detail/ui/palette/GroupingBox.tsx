@@ -2,9 +2,9 @@ import { useDraggable } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
 import HoursCounter from "./HoursCounter";
 import PaletteCourseChip from "./PaletteCourseChip";
-import type { GroupDrag } from "../model/drag";
-import type { PlannerGrouping } from "../model/grouping";
-import type { HoursStat } from "../model/hours";
+import type { GroupDrag } from "../../model/drag";
+import type { PlannerGrouping } from "../../model/grouping";
+import type { HoursStat } from "../../model/hours";
 import { cn } from "@/shared/lib/class-names";
 import { Badge } from "@/shared/ui";
 

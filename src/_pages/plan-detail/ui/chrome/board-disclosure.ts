@@ -1,7 +1,7 @@
 import { useState, useSyncExternalStore } from "react";
-import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../lib/drag-hint-mode";
-import { writePaletteCollapsed } from "../lib/palette-collapsed";
-import { DEFAULT_SHELF_PINNED, readShelfPinned, subscribeShelfPinned, writeShelfPinned } from "../lib/shelf-pinned";
+import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../../lib/drag-hint-mode";
+import { writePaletteCollapsed } from "../../lib/palette-collapsed";
+import { DEFAULT_SHELF_PINNED, readShelfPinned, subscribeShelfPinned, writeShelfPinned } from "../../lib/shelf-pinned";
 
 /**
  * The board's UI-disclosure / per-device-preference hooks, lifted out of `PlannerBoard` so the

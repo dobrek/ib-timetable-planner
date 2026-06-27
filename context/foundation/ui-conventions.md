@@ -67,6 +67,20 @@ A `ui/` component graduates from a single file to a **folder-with-pure-barrel** 
 
 The cohesion qualifier is load-bearing — it is a cohesion test, not a raw line/child count. Files whose children serve **one** concern are **not** flagged even past the thresholds: `CollisionDetailsDialog` (257 lines, 4 children — all "render one violation") and `PlannerBoard` (private hooks, one orchestration concern) stay single-file.
 
+### Multi-public feature folder (amendment — `plan-detail-refactor`)
+
+The single-default-barrel form above is for **one orchestrator + private children**. A second, *peer* form is blessed for **feature folders that expose several sibling components to the rest of the slice**. When a `ui/` segment grows past a flat root into intent-named folders — e.g. `plan-detail/ui/` split into `palette/`, `grid/`, `overlay/`, `chrome/` — each folder owns a cohesive set of components and keeps a pure barrel that re-exports its **multiple public entries by name**:
+
+```ts
+// ui/palette/index.ts
+export { default as PlannerPalette } from "./PlannerPalette";
+export { default as CombinedPalettePanel, type PaletteCohortData } from "./CombinedPalettePanel";
+export { default as ComputeGroupingsEmptyState } from "./ComputeGroupingsEmptyState";
+export { default as GroupingStalePanel } from "./GroupingStalePanel";
+```
+
+The folder's internal-only pieces (the palette's `GroupingBox` / `GroupingFilter` / `PaletteCourseChip` / `HoursCounter`) are deliberately **omitted** — their absence documents the boundary. This mirrors the `model/constraints/` multi-named-export barrel. The single-default-barrel form (`slot-cell/`) and this multi-public form (`palette/`) coexist; pick by whether the folder exposes one public component or several. Folder names stay distinct from any single dominant export so `fsd/repetitive-naming` / `fsd/ambiguous-slice-names` stay quiet.
+
 ## Role + ARIA as the interactive/grid contract
 
 Interactive and grid components must carry roles + accessible names sufficient for **role-based e2e** (the e2e suite selects by role + name, never CSS/`data-*`):

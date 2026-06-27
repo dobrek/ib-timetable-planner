@@ -3,9 +3,9 @@ import { act, fireEvent, render, renderHook, screen } from "@testing-library/rea
 import { describe, expect, it, vi } from "vitest";
 import GroupingFilter from "./GroupingFilter";
 import PlannerPalette, { usePaletteFilter } from "./PlannerPalette";
-import type { HoursStat } from "../model/hours";
-import type { LeadingCourseOption } from "../model/leading-course-options";
-import type { PlannerGrouping } from "../model/grouping";
+import type { HoursStat } from "../../model/hours";
+import type { LeadingCourseOption } from "../../model/leading-course-options";
+import type { PlannerGrouping } from "../../model/grouping";
 
 const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({
   id,

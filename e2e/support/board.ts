@@ -222,3 +222,36 @@ export async function expectOccupants(page: Page, slot: string, displayNames: st
 export async function expectEmpty(page: Page, slot: string): Promise<void> {
   await expect(cell(page, slot).getByRole("button")).toHaveCount(0);
 }
+
+// --- Shelf locators + gestures (promoted from shelf-durability.spec.ts on the 2nd consumer) -----
+
+/** The shelf drawer — a named complementary landmark (collapsed tab or expanded panel), and the drop target for parking. */
+export const shelf = (page: Page): Locator => page.getByRole("complementary", { name: "Shelf" });
+
+/** The parked card(s) inside the shelf drawer (each carries the `parked bundle` roledescription). */
+export const parkedCard = (page: Page): Locator => shelf(page).locator('[aria-roledescription="parked bundle"]');
+
+/**
+ * Drag the parked card onto `toCell` and wait for `member` to land. Idempotent + retried like the
+ * other board drag helpers: skip if a member already landed (so a missed drop retries without
+ * double-placing). `toCell` is a cell Locator — the single board's `cell(page, slot)` or a combined
+ * `combinedCell(page, cohort, slot)`.
+ */
+export async function placeBackOnto(page: Page, toCell: Locator, member: string): Promise<void> {
+  const landed = toCell.getByRole("button", { name: new RegExp(`^${escapeRegExp(member)}`) });
+  await expect(async () => {
+    if ((await landed.count()) > 0) return;
+    await steppedDrag(page, parkedCard(page), toCell);
+    await expect(landed).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
+// --- Combined-view locators (promoted from combined-view.spec.ts on the 2nd consumer) -----------
+
+/** A combined-view cell, disambiguated by its cohort-prefixed accessible name ("DP1, Wed, P5"). */
+export const combinedCell = (page: Page, cohort: "DP1" | "DP2", slot: string): Locator =>
+  page.getByRole("gridcell", { name: `${cohort}, ${slot}`, exact: true });
+
+/** The placed chip for `displayName` inside a combined-view cohort cell. */
+export const combinedChip = (page: Page, cohort: "DP1" | "DP2", slot: string, displayName: string): Locator =>
+  combinedCell(page, cohort, slot).getByRole("button", { name: new RegExp(`^${escapeRegExp(displayName)}`) });

@@ -1,5 +1,5 @@
-import { test, expect, type Locator, type Page } from "@playwright/test";
-import { computeGroupings, display, placeFromPalette, steppedDrag } from "../support/board";
+import { test, expect } from "@playwright/test";
+import { combinedCell, combinedChip, computeGroupings, display, placeFromPalette, steppedDrag } from "../support/board";
 import { createCourse, createStudent } from "../support/catalog";
 import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../support/planner";
 
@@ -14,16 +14,6 @@ import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../s
 // Both placements are committed via the single-cohort boards first (the simplest reliable seed),
 // then the combined view renders them; the clash + guard are asserted IN the combined view.
 // Authenticated `chromium` project (reuses storageState). Conventions in e2e/CLAUDE.md.
-
-const escapeRegExp = (value: string): string => value.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-/** A combined-view cell, disambiguated by its cohort-prefixed accessible name ("DP1, Wed, P5"). */
-const combinedCell = (page: Page, cohort: "DP1" | "DP2", slot: string): Locator =>
-  page.getByRole("gridcell", { name: `${cohort}, ${slot}`, exact: true });
-
-/** The placed chip for `displayName` inside a combined-view cohort cell. */
-const combinedChip = (page: Page, cohort: "DP1" | "DP2", slot: string, displayName: string): Locator =>
-  combinedCell(page, cohort, slot).getByRole("button", { name: new RegExp(`^${escapeRegExp(displayName)}`) });
 
 test.describe("combined two-cohort view", () => {
   // Builds catalog across both cohorts, computes groupings twice, and drives the board — past 30s.

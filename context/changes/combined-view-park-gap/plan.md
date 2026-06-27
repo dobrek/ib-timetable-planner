@@ -370,26 +370,26 @@ None. No schema or data migration — parking reuses the existing `shelf_bundles
 
 #### Automated
 
-- [x] 2.1 Type check passes: `pnpm check`
-- [x] 2.2 Unit tests pass: `pnpm test`
-- [x] 2.3 Lint passes (incl. react-compiler purity): `pnpm lint`
-- [x] 2.4 Production build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check` — a6e56a1
+- [x] 2.2 Unit tests pass: `pnpm test` — a6e56a1
+- [x] 2.3 Lint passes (incl. react-compiler purity): `pnpm lint` — a6e56a1
+- [x] 2.4 Production build is clean: `pnpm build` — a6e56a1
 
 #### Manual
 
-- [ ] 2.5 Combined view: palette course → shelf parks under the active cohort, card tagged with that cohort
-- [ ] 2.6 Combined view: palette grouping → shelf parks all members; switching palette cohort parks under the other cohort
-- [ ] 2.7 Shelf auto-collapses on park unless pinned; place-back lands in the correct cohort's column
-- [ ] 2.8 Single board parks course + grouping exactly as before — no regression
+- [x] 2.5 Combined view: palette course → shelf parks under the active cohort, card tagged with that cohort — a6e56a1
+- [x] 2.6 Combined view: palette grouping → shelf parks all members; switching palette cohort parks under the other cohort — a6e56a1
+- [x] 2.7 Shelf auto-collapses on park unless pinned; place-back lands in the correct cohort's column — a6e56a1
+- [x] 2.8 Single board parks course + grouping exactly as before — no regression — a6e56a1
 
 ### Phase 3: E2E — combined park + cohort-routed place-back
 
 #### Automated
 
-- [ ] 3.1 Combined park e2e passes: `pnpm test:e2e`
-- [ ] 3.2 Refactored `shelf-durability` + `combined-view` specs still pass after locator promotion
-- [ ] 3.3 Lint + type check pass: `pnpm lint`, `pnpm check`
+- [x] 3.1 Combined park e2e passes: `pnpm test:e2e`
+- [x] 3.2 Refactored `shelf-durability` + `combined-view` specs still pass after locator promotion
+- [x] 3.3 Lint + type check pass: `pnpm lint`, `pnpm check`
 
 #### Manual
 
-- [ ] 3.4 Spec fails when the `parkGroup` branch is reverted (guards the real risk)
+- [x] 3.4 Spec fails when the `parkGroup` branch is reverted (guards the real risk)

@@ -7,7 +7,10 @@ import {
   expectEmpty,
   expectOccupants,
   groupingBox,
+  parkedCard,
+  placeBackOnto,
   placeGrouping,
+  shelf,
   steppedDrag,
 } from "../support/board";
 import { createCourse, createStudent } from "../support/catalog";
@@ -62,7 +65,7 @@ test.describe("bundle holding container (shelf)", () => {
     await expect(parkedCard(page)).toBeVisible();
 
     // Drag the parked card back onto an empty slot → it places and the shelf empties.
-    await placeBackOnto(page, target, alpha);
+    await placeBackOnto(page, cell(page, target), alpha);
     await expectOccupants(page, target, [alpha, bravo]);
     await expect(parkedBadge(page)).toHaveCount(0);
 
@@ -123,15 +126,9 @@ async function liftToShelf(page: Page, slot: string): Promise<void> {
 /**
  * The always-visible "N parked" summary-bar cue (also the expand affordance). Absent when nothing
  * is parked. Anchored at the start (`"1 parked — open shelf"`) so it never matches the collapsed
- * drawer tab (`"Open shelf (1 parked)"`).
+ * drawer tab (`"Open shelf (1 parked)"`). Single-board only — the combined view has no summary bar.
  */
 const parkedBadge = (page: Page) => page.getByRole("button", { name: /^\d+ parked/ });
-
-/** The shelf drawer — a named complementary landmark (collapsed tab or expanded panel), and the drop target for parking. */
-const shelf = (page: Page) => page.getByRole("complementary", { name: "Shelf" });
-
-/** The parked card(s) inside the shelf drawer (each carries the `parked bundle` roledescription). */
-const parkedCard = (page: Page) => shelf(page).locator('[aria-roledescription="parked bundle"]');
 
 /**
  * Drag a `count`-member palette grouping box onto the shelf to park it directly. Idempotent +
@@ -142,19 +139,6 @@ async function parkGroupingFromPalette(page: Page, count: number): Promise<void>
     if ((await parkedBadge(page).count()) > 0) return; // already parked
     await steppedDrag(page, groupingBox(page, count), shelf(page));
     await expect(parkedBadge(page)).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 20_000 });
-}
-
-/**
- * Drag the parked card onto `toSlot` and wait for it to land. Idempotent + retried like the board
- * drag helpers: skip if a member already landed (so a missed drop retries without double-placing).
- */
-async function placeBackOnto(page: Page, toSlot: string, member: string): Promise<void> {
-  const landed = cell(page, toSlot).getByRole("button", { name: new RegExp(`^${member}`) });
-  await expect(async () => {
-    if ((await landed.count()) > 0) return;
-    await steppedDrag(page, parkedCard(page), cell(page, toSlot));
-    await expect(landed).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
 }
 

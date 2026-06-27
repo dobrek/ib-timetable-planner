@@ -17,5 +17,7 @@
     "lib": "@/shared/lib",
     "hooks": "@/shared/lib"
   },
-  "iconLibrary": "lucide"
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "registries": {}
 }

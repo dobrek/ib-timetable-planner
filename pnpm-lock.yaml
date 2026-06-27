@@ -37,6 +37,9 @@ importers:
       '@eslint/config-helpers':
         specifier: ^0.6.0
         version: 0.6.0
+      '@fontsource-variable/geist':
+        specifier: ^5.2.9
+        version: 5.2.9
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.79.0(react@19.2.7))
@@ -820,6 +823,9 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@fontsource-variable/geist@5.2.9':
+    resolution: {integrity: sha512-TP+QSBG3wxKGPE33CbMy/L0Nu3qvJ6Fy81Yc4LnQ95xH+i+cfEp8fyU8/kfV14YwszxIFPhnoMTbjL71waVpyQ==}
 
   '@hookform/resolvers@5.4.0':
     resolution: {integrity: sha512-EIsqr/t/qbinPIhGjMdtvutIN1Kk4uwbROE9/UQ93CAVGR7GkA7Y92+fX80OzXi/OB67jVFYwKGO1WzkxmkFZw==}
@@ -5886,6 +5892,8 @@ snapshots:
       react-dom: 19.2.7(react@19.2.7)
 
   '@floating-ui/utils@0.2.11': {}
+
+  '@fontsource-variable/geist@5.2.9': {}
 
   '@hookform/resolvers@5.4.0(react-hook-form@7.79.0(react@19.2.7))':
     dependencies:

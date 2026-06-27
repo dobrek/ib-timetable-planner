@@ -783,10 +783,10 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [ ] 1.1 New resolver unit tests pass (`pnpm test`)
-- [ ] 1.2 `use-board-derivations` test + extended cycle test pass (`pnpm test`)
-- [ ] 1.3 Type gate clean (`pnpm check`)
-- [ ] 1.4 Lint + structure clean (`pnpm lint` && `pnpm steiger`)
+- [x] 1.1 New resolver unit tests pass (`pnpm test`)
+- [x] 1.2 `use-board-derivations` test + extended cycle test pass (`pnpm test`)
+- [x] 1.3 Type gate clean (`pnpm check`)
+- [x] 1.4 Lint + structure clean (`pnpm lint` && `pnpm steiger`)
 
 #### Manual
 

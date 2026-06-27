@@ -16,8 +16,9 @@ import PlannerPalette from "./PlannerPalette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import { useHintMode, usePaletteDisclosure, useShelfDisclosure } from "./board-disclosure";
 import { inspectedViolations, inspectedWeeks, useCollisionInspection } from "./board-inspection";
-import type { CellData, DragData, DropTargetData, PlannerBoardProps, ShelfData } from "../model/drag";
+import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
 import { resolvePaletteView } from "../model/palette-view";
+import { resolveSingleDrop } from "../model/single-drop";
 import {
   useAvailabilityIndex,
   useCatalogById,
@@ -113,36 +114,38 @@ export default function PlannerBoard({
     const { source, target } = event.operation;
     if (!source || !target) return; // dropped outside any cell — no-op (removal is via "×")
 
-    const data = source.data as DragData;
-    const targetData = target.data as DropTargetData;
-    // The shelf droppable is island-wide, so dnd-kit can route ANY draggable onto it; resolve a
-    // concrete cell only when the target is a cell, and guard each source kind on the target kind.
-    const cell = isShelfTarget(targetData) ? null : targetData;
-    switch (data.kind) {
-      case "course":
-        // Onto a cell → place; onto the shelf → park the single course directly.
-        if (cell) addCourse(data.courseId, cell);
-        else parkToShelf([{ courseId: data.courseId, week: defaultParkedWeek(data.courseId, weekModeByCourseId) }]);
+    // The pure router resolves the drop to an action descriptor (or null = no-op); this thin
+    // dispatch wires it to the optimistic placement actions. Mirrors `CombinedPlannerBoard`.
+    const action = resolveSingleDrop(source.data as DragData, target.data as DropTargetData);
+    if (!action) return;
+
+    switch (action.kind) {
+      case "addCourse":
+        addCourse(action.courseId, action.cell);
         break;
-      case "placement":
-        if (cell) movePlacement(data.placementId, cell);
+      case "dropGroup":
+        dropGroup(action.groupingId, action.cell);
         break;
-      case "grouping":
-        // Onto a cell → fan the members in; onto the shelf → park the grouping directly.
-        if (cell) dropGroup(data.groupingId, cell);
-        else parkToShelf(groupingParkedMembers(data.groupingId, groupings, weekModeByCourseId));
+      case "movePlacement":
+        movePlacement(action.placementId, action.cell);
         break;
-      case "bundle":
-        // Onto a cell → move/merge; onto the shelf → lift the whole bundle off the board.
-        if (cell) moveBundle(data.day, data.period, cell);
-        else liftBundle(data.day, data.period);
+      case "moveBundle":
+        moveBundle(action.day, action.period, action.cell);
         break;
-      case "parked":
-        // Onto a cell → place the parked bundle back (merge if occupied); onto the shelf → no-op.
-        if (cell) {
-          placeBack(data.shelfBundleId, cell);
-          collapseUnlessPinned();
-        }
+      case "liftBundle":
+        liftBundle(action.day, action.period);
+        break;
+      case "placeBack":
+        placeBack(action.shelfBundleId, action.cell);
+        collapseUnlessPinned();
+        break;
+      case "parkCourse":
+        // Onto the shelf → park the single course directly.
+        parkToShelf([{ courseId: action.courseId, week: defaultParkedWeek(action.courseId, weekModeByCourseId) }]);
+        break;
+      case "parkGroup":
+        // Onto the shelf → park the grouping's resolved members directly.
+        parkToShelf(groupingParkedMembers(action.groupingId, groupings, weekModeByCourseId));
         break;
     }
   }
@@ -268,9 +271,6 @@ export default function PlannerBoard({
     </DragDropProvider>
   );
 }
-
-/** Discriminate the drop target: the shelf droppable carries `{kind:"shelf"}`; a cell carries `{day,period}` (no `kind`). */
-const isShelfTarget = (target: DropTargetData): target is ShelfData => "kind" in target;
 
 // Disable the drop "return" animation. A palette course is *copied* onto the grid —
 // its source stays in the palette — so dnd-kit's default animation flies the drag

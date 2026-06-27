@@ -388,10 +388,10 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Automated
 
-- [ ] 1.1 Type check passes: `pnpm check`
-- [ ] 1.2 Lint + structure pass: `pnpm lint` and `pnpm steiger`
-- [ ] 1.3 Unit tests pass, including new `projectFromPlacements` cases: `pnpm test`
-- [ ] 1.4 Existing `use-placements` and `collision-parity` suites still green
+- [x] 1.1 Type check passes: `pnpm check`
+- [x] 1.2 Lint + structure pass: `pnpm lint` and `pnpm steiger`
+- [x] 1.3 Unit tests pass, including new `projectFromPlacements` cases: `pnpm test`
+- [x] 1.4 Existing `use-placements` and `collision-parity` suites still green
 
 #### Manual
 

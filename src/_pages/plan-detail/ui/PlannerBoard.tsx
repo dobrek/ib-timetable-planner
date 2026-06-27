@@ -16,6 +16,7 @@ import PlannerGrid from "./PlannerGrid";
 import PlannerPalette from "./PlannerPalette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../lib/drag-hint-mode";
+import { writePaletteCollapsed } from "../lib/palette-collapsed";
 import { DEFAULT_SHELF_PINNED, readShelfPinned, subscribeShelfPinned, writeShelfPinned } from "../lib/shelf-pinned";
 import { buildAvailabilityIndex } from "../model/availability-index";
 import type { AvailabilityIndex } from "../model/availability-index";
@@ -40,7 +41,11 @@ import { useExplodedCells } from "../model/use-exploded-cells";
  * and the palette/grid views. Drops always land (accept-and-flag); the only way to
  * remove a course is the chip's "×".
  */
-export default function PlannerBoard({ planName, ...props }: PlannerBoardProps & { planName: string }) {
+export default function PlannerBoard({
+  planName,
+  paletteCollapsed,
+  ...props
+}: PlannerBoardProps & { planName: string; paletteCollapsed: boolean }) {
   const { planId, cohort, days, periods, groupings, stale, names, teacherNames, studentNames, catalog, availability } =
     props;
   const { crossCohortOccupancy } = props;
@@ -80,6 +85,7 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
     initialParked: props.parkedBundles,
   });
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
+  const { collapsed, setCollapsed } = usePaletteDisclosure(paletteCollapsed);
   const justDuplicated = useDuplicateHighlight(lastDuplicated);
   const { isExploded, toggleExploded } = useExplodedCells();
   const collisions = useCollisions(placements, catalogById, availabilityIndex, crossCohortIndex);
@@ -214,14 +220,17 @@ export default function PlannerBoard({ planName, ...props }: PlannerBoardProps &
         {/* `minmax(0,1fr)` on the board column (not bare `1fr`, whose min is min-content): lets the
             timetable track shrink + scroll instead of forcing the grid wider than the viewport — so
             the `auto` shelf column is never cropped when both the sidebar and shelf are expanded. */}
-        <div
-          data-slot="planner-board"
-          className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[18rem_minmax(0,1fr)_auto]"
-        >
+        <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
           {paletteView === "stale" ? (
             <GroupingStalePanel planId={planId} cohort={cohort} />
           ) : (
-            <PlannerPalette groupings={groupings} names={names} hours={hours} />
+            <PlannerPalette
+              groupings={groupings}
+              names={names}
+              hours={hours}
+              collapsed={collapsed}
+              onCollapsedChange={setCollapsed}
+            />
           )}
 
           <div className="flex min-h-0 flex-col gap-3">
@@ -376,6 +385,23 @@ function useShelfDisclosure() {
     setPinned: writeShelfPinned,
     collapseUnlessPinned: () => {
       if (!pinned) setExpanded(false);
+    },
+  };
+}
+
+// Owns the palette's collapse disclosure. Seeded from the SSR `paletteCollapsed` prop (read from
+// the cookie server-side), so the first client render matches the server and there is no hydration
+// flash. Simpler than the shelf: no `useSyncExternalStore` (the cookie is read once at SSR — cross-
+// tab sync is intentionally omitted, see palette-collapsed.ts) and no pin (the palette is never a
+// drop target, so it never auto-collapses). The toggle writes the cookie so the choice survives a
+// reload; like the shelf, the grid reflows only on these explicit clicks, never mid-drag.
+function usePaletteDisclosure(initialCollapsed: boolean) {
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
+  return {
+    collapsed,
+    setCollapsed: (next: boolean) => {
+      setCollapsed(next);
+      writePaletteCollapsed(next);
     },
   };
 }

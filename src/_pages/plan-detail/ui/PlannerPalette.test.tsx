@@ -1,7 +1,9 @@
+import { DragDropProvider } from "@dnd-kit/react";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import GroupingFilter from "./GroupingFilter";
-import { usePaletteFilter } from "./PlannerPalette";
+import PlannerPalette, { usePaletteFilter } from "./PlannerPalette";
+import type { HoursStat } from "../model/hours";
 import type { LeadingCourseOption } from "../model/leading-course-options";
 import type { PlannerGrouping } from "../model/grouping";
 
@@ -162,5 +164,52 @@ describe("GroupingFilter companion select", () => {
     fireEvent.keyDown(leading, { key: "Enter" });
     fireEvent.click(screen.getByRole("option", { name: "Delta (1)" }));
     expect(companion).toHaveTextContent("Any companion");
+  });
+});
+
+describe("PlannerPalette collapse disclosure", () => {
+  // The mounted GroupingBox / PaletteCourseChip children call useDraggable, so the palette must
+  // render inside a DragDropProvider.
+  const renderPalette = (overrides: Partial<React.ComponentProps<typeof PlannerPalette>> = {}) => {
+    const props: React.ComponentProps<typeof PlannerPalette> = {
+      groupings: GROUPINGS,
+      names: NAMES,
+      hours: new Map<string, HoursStat>(),
+      collapsed: false,
+      onCollapsedChange: vi.fn(),
+      ...overrides,
+    };
+    render(
+      <DragDropProvider>
+        <PlannerPalette {...props} />
+      </DragDropProvider>,
+    );
+    return props;
+  };
+
+  it("collapsed → the expand rail names the total grouping count and expands on click", () => {
+    const props = renderPalette({ collapsed: true });
+    const rail = screen.getByRole("button", { name: "Open palette (3 groupings)" });
+    fireEvent.click(rail);
+    expect(props.onCollapsedChange).toHaveBeenCalledWith(false);
+  });
+
+  it("expanded → renders the filter and collapses on the collapse-button click", () => {
+    const props = renderPalette({ collapsed: false });
+    expect(screen.getByRole("combobox", { name: "Leading course" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse palette" }));
+    expect(props.onCollapsedChange).toHaveBeenCalledWith(true);
+  });
+
+  it("the header count is the total grouping count, not the narrowed/filtered count", () => {
+    renderPalette({ collapsed: false });
+    const paletteCount = () => document.querySelector('[data-slot="palette-count"]')?.textContent;
+    expect(paletteCount()).toBe("3");
+
+    // Narrow the visible list to groupings containing Alpha (g1, g2 — 2 of 3); the count must hold at 3.
+    const leading = screen.getByRole("combobox", { name: "Leading course" });
+    fireEvent.keyDown(leading, { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Alpha (2)" }));
+    expect(paletteCount()).toBe("3");
   });
 });

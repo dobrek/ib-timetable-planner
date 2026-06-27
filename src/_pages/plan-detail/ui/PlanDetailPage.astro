@@ -5,11 +5,12 @@ import type { PlannerBoardProps } from "../model/drag";
 type Props = {
   planName: string;
   boardProps: PlannerBoardProps;
+  paletteCollapsed: boolean;
 };
 
-const { planName, boardProps } = Astro.props;
+const { planName, boardProps, paletteCollapsed } = Astro.props;
 ---
 
 <div class="flex h-full min-h-0 flex-1 flex-col">
-  <PlannerBoard {...boardProps} planName={planName} client:load />
+  <PlannerBoard {...boardProps} planName={planName} paletteCollapsed={paletteCollapsed} client:load />
 </div>

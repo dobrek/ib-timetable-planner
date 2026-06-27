@@ -25,7 +25,7 @@ export default function GroupingStalePanel({ planId, cohort }: Props) {
   const { busy, error, recompute } = useRecomputeGroupings(planId, cohort);
 
   return (
-    <aside data-slot="grouping-stale-panel" className="flex min-h-0 flex-col gap-3">
+    <aside data-slot="grouping-stale-panel" className="flex min-h-0 w-64 flex-col gap-3">
       <div className="border-warning/50 bg-warning/10 text-warning flex flex-col gap-3 rounded-md border p-4">
         <div className="flex items-start gap-2">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />

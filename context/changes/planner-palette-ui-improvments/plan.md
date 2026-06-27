@@ -242,33 +242,33 @@ No data migration. The cookie defaults to absent → `false` → palette starts 
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Linting passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Unit tests pass: `pnpm test`
-- [x] 1.5 Production build is clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check` — 48b7e9a
+- [x] 1.2 Linting passes: `pnpm lint` — 48b7e9a
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — 48b7e9a
+- [x] 1.4 Unit tests pass: `pnpm test` — 48b7e9a
+- [x] 1.5 Production build is clean: `pnpm build` — 48b7e9a
 
 #### Manual
 
-- [x] 1.6 Multi-member `GroupingBox` density matches `ParkedBundleCard`; grip + counter intact
-- [x] 1.7 1-member grouping and promoted single chip render compact and identical
-- [x] 1.8 No palette overflow/truncation regression; badge + hours counters align
+- [x] 1.6 Multi-member `GroupingBox` density matches `ParkedBundleCard`; grip + counter intact — 48b7e9a
+- [x] 1.7 1-member grouping and promoted single chip render compact and identical — 48b7e9a
+- [x] 1.8 No palette overflow/truncation regression; badge + hours counters align — 48b7e9a
 
 ### Phase 2: Collapsible PlannerPalette
 
 #### Automated
 
-- [ ] 2.1 Type check passes: `pnpm check`
-- [ ] 2.2 Linting passes: `pnpm lint`
-- [ ] 2.3 FSD structure check passes: `pnpm steiger`
-- [ ] 2.4 Unit tests pass (palette collapse + cookie-parse): `pnpm test`
-- [ ] 2.5 Production build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check`
+- [x] 2.2 Linting passes: `pnpm lint`
+- [x] 2.3 FSD structure check passes: `pnpm steiger`
+- [x] 2.4 Unit tests pass (palette collapse + cookie-parse): `pnpm test`
+- [x] 2.5 Production build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.6 Collapse to `w-9` rail (`Boxes` + count); board reflows; animation respects reduced-motion
-- [ ] 2.7 Rail click re-expands to `w-64`; filter + list intact, selection preserved
-- [ ] 2.8 Reload persists collapsed/expanded state with no hydration flash
-- [ ] 2.9 Dragging a grouping/chip still works; collapse not triggerable mid-drag
-- [ ] 2.10 Stale-suggestions state renders at stable `w-64`
-- [ ] 2.11 Dev (`http://localhost`) cookie is set and persists across reload
+- [x] 2.6 Collapse to `w-9` rail (`Boxes` + count); board reflows; animation respects reduced-motion
+- [x] 2.7 Rail click re-expands to `w-64`; filter + list intact, selection preserved
+- [x] 2.8 Reload persists collapsed/expanded state with no hydration flash
+- [x] 2.9 Dragging a grouping/chip still works; collapse not triggerable mid-drag
+- [x] 2.10 Stale-suggestions state renders at stable `w-64`
+- [x] 2.11 Dev (`http://localhost`) cookie is set and persists across reload

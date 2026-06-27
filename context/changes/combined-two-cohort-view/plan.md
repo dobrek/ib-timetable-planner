@@ -421,8 +421,8 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Manual
 
-- [ ] 3.4 Editing DP1 immediately re-validates DP2 (cross-cohort clash on adjacent cell)
-- [ ] 3.5 Cross-cohort bundle drop rejected; sibling cells dim during drag
+- [x] 3.4 Editing DP1 immediately re-validates DP2 (cross-cohort clash on adjacent cell)
+- [x] 3.5 Cross-cohort bundle drop rejected; sibling cells dim during drag
 - [x] 3.6 Full editing op set works in both columns — eccf234
 - [x] 3.7 Single-cohort board unaffected — eccf234
 
@@ -430,27 +430,27 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Automated
 
-- [x] 4.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
-- [x] 4.2 Unit test: place-back/park cohort routing correct: `pnpm test`
-- [x] 4.3 `pnpm build` clean
+- [x] 4.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass — a264372
+- [x] 4.2 Unit test: place-back/park cohort routing correct: `pnpm test` — a264372
+- [x] 4.3 `pnpm build` clean — a264372
 
 #### Manual
 
-- [x] 4.4 Palette toggle swaps DP1/DP2 recommendations; grouping places into matching cohort
-- [x] 4.5 Parked cards tagged and route back to their own cohort; rejected on the other
-- [x] 4.6 Palette collapsed + shelf closed by default; wide grid has room
+- [x] 4.4 Palette toggle swaps DP1/DP2 recommendations; grouping places into matching cohort — a264372
+- [x] 4.5 Parked cards tagged and route back to their own cohort; rejected on the other — a264372
+- [x] 4.6 Palette collapsed + shelf closed by default; wide grid has room — a264372
 
 ### Phase 5: Verification & hardening
 
 #### Automated
 
-- [ ] 5.1 `collision-parity` S-06 cases pass: `pnpm test`
-- [ ] 5.2 Integration suite passes: `pnpm test:integration`
-- [ ] 5.3 e2e suite passes: `pnpm test:e2e`
-- [ ] 5.4 Perf measurement runs within the asserted ceiling
-- [ ] 5.5 Full local CI gate green via `/verify`
+- [x] 5.1 `collision-parity` S-06 cases pass: `pnpm test`
+- [x] 5.2 Integration suite passes: `pnpm test:integration`
+- [x] 5.3 e2e suite passes: `pnpm test:e2e`
+- [x] 5.4 Perf measurement runs within the asserted ceiling
+- [x] 5.5 Full local CI gate green via `/verify`
 
 #### Manual
 
-- [ ] 5.6 Sub-200 ms feel confirmed in DevTools during a combined-view drag
-- [ ] 5.7 Stale comment and roadmap S-04 status read correctly
+- [x] 5.6 Sub-200 ms feel confirmed in DevTools during a combined-view drag
+- [x] 5.7 Stale comment and roadmap S-04 status read correctly

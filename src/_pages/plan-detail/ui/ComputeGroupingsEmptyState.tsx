@@ -14,7 +14,8 @@ type Props = {
  * Empty-state for a plan with no persisted `course_groupings` yet. Calls the
  * computeGroupings Action to compute + persist the palette, then reloads so the
  * board renders from the freshly-persisted rows (single render path). Scoped strictly
- * to the empty state — re-compute and staleness UI are S-06.
+ * to the empty state; the out-of-date *recompute* path is its sibling `GroupingStalePanel`
+ * (already shipped in `grouping-refresh-stale-version`, not S-06).
  */
 export default function ComputeGroupingsEmptyState({ planId, cohort }: Props) {
   const { loading, error, compute } = useComputeGroupings(planId, cohort);

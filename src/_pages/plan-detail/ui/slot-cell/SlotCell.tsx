@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import type { Cohort, PlacementWeek } from "@/shared/config";
+import { cohortLabel, type Cohort, type PlacementWeek } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CollisionInspectionTarget } from "../CollisionDetailsDialog";
@@ -108,8 +108,14 @@ export default function SlotCell({
       ref={setCellRef}
       data-slot="slot-cell"
       role="gridcell"
-      // Named even when empty so an empty drop target is still locatable by role + name.
-      aria-label={`${dayLabel(day)}, ${periodLabel(period)}`}
+      // Named even when empty so an empty drop target is still locatable by role + name. In the
+      // combined view the cohort prefixes the name so the two same-slot DP1|DP2 cells are distinct
+      // (a screen reader announces the column; single board omits it → today's name).
+      aria-label={
+        cohort
+          ? `${cohortLabel(cohort)}, ${dayLabel(day)}, ${periodLabel(period)}`
+          : `${dayLabel(day)}, ${periodLabel(period)}`
+      }
       className={cn(
         "bg-background flex min-h-16 flex-col gap-1 p-1 transition-colors",
         // One tone, resolved once with ordered precedence — no negated-class ladder.

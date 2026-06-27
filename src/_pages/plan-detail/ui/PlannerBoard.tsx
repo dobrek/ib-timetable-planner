@@ -18,8 +18,8 @@ import { CollisionDetailsDialog, GroupDragOverlay } from "./overlay";
 import { ComputeGroupingsEmptyState, PlannerPalette } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
+import { resolveCombinedDrop } from "../model/combined-drop";
 import { resolvePaletteView } from "../model/palette-view";
-import { resolveSingleDrop } from "../model/single-drop";
 import { useCrossCohortIndex } from "../model/use-board-derivations";
 import { useCohortBoardState } from "../model/use-cohort-board-state";
 import { placementErrorMessage } from "../model/placement-transitions";
@@ -111,9 +111,11 @@ export default function PlannerBoard({
     const { source, target } = event.operation;
     if (!source || !target) return; // dropped outside any cell — no-op (removal is via "×")
 
-    // The pure router resolves the drop to an action descriptor (or null = no-op); this thin
-    // dispatch wires it to the optimistic placement actions. Mirrors `CombinedPlannerBoard`.
-    const action = resolveSingleDrop(source.data as DragData, target.data as DropTargetData);
+    // The ONE shared router resolves the drop to an action descriptor (or null = no-op); this thin
+    // dispatch wires it to the optimistic placement actions. The single board is the degenerate
+    // one-cohort case: it passes its one `cohort` as `activeCohort`, its untagged cells/drags resolve
+    // to that cohort, and the cross-cohort guard trivially passes. Same dispatch as the combined board.
+    const action = resolveCombinedDrop(source.data as DragData, target.data as DropTargetData, cohort);
     if (!action) return;
 
     switch (action.kind) {

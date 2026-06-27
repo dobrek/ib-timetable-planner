@@ -1,4 +1,4 @@
-import type { CellTone } from "../../../model/cell-tone";
+import type { CellTone } from "../../../model/collision/cell-tone";
 import type { DropHint } from "../../../model/drop-hints";
 import type { HintMode } from "../../../lib/drag-hint-mode";
 

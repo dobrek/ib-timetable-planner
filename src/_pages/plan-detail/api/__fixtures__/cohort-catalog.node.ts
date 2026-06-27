@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { WeekMode } from "@/shared/config";
-import type { GroupingCourse } from "../../model/grouping";
+import type { GroupingCourse } from "../../model/grouping/grouping";
 import { groupBy, unique } from "@/shared/lib/collections";
 
 export const loadFixtureCourses = (dir: string): GroupingCourse[] => {

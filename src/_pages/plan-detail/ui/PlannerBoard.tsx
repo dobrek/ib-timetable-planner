@@ -18,13 +18,13 @@ import { CollisionDetailsDialog, GroupDragOverlay } from "./overlay";
 import { ComputeGroupingsEmptyState, PlannerPalette } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
-import { resolveCombinedDrop } from "../model/combined-drop";
-import { resolvePaletteView } from "../model/palette-view";
+import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
+import { resolvePaletteView } from "../model/grouping/palette-view";
 import { useCrossCohortIndex } from "../model/use-board-derivations";
 import { useCohortBoardState } from "../model/use-cohort-board-state";
-import { placementErrorMessage } from "../model/placement-transitions";
-import type { ParkedMember } from "../model/parked";
-import { defaultParkedWeek, groupingParkedMembers } from "../model/parked-members";
+import { placementErrorMessage } from "../model/placement/placement-transitions";
+import type { ParkedMember } from "../model/placement/parked";
+import { defaultParkedWeek, groupingParkedMembers } from "../model/placement/parked-members";
 
 /**
  * Planner island root: orchestrates placement state, collision/hours derivations,

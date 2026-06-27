@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { countIncompleteCourses, deriveHours } from "./hours";
-import type { GroupingCourse } from "./grouping";
-import type { PlannerPlacement } from "./placement";
+import type { GroupingCourse } from "./grouping/grouping";
+import type { PlannerPlacement } from "./placement/placement";
 
 const course = (id: string, hours: number): GroupingCourse => ({
   id,

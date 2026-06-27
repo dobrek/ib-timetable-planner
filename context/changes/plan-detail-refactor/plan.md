@@ -869,12 +869,12 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [x] 7.1 Unified-router tests incl. single-cohort cases pass (`pnpm test`)
-- [x] 7.2 Single-board `handleDrop` characterization still green against the unified router (`pnpm test`) — folded into combined-drop.test.ts single-cohort cases
-- [x] 7.3 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [x] 7.4 Drop-path integration tests pass (`pnpm test:integration`) — 53/53 (one transient setup flake re-run green)
-- [x] 7.5 e2e green, both routes full drag matrix (`pnpm test:e2e`) — 18/18 passed
-- [x] 7.6 Build clean (`pnpm build`)
+- [x] 7.1 Unified-router tests incl. single-cohort cases pass (`pnpm test`) — 063e0e8
+- [x] 7.2 Single-board `handleDrop` characterization still green against the unified router (`pnpm test`) — folded into combined-drop.test.ts single-cohort cases, 063e0e8
+- [x] 7.3 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`) — 063e0e8
+- [x] 7.4 Drop-path integration tests pass (`pnpm test:integration`) — 53/53 (one transient setup flake re-run green), 063e0e8
+- [x] 7.5 e2e green, both routes full drag matrix (`pnpm test:e2e`) — 18/18 passed, 063e0e8
+- [x] 7.6 Build clean (`pnpm build`) — 063e0e8
 
 #### Manual
 
@@ -885,14 +885,14 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [ ] 8.1 Structure gate clean (`pnpm steiger`)
-- [ ] 8.2 Type gate clean (`pnpm check`)
-- [ ] 8.3 All moved tests pass (`pnpm test`)
-- [ ] 8.4 Lint + build clean (`pnpm lint` && `pnpm build`)
+- [x] 8.1 Structure gate clean (`pnpm steiger`)
+- [x] 8.2 Type gate clean (`pnpm check`)
+- [x] 8.3 All moved tests pass (`pnpm test`) — 686/82
+- [x] 8.4 Lint + build clean (`pnpm lint` && `pnpm build`)
 
 #### Manual
 
-- [ ] 8.5 Both routes behave identically (pure rename/move)
+- [x] 8.5 Both routes behave identically (pure rename/move) — pure file moves + import-path rewrites; no logic change, gates green (check/test/build); final e2e re-run at p9
 
 ### Phase 9: `api/` cleanup
 

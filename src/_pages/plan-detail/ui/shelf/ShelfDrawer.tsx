@@ -4,7 +4,7 @@ import type { Cohort } from "@/shared/config";
 import ParkedBundleCard from "./ParkedBundleCard";
 import CollapsibleEdgePanel, { EDGE_PANEL_ICON_BUTTON } from "../chrome/CollapsibleEdgePanel";
 import type { ShelfData } from "../../model/drag";
-import type { LocalParkedBundle } from "../../model/parked";
+import type { LocalParkedBundle } from "../../model/placement/parked";
 import { cn } from "@/shared/lib/class-names";
 import { Button } from "@/shared/ui";
 

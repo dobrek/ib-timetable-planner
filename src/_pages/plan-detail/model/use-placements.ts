@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
 import { deleteShelfBundle, shelveBundle as shelveBundleRpc, shelveCourses, unshelveBundle } from "../api/shelf-client";
-import type { AvailabilityIndex } from "./availability-index";
-import type { CrossCohortIndex } from "./cross-cohort-index";
+import type { AvailabilityIndex } from "./cross-cohort/availability-index";
+import type { CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
 import type { CellData } from "./drag";
-import { findDuplicateTarget } from "./duplicate-target";
-import type { GroupingCourse } from "./grouping";
+import { findDuplicateTarget } from "./placement/duplicate-target";
+import type { GroupingCourse } from "./grouping/grouping";
 import {
   addManyOptimistic,
   addOptimistic,
@@ -29,8 +29,8 @@ import {
   settleMany,
   type BatchOutcome,
   type PlacementError,
-} from "./placement-transitions";
-import type { LocalParkedBundle, ParkedBundle, ParkedMember } from "./parked";
+} from "./placement/placement-transitions";
+import type { LocalParkedBundle, ParkedBundle, ParkedMember } from "./placement/parked";
 import {
   membersAtCell,
   parkAddOptimistic,
@@ -38,8 +38,8 @@ import {
   parkRollback,
   unparkOptimistic,
   unparkRollback,
-} from "./shelf-transitions";
-import type { LocalPlacement, PlannerPlacement } from "./placement";
+} from "./placement/shelf-transitions";
+import type { LocalPlacement, PlannerPlacement } from "./placement/placement";
 
 type UsePlacementsArgs = {
   planId: string;

@@ -13,9 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui";
-import { leadingCourseOptions, sortByGroupCount, sortByName } from "../../model/leading-course-options";
-import type { LeadingCourseOption } from "../../model/leading-course-options";
-import type { PlannerGrouping } from "../../model/grouping";
+import { leadingCourseOptions, sortByGroupCount, sortByName } from "../../model/grouping/leading-course-options";
+import type { LeadingCourseOption } from "../../model/grouping/leading-course-options";
+import type { PlannerGrouping } from "../../model/grouping/grouping";
 
 type Props = {
   groupings: PlannerGrouping[];

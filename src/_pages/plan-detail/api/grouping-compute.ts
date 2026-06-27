@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { computeGroupings } from "../model/compute-groupings";
-import { EnumerationCapError } from "../model/enumerate";
+import { computeGroupings } from "../model/grouping/compute-groupings";
+import { EnumerationCapError } from "../model/grouping/enumerate";
 import { loadCohortCourses, unwrapRow, type SupabaseClient } from "@/shared/api";
 import { cohortSchema } from "@/shared/config";
 import { computeCatalogHash } from "@/shared/lib/catalog-hash";

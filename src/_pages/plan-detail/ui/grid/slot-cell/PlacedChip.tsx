@@ -5,7 +5,7 @@ import type { Cohort, PlacementWeek } from "@/shared/config";
 import { Badge, Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import type { CollisionInspectionTarget } from "../../overlay/CollisionDetailsDialog";
-import type { CellOccupant } from "../../../model/cell-occupants";
+import type { CellOccupant } from "../../../model/collision/cell-occupants";
 import type { PlacementDrag } from "../../../model/drag";
 import { isBiweekly } from "../../../model/week";
 import { stopDrag } from "../../../lib/drag-inert";

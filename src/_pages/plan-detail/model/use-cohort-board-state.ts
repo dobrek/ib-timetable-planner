@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { buildCrossCohortIndex, projectFromPlacements, type CrossCohortIndex } from "./cross-cohort-index";
+import { buildCrossCohortIndex, projectFromPlacements, type CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
 import type { PlannerBoardProps } from "./drag";
-import type { LocalPlacement } from "./placement";
+import type { LocalPlacement } from "./placement/placement";
 import { usePlacements } from "./use-placements";
 import { useExplodedCells } from "./use-exploded-cells";
 import {

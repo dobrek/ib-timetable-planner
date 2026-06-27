@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { PlacementWeek } from "@/shared/config";
-import { cellKey } from "../../model/collisions";
-import type { CellCollisions } from "../../model/collisions";
-import type { LocalPlacement } from "../../model/placement";
+import { cellKey } from "../../model/collision/cell-key";
+import type { CellCollisions } from "../../model/collision/collisions";
+import type { LocalPlacement } from "../../model/placement/placement";
 import type { CollisionInspectionTarget } from "../overlay/CollisionDetailsDialog";
 
 /**

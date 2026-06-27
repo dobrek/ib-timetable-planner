@@ -5,9 +5,9 @@ import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import GroupingStalePanel from "./GroupingStalePanel";
 import PaletteBody from "./PaletteBody";
 import CollapsibleEdgePanel from "../chrome/CollapsibleEdgePanel";
-import type { PlannerGrouping } from "../../model/grouping";
+import type { PlannerGrouping } from "../../model/grouping/grouping";
 import type { HoursStat } from "../../model/hours";
-import { resolvePaletteView } from "../../model/palette-view";
+import { resolvePaletteView } from "../../model/grouping/palette-view";
 
 /** One cohort's palette inputs — the slice of board state the panel renders for the active cohort. */
 export type PaletteCohortData = {

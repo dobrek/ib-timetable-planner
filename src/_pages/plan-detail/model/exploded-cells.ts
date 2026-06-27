@@ -1,4 +1,4 @@
-import { cellKey } from "./collisions";
+import { cellKey } from "./collision/cell-key";
 
 /**
  * The set of cells the author has currently expanded into individual chips (the

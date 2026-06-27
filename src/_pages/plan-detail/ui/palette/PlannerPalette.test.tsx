@@ -10,8 +10,8 @@ import PlannerPalette, { usePaletteFilter } from "./PlannerPalette";
 // GroupingStalePanel.test's own mock.
 vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn() }));
 import type { HoursStat } from "../../model/hours";
-import type { LeadingCourseOption } from "../../model/leading-course-options";
-import type { PlannerGrouping } from "../../model/grouping";
+import type { LeadingCourseOption } from "../../model/grouping/leading-course-options";
+import type { PlannerGrouping } from "../../model/grouping/grouping";
 
 const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({
   id,

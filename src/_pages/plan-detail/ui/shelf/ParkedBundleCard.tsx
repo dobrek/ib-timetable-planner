@@ -2,7 +2,7 @@ import { useDraggable } from "@dnd-kit/react";
 import { GripVertical, X } from "lucide-react";
 import { cohortLabel, type Cohort } from "@/shared/config";
 import type { ParkedDrag } from "../../model/drag";
-import type { LocalParkedBundle, ParkedMember } from "../../model/parked";
+import type { LocalParkedBundle, ParkedMember } from "../../model/placement/parked";
 import { cn } from "@/shared/lib/class-names";
 import { Badge, Button } from "@/shared/ui";
 import { stopDrag } from "../../lib/drag-inert";

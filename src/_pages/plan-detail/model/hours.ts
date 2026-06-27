@@ -1,5 +1,5 @@
-import type { GroupingCourse } from "./grouping";
-import type { PlannerPlacement } from "./placement";
+import type { GroupingCourse } from "./grouping/grouping";
+import type { PlannerPlacement } from "./placement/placement";
 
 /** Placed-vs-required hours for one course. */
 export type HoursStat = { placed: number; required: number };

@@ -16,12 +16,12 @@ import { PairedPlannerGrid, type PairedColumn } from "./grid";
 import { CollisionDetailsDialog, type CollisionInspectionTarget, GroupDragOverlay } from "./overlay";
 import { CombinedPalettePanel, type PaletteCohortData } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
-import { cellKey } from "../model/collisions";
-import { resolveCombinedDrop } from "../model/combined-drop";
+import { cellKey } from "../model/collision/cell-key";
+import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
-import type { ParkedMember } from "../model/parked";
-import { defaultParkedWeek, groupingParkedMembers } from "../model/parked-members";
-import { placementErrorMessage } from "../model/placement-transitions";
+import type { ParkedMember } from "../model/placement/parked";
+import { defaultParkedWeek, groupingParkedMembers } from "../model/placement/parked-members";
+import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
 
 type Props = {

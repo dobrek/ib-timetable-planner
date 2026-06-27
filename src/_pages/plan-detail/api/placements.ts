@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PlannerPlacement } from "../model/placement";
+import type { PlannerPlacement } from "../model/placement/placement";
 import { unwrapRow, type SupabaseClient } from "@/shared/api";
 import { cohortSchema, placementWeekSchema, type PlacementWeek } from "@/shared/config";
 import { GRID_BOUNDS } from "@/shared/lib/grid";

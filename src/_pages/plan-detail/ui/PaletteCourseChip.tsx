@@ -27,7 +27,7 @@ export default function PaletteCourseChip({ name, hours, isDragging, ref }: Prop
       ref={ref}
       data-slot="palette-course-chip"
       className={cn(
-        "bg-background flex cursor-grab items-center gap-2 rounded-md border px-2 py-1.5 text-sm shadow-xs",
+        "bg-background flex cursor-grab items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs",
         "hover:bg-accent hover:text-accent-foreground active:cursor-grabbing",
         isDragging && "opacity-50",
       )}

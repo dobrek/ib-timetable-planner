@@ -55,7 +55,7 @@ export default function GroupingBox({ grouping, names, hours }: Props) {
         isDragging && "border-dashed opacity-60",
       )}
     >
-      <div data-slot="grouping-header" className="flex items-center gap-2 rounded-t-lg px-3 py-2 text-sm font-medium">
+      <div data-slot="grouping-header" className="flex items-center gap-2 rounded-t-lg px-2 py-1.5 text-xs font-medium">
         <GripVertical className="text-muted-foreground size-4" />
         <span>{grouping.memberIds.length} courses</span>
         {grouping.oppositeWeek && (
@@ -78,7 +78,7 @@ export default function GroupingBox({ grouping, names, hours }: Props) {
 
 function MemberRow({ name, hours }: { name: string; hours: HoursStat | undefined }) {
   return (
-    <li data-slot="grouping-member" className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
+    <li data-slot="grouping-member" className="flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs">
       <span className="truncate">{name}</span>
       <HoursCounter hours={hours} />
     </li>

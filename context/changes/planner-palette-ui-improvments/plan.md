@@ -242,17 +242,17 @@ No data migration. The cookie defaults to absent → `false` → palette starts 
 
 #### Automated
 
-- [ ] 1.1 Type check passes: `pnpm check`
-- [ ] 1.2 Linting passes: `pnpm lint`
-- [ ] 1.3 FSD structure check passes: `pnpm steiger`
-- [ ] 1.4 Unit tests pass: `pnpm test`
-- [ ] 1.5 Production build is clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check`
+- [x] 1.2 Linting passes: `pnpm lint`
+- [x] 1.3 FSD structure check passes: `pnpm steiger`
+- [x] 1.4 Unit tests pass: `pnpm test`
+- [x] 1.5 Production build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.6 Multi-member `GroupingBox` density matches `ParkedBundleCard`; grip + counter intact
-- [ ] 1.7 1-member grouping and promoted single chip render compact and identical
-- [ ] 1.8 No palette overflow/truncation regression; badge + hours counters align
+- [x] 1.6 Multi-member `GroupingBox` density matches `ParkedBundleCard`; grip + counter intact
+- [x] 1.7 1-member grouping and promoted single chip render compact and identical
+- [x] 1.8 No palette overflow/truncation regression; badge + hours counters align
 
 ### Phase 2: Collapsible PlannerPalette
 

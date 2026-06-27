@@ -8,12 +8,12 @@ const shelf: ShelfData = { kind: "shelf" };
 describe("resolveCombinedDrop — cross-cohort guard", () => {
   it("rejects a placement move onto the OTHER cohort's cell", () => {
     const drag: PlacementDrag = { kind: "placement", placementId: "p1", courseId: "c1", cohort: "dp1" };
-    expect(resolveCombinedDrop(drag, cell("dp2"))).toBeNull();
+    expect(resolveCombinedDrop(drag, cell("dp2"), "dp1")).toBeNull();
   });
 
   it("dispatches a placement move within the SAME cohort", () => {
     const drag: PlacementDrag = { kind: "placement", placementId: "p1", courseId: "c1", cohort: "dp1" };
-    expect(resolveCombinedDrop(drag, cell("dp1", 2, 3))).toEqual({
+    expect(resolveCombinedDrop(drag, cell("dp1", 2, 3), "dp1")).toEqual({
       kind: "movePlacement",
       cohort: "dp1",
       placementId: "p1",
@@ -23,8 +23,8 @@ describe("resolveCombinedDrop — cross-cohort guard", () => {
 
   it("rejects a bundle move across cohorts but dispatches it within the same cohort", () => {
     const drag: BundleDrag = { kind: "bundle", day: 1, period: 1, cohort: "dp2" };
-    expect(resolveCombinedDrop(drag, cell("dp1"))).toBeNull();
-    expect(resolveCombinedDrop(drag, cell("dp2", 4, 5))).toEqual({
+    expect(resolveCombinedDrop(drag, cell("dp1"), "dp1")).toBeNull();
+    expect(resolveCombinedDrop(drag, cell("dp2", 4, 5), "dp1")).toEqual({
       kind: "moveBundle",
       cohort: "dp2",
       day: 1,
@@ -35,8 +35,8 @@ describe("resolveCombinedDrop — cross-cohort guard", () => {
 
   it("rejects a parked place-back onto the OTHER cohort but dispatches it into its own cohort", () => {
     const drag: ParkedDrag = { kind: "parked", shelfBundleId: "s1", cohort: "dp1" };
-    expect(resolveCombinedDrop(drag, cell("dp2"))).toBeNull();
-    expect(resolveCombinedDrop(drag, cell("dp1"))).toEqual({
+    expect(resolveCombinedDrop(drag, cell("dp2"), "dp1")).toBeNull();
+    expect(resolveCombinedDrop(drag, cell("dp1"), "dp1")).toEqual({
       kind: "placeBack",
       cohort: "dp1",
       shelfBundleId: "s1",
@@ -46,9 +46,9 @@ describe("resolveCombinedDrop — cross-cohort guard", () => {
 });
 
 describe("resolveCombinedDrop — routing", () => {
-  it("adopts the target cell's cohort for a cohort-free course drag", () => {
+  it("adopts the target cell's cohort for a cohort-free course drag (not the active cohort)", () => {
     const drag: CourseDrag = { kind: "course", courseId: "c1" };
-    expect(resolveCombinedDrop(drag, cell("dp2"))).toEqual({
+    expect(resolveCombinedDrop(drag, cell("dp2"), "dp1")).toEqual({
       kind: "addCourse",
       cohort: "dp2",
       courseId: "c1",
@@ -56,9 +56,9 @@ describe("resolveCombinedDrop — routing", () => {
     });
   });
 
-  it("adopts the target cell's cohort for a cohort-free grouping drag", () => {
+  it("adopts the target cell's cohort for a cohort-free grouping drag (not the active cohort)", () => {
     const drag: GroupDrag = { kind: "grouping", groupingId: "g1" };
-    expect(resolveCombinedDrop(drag, cell("dp1"))).toEqual({
+    expect(resolveCombinedDrop(drag, cell("dp1"), "dp2")).toEqual({
       kind: "dropGroup",
       cohort: "dp1",
       groupingId: "g1",
@@ -68,14 +68,27 @@ describe("resolveCombinedDrop — routing", () => {
 
   it("routes a bundle dropped on the shelf to a lift, keyed by source cohort", () => {
     const drag: BundleDrag = { kind: "bundle", day: 2, period: 3, cohort: "dp2" };
-    expect(resolveCombinedDrop(drag, shelf)).toEqual({ kind: "liftBundle", cohort: "dp2", day: 2, period: 3 });
+    expect(resolveCombinedDrop(drag, shelf, "dp1")).toEqual({ kind: "liftBundle", cohort: "dp2", day: 2, period: 3 });
   });
 
-  it("is a no-op for a placement / parked / course dropped on the shelf", () => {
+  it("is a no-op for a placement / parked dropped on the shelf", () => {
     expect(
-      resolveCombinedDrop({ kind: "placement", placementId: "p1", courseId: "c1", cohort: "dp1" }, shelf),
+      resolveCombinedDrop({ kind: "placement", placementId: "p1", courseId: "c1", cohort: "dp1" }, shelf, "dp1"),
     ).toBeNull();
-    expect(resolveCombinedDrop({ kind: "parked", shelfBundleId: "s1", cohort: "dp1" }, shelf)).toBeNull();
-    expect(resolveCombinedDrop({ kind: "course", courseId: "c1" }, shelf)).toBeNull();
+    expect(resolveCombinedDrop({ kind: "parked", shelfBundleId: "s1", cohort: "dp1" }, shelf, "dp1")).toBeNull();
+  });
+});
+
+describe("resolveCombinedDrop — park to shelf", () => {
+  it("parks a course dropped on the shelf under the active cohort", () => {
+    const drag: CourseDrag = { kind: "course", courseId: "c1" };
+    expect(resolveCombinedDrop(drag, shelf, "dp1")).toEqual({ kind: "parkCourse", cohort: "dp1", courseId: "c1" });
+    expect(resolveCombinedDrop(drag, shelf, "dp2")).toEqual({ kind: "parkCourse", cohort: "dp2", courseId: "c1" });
+  });
+
+  it("parks a grouping dropped on the shelf under the active cohort", () => {
+    const drag: GroupDrag = { kind: "grouping", groupingId: "g1" };
+    expect(resolveCombinedDrop(drag, shelf, "dp1")).toEqual({ kind: "parkGroup", cohort: "dp1", groupingId: "g1" });
+    expect(resolveCombinedDrop(drag, shelf, "dp2")).toEqual({ kind: "parkGroup", cohort: "dp2", groupingId: "g1" });
   });
 });

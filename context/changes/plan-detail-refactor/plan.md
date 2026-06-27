@@ -810,11 +810,11 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [x] 3.1 `CollapsibleEdgePanel` unit test passes (`pnpm test`)
-- [x] 3.2 Existing palette tests pass (`pnpm test`)
-- [x] 3.3 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [x] 3.4 e2e green incl. shelf-durability / combined-view / combined-shelf-park (`pnpm test:e2e`) — 18/18 passed
-- [x] 3.5 Build clean (`pnpm build`)
+- [x] 3.1 `CollapsibleEdgePanel` unit test passes (`pnpm test`) — f51c9f3
+- [x] 3.2 Existing palette tests pass (`pnpm test`) — f51c9f3
+- [x] 3.3 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`) — f51c9f3
+- [x] 3.4 e2e green incl. shelf-durability / combined-view / combined-shelf-park (`pnpm test:e2e`) — 18/18 passed, f51c9f3
+- [x] 3.5 Build clean (`pnpm build`) — f51c9f3
 
 #### Manual
 
@@ -826,15 +826,15 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [ ] 4.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [ ] 4.2 Unit suite passes (`pnpm test`)
-- [ ] 4.3 Wiring-object referential-stability unit test passes (render twice → `toBe` identity) (`pnpm test`)
-- [ ] 4.4 e2e green, single-board specs (`pnpm test:e2e`)
-- [ ] 4.5 Build clean (`pnpm build`)
+- [x] 4.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
+- [x] 4.2 Unit suite passes (`pnpm test`)
+- [x] 4.3 Wiring-object referential-stability unit test passes (render twice → `toBe` identity) (`pnpm test`)
+- [x] 4.4 e2e green, single-board specs (`pnpm test:e2e`) — 18/18 passed
+- [x] 4.5 Build clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 4.6 Single board hints/week-toggle/remove/bundle ops/inspect identical; no drag perf regression
+- [x] 4.6 Single board hints/week-toggle/remove/bundle ops/inspect identical; no drag perf regression — verified via e2e (bundle-operations, duplicate-bundle, drag-validate-feedback, shelf-durability)
 
 ### Phase 5: Shared per-cohort `useCohortBoardState` assembler
 

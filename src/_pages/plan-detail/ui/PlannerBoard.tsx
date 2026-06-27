@@ -15,7 +15,7 @@ import {
   usePaletteDisclosure,
   useShelfDisclosure,
 } from "./chrome";
-import { PlannerGrid } from "./grid";
+import { PlannerGrid, useCellWiring } from "./grid";
 import { CollisionDetailsDialog, GroupDragOverlay } from "./overlay";
 import { ComputeGroupingsEmptyState, PlannerPalette } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
@@ -100,6 +100,22 @@ export default function PlannerBoard({
     crossCohortIndex,
   );
   const { hintMode, setHintMode } = useHintMode();
+
+  // Bundle the per-cell handlers + drag-hint state into one referentially-stable object, spread once
+  // into each cell (mirrors `PairedPlannerGrid`) instead of hand-threading the 11 fields per hop.
+  const wiring = useCellWiring({
+    dropHints,
+    hintMode,
+    isExploded,
+    justDuplicated,
+    onRemove: removePlacement,
+    onSetWeek: setWeek,
+    onToggleBundle: toggleExploded,
+    onRemoveBundle: removeBundle,
+    onDuplicateBundle: duplicateBundle,
+    onLiftBundle: liftBundle,
+    onInspect: inspection.open,
+  });
 
   // Only the placement write path can error now — ungroup is ephemeral UI state (no writes).
   const banner = error;
@@ -233,17 +249,7 @@ export default function PlannerBoard({
                 placements={placements}
                 names={names}
                 collisions={collisions}
-                dropHints={dropHints}
-                hintMode={hintMode}
-                isExploded={isExploded}
-                justDuplicated={justDuplicated}
-                onRemove={removePlacement}
-                onSetWeek={setWeek}
-                onToggleBundle={toggleExploded}
-                onRemoveBundle={removeBundle}
-                onDuplicateBundle={duplicateBundle}
-                onLiftBundle={liftBundle}
-                onInspect={inspection.open}
+                wiring={wiring}
               />
             </div>
           </div>

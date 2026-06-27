@@ -2,3 +2,5 @@
 // an internal detail consumed only by the grids via deep import.
 export { default as PlannerGrid } from "./PlannerGrid";
 export { default as PairedPlannerGrid, type PairedColumn } from "./PairedPlannerGrid";
+export { useCellWiring } from "./use-cell-wiring";
+export type { CellWiring } from "./slot-cell/SlotCellHost";

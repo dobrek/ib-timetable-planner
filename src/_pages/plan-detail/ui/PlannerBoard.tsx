@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { cohortLabel } from "@/shared/config";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
@@ -22,20 +21,11 @@ import ShelfDrawer from "./shelf/ShelfDrawer";
 import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
 import { resolvePaletteView } from "../model/palette-view";
 import { resolveSingleDrop } from "../model/single-drop";
-import {
-  useAvailabilityIndex,
-  useCatalogById,
-  useCollisions,
-  useCrossCohortIndex,
-  useDragHints,
-  useDuplicateHighlight,
-  useHours,
-} from "../model/use-board-derivations";
+import { useCrossCohortIndex } from "../model/use-board-derivations";
+import { useCohortBoardState } from "../model/use-cohort-board-state";
 import { placementErrorMessage } from "../model/placement-transitions";
 import type { ParkedMember } from "../model/parked";
 import { defaultParkedWeek, groupingParkedMembers } from "../model/parked-members";
-import { usePlacements } from "../model/use-placements";
-import { useExplodedCells } from "../model/use-exploded-cells";
 
 /**
  * Planner island root: orchestrates placement state, collision/hours derivations,
@@ -47,19 +37,30 @@ export default function PlannerBoard({
   paletteCollapsed,
   ...props
 }: PlannerBoardProps & { planName: string; paletteCollapsed: boolean }) {
-  const { planId, cohort, days, periods, groupings, stale, names, teacherNames, studentNames, catalog, availability } =
-    props;
-  const { crossCohortOccupancy } = props;
+  const { planId, cohort, days, periods, groupings, stale, names, teacherNames, studentNames } = props;
 
-  const weekModeByCourseId = useMemo(() => new Map(catalog.map((course) => [course.id, course.weekMode])), [catalog]);
-  const catalogById = useCatalogById(catalog);
-  const availabilityIndex = useAvailabilityIndex(availability);
-  const crossCohortIndex = useCrossCohortIndex(crossCohortOccupancy);
-
+  // The single board has no live cross-cohort sibling, so it feeds its ONE static SSR index as BOTH
+  // the seed (usePlacements' duplicate-target search) and the fresh index (collision/hint
+  // derivations) — the shared per-cohort assembler reproduces the previous inline wiring exactly.
+  const crossCohortIndex = useCrossCohortIndex(props.crossCohortOccupancy);
   const {
     placements,
+    collisions,
+    dropHints,
+    hours,
+    incompleteCount,
+    parkedBundles,
+    justDuplicated,
+    isExploded,
+    toggleExploded,
+    startDragHints,
+    clearDragHints,
     error,
-    lastDuplicated,
+    clearError,
+    weekModeByCourseId,
+    actions,
+  } = useCohortBoardState(props, crossCohortIndex, crossCohortIndex);
+  const {
     addCourse,
     addGroup,
     movePlacement,
@@ -68,37 +69,15 @@ export default function PlannerBoard({
     moveBundle,
     removeBundle,
     duplicateBundle,
-    parkedBundles,
     shelveBundle,
     placeBack,
     parkMembers,
     removeParked,
-    clearError,
-  } = usePlacements(props.placements, {
-    planId,
-    cohort,
-    weekModeByCourseId,
-    catalogById,
-    availabilityIndex,
-    crossCohortIndex,
-    days,
-    periods,
-    initialParked: props.parkedBundles,
-  });
+  } = actions;
+
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
   const { collapsed, setCollapsed } = usePaletteDisclosure(paletteCollapsed);
-  const justDuplicated = useDuplicateHighlight(lastDuplicated);
-  const { isExploded, toggleExploded } = useExplodedCells();
-  const collisions = useCollisions(placements, catalogById, availabilityIndex, crossCohortIndex);
   const inspection = useCollisionInspection(collisions);
-  const { hours, incompleteCount } = useHours(placements, catalog);
-  const { dropHints, startDragHints, clearDragHints } = useDragHints(
-    catalogById,
-    placements,
-    groupings,
-    availabilityIndex,
-    crossCohortIndex,
-  );
   const { hintMode, setHintMode } = useHintMode();
 
   // Bundle the per-cell handlers + drag-hint state into one referentially-stable object, spread once

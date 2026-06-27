@@ -421,8 +421,8 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Manual
 
-- [x] 3.4 Editing DP1 immediately re-validates DP2 (cross-cohort clash on adjacent cell)
-- [x] 3.5 Cross-cohort bundle drop rejected; sibling cells dim during drag
+- [x] 3.4 Editing DP1 immediately re-validates DP2 (cross-cohort clash on adjacent cell) — f7e8a90
+- [x] 3.5 Cross-cohort bundle drop rejected; sibling cells dim during drag — f7e8a90
 - [x] 3.6 Full editing op set works in both columns — eccf234
 - [x] 3.7 Single-cohort board unaffected — eccf234
 
@@ -444,13 +444,13 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Automated
 
-- [x] 5.1 `collision-parity` S-06 cases pass: `pnpm test`
-- [x] 5.2 Integration suite passes: `pnpm test:integration`
-- [x] 5.3 e2e suite passes: `pnpm test:e2e`
-- [x] 5.4 Perf measurement runs within the asserted ceiling
-- [x] 5.5 Full local CI gate green via `/verify`
+- [x] 5.1 `collision-parity` S-06 cases pass: `pnpm test` — f7e8a90
+- [x] 5.2 Integration suite passes: `pnpm test:integration` — f7e8a90
+- [x] 5.3 e2e suite passes: `pnpm test:e2e` — f7e8a90
+- [x] 5.4 Perf measurement runs within the asserted ceiling — f7e8a90
+- [x] 5.5 Full local CI gate green via `/verify` — f7e8a90
 
 #### Manual
 
-- [x] 5.6 Sub-200 ms feel confirmed in DevTools during a combined-view drag
-- [x] 5.7 Stale comment and roadmap S-04 status read correctly
+- [x] 5.6 Sub-200 ms feel confirmed in DevTools during a combined-view drag — f7e8a90
+- [x] 5.7 Stale comment and roadmap S-04 status read correctly — f7e8a90

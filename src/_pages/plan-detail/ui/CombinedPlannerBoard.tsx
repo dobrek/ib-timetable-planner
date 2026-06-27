@@ -93,7 +93,8 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
     if (!source || !target) return; // dropped outside any cell — removal is via the chip "×"
 
     // The pure router resolves the target cohort and applies the cross-cohort guard; null = no-op.
-    const action = resolveCombinedDrop(source.data as DragData, target.data as DropTargetData);
+    // A cohort-free palette drag dropped on the cell-less shelf parks under `paletteCohort`.
+    const action = resolveCombinedDrop(source.data as DragData, target.data as DropTargetData, paletteCohort);
     if (!action) return;
     const { actions } = byCohort[action.cohort];
 

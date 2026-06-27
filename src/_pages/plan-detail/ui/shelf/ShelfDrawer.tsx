@@ -1,5 +1,6 @@
 import { useDroppable } from "@dnd-kit/react";
 import { ChevronRight, Inbox, Pin, PinOff } from "lucide-react";
+import type { Cohort } from "@/shared/config";
 import ParkedBundleCard from "./ParkedBundleCard";
 import type { ShelfData } from "../../model/drag";
 import type { LocalParkedBundle } from "../../model/parked";
@@ -13,6 +14,9 @@ type Props = {
   expanded: boolean;
   /** Per-device pin (keep open). When pinned the drawer never auto-collapses. */
   pinned: boolean;
+  /** Combined view (S-06): shelfBundleId → owning cohort, so each card is tagged DP1/DP2 and its
+   *  place-back is cohort-scoped. Absent on the single-cohort shelf (no tags). */
+  cohortById?: Map<string, Cohort>;
   onExpandedChange: (expanded: boolean) => void;
   onPinnedChange: (pinned: boolean) => void;
   onRemoveParked: (shelfBundleId: string) => void;
@@ -39,6 +43,7 @@ export default function ShelfDrawer({
   names,
   expanded,
   pinned,
+  cohortById,
   onExpandedChange,
   onPinnedChange,
   onRemoveParked,
@@ -72,6 +77,7 @@ export default function ShelfDrawer({
         pinned={pinned}
         parkedBundles={parkedBundles}
         names={names}
+        cohortById={cohortById}
         onPinnedChange={onPinnedChange}
         onExpandedChange={onExpandedChange}
         onRemoveParked={onRemoveParked}
@@ -108,6 +114,7 @@ function ExpandedShelf({
   pinned,
   parkedBundles,
   names,
+  cohortById,
   onPinnedChange,
   onExpandedChange,
   onRemoveParked,
@@ -117,6 +124,7 @@ function ExpandedShelf({
   pinned: boolean;
   parkedBundles: LocalParkedBundle[];
   names: Record<string, string>;
+  cohortById?: Map<string, Cohort>;
   onPinnedChange: (pinned: boolean) => void;
   onExpandedChange: (expanded: boolean) => void;
   onRemoveParked: (shelfBundleId: string) => void;
@@ -170,7 +178,13 @@ function ExpandedShelf({
           </p>
         ) : (
           parkedBundles.map((bundle) => (
-            <ParkedBundleCard key={bundle.id} bundle={bundle} names={names} onRemove={onRemoveParked} />
+            <ParkedBundleCard
+              key={bundle.id}
+              bundle={bundle}
+              names={names}
+              cohort={cohortById?.get(bundle.id)}
+              onRemove={onRemoveParked}
+            />
           ))
         )}
       </div>

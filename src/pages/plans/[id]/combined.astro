@@ -4,16 +4,13 @@ import PlanDetailCombinedPage from "@/_pages/plan-detail/ui/PlanDetailCombinedPa
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import { createClient } from "@/shared/api";
 import { loadCombinedPlannerData } from "@/_pages/plan-detail/api";
-import { COOKIE_NAME, parsePaletteCollapsed } from "@/_pages/plan-detail/lib/palette-collapsed";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 // The combined view has no `?cohort=` — both cohorts load together. Auth is covered by the
-// existing deny-by-default middleware (no allowlist change).
+// existing deny-by-default middleware (no allowlist change). The palette is compact-first
+// (defaults collapsed in the island), so no cookie seed is needed here.
 const result = await loadCombinedPlannerData(supabase, Astro.params.id);
 if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
-
-// Same flash-free seed as the single-cohort route — the island reads the saved collapse pref.
-const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.value);
 ---
 
 {
@@ -23,12 +20,7 @@ const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.v
       plan={{ id: result.value.dp1.planId, name: result.value.planName }}
       fullWidth
     >
-      <PlanDetailCombinedPage
-        planName={result.value.planName}
-        dp1={result.value.dp1}
-        dp2={result.value.dp2}
-        paletteCollapsed={paletteCollapsed}
-      />
+      <PlanDetailCombinedPage planName={result.value.planName} dp1={result.value.dp1} dp2={result.value.dp2} />
     </SidebarLayout>
   ) : (
     <SidebarLayout title={result.error.kind === "not-found" ? "Plan not found" : "Unavailable"}>

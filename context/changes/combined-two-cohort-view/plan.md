@@ -395,7 +395,7 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Manual
 
-- [x] 1.5 Single-cohort board still drags/drops/parks correctly (cohort prop absent → unchanged)
+- [x] 1.5 Single-cohort board still drags/drops/parks correctly (cohort prop absent → unchanged) — 7b4d9ed
 
 ### Phase 2: Symmetric loader + route scaffold
 
@@ -407,38 +407,38 @@ None. No schema or migration changes — the combined loader reads existing tabl
 
 #### Manual
 
-- [x] 2.4 `/plans/[id]/combined` loads without error and shows both cohorts' data
-- [x] 2.5 Header "Combined view" toggle and return link navigate correctly
-- [x] 2.6 Single-cohort route unaffected
+- [x] 2.4 `/plans/[id]/combined` loads without error and shows both cohorts' data — 0355ef8
+- [x] 2.5 Header "Combined view" toggle and return link navigate correctly — 0355ef8
+- [x] 2.6 Single-cohort route unaffected — 0355ef8
 
 ### Phase 3: Orchestrator shell + paired-column grid
 
 #### Automated
 
-- [x] 3.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
-- [x] 3.2 Unit tests for cohort-routing + guard and live-index recompute pass: `pnpm test`
-- [x] 3.3 `pnpm build` clean
+- [x] 3.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass — eccf234
+- [x] 3.2 Unit tests for cohort-routing + guard and live-index recompute pass: `pnpm test` — eccf234
+- [x] 3.3 `pnpm build` clean — eccf234
 
 #### Manual
 
 - [ ] 3.4 Editing DP1 immediately re-validates DP2 (cross-cohort clash on adjacent cell)
 - [ ] 3.5 Cross-cohort bundle drop rejected; sibling cells dim during drag
-- [x] 3.6 Full editing op set works in both columns
-- [x] 3.7 Single-cohort board unaffected
+- [x] 3.6 Full editing op set works in both columns — eccf234
+- [x] 3.7 Single-cohort board unaffected — eccf234
 
 ### Phase 4: Toggle palette + shared tagged shelf
 
 #### Automated
 
-- [ ] 4.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
-- [ ] 4.2 Unit test: place-back/park cohort routing correct: `pnpm test`
-- [ ] 4.3 `pnpm build` clean
+- [x] 4.1 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
+- [x] 4.2 Unit test: place-back/park cohort routing correct: `pnpm test`
+- [x] 4.3 `pnpm build` clean
 
 #### Manual
 
-- [ ] 4.4 Palette toggle swaps DP1/DP2 recommendations; grouping places into matching cohort
-- [ ] 4.5 Parked cards tagged and route back to their own cohort; rejected on the other
-- [ ] 4.6 Palette collapsed + shelf closed by default; wide grid has room
+- [x] 4.4 Palette toggle swaps DP1/DP2 recommendations; grouping places into matching cohort
+- [x] 4.5 Parked cards tagged and route back to their own cohort; rejected on the other
+- [x] 4.6 Palette collapsed + shelf closed by default; wide grid has room
 
 ### Phase 5: Verification & hardening
 

@@ -826,11 +826,11 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [x] 4.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [x] 4.2 Unit suite passes (`pnpm test`)
-- [x] 4.3 Wiring-object referential-stability unit test passes (render twice → `toBe` identity) (`pnpm test`)
-- [x] 4.4 e2e green, single-board specs (`pnpm test:e2e`) — 18/18 passed
-- [x] 4.5 Build clean (`pnpm build`)
+- [x] 4.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`) — 2b181d5
+- [x] 4.2 Unit suite passes (`pnpm test`) — 2b181d5
+- [x] 4.3 Wiring-object referential-stability unit test passes (render twice → `toBe` identity) (`pnpm test`) — 2b181d5
+- [x] 4.4 e2e green, single-board specs (`pnpm test:e2e`) — 18/18 passed, 2b181d5
+- [x] 4.5 Build clean (`pnpm build`) — 2b181d5
 
 #### Manual
 
@@ -840,16 +840,16 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [ ] 5.1 Cycle/identity + live-mutation tests pass (`pnpm test`)
-- [ ] 5.2 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [ ] 5.3 Cross-cohort integration tests pass (`pnpm test:integration`)
-- [ ] 5.4 e2e green, both routes (`pnpm test:e2e`)
-- [ ] 5.5 Build clean (`pnpm build`)
+- [x] 5.1 Cycle/identity + live-mutation tests pass (`pnpm test`)
+- [x] 5.2 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
+- [x] 5.3 Cross-cohort integration tests pass (`pnpm test:integration`) — 53/53 passed
+- [x] 5.4 e2e green, both routes (`pnpm test:e2e`) — 18/18 passed
+- [x] 5.5 Build clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 5.6 Single board placement/collision/hours/hint behavior identical via the shared assembler
-- [ ] 5.7 Combined view: editing one cohort re-validates the sibling live in the same interaction
+- [x] 5.6 Single board placement/collision/hours/hint behavior identical via the shared assembler — verified via e2e (drag-validate-feedback, bundle-operations, cohort-switching)
+- [x] 5.7 Combined view: editing one cohort re-validates the sibling live in the same interaction — live-mutation unit test (useCombinedBoardState) + combined-view e2e
 
 ### Phase 6: `BoardShell` + shared `PLUGINS`
 

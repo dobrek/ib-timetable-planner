@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { placeCourse } from "../api/placement-client";
 import { cellKey } from "./collisions";
 import { course, placement as buildPlacement } from "./__fixtures__/builders";
+import { EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort-index";
 import type { PlannerBoardProps } from "./drag";
-import { indexFromPlacements, useCombinedBoardState } from "./use-cohort-board-state";
+import { indexFromPlacements, useCohortBoardState, useCombinedBoardState } from "./use-cohort-board-state";
+import type { GroupingCourse } from "./grouping";
 import type { LocalPlacement } from "./placement";
 
 // `usePlacements` (driven through the assembler) calls the action clients on the write path; mock the
@@ -123,5 +125,43 @@ describe("useCombinedBoardState (live cross-cohort re-validation)", () => {
     expect(
       result.current.dp2.collisions.get(cellKey(1, 1))?.violations.some((v) => v.kind === "cross-cohort-teacher"),
     ).toBe(true);
+  });
+});
+
+// The single board calls the assembler ONCE with its one static index as both seed and fresh; the
+// result must reproduce its wiring — placements + derivations + the full action set.
+const soloProps = (catalog: GroupingCourse[], placements: LocalPlacement[]): PlannerBoardProps => ({
+  planId: "plan-1",
+  cohort: "dp1",
+  days: 5,
+  periods: 6,
+  groupings: [],
+  stale: false,
+  names: {},
+  teacherNames: {},
+  studentNames: {},
+  placements,
+  catalog,
+  availability: [],
+  crossCohortOccupancy: [],
+  parkedBundles: [],
+});
+
+describe("useCohortBoardState (single cohort: seed === fresh)", () => {
+  it("assembles placements, in-cohort collisions, and the full action set", () => {
+    // Two same-teacher courses sharing a cell → an in-cohort teacher conflict (no sibling needed).
+    const catalog = [course("c1", "t1"), course("c2", "t1")];
+    const placements = [buildPlacement("p1", "c1", 1, 1), buildPlacement("p2", "c2", 1, 1)];
+    const { result } = renderHook(() =>
+      useCohortBoardState(soloProps(catalog, placements), EMPTY_CROSS_COHORT_INDEX, EMPTY_CROSS_COHORT_INDEX),
+    );
+
+    expect(result.current.placements).toHaveLength(2);
+    expect(result.current.collisions.has(cellKey(1, 1))).toBe(true);
+    expect(result.current.weekModeByCourseId.get("c1")).toBe("agnostic");
+    // The board dispatches drops through these — every action the single board wires must be present.
+    expect(typeof result.current.actions.addCourse).toBe("function");
+    expect(typeof result.current.actions.parkMembers).toBe("function");
+    expect(typeof result.current.actions.placeBack).toBe("function");
   });
 });

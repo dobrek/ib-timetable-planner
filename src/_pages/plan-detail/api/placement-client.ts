@@ -1,6 +1,6 @@
 import { actions } from "astro:actions";
 import type { Cohort, PlacementWeek } from "@/shared/config";
-import type { PlannerPlacement } from "../model/placement";
+import type { PlannerPlacement } from "../model/placement/placement";
 
 /** Place one course-hour (creating the cell's bundle if absent). Single add + group add (per member) both call this. */
 export async function placeCourse(args: {

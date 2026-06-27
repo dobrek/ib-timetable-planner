@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadCohortCourses, type Database } from "@/shared/api";
 import { createPlan, seedPlanCatalog, teardown } from "@/test/factories";
-import type { GroupingCourse } from "../model/grouping";
+import type { GroupingCourse } from "../model/grouping/grouping";
 import { loadFixtureCourses } from "./__fixtures__/cohort-catalog.node";
 
 // Proves the Supabase adapter produces the same domain projection as the fixture

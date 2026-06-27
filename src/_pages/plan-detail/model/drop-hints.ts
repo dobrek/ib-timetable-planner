@@ -1,10 +1,11 @@
-import { type AvailabilityIndex, EMPTY_AVAILABILITY_INDEX } from "./availability-index";
-import { bucketByCell, cellKey } from "./collisions";
-import { type CrossCohortIndex, EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort-index";
-import { violatesAny } from "./constraints";
+import { type AvailabilityIndex, EMPTY_AVAILABILITY_INDEX } from "./cross-cohort/availability-index";
+import { cellKey } from "./collision/cell-key";
+import { bucketByCell } from "./collision/collisions";
+import { type CrossCohortIndex, EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort/cross-cohort-index";
+import { violatesAny } from "./collision/constraints";
 import type { CellData, DragData } from "./drag";
-import type { GroupingCourse, PlannerGrouping } from "./grouping";
-import type { PlannerPlacement } from "./placement";
+import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
+import type { PlannerPlacement } from "./placement/placement";
 
 /**
  * Per-cell drag affordance. The map is **sparse**: a cell absent from the map (while

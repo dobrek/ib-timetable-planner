@@ -3,7 +3,7 @@ import type { Cohort } from "@/shared/config";
 import GroupingStalePanel from "./GroupingStalePanel";
 import PaletteBody from "./PaletteBody";
 import CollapsibleEdgePanel from "../chrome/CollapsibleEdgePanel";
-import type { PlannerGrouping } from "../../model/grouping";
+import type { PlannerGrouping } from "../../model/grouping/grouping";
 import type { HoursStat } from "../../model/hours";
 
 // Re-exported so the slice's hook test (`PlannerPalette.test.tsx`) and any palette consumer keep a

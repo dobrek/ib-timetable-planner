@@ -3,7 +3,7 @@ import { cohortLabel, siblingCohort, type Cohort, type PlacementWeek } from "@/s
 import { cn } from "@/shared/lib/class-names";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
-import type { CollisionViolation } from "../../model/constraints";
+import type { CollisionViolation } from "../../model/collision/constraints";
 import { otherWeek, sharedSingleWeek, weekLabel } from "../../model/week";
 
 /** The inspected cell plus the course whose badge was clicked (emphasized in the body). */

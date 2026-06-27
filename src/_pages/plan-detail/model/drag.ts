@@ -1,9 +1,9 @@
 import type { Cohort } from "@/shared/config";
-import type { BoardAvailabilityCell } from "./availability-index";
-import type { SiblingOccupancyCell } from "./cross-cohort-index";
-import type { GroupingCourse, PlannerGrouping } from "./grouping";
-import type { ParkedBundle } from "./parked";
-import type { PlannerPlacement } from "./placement";
+import type { BoardAvailabilityCell } from "./cross-cohort/availability-index";
+import type { SiblingOccupancyCell } from "./cross-cohort/cross-cohort-index";
+import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
+import type { ParkedBundle } from "./placement/parked";
+import type { PlannerPlacement } from "./placement/placement";
 
 /**
  * Drag payload carried on the draggable's `data`. Identity is opaque ids — never names.

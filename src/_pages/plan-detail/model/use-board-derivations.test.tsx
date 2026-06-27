@@ -1,9 +1,9 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { EMPTY_AVAILABILITY_INDEX } from "./availability-index";
+import { EMPTY_AVAILABILITY_INDEX } from "./cross-cohort/availability-index";
 import { catalog as buildCatalog, course, placement } from "./__fixtures__/builders";
-import { cellKey } from "./collisions";
-import { EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort-index";
+import { cellKey } from "./collision/cell-key";
+import { EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort/cross-cohort-index";
 import type { CourseDrag } from "./drag";
 import type { CellData } from "./drag";
 import { useCatalogById, useCollisions, useDragHints, useDuplicateHighlight, useHours } from "./use-board-derivations";

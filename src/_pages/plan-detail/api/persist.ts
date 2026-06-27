@@ -1,6 +1,6 @@
 import { unwrapCompleted, type Json, type SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config";
-import type { GroupingResult } from "../model/grouping";
+import type { GroupingResult } from "../model/grouping/grouping";
 
 type Supabase = SupabaseClient;
 

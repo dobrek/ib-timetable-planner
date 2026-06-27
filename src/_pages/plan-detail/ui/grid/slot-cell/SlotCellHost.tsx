@@ -1,8 +1,8 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { CollisionInspectionTarget } from "../../overlay/CollisionDetailsDialog";
 import SlotCell from "./SlotCell";
-import { cellKey } from "../../../model/collisions";
-import type { CellOccupant } from "../../../model/cell-occupants";
+import { cellKey } from "../../../model/collision/cell-key";
+import type { CellOccupant } from "../../../model/collision/cell-occupants";
 import type { CellData } from "../../../model/drag";
 import type { DropHint } from "../../../model/drop-hints";
 import type { HintMode } from "../../../lib/drag-hint-mode";

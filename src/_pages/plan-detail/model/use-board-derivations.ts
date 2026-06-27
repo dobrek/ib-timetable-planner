@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { buildAvailabilityIndex, type AvailabilityIndex } from "./availability-index";
-import { buildCrossCohortIndex, type CrossCohortIndex } from "./cross-cohort-index";
-import { deriveCellViolations, type CellCollisions } from "./collisions";
+import { buildAvailabilityIndex, type AvailabilityIndex } from "./cross-cohort/availability-index";
+import { buildCrossCohortIndex, type CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
+import { deriveCellViolations, type CellCollisions } from "./collision/collisions";
 import type { CellData, DragData, PlannerBoardProps } from "./drag";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
-import type { GroupingCourse, PlannerGrouping } from "./grouping";
+import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
 import { countIncompleteCourses, deriveHours } from "./hours";
-import type { LocalPlacement } from "./placement";
+import type { LocalPlacement } from "./placement/placement";
 
 /**
  * The pure per-cohort board derivations, lifted out of `PlannerBoard` so BOTH the single-cohort

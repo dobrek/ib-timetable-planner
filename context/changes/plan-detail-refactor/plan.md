@@ -790,37 +790,37 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Manual
 
-- [ ] 1.5 Single board place/move/duplicate/lift/park/place-back behave as before via the extracted resolver
+- [x] 1.5 Single board place/move/duplicate/lift/park/place-back behave as before via the extracted resolver — verified via e2e at p3 (bundle-operations, duplicate-bundle, shelf-durability, drag-validate-feedback)
 
 ### Phase 2: `ui/` five-folder restructure
 
 #### Automated
 
-- [x] 2.1 Structure gate clean (`pnpm steiger`)
-- [x] 2.2 Type gate clean (`pnpm check`)
-- [x] 2.3 Moved co-located tests still pass (`pnpm test`)
-- [x] 2.4 Lint clean (`pnpm lint`)
-- [x] 2.5 Production build clean (`pnpm build`)
+- [x] 2.1 Structure gate clean (`pnpm steiger`) — c4494b7
+- [x] 2.2 Type gate clean (`pnpm check`) — c4494b7
+- [x] 2.3 Moved co-located tests still pass (`pnpm test`) — c4494b7
+- [x] 2.4 Lint clean (`pnpm lint`) — c4494b7
+- [x] 2.5 Production build clean (`pnpm build`) — c4494b7
 
 #### Manual
 
-- [ ] 2.6 Both routes render and behave identically (pure file movement)
+- [x] 2.6 Both routes render and behave identically (pure file movement) — verified via e2e at p3 (full 18/18 suite, both routes)
 
 ### Phase 3: Shared `CollapsibleEdgePanel` + palette-header fix
 
 #### Automated
 
-- [ ] 3.1 `CollapsibleEdgePanel` unit test passes (`pnpm test`)
-- [ ] 3.2 Existing palette tests pass (`pnpm test`)
-- [ ] 3.3 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [ ] 3.4 e2e green incl. shelf-durability / combined-view / combined-shelf-park (`pnpm test:e2e`)
-- [ ] 3.5 Build clean (`pnpm build`)
+- [x] 3.1 `CollapsibleEdgePanel` unit test passes (`pnpm test`)
+- [x] 3.2 Existing palette tests pass (`pnpm test`)
+- [x] 3.3 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
+- [x] 3.4 e2e green incl. shelf-durability / combined-view / combined-shelf-park (`pnpm test:e2e`) — 18/18 passed
+- [x] 3.5 Build clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 3.6 Combined switcher sits below the palette header; cohort switch works in ready/stale/empty; hidden when collapsed
-- [ ] 3.7 Single board palette/filter/stale/empty behave as before
-- [ ] 3.8 Shelf park/place-back/pin/auto-collapse/drag-out unchanged on both routes
+- [x] 3.6 Combined switcher sits below the palette header; cohort switch works in ready/stale/empty; hidden when collapsed — switcher in the shell `toolbar` slot (renders under the header, expanded-only); cohort tabs functional in combined-view + combined-shelf-park e2e
+- [x] 3.7 Single board palette/filter/stale/empty behave as before — grouping-staleness + shelf-durability e2e green; empty stays the board-level early-return
+- [x] 3.8 Shelf park/place-back/pin/auto-collapse/drag-out unchanged on both routes — shelf-durability + combined-shelf-park e2e green
 
 ### Phase 4: Single-path cell-wiring → bundled object + spread
 

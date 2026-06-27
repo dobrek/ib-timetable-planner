@@ -1,8 +1,10 @@
+import { Boxes } from "lucide-react";
 import { COHORTS, type Cohort } from "@/shared/config";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui";
 import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import GroupingStalePanel from "./GroupingStalePanel";
-import PlannerPalette from "./PlannerPalette";
+import PaletteBody from "./PaletteBody";
+import CollapsibleEdgePanel from "../chrome/CollapsibleEdgePanel";
 import type { PlannerGrouping } from "../../model/grouping";
 import type { HoursStat } from "../../model/hours";
 import { resolvePaletteView } from "../../model/palette-view";
@@ -29,12 +31,15 @@ type Props = {
 };
 
 /**
- * The combined view's single palette (S-06, D6-P1): one panel switched between DP1 and DP2 by a
- * `Tabs` toggle (the shared cohort-tabs control, matching the catalog), instead of two stacked
- * palettes. The active cohort drives `resolvePaletteView` (empty / stale / ready) exactly as the
- * single board does, and is the cohort the shell dims the sibling against. Compact-first: defaults
- * collapsed (the toggle is hidden then — expand via the palette rail first). The palette area grows
- * to the full column height so the collapsed rail fills it, like the single board.
+ * The combined view's single palette (S-06): one shared `CollapsibleEdgePanel` whose **header and
+ * cohort-switcher toolbar are constant** across all three states; only the **body** swaps on
+ * `resolvePaletteView(active)` → ready (filter+list) / stale (recompute) / empty (compute prompt).
+ *
+ * The cohort `Tabs` live in the shell's `toolbar` slot (below the panel's own header) — the
+ * palette-header fix: the switcher no longer floats *above* the panel, the hierarchy reads right, and
+ * it auto-hides with the rest of the expanded section when the palette collapses. Because the header +
+ * switcher persist across states, the author can switch cohorts even when one cohort is empty/stale.
+ * Compact-first: defaults collapsed (only the rail shows; expand it first to reveal the switcher).
  */
 export default function CombinedPalettePanel({
   dp1,
@@ -48,15 +53,27 @@ export default function CombinedPalettePanel({
   const view = resolvePaletteView({ groupingsCount: active.groupings.length, stale: active.stale });
 
   return (
-    <div data-slot="combined-palette" className="flex max-h-full min-h-0 flex-col gap-2">
-      {!collapsed && (
+    <CollapsibleEdgePanel
+      side="left"
+      icon={Boxes}
+      label="Groupings"
+      name="palette"
+      countNoun="groupings"
+      count={active.groupings.length}
+      collapsed={collapsed}
+      onCollapsedChange={onCollapsedChange}
+      openWidthClass="w-64"
+      dataSlot="combined-palette"
+      railClassName="bg-background hover:bg-accent rounded-lg border"
+      bodyClassName="gap-6"
+      toolbar={
         <Tabs
           value={activeCohort}
           onValueChange={(value) => {
             onActiveCohortChange(value as Cohort);
           }}
           data-slot="combined-palette-cohort"
-          className="w-fit"
+          className="w-fit shrink-0"
         >
           <TabsList aria-label="Palette cohort">
             {COHORTS.map((option) => (
@@ -66,24 +83,15 @@ export default function CombinedPalettePanel({
             ))}
           </TabsList>
         </Tabs>
+      }
+    >
+      {view === "ready" ? (
+        <PaletteBody groupings={active.groupings} names={active.names} hours={active.hours} />
+      ) : view === "stale" ? (
+        <GroupingStalePanel planId={active.planId} cohort={active.cohort} />
+      ) : (
+        <ComputeGroupingsEmptyState planId={active.planId} cohort={active.cohort} />
       )}
-      {/* Stretch the active panel to the full column height (a flex row → cross-axis stretch), so the
-          collapsed palette rail fills the available room rather than sizing to its icon. */}
-      <div className="flex min-h-0 flex-1">
-        {view === "ready" ? (
-          <PlannerPalette
-            groupings={active.groupings}
-            names={active.names}
-            hours={active.hours}
-            collapsed={collapsed}
-            onCollapsedChange={onCollapsedChange}
-          />
-        ) : view === "stale" ? (
-          <GroupingStalePanel planId={active.planId} cohort={active.cohort} />
-        ) : (
-          <ComputeGroupingsEmptyState planId={active.planId} cohort={active.cohort} />
-        )}
-      </div>
-    </div>
+    </CollapsibleEdgePanel>
   );
 }

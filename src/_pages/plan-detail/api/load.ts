@@ -4,6 +4,7 @@ import { parseGridPreset } from "@/shared/lib/grid";
 import { unique } from "@/shared/lib/collections";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { BoardAvailabilityCell } from "../model/availability-index";
+import { assembleCombinedProps, type CombinedCohortInputs } from "../model/combined-props";
 import { projectFromPlacements, type SiblingOccupancyCell } from "../model/cross-cohort-index";
 import type { PlannerBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping";
@@ -93,36 +94,15 @@ export const loadPlannerData = async (
     fetchStudentNames(supabase, unique(catalog.courses.flatMap((course) => course.studentKeys))),
   ]);
 
-  const groupings: PlannerGrouping[] = (groupingsResult.data ?? []).map((row) => ({
-    id: row.id,
-    coverageCount: row.coverage_count,
-    score: row.score,
-    oppositeWeek: row.opposite_week,
-    memberIds: row.course_grouping_members.map((member) => member.course_id),
-  }));
+  const groupings = mapGroupings(groupingsResult.data ?? []);
 
-  const placements: PlannerPlacement[] = (placementsResult.data ?? []).map((row) => ({
-    id: row.id,
-    courseId: row.course_id,
-    day: row.day,
-    period: row.period,
-    week: row.week,
-    bundleId: row.bundle_id,
-  }));
+  const placements = mapPlacements(placementsResult.data ?? []);
 
-  const availability: BoardAvailabilityCell[] = (availabilityResult.data ?? []).map((row) => ({
-    teacherKey: row.teacher_id,
-    day: row.day,
-    period: row.period,
-    severity: row.severity,
-  }));
+  const availability = mapAvailability(availabilityResult.data ?? []);
 
   const crossCohortOccupancy = projectSiblingOccupancy(siblingPlacementsResult.data ?? [], siblingCatalog.courses);
 
-  const parkedBundles: ParkedBundle[] = (shelfBundlesResult.data ?? []).map((row) => ({
-    id: row.id,
-    members: row.shelf_bundle_courses.map((member) => ({ courseId: member.course_id, week: member.week })),
-  }));
+  const parkedBundles = mapParkedBundles(shelfBundlesResult.data ?? []);
 
   // Per-cohort palette staleness: hash the catalog we already loaded against the stored
   // grouping hash. Sequential after the parallel load (it needs `catalog`), off the per-drop
@@ -151,6 +131,200 @@ export const loadPlannerData = async (
     },
   });
 };
+
+export type CombinedPlannerData = { planName: string; dp1: PlannerBoardProps; dp2: PlannerBoardProps };
+
+export type CombinedPlannerPageResult = Result<CombinedPlannerData, PlannerPageError>;
+
+/**
+ * Symmetric loader for the combined two-cohort view (S-06): loads BOTH cohorts once as
+ * fully-editable `PlannerBoardProps`, and builds each cohort's cross-cohort occupancy from the
+ * *other* cohort's full placements + catalog — no redundant read-only sibling query (unlike
+ * `loadPlannerData`, which ships a flat sibling snapshot). Display names resolve from the union of
+ * both catalogs; availability is plan-scoped and shared; staleness is per cohort. The pure pairing
+ * lives in `assembleCombinedProps`; this function is the thin IO + row-mapping shell. Reuses the
+ * existing `not-found`/`unavailable` guards and `assertNoQueryErrors`.
+ */
+export const loadCombinedPlannerData = async (
+  supabase: SupabaseClient | null,
+  id: string | undefined,
+): Promise<CombinedPlannerPageResult> => {
+  if (!supabase) return err({ kind: "unavailable", message: "Supabase is not configured" });
+  if (!id || !UUID_RE.test(id)) return err({ kind: "not-found" });
+
+  const { data: plan, error: planError } = await supabase
+    .from("plans")
+    .select("id, name, slot_grid_preset")
+    .eq("id", id)
+    .maybeSingle();
+  if (planError) throw new Error(`Plan lookup failed: ${planError.message}`);
+  if (!plan) return err({ kind: "not-found" });
+
+  const { days, periods } = parseGridPreset(plan.slot_grid_preset);
+
+  const [
+    dp1Groupings,
+    dp1Placements,
+    dp1Shelf,
+    dp1Catalog,
+    dp2Groupings,
+    dp2Placements,
+    dp2Shelf,
+    dp2Catalog,
+    availabilityResult,
+  ] = await Promise.all([
+    fetchGroupings(supabase, id, "dp1"),
+    fetchPlacements(supabase, id, "dp1"),
+    fetchShelfBundles(supabase, id, "dp1"),
+    loadCohortCourses(supabase, id, "dp1"),
+    fetchGroupings(supabase, id, "dp2"),
+    fetchPlacements(supabase, id, "dp2"),
+    fetchShelfBundles(supabase, id, "dp2"),
+    loadCohortCourses(supabase, id, "dp2"),
+    // Availability is cohort-independent — fetched once and shared by both columns.
+    supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
+  ]);
+  assertNoQueryErrors("Combined planner board", [
+    dp1Groupings,
+    dp1Placements,
+    dp1Shelf,
+    dp2Groupings,
+    dp2Placements,
+    dp2Shelf,
+    availabilityResult,
+  ]);
+
+  // Display names resolve from the UNION of both catalogs: a cross-cohort teacher clash names the
+  // sibling cohort's teacher, and the shared dialog reads one name map.
+  const allCourses = [...dp1Catalog.courses, ...dp2Catalog.courses];
+  const [teacherNames, studentNames] = await Promise.all([
+    fetchTeacherNames(supabase, unique(allCourses.flatMap((course) => course.teacherKeys))),
+    fetchStudentNames(supabase, unique(allCourses.flatMap((course) => course.studentKeys))),
+  ]);
+
+  const availability = mapAvailability(availabilityResult.data ?? []);
+  const dp1GroupingsMapped = mapGroupings(dp1Groupings.data ?? []);
+  const dp2GroupingsMapped = mapGroupings(dp2Groupings.data ?? []);
+  const [dp1Stale, dp2Stale] = await Promise.all([
+    cohortStale(supabase, id, "dp1", dp1GroupingsMapped.length, dp1Catalog.courses),
+    cohortStale(supabase, id, "dp2", dp2GroupingsMapped.length, dp2Catalog.courses),
+  ]);
+
+  const dp1Inputs: CombinedCohortInputs = {
+    cohort: "dp1",
+    groupings: dp1GroupingsMapped,
+    placements: mapPlacements(dp1Placements.data ?? []),
+    catalog: dp1Catalog.courses,
+    names: Object.fromEntries(dp1Catalog.names),
+    stale: dp1Stale,
+    parkedBundles: mapParkedBundles(dp1Shelf.data ?? []),
+  };
+  const dp2Inputs: CombinedCohortInputs = {
+    cohort: "dp2",
+    groupings: dp2GroupingsMapped,
+    placements: mapPlacements(dp2Placements.data ?? []),
+    catalog: dp2Catalog.courses,
+    names: Object.fromEntries(dp2Catalog.names),
+    stale: dp2Stale,
+    parkedBundles: mapParkedBundles(dp2Shelf.data ?? []),
+  };
+
+  const { dp1, dp2 } = assembleCombinedProps({
+    planId: plan.id,
+    days,
+    periods,
+    availability,
+    teacherNames,
+    studentNames,
+    dp1: dp1Inputs,
+    dp2: dp2Inputs,
+  });
+
+  return ok({ planName: plan.name, dp1, dp2 });
+};
+
+const fetchGroupings = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>
+  supabase
+    .from("course_groupings")
+    .select("id, coverage_count, score, opposite_week, course_grouping_members(course_id)")
+    .eq("plan_id", planId)
+    .eq("cohort", cohort);
+
+const fetchPlacements = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>
+  supabase
+    .from("placements")
+    .select("id, course_id, day, period, week, bundle_id")
+    .eq("plan_id", planId)
+    .eq("cohort", cohort);
+
+const fetchShelfBundles = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>
+  supabase
+    .from("shelf_bundles")
+    .select("id, shelf_bundle_courses(course_id, week)")
+    .eq("plan_id", planId)
+    .eq("cohort", cohort);
+
+// Per-cohort palette staleness, guarded behind `groupingsCount > 0` (a plan with no groupings
+// renders the empty state and stores no hash — it would read "stale" for nothing). Mirrors the
+// single-cohort loader's guard.
+const cohortStale = (
+  supabase: SupabaseClient,
+  planId: string,
+  cohort: Cohort,
+  groupingsCount: number,
+  catalog: GroupingCourse[],
+): Promise<boolean> =>
+  groupingsCount > 0 ? isGroupingStale(supabase, { planId, cohort, catalog }) : Promise.resolve(false);
+
+// Row → domain mappers, shared by both loaders so the snake_case→camelCase transform lives once.
+const mapGroupings = (
+  rows: {
+    id: string;
+    coverage_count: number;
+    score: number;
+    opposite_week: boolean;
+    course_grouping_members: { course_id: string }[];
+  }[],
+): PlannerGrouping[] =>
+  rows.map((row) => ({
+    id: row.id,
+    coverageCount: row.coverage_count,
+    score: row.score,
+    oppositeWeek: row.opposite_week,
+    memberIds: row.course_grouping_members.map((member) => member.course_id),
+  }));
+
+const mapPlacements = (
+  rows: {
+    id: string;
+    course_id: string;
+    day: number;
+    period: number;
+    week: PlannerPlacement["week"];
+    bundle_id: string;
+  }[],
+): PlannerPlacement[] =>
+  rows.map((row) => ({
+    id: row.id,
+    courseId: row.course_id,
+    day: row.day,
+    period: row.period,
+    week: row.week,
+    bundleId: row.bundle_id,
+  }));
+
+const mapAvailability = (
+  rows: { teacher_id: string; day: number; period: number; severity: BoardAvailabilityCell["severity"] }[],
+): BoardAvailabilityCell[] =>
+  rows.map((row) => ({ teacherKey: row.teacher_id, day: row.day, period: row.period, severity: row.severity }));
+
+const mapParkedBundles = (
+  rows: { id: string; shelf_bundle_courses: { course_id: string; week: PlannerPlacement["week"] }[] }[],
+): ParkedBundle[] =>
+  rows.map((row) => ({
+    id: row.id,
+    members: row.shelf_bundle_courses.map((member) => ({ courseId: member.course_id, week: member.week })),
+  }));
 
 /**
  * Project the sibling cohort's committed placements into a co-teacher-expanded

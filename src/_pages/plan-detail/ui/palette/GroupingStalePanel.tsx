@@ -63,7 +63,7 @@ function useRecomputeGroupings(planId: string, cohort: Cohort) {
     setError(null);
     try {
       const result = await computeGroupings({ planId, cohort });
-      if (result.error) throw new Error(result.error);
+      if (result.error) throw new Error(result.error.message);
       await refreshPage();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error recomputing groupings");

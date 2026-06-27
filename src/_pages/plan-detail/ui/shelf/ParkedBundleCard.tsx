@@ -1,5 +1,6 @@
 import { useDraggable } from "@dnd-kit/react";
 import { GripVertical, X } from "lucide-react";
+import { cohortLabel, type Cohort } from "@/shared/config";
 import type { ParkedDrag } from "../../model/drag";
 import type { LocalParkedBundle, ParkedMember } from "../../model/parked";
 import { cn } from "@/shared/lib/class-names";
@@ -9,6 +10,9 @@ import { stopDrag } from "../slot-cell/drag-inert";
 type Props = {
   bundle: LocalParkedBundle;
   names: Record<string, string>;
+  /** Combined view (S-06): tags the card DP1/DP2 and scopes its place-back drag to that cohort.
+   *  Absent on the single-cohort shelf — no badge, cohort-free drag (today's behaviour). */
+  cohort?: Cohort;
   onRemove: (shelfBundleId: string) => void;
 };
 
@@ -22,10 +26,10 @@ type Props = {
  * card is the `parked` draggable (drop it on a slot to place it back); the ghost "×" discards it
  * outright (the only non-place-back exit from the shelf). Semantic tokens only.
  */
-export default function ParkedBundleCard({ bundle, names, onRemove }: Props) {
+export default function ParkedBundleCard({ bundle, names, cohort, onRemove }: Props) {
   const { ref, isDragging } = useDraggable<ParkedDrag>({
     id: `parked:${bundle.id}`,
-    data: { kind: "parked", shelfBundleId: bundle.id },
+    data: { kind: "parked", shelfBundleId: bundle.id, cohort },
     disabled: bundle.pending === true,
   });
   const weekAware = bundle.members.some((member) => member.week !== "both");
@@ -43,6 +47,11 @@ export default function ParkedBundleCard({ bundle, names, onRemove }: Props) {
     >
       <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium">
         <GripVertical className="text-muted-foreground size-4" />
+        {cohort && (
+          <Badge data-slot="parked-cohort-badge" variant="outline" title={`Parked from ${cohortLabel(cohort)}`}>
+            {cohortLabel(cohort)}
+          </Badge>
+        )}
         {weekAware && (
           <Badge data-slot="parked-week-badge" variant="secondary" title="Members run on specific weeks (A/B)">
             A/B

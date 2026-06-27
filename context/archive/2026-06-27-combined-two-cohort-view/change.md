@@ -1,10 +1,10 @@
 ---
 change_id: combined-two-cohort-view
 title: Combined two cohort view
-status: implemented
+status: archived
 created: 2026-06-27
 updated: 2026-06-27
-archived_at: null
+archived_at: 2026-06-27T16:37:35Z
 ---
 
 ## Notes

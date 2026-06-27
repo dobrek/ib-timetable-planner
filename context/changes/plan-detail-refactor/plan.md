@@ -840,11 +840,11 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [x] 5.1 Cycle/identity + live-mutation tests pass (`pnpm test`)
-- [x] 5.2 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [x] 5.3 Cross-cohort integration tests pass (`pnpm test:integration`) — 53/53 passed
-- [x] 5.4 e2e green, both routes (`pnpm test:e2e`) — 18/18 passed
-- [x] 5.5 Build clean (`pnpm build`)
+- [x] 5.1 Cycle/identity + live-mutation tests pass (`pnpm test`) — a262c3c
+- [x] 5.2 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`) — a262c3c
+- [x] 5.3 Cross-cohort integration tests pass (`pnpm test:integration`) — 53/53 passed, a262c3c
+- [x] 5.4 e2e green, both routes (`pnpm test:e2e`) — 18/18 passed, a262c3c
+- [x] 5.5 Build clean (`pnpm build`) — a262c3c
 
 #### Manual
 
@@ -855,15 +855,15 @@ phases (8–9) are droppable if time-boxed without leaving the slice in a broken
 
 #### Automated
 
-- [ ] 6.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
-- [ ] 6.2 Unit suite passes (`pnpm test`)
-- [ ] 6.3 e2e green, both routes (`pnpm test:e2e`)
-- [ ] 6.4 Build clean (`pnpm build`)
+- [x] 6.1 Type + lint + structure clean (`pnpm check` && `pnpm lint` && `pnpm steiger`)
+- [x] 6.2 Unit suite passes (`pnpm test`)
+- [x] 6.3 e2e green, both routes (`pnpm test:e2e`) — 18/18 passed
+- [x] 6.4 Build clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 6.5 Single board empty/stale/ready, summary bar, error banner, inspect dialog identical
-- [ ] 6.6 Combined dual banners, switcher header, overlay disambiguation, shared inspection dialog identical
+- [x] 6.5 Single board empty/stale/ready, summary bar, error banner, inspect dialog identical — verified via e2e (grouping-staleness, drag-validate-feedback, bundle-operations)
+- [x] 6.6 Combined dual banners, switcher header, overlay disambiguation, shared inspection dialog identical — verified via e2e (combined-view, combined-shelf-park)
 
 ### Phase 7: Unified drop router
 

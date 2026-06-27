@@ -1,9 +1,8 @@
 import { cohortLabel } from "@/shared/config";
-import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
-import { defaultPreset, Feedback } from "@dnd-kit/dom";
 import {
   BoardHeader,
+  BoardShell,
   DragHintModeToggle,
   ErrorBanner,
   PlanSummaryBar,
@@ -187,8 +186,11 @@ export default function PlannerBoard({
   }
 
   return (
-    <DragDropProvider plugins={PLUGINS} onDragStart={handleDragStart} onDragEnd={handleDrop}>
-      <div className="flex min-h-0 flex-1 flex-col">
+    <BoardShell
+      onDragStart={handleDragStart}
+      onDragEnd={handleDrop}
+      gridDataSlot="planner-board"
+      header={
         <PlanSummaryBar
           planName={planName}
           incompleteCount={incompleteCount}
@@ -199,70 +201,64 @@ export default function PlannerBoard({
           planId={planId}
           cohort={cohort}
         />
-
-        {/* `minmax(0,1fr)` on the board column (not bare `1fr`, whose min is min-content): lets the
-            timetable track shrink + scroll instead of forcing the grid wider than the viewport — so
-            the `auto` shelf column is never cropped when both the sidebar and shelf are expanded. */}
-        <div data-slot="planner-board" className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
-          <PlannerPalette
-            groupings={groupings}
-            names={names}
-            hours={hours}
-            stale={paletteView === "stale"}
-            planId={planId}
-            cohort={cohort}
-            collapsed={collapsed}
-            onCollapsedChange={setCollapsed}
-          />
-
-          <div className="flex min-h-0 flex-col gap-3">
-            {banner && <ErrorBanner message={placementErrorMessage(banner, names)} onDismiss={clearError} />}
-            <div className="flex shrink-0 justify-end">
-              <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
-              <PlannerGrid
-                days={days}
-                periods={periods}
-                gridLabel={`${cohortLabel(cohort)} timetable`}
-                placements={placements}
-                names={names}
-                collisions={collisions}
-                wiring={wiring}
-              />
-            </div>
+      }
+      palette={
+        <PlannerPalette
+          groupings={groupings}
+          names={names}
+          hours={hours}
+          stale={paletteView === "stale"}
+          planId={planId}
+          cohort={cohort}
+          collapsed={collapsed}
+          onCollapsedChange={setCollapsed}
+        />
+      }
+      center={
+        <div className="flex min-h-0 flex-col gap-3">
+          {banner && <ErrorBanner message={placementErrorMessage(banner, names)} onDismiss={clearError} />}
+          <div className="flex shrink-0 justify-end">
+            <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
           </div>
-
-          <ShelfDrawer
-            parkedBundles={parkedBundles}
-            names={names}
-            expanded={shelfExpanded}
-            pinned={pinned}
-            onExpandedChange={setExpanded}
-            onPinnedChange={setPinned}
-            onRemoveParked={removeParked}
-          />
+          <div className="min-h-0 flex-1 overflow-auto">
+            <PlannerGrid
+              days={days}
+              periods={periods}
+              gridLabel={`${cohortLabel(cohort)} timetable`}
+              placements={placements}
+              names={names}
+              collisions={collisions}
+              wiring={wiring}
+            />
+          </div>
         </div>
-      </div>
-      <CollisionDetailsDialog
-        target={inspection.target}
-        violations={inspectedViolations(inspection.target, collisions)}
-        names={names}
-        teacherNames={teacherNames}
-        studentNames={studentNames}
-        weekByCourseId={inspectedWeeks(inspection.target, placements)}
-        cohort={cohort}
-        onClose={inspection.close}
-      />
-      <GroupDragOverlay groupings={groupings} names={names} placements={placements} parkedBundles={parkedBundles} />
-    </DragDropProvider>
+      }
+      shelf={
+        <ShelfDrawer
+          parkedBundles={parkedBundles}
+          names={names}
+          expanded={shelfExpanded}
+          pinned={pinned}
+          onExpandedChange={setExpanded}
+          onPinnedChange={setPinned}
+          onRemoveParked={removeParked}
+        />
+      }
+      dialog={
+        <CollisionDetailsDialog
+          target={inspection.target}
+          violations={inspectedViolations(inspection.target, collisions)}
+          names={names}
+          teacherNames={teacherNames}
+          studentNames={studentNames}
+          weekByCourseId={inspectedWeeks(inspection.target, placements)}
+          cohort={cohort}
+          onClose={inspection.close}
+        />
+      }
+      overlay={
+        <GroupDragOverlay groupings={groupings} names={names} placements={placements} parkedBundles={parkedBundles} />
+      }
+    />
   );
 }
-
-// Disable the drop "return" animation. A palette course is *copied* onto the grid —
-// its source stays in the palette — so dnd-kit's default animation flies the drag
-// feedback back to the palette, which reads as "the drop bounced / failed." With the
-// chip already placed optimistically, the feedback should just vanish at the drop point.
-const PLUGINS = defaultPreset.plugins.map((plugin) =>
-  plugin === Feedback ? Feedback.configure({ dropAnimation: null }) : plugin,
-);

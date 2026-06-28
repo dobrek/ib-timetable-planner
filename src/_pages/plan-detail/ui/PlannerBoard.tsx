@@ -36,15 +36,16 @@ type Props = {
 };
 
 /**
- * The ONE plan-detail board. `useCombinedBoardState(dp1, dp2)` runs UNCONDITIONALLY in every mode
- * (constant hook count of 2 — the cross-index cycle is built for exactly 2 and keeps working); only
- * the *render* branches on `focus`. `focus = "combined"` renders both cohort columns with the
+ * The ONE plan-detail board. `useCombinedBoardState(dp1, dp2, focus)` runs UNCONDITIONALLY in every
+ * mode (constant hook count of 2 — the cross-index cycle is built for exactly 2 and keeps working);
+ * `focus` only selects each cohort's cross-index input (the hidden cohort idles on its static seed),
+ * and the *render* branches on `focus`. `focus = "combined"` renders both cohort columns with the
  * cohort-switcher palette + sibling-dim; `focus = "dp1"|"dp2"` renders one column, the palette locked
  * to that cohort, the shelf filtered to it, no sibling-dim, and a full-screen empty state. One
  * `DragDropProvider`, one drop router, one canonical `applyDropAction` dispatch.
  */
 export default function PlannerBoard({ planName, focus, dp1: dp1Props, dp2: dp2Props, paletteCollapsed }: Props) {
-  const { dp1, dp2 } = useCombinedBoardState(dp1Props, dp2Props);
+  const { dp1, dp2 } = useCombinedBoardState(dp1Props, dp2Props, focus);
   const byCohort: Record<Cohort, CohortBoardState> = { dp1, dp2 };
   const resolveState = (cohort: Cohort) => byCohort[cohort];
 

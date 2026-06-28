@@ -78,7 +78,7 @@ Phases 1–3 leave the two-loader/two-board parity guardrail fully intact. Phase
 
 - **Constant hook count is load-bearing.** The unified board must call `useCombinedBoardState(dp1, dp2)` **unconditionally** in every mode (including focus) and only branch on `focus` when *rendering*. Never gate the state hook on `focus` — that reintroduces the Rules-of-Hooks violation the whole framing exists to avoid. The cross-index cycle (`use-cohort-board-state.ts:16-32`) is built for exactly 2 cohorts and keeps working because both are always present.
 - **`activeCohort` survives in the drop router.** Phase 2 deletes the four `?? activeCohort` *fallbacks* (cell/drag cohort are now always present), but the `activeCohort` **parameter stays** — a cohort-free palette `course`/`grouping` drag dropped on the cell-less shelf still parks under `activeCohort` (`drop-router.ts:50,54`). In focus mode `activeCohort` = the focused cohort; in combined = the palette's active cohort.
-- **Loader-parity test retirement is intentional, not a coverage loss.** `api/parity.test.ts` + `api/adapter-parity.integration.test.ts` exist to prove the *two* loaders agree per-cohort. With one loader that guarantee is structural — remove them in Phase 4, but first migrate `api/load.integration.test.ts` + `api/reload-restore.integration.test.ts` onto `loadCombinedPlannerData` so the production read-boundary coverage is preserved.
+- **Production read-boundary coverage migrates with the loader.** Migrate `api/load.integration.test.ts` + `api/reload-restore.integration.test.ts` onto `loadCombinedPlannerData` (assert on `result.value.dp1`) so the production read-boundary coverage survives the single→combined loader collapse. **Correction (post-implementation):** `api/parity.test.ts` + `api/adapter-parity.integration.test.ts` are NOT loader-parity tests — `parity.test.ts` checks `computeGroupings` against a golden CSV, and `adapter-parity.integration.test.ts` checks the Supabase catalog adapter against the fixture adapter (`course_overlaps` direction). Both are orthogonal to the loader unification, so they were **kept**, not retired; deleting them would have dropped real, unrelated coverage.
 - **Phase 3 grid/palette merge must be byte-for-byte behavior-preserving.** The parametric grid's `columns.length === 1` path must render exactly as `PlannerGrid` does today (no cohort sub-label row, no column span) so the focus/single output is unchanged; the merged palette with no toolbar must render exactly as `PlannerPalette` does today. The behavior change belongs to Phase 2 (cohort tags) and Phase 4 (chrome), not Phase 3.
 
 ---
@@ -361,13 +361,13 @@ Build the one board from `CombinedPlannerBoard` + a `focus: Cohort | "combined"`
 
 **Contract**: Replace `loadPlannerData(supabase, planId, "dp1")` with `loadCombinedPlannerData(supabase, planId)` and read `result.value.dp1`; assertions otherwise unchanged.
 
-#### 7. Retire the loader-parity tests
+#### 7. ~~Retire the loader-parity tests~~ — NOT DONE (plan error; both files kept)
 
 **Files**: `src/_pages/plan-detail/api/parity.test.ts`, `src/_pages/plan-detail/api/adapter-parity.integration.test.ts`
 
-**Intent**: These guarded single-vs-combined loader equivalence; with one loader the guarantee is structural. Remove them. (Keep `model/collision/collision-parity.test.ts` — cohort-agnostic, unrelated.)
+**Intent (corrected post-implementation)**: This step assumed these were single-vs-combined *loader*-parity tests. They are not: `parity.test.ts` checks `computeGroupings` against a golden CSV, and `adapter-parity.integration.test.ts` checks the Supabase catalog adapter against the fixture adapter (`course_overlaps` direction) — both orthogonal to the loader unification, exercising live code with no dangling imports.
 
-**Contract**: Delete both files. Confirm no other test imports their helpers.
+**Contract**: **Both files were KEPT** — deleting them would have lost real, unrelated coverage. (Also keep `model/collision/collision-parity.test.ts` — cohort-agnostic, unrelated.)
 
 #### 8. Clean up dead single-path references + docstrings
 
@@ -412,7 +412,7 @@ Build the one board from `CombinedPlannerBoard` + a `focus: Cohort | "combined"`
 ### Integration Tests:
 
 - **Migrated** to `loadCombinedPlannerData`: `load.integration.test.ts` (name records, availability shape), `reload-restore.integration.test.ts` (reload read boundary) — assert on `result.value.dp1`.
-- **Removed** (moot): `api/parity.test.ts`, `api/adapter-parity.integration.test.ts`.
+- **Kept** (plan error — these are grouping-golden / catalog-adapter parity, NOT loader parity, so orthogonal to this change): `api/parity.test.ts`, `api/adapter-parity.integration.test.ts`.
 
 ### Manual Testing Steps:
 
@@ -424,7 +424,7 @@ Build the one board from `CombinedPlannerBoard` + a `focus: Cohort | "combined"`
 
 ## Performance Considerations
 
-Always-load-both adds an SSR-only, fully-parallelized ~+44% query count on the (now-combined) default route (research §1; tiny data scale — ~40 placed courses/cohort). **Zero per-drag cost**: the `<200ms` budget lives in the pure constraint core (`collisions.perf.test.ts`, sub-millisecond) and is unaffected by load strategy; the hidden cohort's client derivations memoize away (inputs never change). No mitigation needed.
+Always-load-both adds an SSR-only, fully-parallelized ~+44% query count on the (now-combined) default route (research §1; tiny data scale — ~40 placed courses/cohort). **Per-drag cost is unchanged** and the `<200ms` budget lives in the pure constraint core (`collisions.perf.test.ts`, sub-millisecond), unaffected by load strategy. In focus mode the hidden cohort's derivations are fed a *static* seed index (`useCombinedBoardState(dp1, dp2, focus)`), so its collision/drag-hint memos stay cached across the visible cohort's edits — the hidden cohort genuinely costs nothing per drop. (Naively it would re-run one cohort-sized collision pass per drop, because its index tracked the visible cohort's live placements; still within budget, but not free — hence the static-seed gate. Impl-review F5.) No mitigation needed.
 
 ## Migration Notes
 

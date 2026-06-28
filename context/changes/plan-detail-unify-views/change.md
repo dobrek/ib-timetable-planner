@@ -1,7 +1,7 @@
 ---
 change_id: plan-detail-unify-views
 title: Make combined the one plan-detail board; single cohort becomes a focus mode
-status: implemented
+status: impl_reviewed
 created: 2026-06-28
 updated: 2026-06-28
 archived_at: null
@@ -167,3 +167,9 @@ Why this matters for unification:
 `model/collision/collision-parity.test.ts`, plus the p1 characterization tests for board seams.
 These enforce behavioral equivalence at the shared seam and should be the guardrail for this
 change.
+
+> **Correction (post-implementation):** `api/parity.test.ts` and `api/adapter-parity.integration.test.ts`
+> are NOT loader-parity tests — they cover `computeGroupings`-vs-golden and the Supabase-vs-fixture
+> catalog adapter respectively. They were kept, not retired; the loader read-boundary coverage was
+> instead preserved by migrating `api/load.integration.test.ts` + `api/reload-restore.integration.test.ts`
+> onto `loadCombinedPlannerData`.

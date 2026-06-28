@@ -70,6 +70,11 @@ export function applyDropAction(
     case "parkGroup":
       park(groupingParkedMembers(action.groupingId, groupings, weekModeByCourseId), actions, effects);
       break;
+    default: {
+      // Exhaustiveness guard: a new CombinedDropAction kind must be handled above, not silently dropped.
+      const _exhaustive: never = action;
+      void _exhaustive;
+    }
   }
 }
 

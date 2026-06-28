@@ -3,7 +3,7 @@ import { buildCrossCohortIndex, projectFromPlacements, type CrossCohortIndex } f
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps } from "./drag";
 import type { LocalPlacement } from "./placement/placement";
-import { usePlacements } from "./use-placements";
+import { usePlacements, type UsePlacementsArgs } from "./use-placements";
 import { useExplodedCells } from "./use-exploded-cells";
 import {
   useAvailabilityIndex,
@@ -129,7 +129,11 @@ export const indexFromPlacements = (
 // Placement state + the per-cohort index inputs, fed a one-render-lagged cross-index (only
 // `duplicateBundle` reads it). Split from the derivations so both `usePlacements` calls land before
 // either fresh index is built (the live-index cycle — see `useCombinedBoardState`).
-function useCohortPlacements(props: PlannerBoardProps, laggedIndex: CrossCohortIndex) {
+function useCohortPlacements(
+  props: PlannerBoardProps,
+  laggedIndex: CrossCohortIndex,
+  onRecord?: UsePlacementsArgs["onRecord"],
+) {
   const { planId, cohort, days, periods, catalog, availability } = props;
   const weekModeByCourseId = useMemo(
     () => new Map(catalog.map((course) => [course.id, course.weekMode] as const)),
@@ -151,6 +155,7 @@ function useCohortPlacements(props: PlannerBoardProps, laggedIndex: CrossCohortI
     days,
     periods,
     initialParked: props.parkedBundles,
+    onRecord,
   });
   return { api, catalogById, availabilityIndex, weekModeByCourseId, teacherKeysByCourseId };
 }

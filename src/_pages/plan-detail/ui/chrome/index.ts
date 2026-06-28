@@ -6,6 +6,7 @@ export { default as CollapsibleEdgePanel, EDGE_PANEL_ICON_BUTTON } from "./Colla
 export { default as CohortSwitcher } from "./CohortSwitcher";
 export { default as PlanSummaryBar } from "./PlanSummaryBar";
 export { default as DragHintModeToggle } from "./DragHintModeToggle";
+export { default as UndoRedoControls, type UndoRedoControlsProps } from "./UndoRedoControls";
 export { default as ErrorBanner } from "./ErrorBanner";
 export { useHintMode, usePaletteDisclosure, useShelfDisclosure } from "./board-disclosure";
 export { inspectedViolations, inspectedWeeks, useCollisionInspection } from "./board-inspection";

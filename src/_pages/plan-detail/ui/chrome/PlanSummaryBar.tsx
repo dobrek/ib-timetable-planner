@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { Badge } from "@/shared/ui";
 import BoardHeader from "./BoardHeader";
+import UndoRedoControls, { type UndoRedoControlsProps } from "./UndoRedoControls";
 import type { BoardSurface } from "../../lib/board-surface";
 
 type PlanSummaryBarProps = {
@@ -13,6 +14,8 @@ type PlanSummaryBarProps = {
   planId: string;
   /** The current `?focus=` surface (a cohort or combined), driving the switcher's active segment. */
   active: BoardSurface;
+  /** Undo/redo stack state + triggers — rendered as toolbar buttons beside the drag-hint toggle. */
+  undoRedo?: UndoRedoControlsProps;
   /** Trailing controls (the drag-hint toggle) — the one header for every mode. */
   trailing?: ReactNode;
 };
@@ -26,6 +29,7 @@ export default function PlanSummaryBar({
   onExpandShelf,
   planId,
   active,
+  undoRedo,
   trailing,
 }: PlanSummaryBarProps) {
   return (
@@ -54,6 +58,7 @@ export default function PlanSummaryBar({
             <span className="text-foreground font-medium">All course hours placed</span>
           )}
         </span>
+        {undoRedo && <UndoRedoControls {...undoRedo} />}
         {trailing}
       </div>
     </BoardHeader>

@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_HINT_MODE } from "../../lib/drag-hint-mode";
-import type { CellWiring } from "./slot-cell/SlotCellHost";
+import type { CellWiring } from "./PlannerGrid";
 import { useCellWiring } from "./use-cell-wiring";
 
 // The manual-memo contract: with referentially-stable inputs the bundled wiring object survives a

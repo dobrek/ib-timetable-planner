@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
+  cell,
   computeGroupings,
   display,
   dragChip,
@@ -52,7 +53,7 @@ test.describe("first-class bundle operations", () => {
     const plan = await createPlan(page, "bundle-ops-move-remove");
     await provisionCourses(page, plan.id, id, [alphaCourse, bravoCourse]);
 
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     // Mutually co-runnable courses → one grouping box; wait for it as the compute landmark.
     await computeGroupings(page, groupingBox(page, 2));
 
@@ -91,7 +92,7 @@ test.describe("first-class bundle operations", () => {
     const plan = await createPlan(page, "bundle-ops-ungroup-merge");
     await provisionCourses(page, plan.id, id, [alphaCourse, bravoCourse, charlieCourse]);
 
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     await computeGroupings(page, groupingBox(page, 3));
 
     // Build a three-course bundle from the grouping box.
@@ -100,7 +101,7 @@ test.describe("first-class bundle operations", () => {
     await expectOccupants(page, origin, [alpha, bravo, charlie]);
 
     // While grouped, per-chip affordances are inert — the slot moves as one unit (FR-010).
-    const removeCharlie = page.getByRole("gridcell", { name: origin, exact: true }).getByRole("button", {
+    const removeCharlie = cell(page, origin).getByRole("button", {
       name: `Remove ${charlie}`,
       exact: true,
     });

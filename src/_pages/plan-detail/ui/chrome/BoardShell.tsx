@@ -6,9 +6,9 @@ import { defaultPreset, Feedback } from "@dnd-kit/dom";
 type Props = {
   onDragStart: (event: DragStartEvent) => void;
   onDragEnd: (event: DragEndEvent) => void;
-  /** data-slot on the 3-column grid: "planner-board" (single) / "combined-board" (combined). */
+  /** data-slot on the 3-column grid. The one board passes "planner-board" in every mode. */
   gridDataSlot: string;
-  /** Top bar above the grid: the single board's PlanSummaryBar / the combined inline header + switcher. */
+  /** Top bar above the grid: the board's `PlanSummaryBar` (counts + surface switcher + hint toggle). */
   header: ReactNode;
   /** 1st column — the one palette panel (`CombinedPalettePanel`, with an optional cohort switcher). */
   palette: ReactNode;
@@ -23,17 +23,16 @@ type Props = {
 };
 
 /**
- * The shared board scaffold both planner boards render into: ONE `DragDropProvider` (with the shared
- * `PLUGINS`), the flex column, and the 3-column `auto | minmax(0,1fr) | auto` grid (palette | board |
- * shelf), with the dialog + overlay as siblings inside the provider. Each board supplies its slot
- * content; the known divergences are reconciled OUTSIDE the shell:
+ * The shared board scaffold the one planner board renders into: ONE `DragDropProvider` (with the
+ * shared `PLUGINS`), the flex column, and the 3-column `auto | minmax(0,1fr) | auto` grid (palette |
+ * board | shelf), with the dialog + overlay as siblings inside the provider. The board supplies its
+ * slot content; the `focus`-conditioned variation lives OUTSIDE the shell:
  *
- * - the single board keeps its full-screen `empty` early-return (it never renders `BoardShell` then);
- * - the `header` slot differs (single: `PlanSummaryBar`; combined: inline header + `CohortSwitcher`);
- * - the `center` slot carries 1 (single) vs up-to-2 (combined) error banners, and the hint toggle in
- *   different places (single: above the grid; combined: in the header);
- * - the `overlay` differs only by combined's `placementsByCohort`;
- * - each board owns its own inspection wiring and passes a fully-built `dialog`.
+ * - focus mode keeps the full-screen `empty` early-return (it never renders `BoardShell` then);
+ * - the `header` is always `PlanSummaryBar` (counts = the focused cohort's, or the sum in combined);
+ * - the `center` carries up-to-2 error banners (the hidden cohort never errors in focus) + the grid;
+ * - the `overlay` always passes `placementsByCohort`;
+ * - the board owns its inspection wiring and passes a fully-built `dialog`.
  */
 export default function BoardShell({
   onDragStart,

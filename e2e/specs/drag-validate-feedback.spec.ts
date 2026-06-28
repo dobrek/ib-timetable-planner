@@ -46,7 +46,7 @@ test.describe("drag → validate → feedback", () => {
     await createStudent(page, plan.id, { name: `Stu A ${id}`, cohort: "DP1", course: alphaCourse });
     await createStudent(page, plan.id, { name: `Stu B ${id}`, cohort: "DP1", course: bravoCourse });
 
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     await computeGroupings(page, alpha);
 
     // --- Clean drop: Alpha alone in the slot is a valid placement (over-rejection guard).

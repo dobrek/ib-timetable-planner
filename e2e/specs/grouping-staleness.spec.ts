@@ -41,7 +41,7 @@ test.describe("grouping staleness + recompute", () => {
     await createStudent(page, plan.id, { name: `Stu A ${id}`, cohort: "DP1", course });
 
     // Compute the palette; the course's chip lands.
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     await computeGroupings(page, courseDisplay);
 
     // Over-staleness guard: a freshly computed palette is NOT stale (load-path hash == persist-path
@@ -53,7 +53,7 @@ test.describe("grouping staleness + recompute", () => {
     await createStudent(page, plan.id, { name: `Stu B ${id}`, cohort: "DP1", course });
 
     // Reload the board — SSR now hashes the changed catalog and threads stale: true.
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
 
     // Stale: the recompute panel replaces the palette (the chip is gone, the Recompute button is up).
     await expect(recomputeButton(page)).toBeVisible();

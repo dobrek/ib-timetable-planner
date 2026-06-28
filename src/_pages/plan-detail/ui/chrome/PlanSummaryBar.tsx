@@ -1,6 +1,7 @@
-import { type Cohort } from "@/shared/config";
+import { type ReactNode } from "react";
 import { Badge } from "@/shared/ui";
 import BoardHeader from "./BoardHeader";
+import type { BoardSurface } from "../../lib/board-surface";
 
 type PlanSummaryBarProps = {
   planName: string;
@@ -10,20 +11,25 @@ type PlanSummaryBarProps = {
   /** Open the shelf drawer (the badge doubles as the expand affordance). */
   onExpandShelf: () => void;
   planId: string;
-  cohort: Cohort;
+  /** The current `?focus=` surface (a cohort or combined), driving the switcher's active segment. */
+  active: BoardSurface;
+  /** Trailing controls (the drag-hint toggle) — the one header for every mode. */
+  trailing?: ReactNode;
 };
 
-/** Slim board heading row: plan name + cohort switcher + a parked-count cue + how many courses still need hours placed. */
+/** Slim board heading row: plan name + surface switcher + a parked-count cue + how many courses still
+ *  need hours placed, with the drag-hint toggle trailing so there is one header for all modes. */
 export default function PlanSummaryBar({
   planName,
   incompleteCount,
   parkedCount,
   onExpandShelf,
   planId,
-  cohort,
+  active,
+  trailing,
 }: PlanSummaryBarProps) {
   return (
-    <BoardHeader planName={planName} planId={planId} cohort={cohort}>
+    <BoardHeader planName={planName} planId={planId} active={active}>
       <div className="ml-auto flex items-center gap-3">
         {parkedCount > 0 && (
           <Badge asChild variant="secondary" className="cursor-pointer">
@@ -48,6 +54,7 @@ export default function PlanSummaryBar({
             <span className="text-foreground font-medium">All course hours placed</span>
           )}
         </span>
+        {trailing}
       </div>
     </BoardHeader>
   );

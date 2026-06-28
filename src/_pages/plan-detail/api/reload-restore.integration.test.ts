@@ -2,11 +2,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { createPlan as createFactoryPlan, placeCourse, seedPlanCatalog, teardown } from "@/test/factories";
-import { loadPlannerData } from "./load";
+import { loadCombinedPlannerData } from "./load";
 import type { PlannerPlacement } from "../model/placement/placement";
 
 // Risk #4 (placed work survives reload) + Risk #2 (the move-duplicate hazard) driven through the
-// PRODUCTION read boundary — `loadPlannerData`, the exact loader a browser reload re-runs
+// PRODUCTION read boundary — `loadCombinedPlannerData`, the exact loader a browser reload re-runs
 // (load.ts:64,94-100). Plus the only DB-enforced rule's idempotent handling (double-drop).
 // Service-role client (bypasses RLS for setup + assertions); skips when the stack is absent.
 
@@ -19,12 +19,12 @@ const byId = (a: PlannerPlacement, b: PlannerPlacement) => a.id.localeCompare(b.
 
 /** Load the plan the way a reload does, unwrapping the Result (a load error fails the test loudly). */
 async function loadPlacements(supabase: SupabaseClient<Database>, planId: string): Promise<PlannerPlacement[]> {
-  const result = await loadPlannerData(supabase, planId, "dp1");
-  if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
-  return result.value.props.placements;
+  const result = await loadCombinedPlannerData(supabase, planId);
+  if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
+  return result.value.dp1.placements;
 }
 
-(hasEnv ? describe : describe.skip)("reload-restore through loadPlannerData (local Supabase)", () => {
+(hasEnv ? describe : describe.skip)("reload-restore through loadCombinedPlannerData (local Supabase)", () => {
   let supabase: SupabaseClient<Database>;
   let agnosticCourseId: string;
   let biweeklyA: string;

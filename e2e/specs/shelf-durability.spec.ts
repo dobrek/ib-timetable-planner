@@ -43,7 +43,7 @@ test.describe("bundle holding container (shelf)", () => {
     const plan = await createPlan(page, "shelf-durability");
     await provisionCourses(page, plan.id, id, [alphaCourse, bravoCourse]);
 
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     // Mutually co-runnable courses → one grouping box; wait for it as the compute landmark.
     await computeGroupings(page, groupingBox(page, 2));
 
@@ -57,7 +57,7 @@ test.describe("bundle holding container (shelf)", () => {
     await expect(parkedBadge(page)).toHaveText(/1\s+parked/);
 
     // RELOAD — the parked bundle is server-durable, so it must still be there after a hard reload.
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     await expect(parkedBadge(page)).toHaveText(/1\s+parked/);
 
     // Open the drawer and confirm the parked card persisted.
@@ -80,7 +80,7 @@ test.describe("bundle holding container (shelf)", () => {
     const plan = await createPlan(page, "shelf-park-grouping");
     await provisionCourses(page, plan.id, id, [alphaCourse, bravoCourse]);
 
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     await computeGroupings(page, groupingBox(page, 2));
 
     // Park the grouping straight from the palette (never placed on the board) onto the shelf.

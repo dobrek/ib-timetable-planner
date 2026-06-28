@@ -2,15 +2,16 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { addAvailability, createPlan, seedPlanCatalog, teardown } from "@/test/factories";
-import { loadPlannerData } from "./load";
+import { loadCombinedPlannerData } from "./load";
 
-// Proves `loadPlannerData` ships the teacher/student name records the collision
+// Proves `loadCombinedPlannerData` ships the teacher/student name records the collision
 // detail Dialog resolves ids through: every `teacherKey`/`studentKey` present in
-// the returned validation catalog must be covered, and a teacher without a
+// the returned dp1 validation catalog must be covered, and a teacher without a
 // `full_name` must resolve to their `code` (the factory seeds teachers with code
-// only, like the seed). Local-only: connects with the service_role/secret key
+// only, like the seed). The focus-mode read is now a combined read — assert on
+// `result.value.dp1`. Local-only: connects with the service_role/secret key
 // (bypasses RLS); skips cleanly when the env or stack is unavailable. Owns a
-// factory-seeded plan whose dp1 cohort the board loads.
+// factory-seeded plan whose cohorts the board loads.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -32,7 +33,7 @@ afterAll(async () => {
   await teardown(supabase);
 });
 
-(hasEnv ? describe : describe.skip)("loadPlannerData name records (dp1)", () => {
+(hasEnv ? describe : describe.skip)("loadCombinedPlannerData name records (dp1)", () => {
   let planId: string;
 
   beforeAll(async () => {
@@ -41,9 +42,9 @@ afterAll(async () => {
   });
 
   it("ships name records covering every teacher and student key in the catalog", async () => {
-    const result = await loadPlannerData(supabase, planId, "dp1");
-    if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
-    const { catalog, teacherNames, studentNames } = result.value.props;
+    const result = await loadCombinedPlannerData(supabase, planId);
+    if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
+    const { catalog, teacherNames, studentNames } = result.value.dp1;
 
     expect(catalog.length).toBeGreaterThan(0);
     expect(Object.keys(teacherNames).length).toBeGreaterThan(0);
@@ -57,9 +58,9 @@ afterAll(async () => {
   });
 
   it("resolves a teacher without full_name to their code", async () => {
-    const result = await loadPlannerData(supabase, planId, "dp1");
-    if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
-    const { teacherNames } = result.value.props;
+    const result = await loadCombinedPlannerData(supabase, planId);
+    if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
+    const { teacherNames } = result.value.dp1;
 
     const { data: teachers, error } = await supabase
       .from("teachers")
@@ -78,7 +79,7 @@ afterAll(async () => {
 // board loader fetches availability by plan only (cohort-independent) and projects
 // each row to the island shape. Already bare-plan; now uses the factory for the
 // plan lifecycle for consistency.
-(hasEnv ? describe : describe.skip)("loadPlannerData availability shape", () => {
+(hasEnv ? describe : describe.skip)("loadCombinedPlannerData availability shape", () => {
   it("ships availability cells projected to teacherKey/day/period/severity", async () => {
     const planId = await createPlan(supabase, { name: "Avail Load Probe" });
 
@@ -91,10 +92,8 @@ afterAll(async () => {
 
     await addAvailability(supabase, { planId, teacherId: teacher.id, day: 3, period: 2, severity: "strong" });
 
-    const result = await loadPlannerData(supabase, planId, "dp1");
-    if (!result.ok) throw new Error(`loadPlannerData failed: ${JSON.stringify(result.error)}`);
-    expect(result.value.props.availability).toEqual([
-      { teacherKey: teacher.id, day: 3, period: 2, severity: "strong" },
-    ]);
+    const result = await loadCombinedPlannerData(supabase, planId);
+    if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
+    expect(result.value.dp1.availability).toEqual([{ teacherKey: teacher.id, day: 3, period: 2, severity: "strong" }]);
   });
 });

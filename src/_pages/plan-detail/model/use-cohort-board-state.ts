@@ -68,16 +68,16 @@ export type CohortBoardState = CombinedBoardState["dp1"];
 export type CohortActions = CohortBoardState["actions"];
 
 /**
- * The per-cohort board-state assembler — the single seam BOTH boards now share. Composes the same
- * `useCohortPlacements` → `useCohortDerivations` → `toCohortState` pipeline `useCombinedBoardState`
- * runs per column, exposed for the single board to call once. `seedIndex` feeds `usePlacements` (the
- * duplicate-target search only); `freshIndex` feeds the collision/drag-hint derivations.
+ * The per-cohort board-state assembler: the `useCohortPlacements` → `useCohortDerivations` →
+ * `toCohortState` pipeline `useCombinedBoardState` runs per column, exposed as a one-shot seam.
+ * `seedIndex` feeds `usePlacements` (the duplicate-target search only); `freshIndex` feeds the
+ * collision/drag-hint derivations — pass the same static index as BOTH for a sibling-free assembly.
  *
- * The single board has no live cross-cohort sibling, so it passes its ONE static index as BOTH args
- * — reproducing its previous inline wiring exactly. The combined view cannot call this twice (the
- * live cross-index forms a cycle: each cohort's fresh index needs the OTHER's placements, which don't
- * exist until both `usePlacements` run — see `useCombinedBoardState`), so it keeps composing the
- * pieces directly. The `not.toBe` fresh-identity test guards the cycle the combined path relies on.
+ * Now that the board always runs the combined orchestrator (the single board is a focus mode), this
+ * wrapper is exercised by `use-cohort-board-state.test.ts` as the per-cohort pipeline guard: the
+ * `not.toBe` fresh-identity test pins the live cross-index cycle the combined path relies on (each
+ * cohort's fresh index needs the OTHER's placements, which don't exist until both `usePlacements`
+ * run — see `useCombinedBoardState`, which therefore cannot call this twice and composes directly).
  */
 export function useCohortBoardState(
   props: PlannerBoardProps,

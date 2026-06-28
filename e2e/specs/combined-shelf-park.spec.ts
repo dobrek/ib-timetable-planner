@@ -16,7 +16,7 @@ import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../s
 // Combined two-cohort view (S-06) — park a palette grouping straight onto the shelf (combined-view-park-gap).
 //
 // What this proves that the router unit tests and the single-board shelf spec cannot: in the
-// /plans/[id]/combined route, dragging a palette GROUPING (never placed on the board) onto the
+// /plans/[id]?focus=combined route, dragging a palette GROUPING (never placed on the board) onto the
 // cell-less shelf PARKS it under the palette's active cohort (DP1), and the parked card — tagged
 // DP1 — places back into the DP1 column. If the card were mis-tagged (or the park branch reverted),
 // the place-back onto a DP1 cell would be rejected by the cross-cohort guard and never land — so the
@@ -41,14 +41,13 @@ test.describe("combined view — park a palette grouping to the shelf", () => {
     await provisionCourses(page, plan.id, id, [alphaCourse, bravoCourse]);
 
     // Compute the DP1 grouping on the single board first (the reliable seed), then enter the combined view.
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     await computeGroupings(page, groupingBox(page, 2));
 
-    await gotoStable(page, `/plans/${plan.id}/combined`);
+    await gotoStable(page, `/plans/${plan.id}?focus=combined`);
 
-    // The combined palette defaults collapsed — expand it (DP1 is the default active cohort) so the
-    // grouping box becomes draggable.
-    await page.getByRole("button", { name: /^Open palette/ }).click();
+    // The palette honors the SSR collapse cookie in every mode — expanded by default (DP1 is the
+    // active cohort), so the grouping box is immediately draggable.
     await expect(groupingBox(page, 2)).toBeVisible();
 
     // Park the DP1 grouping straight from the palette onto the shelf → it auto-collapses showing 1 parked.
@@ -74,8 +73,8 @@ test.describe("combined view — park a palette grouping to the shelf", () => {
 /**
  * Drag a `count`-member palette grouping box onto the combined shelf and wait for the park to land.
  * Idempotent + retried like the other board verbs — skip once the shelf's collapsed tab reports the
- * parked bundle. The combined view has no summary-bar badge, so the post-park signal is the shelf's
- * own collapsed tab (`"Open shelf (1 parked)"`) after `parkMembers` auto-collapses the drawer.
+ * parked bundle. The post-park signal is the shelf's own collapsed tab (`"Open shelf (1 parked)"`)
+ * after `parkMembers` auto-collapses the drawer.
  */
 async function parkGroupingToCombinedShelf(page: Page, count: number): Promise<void> {
   const parkedTab = page.getByRole("button", { name: "Open shelf (1 parked)" });

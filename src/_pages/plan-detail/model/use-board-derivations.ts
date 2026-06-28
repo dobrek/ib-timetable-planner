@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildAvailabilityIndex, type AvailabilityIndex } from "./cross-cohort/availability-index";
-import { buildCrossCohortIndex, type CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
+import type { CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
 import { deriveCellViolations, type CellCollisions } from "./collision/collisions";
 import type { CellData, DragData, PlannerBoardProps } from "./drag";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
@@ -9,12 +9,12 @@ import { countIncompleteCourses, deriveHours } from "./hours";
 import type { LocalPlacement } from "./placement/placement";
 
 /**
- * The pure per-cohort board derivations, lifted out of `PlannerBoard` so BOTH the single-cohort
- * board and the combined view's `useCohortBoardState` compose them from one place (no duplication,
- * no drift). Each is a framework-light memo/state composition of existing model functions — `.ts`,
+ * The pure per-cohort board derivations, composed in one place by the per-cohort assembler
+ * (`useCohortBoardState`) and the combined orchestrator (`useCombinedBoardState`) — no duplication,
+ * no drift. Each is a framework-light memo/state composition of existing model functions — `.ts`,
  * not `.tsx`, since none render JSX. The UI-disclosure/persistence hooks (`useHintMode`,
- * `useShelfDisclosure`, `usePaletteDisclosure`) deliberately stay in the UI layer: the combined
- * shell owns them as single shell-level instances, so a per-cohort hook never needs them.
+ * `useShelfDisclosure`, `usePaletteDisclosure`) deliberately stay in the UI layer: the board shell
+ * owns them as single shell-level instances, so a per-cohort hook never needs them.
  */
 
 // Shared course lookup, built once for both the collision and drag-hint derivations.
@@ -25,11 +25,6 @@ export function useCatalogById(catalog: GroupingCourse[]) {
 // Index the raw availability cells (a serializable prop) into the Maps the derivations read.
 export function useAvailabilityIndex(availability: PlannerBoardProps["availability"]) {
   return useMemo(() => buildAvailabilityIndex(availability), [availability]);
-}
-
-// Index the raw sibling-occupancy cells (a serializable prop) into the cross-cohort Map.
-export function useCrossCohortIndex(occupancy: PlannerBoardProps["crossCohortOccupancy"]) {
-  return useMemo(() => buildCrossCohortIndex(occupancy), [occupancy]);
 }
 
 export function useCollisions(

@@ -17,14 +17,13 @@ import { PlannerGrid, useCellWiring } from "./grid";
 import { CollisionDetailsDialog, GroupDragOverlay } from "./overlay";
 import { ComputeGroupingsEmptyState, PlannerPalette } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
-import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
+import type { DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
+import { applyDropAction } from "../model/cross-cohort/drop-dispatch";
 import { resolvePaletteView } from "../model/grouping/palette-view";
 import { useCrossCohortIndex } from "../model/use-board-derivations";
 import { useCohortBoardState } from "../model/use-cohort-board-state";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
-import type { ParkedMember } from "../model/placement/parked";
-import { defaultParkedWeek, groupingParkedMembers } from "../model/placement/parked-members";
 
 /**
  * Planner island root: orchestrates placement state, collision/hours derivations,
@@ -59,25 +58,16 @@ export default function PlannerBoard({
     weekModeByCourseId,
     actions,
   } = useCohortBoardState(props, crossCohortIndex, crossCohortIndex);
-  const {
-    addCourse,
-    addGroup,
-    movePlacement,
-    removePlacement,
-    setWeek,
-    moveBundle,
-    removeBundle,
-    duplicateBundle,
-    shelveBundle,
-    placeBack,
-    parkMembers,
-    removeParked,
-  } = actions;
+  const { removePlacement, setWeek, removeBundle, duplicateBundle, removeParked } = actions;
 
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
   const { collapsed, setCollapsed } = usePaletteDisclosure(paletteCollapsed);
   const inspection = useCollisionInspection(collisions);
   const { hintMode, setHintMode } = useHintMode();
+
+  // The single board is the degenerate one-cohort case: one constant resolver feeds the shared
+  // dispatch (`applyDropAction`), so the lift button and the drop handler route identically.
+  const resolveState = () => ({ actions, groupings, weekModeByCourseId });
 
   // Bundle the per-cell handlers + drag-hint state into one referentially-stable object, spread once
   // into each cell (mirrors `PairedPlannerGrid`) instead of hand-threading the 11 fields per hop.
@@ -91,7 +81,9 @@ export default function PlannerBoard({
     onToggleBundle: toggleExploded,
     onRemoveBundle: removeBundle,
     onDuplicateBundle: duplicateBundle,
-    onLiftBundle: liftBundle,
+    onLiftBundle: (day, period) => {
+      applyDropAction({ kind: "liftBundle", cohort, day, period }, resolveState, { collapseUnlessPinned });
+    },
     onInspect: inspection.open,
   });
 
@@ -111,65 +103,12 @@ export default function PlannerBoard({
     const { source, target } = event.operation;
     if (!source || !target) return; // dropped outside any cell — no-op (removal is via "×")
 
-    // The ONE shared router resolves the drop to an action descriptor (or null = no-op); this thin
-    // dispatch wires it to the optimistic placement actions. The single board is the degenerate
-    // one-cohort case: it passes its one `cohort` as `activeCohort`, its untagged cells/drags resolve
-    // to that cohort, and the cross-cohort guard trivially passes. Same dispatch as the combined board.
+    // The ONE shared router resolves the drop to an action descriptor (or null = no-op); the ONE
+    // shared dispatch (`applyDropAction`) wires it to the optimistic placement actions. The single
+    // board is the degenerate one-cohort case: it passes its one `cohort` as `activeCohort`, its
+    // untagged cells/drags resolve to that cohort, and the cross-cohort guard trivially passes.
     const action = resolveCombinedDrop(source.data as DragData, target.data as DropTargetData, cohort);
-    if (!action) return;
-
-    switch (action.kind) {
-      case "addCourse":
-        addCourse(action.courseId, action.cell);
-        break;
-      case "dropGroup":
-        dropGroup(action.groupingId, action.cell);
-        break;
-      case "movePlacement":
-        movePlacement(action.placementId, action.cell);
-        break;
-      case "moveBundle":
-        moveBundle(action.day, action.period, action.cell);
-        break;
-      case "liftBundle":
-        liftBundle(action.day, action.period);
-        break;
-      case "placeBack":
-        placeBack(action.shelfBundleId, action.cell);
-        collapseUnlessPinned();
-        break;
-      case "parkCourse":
-        // Onto the shelf → park the single course directly.
-        parkToShelf([{ courseId: action.courseId, week: defaultParkedWeek(action.courseId, weekModeByCourseId) }]);
-        break;
-      case "parkGroup":
-        // Onto the shelf → park the grouping's resolved members directly.
-        parkToShelf(groupingParkedMembers(action.groupingId, groupings, weekModeByCourseId));
-        break;
-    }
-  }
-
-  // Lift the bundle at a cell to the shelf (the button affordance and drag-to-shelf both call this).
-  function liftBundle(day: number, period: number) {
-    shelveBundle(day, period);
-    collapseUnlessPinned();
-  }
-
-  // Unknown groupingId → empty member list → no-op. An opposite-week grouping lands its members
-  // on alternating weeks; a plain grouping resolves each member by its own eligibility.
-  function dropGroup(groupingId: string, cell: CellData) {
-    const grouping = groupings.find((candidate) => candidate.id === groupingId);
-    addGroup(grouping?.memberIds ?? [], cell, { oppositeWeek: grouping?.oppositeWeek ?? false });
-  }
-
-  // Park a course-set onto the shelf. Re-dropping an already-parked set deliberately parks it
-  // again (a second card) — by author decision after user testing. Mirrors the lift's
-  // auto-collapse so the drawer behaves the same however a bundle gets parked. Members are
-  // resolved by the shared `model/parked-members` helper (the combined board parks identically).
-  function parkToShelf(members: ParkedMember[]) {
-    if (members.length === 0) return;
-    parkMembers(members);
-    collapseUnlessPinned();
+    if (action) applyDropAction(action, resolveState, { collapseUnlessPinned });
   }
 
   // One decision over the left column's three states, mirroring the `switch (data.kind)` drop

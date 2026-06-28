@@ -447,10 +447,10 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass, incl. the new dispatch suite: `pnpm test`
-- [ ] 1.2 Lint + types clean: `pnpm lint`
-- [ ] 1.3 FSD structure clean: `pnpm steiger`
-- [ ] 1.4 Production build clean: `pnpm build`
+- [x] 1.1 Unit tests pass, incl. the new dispatch suite: `pnpm test`
+- [x] 1.2 Lint + types clean: `pnpm lint`
+- [x] 1.3 FSD structure clean: `pnpm steiger`
+- [x] 1.4 Production build clean: `pnpm build`
 
 #### Manual
 

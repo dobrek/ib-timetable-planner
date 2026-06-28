@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Cohort } from "@/shared/config";
 import type { AffectedScope, AffectedSlice, HistoryEntry } from "./history-entry";
 import { createInMemoryHistoryStore, type HistoryStore } from "./history-store";
@@ -68,37 +68,66 @@ export function useHistoryControls(store: HistoryStore, cohortApis: Record<Cohor
     setVersion((n) => n + 1);
   };
 
+  // Synchronous reentrancy lock. `busy` is render state (`setReconciling`), so it lags the keydown
+  // event stream — a rapid double-trigger inside one render frame would otherwise slip past it. The
+  // ref is set/cleared synchronously, independent of render timing, serializing dispatch to one
+  // reconcile at a time so the second can't read a one-render-lagged ref.
+  const inFlightRef = useRef(false);
+
   const busy = cohortApis.dp1.busy || cohortApis.dp2.busy;
   const canUndo = store.canUndo() && !busy;
   const canRedo = store.canRedo() && !busy;
 
-  function step(peek: () => HistoryEntry | undefined, commit: (entry: HistoryEntry) => void) {
-    if (busy) return;
-    const entry = peek();
+  function step(
+    pop: () => HistoryEntry | undefined,
+    restore: (entry: HistoryEntry) => void,
+    commit: (entry: HistoryEntry) => void,
+  ) {
+    if (busy || inFlightRef.current) return;
+    // Pop synchronously at dispatch — fixing the entry's identity now, so a concurrent fresh edit or
+    // a rapid double-trigger can never strip the wrong entry in the async callback below.
+    const entry = pop();
     if (!entry) return;
+    inFlightRef.current = true;
+    rerender();
     const api = cohortApis[entry.cohort];
-    const forward = api.snapshot(entry.scope); // the opposite-direction target, captured live
-    void api.applyReconcile(entry.target, entry.scope).then(({ ok }) => {
-      if (!ok) return; // executor rolled back + surfaced the error; leave both stacks untouched
-      commit({ ...entry, target: forward });
-      rerender();
-    });
+    const forward = api.snapshot(entry.scope); // the opposite-direction target, captured live before the reconcile
+    void api
+      .applyReconcile(entry.target, entry.scope)
+      .then(({ ok }) => {
+        if (!ok) {
+          restore(entry); // executor rolled the client back + surfaced the error; return the entry to its stack
+          rerender();
+          return;
+        }
+        commit({ ...entry, target: forward }); // commit-on-success: move the exact popped entry to the opposite stack
+        rerender();
+      })
+      .finally(() => {
+        inFlightRef.current = false;
+      });
   }
 
   const undo = () => {
     step(
-      () => store.peekUndo(),
+      () => store.popUndo(),
+      (entry) => {
+        store.pushUndo(entry);
+      },
       (redoEntry) => {
-        store.commitUndo(redoEntry);
+        store.pushRedo(redoEntry);
       },
     );
   };
 
   const redo = () => {
     step(
-      () => store.peekRedo(),
+      () => store.popRedo(),
+      (entry) => {
+        store.pushRedo(entry);
+      },
       (undoEntry) => {
-        store.commitRedo(undoEntry);
+        store.pushUndo(undoEntry);
       },
     );
   };

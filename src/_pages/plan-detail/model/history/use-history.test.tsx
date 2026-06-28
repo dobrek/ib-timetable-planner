@@ -184,7 +184,10 @@ describe("commit-on-success", () => {
       expect(apis.dp1.applyReconcile).toHaveBeenCalledTimes(1);
     });
     expect(board.dp1).toEqual(S1); // unchanged — the fake did not write on failure
-    expect(result.current.canUndo).toBe(true);
+    // the failed undo restores the popped entry once the reconcile rejects → still retryable
+    await waitFor(() => {
+      expect(result.current.canUndo).toBe(true);
+    });
     expect(result.current.canRedo).toBe(false);
 
     act(() => {
@@ -193,7 +196,9 @@ describe("commit-on-success", () => {
     await waitFor(() => {
       expect(board.dp1).toEqual(emptySlice());
     });
-    expect(result.current.canRedo).toBe(true);
+    await waitFor(() => {
+      expect(result.current.canRedo).toBe(true); // commit-on-success pushes to redo once the retry resolves
+    });
   });
 });
 
@@ -235,5 +240,23 @@ describe("in-flight guard", () => {
       result.current.undo();
     });
     expect(apis.dp1.applyReconcile).not.toHaveBeenCalled();
+  });
+
+  it("a synchronous double-undo runs only one reconcile (ref-locked before `busy` re-renders)", async () => {
+    const { apis, board } = makeApis(); // busy stays false — only the synchronous ref can stop the second dispatch
+    const { result } = setup(apis);
+    const S1 = sliceOf("a");
+    edit(result, board, "dp1", S1, "e1");
+    edit(result, board, "dp1", sliceOf("b"), "e2");
+
+    act(() => {
+      result.current.undo();
+      result.current.undo(); // same frame, before any re-render — the second must be dropped
+    });
+    await waitFor(() => {
+      expect(board.dp1).toEqual(S1); // only e2 was undone
+    });
+    expect(apis.dp1.applyReconcile).toHaveBeenCalledTimes(1);
+    expect(result.current.canUndo).toBe(true); // e1 is still on the undo stack
   });
 });

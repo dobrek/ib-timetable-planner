@@ -6,7 +6,7 @@ import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../s
 // Combined two-cohort view (S-06) — browser-level coverage (plan Phase 5 #3, US-01).
 //
 // What this proves that the single-cohort cross-cohort spec + the unit guards cannot:
-//   1. The switcher's "Combined" segment navigates to /plans/[id]/combined (the new route).
+//   1. The switcher's "Combined" segment navigates to /plans/[id]?focus=combined.
 //   2. A shared teacher placed at the SAME slot in BOTH cohorts flags the cross-cohort clash on
 //      ADJACENT cells SIMULTANEOUSLY — the one dimension the paired-column layout exists to surface.
 //   3. The cross-column drag guard (FR-008): dragging a DP1 chip onto the DP2 cell does NOT move it.
@@ -38,17 +38,17 @@ test.describe("combined two-cohort view", () => {
     await createStudent(page, plan.id, { name: `Stu DP2 ${id}`, cohort: "DP2", course: dp2Course });
 
     // Commit both placements via the single boards (same slot, week-agnostic → cross-cohort clash).
-    await gotoStable(page, `/plans/${plan.id}?cohort=dp1`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     await computeGroupings(page, dp1Display);
     await placeFromPalette(page, dp1Display, slot);
 
-    await gotoStable(page, `/plans/${plan.id}?cohort=dp2`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp2`);
     await computeGroupings(page, dp2Display);
-    await placeFromPalette(page, dp2Display, slot);
+    await placeFromPalette(page, dp2Display, slot, "DP2");
 
     // --- Navigate to the combined view via the switcher's "Combined" tab.
     await page.getByRole("tablist", { name: "Board view" }).getByRole("tab", { name: "Combined" }).click();
-    await page.waitForURL(new RegExp(`/plans/${plan.id}/combined`));
+    await page.waitForURL(/focus=combined/);
 
     // --- The clash is flagged on BOTH adjacent cells at once (the paired-column payoff).
     await expect(combinedChip(page, "DP1", slot, dp1Display)).toHaveAttribute("aria-invalid", "true");

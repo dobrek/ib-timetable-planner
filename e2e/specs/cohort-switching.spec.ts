@@ -10,7 +10,7 @@ import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../s
 // cross-cohort symmetric teacher-occupancy class could mark a placement *valid* that the
 // richer rule should reject. The same teacher placed in BOTH cohorts at the same slot in an
 // overlapping week is a real, blocking collision. This is browser-level because it only
-// materialises when auth → routing (the `?cohort=` switch) → SSR sibling-occupancy projection
+// materialises when auth → routing (the `?focus=` switch) → SSR sibling-occupancy projection
 // → the rendered, interactive board integrate: the validator is *aware of* the other cohort
 // only through the server-projected index, and the switcher remounts the island onto it.
 //
@@ -58,7 +58,7 @@ test.describe("cohort switching + cross-cohort teacher occupancy", () => {
     await createStudent(page, plan.id, { name: `Stu DP2 ${id}`, cohort: "DP2", course: dp2Course });
 
     // --- DP1: place the shared teacher's course; with no DP2 sibling yet, it is NOT a collision.
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     await computeGroupings(page, dp1Display);
     await placeFromPalette(page, dp1Display, slot);
     await expect(collisionBadge(page, slot)).toHaveCount(0); // over-rejection guard: clean until a sibling exists
@@ -67,9 +67,9 @@ test.describe("cohort switching + cross-cohort teacher occupancy", () => {
     //         occupancy is real, so DP2 flags blocking and names DP1 as the other cohort.
     await switchCohort(page, "DP2");
     await computeGroupings(page, dp2Display);
-    await placeFromPalette(page, dp2Display, slot);
-    await expect(placedChip(page, slot, dp2Display)).toHaveAttribute("aria-invalid", "true");
-    await openCollisionDialog(page, slot);
+    await placeFromPalette(page, dp2Display, slot, "DP2");
+    await expect(placedChip(page, slot, dp2Display, "DP2")).toHaveAttribute("aria-invalid", "true");
+    await openCollisionDialog(page, slot, "DP2");
     await expect(otherCohortViolation(page)).toContainText(`${teacher} is also teaching in DP1 at this time`);
     await closeDialog(page);
 
@@ -100,14 +100,14 @@ async function switchCohort(page: Page, cohort: "DP1" | "DP2"): Promise<void> {
   const sibling = cohort === "DP1" ? "DP2" : "DP1";
   const switcher = page.getByRole("tablist", { name: "Board view" });
   await switcher.getByRole("tab", { name: cohort }).click();
-  await page.waitForURL(new RegExp(`cohort=${cohort.toLowerCase()}`));
+  await page.waitForURL(new RegExp(`focus=${cohort.toLowerCase()}`));
   await expect(switcher.getByRole("tab", { name: cohort, selected: true })).toBeVisible(); // landed on it
   await expect(switcher.getByRole("tab", { name: sibling, selected: false })).toBeVisible(); // sibling is not
 }
 
-/** Open the collision details dialog for `slot` and wait for it to render. */
-async function openCollisionDialog(page: Page, slot: string): Promise<void> {
-  await collisionBadge(page, slot).click();
+/** Open the collision details dialog for `slot` (in `cohort`'s column) and wait for it to render. */
+async function openCollisionDialog(page: Page, slot: string, cohort: "DP1" | "DP2" = "DP1"): Promise<void> {
+  await collisionBadge(page, slot, cohort).click();
   await expect(page.getByRole("dialog").getByRole("heading", { name: /^Collisions —/ })).toBeVisible();
 }
 

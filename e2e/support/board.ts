@@ -17,11 +17,14 @@ const escapeRegExp = (value: string): string => value.replaceAll(/[.*+?^${}()|[\
 // --- Board locators (role-based; see e2e/CLAUDE.md "Role + ARIA as the grid contract") -------
 
 /**
- * A timetable cell by its accessible name, e.g. "Wed, P5". A bundled cell keeps `role="gridcell"`
- * (its explicit role is not overridden when dnd-kit makes it the whole-slot drag surface), so this
- * resolves the cell whether it is empty, single-occupant, or a bundle.
+ * A timetable cell by its accessible name, e.g. "Wed, P5". Every cell is cohort-prefixed now (the
+ * board is always the two-cohort board; a single cohort is a `?focus=` mode), so the slot name is
+ * scoped by `cohort` → "DP1, Wed, P5". The single-cohort specs drive `?focus=dp1` and take the
+ * default; the cohort-switching / combined seeding legs pass "DP2" explicitly. A bundled cell keeps
+ * `role="gridcell"`, so this resolves the cell whether empty, single-occupant, or a bundle.
  */
-export const cell = (page: Page, name: string): Locator => page.getByRole("gridcell", { name, exact: true });
+export const cell = (page: Page, name: string, cohort: "DP1" | "DP2" = "DP1"): Locator =>
+  page.getByRole("gridcell", { name: `${cohort}, ${name}`, exact: true });
 
 /** The palette source chip for `display` (named "<display> <placed>/<required>"); never the placed chip. */
 export const paletteChip = (page: Page, displayName: string): Locator =>
@@ -37,12 +40,12 @@ export const groupingBox = (page: Page, count: number): Locator =>
   page.getByRole("button", { name: new RegExp(`^${count} courses `) });
 
 /** The placed chip in `slot` for `display` (a draggable with role=button, name starts with the course). */
-export const placedChip = (page: Page, slot: string, displayName: string): Locator =>
-  cell(page, slot).getByRole("button", { name: new RegExp(`^${escapeRegExp(displayName)}`) });
+export const placedChip = (page: Page, slot: string, displayName: string, cohort: "DP1" | "DP2" = "DP1"): Locator =>
+  cell(page, slot, cohort).getByRole("button", { name: new RegExp(`^${escapeRegExp(displayName)}`) });
 
 /** The chip's collision badge — present only when the cell is in a blocking violation. */
-export const collisionBadge = (page: Page, slot: string): Locator =>
-  cell(page, slot).getByRole("button", { name: "Show collision details", exact: true });
+export const collisionBadge = (page: Page, slot: string, cohort: "DP1" | "DP2" = "DP1"): Locator =>
+  cell(page, slot, cohort).getByRole("button", { name: "Show collision details", exact: true });
 
 /** The group/ungroup toggle on a cell's bundle header (label flips with the explode state). */
 const bundleToggle = (page: Page, slot: string, label: "Ungroup slot" | "Group slot"): Locator =>
@@ -90,11 +93,16 @@ export async function steppedDrag(page: Page, source: Locator, target: Locator):
  * Drag the palette chip for `display` onto `slot`. Wrapped in `toPass` and made idempotent (skip if
  * the chip is already in the cell) so a rare missed drop retries without double-placing.
  */
-export async function placeFromPalette(page: Page, displayName: string, slot: string): Promise<void> {
-  const landed = placedChip(page, slot, displayName);
+export async function placeFromPalette(
+  page: Page,
+  displayName: string,
+  slot: string,
+  cohort: "DP1" | "DP2" = "DP1",
+): Promise<void> {
+  const landed = placedChip(page, slot, displayName, cohort);
   await expect(async () => {
     if ((await landed.count()) > 0) return; // already placed on a previous attempt
-    await steppedDrag(page, paletteChip(page, displayName), cell(page, slot));
+    await steppedDrag(page, paletteChip(page, displayName), cell(page, slot, cohort));
     await expect(landed).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
 }

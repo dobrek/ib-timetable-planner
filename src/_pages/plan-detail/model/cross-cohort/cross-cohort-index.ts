@@ -40,11 +40,10 @@ export const buildCrossCohortIndex = (cells: SiblingOccupancyCell[]): CrossCohor
 
 /**
  * Project an in-memory placement set into a co-teacher-expanded `SiblingOccupancyCell[]` — one row
- * per (teacher, cell, week). The combined view builds a *live* cross-cohort index from the other
- * column's current placements (not just the SSR snapshot), so it can re-validate one cohort against
- * the other's edits in the same render. The server loader's `projectSiblingOccupancy` is a thin
- * snake_case adapter over this same projection. A placement whose course is absent from
- * `teacherKeysByCourseId` is skipped — its teacher can't be attributed.
+ * per (teacher, cell, week). The board builds a *live* cross-cohort index from the other column's
+ * current placements (not just the SSR snapshot), so it can re-validate one cohort against the
+ * other's edits in the same render. A placement whose course is absent from `teacherKeysByCourseId`
+ * is skipped — its teacher can't be attributed.
  */
 export const projectFromPlacements = (
   placements: { courseId: string; day: number; period: number; week: PlacementWeek }[],

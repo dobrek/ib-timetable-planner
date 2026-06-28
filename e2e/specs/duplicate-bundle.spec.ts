@@ -46,7 +46,7 @@ test.describe("bundle duplication", () => {
     const plan = await createPlan(page, "dup-bundle");
     await provisionCourses(page, plan.id, id, [alphaCourse, bravoCourse]);
 
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     // Mutually co-runnable courses → one grouping box; wait for it as the compute landmark.
     await computeGroupings(page, groupingBox(page, 2));
 
@@ -75,7 +75,7 @@ test.describe("bundle duplication", () => {
     const plan = await createPlan(page, "dup-single");
     await provisionCourses(page, plan.id, id, [soloCourse]);
 
-    await gotoStable(page, `/plans/${plan.id}`);
+    await gotoStable(page, `/plans/${plan.id}?focus=dp1`);
     // A single placeable course → a 1-member grouping, rendered as a palette chip.
     await computeGroupings(page, solo);
 

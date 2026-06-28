@@ -1,16 +1,19 @@
 ---
 import PlannerBoard from "./PlannerBoard";
 import type { PlannerBoardProps } from "../model/drag";
+import type { BoardSurface } from "../lib/board-surface";
 
 type Props = {
   planName: string;
-  boardProps: PlannerBoardProps;
+  focus: BoardSurface;
+  dp1: PlannerBoardProps;
+  dp2: PlannerBoardProps;
   paletteCollapsed: boolean;
 };
 
-const { planName, boardProps, paletteCollapsed } = Astro.props;
+const { planName, focus, dp1, dp2, paletteCollapsed } = Astro.props;
 ---
 
 <div class="flex h-full min-h-0 flex-1 flex-col">
-  <PlannerBoard {...boardProps} planName={planName} paletteCollapsed={paletteCollapsed} client:load />
+  <PlannerBoard planName={planName} focus={focus} dp1={dp1} dp2={dp2} paletteCollapsed={paletteCollapsed} client:load />
 </div>

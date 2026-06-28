@@ -3,14 +3,15 @@ import SidebarLayout from "@/app/layouts/SidebarLayout.astro";
 import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import { createClient } from "@/shared/api";
-import { cohortSchema } from "@/shared/config";
-import { loadPlannerData } from "@/_pages/plan-detail/api";
+import { loadCombinedPlannerData } from "@/_pages/plan-detail/api";
+import { boardSurfaceSchema } from "@/_pages/plan-detail/lib/board-surface";
 import { COOKIE_NAME, parsePaletteCollapsed } from "@/_pages/plan-detail/lib/palette-collapsed";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
-// `?cohort=` selects the active cohort; missing/garbage coerces to dp1 (no error page).
-const cohort = cohortSchema.catch("dp1").parse(Astro.url.searchParams.get("cohort"));
-const result = await loadPlannerData(supabase, Astro.params.id, cohort);
+// `?focus=` selects the surface — dp1 / dp2 / combined; missing/garbage coerces to combined (the
+// default landing — "combined is the board"). Both cohorts always load (one loader for every mode).
+const focus = boardSurfaceSchema.parse(Astro.url.searchParams.get("focus"));
+const result = await loadCombinedPlannerData(supabase, Astro.params.id);
 if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
 
 // Read the per-device palette-collapse pref server-side so the island can seed flash-free
@@ -22,12 +23,14 @@ const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.v
   result.ok ? (
     <SidebarLayout
       title={result.value.planName}
-      plan={{ id: result.value.props.planId, name: result.value.planName }}
+      plan={{ id: result.value.dp1.planId, name: result.value.planName }}
       fullWidth
     >
       <PlanDetailPage
         planName={result.value.planName}
-        boardProps={result.value.props}
+        focus={focus}
+        dp1={result.value.dp1}
+        dp2={result.value.dp2}
         paletteCollapsed={paletteCollapsed}
       />
     </SidebarLayout>

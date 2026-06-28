@@ -475,11 +475,11 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Automated
 
-- [x] 3.1 All unit tests pass, incl. the migrated palette test: `pnpm test`
-- [x] 3.2 Lint + types clean: `pnpm lint`
-- [x] 3.3 FSD structure clean: `pnpm steiger`
-- [x] 3.4 Build clean: `pnpm build`
-- [x] 3.5 No `PairedPlannerGrid`/`PlannerPalette` references remain (lint/steiger unused-import + grep)
+- [x] 3.1 All unit tests pass, incl. the migrated palette test: `pnpm test` — 8862411
+- [x] 3.2 Lint + types clean: `pnpm lint` — 8862411
+- [x] 3.3 FSD structure clean: `pnpm steiger` — 8862411
+- [x] 3.4 Build clean: `pnpm build` — 8862411
+- [x] 3.5 No `PairedPlannerGrid`/`PlannerPalette` references remain (lint/steiger unused-import + grep) — 8862411
 
 #### Manual
 
@@ -490,17 +490,17 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Automated
 
-- [ ] 4.1 All unit tests pass: `pnpm test`
-- [ ] 4.2 Integration suite passes (migrated loader tests): `pnpm test:integration`
-- [ ] 4.3 Lint + types clean: `pnpm lint`
-- [ ] 4.4 FSD structure clean: `pnpm steiger`
-- [ ] 4.5 Build clean: `pnpm build`
-- [ ] 4.6 No `loadPlannerData`/`projectSiblingOccupancy`/`CombinedPlannerBoard`/`PlanDetailCombinedPage`/`combined.astro`/`/combined` refs in `src/`; no `?cohort=` in `src/_pages/plan-detail`+`src/pages/plans` (catalog filters' `?cohort=` is unrelated) — grep clean
+- [x] 4.1 All unit tests pass: `pnpm test`
+- [x] 4.2 Integration suite passes (migrated loader tests): `pnpm test:integration`
+- [x] 4.3 Lint + types clean: `pnpm lint`
+- [x] 4.4 FSD structure clean: `pnpm steiger`
+- [x] 4.5 Build clean: `pnpm build`
+- [x] 4.6 No `loadPlannerData`/`projectSiblingOccupancy`/`CombinedPlannerBoard`/`PlanDetailCombinedPage`/`combined.astro`/`/combined` refs in `src/`; no `?cohort=` in `src/_pages/plan-detail`+`src/pages/plans` (catalog filters' `?cohort=` is unrelated) — grep clean
 
 #### Manual
 
-- [ ] 4.7 Bare `/plans/[id]` → combined board with aggregate-count summary bar
-- [ ] 4.8 `?focus=dp1`/`?focus=dp2` → one column, locked palette, full-screen empty when no groupings, no sibling-dim, cohort-tagged cells
-- [ ] 4.9 Switcher cycles all three surfaces; palette collapse choice persists across switches
-- [ ] 4.10 Drag/move/park/lift/place-back per mode; cross-cohort move rejection in combined
-- [ ] 4.11 Page load + per-drag latency feel unchanged
+- [x] 4.7 Bare `/plans/[id]` → combined board with aggregate-count summary bar — verified via Playwright preview (Seed Plan A: Combined active, DP1+DP2 columns, 78 incomplete/2 parked aggregate)
+- [x] 4.8 `?focus=dp1`/`?focus=dp2` → one column, locked palette, full-screen empty when no groupings, no sibling-dim, cohort-tagged cells — verified via Playwright (one column, no palette switcher, per-cohort counts 36/42, shelf filtered: dp1=2/dp2=0 parked, no leak)
+- [x] 4.9 Switcher cycles all three surfaces; palette collapse choice persists across switches — verified via Playwright (collapse in dp2 → combined collapsed; expand in combined → dp1 expanded; cookie round-trips)
+- [x] 4.10 Drag/move/park/lift/place-back per mode; cross-cohort move rejection in combined — verified via full e2e suite (18 pass: combined-view cross-column guard, combined-shelf-park, bundle/duplicate/shelf drag specs at `?focus=dp1`)
+- [x] 4.11 Page load + per-drag latency feel unchanged — loader cost is SSR-only/parallelized; e2e drags complete in normal time

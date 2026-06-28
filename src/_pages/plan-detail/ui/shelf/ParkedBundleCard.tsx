@@ -10,9 +10,9 @@ import { stopDrag } from "../../lib/drag-inert";
 type Props = {
   bundle: LocalParkedBundle;
   names: Record<string, string>;
-  /** Combined view (S-06): tags the card DP1/DP2 and scopes its place-back drag to that cohort.
-   *  Absent on the single-cohort shelf — no badge, cohort-free drag (today's behaviour). */
-  cohort?: Cohort;
+  /** The bundle's owning cohort — always set; tags the card DP1/DP2 and scopes its place-back drag
+   *  to that cohort (one shared shelf in combined; the single board tags its one cohort too). */
+  cohort: Cohort;
   onRemove: (shelfBundleId: string) => void;
 };
 
@@ -47,11 +47,9 @@ export default function ParkedBundleCard({ bundle, names, cohort, onRemove }: Pr
     >
       <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium">
         <GripVertical className="text-muted-foreground size-4" />
-        {cohort && (
-          <Badge data-slot="parked-cohort-badge" variant="outline" title={`Parked from ${cohortLabel(cohort)}`}>
-            {cohortLabel(cohort)}
-          </Badge>
-        )}
+        <Badge data-slot="parked-cohort-badge" variant="outline" title={`Parked from ${cohortLabel(cohort)}`}>
+          {cohortLabel(cohort)}
+        </Badge>
         {weekAware && (
           <Badge data-slot="parked-week-badge" variant="secondary" title="Members run on specific weeks (A/B)">
             A/B

@@ -34,8 +34,9 @@ export default function GroupDragOverlay({ groupings, names, placements, parkedB
         }
         if (data.kind === "bundle") {
           // In the combined view, resolve the dragged cell within its OWN cohort so the overlay
-          // never merges the sibling column's courses at the same day/period.
-          const cellPlacements = (data.cohort ? placementsByCohort?.[data.cohort] : undefined) ?? placements;
+          // never merges the sibling column's courses at the same day/period. The single board has no
+          // `placementsByCohort`, so it falls back to its one `placements` set.
+          const cellPlacements = placementsByCohort?.[data.cohort] ?? placements;
           const memberIds = cellPlacements
             .filter((placement) => placement.day === data.day && placement.period === data.period)
             .map((placement) => placement.courseId);

@@ -27,6 +27,7 @@ const renderCell = (occupants: CellOccupant[], bundled: boolean, overrides: Part
   const props: CellProps = {
     day: 2,
     period: 3,
+    cohort: "dp1",
     occupants,
     dropHint: undefined,
     hintActive: false,

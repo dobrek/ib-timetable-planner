@@ -86,7 +86,7 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
     if (!data) return;
     // A relocating drag carries its source cohort; a cohort-free palette drag (course/grouping)
     // targets the palette's active cohort — both light that cohort's hints and dim the sibling.
-    const dragCohort = "cohort" in data && data.cohort ? data.cohort : paletteCohort;
+    const dragCohort = "cohort" in data ? data.cohort : paletteCohort;
     byCohort[dragCohort].startDragHints(data);
     setActiveDragCohort(dragCohort);
   }

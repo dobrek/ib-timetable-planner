@@ -206,7 +206,7 @@ describe("resolveDragHintContext", () => {
   it("resolves a placement drag to its course, exclusion id, and origin cell", () => {
     const a = course("A", "t1", ["s1"]);
     const result = resolveDragHintContext(
-      { kind: "placement", placementId: "p1", courseId: "A" },
+      { kind: "placement", placementId: "p1", courseId: "A", cohort: "dp1" },
       { catalogById: catalog(a), groupings: [], placements: [placement("p1", "A", 2, 3)] },
     );
     expect(result).toEqual({ members: [a], excludePlacementIds: ["p1"], origin: { day: 2, period: 3 } });
@@ -216,7 +216,7 @@ describe("resolveDragHintContext", () => {
     const a = course("A", "t1", ["s1"]);
     const b = course("B", "t2", ["s2"]);
     const result = resolveDragHintContext(
-      { kind: "bundle", day: 2, period: 3 },
+      { kind: "bundle", day: 2, period: 3, cohort: "dp1" },
       {
         catalogById: catalog(a, b),
         groupings: [],
@@ -229,7 +229,7 @@ describe("resolveDragHintContext", () => {
 
   it("returns null for a bundle drag over an empty cell (no members resolve)", () => {
     const result = resolveDragHintContext(
-      { kind: "bundle", day: 9, period: 9 },
+      { kind: "bundle", day: 9, period: 9, cohort: "dp1" },
       { catalogById: catalog(course("A", "t1", ["s1"])), groupings: [], placements: [placement("p1", "A", 1, 1)] },
     );
     expect(result).toBeNull();
@@ -237,7 +237,7 @@ describe("resolveDragHintContext", () => {
 
   it("returns null for a placement drag whose course is absent from the catalog", () => {
     const result = resolveDragHintContext(
-      { kind: "placement", placementId: "p1", courseId: "GHOST" },
+      { kind: "placement", placementId: "p1", courseId: "GHOST", cohort: "dp1" },
       { catalogById: catalog(course("A", "t1", ["s1"])), groupings: [], placements: [placement("p1", "GHOST", 1, 1)] },
     );
     expect(result).toBeNull();

@@ -5,7 +5,7 @@ import type { CellData } from "../drag";
 import type { PlannerGrouping } from "../grouping/grouping";
 import type { CohortActions } from "../use-cohort-board-state";
 
-const cell: CellData = { day: 2, period: 3, cohort: "dp1" };
+const cell: CellData = { day: 2, period: 3 };
 
 // c1 is week-agnostic (parks as "both"); c5 is biweekly (parks as "a").
 const weekModeByCourseId = new Map<string, WeekMode>([

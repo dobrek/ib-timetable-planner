@@ -447,10 +447,10 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Automated
 
-- [x] 1.1 Unit tests pass, incl. the new dispatch suite: `pnpm test`
-- [x] 1.2 Lint + types clean: `pnpm lint`
-- [x] 1.3 FSD structure clean: `pnpm steiger`
-- [x] 1.4 Production build clean: `pnpm build`
+- [x] 1.1 Unit tests pass, incl. the new dispatch suite: `pnpm test` — 677a13d
+- [x] 1.2 Lint + types clean: `pnpm lint` — 677a13d
+- [x] 1.3 FSD structure clean: `pnpm steiger` — 677a13d
+- [x] 1.4 Production build clean: `pnpm build` — 677a13d
 
 #### Manual
 
@@ -461,10 +461,10 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Automated
 
-- [ ] 2.1 All unit tests pass, incl. the rewritten `drop-router.test.ts`: `pnpm test`
-- [ ] 2.2 Lint + types clean: `pnpm lint`
-- [ ] 2.3 FSD structure clean: `pnpm steiger`
-- [ ] 2.4 Build clean: `pnpm build`
+- [x] 2.1 All unit tests pass, incl. the rewritten `drop-router.test.ts`: `pnpm test`
+- [x] 2.2 Lint + types clean: `pnpm lint`
+- [x] 2.3 FSD structure clean: `pnpm steiger`
+- [x] 2.4 Build clean: `pnpm build`
 
 #### Manual
 

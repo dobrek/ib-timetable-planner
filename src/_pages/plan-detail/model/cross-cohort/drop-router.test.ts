@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { resolveCombinedDrop } from "./drop-router";
-import type { BundleDrag, CellData, CourseDrag, GroupDrag, ParkedDrag, PlacementDrag, ShelfData } from "../drag";
+import type { BundleDrag, CellDropData, CourseDrag, GroupDrag, ParkedDrag, PlacementDrag, ShelfData } from "../drag";
 
-const cell = (cohort: "dp1" | "dp2", day = 1, period = 1): CellData => ({ day, period, cohort });
+const cell = (cohort: "dp1" | "dp2", day = 1, period = 1): CellDropData => ({ day, period, cohort });
 const shelf: ShelfData = { kind: "shelf" };
 
 describe("resolveCombinedDrop — cross-cohort guard", () => {
@@ -93,46 +93,50 @@ describe("resolveCombinedDrop — park to shelf", () => {
   });
 });
 
-// The single board is the degenerate one-cohort case: its cells/drags carry NO cohort (untagged, to
-// preserve the cell aria-label + parked-card tag). Every missing cohort resolves to `activeCohort` —
-// the board's one cohort — so the cross-cohort guard never rejects and the dispatch matches the old
-// single-board `switch (kind)`. These fold in the retired `single-drop.test.ts` cases.
-describe("resolveCombinedDrop — single board (untagged, one cohort)", () => {
-  const bareCell = (day = 1, period = 1): CellData => ({ day, period });
-
-  it("places a palette course on an untagged cell under the board's cohort", () => {
-    expect(resolveCombinedDrop({ kind: "course", courseId: "c1" }, bareCell(2, 3), "dp1")).toEqual({
+// The single board is now a FOCUS MODE of the combined board: it tags its ONE cohort on every cell
+// and relocating drag (the same machinery as combined, just one column). These lock that a focused,
+// single-cohort surface resolves identically — the cross-cohort guard trivially passes within the one
+// cohort, and a palette course/grouping parks under the focused cohort.
+describe("resolveCombinedDrop — single focus mode (tagged, one cohort)", () => {
+  it("places a palette course on the focused cohort's cell", () => {
+    expect(resolveCombinedDrop({ kind: "course", courseId: "c1" }, cell("dp1", 2, 3), "dp1")).toEqual({
       kind: "addCourse",
       cohort: "dp1",
       courseId: "c1",
-      cell: bareCell(2, 3),
+      cell: cell("dp1", 2, 3),
     });
   });
 
-  it("fans a grouping into an untagged cell under the board's cohort", () => {
-    expect(resolveCombinedDrop({ kind: "grouping", groupingId: "g1" }, bareCell(), "dp1")).toEqual({
+  it("fans a grouping into the focused cohort's cell", () => {
+    expect(resolveCombinedDrop({ kind: "grouping", groupingId: "g1" }, cell("dp1"), "dp1")).toEqual({
       kind: "dropGroup",
       cohort: "dp1",
       groupingId: "g1",
-      cell: bareCell(),
+      cell: cell("dp1"),
     });
   });
 
-  it("moves an untagged placement onto an untagged cell — the guard trivially passes", () => {
+  it("moves a placement within the focused cohort — the guard trivially passes", () => {
     expect(
-      resolveCombinedDrop({ kind: "placement", placementId: "p1", courseId: "c1" }, bareCell(4, 5), "dp1"),
-    ).toEqual({ kind: "movePlacement", cohort: "dp1", placementId: "p1", cell: bareCell(4, 5) });
+      resolveCombinedDrop(
+        { kind: "placement", placementId: "p1", courseId: "c1", cohort: "dp1" },
+        cell("dp1", 4, 5),
+        "dp1",
+      ),
+    ).toEqual({ kind: "movePlacement", cohort: "dp1", placementId: "p1", cell: cell("dp1", 4, 5) });
   });
 
-  it("moves an untagged bundle onto a cell, and lifts one off onto the shelf", () => {
-    expect(resolveCombinedDrop({ kind: "bundle", day: 1, period: 1 }, bareCell(2, 2), "dp1")).toEqual({
-      kind: "moveBundle",
-      cohort: "dp1",
-      day: 1,
-      period: 1,
-      cell: bareCell(2, 2),
-    });
-    expect(resolveCombinedDrop({ kind: "bundle", day: 2, period: 3 }, shelf, "dp1")).toEqual({
+  it("moves a bundle within the focused cohort, and lifts one off onto the shelf", () => {
+    expect(resolveCombinedDrop({ kind: "bundle", day: 1, period: 1, cohort: "dp1" }, cell("dp1", 2, 2), "dp1")).toEqual(
+      {
+        kind: "moveBundle",
+        cohort: "dp1",
+        day: 1,
+        period: 1,
+        cell: cell("dp1", 2, 2),
+      },
+    );
+    expect(resolveCombinedDrop({ kind: "bundle", day: 2, period: 3, cohort: "dp1" }, shelf, "dp1")).toEqual({
       kind: "liftBundle",
       cohort: "dp1",
       day: 2,
@@ -140,17 +144,19 @@ describe("resolveCombinedDrop — single board (untagged, one cohort)", () => {
     });
   });
 
-  it("places an untagged parked card back onto a cell, and no-ops on the shelf", () => {
-    expect(resolveCombinedDrop({ kind: "parked", shelfBundleId: "s1" }, bareCell(3, 3), "dp1")).toEqual({
+  it("places a parked card back onto the focused cohort's cell, and no-ops on the shelf", () => {
+    expect(
+      resolveCombinedDrop({ kind: "parked", shelfBundleId: "s1", cohort: "dp1" }, cell("dp1", 3, 3), "dp1"),
+    ).toEqual({
       kind: "placeBack",
       cohort: "dp1",
       shelfBundleId: "s1",
-      cell: bareCell(3, 3),
+      cell: cell("dp1", 3, 3),
     });
-    expect(resolveCombinedDrop({ kind: "parked", shelfBundleId: "s1" }, shelf, "dp1")).toBeNull();
+    expect(resolveCombinedDrop({ kind: "parked", shelfBundleId: "s1", cohort: "dp1" }, shelf, "dp1")).toBeNull();
   });
 
-  it("parks an untagged palette course / grouping onto the shelf under the board's cohort", () => {
+  it("parks a palette course / grouping onto the shelf under the focused cohort", () => {
     expect(resolveCombinedDrop({ kind: "course", courseId: "c1" }, shelf, "dp1")).toEqual({
       kind: "parkCourse",
       cohort: "dp1",
@@ -163,7 +169,9 @@ describe("resolveCombinedDrop — single board (untagged, one cohort)", () => {
     });
   });
 
-  it("no-ops an untagged placement dropped on the shelf", () => {
-    expect(resolveCombinedDrop({ kind: "placement", placementId: "p1", courseId: "c1" }, shelf, "dp1")).toBeNull();
+  it("no-ops a placement dropped on the shelf", () => {
+    expect(
+      resolveCombinedDrop({ kind: "placement", placementId: "p1", courseId: "c1", cohort: "dp1" }, shelf, "dp1"),
+    ).toBeNull();
   });
 });

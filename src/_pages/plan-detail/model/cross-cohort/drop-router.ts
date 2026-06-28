@@ -19,18 +19,20 @@ export type CombinedDropAction =
 
 /**
  * Pure drop router + cross-cohort guard — the ONE router both boards use. `course`/`grouping` come
- * from the (cohort-scoped) palette: dropped on a cell they adopt its cohort (`addCourse`/`dropGroup`);
- * dropped on the cell-less shelf they **park** under `activeCohort` (`parkCourse`/`parkGroup`) — the
- * only cohort signal a cohort-free palette drag carries off-board (the palette's active cohort).
- * `placement`/`bundle`/`parked` carry their source cohort and are **rejected** (→ `null`) when it
- * differs from the target cell's cohort. A `bundle` on the shelf lifts off the board, routed by source
- * cohort; a `placement`/`parked` on the shelf is a no-op.
+ * from the (cohort-scoped) palette and are confined to `activeCohort`: dropped on an `activeCohort`
+ * cell they place (`addCourse`/`dropGroup`); dropped on the OTHER cohort's cell they are **rejected**
+ * (→ `null`) — a palette drag can never persist a course/grouping under a cohort whose catalog it
+ * doesn't belong to; dropped on the cell-less shelf they **park** under `activeCohort`
+ * (`parkCourse`/`parkGroup`). `placement`/`bundle`/`parked` carry their source cohort and are likewise
+ * **rejected** when it differs from the target cell's cohort. A `bundle` on the shelf lifts off the
+ * board, routed by source cohort; a `placement`/`parked` on the shelf is a no-op.
  *
  * Every cell and relocating drag is cohort-tagged — the combined view's two columns, and the single
  * board its one cohort (a focus mode of the same board). So `targetCohort` reads straight off the
- * cell and the cross-cohort guard compares two real cohorts. `activeCohort` survives only for the
- * off-board park case: a cohort-free palette `course`/`grouping` dropped on the cell-less shelf parks
- * under it (in focus mode = the focused cohort; in combined = the palette's active cohort).
+ * cell and the cross-cohort guard compares two real cohorts. `activeCohort` is the palette's cohort:
+ * it is the only cohort signal a cohort-free palette drag carries, used both to confine on-board
+ * `course`/`grouping` placement and to route the off-board park (in focus mode = the focused cohort;
+ * in combined = the palette's active cohort).
  */
 export const resolveCombinedDrop = (
   data: DragData,
@@ -42,13 +44,15 @@ export const resolveCombinedDrop = (
 
   switch (data.kind) {
     case "course":
-      return cell && targetCohort
-        ? { kind: "addCourse", cohort: targetCohort, courseId: data.courseId, cell }
-        : { kind: "parkCourse", cohort: activeCohort, courseId: data.courseId };
+      if (!cell) return { kind: "parkCourse", cohort: activeCohort, courseId: data.courseId };
+      return targetCohort === activeCohort
+        ? { kind: "addCourse", cohort: activeCohort, courseId: data.courseId, cell }
+        : null;
     case "grouping":
-      return cell && targetCohort
-        ? { kind: "dropGroup", cohort: targetCohort, groupingId: data.groupingId, cell }
-        : { kind: "parkGroup", cohort: activeCohort, groupingId: data.groupingId };
+      if (!cell) return { kind: "parkGroup", cohort: activeCohort, groupingId: data.groupingId };
+      return targetCohort === activeCohort
+        ? { kind: "dropGroup", cohort: activeCohort, groupingId: data.groupingId, cell }
+        : null;
     case "placement":
       return cell && targetCohort && data.cohort === targetCohort
         ? { kind: "movePlacement", cohort: targetCohort, placementId: data.placementId, cell }

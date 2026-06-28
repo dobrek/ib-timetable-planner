@@ -4,6 +4,7 @@ import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps } from "./drag";
 import type { LocalPlacement } from "./placement/placement";
 import { usePlacements, type UsePlacementsArgs } from "./use-placements";
+import { useHistoryControls, useHistoryRecorder } from "./history/use-history";
 import { useExplodedCells } from "./use-exploded-cells";
 import {
   useAvailabilityIndex,
@@ -42,6 +43,10 @@ export function useCombinedBoardState(
   dp2Props: PlannerBoardProps,
   focus: BoardSurface = "combined",
 ) {
+  // History recorder built FIRST: its stable `record` exists before either `usePlacements` runs, so
+  // each cohort can receive it as `onRecord` (the upstream half of the ordering cycle).
+  const { store, record } = useHistoryRecorder();
+
   // Static SSR-seed indices for `usePlacements` (duplicate-target search only). Built once.
   const dp1SeedIndex = useMemo(
     () => buildCrossCohortIndex(dp1Props.crossCohortOccupancy),
@@ -52,8 +57,12 @@ export function useCombinedBoardState(
     [dp2Props.crossCohortOccupancy],
   );
 
-  const dp1Base = useCohortPlacements(dp1Props, dp1SeedIndex);
-  const dp2Base = useCohortPlacements(dp2Props, dp2SeedIndex);
+  const dp1Base = useCohortPlacements(dp1Props, dp1SeedIndex, (entry) => {
+    record("dp1", entry);
+  });
+  const dp2Base = useCohortPlacements(dp2Props, dp2SeedIndex, (entry) => {
+    record("dp2", entry);
+  });
 
   // Live cross-index: each cohort's occupancy from the OTHER column's current placements + catalog.
   // In focus mode the HIDDEN cohort idles on its static seed index (its output is unused and its own
@@ -73,9 +82,14 @@ export function useCombinedBoardState(
   const dp1Deriv = useCohortDerivations(dp1Props, dp1Base, dp1Index);
   const dp2Deriv = useCohortDerivations(dp2Props, dp2Base, dp2Index);
 
+  // History controls bound LAST: `undo`/`redo` need each cohort's reconcile/snapshot/busy, which
+  // only exist now that both bases have run (the downstream half of the ordering cycle).
+  const history = useHistoryControls(store, { dp1: dp1Base.api, dp2: dp2Base.api });
+
   return {
     dp1: toCohortState(dp1Props, dp1Base, dp1Deriv),
     dp2: toCohortState(dp2Props, dp2Base, dp2Deriv),
+    history,
   };
 }
 

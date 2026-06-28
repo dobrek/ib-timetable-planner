@@ -353,27 +353,27 @@ None — no schema change. The durable-across-reload variant (a fast-follow) wou
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `pnpm test` (onRecord matrix; no-record on rollback / from applyReconcile; applyReconcile state-drive + id-remap + two-store + rollback)
-- [x] 2.2 Type checking passes: `pnpm check`
-- [x] 2.3 Linting passes: `pnpm lint`
-- [x] 2.4 FSD structure check passes: `pnpm steiger`
+- [x] 2.1 Unit tests pass: `pnpm test` (onRecord matrix; no-record on rollback / from applyReconcile; applyReconcile state-drive + id-remap + two-store + rollback) — 25bc23f
+- [x] 2.2 Type checking passes: `pnpm check` — 25bc23f
+- [x] 2.3 Linting passes: `pnpm lint` — 25bc23f
+- [x] 2.4 FSD structure check passes: `pnpm steiger` — 25bc23f
 
 #### Manual
 
-- [x] 2.5 Reviewer confirms recorder-bypass is structural (no mode flag; applyReconcile has no record path)
+- [x] 2.5 Reviewer confirms recorder-bypass is structural (no mode flag; applyReconcile has no record path) — 25bc23f
 
 ### Phase 3: Plan-level undo/redo orchestration
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `pnpm test` (undo/redo, multi-step, cross-cohort interleaving, redo-invalidation, commit-on-success, before-only-snapshot stale-cell, in-flight guard)
-- [ ] 3.2 Type checking passes: `pnpm check`
-- [ ] 3.3 Linting passes: `pnpm lint`
-- [ ] 3.4 FSD structure check passes: `pnpm steiger`
+- [x] 3.1 Unit tests pass: `pnpm test` (undo/redo, multi-step, cross-cohort interleaving, redo-invalidation, commit-on-success, before-only-snapshot stale-cell, in-flight guard)
+- [x] 3.2 Type checking passes: `pnpm check`
+- [x] 3.3 Linting passes: `pnpm lint`
+- [x] 3.4 FSD structure check passes: `pnpm steiger`
 
 #### Manual
 
-- [ ] 3.5 Reviewer confirms ordering-cycle resolution mirrors the cross-index pattern (no render-time read of a not-yet-built value)
+- [x] 3.5 Reviewer confirms ordering-cycle resolution mirrors the cross-index pattern (no render-time read of a not-yet-built value)
 
 ### Phase 4: UX surface — keyboard + toolbar buttons
 

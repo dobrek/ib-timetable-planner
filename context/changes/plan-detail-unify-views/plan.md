@@ -461,10 +461,10 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Automated
 
-- [x] 2.1 All unit tests pass, incl. the rewritten `drop-router.test.ts`: `pnpm test`
-- [x] 2.2 Lint + types clean: `pnpm lint`
-- [x] 2.3 FSD structure clean: `pnpm steiger`
-- [x] 2.4 Build clean: `pnpm build`
+- [x] 2.1 All unit tests pass, incl. the rewritten `drop-router.test.ts`: `pnpm test` — e02608c
+- [x] 2.2 Lint + types clean: `pnpm lint` — e02608c
+- [x] 2.3 FSD structure clean: `pnpm steiger` — e02608c
+- [x] 2.4 Build clean: `pnpm build` — e02608c
 
 #### Manual
 
@@ -475,11 +475,11 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Automated
 
-- [ ] 3.1 All unit tests pass, incl. the migrated palette test: `pnpm test`
-- [ ] 3.2 Lint + types clean: `pnpm lint`
-- [ ] 3.3 FSD structure clean: `pnpm steiger`
-- [ ] 3.4 Build clean: `pnpm build`
-- [ ] 3.5 No `PairedPlannerGrid`/`PlannerPalette` references remain (lint/steiger unused-import + grep)
+- [x] 3.1 All unit tests pass, incl. the migrated palette test: `pnpm test`
+- [x] 3.2 Lint + types clean: `pnpm lint`
+- [x] 3.3 FSD structure clean: `pnpm steiger`
+- [x] 3.4 Build clean: `pnpm build`
+- [x] 3.5 No `PairedPlannerGrid`/`PlannerPalette` references remain (lint/steiger unused-import + grep)
 
 #### Manual
 

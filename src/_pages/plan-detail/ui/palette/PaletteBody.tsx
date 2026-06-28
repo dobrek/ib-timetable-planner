@@ -20,9 +20,9 @@ type Props = {
 
 /**
  * The palette's interactive body — the leading-course filter + the grouping list — rendered as the
- * `ready` body of the shared `CollapsibleEdgePanel` by BOTH the single board (`PlannerPalette`) and
- * the combined view (`CombinedPalettePanel`). Extracting it lets the combined palette keep a constant
- * header + cohort-switcher toolbar while only the body swaps across ready/stale/empty.
+ * `ready` body of the shared `CollapsibleEdgePanel` by the one palette panel (`CombinedPalettePanel`)
+ * in both focus and combined modes. Extracting it lets the panel keep a constant header (+ optional
+ * cohort-switcher toolbar) while only the body swaps across ready/stale/empty.
  *
  * The filter selection is purely a rendering concern — nothing outside the palette reads it — so its
  * state lives here (`usePaletteFilter`), while the membership predicates and cascading options are

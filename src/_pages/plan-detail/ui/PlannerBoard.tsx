@@ -14,9 +14,9 @@ import {
   usePaletteDisclosure,
   useShelfDisclosure,
 } from "./chrome";
-import { PlannerGrid, useCellWiring } from "./grid";
+import { PlannerGrid, useCellWiring, type PairedColumn } from "./grid";
 import { CollisionDetailsDialog, GroupDragOverlay } from "./overlay";
-import { ComputeGroupingsEmptyState, PlannerPalette } from "./palette";
+import { CombinedPalettePanel, ComputeGroupingsEmptyState, type PaletteCohortData } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import type { DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
@@ -78,7 +78,7 @@ export default function PlannerBoard({
   );
 
   // Bundle the per-cell handlers + drag-hint state into one referentially-stable object, spread once
-  // into each cell (mirrors `PairedPlannerGrid`) instead of hand-threading the 11 fields per hop.
+  // into each cell (the one grid spreads `{...column.wiring}`) instead of hand-threading 11 fields.
   const wiring = useCellWiring({
     dropHints,
     hintMode,
@@ -94,6 +94,10 @@ export default function PlannerBoard({
     },
     onInspect: inspection.open,
   });
+
+  // One grid column / one palette cohort — the focus-mode degenerate case of the combined inputs.
+  const column: PairedColumn = { cohort, placements, names, collisions, wiring };
+  const paletteCohortData: PaletteCohortData = { cohort, planId, groupings, names, hours, stale };
 
   // Only the placement write path can error now — ungroup is ephemeral UI state (no writes).
   const banner = error;
@@ -152,13 +156,9 @@ export default function PlannerBoard({
         />
       }
       palette={
-        <PlannerPalette
-          groupings={groupings}
-          names={names}
-          hours={hours}
-          stale={paletteView === "stale"}
-          planId={planId}
-          cohort={cohort}
+        <CombinedPalettePanel
+          cohorts={[paletteCohortData]}
+          activeCohort={cohort}
           collapsed={collapsed}
           onCollapsedChange={setCollapsed}
         />
@@ -174,11 +174,8 @@ export default function PlannerBoard({
               days={days}
               periods={periods}
               gridLabel={`${cohortLabel(cohort)} timetable`}
-              cohort={cohort}
-              placements={placements}
-              names={names}
-              collisions={collisions}
-              wiring={wiring}
+              columns={[column]}
+              activeDragCohort={null}
             />
           </div>
         </div>

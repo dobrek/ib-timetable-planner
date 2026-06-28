@@ -2,9 +2,9 @@ import { DragDropProvider } from "@dnd-kit/react";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import GroupingFilter from "./GroupingFilter";
-import PlannerPalette, { usePaletteFilter } from "./PlannerPalette";
+import CombinedPalettePanel, { usePaletteFilter } from "./CombinedPalettePanel";
 
-// PlannerPalette now imports GroupingStalePanel (the stale body), which deep-imports
+// CombinedPalettePanel imports GroupingStalePanel (the stale body), which deep-imports
 // `@/shared/lib/forms` → `astro:transitions/client` — an astro virtual module Vitest can't resolve.
 // Mock it (the panel renders the ready body here, so the stale path is never exercised) — mirrors
 // GroupingStalePanel.test's own mock.
@@ -173,24 +173,29 @@ describe("GroupingFilter companion select", () => {
   });
 });
 
-describe("PlannerPalette collapse disclosure", () => {
+describe("CombinedPalettePanel collapse disclosure (single cohort, no toolbar)", () => {
   // The mounted GroupingBox / PaletteCourseChip children call useDraggable, so the palette must
-  // render inside a DragDropProvider.
-  const renderPalette = (overrides: Partial<React.ComponentProps<typeof PlannerPalette>> = {}) => {
-    const props: React.ComponentProps<typeof PlannerPalette> = {
-      groupings: GROUPINGS,
-      names: NAMES,
-      hours: new Map<string, HoursStat>(),
-      stale: false,
-      planId: "plan-1",
-      cohort: "dp1",
+  // render inside a DragDropProvider. One cohort → no switcher toolbar (the focus-mode render).
+  const renderPalette = (overrides: Partial<React.ComponentProps<typeof CombinedPalettePanel>> = {}) => {
+    const props: React.ComponentProps<typeof CombinedPalettePanel> = {
+      cohorts: [
+        {
+          cohort: "dp1",
+          planId: "plan-1",
+          groupings: GROUPINGS,
+          names: NAMES,
+          hours: new Map<string, HoursStat>(),
+          stale: false,
+        },
+      ],
+      activeCohort: "dp1",
       collapsed: false,
       onCollapsedChange: vi.fn(),
       ...overrides,
     };
     render(
       <DragDropProvider>
-        <PlannerPalette {...props} />
+        <CombinedPalettePanel {...props} />
       </DragDropProvider>,
     );
     return props;

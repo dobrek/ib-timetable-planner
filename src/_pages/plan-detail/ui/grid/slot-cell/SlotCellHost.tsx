@@ -9,10 +9,10 @@ import type { HintMode } from "../../../lib/drag-hint-mode";
 import { isBundled } from "../../../model/exploded-cells";
 
 /**
- * The cell wiring shared by every grid that renders cells — handlers plus the cell-level drag-hint
- * state. Declared once here (lifted out of `PlannerGrid`) so the single-cohort `PlannerGrid` and the
- * combined `PairedPlannerGrid` both feed `SlotCellHost` the same shape. Per-cell data (occupants,
- * the resolved hint) is added on top at each level.
+ * The cell wiring shared by every column the grid renders — handlers plus the cell-level drag-hint
+ * state. Declared once here (lifted out of `PlannerGrid`) so each `PairedColumn` feeds `SlotCellHost`
+ * the same shape whether the grid shows one column (focus) or two (combined). Per-cell data
+ * (occupants, the resolved hint) is added on top at each level.
  */
 export type CellWiring = {
   /** cellKey → drag hint (sparse: absent = free); null when no drag is active. */
@@ -35,9 +35,9 @@ export type CellWiring = {
 /**
  * One slot's `SlotCell` plus its per-cell derivation: the drop-hint lookup + `hintActive`, the
  * `bundled` flag, and the `justDuplicated` pulse-key match. Extracting it keeps the cell plumbing in
- * one place so neither `PlannerGrid`'s `PeriodRow` nor the combined `PairedPlannerGrid` re-inlines
- * it. `cohort` (always set) namespaces the dnd ids; `dimmed` recedes a sibling-cohort cell during a
- * cross-cohort drag (combined only — absent/false on the single-cohort board).
+ * one place so the grid's per-column render doesn't re-inline it. `cohort` (always set) namespaces the
+ * dnd ids; `dimmed` recedes a sibling-cohort cell during a cross-cohort drag (combined only —
+ * absent/false in focus mode).
  */
 export function SlotCellHost({
   day,

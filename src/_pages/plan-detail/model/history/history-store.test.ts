@@ -31,32 +31,48 @@ describe("createInMemoryHistoryStore", () => {
   it("a fresh push clears the redo stack (a new edit invalidates the redo branch)", () => {
     const store = createInMemoryHistoryStore();
     store.push(entry("edit"));
-    store.commitUndo(entry("edit-redo")); // simulate an undo → redo gains an entry
+    store.popUndo(); // simulate an undo dispatch...
+    store.pushRedo(entry("edit-redo")); // ...committed to redo on success
     expect(store.canRedo()).toBe(true);
 
     store.push(entry("fresh edit"));
     expect(store.canRedo()).toBe(false);
   });
 
-  it("commitUndo moves the top undo entry to the redo stack", () => {
+  it("undo transfer: pop the top undo entry, push the forward target to redo", () => {
     const store = createInMemoryHistoryStore();
     store.push(entry("a"));
     store.push(entry("b"));
 
-    store.commitUndo(entry("b-forward"));
+    expect(store.popUndo()?.label).toBe("b");
+    store.pushRedo(entry("b-forward"));
     expect(store.peekUndo()?.label).toBe("a");
     expect(store.peekRedo()?.label).toBe("b-forward");
     expect(store.canRedo()).toBe(true);
   });
 
-  it("commitRedo moves the top redo entry back to the undo stack", () => {
+  it("redo transfer: pop the top redo entry, push the back target to undo", () => {
     const store = createInMemoryHistoryStore();
     store.push(entry("a"));
-    store.commitUndo(entry("a-forward"));
+    store.popUndo();
+    store.pushRedo(entry("a-forward")); // a is now on the redo stack
 
-    store.commitRedo(entry("a-back"));
+    expect(store.popRedo()?.label).toBe("a-forward");
+    store.pushUndo(entry("a-back"));
     expect(store.canRedo()).toBe(false);
     expect(store.peekUndo()?.label).toBe("a-back");
+  });
+
+  it("pushUndo (the transfer/restore push) does NOT clear redo, unlike a fresh push", () => {
+    const store = createInMemoryHistoryStore();
+    store.push(entry("a"));
+    store.popUndo();
+    store.pushRedo(entry("a-forward")); // redo now holds an entry
+    expect(store.canRedo()).toBe(true);
+
+    store.pushUndo(entry("restored")); // a failed-undo restore must preserve the redo branch
+    expect(store.canRedo()).toBe(true);
+    expect(store.peekUndo()?.label).toBe("restored");
   });
 
   it("popUndo / popRedo remove and return the top entry", () => {
@@ -71,9 +87,13 @@ describe("createInMemoryHistoryStore", () => {
   it("a full undo→redo→undo walk converges (stacks stay consistent)", () => {
     const store = createInMemoryHistoryStore();
     store.push(entry("edit"));
-    store.commitUndo(entry("edit-fwd")); // undo
+
+    store.popUndo(); // undo dispatch
+    store.pushRedo(entry("edit-fwd")); // ...committed
     expect(store.canUndo()).toBe(false);
-    store.commitRedo(entry("edit-back")); // redo
+
+    store.popRedo(); // redo dispatch
+    store.pushUndo(entry("edit-back")); // ...committed
     expect(store.canUndo()).toBe(true);
     expect(store.canRedo()).toBe(false);
   });

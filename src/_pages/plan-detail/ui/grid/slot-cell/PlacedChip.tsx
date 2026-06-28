@@ -20,9 +20,9 @@ import { WeekToggle } from "./WeekToggle";
 export type ChipWiring = {
   day: number;
   period: number;
-  /** Combined-view opt-in (S-06): stamped onto the single-placement drag so a cross-cohort
-   *  single-course move is guarded. Absent on the single-cohort board. */
-  cohort?: Cohort;
+  /** The chip's cohort — always set; stamped onto the single-placement drag so a cross-cohort
+   *  single-course move is guarded (one board, two columns in combined; the single board its one). */
+  cohort: Cohort;
   bundled: boolean;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;

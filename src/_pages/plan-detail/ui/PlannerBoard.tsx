@@ -1,4 +1,5 @@
-import { cohortLabel } from "@/shared/config";
+import { useMemo } from "react";
+import { cohortLabel, type Cohort } from "@/shared/config";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import {
   BoardHeader,
@@ -68,6 +69,13 @@ export default function PlannerBoard({
   // The single board is the degenerate one-cohort case: one constant resolver feeds the shared
   // dispatch (`applyDropAction`), so the lift button and the drop handler route identically.
   const resolveState = () => ({ actions, groupings, weekModeByCourseId });
+
+  // Every parked bundle on this board belongs to its one cohort — a total map so the shelf tags each
+  // card and scopes its place-back drag (the combined shelf maps both cohorts; this maps the one).
+  const shelfCohortById = useMemo(
+    () => new Map<string, Cohort>(parkedBundles.map((bundle) => [bundle.id, cohort] as const)),
+    [parkedBundles, cohort],
+  );
 
   // Bundle the per-cell handlers + drag-hint state into one referentially-stable object, spread once
   // into each cell (mirrors `PairedPlannerGrid`) instead of hand-threading the 11 fields per hop.
@@ -166,6 +174,7 @@ export default function PlannerBoard({
               days={days}
               periods={periods}
               gridLabel={`${cohortLabel(cohort)} timetable`}
+              cohort={cohort}
               placements={placements}
               names={names}
               collisions={collisions}
@@ -180,6 +189,7 @@ export default function PlannerBoard({
           names={names}
           expanded={shelfExpanded}
           pinned={pinned}
+          cohortById={shelfCohortById}
           onExpandedChange={setExpanded}
           onPinnedChange={setPinned}
           onRemoveParked={removeParked}

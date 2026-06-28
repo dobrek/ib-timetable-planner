@@ -6,7 +6,7 @@ import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CollisionInspectionTarget } from "../../overlay/CollisionDetailsDialog";
 import { cellKey } from "../../../model/collision/cell-key";
 import type { CellOccupant } from "../../../model/collision/cell-occupants";
-import type { BundleDrag, CellData } from "../../../model/drag";
+import type { BundleDrag, CellDropData } from "../../../model/drag";
 import type { DropHint } from "../../../model/drop-hints";
 import type { HintMode } from "../../../lib/drag-hint-mode";
 import { resolveCellTone } from "../../../model/collision/cell-tone";
@@ -19,9 +19,9 @@ import { WeekLane } from "./WeekLane";
 type Props = {
   day: number;
   period: number;
-  /** Combined-view opt-in (S-06): when set, namespaces the dnd ids and stamps the drag/drop data so
-   *  a shared handler can route by cohort. Absent on the single-cohort board → today's ids. */
-  cohort?: Cohort;
+  /** The cell's cohort — always set (one board, two columns in combined; the single board its one
+   *  cohort). Namespaces the dnd ids and stamps the drag/drop data so the shared router routes by it. */
+  cohort: Cohort;
   occupants: CellOccupant[];
   /** Drag hint for this cell (undefined = free while a drag is active, or no drag — see `hintActive`). */
   dropHint: DropHint | undefined;
@@ -108,14 +108,10 @@ export default function SlotCell({
       ref={setCellRef}
       data-slot="slot-cell"
       role="gridcell"
-      // Named even when empty so an empty drop target is still locatable by role + name. In the
-      // combined view the cohort prefixes the name so the two same-slot DP1|DP2 cells are distinct
-      // (a screen reader announces the column; single board omits it → today's name).
-      aria-label={
-        cohort
-          ? `${cohortLabel(cohort)}, ${dayLabel(day)}, ${periodLabel(period)}`
-          : `${dayLabel(day)}, ${periodLabel(period)}`
-      }
+      // Named even when empty so an empty drop target is still locatable by role + name. The cohort
+      // prefixes the name so the two same-slot DP1|DP2 cells are distinct in combined and a screen
+      // reader always announces the column (focus mode names its one cohort too).
+      aria-label={`${cohortLabel(cohort)}, ${dayLabel(day)}, ${periodLabel(period)}`}
       className={cn(
         "bg-background flex min-h-16 flex-col gap-1 p-1 transition-colors",
         // One tone, resolved once with ordered precedence — no negated-class ladder.
@@ -169,13 +165,13 @@ export default function SlotCell({
  * component body declarative — no raw `useMemo` — and names the dnd flow the way the slice's
  * design goals ask for.
  */
-function useCellDnd(day: number, period: number, bundled: boolean, cohort?: Cohort) {
-  // Cohort namespaces the dnd ids in the combined view so two columns sharing day/period space
-  // don't collide under one provider; absent → today's `cellKey`-only ids. The collision/hint
-  // map key stays `cellKey` (cohort never enters it) — each column keeps its own Map.
+function useCellDnd(day: number, period: number, bundled: boolean, cohort: Cohort) {
+  // Cohort namespaces the dnd ids so two columns sharing day/period space don't collide under one
+  // provider (and the single board's one cohort tags identically). The collision/hint map key stays
+  // `cellKey` (cohort never enters it) — each column keeps its own Map.
   const key = cellKey(day, period);
-  const scopedKey = cohort ? `${cohort}:${key}` : key;
-  const { ref: dropRef, isDropTarget } = useDroppable<CellData>({ id: scopedKey, data: { day, period, cohort } });
+  const scopedKey = `${cohort}:${key}`;
+  const { ref: dropRef, isDropTarget } = useDroppable<CellDropData>({ id: scopedKey, data: { day, period, cohort } });
   // Whole-slot drag: the entire bundled cell is the drag surface (no handle). We deliberately
   // avoid a handle on the header — dnd-kit's default `preventActivation` short-circuits for any
   // target inside a handle, so header buttons would start a drag instead of clicking. With no

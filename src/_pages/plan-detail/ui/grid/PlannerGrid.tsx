@@ -1,3 +1,4 @@
+import type { Cohort } from "@/shared/config";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import { SlotCellHost, type CellWiring } from "./slot-cell/SlotCellHost";
 import type { CellCollisions } from "../../model/collision/collisions";
@@ -10,6 +11,8 @@ type Props = {
   periods: number;
   /** Pre-formatted accessible name for the grid (e.g. "DP1 timetable") — built at the board level. */
   gridLabel: string;
+  /** The board's one cohort — stamped onto every cell so the dnd ids namespace and the router routes. */
+  cohort: Cohort;
   placements: LocalPlacement[];
   names: Record<string, string>;
   /** cellKey → flags + structured violations for that cell. */
@@ -19,7 +22,16 @@ type Props = {
 };
 
 /** The 10×5 (period × day) slot grid. Each cell is a droppable; cells are multi-occupancy. */
-export default function PlannerGrid({ days, periods, gridLabel, placements, names, collisions, wiring }: Props) {
+export default function PlannerGrid({
+  days,
+  periods,
+  gridLabel,
+  cohort,
+  placements,
+  names,
+  collisions,
+  wiring,
+}: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
   // Resolve each occupant's display name + collision flags once, here, where `names`/`collisions`
@@ -50,7 +62,7 @@ export default function PlannerGrid({ days, periods, gridLabel, placements, name
         </div>
 
         {periodList.map((period) => (
-          <PeriodRow key={period} period={period} days={dayList} byCell={byCell} wiring={wiring} />
+          <PeriodRow key={period} period={period} days={dayList} cohort={cohort} byCell={byCell} wiring={wiring} />
         ))}
       </div>
     </div>
@@ -60,11 +72,13 @@ export default function PlannerGrid({ days, periods, gridLabel, placements, name
 function PeriodRow({
   period,
   days,
+  cohort,
   byCell,
   wiring,
 }: {
   period: number;
   days: number[];
+  cohort: Cohort;
   byCell: Map<string, CellOccupant[]>;
   wiring: CellWiring;
 }) {
@@ -81,6 +95,7 @@ function PeriodRow({
           key={day}
           day={day}
           period={period}
+          cohort={cohort}
           occupants={byCell.get(cellKey(day, period)) ?? []}
           {...wiring}
         />

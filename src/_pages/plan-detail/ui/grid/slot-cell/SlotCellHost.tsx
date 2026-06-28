@@ -36,8 +36,8 @@ export type CellWiring = {
  * One slot's `SlotCell` plus its per-cell derivation: the drop-hint lookup + `hintActive`, the
  * `bundled` flag, and the `justDuplicated` pulse-key match. Extracting it keeps the cell plumbing in
  * one place so neither `PlannerGrid`'s `PeriodRow` nor the combined `PairedPlannerGrid` re-inlines
- * it. `cohort` (combined view) namespaces the dnd ids; `dimmed` recedes a sibling-cohort cell during
- * a cross-cohort drag. Both are absent on the single-cohort board → today's render.
+ * it. `cohort` (always set) namespaces the dnd ids; `dimmed` recedes a sibling-cohort cell during a
+ * cross-cohort drag (combined only — absent/false on the single-cohort board).
  */
 export function SlotCellHost({
   day,
@@ -59,7 +59,7 @@ export function SlotCellHost({
 }: CellWiring & {
   day: number;
   period: number;
-  cohort?: Cohort;
+  cohort: Cohort;
   occupants: CellOccupant[];
   dimmed?: boolean;
 }) {

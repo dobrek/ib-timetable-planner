@@ -15,9 +15,9 @@ type Props = {
   expanded: boolean;
   /** Per-device pin (keep open). When pinned the drawer never auto-collapses. */
   pinned: boolean;
-  /** Combined view (S-06): shelfBundleId → owning cohort, so each card is tagged DP1/DP2 and its
-   *  place-back is cohort-scoped. Absent on the single-cohort shelf (no tags). */
-  cohortById?: Map<string, Cohort>;
+  /** shelfBundleId → owning cohort — total over `parkedBundles`, so each card is tagged DP1/DP2 and
+   *  its place-back is cohort-scoped (the combined shelf maps both cohorts; the single board its one). */
+  cohortById: Map<string, Cohort>;
   onExpandedChange: (expanded: boolean) => void;
   onPinnedChange: (pinned: boolean) => void;
   onRemoveParked: (shelfBundleId: string) => void;
@@ -90,15 +90,21 @@ export default function ShelfDrawer({
             Lift a bundle here to park it.
           </p>
         ) : (
-          parkedBundles.map((bundle) => (
-            <ParkedBundleCard
-              key={bundle.id}
-              bundle={bundle}
-              names={names}
-              cohort={cohortById?.get(bundle.id)}
-              onRemove={onRemoveParked}
-            />
-          ))
+          parkedBundles.map((bundle) => {
+            // `cohortById` is total over `parkedBundles`; the guard narrows `Cohort | undefined` → `Cohort`
+            // (a missing entry would be a wiring bug, so render nothing rather than an untagged card).
+            const cohort = cohortById.get(bundle.id);
+            if (!cohort) return null;
+            return (
+              <ParkedBundleCard
+                key={bundle.id}
+                bundle={bundle}
+                names={names}
+                cohort={cohort}
+                onRemove={onRemoveParked}
+              />
+            );
+          })
         )}
       </div>
     </CollapsibleEdgePanel>

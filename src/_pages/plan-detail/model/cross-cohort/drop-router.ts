@@ -26,13 +26,11 @@ export type CombinedDropAction =
  * differs from the target cell's cohort. A `bundle` on the shelf lifts off the board, routed by source
  * cohort; a `placement`/`parked` on the shelf is a no-op.
  *
- * **Single board = degenerate one-cohort case.** The single board runs under one provider with one
- * cohort, and its cells/drags carry NO cohort (tagging them would change the cell aria-label + the
- * parked-card tag, which are wired off the same `cohort` prop — so it stays untagged to preserve
- * behavior). A missing cohort therefore resolves to `activeCohort` (the board's one cohort): the
- * cross-cohort guard becomes a trivial pass (a cohort can't differ from itself) and the dispatch is
- * identical to the board's old `switch (kind)`. The combined view always tags both cells and
- * relocating drags, so every `?? activeCohort` is identity there and the strict guard is unchanged.
+ * Every cell and relocating drag is cohort-tagged — the combined view's two columns, and the single
+ * board its one cohort (a focus mode of the same board). So `targetCohort` reads straight off the
+ * cell and the cross-cohort guard compares two real cohorts. `activeCohort` survives only for the
+ * off-board park case: a cohort-free palette `course`/`grouping` dropped on the cell-less shelf parks
+ * under it (in focus mode = the focused cohort; in combined = the palette's active cohort).
  */
 export const resolveCombinedDrop = (
   data: DragData,
@@ -40,8 +38,7 @@ export const resolveCombinedDrop = (
   activeCohort: Cohort,
 ): CombinedDropAction | null => {
   const cell = isShelfTarget(target) ? null : target;
-  // Untagged single-board cell → the board's one cohort; combined cell → its own (always set).
-  const targetCohort = cell ? (cell.cohort ?? activeCohort) : null;
+  const targetCohort = cell ? cell.cohort : null;
 
   switch (data.kind) {
     case "course":
@@ -52,27 +49,22 @@ export const resolveCombinedDrop = (
       return cell && targetCohort
         ? { kind: "dropGroup", cohort: targetCohort, groupingId: data.groupingId, cell }
         : { kind: "parkGroup", cohort: activeCohort, groupingId: data.groupingId };
-    case "placement": {
-      const dragCohort = data.cohort ?? activeCohort;
-      return cell && targetCohort && dragCohort === targetCohort
+    case "placement":
+      return cell && targetCohort && data.cohort === targetCohort
         ? { kind: "movePlacement", cohort: targetCohort, placementId: data.placementId, cell }
         : null;
-    }
     case "bundle": {
-      const dragCohort = data.cohort ?? activeCohort;
       if (cell && targetCohort) {
-        return dragCohort === targetCohort
+        return data.cohort === targetCohort
           ? { kind: "moveBundle", cohort: targetCohort, day: data.day, period: data.period, cell }
           : null;
       }
-      return { kind: "liftBundle", cohort: dragCohort, day: data.day, period: data.period };
+      return { kind: "liftBundle", cohort: data.cohort, day: data.day, period: data.period };
     }
-    case "parked": {
-      const dragCohort = data.cohort ?? activeCohort;
-      return cell && targetCohort && dragCohort === targetCohort
+    case "parked":
+      return cell && targetCohort && data.cohort === targetCohort
         ? { kind: "placeBack", cohort: targetCohort, shelfBundleId: data.shelfBundleId, cell }
         : null;
-    }
   }
 };
 

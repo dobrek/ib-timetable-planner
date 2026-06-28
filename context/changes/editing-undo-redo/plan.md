@@ -379,17 +379,17 @@ None — no schema change. The durable-across-reload variant (a fast-follow) wou
 
 #### Automated
 
-- [x] 4.1 Unit tests pass: `pnpm test` (keymap chords + focus guard + cleanup; controls disabled/tooltip)
-- [x] 4.2 Integration tests pass: `pnpm test:integration` (reconcile round-trip for every editing op)
-- [x] 4.3 E2E tests pass: `pnpm test:e2e` (durability contract + happy-path smoke)
-- [x] 4.4 Type checking passes: `pnpm check`
-- [x] 4.5 Linting passes: `pnpm lint`
-- [x] 4.6 FSD structure check passes: `pnpm steiger`
-- [x] 4.7 Production build is clean: `pnpm build`
+- [x] 4.1 Unit tests pass: `pnpm test` (keymap chords + focus guard + cleanup; controls disabled/tooltip) — 31673f6
+- [x] 4.2 Integration tests pass: `pnpm test:integration` (reconcile round-trip for every editing op) — 31673f6
+- [x] 4.3 E2E tests pass: `pnpm test:e2e` (durability contract + happy-path smoke) — 31673f6
+- [x] 4.4 Type checking passes: `pnpm check` — 31673f6
+- [x] 4.5 Linting passes: `pnpm lint` — 31673f6
+- [x] 4.6 FSD structure check passes: `pnpm steiger` — 31673f6
+- [x] 4.7 Production build is clean: `pnpm build` — 31673f6
 
 #### Manual
 
-- [x] 4.8 ⌘Z / ⌘⇧Z reverse and re-apply edits in the running app; typing in a field does not trigger undo
-- [x] 4.9 Undo/Redo buttons disable at empty stack, enable after an edit, tooltips name the next step
-- [x] 4.10 After an undo, reload shows the stepped-back board (durable) and both buttons disabled (session stack cleared)
-- [x] 4.11 Collision tones re-derive after undo/redo (cross-cohort); lift→place-back→⌘Z steps back through the workflow
+- [x] 4.8 ⌘Z / ⌘⇧Z reverse and re-apply edits in the running app; typing in a field does not trigger undo — 31673f6 (e2e undo/redo loop + keymap focus-guard unit test)
+- [x] 4.9 Undo/Redo buttons disable at empty stack, enable after an edit, tooltips name the next step — 31673f6 (e2e button-state + aria-label assertions)
+- [x] 4.10 After an undo, reload shows the stepped-back board (durable) and both buttons disabled (session stack cleared) — 31673f6 (e2e durability contract)
+- [x] 4.11 Collision tones re-derive after undo/redo (cross-cohort); lift→place-back→⌘Z steps back through the workflow — 31673f6 (e2e lift→⌘Z; free re-derivation via existing useMemo)

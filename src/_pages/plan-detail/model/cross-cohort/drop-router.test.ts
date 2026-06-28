@@ -46,24 +46,28 @@ describe("resolveCombinedDrop — cross-cohort guard", () => {
 });
 
 describe("resolveCombinedDrop — routing", () => {
-  it("adopts the target cell's cohort for a cohort-free course drag (not the active cohort)", () => {
+  it("places a palette course on the ACTIVE cohort's cell, and rejects it on the other column", () => {
     const drag: CourseDrag = { kind: "course", courseId: "c1" };
-    expect(resolveCombinedDrop(drag, cell("dp2"), "dp1")).toEqual({
+    // active cohort dp1 → drop on a dp1 cell places it
+    expect(resolveCombinedDrop(drag, cell("dp1"), "dp1")).toEqual({
       kind: "addCourse",
-      cohort: "dp2",
-      courseId: "c1",
-      cell: cell("dp2"),
-    });
-  });
-
-  it("adopts the target cell's cohort for a cohort-free grouping drag (not the active cohort)", () => {
-    const drag: GroupDrag = { kind: "grouping", groupingId: "g1" };
-    expect(resolveCombinedDrop(drag, cell("dp1"), "dp2")).toEqual({
-      kind: "dropGroup",
       cohort: "dp1",
-      groupingId: "g1",
+      courseId: "c1",
       cell: cell("dp1"),
     });
+    // active cohort dp1 → drop on the dp2 column is rejected (a dp1 palette course can't become a dp2 placement)
+    expect(resolveCombinedDrop(drag, cell("dp2"), "dp1")).toBeNull();
+  });
+
+  it("fans a palette grouping into the ACTIVE cohort's cell, and rejects it on the other column", () => {
+    const drag: GroupDrag = { kind: "grouping", groupingId: "g1" };
+    expect(resolveCombinedDrop(drag, cell("dp2"), "dp2")).toEqual({
+      kind: "dropGroup",
+      cohort: "dp2",
+      groupingId: "g1",
+      cell: cell("dp2"),
+    });
+    expect(resolveCombinedDrop(drag, cell("dp1"), "dp2")).toBeNull();
   });
 
   it("routes a bundle dropped on the shelf to a lift, keyed by source cohort", () => {

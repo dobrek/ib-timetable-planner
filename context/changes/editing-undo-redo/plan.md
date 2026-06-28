@@ -340,14 +340,14 @@ None — no schema change. The durable-across-reload variant (a fast-follow) wou
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass: `pnpm test`
-- [ ] 1.2 Type checking passes: `pnpm check`
-- [ ] 1.3 Linting passes: `pnpm lint`
-- [ ] 1.4 FSD structure check passes: `pnpm steiger`
+- [x] 1.1 Unit tests pass: `pnpm test`
+- [x] 1.2 Type checking passes: `pnpm check`
+- [x] 1.3 Linting passes: `pnpm lint`
+- [x] 1.4 FSD structure check passes: `pnpm steiger`
 
 #### Manual
 
-- [ ] 1.5 `diffReconcile` test cases cover add/remove/move/week-flip/merge-undo/no-op + shelf create/delete/multiset + combined lift-undo + removes-before-places ordering
+- [x] 1.5 `diffReconcile` test cases cover add/remove/move/week-flip/merge-undo/no-op + shelf create/delete/multiset + combined lift-undo + removes-before-places ordering
 
 ### Phase 2: Write-path integration (recording + reconcile executor)
 

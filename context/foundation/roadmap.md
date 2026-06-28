@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-06-18
-updated: 2026-06-27
+updated: 2026-06-28
 prd_version: 1
 main_goal: quality
 top_blocker: decisions
@@ -36,7 +36,7 @@ The IB timetable editor shipped and was demoed to its plan authors. Design and t
 | S-05 | first-class-bundle-operations        | move / remove / replace a placed grouping as one bundle; ungroup to per-course still works | —             | FR-009, FR-010                    | done     |
 | S-06 | combined-two-cohort-view             | assemble & edit a collision-free DP1 \| DP2 plan side by side, validated across both cohorts | S-04, S-05    | FR-007, FR-008, FR-012, US-01     | done     |
 | S-07 | bundle-holding-container             | lift a bundle off-board onto a holding shelf, then place it back later; survives refresh   | S-05          | FR-011, US-02                     | done     |
-| S-08 | editing-undo-redo                    | undo / redo recent editing operations (move, remove, replace, ungroup, lift, place-back)   | S-05, S-07    | FR-013                            | blocked  |
+| S-08 | editing-undo-redo                    | undo / redo recent editing operations (move, remove, replace, ungroup, lift, place-back)   | S-05, S-07    | FR-013                            | done     |
 
 ## Streams
 
@@ -181,7 +181,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **Unknowns:**
   - Undo/redo scope & priority (PRD Open Q #1, FR-013 is provisional): must-have for this change or a fast-follow? Single-step vs. multi-step history? Session-only vs. durable across reload? — Owner: author. **Block: yes** (the answer changes whether this slice exists in this change at all, and the PRD flags it may move the 4–6 week estimate).
 - **Risk:** Wraps the full editing-operation set, so it depends on those operations existing (S-05, S-07) and ideally the combined view's edits too. Blocked until its scope is decided — building multi-step durable undo across every operation is a different slice than session-only single-step. Resolving Open Q #1 either promotes this to `ready` (after S-05/S-07) or moves it to a fast-follow / parks it.
-- **Status:** blocked
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -228,3 +228,4 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **S-05: A placed grouping is a first-class bundle the author can **move** (relocate all its courses atomically, re-validated at the destination, within its own cohort), **remove** (delete the whole bundle at once), or **replace** (swap its contents for a different compatible grouping on the same slot). Ungrouping to operate on individual courses — remove one course, move one course — keeps working exactly as today (the `slot_bundles` opt-out).** — Archived 2026-06-24 → `context/archive/2026-06-23-first-class-bundle-operations/`. Lesson: —.
 - **S-07: Author can lift a bundle off the board into a temporary holding container (a shelf that holds multiple parked bundles), rearrange the board, then drag a parked bundle back onto a now-suitable slot. A parked bundle is off-board — it holds no slot and is **not** validated while parked; collisions are evaluated only on drop-back, within its cohort's constraints. A parked bundle survives an accidental browser refresh or tab close.** — Archived 2026-06-26 → `context/archive/2026-06-26-bundle-holding-container/`. Lesson: —.
 - **S-06: Author opens a combined view showing DP1 and DP2 side by side, one column per cohort, and edits either column (placement and bundle operations) within that cohort's constraints — cross-column (cross-cohort) moves are guarded so a bundle moves only within its own cohort. Every placement is validated live against students, teachers (within *and* across cohorts, counting both teachers of a co-taught course), week-aware fortnightly overlap, and availability — all within the sub-200 ms budget while validating both cohorts at once. The author ends with a complete, collision-free plan across DP1 and DP2.** — Archived 2026-06-27 → `context/archive/2026-06-27-combined-two-cohort-view/`. Lesson: —.
+- **S-08: Author can undo (and redo) recent editing operations — bundle move, remove, replace, ungroup, single-course move, lift-to-container, and place-back.** — Archived 2026-06-28 → `context/archive/2026-06-28-editing-undo-redo/`. Lesson: —.

@@ -14,10 +14,12 @@ import type { HintMode } from "../../lib/drag-hint-mode";
 
 /**
  * The cell wiring shared by every column the grid renders — the cell-level drag-hint state plus the
- * per-chip handlers. One `CellWiring` object is built per column (see `useCellWiring`) and spread into
- * each of that column's cells; the grid resolves the per-cell values (this cell's hint, `bundled`, the
- * `justDuplicated` pulse match) from it inline, so `SlotCell` stays a dumb presentational component
- * taking already-resolved scalars.
+ * per-chip handlers. One `CellWiring` object is built per column at the board level (`buildColumn`) and
+ * passed down as a single `wiring` prop instead of re-listing the 11 fields at every hop; the grid
+ * resolves the per-cell values (this cell's hint, `bundled`, the `justDuplicated` pulse match) from it
+ * inline, so `SlotCell` stays a dumb presentational component taking already-resolved scalars. A shared
+ * Context was rejected: `dropHints`/`hintMode` change on every drag tick, so one Context value would
+ * re-render all cells against the <200ms budget (see `ui-conventions.md` §"State management").
  */
 export type CellWiring = {
   /** cellKey → drag hint (sparse: absent = free); null when no drag is active. */

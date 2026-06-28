@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { buildCrossCohortIndex, projectFromPlacements, type CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
+import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps } from "./drag";
 import type { LocalPlacement } from "./placement/placement";
 import { usePlacements } from "./use-placements";
@@ -29,8 +30,18 @@ import {
  * index flags any resulting cross-cohort clash immediately — so it is unobservable. Render stays
  * pure (no refs read / no setState-in-effect — the React Compiler forbids both), which is why the
  * `usePlacements` arg is the seed, not a one-render-lagged live value.
+ *
+ * `focus` lets the hidden cohort idle in focus mode: when one cohort is hidden it is never edited and
+ * never rendered, so its derivations are fed the static seed index instead of the visible cohort's
+ * live placements — keeping its collision/drag-hint memos cached across edits (one fewer cohort-sized
+ * pass per drop). Both cohorts still run unconditionally (constant hooks); only the index *input*
+ * differs. `focus = "combined"` (the default) keeps BOTH indices live — today's two-cohort behavior.
  */
-export function useCombinedBoardState(dp1Props: PlannerBoardProps, dp2Props: PlannerBoardProps) {
+export function useCombinedBoardState(
+  dp1Props: PlannerBoardProps,
+  dp2Props: PlannerBoardProps,
+  focus: BoardSurface = "combined",
+) {
   // Static SSR-seed indices for `usePlacements` (duplicate-target search only). Built once.
   const dp1SeedIndex = useMemo(
     () => buildCrossCohortIndex(dp1Props.crossCohortOccupancy),
@@ -45,13 +56,18 @@ export function useCombinedBoardState(dp1Props: PlannerBoardProps, dp2Props: Pla
   const dp2Base = useCohortPlacements(dp2Props, dp2SeedIndex);
 
   // Live cross-index: each cohort's occupancy from the OTHER column's current placements + catalog.
+  // In focus mode the HIDDEN cohort idles on its static seed index (its output is unused and its own
+  // placements never change), so its derivations stay cached across the visible cohort's edits; the
+  // visible cohort keeps the live index (its hidden sibling is static, so that index is stable too).
+  const dp1Hidden = focus === "dp2";
+  const dp2Hidden = focus === "dp1";
   const dp1Index = useMemo(
-    () => indexFromPlacements(dp2Base.api.placements, dp2Base.teacherKeysByCourseId),
-    [dp2Base.api.placements, dp2Base.teacherKeysByCourseId],
+    () => (dp1Hidden ? dp1SeedIndex : indexFromPlacements(dp2Base.api.placements, dp2Base.teacherKeysByCourseId)),
+    [dp1Hidden, dp1SeedIndex, dp2Base.api.placements, dp2Base.teacherKeysByCourseId],
   );
   const dp2Index = useMemo(
-    () => indexFromPlacements(dp1Base.api.placements, dp1Base.teacherKeysByCourseId),
-    [dp1Base.api.placements, dp1Base.teacherKeysByCourseId],
+    () => (dp2Hidden ? dp2SeedIndex : indexFromPlacements(dp1Base.api.placements, dp1Base.teacherKeysByCourseId)),
+    [dp2Hidden, dp2SeedIndex, dp1Base.api.placements, dp1Base.teacherKeysByCourseId],
   );
 
   const dp1Deriv = useCohortDerivations(dp1Props, dp1Base, dp1Index);

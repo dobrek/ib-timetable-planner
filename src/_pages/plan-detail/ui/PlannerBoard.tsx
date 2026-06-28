@@ -13,6 +13,7 @@ import {
   usePaletteDisclosure,
   useShelfDisclosure,
 } from "./chrome";
+import { useUndoKeymap } from "../model/history/use-undo-keymap";
 import { PlannerGrid, type PairedColumn } from "./grid";
 import { CollisionDetailsDialog, type CollisionInspectionTarget, GroupDragOverlay } from "./overlay";
 import { CombinedPalettePanel, ComputeGroupingsEmptyState, type PaletteCohortData } from "./palette";
@@ -45,9 +46,12 @@ type Props = {
  * `DragDropProvider`, one drop router, one canonical `applyDropAction` dispatch.
  */
 export default function PlannerBoard({ planName, focus, dp1: dp1Props, dp2: dp2Props, paletteCollapsed }: Props) {
-  const { dp1, dp2 } = useCombinedBoardState(dp1Props, dp2Props, focus);
+  const { dp1, dp2, history } = useCombinedBoardState(dp1Props, dp2Props, focus);
   const byCohort: Record<Cohort, CohortBoardState> = { dp1, dp2 };
   const resolveState = (cohort: Cohort) => byCohort[cohort];
+
+  // Bind ⌘Z/⌘⇧Z (+ Ctrl variants) while the board is mounted; the focus guard lives in the hook.
+  useUndoKeymap(history);
 
   const { hintMode, setHintMode } = useHintMode();
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
@@ -197,6 +201,7 @@ export default function PlannerBoard({ planName, focus, dp1: dp1Props, dp2: dp2P
           }}
           planId={planId}
           active={focus}
+          undoRedo={history}
           trailing={<DragHintModeToggle mode={hintMode} onChange={setHintMode} />}
         />
       }

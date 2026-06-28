@@ -366,30 +366,30 @@ None — no schema change. The durable-across-reload variant (a fast-follow) wou
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `pnpm test` (undo/redo, multi-step, cross-cohort interleaving, redo-invalidation, commit-on-success, before-only-snapshot stale-cell, in-flight guard)
-- [x] 3.2 Type checking passes: `pnpm check`
-- [x] 3.3 Linting passes: `pnpm lint`
-- [x] 3.4 FSD structure check passes: `pnpm steiger`
+- [x] 3.1 Unit tests pass: `pnpm test` (undo/redo, multi-step, cross-cohort interleaving, redo-invalidation, commit-on-success, before-only-snapshot stale-cell, in-flight guard) — e25b6ee
+- [x] 3.2 Type checking passes: `pnpm check` — e25b6ee
+- [x] 3.3 Linting passes: `pnpm lint` — e25b6ee
+- [x] 3.4 FSD structure check passes: `pnpm steiger` — e25b6ee
 
 #### Manual
 
-- [x] 3.5 Reviewer confirms ordering-cycle resolution mirrors the cross-index pattern (no render-time read of a not-yet-built value)
+- [x] 3.5 Reviewer confirms ordering-cycle resolution mirrors the cross-index pattern (no render-time read of a not-yet-built value) — e25b6ee
 
 ### Phase 4: UX surface — keyboard + toolbar buttons
 
 #### Automated
 
-- [ ] 4.1 Unit tests pass: `pnpm test` (keymap chords + focus guard + cleanup; controls disabled/tooltip)
-- [ ] 4.2 Integration tests pass: `pnpm test:integration` (reconcile round-trip for every editing op)
-- [ ] 4.3 E2E tests pass: `pnpm test:e2e` (durability contract + happy-path smoke)
-- [ ] 4.4 Type checking passes: `pnpm check`
-- [ ] 4.5 Linting passes: `pnpm lint`
-- [ ] 4.6 FSD structure check passes: `pnpm steiger`
-- [ ] 4.7 Production build is clean: `pnpm build`
+- [x] 4.1 Unit tests pass: `pnpm test` (keymap chords + focus guard + cleanup; controls disabled/tooltip)
+- [x] 4.2 Integration tests pass: `pnpm test:integration` (reconcile round-trip for every editing op)
+- [x] 4.3 E2E tests pass: `pnpm test:e2e` (durability contract + happy-path smoke)
+- [x] 4.4 Type checking passes: `pnpm check`
+- [x] 4.5 Linting passes: `pnpm lint`
+- [x] 4.6 FSD structure check passes: `pnpm steiger`
+- [x] 4.7 Production build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 4.8 ⌘Z / ⌘⇧Z reverse and re-apply edits in the running app; typing in a field does not trigger undo
-- [ ] 4.9 Undo/Redo buttons disable at empty stack, enable after an edit, tooltips name the next step
-- [ ] 4.10 After an undo, reload shows the stepped-back board (durable) and both buttons disabled (session stack cleared)
-- [ ] 4.11 Collision tones re-derive after undo/redo (cross-cohort); lift→place-back→⌘Z steps back through the workflow
+- [x] 4.8 ⌘Z / ⌘⇧Z reverse and re-apply edits in the running app; typing in a field does not trigger undo
+- [x] 4.9 Undo/Redo buttons disable at empty stack, enable after an edit, tooltips name the next step
+- [x] 4.10 After an undo, reload shows the stepped-back board (durable) and both buttons disabled (session stack cleared)
+- [x] 4.11 Collision tones re-derive after undo/redo (cross-cohort); lift→place-back→⌘Z steps back through the workflow

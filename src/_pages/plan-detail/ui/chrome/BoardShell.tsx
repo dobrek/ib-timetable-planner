@@ -10,7 +10,7 @@ type Props = {
   gridDataSlot: string;
   /** Top bar above the grid: the single board's PlanSummaryBar / the combined inline header + switcher. */
   header: ReactNode;
-  /** 1st column — the palette (single `PlannerPalette` / `CombinedPalettePanel`). */
+  /** 1st column — the one palette panel (`CombinedPalettePanel`, with an optional cohort switcher). */
   palette: ReactNode;
   /** 2nd column (the board column): error banner(s), optional hint toggle, and the grid. */
   center: ReactNode;

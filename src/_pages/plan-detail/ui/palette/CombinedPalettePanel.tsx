@@ -9,6 +9,10 @@ import type { PlannerGrouping } from "../../model/grouping/grouping";
 import type { HoursStat } from "../../model/hours";
 import { resolvePaletteView } from "../../model/grouping/palette-view";
 
+// Re-exported so the palette test and any consumer keep a stable import site even though the filter
+// state lives in `PaletteBody`.
+export { usePaletteFilter } from "./PaletteBody";
+
 /** One cohort's palette inputs — the slice of board state the panel renders for the active cohort. */
 export type PaletteCohortData = {
   cohort: Cohort;
@@ -20,37 +24,36 @@ export type PaletteCohortData = {
 };
 
 type Props = {
-  dp1: PaletteCohortData;
-  dp2: PaletteCohortData;
-  /** Which cohort the palette currently shows. Owned by the shell — it doubles as the drag-target
-   *  signal that dims the sibling column during a palette drag. */
+  /** The cohorts the palette can show: one in focus mode (no switcher), both in combined. */
+  cohorts: PaletteCohortData[];
+  /** Which cohort the palette currently shows. In combined it doubles as the drag-target signal that
+   *  dims the sibling column during a palette drag; in focus mode it is fixed to the one cohort. */
   activeCohort: Cohort;
-  onActiveCohortChange: (cohort: Cohort) => void;
+  /** Switch the active cohort — only wired (and the toolbar only shown) when there is more than one. */
+  onActiveCohortChange?: (cohort: Cohort) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
 };
 
 /**
- * The combined view's single palette (S-06): one shared `CollapsibleEdgePanel` whose **header and
- * cohort-switcher toolbar are constant** across all three states; only the **body** swaps on
- * `resolvePaletteView(active)` → ready (filter+list) / stale (recompute) / empty (compute prompt).
- *
- * The cohort `Tabs` live in the shell's `toolbar` slot (below the panel's own header) — the
- * palette-header fix: the switcher no longer floats *above* the panel, the hierarchy reads right, and
- * it auto-hides with the rest of the expanded section when the palette collapses. Because the header +
- * switcher persist across states, the author can switch cohorts even when one cohort is empty/stale.
- * Compact-first: defaults collapsed (only the rail shows; expand it first to reveal the switcher).
+ * The one palette panel: a shared `CollapsibleEdgePanel` whose **header is constant** across all three
+ * states; only the **body** swaps on `resolvePaletteView(active)` → ready (filter+list) / stale
+ * (recompute) / empty (compute prompt). With more than one cohort the cohort-switcher `Tabs` fill the
+ * shell's `toolbar` slot (below the header, expanded-only); with a single cohort there is no toolbar —
+ * the focus-mode render then matches the pre-merge single palette exactly. Because the header (+
+ * switcher) persist across states, the author can switch cohorts even when one cohort is empty/stale.
+ * Compact-first when seeded collapsed: only the rail shows until expanded.
  */
 export default function CombinedPalettePanel({
-  dp1,
-  dp2,
+  cohorts,
   activeCohort,
   onActiveCohortChange,
   collapsed,
   onCollapsedChange,
 }: Props) {
-  const active = activeCohort === "dp1" ? dp1 : dp2;
+  const active = cohorts.find((cohort) => cohort.cohort === activeCohort) ?? cohorts[0];
   const view = resolvePaletteView({ groupingsCount: active.groupings.length, stale: active.stale });
+  const showSwitcher = cohorts.length > 1;
 
   return (
     <CollapsibleEdgePanel
@@ -63,26 +66,28 @@ export default function CombinedPalettePanel({
       collapsed={collapsed}
       onCollapsedChange={onCollapsedChange}
       openWidthClass="w-64"
-      dataSlot="combined-palette"
+      dataSlot="planner-palette"
       railClassName="bg-background hover:bg-accent rounded-lg border"
       bodyClassName="gap-6"
       toolbar={
-        <Tabs
-          value={activeCohort}
-          onValueChange={(value) => {
-            onActiveCohortChange(value as Cohort);
-          }}
-          data-slot="combined-palette-cohort"
-          className="w-fit shrink-0"
-        >
-          <TabsList aria-label="Palette cohort">
-            {COHORTS.map((option) => (
-              <TabsTrigger key={option.value} value={option.value}>
-                {option.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        showSwitcher ? (
+          <Tabs
+            value={activeCohort}
+            onValueChange={(value) => {
+              onActiveCohortChange?.(value as Cohort);
+            }}
+            data-slot="combined-palette-cohort"
+            className="w-fit shrink-0"
+          >
+            <TabsList aria-label="Palette cohort">
+              {COHORTS.map((option) => (
+                <TabsTrigger key={option.value} value={option.value}>
+                  {option.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        ) : undefined
       }
     >
       {view === "ready" ? (

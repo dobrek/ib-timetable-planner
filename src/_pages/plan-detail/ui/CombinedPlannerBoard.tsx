@@ -12,7 +12,7 @@ import {
   usePaletteDisclosure,
   useShelfDisclosure,
 } from "./chrome";
-import { PairedPlannerGrid, type PairedColumn } from "./grid";
+import { PlannerGrid, type PairedColumn } from "./grid";
 import { CollisionDetailsDialog, type CollisionInspectionTarget, GroupDragOverlay } from "./overlay";
 import { CombinedPalettePanel, type PaletteCohortData } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
@@ -163,8 +163,7 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
       }
       palette={
         <CombinedPalettePanel
-          dp1={paletteData(dp1)}
-          dp2={paletteData(dp2)}
+          cohorts={[paletteData(dp1), paletteData(dp2)]}
           activeCohort={paletteCohort}
           onActiveCohortChange={setPaletteCohort}
           collapsed={paletteCollapsed}
@@ -180,12 +179,11 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
             <ErrorBanner message={placementErrorMessage(dp2.error, dp2.names)} onDismiss={dp2.clearError} />
           )}
           <div className="min-h-0 flex-1 overflow-auto">
-            <PairedPlannerGrid
+            <PlannerGrid
               days={days}
               periods={periods}
               gridLabel={`${planName} combined timetable`}
-              dp1={buildColumn("dp1", dp1)}
-              dp2={buildColumn("dp2", dp2)}
+              columns={[buildColumn("dp1", dp1), buildColumn("dp2", dp2)]}
               activeDragCohort={activeDragCohort}
             />
           </div>

@@ -2,11 +2,10 @@ import { useMemo } from "react";
 import type { CellWiring } from "./slot-cell/SlotCellHost";
 
 /**
- * Bundle the single board's per-cell handlers + drag-hint state into ONE `CellWiring` object,
- * mirroring the pattern the combined view already uses (`PairedPlannerGrid` spreads
- * `{...column.wiring}`). The single path can then pass one `wiring` prop down through the grid and
- * `{...wiring}` it into each `SlotCellHost`, instead of hand-re-listing the 11 fields at every hop.
- * The win here is the 11-fields-→-1-prop collapse, not memoization.
+ * Bundle a board column's per-cell handlers + drag-hint state into ONE `CellWiring` object — the
+ * grid spreads `{...column.wiring}` into each `SlotCellHost`, so a focus column passes one `wiring`
+ * prop down instead of hand-re-listing the 11 fields at every hop. The win here is the
+ * 11-fields-→-1-prop collapse, not memoization.
  *
  * The `useMemo` only yields a stable object when its inputs are stable; on the live single board
  * they currently are NOT (`usePlacements` returns plain `function` handlers, and `liftBundle` is a

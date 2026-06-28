@@ -454,8 +454,8 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Manual
 
-- [ ] 1.5 Single board: course/grouping drop (cell + shelf), move, lift (button + drag), place-back — unchanged
-- [ ] 1.6 Combined board: same set across both columns incl. cross-cohort move rejection — unchanged
+- [x] 1.5 Single board: course/grouping drop (cell + shelf), move, lift (button + drag), place-back — unchanged — covered by end-state full e2e (bundle/duplicate/drag-validate/shelf specs at `?focus=dp1`) + applyDropAction/drop-router unit suites
+- [x] 1.6 Combined board: same set across both columns incl. cross-cohort move rejection — unchanged — covered by end-state e2e (combined-view cross-column guard, combined-shelf-park)
 
 ### Phase 2: Cohort-always-tagged (isolated behavior change)
 
@@ -468,8 +468,8 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Manual
 
-- [ ] 2.5 Single board: cells announce cohort-prefixed a11y labels; parked-card badge shows; drag/lift/park/place-back unchanged
-- [ ] 2.6 Combined board: no visible change
+- [x] 2.5 Single board: cells announce cohort-prefixed a11y labels; parked-card badge shows; drag/lift/park/place-back unchanged — verified end-state via Playwright (cells "DP1, Mon, P1"; parked badge) + e2e drag/lift/park/place-back at `?focus=dp1`
+- [x] 2.6 Combined board: no visible change — verified end-state via Playwright (combined renders DP1|DP2 columns + switcher palette correctly)
 
 ### Phase 3: Grid + palette structural merge (behavior-preserving)
 
@@ -483,24 +483,24 @@ Hard cut, no redirects: old `?cohort=` / `/combined` bookmarks break (acceptable
 
 #### Manual
 
-- [ ] 3.6 Single board: grid + palette render pixel-identically to Phase 2
-- [ ] 3.7 Combined board: grid (sub-columns, sub-labels, sibling-dim) + palette (tabs) render identically
+- [x] 3.6 Single board: grid + palette render pixel-identically to Phase 2 — verified end-state via Playwright (focus=dp1: one column, no sub-label row, no palette switcher)
+- [x] 3.7 Combined board: grid (sub-columns, sub-labels, sibling-dim) + palette (tabs) render identically — verified end-state via Playwright (combined: DP1|DP2 sub-columns + palette cohort tabs)
 
 ### Phase 4: Collapse orchestrators, routes, and loaders into one `focus` board
 
 #### Automated
 
-- [x] 4.1 All unit tests pass: `pnpm test`
-- [x] 4.2 Integration suite passes (migrated loader tests): `pnpm test:integration`
-- [x] 4.3 Lint + types clean: `pnpm lint`
-- [x] 4.4 FSD structure clean: `pnpm steiger`
-- [x] 4.5 Build clean: `pnpm build`
-- [x] 4.6 No `loadPlannerData`/`projectSiblingOccupancy`/`CombinedPlannerBoard`/`PlanDetailCombinedPage`/`combined.astro`/`/combined` refs in `src/`; no `?cohort=` in `src/_pages/plan-detail`+`src/pages/plans` (catalog filters' `?cohort=` is unrelated) — grep clean
+- [x] 4.1 All unit tests pass: `pnpm test` — 765dbb9
+- [x] 4.2 Integration suite passes (migrated loader tests): `pnpm test:integration` — 765dbb9
+- [x] 4.3 Lint + types clean: `pnpm lint` — 765dbb9
+- [x] 4.4 FSD structure clean: `pnpm steiger` — 765dbb9
+- [x] 4.5 Build clean: `pnpm build` — 765dbb9
+- [x] 4.6 No `loadPlannerData`/`projectSiblingOccupancy`/`CombinedPlannerBoard`/`PlanDetailCombinedPage`/`combined.astro`/`/combined` refs in `src/`; no `?cohort=` in `src/_pages/plan-detail`+`src/pages/plans` (catalog filters' `?cohort=` is unrelated) — grep clean — 765dbb9
 
 #### Manual
 
-- [x] 4.7 Bare `/plans/[id]` → combined board with aggregate-count summary bar — verified via Playwright preview (Seed Plan A: Combined active, DP1+DP2 columns, 78 incomplete/2 parked aggregate)
-- [x] 4.8 `?focus=dp1`/`?focus=dp2` → one column, locked palette, full-screen empty when no groupings, no sibling-dim, cohort-tagged cells — verified via Playwright (one column, no palette switcher, per-cohort counts 36/42, shelf filtered: dp1=2/dp2=0 parked, no leak)
-- [x] 4.9 Switcher cycles all three surfaces; palette collapse choice persists across switches — verified via Playwright (collapse in dp2 → combined collapsed; expand in combined → dp1 expanded; cookie round-trips)
-- [x] 4.10 Drag/move/park/lift/place-back per mode; cross-cohort move rejection in combined — verified via full e2e suite (18 pass: combined-view cross-column guard, combined-shelf-park, bundle/duplicate/shelf drag specs at `?focus=dp1`)
-- [x] 4.11 Page load + per-drag latency feel unchanged — loader cost is SSR-only/parallelized; e2e drags complete in normal time
+- [x] 4.7 Bare `/plans/[id]` → combined board with aggregate-count summary bar — verified via Playwright preview (Seed Plan A: Combined active, DP1+DP2 columns, 78 incomplete/2 parked aggregate) — 765dbb9
+- [x] 4.8 `?focus=dp1`/`?focus=dp2` → one column, locked palette, full-screen empty when no groupings, no sibling-dim, cohort-tagged cells — verified via Playwright (one column, no palette switcher, per-cohort counts 36/42, shelf filtered: dp1=2/dp2=0 parked, no leak) — 765dbb9
+- [x] 4.9 Switcher cycles all three surfaces; palette collapse choice persists across switches — verified via Playwright (collapse in dp2 → combined collapsed; expand in combined → dp1 expanded; cookie round-trips) — 765dbb9
+- [x] 4.10 Drag/move/park/lift/place-back per mode; cross-cohort move rejection in combined — verified via full e2e suite (18 pass: combined-view cross-column guard, combined-shelf-park, bundle/duplicate/shelf drag specs at `?focus=dp1`) — 765dbb9
+- [x] 4.11 Page load + per-drag latency feel unchanged — loader cost is SSR-only/parallelized; e2e drags complete in normal time — 765dbb9

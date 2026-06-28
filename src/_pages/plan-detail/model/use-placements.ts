@@ -40,8 +40,24 @@ import {
   unparkRollback,
 } from "./placement/shelf-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement/placement";
+import { cellKey } from "./collision/cell-key";
+import { memberSetKey, sliceAt } from "./history/affected-slice";
+import { diffReconcile } from "./history/reconcile";
+import { executeReconcilePlan, type ReconcileDeps } from "./history/reconcile-exec";
+import {
+  reconcileCardsOptimistic,
+  reconcilePlacementsOptimistic,
+  rollbackReconcileCards,
+  rollbackReconcilePlacements,
+  settleReconcileCards,
+  settleReconcilePlacements,
+  type CardEntry,
+  type PlaceEntry,
+} from "./history/reconcile-apply";
+import { describeEdit, type EditKind } from "./history/history-label";
+import type { AffectedScope, AffectedSlice, HistoryEntry } from "./history/history-entry";
 
-type UsePlacementsArgs = {
+export type UsePlacementsArgs = {
   planId: string;
   cohort: Cohort;
   /** courseId → eligibility, so the drop path resolves a bi-weekly course to a concrete week. */
@@ -54,6 +70,12 @@ type UsePlacementsArgs = {
   periods: number;
   /** Server-durable parked bundles for this cohort, seeding the shelf store. */
   initialParked?: ParkedBundle[];
+  /**
+   * Records a settled user edit for undo/redo. The orchestrator tags the `cohort`; this hook
+   * supplies the `before` slice + scope + label. Fired only on settled success, never on rollback,
+   * and never from `applyReconcile` (the recorder-bypass invariant is structural, not a flag).
+   */
+  onRecord?: (entry: Omit<HistoryEntry, "cohort">) => void;
 };
 
 /** Transient outcome of a successful duplicate: the target cell, plus a nonce so a same-cell
@@ -87,6 +109,12 @@ type UsePlacements = {
   parkMembers: (members: ParkedMember[]) => void;
   /** Discard a parked card outright (the card's "×") — shelf-store-only. */
   removeParked: (shelfBundleId: string) => void;
+  /** Read the live affected slice at a scope — the orchestrator's forward (redo) target capture. */
+  snapshot: (scope: AffectedScope) => AffectedSlice;
+  /** Drive both stores to a target slice over the existing RPCs, NON-recording (undo/redo executor). */
+  applyReconcile: (target: AffectedSlice, scope: AffectedScope) => Promise<{ ok: boolean }>;
+  /** True while any optimistic edit or reconcile is in flight — gates undo/redo against the ref-lag window. */
+  busy: boolean;
   clearError: () => void;
 };
 
@@ -112,16 +140,27 @@ export function usePlacements(
     days,
     periods,
     initialParked = [],
+    onRecord,
   }: UsePlacementsArgs,
 ): UsePlacements {
   const [placements, setPlacements] = useState<LocalPlacement[]>(initial);
   const [parkedBundles, setParkedBundles] = useState<LocalParkedBundle[]>(initialParked);
   const [error, setError] = useState<PlacementError | null>(null);
   const [lastDuplicated, setLastDuplicated] = useState<DuplicateOutcome | null>(null);
+  const [reconciling, setReconciling] = useState(false);
   const placementsRef = useLatest(placements);
   const parkedBundlesRef = useLatest(parkedBundles);
 
   const weekModeOf = (courseId: string): WeekMode => weekModeByCourseId.get(courseId) ?? "agnostic";
+
+  // Busy while any optimistic edit (a `pending` row in either store) or a reconcile is in flight.
+  // The orchestrator gates undo/redo on this so a rapid ⌘Z mid-settle can't pop a not-yet-recorded
+  // edit or read a one-render-lagged ref.
+  const busy = reconciling || placements.some((p) => p.pending) || parkedBundles.some((c) => c.pending);
+
+  const recordEdit = (kind: EditKind, scope: AffectedScope, before: AffectedSlice, cell?: CellData) => {
+    onRecord?.({ scope, target: before, label: describeEdit(kind, cell) });
+  };
 
   function addCourse(courseId: string, cell: CellData) {
     void persistAdd(courseId, cell);
@@ -226,6 +265,8 @@ export function usePlacements(
   async function persistAdd(courseId: string, cell: CellData) {
     if (!canAdd(placementsRef.current, courseId, cell)) return;
 
+    const scope = cellScope(cell);
+    const before = snapshot(scope);
     const week = resolveDropWeek(weekModeOf(courseId), placementsRef.current, cell);
     const tempId = crypto.randomUUID();
     setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell, week));
@@ -233,6 +274,7 @@ export function usePlacements(
     try {
       const row = await placeCourse({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
       setPlacements((prev) => addReconcile(prev, tempId, row));
+      recordEdit("add", scope, before, cell);
     } catch (err: unknown) {
       setPlacements((prev) => addRollback(prev, tempId));
       setError(errorOf(err));
@@ -251,6 +293,9 @@ export function usePlacements(
     const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
     if (eligible.length === 0) return;
 
+    const scope = cellScope(cell);
+    const before = snapshot(scope);
+
     // Week precedence: an explicit per-member week (a duplicate mirroring the source's A/B layout)
     // wins; else an opposite-week grouping alternates a/b; else each member resolves by its own
     // eligibility (agnostic ⇒ both, bi-weekly ⇒ first free week).
@@ -266,6 +311,9 @@ export function usePlacements(
     try {
       const outcomes = await Promise.all(entries.map((entry) => persistMember(entry, cell)));
       setPlacements((prev) => settleMany(prev, outcomes));
+
+      // Record once if at least one member landed (a fully-failed batch leaves the cell unchanged).
+      if (outcomes.some(({ result }) => result !== null)) recordEdit("addGroup", scope, before, cell);
 
       const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
       if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: outcomes.length });
@@ -316,6 +364,12 @@ export function usePlacements(
     );
     const moverRows = occupants.filter((p) => movers.includes(p.id));
 
+    const scope: AffectedScope = {
+      cells: [cellKey(source.day, source.period), cellKey(target.day, target.period)],
+      cardSets: [],
+    };
+    const before = snapshot(scope);
+
     setPlacements((prev) => moveManyOptimistic(prev, movers, mergers, target));
 
     try {
@@ -338,6 +392,8 @@ export function usePlacements(
       }));
       setPlacements((prev) => settleMany(prev, outcomes));
 
+      recordEdit(courseIds.length > 1 ? "moveBundle" : "move", scope, before, target);
+
       const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
       if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: moverRows.length });
     } catch (err: unknown) {
@@ -357,6 +413,9 @@ export function usePlacements(
     if (occupants.length === 0) return;
     if (occupants.some((p) => p.pending)) return; // batch analogue of removeTarget's pending reject
 
+    const scope = cellScope(cell);
+    const before = snapshot(scope);
+
     setPlacements((prev) =>
       removeManyOptimistic(
         prev,
@@ -366,6 +425,7 @@ export function usePlacements(
 
     try {
       await removeBundleMembers({ planId, cohort, day: cell.day, period: cell.period, courseIds });
+      recordEdit(courseIds.length > 1 ? "removeBundle" : "remove", scope, before, cell);
     } catch (err: unknown) {
       setPlacements((prev) => removeManyRollback(prev, occupants));
       setError(errorOf(err));
@@ -378,12 +438,16 @@ export function usePlacements(
     const row = placementsRef.current.find((p) => p.id === placementId);
     if (!row || row.pending || row.week === week) return;
     const prevWeek = row.week;
+    const cell: CellData = { day: row.day, period: row.period };
+    const scope = cellScope(cell);
+    const before = snapshot(scope);
 
     setPlacements((prev) => setWeekOptimistic(prev, placementId, week));
 
     try {
       const updated = await updatePlacementWeek(placementId, week);
       setPlacements((prev) => setWeekReconcile(prev, placementId, updated));
+      recordEdit("setWeek", scope, before, cell);
     } catch (err: unknown) {
       setPlacements((prev) => setWeekRollback(prev, placementId, prevWeek));
       setError(errorOf(err));
@@ -402,6 +466,9 @@ export function usePlacements(
     const members = membersAtCell(placementsRef.current, day, period);
     const tempId = crypto.randomUUID();
 
+    const scope: AffectedScope = { cells: [cellKey(day, period)], cardSets: [members] };
+    const before = snapshot(scope);
+
     setPlacements((prev) =>
       removeManyOptimistic(
         prev,
@@ -413,6 +480,7 @@ export function usePlacements(
     try {
       const parked = await shelveBundleRpc({ planId, cohort, day, period });
       setParkedBundles((prev) => parkReconcile(prev, tempId, parked.id));
+      recordEdit("lift", scope, before, { day, period });
     } catch (err: unknown) {
       setPlacements((prev) => removeManyRollback(prev, occupants));
       setParkedBundles((prev) => parkRollback(prev, tempId));
@@ -426,12 +494,15 @@ export function usePlacements(
   // Dedup against an already-parked identical set is the caller's concern (it owns the notice).
   async function persistParkMembers(members: ParkedMember[]) {
     if (members.length === 0) return;
+    const scope: AffectedScope = { cells: [], cardSets: [members] };
+    const before = snapshot(scope);
     const tempId = crypto.randomUUID();
     setParkedBundles((prev) => parkAddOptimistic(prev, tempId, members));
 
     try {
       const parked = await shelveCourses({ planId, cohort, members });
       setParkedBundles((prev) => parkReconcile(prev, tempId, parked.id));
+      recordEdit("parkMembers", scope, before);
     } catch (err: unknown) {
       setParkedBundles((prev) => parkRollback(prev, tempId));
       setError(errorOf(err));
@@ -448,6 +519,9 @@ export function usePlacements(
   async function persistPlaceBack(shelfBundleId: string, target: CellData) {
     const card = parkedBundlesRef.current.find((b) => b.id === shelfBundleId);
     if (!card || card.pending) return; // unknown / not-yet-reconciled card
+
+    const scope: AffectedScope = { cells: [cellKey(target.day, target.period)], cardSets: [card.members] };
+    const before = snapshot(scope);
 
     const weekByMember = new Map(card.members.map((m) => [m.courseId, m.week] as const));
     const eligible = eligibleMembers(
@@ -481,6 +555,8 @@ export function usePlacements(
       }));
       setPlacements((prev) => settleMany(prev, outcomes));
 
+      recordEdit("placeBack", scope, before, target);
+
       const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
       if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: entries.length });
     } catch (err: unknown) {
@@ -502,13 +578,94 @@ export function usePlacements(
     const card = parkedBundlesRef.current.find((b) => b.id === shelfBundleId);
     if (!card || card.pending) return; // unknown / not-yet-reconciled card
 
+    const scope: AffectedScope = { cells: [], cardSets: [card.members] };
+    const before = snapshot(scope);
+
     setParkedBundles((prev) => unparkOptimistic(prev, shelfBundleId));
 
     try {
       await deleteShelfBundle({ planId, shelfBundleId });
+      recordEdit("discard", scope, before);
     } catch (err: unknown) {
       setParkedBundles((prev) => unparkRollback(prev, card));
       setError(errorOf(err));
+    }
+  }
+
+  // A single-cell scope (the common case: add/move/remove/setWeek touch one or two cells, no cards).
+  function cellScope(cell: CellData): AffectedScope {
+    return { cells: [cellKey(cell.day, cell.period)], cardSets: [] };
+  }
+
+  // Read the live affected slice — used to capture `before` at edit time and the forward (redo)
+  // target at undo time. Reads the latest refs (fresh across gestures), never inside a setState updater.
+  function snapshot(scope: AffectedScope): AffectedSlice {
+    return sliceAt(placementsRef.current, parkedBundlesRef.current, scope);
+  }
+
+  // The NON-recording reconcile executor undo/redo drive. Computes the diff from the live slice to a
+  // target, applies it to both stores in one pass each (no-flicker), runs the plan over the existing
+  // RPCs (atomic compound where the shape allows, decomposed only for the merge-undo residual),
+  // settles ids by business key, and on failure rolls both stores back + surfaces the error. By
+  // construction it has no `recordEdit` path — the recorder-bypass invariant is structural.
+  async function applyReconcile(target: AffectedSlice, scope: AffectedScope): Promise<{ ok: boolean }> {
+    const plan = diffReconcile(snapshot(scope), target);
+
+    // Capture — synchronously, before any optimistic mutation — the live rows the diff touches, so
+    // rollback restores them faithfully and card ids resolve without depending on the lagged refs.
+    const removeKeys = new Set(plan.toRemove.map(placementBusinessKey));
+    const removedRows = placementsRef.current.filter((row) => removeKeys.has(placementBusinessKey(row)));
+    const deletedCards = matchCardsByMemberSet(parkedBundlesRef.current, plan.cardsToDelete);
+    const cardIdByMemberSet = new Map(deletedCards.map((card) => [memberSetKey(card.members), card.id]));
+
+    const placeEntries: PlaceEntry[] = plan.toPlace.map((spec) => ({ tempId: crypto.randomUUID(), spec }));
+    const cardEntries: CardEntry[] = plan.cardsToCreate.map((members) => ({ tempId: crypto.randomUUID(), members }));
+
+    setReconciling(true);
+    setPlacements((prev) => reconcilePlacementsOptimistic(prev, plan.toRemove, placeEntries));
+    setParkedBundles((prev) =>
+      reconcileCardsOptimistic(
+        prev,
+        deletedCards.map((card) => card.id),
+        cardEntries,
+      ),
+    );
+
+    const deps: ReconcileDeps = {
+      moveMembers: (sourceCell, targetCell, courseIds) =>
+        moveBundleMembers({
+          planId,
+          cohort,
+          day: sourceCell.day,
+          period: sourceCell.period,
+          courseIds,
+          targetDay: targetCell.day,
+          targetPeriod: targetCell.period,
+        }),
+      shelve: (cell) => shelveBundleRpc({ planId, cohort, day: cell.day, period: cell.period }),
+      unshelve: (shelfBundleId, targetCell) =>
+        unshelveBundle({ planId, cohort, shelfBundleId, targetDay: targetCell.day, targetPeriod: targetCell.period }),
+      place: (spec) =>
+        placeCourse({ planId, cohort, courseId: spec.courseId, day: spec.day, period: spec.period, week: spec.week }),
+      removeMembers: (cell, courseIds) =>
+        removeBundleMembers({ planId, cohort, day: cell.day, period: cell.period, courseIds }),
+      createCard: (members) => shelveCourses({ planId, cohort, members }),
+      deleteCard: (shelfBundleId) => deleteShelfBundle({ planId, shelfBundleId }),
+      resolveCardId: (members) => cardIdByMemberSet.get(memberSetKey(members)),
+    };
+
+    try {
+      const result = await executeReconcilePlan(plan, deps);
+      setPlacements((prev) => settleReconcilePlacements(prev, placeEntries, result.placed));
+      setParkedBundles((prev) => settleReconcileCards(prev, cardEntries, result.createdCards));
+      return { ok: true };
+    } catch (err: unknown) {
+      setPlacements((prev) => rollbackReconcilePlacements(prev, placeEntries, removedRows));
+      setParkedBundles((prev) => rollbackReconcileCards(prev, cardEntries, deletedCards));
+      setError(errorOf(err));
+      return { ok: false };
+    } finally {
+      setReconciling(false);
     }
   }
 
@@ -529,6 +686,9 @@ export function usePlacements(
     placeBack,
     parkMembers,
     removeParked,
+    snapshot,
+    applyReconcile,
+    busy,
     clearError: () => {
       setError(null);
     },
@@ -547,3 +707,31 @@ const messageOf = (err: unknown): string =>
   err instanceof Error ? err.message : "Unexpected error persisting placement";
 
 const errorOf = (err: unknown): PlacementError => ({ kind: "message", message: messageOf(err) });
+
+const placementBusinessKey = ({
+  courseId,
+  day,
+  period,
+  week,
+}: {
+  courseId: string;
+  day: number;
+  period: number;
+  week: PlacementWeek;
+}): string => `${courseId}|${day}|${period}|${week}`;
+
+/** The live cards matching a list of member-sets (multiset) — kept whole so rollback restores their ids. */
+function matchCardsByMemberSet(live: LocalParkedBundle[], memberSets: ParkedMember[][]): LocalParkedBundle[] {
+  const wanted = new Map<string, number>();
+  for (const set of memberSets) {
+    const key = memberSetKey(set);
+    wanted.set(key, (wanted.get(key) ?? 0) + 1);
+  }
+  return live.filter((card) => {
+    const key = memberSetKey(card.members);
+    const remaining = wanted.get(key) ?? 0;
+    if (remaining === 0) return false;
+    wanted.set(key, remaining - 1);
+    return true;
+  });
+}

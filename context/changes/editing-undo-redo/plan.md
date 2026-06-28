@@ -340,27 +340,27 @@ None — no schema change. The durable-across-reload variant (a fast-follow) wou
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `pnpm test`
-- [x] 1.2 Type checking passes: `pnpm check`
-- [x] 1.3 Linting passes: `pnpm lint`
-- [x] 1.4 FSD structure check passes: `pnpm steiger`
+- [x] 1.1 Unit tests pass: `pnpm test` — 8d62600
+- [x] 1.2 Type checking passes: `pnpm check` — 8d62600
+- [x] 1.3 Linting passes: `pnpm lint` — 8d62600
+- [x] 1.4 FSD structure check passes: `pnpm steiger` — 8d62600
 
 #### Manual
 
-- [x] 1.5 `diffReconcile` test cases cover add/remove/move/week-flip/merge-undo/no-op + shelf create/delete/multiset + combined lift-undo + removes-before-places ordering
+- [x] 1.5 `diffReconcile` test cases cover add/remove/move/week-flip/merge-undo/no-op + shelf create/delete/multiset + combined lift-undo + removes-before-places ordering — 8d62600
 
 ### Phase 2: Write-path integration (recording + reconcile executor)
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `pnpm test` (onRecord matrix; no-record on rollback / from applyReconcile; applyReconcile state-drive + id-remap + two-store + rollback)
-- [ ] 2.2 Type checking passes: `pnpm check`
-- [ ] 2.3 Linting passes: `pnpm lint`
-- [ ] 2.4 FSD structure check passes: `pnpm steiger`
+- [x] 2.1 Unit tests pass: `pnpm test` (onRecord matrix; no-record on rollback / from applyReconcile; applyReconcile state-drive + id-remap + two-store + rollback)
+- [x] 2.2 Type checking passes: `pnpm check`
+- [x] 2.3 Linting passes: `pnpm lint`
+- [x] 2.4 FSD structure check passes: `pnpm steiger`
 
 #### Manual
 
-- [ ] 2.5 Reviewer confirms recorder-bypass is structural (no mode flag; applyReconcile has no record path)
+- [x] 2.5 Reviewer confirms recorder-bypass is structural (no mode flag; applyReconcile has no record path)
 
 ### Phase 3: Plan-level undo/redo orchestration
 

@@ -1,7 +1,7 @@
 ---
 change_id: plan-detail-unify-views
 title: Make combined the one plan-detail board; single cohort becomes a focus mode
-status: plan_reviewed
+status: implementing
 created: 2026-06-28
 updated: 2026-06-28
 archived_at: null

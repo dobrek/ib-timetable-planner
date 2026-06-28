@@ -18,9 +18,8 @@ import { CombinedPalettePanel, type PaletteCohortData } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import { cellKey } from "../model/collision/cell-key";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
-import type { CellData, DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
-import type { ParkedMember } from "../model/placement/parked";
-import { defaultParkedWeek, groupingParkedMembers } from "../model/placement/parked-members";
+import { applyDropAction } from "../model/cross-cohort/drop-dispatch";
+import type { DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
 
@@ -40,6 +39,9 @@ type Props = {
 export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2Props }: Props) {
   const { dp1, dp2 } = useCombinedBoardState(dp1Props, dp2Props);
   const byCohort: Record<Cohort, CohortBoardState> = { dp1, dp2 };
+  // Per-cohort resolver for the shared drop dispatch — the lift button and the drop handler both
+  // route through `applyDropAction`, which reads the target cohort's state off this map.
+  const resolveState = (cohort: Cohort) => byCohort[cohort];
   const { hintMode, setHintMode } = useHintMode();
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
   // Compact-first: the palette starts collapsed regardless of the single-board cookie.
@@ -98,63 +100,10 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
     if (!source || !target) return; // dropped outside any cell — removal is via the chip "×"
 
     // The pure router resolves the target cohort and applies the cross-cohort guard; null = no-op.
-    // A cohort-free palette drag dropped on the cell-less shelf parks under `paletteCohort`.
+    // A cohort-free palette drag dropped on the cell-less shelf parks under `paletteCohort`. The ONE
+    // shared dispatch (`applyDropAction`) reads the resolved cohort's state via `resolveState`.
     const action = resolveCombinedDrop(source.data as DragData, target.data as DropTargetData, paletteCohort);
-    if (!action) return;
-    const state = byCohort[action.cohort];
-    const { actions } = state;
-
-    switch (action.kind) {
-      case "addCourse":
-        actions.addCourse(action.courseId, action.cell);
-        break;
-      case "dropGroup":
-        dropGroup(action.cohort, action.groupingId, action.cell);
-        break;
-      case "movePlacement":
-        actions.movePlacement(action.placementId, action.cell);
-        break;
-      case "moveBundle":
-        actions.moveBundle(action.day, action.period, action.cell);
-        break;
-      case "liftBundle":
-        actions.shelveBundle(action.day, action.period);
-        collapseUnlessPinned();
-        break;
-      case "placeBack":
-        actions.placeBack(action.shelfBundleId, action.cell);
-        collapseUnlessPinned();
-        break;
-      case "parkCourse":
-        // Palette course dropped on the cell-less shelf → park the single course under the active cohort.
-        parkToShelf(action.cohort, [
-          { courseId: action.courseId, week: defaultParkedWeek(action.courseId, state.weekModeByCourseId) },
-        ]);
-        break;
-      case "parkGroup":
-        // Palette grouping dropped on the shelf → park its resolved members under the active cohort.
-        parkToShelf(action.cohort, groupingParkedMembers(action.groupingId, state.groupings, state.weekModeByCourseId));
-        break;
-    }
-  }
-
-  function dropGroup(cohort: Cohort, groupingId: string, cell: CellData) {
-    const state = byCohort[cohort];
-    const grouping = state.groupings.find((candidate) => candidate.id === groupingId);
-    state.actions.addGroup(grouping?.memberIds ?? [], cell, { oppositeWeek: grouping?.oppositeWeek ?? false });
-  }
-
-  function liftBundle(cohort: Cohort, day: number, period: number) {
-    byCohort[cohort].actions.shelveBundle(day, period);
-    collapseUnlessPinned();
-  }
-
-  // Park a resolved member-set under `cohort` (no-op on empty) + auto-collapse unless pinned — the
-  // combined-view analog of the single board's `parkToShelf`, routed to the active cohort's store.
-  function parkToShelf(cohort: Cohort, members: ParkedMember[]) {
-    if (members.length === 0) return;
-    byCohort[cohort].actions.parkMembers(members);
-    collapseUnlessPinned();
+    if (action) applyDropAction(action, resolveState, { collapseUnlessPinned });
   }
 
   // Discard a parked card → route to its owning cohort's store (the card is tagged with its cohort).
@@ -188,7 +137,7 @@ export default function CombinedPlannerBoard({ planName, dp1: dp1Props, dp2: dp2
       onRemoveBundle: state.actions.removeBundle,
       onDuplicateBundle: state.actions.duplicateBundle,
       onLiftBundle: (day, period) => {
-        liftBundle(cohort, day, period);
+        applyDropAction({ kind: "liftBundle", cohort, day, period }, resolveState, { collapseUnlessPinned });
       },
       onInspect: (target) => {
         setInspection({ cohort, target });

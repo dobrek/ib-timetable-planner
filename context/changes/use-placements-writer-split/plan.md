@@ -297,11 +297,11 @@ Pure code restructure; no data, schema, or API migration. Each phase is independ
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Existing hook tests pass: `pnpm test use-placements`
-- [x] 1.3 `use-reconcile-executor` tests pass: `pnpm test use-reconcile-executor`
-- [x] 1.4 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [x] 1.5 Build clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check` — c318076
+- [x] 1.2 Existing hook tests pass: `pnpm test use-placements` — c318076
+- [x] 1.3 `use-reconcile-executor` tests pass: `pnpm test use-reconcile-executor` — c318076
+- [x] 1.4 Lint + structure pass: `pnpm lint && pnpm steiger` — c318076
+- [x] 1.5 Build clean: `pnpm build` — c318076
 
 #### Manual
 
@@ -312,11 +312,11 @@ Pure code restructure; no data, schema, or API migration. Each phase is independ
 
 #### Automated
 
-- [ ] 2.1 New shelf-writes tests pass: `pnpm test shelf-writes`
-- [ ] 2.2 Existing hook tests pass unchanged: `pnpm test use-placements`
-- [ ] 2.3 Type check passes: `pnpm check`
-- [ ] 2.4 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [ ] 2.5 Build clean: `pnpm build`
+- [x] 2.1 New shelf-writes tests pass: `pnpm test shelf-writes`
+- [x] 2.2 Existing hook tests pass unchanged: `pnpm test use-placements`
+- [x] 2.3 Type check passes: `pnpm check`
+- [x] 2.4 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 2.5 Build clean: `pnpm build`
 
 #### Manual
 

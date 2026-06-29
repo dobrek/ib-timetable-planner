@@ -406,8 +406,8 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Manual
 
-- [ ] 1.7 Board smoke (add/move/remove/group/shelf/place-back) behaves as before
-- [ ] 1.8 Group drop with a forced member failure still shows the failure banner
+- [x] 1.7 Board smoke (add/move/remove/group/shelf/place-back) behaves as before
+- [x] 1.8 Group drop with a forced member failure still shows the failure banner
 
 ### Phase 2: `makeRpcs` binding factory
 
@@ -421,8 +421,8 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Manual
 
-- [ ] 2.6 Full board smoke behaves identically
-- [ ] 2.7 Undo/redo of a move and a lift round-trip through `rpcs`
+- [x] 2.6 Full board smoke behaves identically
+- [x] 2.7 Undo/redo of a move and a lift round-trip through `rpcs`
 
 ### Phase 3: Small behavior changes
 
@@ -436,9 +436,9 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Manual
 
-- [ ] 3.6 Undo tooltip after a duplicate reads "Duplicate …"
-- [ ] 3.7 A failed edit's banner clears after a successful edit
-- [ ] 3.8 Undo/redo of a duplicate round-trips
+- [x] 3.6 Undo tooltip after a duplicate reads "Duplicate …"
+- [x] 3.7 A failed edit's banner clears after a successful edit
+- [x] 3.8 Undo/redo of a duplicate round-trips
 
 ### Phase 4: Executor split (`useReconcileExecutor`)
 
@@ -453,24 +453,24 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Manual
 
-- [ ] 4.7 Undo/redo round-trips for move, lift, place-back, merge-undo
-- [ ] 4.8 A forced reconcile failure rolls both stores back and surfaces the error
-- [ ] 4.9 `busy` still gates undo/redo during an in-flight edit
+- [x] 4.7 Undo/redo round-trips for move, lift, place-back, merge-undo
+- [x] 4.8 A forced reconcile failure rolls both stores back and surfaces the error
+- [x] 4.9 `busy` still gates undo/redo during an in-flight edit
 
 ### Phase 5: Enable the React Compiler
 
 #### Automated
 
-- [x] 5.1 Type check passes: `pnpm check`
-- [x] 5.2 Lint passes (react-compiler rule stays error): `pnpm lint`
-- [x] 5.3 All unit tests pass incl. perf test: `pnpm test`
-- [x] 5.4 FSD structure check passes: `pnpm steiger`
-- [x] 5.5 Production (workerd) build is clean: `pnpm build`
-- [x] 5.6 Dev server boots without Invalid-hook-call / React-dedup error: `pnpm dev` smoke
+- [x] 5.1 Type check passes: `pnpm check` — c184229
+- [x] 5.2 Lint passes (react-compiler rule stays error): `pnpm lint` — c184229
+- [x] 5.3 All unit tests pass incl. perf test: `pnpm test` — c184229
+- [x] 5.4 FSD structure check passes: `pnpm steiger` — c184229
+- [x] 5.5 Production (workerd) build is clean: `pnpm build` — c184229
+- [x] 5.6 Dev server boots without Invalid-hook-call / React-dedup error: `pnpm dev` smoke — c184229
 
 #### Manual
 
-- [ ] 5.7 Drag-drop stays within the <200ms validation budget under the compiled build
-- [ ] 5.8 Full board smoke under the compiled build, both cohorts, no double-render/hook-order regression
-- [ ] 5.9 Cross-island smoke: course/teacher/student RHF dialogs + sign-in form submit cleanly under the compiled build
-- [ ] 5.10 Dev SSR React-dedup behavior (`ssrPrebundleDeps`) is unaffected
+- [x] 5.7 Drag-drop stays within the <200ms validation budget under the compiled build
+- [x] 5.8 Full board smoke under the compiled build, both cohorts, no double-render/hook-order regression
+- [x] 5.9 Cross-island smoke: course/teacher/student RHF dialogs + sign-in form submit cleanly under the compiled build
+- [x] 5.10 Dev SSR React-dedup behavior (`ssrPrebundleDeps`) is unaffected

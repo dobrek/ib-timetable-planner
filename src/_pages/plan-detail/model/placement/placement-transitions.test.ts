@@ -8,11 +8,14 @@ import {
   addRollback,
   canAdd,
   eligibleMembers,
+  groupFailureError,
   groupFailureMessage,
   moveIntent,
   moveManyOptimistic,
   moveManyRollback,
+  occupantsAt,
   oppositeWeekAssignment,
+  outcomesByCourse,
   partitionBundleMove,
   placementErrorMessage,
   removeManyOptimistic,
@@ -429,5 +432,64 @@ describe("drop-time week assignment", () => {
     const assignment = oppositeWeekAssignment(["B", "A"]);
     expect(assignment.get("A")).toBe("a");
     expect(assignment.get("B")).toBe("b");
+  });
+});
+
+describe("occupantsAt", () => {
+  it("returns every placement sitting at the cell", () => {
+    const placements = [p("p1", "A", 1, 1), p("p2", "B", 1, 1), p("p3", "C", 2, 2)];
+    expect(occupantsAt(placements, cell(1, 1))).toEqual([p("p1", "A", 1, 1), p("p2", "B", 1, 1)]);
+  });
+
+  it("returns an empty array when no placement sits at the cell", () => {
+    expect(occupantsAt([p("p1", "A", 1, 1)], cell(2, 2))).toEqual([]);
+  });
+});
+
+describe("outcomesByCourse", () => {
+  it("matches each entry to its server row by course id", () => {
+    const entries = [
+      { tempId: "t1", courseId: "A" },
+      { tempId: "t2", courseId: "B" },
+    ];
+    const serverRows = [server("real-a", "A", 2, 2), server("real-b", "B", 2, 2)];
+    expect(outcomesByCourse(entries, serverRows)).toEqual([
+      { tempId: "t1", courseId: "A", result: server("real-a", "A", 2, 2) },
+      { tempId: "t2", courseId: "B", result: server("real-b", "B", 2, 2) },
+    ]);
+  });
+
+  it("yields a null result for an entry the server did not return (the failed member)", () => {
+    const entries = [
+      { tempId: "t1", courseId: "A" },
+      { tempId: "t2", courseId: "B" },
+    ];
+    const serverRows = [server("real-a", "A", 2, 2)];
+    expect(outcomesByCourse(entries, serverRows)).toEqual([
+      { tempId: "t1", courseId: "A", result: server("real-a", "A", 2, 2) },
+      { tempId: "t2", courseId: "B", result: null },
+    ]);
+  });
+});
+
+describe("groupFailureError", () => {
+  it("returns null when every outcome settled", () => {
+    const outcomes = [
+      { tempId: "t1", courseId: "A", result: server("real-a", "A", 1, 1) },
+      { tempId: "t2", courseId: "B", result: server("real-b", "B", 1, 1) },
+    ];
+    expect(groupFailureError(outcomes, 2)).toBeNull();
+  });
+
+  it("returns a groupFailure naming the failed courses with the attempted count", () => {
+    const outcomes = [
+      { tempId: "t1", courseId: "A", result: server("real-a", "A", 1, 1) },
+      { tempId: "t2", courseId: "B", result: null },
+    ];
+    expect(groupFailureError(outcomes, 2)).toEqual({
+      kind: "groupFailure",
+      failedCourseIds: ["B"],
+      attempted: 2,
+    });
   });
 });

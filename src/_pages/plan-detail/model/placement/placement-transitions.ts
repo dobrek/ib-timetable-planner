@@ -32,6 +32,13 @@ export function oppositeWeekAssignment(memberIds: string[]): Map<string, Placeme
   return new Map([...memberIds].sort().map((id, index): [string, PlacementWeek] => [id, index % 2 === 0 ? "a" : "b"]));
 }
 
+// --- Cell queries ---
+
+/** Every placement sitting at a cell — the open-coded `filter(p => p.day === … && p.period === …)`. */
+export function occupantsAt(placements: LocalPlacement[], cell: { day: number; period: number }): LocalPlacement[] {
+  return placements.filter((p) => p.day === cell.day && p.period === cell.period);
+}
+
 // --- Add ---
 
 export function canAdd(placements: LocalPlacement[], courseId: string, cell: CellData): boolean {
@@ -61,6 +68,8 @@ export function addRollback(prev: LocalPlacement[], tempId: string): LocalPlacem
 export type BatchEntry = { tempId: string; courseId: string; week: PlacementWeek };
 /** `result: null` means the member failed to persist and rolls back. */
 export type BatchOutcome = { tempId: string; result: PlannerPlacement | null };
+/** A batch outcome tagged with its course — the reconcile-by-course shape the group/place-back fan-outs build. */
+export type MemberOutcome = BatchOutcome & { courseId: string };
 
 export function eligibleMembers(placements: LocalPlacement[], memberIds: string[], cell: CellData): string[] {
   return memberIds.filter((courseId) => canAdd(placements, courseId, cell));
@@ -89,6 +98,23 @@ export function settleMany(prev: LocalPlacement[], outcomes: BatchOutcome[]): Lo
   });
 }
 
+/**
+ * Reconcile a batch's entries to their server rows by course id — each entry settles to the row the
+ * RPC returned for its course (`result: null` when the server omitted it, so `settleMany` drops it).
+ * The move and place-back fan-outs both match server rows back to their optimistic temps this way.
+ */
+export function outcomesByCourse(
+  entries: { tempId: string; courseId: string }[],
+  serverRows: PlannerPlacement[],
+): MemberOutcome[] {
+  const serverByCourse = new Map(serverRows.map((row) => [row.courseId, row]));
+  return entries.map((entry) => ({
+    tempId: entry.tempId,
+    courseId: entry.courseId,
+    result: serverByCourse.get(entry.courseId) ?? null,
+  }));
+}
+
 export function groupFailureMessage(failedNames: string[], attempted: number): string {
   const noun = attempted === 1 ? "course" : "courses";
   return `${failedNames.length} of ${attempted} ${noun} failed to save: ${failedNames.join(", ")}`;
@@ -100,6 +126,15 @@ export function groupFailureMessage(failedNames: string[], attempted: number): s
 export type PlacementError =
   | { kind: "message"; message: string }
   | { kind: "groupFailure"; failedCourseIds: string[]; attempted: number };
+
+/**
+ * The partial-failure banner for a batch: a `groupFailure` error naming every member whose server row
+ * came back null, or `null` when all members landed. Pure — the caller does the `setError`.
+ */
+export function groupFailureError(outcomes: MemberOutcome[], attempted: number): PlacementError | null {
+  const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
+  return failedCourseIds.length > 0 ? { kind: "groupFailure", failedCourseIds, attempted } : null;
+}
 
 export function placementErrorMessage(error: PlacementError, names: Record<string, string>): string {
   if (error.kind === "message") return error.message;

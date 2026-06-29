@@ -14,10 +14,13 @@ import {
   addRollback,
   canAdd,
   eligibleMembers,
+  groupFailureError,
   moveIntent,
   moveManyOptimistic,
   moveManyRollback,
+  occupantsAt,
   oppositeWeekAssignment,
+  outcomesByCourse,
   partitionBundleMove,
   removeManyOptimistic,
   removeManyRollback,
@@ -27,7 +30,7 @@ import {
   setWeekReconcile,
   setWeekRollback,
   settleMany,
-  type BatchOutcome,
+  type MemberOutcome,
   type PlacementError,
 } from "./placement/placement-transitions";
 import type { LocalParkedBundle, ParkedBundle, ParkedMember } from "./placement/parked";
@@ -41,7 +44,7 @@ import {
 } from "./placement/shelf-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement/placement";
 import { cellKey } from "./collision/cell-key";
-import { memberSetKey, sliceAt } from "./history/affected-slice";
+import { memberSetKey, placementBusinessKey, sliceAt } from "./history/affected-slice";
 import { diffReconcile } from "./history/reconcile";
 import { executeReconcilePlan, type ReconcileDeps } from "./history/reconcile-exec";
 import {
@@ -206,7 +209,7 @@ export function usePlacements(
   // message error. On dispatch it publishes the target (fresh nonce) so the board pulses it —
   // optimistically, before the fan-out settles (a fully-failed copy briefly pulses the emptied cell).
   function duplicateBundle(day: number, period: number) {
-    const occupants = placementsRef.current.filter((p) => p.day === day && p.period === period);
+    const occupants = occupantsAt(placementsRef.current, { day, period });
     if (occupants.length === 0) return; // empty-source no-op
     if (occupants.some((p) => p.pending)) return; // pending-source no-op (mirrors move/remove)
 
@@ -244,7 +247,7 @@ export function usePlacements(
   }
 
   const courseIdsAt = (day: number, period: number): string[] =>
-    placementsRef.current.filter((p) => p.day === day && p.period === period).map((p) => p.courseId);
+    occupantsAt(placementsRef.current, { day, period }).map((p) => p.courseId);
 
   function shelveBundle(day: number, period: number) {
     void persistShelve(day, period);
@@ -315,8 +318,8 @@ export function usePlacements(
       // Record once if at least one member landed (a fully-failed batch leaves the cell unchanged).
       if (outcomes.some(({ result }) => result !== null)) recordEdit("addGroup", scope, before, cell);
 
-      const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
-      if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: outcomes.length });
+      const failure = groupFailureError(outcomes, outcomes.length);
+      if (failure) setError(failure);
     } catch (err: unknown) {
       setPlacements((prev) =>
         settleMany(
@@ -331,7 +334,7 @@ export function usePlacements(
   async function persistMember(
     { tempId, courseId, week }: { tempId: string; courseId: string; week: PlacementWeek },
     cell: CellData,
-  ): Promise<BatchOutcome & { courseId: string }> {
+  ): Promise<MemberOutcome> {
     try {
       const row = await placeCourse({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
       return { tempId, courseId, result: row };
@@ -351,9 +354,7 @@ export function usePlacements(
   async function persistMoveMembers(source: CellData, courseIds: string[], target: CellData) {
     if (target.day === source.day && target.period === source.period) return; // same-cell no-op
     const courseSet = new Set(courseIds);
-    const occupants = placementsRef.current.filter(
-      (p) => p.day === source.day && p.period === source.period && courseSet.has(p.courseId),
-    );
+    const occupants = occupantsAt(placementsRef.current, source).filter((p) => courseSet.has(p.courseId));
     if (occupants.length === 0) return;
     if (occupants.some((p) => p.pending)) return; // batch analogue of moveIntent's pending reject
 
@@ -384,18 +385,16 @@ export function usePlacements(
       });
       // Reconcile each mover by course → its server row (relocation preserves the placement id,
       // so settleMany matches by the unchanged id and picks up the settled bundleId).
-      const serverByCourse = new Map(serverRows.map((row) => [row.courseId, row]));
-      const outcomes: (BatchOutcome & { courseId: string })[] = moverRows.map((row) => ({
-        tempId: row.id,
-        courseId: row.courseId,
-        result: serverByCourse.get(row.courseId) ?? null,
-      }));
+      const outcomes = outcomesByCourse(
+        moverRows.map((row) => ({ tempId: row.id, courseId: row.courseId })),
+        serverRows,
+      );
       setPlacements((prev) => settleMany(prev, outcomes));
 
       recordEdit(courseIds.length > 1 ? "moveBundle" : "move", scope, before, target);
 
-      const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
-      if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: moverRows.length });
+      const failure = groupFailureError(outcomes, moverRows.length);
+      if (failure) setError(failure);
     } catch (err: unknown) {
       setPlacements((prev) => moveManyRollback(prev, movers, occupants));
       setError(errorOf(err));
@@ -407,9 +406,7 @@ export function usePlacements(
   // failure restores the removed rows.
   async function persistRemoveMembers(cell: CellData, courseIds: string[]) {
     const courseSet = new Set(courseIds);
-    const occupants = placementsRef.current.filter(
-      (p) => p.day === cell.day && p.period === cell.period && courseSet.has(p.courseId),
-    );
+    const occupants = occupantsAt(placementsRef.current, cell).filter((p) => courseSet.has(p.courseId));
     if (occupants.length === 0) return;
     if (occupants.some((p) => p.pending)) return; // batch analogue of removeTarget's pending reject
 
@@ -459,7 +456,7 @@ export function usePlacements(
   // One atomic `shelve_bundle` RPC; reconcile the card's temp id to the server shelf id. A failed
   // RPC rolls BOTH stores back (placements restored, pending card dropped).
   async function persistShelve(day: number, period: number) {
-    const occupants = placementsRef.current.filter((p) => p.day === day && p.period === period);
+    const occupants = occupantsAt(placementsRef.current, { day, period });
     if (occupants.length === 0) return; // empty-cell no-op
     if (occupants.some((p) => p.pending)) return; // pending-source no-op (mirrors move/remove)
 
@@ -547,18 +544,13 @@ export function usePlacements(
         targetPeriod: target.period,
       });
       // Match each temp placement to its server row by course (place_course preserves no temp id).
-      const serverByCourse = new Map(serverRows.map((row) => [row.courseId, row]));
-      const outcomes: (BatchOutcome & { courseId: string })[] = entries.map((entry) => ({
-        tempId: entry.tempId,
-        courseId: entry.courseId,
-        result: serverByCourse.get(entry.courseId) ?? null,
-      }));
+      const outcomes = outcomesByCourse(entries, serverRows);
       setPlacements((prev) => settleMany(prev, outcomes));
 
       recordEdit("placeBack", scope, before, target);
 
-      const failedCourseIds = outcomes.filter(({ result }) => result === null).map(({ courseId }) => courseId);
-      if (failedCourseIds.length > 0) setError({ kind: "groupFailure", failedCourseIds, attempted: entries.length });
+      const failure = groupFailureError(outcomes, entries.length);
+      if (failure) setError(failure);
     } catch (err: unknown) {
       setParkedBundles((prev) => unparkRollback(prev, card));
       setPlacements((prev) =>
@@ -695,6 +687,11 @@ export function usePlacements(
   };
 }
 
+// FOOTGUN: the ref is written in a `useEffect`, so `ref.current` reflects the LAST COMMITTED render —
+// it lags a `setState` issued earlier in the same tick by one commit. Every `persist*` dodges this by
+// capturing what it needs (`occupants`, `moverRows`, `before`, `removedRows`) BEFORE the `await` and
+// driving state through functional updaters. Rule: never read this ref expecting an in-tick `setState`
+// to be reflected; capture up front and use functional `setState` instead.
 function useLatest<T>(value: T) {
   const ref = useRef(value);
   useEffect(() => {
@@ -707,18 +704,6 @@ const messageOf = (err: unknown): string =>
   err instanceof Error ? err.message : "Unexpected error persisting placement";
 
 const errorOf = (err: unknown): PlacementError => ({ kind: "message", message: messageOf(err) });
-
-const placementBusinessKey = ({
-  courseId,
-  day,
-  period,
-  week,
-}: {
-  courseId: string;
-  day: number;
-  period: number;
-  week: PlacementWeek;
-}): string => `${courseId}|${day}|${period}|${week}`;
 
 /** The live cards matching a list of member-sets (multiset) — kept whole so rollback restores their ids. */
 function matchCardsByMemberSet(live: LocalParkedBundle[], memberSets: ParkedMember[][]): LocalParkedBundle[] {

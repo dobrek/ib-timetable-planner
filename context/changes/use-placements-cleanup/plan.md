@@ -397,12 +397,12 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [ ] 1.1 Type check passes: `pnpm check`
-- [ ] 1.2 Unit tests pass (incl. new helper tests): `pnpm test`
-- [ ] 1.3 New unit tests cover `groupFailureError`, `outcomesByCourse`, `occupantsAt`
-- [ ] 1.4 Lint passes: `pnpm lint`
-- [ ] 1.5 FSD structure check passes: `pnpm steiger`
-- [ ] 1.6 Production build is clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check`
+- [x] 1.2 Unit tests pass (incl. new helper tests): `pnpm test`
+- [x] 1.3 New unit tests cover `groupFailureError`, `outcomesByCourse`, `occupantsAt`
+- [x] 1.4 Lint passes: `pnpm lint`
+- [x] 1.5 FSD structure check passes: `pnpm steiger`
+- [x] 1.6 Production build is clean: `pnpm build`
 
 #### Manual
 

@@ -1,7 +1,7 @@
 import { cellKey } from "../collision/cell-key";
 import type { LocalParkedBundle, ParkedMember } from "../placement/parked";
 import type { LocalPlacement, PlannerPlacement } from "../placement/placement";
-import type { AffectedScope, AffectedSlice } from "./history-entry";
+import type { AffectedScope, AffectedSlice, PlacementKey } from "./history-entry";
 
 /**
  * Read the slice of board state at a scope — used both to capture the pre-edit `before` and to
@@ -29,6 +29,14 @@ const toPlannerPlacement = ({ id, courseId, day, period, week, bundleId }: Local
   week,
   ...(bundleId !== undefined ? { bundleId } : {}),
 });
+
+/**
+ * Canonical business key for a placement — `${courseId}|${day}|${period}|${week}`. The one home for
+ * the reconcile-matching key the optimistic apply (`reconcile-apply.ts`) and the executor both key on;
+ * the two MUST agree, so they share this single derivation rather than re-spelling it.
+ */
+export const placementBusinessKey = ({ courseId, day, period, week }: PlacementKey): string =>
+  `${courseId}|${day}|${period}|${week}`;
 
 /** Canonical, order-free key for a member-set so two formations with the same `{course, week}` pairs match. */
 export const memberSetKey = (members: ParkedMember[]): string =>

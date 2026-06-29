@@ -34,7 +34,17 @@ function ssrPrebundleDeps() {
 // https://astro.build/config
 export default defineConfig({
   output: "server",
-  integrations: [react(), sitemap()],
+  integrations: [
+    // React Compiler (stable 1.x) runs as a Babel transform over the React islands, so the slice's
+    // existing render-purity discipline yields auto-memoization. React 19 ships the runtime
+    // (`react/compiler-runtime`), so `target: "19"` (the default) needs no polyfill package.
+    react({
+      babel: {
+        plugins: [["babel-plugin-react-compiler", { target: "19" }]],
+      },
+    }),
+    sitemap(),
+  ],
   vite: {
     plugins: [tailwindcss(), ssrPrebundleDeps()],
   },

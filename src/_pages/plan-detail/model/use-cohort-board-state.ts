@@ -29,8 +29,9 @@ import {
  * search), which re-reads its own cohort's live `placementsRef` regardless; a session edit in the
  * sibling cohort isn't reflected in that one search, but the duplicate still lands and the fresh
  * index flags any resulting cross-cohort clash immediately — so it is unobservable. Render stays
- * pure (no refs read / no setState-in-effect — the React Compiler forbids both), which is why the
- * `usePlacements` arg is the seed, not a one-render-lagged live value.
+ * pure (no refs read / no setState-in-effect — both forbidden by the React Compiler, which is enabled
+ * in the build and so auto-memoizes this hook), which is why the `usePlacements` arg is the seed, not a
+ * one-render-lagged live value.
  *
  * `focus` lets the hidden cohort idle in focus mode: when one cohort is hidden it is never edited and
  * never rendered, so its derivations are fed the static seed index instead of the visible cohort's

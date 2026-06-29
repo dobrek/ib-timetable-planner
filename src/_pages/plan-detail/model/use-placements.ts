@@ -116,6 +116,10 @@ type UsePlacements = {
  * transitions live in `placement-transitions.ts`; this hook orchestrates React state and
  * async persistence over those pure functions.
  *
+ * The React Compiler is enabled in the build, so it auto-memoizes this hook's handlers — which is why
+ * render must stay pure and refs are only ever read inside async callbacks (see the `useLatest`
+ * footgun note), never during render.
+ *
  * Every mutation is one transactional RPC over a member-set: `placeCourse` (add — one call
  * per member), `moveBundleMembers` (move/merge — single move and whole-bundle move are
  * M-of-one vs M-of-all), `removeBundleMembers` (remove). The board call sites stay ergonomic

@@ -444,12 +444,12 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [x] 4.1 Type check passes: `pnpm check`
-- [x] 4.2 All tests pass unchanged (history + reconcile suites): `pnpm test`
-- [x] 4.3 Lint passes: `pnpm lint`
-- [x] 4.4 FSD structure check passes: `pnpm steiger`
-- [x] 4.5 Production build is clean: `pnpm build`
-- [x] 4.6 `use-placements.ts` no longer imports reconcile/reconcile-exec/reconcile-apply (grep)
+- [x] 4.1 Type check passes: `pnpm check` — d1c3b17
+- [x] 4.2 All tests pass unchanged (history + reconcile suites): `pnpm test` — d1c3b17
+- [x] 4.3 Lint passes: `pnpm lint` — d1c3b17
+- [x] 4.4 FSD structure check passes: `pnpm steiger` — d1c3b17
+- [x] 4.5 Production build is clean: `pnpm build` — d1c3b17
+- [x] 4.6 `use-placements.ts` no longer imports reconcile/reconcile-exec/reconcile-apply (grep) — d1c3b17
 
 #### Manual
 
@@ -461,12 +461,12 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [ ] 5.1 Type check passes: `pnpm check`
-- [ ] 5.2 Lint passes (react-compiler rule stays error): `pnpm lint`
-- [ ] 5.3 All unit tests pass incl. perf test: `pnpm test`
-- [ ] 5.4 FSD structure check passes: `pnpm steiger`
-- [ ] 5.5 Production (workerd) build is clean: `pnpm build`
-- [ ] 5.6 Dev server boots without Invalid-hook-call / React-dedup error: `pnpm dev` smoke
+- [x] 5.1 Type check passes: `pnpm check`
+- [x] 5.2 Lint passes (react-compiler rule stays error): `pnpm lint`
+- [x] 5.3 All unit tests pass incl. perf test: `pnpm test`
+- [x] 5.4 FSD structure check passes: `pnpm steiger`
+- [x] 5.5 Production (workerd) build is clean: `pnpm build`
+- [x] 5.6 Dev server boots without Invalid-hook-call / React-dedup error: `pnpm dev` smoke
 
 #### Manual
 

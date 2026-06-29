@@ -1,10 +1,10 @@
 ---
 change_id: use-placements-writer-split
 title: Split usePlacements into a write-context + writer factories
-status: impl_reviewed
+status: archived
 created: 2026-06-29
 updated: 2026-06-29
-archived_at: null
+archived_at: 2026-06-29T18:03:46Z
 ---
 
 ## Notes

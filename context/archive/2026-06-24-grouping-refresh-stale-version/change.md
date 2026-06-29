@@ -1,10 +1,10 @@
 ---
 change_id: grouping-refresh-stale-version
 title: Grouping refresh stale version
-status: impl_reviewed
+status: archived
 created: 2026-06-24
-updated: 2026-06-24
-archived_at: null
+updated: 2026-06-29
+archived_at: 2026-06-29T07:16:42Z
 ---
 
 ## Notes

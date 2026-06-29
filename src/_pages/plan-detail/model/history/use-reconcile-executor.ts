@@ -110,6 +110,7 @@ export function useReconcileExecutor({
       const result = await executeReconcilePlan(plan, deps);
       setPlacements((prev) => settleReconcilePlacements(prev, placeEntries, result.placed));
       setParkedBundles((prev) => settleReconcileCards(prev, cardEntries, result.createdCards));
+      setError(null); // a fully-successful reconcile dismisses any stale banner, like the forward persist* paths
       return { ok: true };
     } catch (err: unknown) {
       setPlacements((prev) => rollbackReconcilePlacements(prev, placeEntries, removedRows));

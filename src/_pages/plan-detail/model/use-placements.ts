@@ -177,24 +177,6 @@ export function usePlacements(
     onRecord?.({ scope, target: before, label: describeEdit(kind, cell) });
   };
 
-  function addCourse(courseId: string, cell: CellData) {
-    void persistAdd(courseId, cell);
-  }
-
-  function addGroup(
-    memberIds: string[],
-    cell: CellData,
-    opts?: { oppositeWeek?: boolean; weekByMember?: Map<string, PlacementWeek>; editKind?: EditKind },
-  ) {
-    void persistAddGroup(
-      memberIds,
-      cell,
-      opts?.oppositeWeek ?? false,
-      opts?.weekByMember,
-      opts?.editKind ?? "addGroup",
-    );
-  }
-
   function movePlacement(placementId: string, cell: CellData) {
     const result = moveIntent(placementsRef.current, placementId, cell);
     if (!result.ok) return; // not-found / pending / same-cell / occupied (own twin)
@@ -207,18 +189,6 @@ export function usePlacements(
     if (!result.ok) return; // not-found / pending
     const { value: row } = result;
     void persistRemoveMembers({ day: row.day, period: row.period }, [row.courseId]);
-  }
-
-  function setWeek(placementId: string, week: PlacementWeek) {
-    void persistSetWeek(placementId, week);
-  }
-
-  function moveBundle(day: number, period: number, target: CellData) {
-    void persistMoveMembers({ day, period }, courseIdsAt(day, period), target);
-  }
-
-  function removeBundle(day: number, period: number) {
-    void persistRemoveMembers({ day, period }, courseIdsAt(day, period));
   }
 
   // The missing third whole-slot verb. Reads the source cell's occupants (and their weeks),
@@ -256,32 +226,18 @@ export function usePlacements(
     // Mirror the source's exact A/B layout — carry each member's week explicitly so the fan-out
     // does not re-resolve it (which could swap A/B between members for a bi-weekly pair).
     const weekByMember = new Map(placeable.map((p) => [p.courseId, p.week] as const));
-    addGroup(
+    void persistAddGroup(
       placeable.map((p) => p.courseId),
       target,
-      { weekByMember, editKind: "duplicate" },
+      false,
+      weekByMember,
+      "duplicate",
     );
     setLastDuplicated((prev) => ({ ...target, nonce: (prev?.nonce ?? 0) + 1 }));
   }
 
   const courseIdsAt = (day: number, period: number): string[] =>
     occupantsAt(placementsRef.current, { day, period }).map((p) => p.courseId);
-
-  function shelveBundle(day: number, period: number) {
-    void persistShelve(day, period);
-  }
-
-  function placeBack(shelfBundleId: string, target: CellData) {
-    void persistPlaceBack(shelfBundleId, target);
-  }
-
-  function parkMembers(members: ParkedMember[]) {
-    void persistParkMembers(members);
-  }
-
-  function removeParked(shelfBundleId: string) {
-    void persistRemoveParked(shelfBundleId);
-  }
 
   async function persistAdd(courseId: string, cell: CellData) {
     if (!canAdd(placementsRef.current, courseId, cell)) return;
@@ -628,19 +584,26 @@ export function usePlacements(
     placements,
     error,
     lastDuplicated,
-    addCourse,
-    addGroup,
+    addCourse: (courseId, cell) => void persistAdd(courseId, cell),
+    addGroup: (memberIds, cell, opts) =>
+      void persistAddGroup(
+        memberIds,
+        cell,
+        opts?.oppositeWeek ?? false,
+        opts?.weekByMember,
+        opts?.editKind ?? "addGroup",
+      ),
     movePlacement,
     removePlacement,
-    setWeek,
-    moveBundle,
-    removeBundle,
+    setWeek: (placementId, week) => void persistSetWeek(placementId, week),
+    moveBundle: (day, period, target) => void persistMoveMembers({ day, period }, courseIdsAt(day, period), target),
+    removeBundle: (day, period) => void persistRemoveMembers({ day, period }, courseIdsAt(day, period)),
     duplicateBundle,
     parkedBundles,
-    shelveBundle,
-    placeBack,
-    parkMembers,
-    removeParked,
+    shelveBundle: (day, period) => void persistShelve(day, period),
+    placeBack: (shelfBundleId, target) => void persistPlaceBack(shelfBundleId, target),
+    parkMembers: (members) => void persistParkMembers(members),
+    removeParked: (shelfBundleId) => void persistRemoveParked(shelfBundleId),
     snapshot,
     applyReconcile,
     busy,

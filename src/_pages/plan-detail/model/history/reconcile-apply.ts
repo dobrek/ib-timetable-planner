@@ -1,6 +1,6 @@
 import type { LocalParkedBundle, ParkedMember } from "../placement/parked";
 import type { LocalPlacement } from "../placement/placement";
-import { memberSetKey } from "./affected-slice";
+import { memberSetKey, placementBusinessKey } from "./affected-slice";
 import type { PlacementKey, PlacementSpec } from "./history-entry";
 import type { ReconcileResult } from "./reconcile-exec";
 
@@ -20,8 +20,8 @@ export function reconcilePlacementsOptimistic(
   toRemove: PlacementKey[],
   placeEntries: PlaceEntry[],
 ): LocalPlacement[] {
-  const removeKeys = new Set(toRemove.map(businessKey));
-  const kept = prev.filter((row) => !removeKeys.has(businessKey(row)));
+  const removeKeys = new Set(toRemove.map(placementBusinessKey));
+  const kept = prev.filter((row) => !removeKeys.has(placementBusinessKey(row)));
   const added = placeEntries.map(({ tempId, spec }): LocalPlacement => ({ id: tempId, ...spec, pending: true }));
   return [...kept, ...added];
 }
@@ -88,5 +88,3 @@ export function rollbackReconcileCards(
   const tempIds = new Set(cardEntries.map((entry) => entry.tempId));
   return [...prev.filter((card) => !tempIds.has(card.id)), ...deletedCards];
 }
-
-const businessKey = ({ courseId, day, period, week }: PlacementKey): string => `${courseId}|${day}|${period}|${week}`;

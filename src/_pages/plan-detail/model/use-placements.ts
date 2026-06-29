@@ -13,7 +13,9 @@ import {
   addRollback,
   canAdd,
   eligibleMembers,
+  errorOf,
   groupFailureError,
+  messageOf,
   moveIntent,
   moveManyOptimistic,
   moveManyRollback,
@@ -43,19 +45,8 @@ import {
 } from "./placement/shelf-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement/placement";
 import { cellKey } from "./collision/cell-key";
-import { memberSetKey, placementBusinessKey, sliceAt } from "./history/affected-slice";
-import { diffReconcile } from "./history/reconcile";
-import { executeReconcilePlan, type ReconcileDeps } from "./history/reconcile-exec";
-import {
-  reconcileCardsOptimistic,
-  reconcilePlacementsOptimistic,
-  rollbackReconcileCards,
-  rollbackReconcilePlacements,
-  settleReconcileCards,
-  settleReconcilePlacements,
-  type CardEntry,
-  type PlaceEntry,
-} from "./history/reconcile-apply";
+import { sliceAt } from "./history/affected-slice";
+import { useReconcileExecutor } from "./history/use-reconcile-executor";
 import { describeEdit, type EditKind } from "./history/history-label";
 import type { AffectedScope, AffectedSlice, HistoryEntry } from "./history/history-entry";
 
@@ -152,13 +143,24 @@ export function usePlacements(
   // the later one's banner. A success clears it (clear-on-success below); acceptable for one-banner UX.
   const [error, setError] = useState<PlacementError | null>(null);
   const [lastDuplicated, setLastDuplicated] = useState<DuplicateOutcome | null>(null);
-  const [reconciling, setReconciling] = useState(false);
   const placementsRef = useLatest(placements);
   const parkedBundlesRef = useLatest(parkedBundles);
 
   // `planId`/`cohort` bound once: the forward `persist*` path and the reconcile `deps` both call
   // through this instead of re-spelling them at every RPC site.
   const rpcs = useMemo(() => makeRpcs(planId, cohort), [planId, cohort]);
+
+  // The undo/redo reconcile machinery lives in its own hook; the two stores stay unified here and are
+  // injected by ref + setter. `snapshot` is the parent's (the forward path uses it on every edit).
+  const { applyReconcile, reconciling } = useReconcileExecutor({
+    snapshot,
+    placementsRef,
+    parkedBundlesRef,
+    setPlacements,
+    setParkedBundles,
+    setError,
+    rpcs,
+  });
 
   const weekModeOf = (courseId: string): WeekMode => weekModeByCourseId.get(courseId) ?? "agnostic";
 
@@ -618,69 +620,6 @@ export function usePlacements(
     return sliceAt(placementsRef.current, parkedBundlesRef.current, scope);
   }
 
-  // The NON-recording reconcile executor undo/redo drive. Computes the diff from the live slice to a
-  // target, applies it to both stores in one pass each (no-flicker), runs the plan over the existing
-  // RPCs (atomic compound where the shape allows, decomposed only for the merge-undo residual),
-  // settles ids by business key, and on failure rolls both stores back + surfaces the error. By
-  // construction it has no `recordEdit` path — the recorder-bypass invariant is structural.
-  async function applyReconcile(target: AffectedSlice, scope: AffectedScope): Promise<{ ok: boolean }> {
-    const plan = diffReconcile(snapshot(scope), target);
-
-    // Capture — synchronously, before any optimistic mutation — the live rows the diff touches, so
-    // rollback restores them faithfully and card ids resolve without depending on the lagged refs.
-    const removeKeys = new Set(plan.toRemove.map(placementBusinessKey));
-    const removedRows = placementsRef.current.filter((row) => removeKeys.has(placementBusinessKey(row)));
-    const deletedCards = matchCardsByMemberSet(parkedBundlesRef.current, plan.cardsToDelete);
-    const cardIdByMemberSet = new Map(deletedCards.map((card) => [memberSetKey(card.members), card.id]));
-
-    const placeEntries: PlaceEntry[] = plan.toPlace.map((spec) => ({ tempId: crypto.randomUUID(), spec }));
-    const cardEntries: CardEntry[] = plan.cardsToCreate.map((members) => ({ tempId: crypto.randomUUID(), members }));
-
-    setReconciling(true);
-    setPlacements((prev) => reconcilePlacementsOptimistic(prev, plan.toRemove, placeEntries));
-    setParkedBundles((prev) =>
-      reconcileCardsOptimistic(
-        prev,
-        deletedCards.map((card) => card.id),
-        cardEntries,
-      ),
-    );
-
-    const deps: ReconcileDeps = {
-      moveMembers: (sourceCell, targetCell, courseIds) =>
-        rpcs.moveBundleMembers({
-          day: sourceCell.day,
-          period: sourceCell.period,
-          courseIds,
-          targetDay: targetCell.day,
-          targetPeriod: targetCell.period,
-        }),
-      shelve: (cell) => rpcs.shelveBundle({ day: cell.day, period: cell.period }),
-      unshelve: (shelfBundleId, targetCell) =>
-        rpcs.unshelveBundle({ shelfBundleId, targetDay: targetCell.day, targetPeriod: targetCell.period }),
-      place: (spec) =>
-        rpcs.placeCourse({ courseId: spec.courseId, day: spec.day, period: spec.period, week: spec.week }),
-      removeMembers: (cell, courseIds) => rpcs.removeBundleMembers({ day: cell.day, period: cell.period, courseIds }),
-      createCard: (members) => rpcs.shelveCourses({ members }),
-      deleteCard: (shelfBundleId) => rpcs.deleteShelfBundle({ shelfBundleId }),
-      resolveCardId: (members) => cardIdByMemberSet.get(memberSetKey(members)),
-    };
-
-    try {
-      const result = await executeReconcilePlan(plan, deps);
-      setPlacements((prev) => settleReconcilePlacements(prev, placeEntries, result.placed));
-      setParkedBundles((prev) => settleReconcileCards(prev, cardEntries, result.createdCards));
-      return { ok: true };
-    } catch (err: unknown) {
-      setPlacements((prev) => rollbackReconcilePlacements(prev, placeEntries, removedRows));
-      setParkedBundles((prev) => rollbackReconcileCards(prev, cardEntries, deletedCards));
-      setError(errorOf(err));
-      return { ok: false };
-    } finally {
-      setReconciling(false);
-    }
-  }
-
   return {
     placements,
     error,
@@ -718,25 +657,4 @@ function useLatest<T>(value: T) {
     ref.current = value;
   }, [value]);
   return ref;
-}
-
-const messageOf = (err: unknown): string =>
-  err instanceof Error ? err.message : "Unexpected error persisting placement";
-
-const errorOf = (err: unknown): PlacementError => ({ kind: "message", message: messageOf(err) });
-
-/** The live cards matching a list of member-sets (multiset) — kept whole so rollback restores their ids. */
-function matchCardsByMemberSet(live: LocalParkedBundle[], memberSets: ParkedMember[][]): LocalParkedBundle[] {
-  const wanted = new Map<string, number>();
-  for (const set of memberSets) {
-    const key = memberSetKey(set);
-    wanted.set(key, (wanted.get(key) ?? 0) + 1);
-  }
-  return live.filter((card) => {
-    const key = memberSetKey(card.members);
-    const remaining = wanted.get(key) ?? 0;
-    if (remaining === 0) return false;
-    wanted.set(key, remaining - 1);
-    return true;
-  });
 }

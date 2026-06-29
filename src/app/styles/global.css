@@ -133,6 +133,19 @@
   background-image: linear-gradient(to bottom, #0a0e1a, #0f1529, #0a0e1a);
 }
 
+/* Faint diagonal hatch for the visual period-break band on the planner board. Ink is the muted
+   foreground token at low alpha, so the texture reads as an intentional separator without a dominant
+   color and follows light/dark via `:root`/`.dark`. Pair with `bg-background` (the band base). */
+@utility bg-period-break {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklch, var(--color-muted-foreground) 18%, transparent) 0,
+    color-mix(in oklch, var(--color-muted-foreground) 18%, transparent) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

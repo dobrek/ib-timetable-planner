@@ -11,6 +11,7 @@ import type { DropHint } from "../../model/drop-hints";
 import { isBundled } from "../../model/exploded-cells";
 import type { LocalPlacement } from "../../model/placement/placement";
 import type { HintMode } from "../../lib/drag-hint-mode";
+import { breaksAfterPeriod } from "../../lib/period-breaks";
 
 /**
  * The cell wiring shared by every column the grid renders — the cell-level drag-hint state plus the
@@ -123,45 +124,52 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
         )}
 
         {periodList.map((period) => (
-          <div role="row" className="contents" key={period}>
-            <div
-              role="rowheader"
-              className="bg-background text-muted-foreground flex items-center justify-center p-2 text-xs font-medium"
-            >
-              {periodLabel(period)}
+          <Fragment key={period}>
+            <div role="row" className="contents">
+              <div
+                role="rowheader"
+                className="bg-background text-muted-foreground flex items-center justify-center p-2 text-xs font-medium"
+              >
+                {periodLabel(period)}
+              </div>
+              {dayList.map((day) => {
+                // One key per cell (cohort-free); each column resolves its own per-cell values from its
+                // shared wiring (the drop-hint lookup, `bundled`, the `justDuplicated` pulse match).
+                const key = cellKey(day, period);
+                return (
+                  <Fragment key={day}>
+                    {columns.map((column, index) => {
+                      const { dropHints, hintMode, isExploded, justDuplicated, ...handlers } = column.wiring;
+                      const occupants = byCell[index].get(key) ?? [];
+                      return (
+                        <SlotCell
+                          key={column.cohort}
+                          day={day}
+                          period={period}
+                          cohort={column.cohort}
+                          occupants={occupants}
+                          dropHint={dropHints?.get(key)}
+                          hintActive={dropHints !== null}
+                          hintMode={hintMode}
+                          bundled={isBundled(occupants.length, isExploded(day, period))}
+                          justDuplicated={
+                            justDuplicated !== null && cellKey(justDuplicated.day, justDuplicated.period) === key
+                          }
+                          dimmed={multi && activeDragCohort !== null && activeDragCohort !== column.cohort}
+                          {...handlers}
+                        />
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
             </div>
-            {dayList.map((day) => {
-              // One key per cell (cohort-free); each column resolves its own per-cell values from its
-              // shared wiring (the drop-hint lookup, `bundled`, the `justDuplicated` pulse match).
-              const key = cellKey(day, period);
-              return (
-                <Fragment key={day}>
-                  {columns.map((column, index) => {
-                    const { dropHints, hintMode, isExploded, justDuplicated, ...handlers } = column.wiring;
-                    const occupants = byCell[index].get(key) ?? [];
-                    return (
-                      <SlotCell
-                        key={column.cohort}
-                        day={day}
-                        period={period}
-                        cohort={column.cohort}
-                        occupants={occupants}
-                        dropHint={dropHints?.get(key)}
-                        hintActive={dropHints !== null}
-                        hintMode={hintMode}
-                        bundled={isBundled(occupants.length, isExploded(day, period))}
-                        justDuplicated={
-                          justDuplicated !== null && cellKey(justDuplicated.day, justDuplicated.period) === key
-                        }
-                        dimmed={multi && activeDragCohort !== null && activeDragCohort !== column.cohort}
-                        {...handlers}
-                      />
-                    );
-                  })}
-                </Fragment>
-              );
-            })}
-          </div>
+            {/* Purely visual break band after period 2 and 5 — a presentational, non-droppable
+                spacer that auto-flows onto its own grid row (kept out of the ARIA grid tree). */}
+            {breaksAfterPeriod(period, periods) && (
+              <div role="presentation" aria-hidden className="bg-background bg-period-break col-[1/-1] h-3" />
+            )}
+          </Fragment>
         ))}
       </div>
     </div>

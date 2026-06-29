@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import type { Cohort } from "@/shared/config";
 import type { AffectedScope, AffectedSlice, HistoryEntry } from "./history-entry";
 import { createInMemoryHistoryStore, type HistoryStore } from "./history-store";
@@ -28,21 +28,19 @@ export type HistoryControls = {
 /**
  * Owns the history store (a lazily-initialized `useState`, so the one instance survives re-renders)
  * and the stable `record` callback each cohort's `usePlacements` receives as `onRecord`. `record`
- * tags the cohort, pushes the entry (which clears the redo branch — a fresh edit invalidates redo),
- * and bumps a counter so the controls' `canUndo`/`canRedo` re-derive. Built first, at the top of the
- * orchestrator.
+ * tags the cohort and pushes the entry (which clears the redo branch — a fresh edit invalidates
+ * redo); the push re-emits to the store's subscribers, so the controls re-derive `canUndo`/labels
+ * via `useSyncExternalStore` — no manual version counter. Built first, at the top of the orchestrator.
  */
 export function useHistoryRecorder(): {
   store: HistoryStore;
   record: (cohort: Cohort, entry: Omit<HistoryEntry, "cohort">) => void;
 } {
   const [store] = useState(createInMemoryHistoryStore);
-  const [, setVersion] = useState(0);
 
   const record = useCallback(
     (cohort: Cohort, entry: Omit<HistoryEntry, "cohort">) => {
       store.push({ ...entry, cohort });
-      setVersion((n) => n + 1);
     },
     [store],
   );
@@ -63,10 +61,12 @@ export function useHistoryRecorder(): {
  * one-render-lagged ref. The keymap and buttons consume these same flags, covering every trigger.
  */
 export function useHistoryControls(store: HistoryStore, cohortApis: Record<Cohort, CohortHistoryApi>): HistoryControls {
-  const [, setVersion] = useState(0);
-  const rerender = () => {
-    setVersion((n) => n + 1);
-  };
+  // The store's stacks live in closure (mutable, outside React's data flow), so reading them in
+  // render is impure — the React Compiler would memoize such reads to their first (empty) value, so
+  // the labels would never appear. `useSyncExternalStore` is the supported way: every stack mutation
+  // re-emits and hands back a fresh, stable snapshot, so each pop/push re-renders the toolbar with no
+  // manual version counter. The same `getSnapshot` serves SSR (the seed empty snapshot).
+  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 
   // Synchronous reentrancy lock. `busy` is render state (`setReconciling`), so it lags the keydown
   // event stream — a rapid double-trigger inside one render frame would otherwise slip past it. The
@@ -75,8 +75,8 @@ export function useHistoryControls(store: HistoryStore, cohortApis: Record<Cohor
   const inFlightRef = useRef(false);
 
   const busy = cohortApis.dp1.busy || cohortApis.dp2.busy;
-  const canUndo = store.canUndo() && !busy;
-  const canRedo = store.canRedo() && !busy;
+  const canUndo = snapshot.canUndo && !busy;
+  const canRedo = snapshot.canRedo && !busy;
 
   function step(
     pop: () => HistoryEntry | undefined,
@@ -85,11 +85,11 @@ export function useHistoryControls(store: HistoryStore, cohortApis: Record<Cohor
   ) {
     if (busy || inFlightRef.current) return;
     // Pop synchronously at dispatch — fixing the entry's identity now, so a concurrent fresh edit or
-    // a rapid double-trigger can never strip the wrong entry in the async callback below.
+    // a rapid double-trigger can never strip the wrong entry in the async callback below. Each
+    // pop/push re-emits from the store, so the toolbar re-renders without an explicit force-update.
     const entry = pop();
     if (!entry) return;
     inFlightRef.current = true;
-    rerender();
     const api = cohortApis[entry.cohort];
     const forward = api.snapshot(entry.scope); // the opposite-direction target, captured live before the reconcile
     void api
@@ -97,11 +97,9 @@ export function useHistoryControls(store: HistoryStore, cohortApis: Record<Cohor
       .then(({ ok }) => {
         if (!ok) {
           restore(entry); // executor rolled the client back + surfaced the error; return the entry to its stack
-          rerender();
           return;
         }
         commit({ ...entry, target: forward }); // commit-on-success: move the exact popped entry to the opposite stack
-        rerender();
       })
       .finally(() => {
         inFlightRef.current = false;
@@ -137,7 +135,7 @@ export function useHistoryControls(store: HistoryStore, cohortApis: Record<Cohor
     redo,
     canUndo,
     canRedo,
-    undoLabel: store.peekUndo()?.label ?? null,
-    redoLabel: store.peekRedo()?.label ?? null,
+    undoLabel: snapshot.undoLabel,
+    redoLabel: snapshot.redoLabel,
   };
 }

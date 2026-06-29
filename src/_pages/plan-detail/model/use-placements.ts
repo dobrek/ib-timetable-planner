@@ -93,7 +93,7 @@ type UsePlacements = {
   addGroup: (
     memberIds: string[],
     cell: CellData,
-    opts?: { oppositeWeek?: boolean; weekByMember?: Map<string, PlacementWeek> },
+    opts?: { oppositeWeek?: boolean; weekByMember?: Map<string, PlacementWeek>; editKind?: EditKind },
   ) => void;
   movePlacement: (placementId: string, cell: CellData) => void;
   removePlacement: (placementId: string) => void;
@@ -147,6 +147,9 @@ export function usePlacements(
 ): UsePlacements {
   const [placements, setPlacements] = useState<LocalPlacement[]>(initial);
   const [parkedBundles, setParkedBundles] = useState<LocalParkedBundle[]>(initialParked);
+  // KNOWN LIMIT: a single last-writer-wins error slot. The forward write path is NOT serialized (only
+  // undo/redo is, via `inFlightRef` in `use-history.ts`), so two near-simultaneous failures collapse to
+  // the later one's banner. A success clears it (clear-on-success below); acceptable for one-banner UX.
   const [error, setError] = useState<PlacementError | null>(null);
   const [lastDuplicated, setLastDuplicated] = useState<DuplicateOutcome | null>(null);
   const [reconciling, setReconciling] = useState(false);
@@ -175,9 +178,15 @@ export function usePlacements(
   function addGroup(
     memberIds: string[],
     cell: CellData,
-    opts?: { oppositeWeek?: boolean; weekByMember?: Map<string, PlacementWeek> },
+    opts?: { oppositeWeek?: boolean; weekByMember?: Map<string, PlacementWeek>; editKind?: EditKind },
   ) {
-    void persistAddGroup(memberIds, cell, opts?.oppositeWeek ?? false, opts?.weekByMember);
+    void persistAddGroup(
+      memberIds,
+      cell,
+      opts?.oppositeWeek ?? false,
+      opts?.weekByMember,
+      opts?.editKind ?? "addGroup",
+    );
   }
 
   function movePlacement(placementId: string, cell: CellData) {
@@ -244,7 +253,7 @@ export function usePlacements(
     addGroup(
       placeable.map((p) => p.courseId),
       target,
-      { weekByMember },
+      { weekByMember, editKind: "duplicate" },
     );
     setLastDuplicated((prev) => ({ ...target, nonce: (prev?.nonce ?? 0) + 1 }));
   }
@@ -272,6 +281,9 @@ export function usePlacements(
     if (!canAdd(placementsRef.current, courseId, cell)) return;
 
     const scope = cellScope(cell);
+    // KNOWN LIMIT: `before` is read from the live refs, which lag the prior edit's optimistic `setState`
+    // by one commit (see `useLatest`). Back-to-back same-cell gestures rely on commit timing being
+    // faster than the gesture; the forward path is not busy-gated (only undo/redo is).
     const before = snapshot(scope);
     const week = resolveDropWeek(weekModeOf(courseId), placementsRef.current, cell);
     const tempId = crypto.randomUUID();
@@ -281,6 +293,7 @@ export function usePlacements(
       const row = await rpcs.placeCourse({ courseId, day: cell.day, period: cell.period, week });
       setPlacements((prev) => addReconcile(prev, tempId, row));
       recordEdit("add", scope, before, cell);
+      setError(null); // a fully-successful settle dismisses any stale banner from a prior failure
     } catch (err: unknown) {
       setPlacements((prev) => addRollback(prev, tempId));
       setError(errorOf(err));
@@ -295,6 +308,7 @@ export function usePlacements(
     cell: CellData,
     oppositeWeek: boolean,
     weekByMember?: Map<string, PlacementWeek>,
+    editKind: EditKind = "addGroup",
   ) {
     const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
     if (eligible.length === 0) return;
@@ -319,8 +333,11 @@ export function usePlacements(
       setPlacements((prev) => settleMany(prev, outcomes));
 
       // Record once if at least one member landed (a fully-failed batch leaves the cell unchanged).
-      if (outcomes.some(({ result }) => result !== null)) recordEdit("addGroup", scope, before, cell);
+      if (outcomes.some(({ result }) => result !== null)) recordEdit(editKind, scope, before, cell);
 
+      // Clear a stale banner on a successful settle BEFORE the partial-failure setError below — so a
+      // real groupFailure still surfaces. The obvious "clear at the very end" ordering would wipe it.
+      setError(null);
       const failure = groupFailureError(outcomes, outcomes.length);
       if (failure) setError(failure);
     } catch (err: unknown) {
@@ -394,6 +411,7 @@ export function usePlacements(
 
       recordEdit(courseIds.length > 1 ? "moveBundle" : "move", scope, before, target);
 
+      setError(null); // clear before the partial-failure setError so a real groupFailure still surfaces
       const failure = groupFailureError(outcomes, moverRows.length);
       if (failure) setError(failure);
     } catch (err: unknown) {
@@ -424,6 +442,7 @@ export function usePlacements(
     try {
       await rpcs.removeBundleMembers({ day: cell.day, period: cell.period, courseIds });
       recordEdit(courseIds.length > 1 ? "removeBundle" : "remove", scope, before, cell);
+      setError(null);
     } catch (err: unknown) {
       setPlacements((prev) => removeManyRollback(prev, occupants));
       setError(errorOf(err));
@@ -446,6 +465,7 @@ export function usePlacements(
       const updated = await rpcs.updatePlacementWeek(placementId, week);
       setPlacements((prev) => setWeekReconcile(prev, placementId, updated));
       recordEdit("setWeek", scope, before, cell);
+      setError(null);
     } catch (err: unknown) {
       setPlacements((prev) => setWeekRollback(prev, placementId, prevWeek));
       setError(errorOf(err));
@@ -479,6 +499,7 @@ export function usePlacements(
       const parked = await rpcs.shelveBundle({ day, period });
       setParkedBundles((prev) => parkReconcile(prev, tempId, parked.id));
       recordEdit("lift", scope, before, { day, period });
+      setError(null);
     } catch (err: unknown) {
       setPlacements((prev) => removeManyRollback(prev, occupants));
       setParkedBundles((prev) => parkRollback(prev, tempId));
@@ -501,6 +522,7 @@ export function usePlacements(
       const parked = await rpcs.shelveCourses({ members });
       setParkedBundles((prev) => parkReconcile(prev, tempId, parked.id));
       recordEdit("parkMembers", scope, before);
+      setError(null);
     } catch (err: unknown) {
       setParkedBundles((prev) => parkRollback(prev, tempId));
       setError(errorOf(err));
@@ -548,6 +570,7 @@ export function usePlacements(
 
       recordEdit("placeBack", scope, before, target);
 
+      setError(null); // clear before the partial-failure setError so a real groupFailure still surfaces
       const failure = groupFailureError(outcomes, entries.length);
       if (failure) setError(failure);
     } catch (err: unknown) {
@@ -577,6 +600,7 @@ export function usePlacements(
     try {
       await rpcs.deleteShelfBundle({ shelfBundleId });
       recordEdit("discard", scope, before);
+      setError(null);
     } catch (err: unknown) {
       setParkedBundles((prev) => unparkRollback(prev, card));
       setError(errorOf(err));

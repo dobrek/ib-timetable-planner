@@ -806,3 +806,41 @@ describe("usePlacements — parkMembers (park a course-set directly)", () => {
     expect(result.current.parkedBundles).toHaveLength(0);
   });
 });
+
+describe("usePlacements — clears a stale error on a successful settle", () => {
+  it("a fully-successful edit dismisses a banner left by a prior failure", async () => {
+    placeMock.mockRejectedValueOnce(new Error("place boom"));
+    const { result } = renderHook(() => usePlacements([], args()));
+
+    act(() => {
+      result.current.addCourse("c1", { day: 1, period: 1 });
+    });
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+
+    // A subsequent fully-successful add clears the stale banner.
+    act(() => {
+      result.current.addCourse("c2", { day: 2, period: 2 });
+    });
+    await waitFor(() => {
+      expect(result.current.error).toBeNull();
+    });
+  });
+
+  it("a partial group failure still surfaces despite the success-path clear (ordering)", async () => {
+    placeMock.mockRejectedValueOnce(new Error("member boom")); // first member fails, second succeeds
+
+    const { result } = renderHook(() => usePlacements([], args()));
+
+    await act(async () => {
+      result.current.addGroup(["c1", "c2"], { day: 1, period: 1 });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+    expect(result.current.error).toMatchObject({ kind: "groupFailure" });
+  });
+});

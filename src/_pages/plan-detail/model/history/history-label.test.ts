@@ -6,6 +6,7 @@ describe("describeEdit", () => {
     expect(describeEdit("removeBundle", { day: 1, period: 3 })).toBe("Remove bundle at Mon · P3");
     expect(describeEdit("remove", { day: 1, period: 3 })).toBe("Remove course at Mon · P3");
     expect(describeEdit("addGroup", { day: 2, period: 4 })).toBe("Place group at Tue · P4");
+    expect(describeEdit("duplicate", { day: 2, period: 4 })).toBe("Duplicate bundle at Tue · P4");
     expect(describeEdit("add", { day: 1, period: 1 })).toBe("Place course at Mon · P1");
     expect(describeEdit("move", { day: 3, period: 2 })).toBe("Move course at Wed · P2");
     expect(describeEdit("moveBundle", { day: 3, period: 2 })).toBe("Move bundle at Wed · P2");

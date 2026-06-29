@@ -274,7 +274,7 @@ describe("onRecord matrix — fires once per settled edit", () => {
     expect(onRecord.mock.calls[0][0]).toMatchObject({ label: "Discard parked bundle" });
   });
 
-  it("duplicate records once (via its addGroup)", async () => {
+  it("duplicate records once with the Duplicate label (not Place group)", async () => {
     const onRecord = vi.fn<RecordFn>();
     const a = course("A", "ta");
     const initial = [placement("p1", "A", 1, 1)];
@@ -287,7 +287,7 @@ describe("onRecord matrix — fires once per settled edit", () => {
     await waitFor(() => {
       expect(onRecord).toHaveBeenCalledTimes(1);
     });
-    expect(onRecord.mock.calls[0][0].label.startsWith("Place group")).toBe(true);
+    expect(onRecord.mock.calls[0][0].label.startsWith("Duplicate")).toBe(true);
   });
 });
 

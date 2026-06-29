@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
-import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
-import { deleteShelfBundle, shelveBundle as shelveBundleRpc, shelveCourses, unshelveBundle } from "../api/shelf-client";
+import { makeRpcs } from "../api/rpcs";
 import type { AvailabilityIndex } from "./cross-cohort/availability-index";
 import type { CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
 import type { CellData } from "./drag";
@@ -154,6 +153,10 @@ export function usePlacements(
   const placementsRef = useLatest(placements);
   const parkedBundlesRef = useLatest(parkedBundles);
 
+  // `planId`/`cohort` bound once: the forward `persist*` path and the reconcile `deps` both call
+  // through this instead of re-spelling them at every RPC site.
+  const rpcs = useMemo(() => makeRpcs(planId, cohort), [planId, cohort]);
+
   const weekModeOf = (courseId: string): WeekMode => weekModeByCourseId.get(courseId) ?? "agnostic";
 
   // Busy while any optimistic edit (a `pending` row in either store) or a reconcile is in flight.
@@ -275,7 +278,7 @@ export function usePlacements(
     setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell, week));
 
     try {
-      const row = await placeCourse({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
+      const row = await rpcs.placeCourse({ courseId, day: cell.day, period: cell.period, week });
       setPlacements((prev) => addReconcile(prev, tempId, row));
       recordEdit("add", scope, before, cell);
     } catch (err: unknown) {
@@ -336,7 +339,7 @@ export function usePlacements(
     cell: CellData,
   ): Promise<MemberOutcome> {
     try {
-      const row = await placeCourse({ planId, cohort, courseId, day: cell.day, period: cell.period, week });
+      const row = await rpcs.placeCourse({ courseId, day: cell.day, period: cell.period, week });
       return { tempId, courseId, result: row };
     } catch (err: unknown) {
       // The banner names which members failed; keep the underlying reason traceable.
@@ -374,9 +377,7 @@ export function usePlacements(
     setPlacements((prev) => moveManyOptimistic(prev, movers, mergers, target));
 
     try {
-      const serverRows = await moveBundleMembers({
-        planId,
-        cohort,
+      const serverRows = await rpcs.moveBundleMembers({
         day: source.day,
         period: source.period,
         courseIds,
@@ -421,7 +422,7 @@ export function usePlacements(
     );
 
     try {
-      await removeBundleMembers({ planId, cohort, day: cell.day, period: cell.period, courseIds });
+      await rpcs.removeBundleMembers({ day: cell.day, period: cell.period, courseIds });
       recordEdit(courseIds.length > 1 ? "removeBundle" : "remove", scope, before, cell);
     } catch (err: unknown) {
       setPlacements((prev) => removeManyRollback(prev, occupants));
@@ -442,7 +443,7 @@ export function usePlacements(
     setPlacements((prev) => setWeekOptimistic(prev, placementId, week));
 
     try {
-      const updated = await updatePlacementWeek(placementId, week);
+      const updated = await rpcs.updatePlacementWeek(placementId, week);
       setPlacements((prev) => setWeekReconcile(prev, placementId, updated));
       recordEdit("setWeek", scope, before, cell);
     } catch (err: unknown) {
@@ -475,7 +476,7 @@ export function usePlacements(
     setParkedBundles((prev) => parkAddOptimistic(prev, tempId, members));
 
     try {
-      const parked = await shelveBundleRpc({ planId, cohort, day, period });
+      const parked = await rpcs.shelveBundle({ day, period });
       setParkedBundles((prev) => parkReconcile(prev, tempId, parked.id));
       recordEdit("lift", scope, before, { day, period });
     } catch (err: unknown) {
@@ -497,7 +498,7 @@ export function usePlacements(
     setParkedBundles((prev) => parkAddOptimistic(prev, tempId, members));
 
     try {
-      const parked = await shelveCourses({ planId, cohort, members });
+      const parked = await rpcs.shelveCourses({ members });
       setParkedBundles((prev) => parkReconcile(prev, tempId, parked.id));
       recordEdit("parkMembers", scope, before);
     } catch (err: unknown) {
@@ -536,9 +537,7 @@ export function usePlacements(
     setPlacements((prev) => addManyOptimistic(prev, entries, target));
 
     try {
-      const serverRows = await unshelveBundle({
-        planId,
-        cohort,
+      const serverRows = await rpcs.unshelveBundle({
         shelfBundleId,
         targetDay: target.day,
         targetPeriod: target.period,
@@ -576,7 +575,7 @@ export function usePlacements(
     setParkedBundles((prev) => unparkOptimistic(prev, shelfBundleId));
 
     try {
-      await deleteShelfBundle({ planId, shelfBundleId });
+      await rpcs.deleteShelfBundle({ shelfBundleId });
       recordEdit("discard", scope, before);
     } catch (err: unknown) {
       setParkedBundles((prev) => unparkRollback(prev, card));
@@ -625,24 +624,21 @@ export function usePlacements(
 
     const deps: ReconcileDeps = {
       moveMembers: (sourceCell, targetCell, courseIds) =>
-        moveBundleMembers({
-          planId,
-          cohort,
+        rpcs.moveBundleMembers({
           day: sourceCell.day,
           period: sourceCell.period,
           courseIds,
           targetDay: targetCell.day,
           targetPeriod: targetCell.period,
         }),
-      shelve: (cell) => shelveBundleRpc({ planId, cohort, day: cell.day, period: cell.period }),
+      shelve: (cell) => rpcs.shelveBundle({ day: cell.day, period: cell.period }),
       unshelve: (shelfBundleId, targetCell) =>
-        unshelveBundle({ planId, cohort, shelfBundleId, targetDay: targetCell.day, targetPeriod: targetCell.period }),
+        rpcs.unshelveBundle({ shelfBundleId, targetDay: targetCell.day, targetPeriod: targetCell.period }),
       place: (spec) =>
-        placeCourse({ planId, cohort, courseId: spec.courseId, day: spec.day, period: spec.period, week: spec.week }),
-      removeMembers: (cell, courseIds) =>
-        removeBundleMembers({ planId, cohort, day: cell.day, period: cell.period, courseIds }),
-      createCard: (members) => shelveCourses({ planId, cohort, members }),
-      deleteCard: (shelfBundleId) => deleteShelfBundle({ planId, shelfBundleId }),
+        rpcs.placeCourse({ courseId: spec.courseId, day: spec.day, period: spec.period, week: spec.week }),
+      removeMembers: (cell, courseIds) => rpcs.removeBundleMembers({ day: cell.day, period: cell.period, courseIds }),
+      createCard: (members) => rpcs.shelveCourses({ members }),
+      deleteCard: (shelfBundleId) => rpcs.deleteShelfBundle({ shelfBundleId }),
       resolveCardId: (members) => cardIdByMemberSet.get(memberSetKey(members)),
     };
 

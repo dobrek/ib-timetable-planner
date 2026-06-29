@@ -152,16 +152,16 @@ None — no schema, data, or persisted-state changes.
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Unit tests pass (incl. new `period-breaks.test.ts`): `pnpm test`
-- [x] 1.3 Lint passes: `pnpm lint`
-- [x] 1.4 FSD structure check passes: `pnpm steiger`
-- [x] 1.5 Production build is clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check` — de0b4b0
+- [x] 1.2 Unit tests pass (incl. new `period-breaks.test.ts`): `pnpm test` — de0b4b0
+- [x] 1.3 Lint passes: `pnpm lint` — de0b4b0
+- [x] 1.4 FSD structure check passes: `pnpm steiger` — de0b4b0
+- [x] 1.5 Production build is clean: `pnpm build` — de0b4b0
 
 #### Manual
 
-- [x] 1.6 `5x10` plan: hatched bands render between rows 2–3 and 5–6
-- [x] 1.7 `5x6` plan: band between rows 5–6, nothing trailing below row 6
-- [x] 1.8 Hatch is visible but muted in both light and dark themes
-- [x] 1.9 Drag-drop across a break targets correctly; collisions/layout unchanged
-- [x] 1.10 Combined (DP1 | DP2) mode: band spans full width across both cohort sub-columns
+- [x] 1.6 `5x10` plan: hatched bands render between rows 2–3 and 5–6 — de0b4b0
+- [x] 1.7 `5x6` plan: band between rows 5–6, nothing trailing below row 6 — de0b4b0
+- [x] 1.8 Hatch is visible but muted in both light and dark themes — de0b4b0
+- [x] 1.9 Drag-drop across a break targets correctly; collisions/layout unchanged — de0b4b0
+- [x] 1.10 Combined (DP1 | DP2) mode: band spans full width across both cohort sub-columns — de0b4b0

@@ -1,6 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { Rpcs } from "../../api/rpcs";
-import { cellKey } from "../collision/cell-key";
 import type { CellData } from "../drag";
 import type { AffectedScope, AffectedSlice } from "../history/history-entry";
 import type { EditKind } from "../history/history-label";
@@ -33,6 +32,3 @@ export type WriteContext = {
   /** Read the live affected slice — captures the pre-edit `before` slice at edit time. */
   snapshot: (scope: AffectedScope) => AffectedSlice;
 };
-
-/** A single-cell scope (the common case: add/move/remove/setWeek touch one or two cells, no cards). */
-export const cellScope = (cell: CellData): AffectedScope => ({ cells: [cellKey(cell.day, cell.period)], cardSets: [] });

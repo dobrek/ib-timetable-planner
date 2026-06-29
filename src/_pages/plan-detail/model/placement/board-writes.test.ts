@@ -186,6 +186,19 @@ describe("createBoardWrites — moveBundle (whole cell)", () => {
       period: 2,
     });
   });
+
+  it("surfaces a partial-failure banner when one mover's server row is missing", async () => {
+    const h = makeHarness({ placements: [placement("p1", "c1", 1, 1), placement("p2", "c2", 1, 1)] });
+    // The atomic move resolves but returns a row for c1 only; c2 has no server row → partial failure.
+    h.rpcs.moveBundleMembers.mockResolvedValueOnce([serverRow("p1", "c1", 2, 2)]);
+
+    h.writes.moveBundle(1, 1, { day: 2, period: 2 });
+    await flush();
+
+    expect(h.setError).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: "groupFailure", failedCourseIds: ["c2"], attempted: 2 }),
+    );
+  });
 });
 
 describe("createBoardWrites — removePlacement / removeBundle", () => {
@@ -265,6 +278,17 @@ describe("createBoardWrites — addGroup", () => {
 
     expect(h.rpcs.placeCourse).toHaveBeenCalledTimes(1);
     expect(h.rpcs.placeCourse).toHaveBeenCalledWith(expect.objectContaining({ courseId: "A", week: "b" }));
+  });
+
+  it("alternates a/b weeks across members when oppositeWeek is set", async () => {
+    const h = makeHarness();
+    h.rpcs.placeCourse.mockResolvedValue(serverRow("srv", "x", 1, 1));
+
+    h.writes.addGroup(["c1", "c2"], { day: 1, period: 1 }, { oppositeWeek: true });
+    await flush();
+
+    expect(h.rpcs.placeCourse).toHaveBeenCalledWith(expect.objectContaining({ courseId: "c1", week: "a" }));
+    expect(h.rpcs.placeCourse).toHaveBeenCalledWith(expect.objectContaining({ courseId: "c2", week: "b" }));
   });
 
   it("surfaces a partial-failure banner when one member fails", async () => {

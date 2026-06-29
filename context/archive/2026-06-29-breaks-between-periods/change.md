@@ -1,10 +1,10 @@
 ---
 change_id: breaks-between-periods
 title: Breaks between periods
-status: implemented
+status: archived
 created: 2026-06-29
 updated: 2026-06-29
-archived_at: null
+archived_at: 2026-06-29T21:28:55Z
 ---
 
 ## Notes

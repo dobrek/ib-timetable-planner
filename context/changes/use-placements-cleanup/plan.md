@@ -397,12 +397,12 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Unit tests pass (incl. new helper tests): `pnpm test`
-- [x] 1.3 New unit tests cover `groupFailureError`, `outcomesByCourse`, `occupantsAt`
-- [x] 1.4 Lint passes: `pnpm lint`
-- [x] 1.5 FSD structure check passes: `pnpm steiger`
-- [x] 1.6 Production build is clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check` — f42adf4
+- [x] 1.2 Unit tests pass (incl. new helper tests): `pnpm test` — f42adf4
+- [x] 1.3 New unit tests cover `groupFailureError`, `outcomesByCourse`, `occupantsAt` — f42adf4
+- [x] 1.4 Lint passes: `pnpm lint` — f42adf4
+- [x] 1.5 FSD structure check passes: `pnpm steiger` — f42adf4
+- [x] 1.6 Production build is clean: `pnpm build` — f42adf4
 
 #### Manual
 
@@ -413,11 +413,11 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [ ] 2.1 Type check passes: `pnpm check`
-- [ ] 2.2 Unit + history tests pass unchanged: `pnpm test`
-- [ ] 2.3 Lint passes: `pnpm lint`
-- [ ] 2.4 FSD structure check passes: `pnpm steiger`
-- [ ] 2.5 Production build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check`
+- [x] 2.2 Unit + history tests pass unchanged: `pnpm test`
+- [x] 2.3 Lint passes: `pnpm lint`
+- [x] 2.4 FSD structure check passes: `pnpm steiger`
+- [x] 2.5 Production build is clean: `pnpm build`
 
 #### Manual
 

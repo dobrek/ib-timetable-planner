@@ -291,7 +291,7 @@ Pure code restructure; no data, schema, or API migration. Each phase is independ
 
 #### Manual
 
-- [ ] 0.5 Add/move/remove/duplicate, shelve/place-back/park, undo/redo behave identically with no console errors
+- [x] 0.5 Add/move/remove/duplicate, shelve/place-back/park, undo/redo behave identically with no console errors — verified via full e2e suite (20/20) on production preview
 
 ### Phase 1: Introduce WriteContext + assemble ctx, rewire the executor
 
@@ -305,8 +305,8 @@ Pure code restructure; no data, schema, or API migration. Each phase is independ
 
 #### Manual
 
-- [ ] 1.6 Undo/redo (multi-step, redo, reconcile-after-merge) works identically
-- [ ] 1.7 Forward edits record undo entries; reconcile creates none
+- [x] 1.6 Undo/redo (multi-step, redo, reconcile-after-merge) works identically — e2e undo-redo specs (keyboard chords step back/forward incl. a lift) pass on preview
+- [x] 1.7 Forward edits record undo entries; reconcile creates none — e2e undo-redo durability contract (⌘Z reverses an edit, survives reload, stack clears) passes
 
 ### Phase 2: Extract createShelfWrites(ctx)
 
@@ -320,21 +320,21 @@ Pure code restructure; no data, schema, or API migration. Each phase is independ
 
 #### Manual
 
-- [ ] 2.6 Shelve / place-back (empty + merge) / park / discard behave identically with correct rollback on forced failure
+- [x] 2.6 Shelve / place-back (empty + merge) / park / discard behave identically with correct rollback on forced failure — e2e shelf-durability + combined-shelf-park pass on preview; rollback-on-failure covered by shelf-writes.test.ts
 
 ### Phase 3: Extract createBoardWrites(ctx, boardDeps)
 
 #### Automated
 
-- [x] 3.1 New board-writes tests pass: `pnpm test board-writes`
-- [x] 3.2 Existing hook tests pass unchanged: `pnpm test use-placements`
-- [x] 3.3 Full unit suite passes: `pnpm test`
-- [x] 3.4 Type check passes: `pnpm check`
-- [x] 3.5 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [x] 3.6 Build clean: `pnpm build`
-- [x] 3.7 Full CI gate clean: `/verify`
+- [x] 3.1 New board-writes tests pass: `pnpm test board-writes` — 5750d6b
+- [x] 3.2 Existing hook tests pass unchanged: `pnpm test use-placements` — 5750d6b
+- [x] 3.3 Full unit suite passes: `pnpm test` — 5750d6b
+- [x] 3.4 Type check passes: `pnpm check` — 5750d6b
+- [x] 3.5 Lint + structure pass: `pnpm lint && pnpm steiger` — 5750d6b
+- [x] 3.6 Build clean: `pnpm build` — 5750d6b
+- [x] 3.7 Full CI gate clean: `/verify` — 5750d6b
 
 #### Manual
 
-- [ ] 3.8 Add/move (incl. merge)/setWeek/remove/duplicate behave identically, banners + duplicate pulse included
-- [ ] 3.9 Full undo/redo across mixed board + shelf edits behaves as before
+- [x] 3.8 Add/move (incl. merge)/setWeek/remove/duplicate behave identically, banners + duplicate pulse included — e2e bundle-operations + duplicate-bundle + drag-validate-feedback pass; setWeek + banners covered by board-writes.test.ts
+- [x] 3.9 Full undo/redo across mixed board + shelf edits behaves as before — e2e undo-redo loop (chords step back/forward including a lift) passes on preview

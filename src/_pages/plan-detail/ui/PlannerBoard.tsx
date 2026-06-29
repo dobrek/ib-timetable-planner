@@ -21,7 +21,7 @@ import ShelfDrawer from "./shelf/ShelfDrawer";
 import { cellKey } from "../model/collision/cell-key";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
 import { applyDropAction } from "../model/cross-cohort/drop-dispatch";
-import type { DragData, DropTargetData, PlannerBoardProps } from "../model/drag";
+import type { DragData, DropTargetData, PlannerBoardProps, SharedBoardProps } from "../model/drag";
 import { resolvePaletteView } from "../model/grouping/palette-view";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
@@ -31,13 +31,14 @@ type Props = {
   planName: string;
   /** The active surface from `?focus=`: one cohort (focus mode) or the combined two-cohort board. */
   focus: BoardSurface;
+  shared: SharedBoardProps;
   dp1: PlannerBoardProps;
   dp2: PlannerBoardProps;
   paletteCollapsed: boolean;
 };
 
 /**
- * The ONE plan-detail board. `useCombinedBoardState(dp1, dp2, focus)` runs UNCONDITIONALLY in every
+ * The ONE plan-detail board. `useCombinedBoardState(shared, dp1, dp2, focus)` runs UNCONDITIONALLY in every
  * mode (constant hook count of 2 — the cross-index cycle is built for exactly 2 and keeps working);
  * `focus` only selects each cohort's cross-index input (the hidden cohort idles on its static seed),
  * and the *render* branches on `focus`. `focus = "combined"` renders both cohort columns with the
@@ -45,44 +46,37 @@ type Props = {
  * to that cohort, the shelf filtered to it, no sibling-dim, and a full-screen empty state. One
  * `DragDropProvider`, one drop router, one canonical `applyDropAction` dispatch.
  */
-export default function PlannerBoard({ planName, focus, dp1: dp1Props, dp2: dp2Props, paletteCollapsed }: Props) {
-  const { dp1, dp2, history } = useCombinedBoardState(dp1Props, dp2Props, focus);
-  const byCohort: Record<Cohort, CohortBoardState> = { dp1, dp2 };
-  const resolveState = (cohort: Cohort) => byCohort[cohort];
+export default function PlannerBoard({
+  planName,
+  focus,
+  shared,
+  dp1: dp1Props,
+  dp2: dp2Props,
+  paletteCollapsed,
+}: Props) {
+  const { planId, days, periods } = shared;
+  const { dp1, dp2, history } = useCombinedBoardState(shared, dp1Props, dp2Props, focus);
+  const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
+  const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
 
-  // Bind ⌘Z/⌘⇧Z (+ Ctrl variants) while the board is mounted; the focus guard lives in the hook.
   useUndoKeymap(history);
 
   const { hintMode, setHintMode } = useHintMode();
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
-  // Honor the SSR palette-collapse cookie in every mode (focus + combined alike).
   const { collapsed: paletteCollapsedState, setCollapsed: setPaletteCollapsed } =
     usePaletteDisclosure(paletteCollapsed);
-  // The palette's active cohort (combined only) doubles as the drag-target signal for a palette drag.
   const [paletteCohort, setPaletteCohort] = useState<Cohort>("dp1");
-  // Source cohort of the active drag — drives the sibling-column dimming (combined only). Null between drags.
   const [activeDragCohort, setActiveDragCohort] = useState<Cohort | null>(null);
-  // The shell owns the ONE active inspection across both columns: opening one closes the other.
   const [inspection, setInspection] = useState<{ cohort: Cohort; target: CollisionInspectionTarget } | null>(null);
 
   const combined = focus === "combined";
-  // The cohort a cohort-free palette drag adopts (and the off-board park cohort): the palette's active
-  // cohort in combined, the focused cohort in focus mode. The `focus === "combined"` discriminant (not
-  // the `combined` alias) narrows `focus` to `Cohort` in the else branch — no non-null assertion.
+  // The `focus === "combined"` discriminant (not the `combined` alias) narrows `focus` to `Cohort`.
   const activeCohort: Cohort = focus === "combined" ? paletteCohort : focus;
 
-  const planId = dp1Props.planId;
-  const days = dp1Props.days;
-  const periods = dp1Props.periods;
-
-  // Union course names for the shared overlay (teacher/student names are already the union from the
-  // loader, identical on both props). A cross-cohort bundle/parked overlay can reference either set.
   const overlayNames = useMemo(() => ({ ...dp1.names, ...dp2.names }), [dp1.names, dp2.names]);
 
-  // shelfBundleId → owning cohort. Combined maps BOTH cohorts (one shared shelf); focus maps only the
-  // focused cohort (its shelf is filtered to it, so the parked-count badge matches the shelf cards).
   const shelfCohortById = useMemo(() => {
-    if (focus === "combined") {
+    if (combined) {
       return new Map<string, Cohort>([
         ...dp1.parkedBundles.map((bundle) => [bundle.id, "dp1"] as const),
         ...dp2.parkedBundles.map((bundle) => [bundle.id, "dp2"] as const),
@@ -90,81 +84,79 @@ export default function PlannerBoard({ planName, focus, dp1: dp1Props, dp2: dp2P
     }
     const bundles = focus === "dp1" ? dp1.parkedBundles : dp2.parkedBundles;
     return new Map<string, Cohort>(bundles.map((bundle) => [bundle.id, focus] as const));
-  }, [focus, dp1.parkedBundles, dp2.parkedBundles]);
+  }, [combined, focus, dp1.parkedBundles, dp2.parkedBundles]);
 
-  // Close the dialog if the inspected cell's violations vanish in its cohort (adjust-state-during-render).
   if (
     inspection &&
-    !byCohort[inspection.cohort].collisions.has(cellKey(inspection.target.day, inspection.target.period))
-  )
+    !resolveState(inspection.cohort).collisions.has(cellKey(inspection.target.day, inspection.target.period))
+  ) {
     setInspection(null);
+  }
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.operation.source?.data as DragData | undefined;
     if (!data) return;
-    // A relocating drag carries its source cohort; a cohort-free palette drag targets `activeCohort`.
     const dragCohort = "cohort" in data ? data.cohort : activeCohort;
-    byCohort[dragCohort].startDragHints(data);
+    resolveState(dragCohort).startDragHints(data);
     setActiveDragCohort(dragCohort);
   }
 
   function handleDrop(event: DragEndEvent) {
     dp1.clearDragHints();
-    dp2.clearDragHints(); // a no-op for the hidden cohort in focus mode (it never started a drag)
+    dp2.clearDragHints();
     setActiveDragCohort(null);
     if (event.canceled) return;
     const { source, target } = event.operation;
-    if (!source || !target) return; // dropped outside any cell — removal is via the chip "×"
+    if (!source || !target) return;
 
-    // One router resolves the target cohort + the cross-cohort guard; one dispatch applies it. A
-    // cohort-free palette drag on the cell-less shelf parks under `activeCohort`.
     const action = resolveCombinedDrop(source.data as DragData, target.data as DropTargetData, activeCohort);
     if (action) applyDropAction(action, resolveState, { collapseUnlessPinned });
   }
 
-  // Discard a parked card → route to its owning cohort's store (the card is tagged with its cohort).
   function removeParked(shelfBundleId: string) {
     const cohort = shelfCohortById.get(shelfBundleId);
-    if (cohort) byCohort[cohort].actions.removeParked(shelfBundleId);
+    if (cohort) resolveState(cohort).actions.removeParked(shelfBundleId);
   }
 
-  const paletteData = (state: CohortBoardState): PaletteCohortData => ({
-    cohort: state.cohort,
-    planId,
-    groupings: state.groupings,
-    names: state.names,
-    hours: state.hours,
-    stale: state.stale,
-  });
+  function paletteData(state: CohortBoardState): PaletteCohortData {
+    return {
+      cohort: state.cohort,
+      planId,
+      groupings: state.groupings,
+      names: state.names,
+      hours: state.hours,
+      stale: state.stale,
+    };
+  }
 
-  const buildColumn = (cohort: Cohort, state: CohortBoardState): PairedColumn => ({
-    cohort,
-    placements: state.placements,
-    names: state.names,
-    collisions: state.collisions,
-    wiring: {
-      dropHints: state.dropHints,
-      hintMode,
-      isExploded: state.isExploded,
-      justDuplicated: state.justDuplicated,
-      onRemove: state.actions.removePlacement,
-      onSetWeek: state.actions.setWeek,
-      onToggleBundle: state.toggleExploded,
-      onRemoveBundle: state.actions.removeBundle,
-      onDuplicateBundle: state.actions.duplicateBundle,
-      onLiftBundle: (day, period) => {
-        applyDropAction({ kind: "liftBundle", cohort, day, period }, resolveState, { collapseUnlessPinned });
+  function buildColumn(cohort: Cohort, state: CohortBoardState): PairedColumn {
+    return {
+      cohort,
+      placements: state.placements,
+      names: state.names,
+      collisions: state.collisions,
+      wiring: {
+        dropHints: state.dropHints,
+        hintMode,
+        isExploded: state.isExploded,
+        justDuplicated: state.justDuplicated,
+        onRemove: state.actions.removePlacement,
+        onSetWeek: state.actions.setWeek,
+        onToggleBundle: state.toggleExploded,
+        onRemoveBundle: state.actions.removeBundle,
+        onDuplicateBundle: state.actions.duplicateBundle,
+        onLiftBundle: (day, period) => {
+          applyDropAction({ kind: "liftBundle", cohort, day, period }, resolveState, { collapseUnlessPinned });
+        },
+        onInspect: (target) => {
+          setInspection({ cohort, target });
+        },
       },
-      onInspect: (target) => {
-        setInspection({ cohort, target });
-      },
-    },
-  });
+    };
+  }
 
-  // Focus mode with no groupings → the single board's full-screen empty takeover (no grid/palette/shelf).
-  // Combined keeps the in-panel empty body so the author can still switch cohorts when one is empty.
   if (focus !== "combined") {
-    const state = byCohort[focus];
+    const state = resolveState(focus);
     if (resolvePaletteView({ groupingsCount: state.groupings.length, stale: state.stale }) === "empty") {
       return (
         <>
@@ -177,14 +169,12 @@ export default function PlannerBoard({ planName, focus, dp1: dp1Props, dp2: dp2P
     }
   }
 
-  const columns =
-    focus === "combined" ? [buildColumn("dp1", dp1), buildColumn("dp2", dp2)] : [buildColumn(focus, byCohort[focus])];
-  const cohorts = focus === "combined" ? [paletteData(dp1), paletteData(dp2)] : [paletteData(byCohort[focus])];
-  const parkedBundles =
-    focus === "combined" ? [...dp1.parkedBundles, ...dp2.parkedBundles] : byCohort[focus].parkedBundles;
-  const incompleteCount =
-    focus === "combined" ? dp1.incompleteCount + dp2.incompleteCount : byCohort[focus].incompleteCount;
-  const inspected = inspection ? byCohort[inspection.cohort] : null;
+  const states = combined ? [dp1, dp2] : [resolveState(focus)];
+  const columns = states.map((state) => buildColumn(state.cohort, state));
+  const cohorts = states.map(paletteData);
+  const parkedBundles = states.flatMap((state) => state.parkedBundles);
+  const incompleteCount = states.reduce((count, state) => count + state.incompleteCount, 0);
+  const inspected = inspection ? resolveState(inspection.cohort) : null;
 
   return (
     <BoardShell
@@ -236,7 +226,7 @@ export default function PlannerBoard({ planName, focus, dp1: dp1Props, dp2: dp2P
       shelf={
         <ShelfDrawer
           parkedBundles={parkedBundles}
-          names={focus === "combined" ? overlayNames : byCohort[focus].names}
+          names={combined ? overlayNames : resolveState(focus).names}
           expanded={shelfExpanded}
           pinned={pinned}
           cohortById={shelfCohortById}
@@ -250,8 +240,8 @@ export default function PlannerBoard({ planName, focus, dp1: dp1Props, dp2: dp2P
           target={inspection?.target ?? null}
           violations={inspection && inspected ? inspectedViolations(inspection.target, inspected.collisions) : []}
           names={inspected?.names ?? overlayNames}
-          teacherNames={dp1Props.teacherNames}
-          studentNames={dp1Props.studentNames}
+          teacherNames={shared.teacherNames}
+          studentNames={inspection ? resolveProps(inspection.cohort).studentNames : {}}
           weekByCourseId={inspection && inspected ? inspectedWeeks(inspection.target, inspected.placements) : {}}
           cohort={inspection?.cohort ?? "dp1"}
           onClose={() => {

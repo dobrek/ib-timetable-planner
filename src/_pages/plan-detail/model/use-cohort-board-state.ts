@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { buildCrossCohortIndex, projectFromPlacements, type CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
 import type { BoardSurface } from "../lib/board-surface";
-import type { PlannerBoardProps } from "./drag";
+import type { PlannerBoardProps, SharedBoardProps } from "./drag";
 import type { LocalPlacement } from "./placement/placement";
 import { usePlacements, type UsePlacementsArgs } from "./use-placements";
 import { useHistoryControls, useHistoryRecorder } from "./history/use-history";
@@ -40,6 +40,7 @@ import {
  * differs. `focus = "combined"` (the default) keeps BOTH indices live — today's two-cohort behavior.
  */
 export function useCombinedBoardState(
+  shared: SharedBoardProps,
   dp1Props: PlannerBoardProps,
   dp2Props: PlannerBoardProps,
   focus: BoardSurface = "combined",
@@ -58,10 +59,10 @@ export function useCombinedBoardState(
     [dp2Props.crossCohortOccupancy],
   );
 
-  const dp1Base = useCohortPlacements(dp1Props, dp1SeedIndex, (entry) => {
+  const dp1Base = useCohortPlacements(shared, dp1Props, dp1SeedIndex, (entry) => {
     record("dp1", entry);
   });
-  const dp2Base = useCohortPlacements(dp2Props, dp2SeedIndex, (entry) => {
+  const dp2Base = useCohortPlacements(shared, dp2Props, dp2SeedIndex, (entry) => {
     record("dp2", entry);
   });
 
@@ -111,11 +112,12 @@ export type CohortActions = CohortBoardState["actions"];
  * run — see `useCombinedBoardState`, which therefore cannot call this twice and composes directly).
  */
 export function useCohortBoardState(
+  shared: SharedBoardProps,
   props: PlannerBoardProps,
   seedIndex: CrossCohortIndex,
   freshIndex: CrossCohortIndex,
 ): CohortBoardState {
-  const base = useCohortPlacements(props, seedIndex);
+  const base = useCohortPlacements(shared, props, seedIndex);
   const deriv = useCohortDerivations(props, base, freshIndex);
   return toCohortState(props, base, deriv);
 }
@@ -145,11 +147,13 @@ export const indexFromPlacements = (
 // `duplicateBundle` reads it). Split from the derivations so both `usePlacements` calls land before
 // either fresh index is built (the live-index cycle — see `useCombinedBoardState`).
 function useCohortPlacements(
+  shared: SharedBoardProps,
   props: PlannerBoardProps,
   laggedIndex: CrossCohortIndex,
   onRecord?: UsePlacementsArgs["onRecord"],
 ) {
-  const { planId, cohort, days, periods, catalog, availability } = props;
+  const { planId, days, periods, availability } = shared;
+  const { cohort, catalog } = props;
   const weekModeByCourseId = useMemo(
     () => new Map(catalog.map((course) => [course.id, course.weekMode] as const)),
     [catalog],

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { buildAvailabilityIndex, type AvailabilityIndex } from "./cross-cohort/availability-index";
 import type { CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
 import { deriveCellViolations, type CellCollisions } from "./collision/collisions";
-import type { CellData, DragData, PlannerBoardProps } from "./drag";
+import type { CellData, DragData, SharedBoardProps } from "./drag";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
 import { countIncompleteCourses, deriveHours } from "./hours";
@@ -23,7 +23,7 @@ export function useCatalogById(catalog: GroupingCourse[]) {
 }
 
 // Index the raw availability cells (a serializable prop) into the Maps the derivations read.
-export function useAvailabilityIndex(availability: PlannerBoardProps["availability"]) {
+export function useAvailabilityIndex(availability: SharedBoardProps["availability"]) {
   return useMemo(() => buildAvailabilityIndex(availability), [availability]);
 }
 

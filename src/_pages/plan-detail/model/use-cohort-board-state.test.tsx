@@ -4,7 +4,7 @@ import { placeCourse } from "../api/placement-client";
 import { cellKey } from "./collision/cell-key";
 import { course, placement as buildPlacement } from "./__fixtures__/builders";
 import { EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort/cross-cohort-index";
-import type { PlannerBoardProps } from "./drag";
+import type { PlannerBoardProps, SharedBoardProps } from "./drag";
 import { indexFromPlacements, useCohortBoardState, useCombinedBoardState } from "./use-cohort-board-state";
 import type { GroupingCourse } from "./grouping/grouping";
 import type { LocalPlacement } from "./placement/placement";
@@ -65,19 +65,22 @@ describe("indexFromPlacements (live cross-cohort index)", () => {
 // End-to-end proof of the live cross-cohort cycle through the public `useCombinedBoardState`, not
 // just the `indexFromPlacements` leaf: a placement driven into dp1 must re-validate dp2 in the SAME
 // render pass (Phase 5/7 must not break this). Both cohorts share teacher "shared".
-const props = (cohort: "dp1" | "dp2", placements: LocalPlacement[], courseId: string): PlannerBoardProps => ({
+const shared: SharedBoardProps = {
   planId: "plan-1",
-  cohort,
   days: 5,
   periods: 6,
+  availability: [],
+  teacherNames: {},
+};
+
+const props = (cohort: "dp1" | "dp2", placements: LocalPlacement[], courseId: string): PlannerBoardProps => ({
+  cohort,
   groupings: [],
   stale: false,
   names: { [courseId]: courseId },
-  teacherNames: {},
   studentNames: {},
   placements,
   catalog: [course(courseId, "shared")],
-  availability: [],
   crossCohortOccupancy: [],
   parkedBundles: [],
 });
@@ -106,7 +109,9 @@ describe("useCombinedBoardState (live cross-cohort re-validation)", () => {
   it("re-validates dp2 when a clashing placement lands in dp1 (same render pass)", async () => {
     // dp2 already holds c2 (teacher "shared") at (1,1); dp1 starts empty → no cross-cohort clash yet.
     const dp2Seed = [buildPlacement("p2", "c2", 1, 1)];
-    const { result } = renderHook(() => useCombinedBoardState(props("dp1", [], "c1"), props("dp2", dp2Seed, "c2")));
+    const { result } = renderHook(() =>
+      useCombinedBoardState(shared, props("dp1", [], "c1"), props("dp2", dp2Seed, "c2")),
+    );
 
     expect(result.current.dp2.collisions.has(cellKey(1, 1))).toBe(false);
 
@@ -131,18 +136,13 @@ describe("useCombinedBoardState (live cross-cohort re-validation)", () => {
 // The single board calls the assembler ONCE with its one static index as both seed and fresh; the
 // result must reproduce its wiring — placements + derivations + the full action set.
 const soloProps = (catalog: GroupingCourse[], placements: LocalPlacement[]): PlannerBoardProps => ({
-  planId: "plan-1",
   cohort: "dp1",
-  days: 5,
-  periods: 6,
   groupings: [],
   stale: false,
   names: {},
-  teacherNames: {},
   studentNames: {},
   placements,
   catalog,
-  availability: [],
   crossCohortOccupancy: [],
   parkedBundles: [],
 });
@@ -153,7 +153,7 @@ describe("useCohortBoardState (single cohort: seed === fresh)", () => {
     const catalog = [course("c1", "t1"), course("c2", "t1")];
     const placements = [buildPlacement("p1", "c1", 1, 1), buildPlacement("p2", "c2", 1, 1)];
     const { result } = renderHook(() =>
-      useCohortBoardState(soloProps(catalog, placements), EMPTY_CROSS_COHORT_INDEX, EMPTY_CROSS_COHORT_INDEX),
+      useCohortBoardState(shared, soloProps(catalog, placements), EMPTY_CROSS_COHORT_INDEX, EMPTY_CROSS_COHORT_INDEX),
     );
 
     expect(result.current.placements).toHaveLength(2);

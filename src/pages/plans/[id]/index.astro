@@ -23,12 +23,13 @@ const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.v
   result.ok ? (
     <SidebarLayout
       title={result.value.planName}
-      plan={{ id: result.value.dp1.planId, name: result.value.planName }}
+      plan={{ id: result.value.shared.planId, name: result.value.planName }}
       fullWidth
     >
       <PlanDetailPage
         planName={result.value.planName}
         focus={focus}
+        shared={result.value.shared}
         dp1={result.value.dp1}
         dp2={result.value.dp2}
         paletteCollapsed={paletteCollapsed}

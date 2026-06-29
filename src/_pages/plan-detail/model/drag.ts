@@ -33,27 +33,31 @@ export type ShelfData = { kind: "shelf" };
 /** The drop-target union the board's drop handler discriminates: a cohort-tagged cell or the shelf. */
 export type DropTargetData = CellDropData | ShelfData;
 
-/** Props assembled server-side in `plans/[id]/index.astro` and handed to the island. */
-export type PlannerBoardProps = {
+/** Plan-scoped board data shared by both cohort columns — assembled once in the loader. */
+export type SharedBoardProps = {
   planId: string;
-  cohort: Cohort;
   days: number;
   periods: number;
+  /** Plan-scoped teacher availability (all teachers, cohort-independent), raw cells the
+   *  island indexes into Maps. Strong drives the board flag now; soft is consumed in Phase 4. */
+  availability: BoardAvailabilityCell[];
+  /** teacherKey → display name (`full_name ?? code`), resolved from the union of both catalogs. */
+  teacherNames: Record<string, string>;
+};
+
+/** Per-cohort props assembled server-side in `plans/[id]/index.astro` and handed to the island. */
+export type PlannerBoardProps = {
+  cohort: Cohort;
   groupings: PlannerGrouping[];
   /** Per-cohort palette staleness (live catalog hash ≠ stored grouping hash); drives the palette notice only. */
   stale: boolean;
   /** courseId → display name, resolved at the edge (never baked into drag payloads). */
   names: Record<string, string>;
-  /** teacherKey → display name (`full_name ?? code`), resolved at the edge — never baked into drag payloads or violations. */
-  teacherNames: Record<string, string>;
-  /** studentKey → full name, resolved at the edge — never baked into drag payloads or violations. */
+  /** studentKey → full name for this cohort's catalog enrollments. */
   studentNames: Record<string, string>;
   placements: PlannerPlacement[];
   /** Validation catalog: `GroupingCourse[]` keyed by course id. */
   catalog: GroupingCourse[];
-  /** Plan-scoped teacher availability (all teachers, cohort-independent), raw cells the
-   *  island indexes into Maps. Strong drives the board flag now; soft is consumed in Phase 4. */
-  availability: BoardAvailabilityCell[];
   /** Sibling-cohort teacher occupancy (co-teacher-expanded, week-rich), raw cells the island
    *  indexes into the cross-cohort Map. Drives the board-only `cross-cohort-teacher` rule. */
   crossCohortOccupancy: SiblingOccupancyCell[];

@@ -17,6 +17,7 @@ const cohortInputs = (
   placements: [],
   catalog: [],
   names: {},
+  studentNames: {},
   stale: false,
   parkedBundles: [],
   ...overrides,
@@ -35,16 +36,7 @@ describe("assembleCombinedProps", () => {
       catalog: [course("c2", ["t2"])],
     });
 
-    const { dp1: out1, dp2: out2 } = assembleCombinedProps({
-      planId: "plan-1",
-      days: 5,
-      periods: 6,
-      availability: [],
-      teacherNames: {},
-      studentNames: {},
-      dp1,
-      dp2,
-    });
+    const { dp1: out1, dp2: out2 } = assembleCombinedProps({ dp1, dp2 });
 
     expect(out1.cohort).toBe("dp1");
     expect(out1.placements).toEqual(dp1.placements);
@@ -66,16 +58,7 @@ describe("assembleCombinedProps", () => {
       catalog: [course("c2", ["shared"])],
     });
 
-    const { dp1: out1, dp2: out2 } = assembleCombinedProps({
-      planId: "plan-1",
-      days: 5,
-      periods: 6,
-      availability: [],
-      teacherNames: {},
-      studentNames: {},
-      dp1,
-      dp2,
-    });
+    const { dp1: out1, dp2: out2 } = assembleCombinedProps({ dp1, dp2 });
 
     // dp1's cross-index reflects dp2's placement (day 3, period 4, week b) — not its own.
     expect(out1.crossCohortOccupancy).toEqual([{ teacherKey: "shared", day: 3, period: 4, week: "b" }]);
@@ -83,30 +66,17 @@ describe("assembleCombinedProps", () => {
     expect(out2.crossCohortOccupancy).toEqual([{ teacherKey: "shared", day: 1, period: 1, week: "a" }]);
   });
 
-  it("shares the union teacher/student names and availability across both columns; keeps stale per cohort", () => {
-    const teacherNames = { t1: "Alice", t2: "Bob" };
-    const studentNames = { s1: "Sam" };
-    const availability = [{ teacherKey: "t1", day: 1, period: 1, severity: "strong" as const }];
-
+  it("keeps stale, own-cohort names, and student names per column", () => {
     const { dp1: out1, dp2: out2 } = assembleCombinedProps({
-      planId: "plan-1",
-      days: 5,
-      periods: 6,
-      availability,
-      teacherNames,
-      studentNames,
-      dp1: cohortInputs({ cohort: "dp1", stale: true, names: { c1: "Course 1" } }),
-      dp2: cohortInputs({ cohort: "dp2", stale: false, names: { c2: "Course 2" } }),
+      dp1: cohortInputs({ cohort: "dp1", stale: true, names: { c1: "Course 1" }, studentNames: { s1: "Sam" } }),
+      dp2: cohortInputs({ cohort: "dp2", stale: false, names: { c2: "Course 2" }, studentNames: { s2: "Alex" } }),
     });
 
-    expect(out1.teacherNames).toBe(teacherNames);
-    expect(out2.teacherNames).toBe(teacherNames);
-    expect(out1.studentNames).toBe(studentNames);
-    expect(out1.availability).toBe(availability);
-    expect(out2.availability).toBe(availability);
     expect(out1.stale).toBe(true);
     expect(out2.stale).toBe(false);
     expect(out1.names).toEqual({ c1: "Course 1" });
     expect(out2.names).toEqual({ c2: "Course 2" });
+    expect(out1.studentNames).toEqual({ s1: "Sam" });
+    expect(out2.studentNames).toEqual({ s2: "Alex" });
   });
 });

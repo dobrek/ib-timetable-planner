@@ -5,7 +5,7 @@ import { unique } from "@/shared/lib/collections";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { BoardAvailabilityCell } from "../model/cross-cohort/availability-index";
 import { assembleCombinedProps, type CombinedCohortInputs } from "../model/cross-cohort/assemble-combined-props";
-import type { PlannerBoardProps } from "../model/drag";
+import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping/grouping";
 import type { ParkedBundle } from "../model/placement/parked";
 import type { PlannerPlacement } from "../model/placement/placement";
@@ -17,7 +17,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** Expected absences: a missing plan vs. a misconfigured/empty environment. */
 export type PlannerPageError = { kind: "not-found" } | { kind: "unavailable"; message: string };
 
-export type CombinedPlannerData = { planName: string; dp1: PlannerBoardProps; dp2: PlannerBoardProps };
+export type CombinedPlannerData = {
+  planName: string;
+  shared: SharedBoardProps;
+  dp1: PlannerBoardProps;
+  dp2: PlannerBoardProps;
+};
 
 export type CombinedPlannerPageResult = Result<CombinedPlannerData, PlannerPageError>;
 
@@ -80,12 +85,13 @@ export const loadCombinedPlannerData = async (
     availabilityResult,
   ]);
 
-  // Display names resolve from the UNION of both catalogs: a cross-cohort teacher clash names the
-  // sibling cohort's teacher, and the shared dialog reads one name map.
+  // Teacher display names resolve from the UNION of both catalogs: a cross-cohort clash names the
+  // sibling cohort's teacher. Student names stay per cohort — enrollments are cohort-scoped.
   const allCourses = [...dp1Catalog.courses, ...dp2Catalog.courses];
-  const [teacherNames, studentNames] = await Promise.all([
+  const [teacherNames, dp1StudentNames, dp2StudentNames] = await Promise.all([
     fetchTeacherNames(supabase, unique(allCourses.flatMap((course) => course.teacherKeys))),
-    fetchStudentNames(supabase, unique(allCourses.flatMap((course) => course.studentKeys))),
+    fetchStudentNames(supabase, unique(dp1Catalog.courses.flatMap((course) => course.studentKeys))),
+    fetchStudentNames(supabase, unique(dp2Catalog.courses.flatMap((course) => course.studentKeys))),
   ]);
 
   const availability = mapAvailability(availabilityResult.data ?? []);
@@ -102,6 +108,7 @@ export const loadCombinedPlannerData = async (
     placements: (dp1Placements.data ?? []).map(toPlannerPlacement),
     catalog: dp1Catalog.courses,
     names: Object.fromEntries(dp1Catalog.names),
+    studentNames: dp1StudentNames,
     stale: dp1Stale,
     parkedBundles: mapParkedBundles(dp1Shelf.data ?? []),
   };
@@ -111,22 +118,22 @@ export const loadCombinedPlannerData = async (
     placements: (dp2Placements.data ?? []).map(toPlannerPlacement),
     catalog: dp2Catalog.courses,
     names: Object.fromEntries(dp2Catalog.names),
+    studentNames: dp2StudentNames,
     stale: dp2Stale,
     parkedBundles: mapParkedBundles(dp2Shelf.data ?? []),
   };
 
-  const { dp1, dp2 } = assembleCombinedProps({
+  const { dp1, dp2 } = assembleCombinedProps({ dp1: dp1Inputs, dp2: dp2Inputs });
+
+  const shared: SharedBoardProps = {
     planId: plan.id,
     days,
     periods,
     availability,
     teacherNames,
-    studentNames,
-    dp1: dp1Inputs,
-    dp2: dp2Inputs,
-  });
+  };
 
-  return ok({ planName: plan.name, dp1, dp2 });
+  return ok({ planName: plan.name, shared, dp1, dp2 });
 };
 
 const fetchGroupings = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>

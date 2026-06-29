@@ -44,7 +44,8 @@ afterAll(async () => {
   it("ships name records covering every teacher and student key in the catalog", async () => {
     const result = await loadCombinedPlannerData(supabase, planId);
     if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
-    const { catalog, teacherNames, studentNames } = result.value.dp1;
+    const { catalog, studentNames } = result.value.dp1;
+    const { teacherNames } = result.value.shared;
 
     expect(catalog.length).toBeGreaterThan(0);
     expect(Object.keys(teacherNames).length).toBeGreaterThan(0);
@@ -57,10 +58,32 @@ afterAll(async () => {
     expect(uncoveredStudents).toEqual([]);
   });
 
+  it("ships student names per cohort and union teacher names on shared", async () => {
+    const result = await loadCombinedPlannerData(supabase, planId);
+    if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
+    const { dp1, dp2, shared } = result.value;
+
+    const dp1StudentKeys = [...new Set(dp1.catalog.flatMap((course) => course.studentKeys))];
+    const dp2StudentKeys = [...new Set(dp2.catalog.flatMap((course) => course.studentKeys))];
+    expect(dp1StudentKeys.length).toBeGreaterThan(0);
+    expect(dp2StudentKeys.length).toBeGreaterThan(0);
+
+    for (const key of dp1StudentKeys) expect(dp1.studentNames[key]).toBeTruthy();
+    for (const key of dp2StudentKeys) expect(dp2.studentNames[key]).toBeTruthy();
+
+    // Enrollments are cohort-scoped — dp2-only keys must not leak into dp1's map.
+    const dp2Only = dp2StudentKeys.filter((key) => !dp1StudentKeys.includes(key));
+    expect(dp2Only.length).toBeGreaterThan(0);
+    for (const key of dp2Only) expect(key in dp1.studentNames).toBe(false);
+
+    const allTeacherKeys = [...new Set([...dp1.catalog, ...dp2.catalog].flatMap((course) => course.teacherKeys))];
+    for (const key of allTeacherKeys) expect(shared.teacherNames[key]).toBeTruthy();
+  });
+
   it("resolves a teacher without full_name to their code", async () => {
     const result = await loadCombinedPlannerData(supabase, planId);
     if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
-    const { teacherNames } = result.value.dp1;
+    const { teacherNames } = result.value.shared;
 
     const { data: teachers, error } = await supabase
       .from("teachers")
@@ -94,6 +117,8 @@ afterAll(async () => {
 
     const result = await loadCombinedPlannerData(supabase, planId);
     if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
-    expect(result.value.dp1.availability).toEqual([{ teacherKey: teacher.id, day: 3, period: 2, severity: "strong" }]);
+    expect(result.value.shared.availability).toEqual([
+      { teacherKey: teacher.id, day: 3, period: 2, severity: "strong" },
+    ]);
   });
 });

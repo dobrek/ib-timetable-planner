@@ -35,7 +35,7 @@ import {
   settleMany,
   type MemberOutcome,
 } from "./placement-transitions";
-import { cellScope, type WriteContext } from "./write-context";
+import type { WriteContext } from "./write-context";
 
 /** Transient outcome of a successful duplicate: the target cell, plus a nonce so a same-cell
  *  re-duplicate (impossible today, but cheap to guarantee) still re-fires the board's feedback. */
@@ -358,3 +358,6 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
     duplicateBundle,
   };
 }
+
+/** A single-cell scope (the common case: add/move/remove/setWeek touch one or two cells, no cards). */
+const cellScope = (cell: CellData): AffectedScope => ({ cells: [cellKey(cell.day, cell.period)], cardSets: [] });

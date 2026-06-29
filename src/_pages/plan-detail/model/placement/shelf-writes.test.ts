@@ -156,6 +156,19 @@ describe("createShelfWrites — placeBack (two-store)", () => {
     expect(h.setError).toHaveBeenLastCalledWith(null);
   });
 
+  it("surfaces a partial-failure banner when a member's server row is missing", async () => {
+    const h = makeHarness({ parked: [parkedCard] });
+    // Unshelve resolves but only returns c1's row; c2 has no server row → partial failure.
+    h.rpcs.unshelveBundle.mockResolvedValueOnce([serverRow("srv-1", "c1", 2, 2)]);
+
+    h.writes.placeBack("s1", { day: 2, period: 2 });
+    await flush();
+
+    expect(h.setError).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: "groupFailure", failedCourseIds: ["c2"] }),
+    );
+  });
+
   it("rolls BOTH stores back when the unshelve RPC rejects", async () => {
     const h = makeHarness({ parked: [parkedCard] });
     h.rpcs.unshelveBundle.mockRejectedValueOnce(new Error("unshelve boom"));

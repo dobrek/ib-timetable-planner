@@ -44,6 +44,7 @@ import {
   unparkRollback,
 } from "./placement/shelf-transitions";
 import type { LocalPlacement, PlannerPlacement } from "./placement/placement";
+import { cellScope, type WriteContext } from "./placement/write-context";
 import { cellKey } from "./collision/cell-key";
 import { sliceAt } from "./history/affected-slice";
 import { useReconcileExecutor } from "./history/use-reconcile-executor";
@@ -154,17 +155,27 @@ export function usePlacements(
   // through this instead of re-spelling them at every RPC site.
   const rpcs = useMemo(() => makeRpcs(planId, cohort), [planId, cohort]);
 
-  // The undo/redo reconcile machinery lives in its own hook; the two stores stay unified here and are
-  // injected by ref + setter. `snapshot` is the parent's (the forward path uses it on every edit).
-  const { applyReconcile, reconciling } = useReconcileExecutor({
-    snapshot,
+  const recordEdit = (kind: EditKind, scope: AffectedScope, before: AffectedSlice, cell?: CellData) => {
+    onRecord?.({ scope, target: before, label: describeEdit(kind, cell) });
+  };
+
+  // The single injected context the executor and (soon) the forward writer factories all consume. It
+  // is a superset of the executor's deps (adds `recordEdit`); the executor's narrower param type still
+  // only sees its subset, so it structurally cannot record — the recorder-bypass invariant is type-level.
+  const ctx: WriteContext = {
+    rpcs,
     placementsRef,
     parkedBundlesRef,
     setPlacements,
     setParkedBundles,
     setError,
-    rpcs,
-  });
+    recordEdit,
+    snapshot,
+  };
+
+  // The undo/redo reconcile machinery lives in its own hook; the two stores stay unified here and are
+  // injected by ref + setter. It reads only its subset of `ctx` (no `recordEdit`).
+  const { applyReconcile, reconciling } = useReconcileExecutor(ctx);
 
   const weekModeOf = (courseId: string): WeekMode => weekModeByCourseId.get(courseId) ?? "agnostic";
 
@@ -172,10 +183,6 @@ export function usePlacements(
   // The orchestrator gates undo/redo on this so a rapid ⌘Z mid-settle can't pop a not-yet-recorded
   // edit or read a one-render-lagged ref.
   const busy = reconciling || placements.some((p) => p.pending) || parkedBundles.some((c) => c.pending);
-
-  const recordEdit = (kind: EditKind, scope: AffectedScope, before: AffectedSlice, cell?: CellData) => {
-    onRecord?.({ scope, target: before, label: describeEdit(kind, cell) });
-  };
 
   function movePlacement(placementId: string, cell: CellData) {
     const result = moveIntent(placementsRef.current, placementId, cell);
@@ -567,11 +574,6 @@ export function usePlacements(
       setParkedBundles((prev) => unparkRollback(prev, card));
       setError(errorOf(err));
     }
-  }
-
-  // A single-cell scope (the common case: add/move/remove/setWeek touch one or two cells, no cards).
-  function cellScope(cell: CellData): AffectedScope {
-    return { cells: [cellKey(cell.day, cell.period)], cardSets: [] };
   }
 
   // Read the live affected slice — used to capture `before` at edit time and the forward (redo)

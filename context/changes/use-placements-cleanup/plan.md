@@ -428,11 +428,11 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [x] 3.1 Type check passes: `pnpm check`
-- [x] 3.2 Tests pass incl. updated duplicate-label + new clear-on-success test: `pnpm test`
-- [x] 3.3 Lint passes: `pnpm lint`
-- [x] 3.4 FSD structure check passes: `pnpm steiger`
-- [x] 3.5 Production build is clean: `pnpm build`
+- [x] 3.1 Type check passes: `pnpm check` — 288bf71
+- [x] 3.2 Tests pass incl. updated duplicate-label + new clear-on-success test: `pnpm test` — 288bf71
+- [x] 3.3 Lint passes: `pnpm lint` — 288bf71
+- [x] 3.4 FSD structure check passes: `pnpm steiger` — 288bf71
+- [x] 3.5 Production build is clean: `pnpm build` — 288bf71
 
 #### Manual
 
@@ -444,12 +444,12 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [ ] 4.1 Type check passes: `pnpm check`
-- [ ] 4.2 All tests pass unchanged (history + reconcile suites): `pnpm test`
-- [ ] 4.3 Lint passes: `pnpm lint`
-- [ ] 4.4 FSD structure check passes: `pnpm steiger`
-- [ ] 4.5 Production build is clean: `pnpm build`
-- [ ] 4.6 `use-placements.ts` no longer imports reconcile/reconcile-exec/reconcile-apply (grep)
+- [x] 4.1 Type check passes: `pnpm check`
+- [x] 4.2 All tests pass unchanged (history + reconcile suites): `pnpm test`
+- [x] 4.3 Lint passes: `pnpm lint`
+- [x] 4.4 FSD structure check passes: `pnpm steiger`
+- [x] 4.5 Production build is clean: `pnpm build`
+- [x] 4.6 `use-placements.ts` no longer imports reconcile/reconcile-exec/reconcile-apply (grep)
 
 #### Manual
 

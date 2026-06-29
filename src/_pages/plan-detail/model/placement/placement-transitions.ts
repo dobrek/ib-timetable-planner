@@ -142,6 +142,12 @@ export function placementErrorMessage(error: PlacementError, names: Record<strin
   return groupFailureMessage(failedNames, error.attempted);
 }
 
+/** Wrap a caught persistence exception into a `message` PlacementError — the write path's catch surface. */
+export const errorOf = (err: unknown): PlacementError => ({ kind: "message", message: messageOf(err) });
+
+export const messageOf = (err: unknown): string =>
+  err instanceof Error ? err.message : "Unexpected error persisting placement";
+
 // --- Move ---
 
 export type MoveIntent = {

@@ -312,11 +312,11 @@ Pure code restructure; no data, schema, or API migration. Each phase is independ
 
 #### Automated
 
-- [x] 2.1 New shelf-writes tests pass: `pnpm test shelf-writes`
-- [x] 2.2 Existing hook tests pass unchanged: `pnpm test use-placements`
-- [x] 2.3 Type check passes: `pnpm check`
-- [x] 2.4 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [x] 2.5 Build clean: `pnpm build`
+- [x] 2.1 New shelf-writes tests pass: `pnpm test shelf-writes` — c3dc280
+- [x] 2.2 Existing hook tests pass unchanged: `pnpm test use-placements` — c3dc280
+- [x] 2.3 Type check passes: `pnpm check` — c3dc280
+- [x] 2.4 Lint + structure pass: `pnpm lint && pnpm steiger` — c3dc280
+- [x] 2.5 Build clean: `pnpm build` — c3dc280
 
 #### Manual
 
@@ -326,13 +326,13 @@ Pure code restructure; no data, schema, or API migration. Each phase is independ
 
 #### Automated
 
-- [ ] 3.1 New board-writes tests pass: `pnpm test board-writes`
-- [ ] 3.2 Existing hook tests pass unchanged: `pnpm test use-placements`
-- [ ] 3.3 Full unit suite passes: `pnpm test`
-- [ ] 3.4 Type check passes: `pnpm check`
-- [ ] 3.5 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [ ] 3.6 Build clean: `pnpm build`
-- [ ] 3.7 Full CI gate clean: `/verify`
+- [x] 3.1 New board-writes tests pass: `pnpm test board-writes`
+- [x] 3.2 Existing hook tests pass unchanged: `pnpm test use-placements`
+- [x] 3.3 Full unit suite passes: `pnpm test`
+- [x] 3.4 Type check passes: `pnpm check`
+- [x] 3.5 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 3.6 Build clean: `pnpm build`
+- [x] 3.7 Full CI gate clean: `/verify`
 
 #### Manual
 

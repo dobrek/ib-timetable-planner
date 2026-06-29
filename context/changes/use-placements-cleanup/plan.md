@@ -413,11 +413,11 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [x] 2.1 Type check passes: `pnpm check`
-- [x] 2.2 Unit + history tests pass unchanged: `pnpm test`
-- [x] 2.3 Lint passes: `pnpm lint`
-- [x] 2.4 FSD structure check passes: `pnpm steiger`
-- [x] 2.5 Production build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check` — c0f6d3c
+- [x] 2.2 Unit + history tests pass unchanged: `pnpm test` — c0f6d3c
+- [x] 2.3 Lint passes: `pnpm lint` — c0f6d3c
+- [x] 2.4 FSD structure check passes: `pnpm steiger` — c0f6d3c
+- [x] 2.5 Production build is clean: `pnpm build` — c0f6d3c
 
 #### Manual
 
@@ -428,11 +428,11 @@ No data or schema migration. Phase 5 changes the build: `pnpm install` after the
 
 #### Automated
 
-- [ ] 3.1 Type check passes: `pnpm check`
-- [ ] 3.2 Tests pass incl. updated duplicate-label + new clear-on-success test: `pnpm test`
-- [ ] 3.3 Lint passes: `pnpm lint`
-- [ ] 3.4 FSD structure check passes: `pnpm steiger`
-- [ ] 3.5 Production build is clean: `pnpm build`
+- [x] 3.1 Type check passes: `pnpm check`
+- [x] 3.2 Tests pass incl. updated duplicate-label + new clear-on-success test: `pnpm test`
+- [x] 3.3 Lint passes: `pnpm lint`
+- [x] 3.4 FSD structure check passes: `pnpm steiger`
+- [x] 3.5 Production build is clean: `pnpm build`
 
 #### Manual
 

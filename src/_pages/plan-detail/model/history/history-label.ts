@@ -5,6 +5,7 @@ import type { CellData } from "../drag";
 export type EditKind =
   | "add"
   | "addGroup"
+  | "duplicate"
   | "move"
   | "moveBundle"
   | "remove"
@@ -27,6 +28,8 @@ export function describeEdit(kind: EditKind, cell?: CellData): string {
       return `Place course${where}`;
     case "addGroup":
       return `Place group${where}`;
+    case "duplicate":
+      return `Duplicate bundle${where}`;
     case "move":
       return `Move course${where}`;
     case "moveBundle":

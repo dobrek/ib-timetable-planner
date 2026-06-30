@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui";
+import { subjectChipClass, type SubjectColor } from "@/shared/config";
+import { cn } from "@/shared/lib/class-names";
 import { formatCourseLabel, formatGroupCell } from "../lib/labels";
 import { LEVEL_NONE, type CourseRow } from "../model/course";
 
@@ -48,6 +50,7 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
             <TableRow key={row.id}>
               <TableCell className="font-medium">
                 <span className="flex flex-wrap items-center gap-2">
+                  <CourseColorDot color={row.color} />
                   {row.name}
                   {row.isMerged && <Badge variant="secondary">Merged</Badge>}
                   {row.weekMode === "biweekly" && <Badge variant="outline">Bi-weekly</Badge>}
@@ -80,6 +83,23 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+/**
+ * A small decorative dot previewing a course's optional subject color, so the catalog reads the
+ * color at a glance without opening the editor. Nothing renders when the course is uncolored. The
+ * dot mirrors the form swatch (`subjectChipClass`) with a hue-matched ring (`border-current` picks
+ * up the paired foreground token) so it stays legible on the table in both themes. Decorative only —
+ * color carries no accessible name here (it does on the picker controls), so it is `aria-hidden`.
+ */
+function CourseColorDot({ color }: { color: SubjectColor | null }) {
+  if (!color) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("size-2.5 shrink-0 rounded-full border border-current", subjectChipClass(color))}
+    />
   );
 }
 

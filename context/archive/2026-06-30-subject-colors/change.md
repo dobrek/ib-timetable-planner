@@ -1,10 +1,10 @@
 ---
 change_id: subject-colors
 title: Subject colors
-status: impl_reviewed
+status: archived
 created: 2026-06-30
 updated: 2026-06-30
-archived_at: null
+archived_at: 2026-06-30T21:00:28Z
 ---
 
 ## Notes

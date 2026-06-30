@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/react";
 import { GripVertical, X } from "lucide-react";
-import { cohortLabel, type Cohort } from "@/shared/config";
+import { cohortLabel, subjectChipClass, type Cohort } from "@/shared/config";
 import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
 import type { ParkedDrag } from "../../model/drag";
 import type { LocalParkedBundle, ParkedMember } from "../../model/placement/parked";
@@ -72,12 +72,21 @@ export default function ParkedBundleCard({ bundle, courseDisplay, cohort, onRemo
         </Button>
       </div>
       <ul className="space-y-1 px-2 pb-2">
-        {bundle.members.map((member) => (
-          <li key={member.courseId} className="flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs">
-            <span className="truncate">{resolveCourseDisplay(courseDisplay, member.courseId).name}</span>
-            <WeekTag week={member.week} />
-          </li>
-        ))}
+        {bundle.members.map((member) => {
+          const display = resolveCourseDisplay(courseDisplay, member.courseId);
+          return (
+            <li
+              key={member.courseId}
+              className={cn(
+                "flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs",
+                subjectChipClass(display.color),
+              )}
+            >
+              <span className="truncate">{display.name}</span>
+              <WeekTag week={member.week} />
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

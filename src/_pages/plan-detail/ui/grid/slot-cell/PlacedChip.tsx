@@ -1,7 +1,6 @@
-import { cva } from "class-variance-authority";
 import { useDraggable } from "@dnd-kit/react";
 import { TriangleAlert, UserX, X } from "lucide-react";
-import type { Cohort, PlacementWeek } from "@/shared/config";
+import { subjectChipClass, type Cohort, type PlacementWeek, type SubjectColor } from "@/shared/config";
 import { Badge, Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import type { CollisionInspectionTarget } from "../../overlay/CollisionDetailsDialog";
@@ -45,7 +44,7 @@ export function PlacedChip({
   onSetWeek,
   onInspect,
 }: ChipWiring & { occupant: CellOccupant }) {
-  const { placement, name, blocking, warning, unavailable } = occupant;
+  const { placement, name, color, blocking, warning, unavailable } = occupant;
   const { ref, isDragging } = useDraggable<PlacementDrag>({
     id: placement.id,
     data: { kind: "placement", placementId: placement.id, courseId: placement.courseId, cohort },
@@ -63,7 +62,8 @@ export function PlacedChip({
       // Blocking (collision/strong-NO) is the invalid state; the Badge already styles aria-invalid.
       aria-invalid={blocking}
       className={cn(
-        chipTone({ tone: blocking ? "blocking" : warning ? "warning" : "neutral" }),
+        CHIP_LAYOUT,
+        chipToneClass({ blocking, warning, color }),
         placement.pending && "opacity-60",
         !placement.pending && !bundled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
@@ -124,15 +124,28 @@ export function PlacedChip({
   );
 }
 
-/** 3-state chip border/bg/text variant, consistent with `badge.tsx`/`button.tsx`. Opacity (pending/
- *  dragging) composes separately — it is not a tone. */
-const chipTone = cva("flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs", {
-  variants: {
-    tone: {
-      blocking: "border-destructive bg-destructive/10 text-destructive",
-      warning: "border-warning bg-warning/10 text-warning",
-      neutral: "bg-secondary text-secondary-foreground",
-    },
-  },
-  defaultVariants: { tone: "neutral" },
-});
+/** Shared chip layout. Opacity (pending/dragging) composes separately — it is not a tone. */
+const CHIP_LAYOUT = "flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs";
+
+/**
+ * The chip's tone resolved to exactly ONE bg/text pair, so a subject color *replaces* the neutral
+ * background rather than layering a second `bg-*` (two `bg-*` utilities resolve non-deterministically
+ * from the markup). Collision tones take precedence: a blocking/warning chip keeps its red/amber
+ * regardless of color, so a conflict is never masked; only the plain `neutral` tone takes the color.
+ */
+export const chipToneClass = ({
+  blocking,
+  warning,
+  color,
+}: {
+  blocking: boolean;
+  warning: boolean;
+  color: SubjectColor | null;
+}): string =>
+  blocking
+    ? "border-destructive bg-destructive/10 text-destructive"
+    : warning
+      ? "border-warning bg-warning/10 text-warning"
+      : color
+        ? subjectChipClass(color)
+        : "bg-secondary text-secondary-foreground";

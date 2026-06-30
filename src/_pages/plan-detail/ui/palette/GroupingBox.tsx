@@ -6,6 +6,7 @@ import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-dis
 import type { GroupDrag } from "../../model/drag";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
 import type { HoursStat } from "../../model/hours";
+import { subjectChipClass, type SubjectColor } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import { Badge } from "@/shared/ui";
 
@@ -36,10 +37,12 @@ export default function GroupingBox({ grouping, courseDisplay, hours }: Props) {
 
   if (grouping.memberIds.length === 1) {
     const memberId = grouping.memberIds[0];
+    const display = resolveCourseDisplay(courseDisplay, memberId);
     return (
       <PaletteCourseChip
         ref={ref}
-        name={resolveCourseDisplay(courseDisplay, memberId).name}
+        name={display.name}
+        color={display.color}
         hours={hours.get(memberId)}
         isDragging={isDragging}
       />
@@ -69,21 +72,22 @@ export default function GroupingBox({ grouping, courseDisplay, hours }: Props) {
         </span>
       </div>
       <ul className="space-y-1 px-2 pb-2">
-        {grouping.memberIds.map((courseId) => (
-          <MemberRow
-            key={courseId}
-            name={resolveCourseDisplay(courseDisplay, courseId).name}
-            hours={hours.get(courseId)}
-          />
-        ))}
+        {grouping.memberIds.map((courseId) => {
+          const display = resolveCourseDisplay(courseDisplay, courseId);
+          return <MemberRow key={courseId} name={display.name} color={display.color} hours={hours.get(courseId)} />;
+        })}
       </ul>
     </div>
   );
 }
 
-function MemberRow({ name, hours }: { name: string; hours: HoursStat | undefined }) {
+function MemberRow({ name, color, hours }: { name: string; color: SubjectColor | null; hours: HoursStat | undefined }) {
   return (
-    <li data-slot="grouping-member" className="flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs">
+    <li
+      data-slot="grouping-member"
+      // No base background on the row → the subject pair is a single, safe add (empty when uncolored).
+      className={cn("flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs", subjectChipClass(color))}
+    >
       <span className="truncate">{name}</span>
       <HoursCounter hours={hours} />
     </li>

@@ -40,6 +40,22 @@ describe("groupCellOccupants", () => {
     const occupants = groupCellOccupants([placement("p1", "unknown")], {}, new Map()).get(cellKey(1, 1));
 
     expect(occupants?.[0]?.name).toBe("unknown");
+    expect(occupants?.[0]?.color).toBeNull();
+  });
+
+  it("resolves each occupant's subject color (null when uncolored or absent)", () => {
+    const placements = [placement("p1", "math"), placement("p2", "art"), placement("p3", "ghost")];
+    const courseDisplay = {
+      math: { name: "Math", color: "rose" as const },
+      art: { name: "Art", color: null },
+    };
+
+    const occupants = groupCellOccupants(placements, courseDisplay, new Map()).get(cellKey(1, 1)) ?? [];
+    const byCourse = new Map(occupants.map((o) => [o.placement.courseId, o.color]));
+
+    expect(byCourse.get("math")).toBe("rose");
+    expect(byCourse.get("art")).toBeNull();
+    expect(byCourse.get("ghost")).toBeNull();
   });
 
   it("maps blocking/warning/unavailable flags from the cell's CellCollisions", () => {

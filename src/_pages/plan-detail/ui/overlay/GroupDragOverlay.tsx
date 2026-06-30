@@ -1,6 +1,7 @@
 import { DragOverlay } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
-import type { Cohort } from "@/shared/config";
+import { subjectChipClass, type Cohort } from "@/shared/config";
+import { cn } from "@/shared/lib/class-names";
 import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
 import type { DragData } from "../../model/drag";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
@@ -75,11 +76,17 @@ function OverlayCard({
         <span>{memberIds.length} courses</span>
       </div>
       <ul className="space-y-1 px-2 pb-2">
-        {memberIds.map((courseId) => (
-          <li key={courseId} className="truncate rounded-md border px-1.5 py-1 text-xs">
-            {resolveCourseDisplay(courseDisplay, courseId).name}
-          </li>
-        ))}
+        {memberIds.map((courseId) => {
+          const display = resolveCourseDisplay(courseDisplay, courseId);
+          return (
+            <li
+              key={courseId}
+              className={cn("truncate rounded-md border px-1.5 py-1 text-xs", subjectChipClass(display.color))}
+            >
+              {display.name}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

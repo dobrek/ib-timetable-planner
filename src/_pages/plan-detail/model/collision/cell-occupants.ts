@@ -1,3 +1,4 @@
+import type { SubjectColor } from "@/shared/config";
 import { groupBy } from "@/shared/lib/collections";
 import { cellKey } from "./cell-key";
 import { type CellCollisions } from "./collisions";
@@ -14,6 +15,8 @@ import type { LocalPlacement } from "../placement/placement";
 export type CellOccupant = {
   placement: LocalPlacement;
   name: string;
+  /** Optional subject color (palette enum key); painted on the neutral tone, suppressed by collisions. */
+  color: SubjectColor | null;
   blocking: boolean;
   warning: boolean;
   unavailable: boolean;
@@ -45,13 +48,17 @@ const toOccupant = (
   placement: LocalPlacement,
   courseDisplay: Record<string, CourseDisplay>,
   collisions: CellCollisions | undefined,
-): CellOccupant => ({
-  placement,
-  name: resolveCourseDisplay(courseDisplay, placement.courseId).name,
-  blocking: collisions?.blockingIds.has(placement.courseId) ?? false,
-  warning: collisions?.warningIds.has(placement.courseId) ?? false,
-  unavailable: collisions?.unavailableIds.has(placement.courseId) ?? false,
-});
+): CellOccupant => {
+  const display = resolveCourseDisplay(courseDisplay, placement.courseId);
+  return {
+    placement,
+    name: display.name,
+    color: display.color,
+    blocking: collisions?.blockingIds.has(placement.courseId) ?? false,
+    warning: collisions?.warningIds.has(placement.courseId) ?? false,
+    unavailable: collisions?.unavailableIds.has(placement.courseId) ?? false,
+  };
+};
 
 const compareByName = (a: CellOccupant, b: CellOccupant): number => {
   const byName = a.name.localeCompare(b.name);

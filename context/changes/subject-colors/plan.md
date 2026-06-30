@@ -715,35 +715,35 @@ validation budget is provably untouched (the hash hand-picks 5 fields; `color` i
 
 #### Automated
 
-- [x] 3.1 Local DB applies cleanly: `pnpm exec supabase db reset`
-- [x] 3.2 Generated types include `color`; `pnpm check` passes against record + loaders
-- [x] 3.3 Unit tests pass: `pnpm test`
-- [x] 3.4 Integration: color round-trips through both loaders: `pnpm test:integration`
-- [x] 3.5 Integration: `clone_plan` carries color (silent-drop guard): `pnpm test:integration`
-- [x] 3.6 Integration: color-only edit leaves groupings non-stale (isolation): `pnpm test:integration`
-- [x] 3.7 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [x] 3.8 Build is clean: `pnpm build`
+- [x] 3.1 Local DB applies cleanly: `pnpm exec supabase db reset` — c1abf1b
+- [x] 3.2 Generated types include `color`; `pnpm check` passes against record + loaders — c1abf1b
+- [x] 3.3 Unit tests pass: `pnpm test` — c1abf1b
+- [x] 3.4 Integration: color round-trips through both loaders: `pnpm test:integration` — c1abf1b
+- [x] 3.5 Integration: `clone_plan` carries color (silent-drop guard): `pnpm test:integration` — c1abf1b
+- [x] 3.6 Integration: color-only edit leaves groupings non-stale (isolation): `pnpm test:integration` — c1abf1b
+- [x] 3.7 Lint + structure pass: `pnpm lint && pnpm steiger` — c1abf1b
+- [x] 3.8 Build is clean: `pnpm build` — c1abf1b
 
 #### Manual
 
-- [x] 3.9 Editor swatch UI feel: pick a color/"None", confirm it round-trips on re-open
-- [x] 3.10 Courses table unchanged (no color cell); board not yet painted
-- [x] 3.11 Swatches keyboard-reachable + screen-reader-named ("Rose", …, "No color")
+- [x] 3.9 Editor swatch UI feel: pick a color/"None", confirm it round-trips on re-open — c1abf1b
+- [x] 3.10 Courses table unchanged (no color cell); board not yet painted — c1abf1b
+- [x] 3.11 Swatches keyboard-reachable + screen-reader-named ("Rose", …, "No color") — c1abf1b
 
 ### Phase 4: Paint the Chips
 
 #### Automated
 
-- [ ] 4.1 Type-check passes: `pnpm check`
-- [ ] 4.2 Unit tests pass (incl. color×tone precedence): `pnpm test`
-- [ ] 4.3 Integration tests pass: `pnpm test:integration`
-- [ ] 4.4 Isolation E2E passes (color edit ⇏ stale): `pnpm test:e2e -- subject-color-isolation`
-- [ ] 4.5 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [ ] 4.6 Build is clean: `pnpm build`
+- [x] 4.1 Type-check passes: `pnpm check`
+- [x] 4.2 Unit tests pass (incl. color×tone precedence): `pnpm test`
+- [x] 4.3 Integration tests pass: `pnpm test:integration`
+- [x] 4.4 Isolation E2E passes (color edit ⇏ stale): `pnpm test:e2e -- subject-color-isolation`
+- [x] 4.5 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 4.6 Build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 4.7 Colored course shows on all 5 plan-detail surfaces, light + dark
-- [ ] 4.8 Collision tone overrides color; clearing the collision restores it
-- [ ] 4.9 Uncolored course renders neutral as today; drag previews show color
-- [ ] 4.10 No regression in ordering/badges/toggles; drag-drop still <200ms
+- [x] 4.7 Colored course shows on all 5 plan-detail surfaces, light + dark
+- [x] 4.8 Collision tone overrides color; clearing the collision restores it
+- [x] 4.9 Uncolored course renders neutral as today; drag previews show color
+- [x] 4.10 No regression in ordering/badges/toggles; drag-drop still <200ms

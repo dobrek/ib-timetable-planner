@@ -1,5 +1,6 @@
 import { GripVertical } from "lucide-react";
 import type { Ref } from "react";
+import { subjectChipClass, type SubjectColor } from "@/shared/config";
 import HoursCounter from "./HoursCounter";
 import type { HoursStat } from "../../model/hours";
 import { cn } from "@/shared/lib/class-names";
@@ -8,6 +9,8 @@ type Props = {
   name: string;
   /** placed/required hours for this course; the counter is omitted when absent. */
   hours?: HoursStat;
+  /** Optional subject color; when set its bg/text pair replaces the chip's `bg-background`. */
+  color?: SubjectColor | null;
   isDragging: boolean;
   ref?: Ref<HTMLDivElement>;
 };
@@ -21,13 +24,15 @@ type Props = {
  * `isDragging` opacity is the in-place "in use" treatment while the drag clone
  * follows the pointer.
  */
-export default function PaletteCourseChip({ name, hours, isDragging, ref }: Props) {
+export default function PaletteCourseChip({ name, hours, color, isDragging, ref }: Props) {
   return (
     <div
       ref={ref}
       data-slot="palette-course-chip"
       className={cn(
-        "bg-background flex cursor-grab items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs",
+        // The subject pair replaces `bg-background` (single bg) when a color is set.
+        color ? subjectChipClass(color) : "bg-background",
+        "flex cursor-grab items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs",
         "hover:bg-accent hover:text-accent-foreground active:cursor-grabbing",
         isDragging && "opacity-50",
       )}

@@ -15,6 +15,7 @@ import SlotCell from "./SlotCell";
 const occupant = (courseId: string, name: string, week: PlacementWeek = "both"): CellOccupant => ({
   placement: { id: `p-${courseId}`, courseId, day: 2, period: 3, week },
   name,
+  color: null,
   blocking: false,
   warning: false,
   unavailable: false,

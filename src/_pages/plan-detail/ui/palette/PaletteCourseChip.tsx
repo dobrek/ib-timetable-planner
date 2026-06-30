@@ -33,7 +33,8 @@ export default function PaletteCourseChip({ name, hours, color, isDragging, ref 
         // The subject pair replaces `bg-background` (single bg) when a color is set.
         color ? subjectChipClass(color) : "bg-background",
         "flex cursor-grab items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs",
-        "hover:bg-accent hover:text-accent-foreground active:cursor-grabbing",
+        // Neutral hover only when uncolored; a colored chip keeps its subject pair on hover.
+        color ? "active:cursor-grabbing" : "hover:bg-accent hover:text-accent-foreground active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
     >

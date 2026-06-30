@@ -219,14 +219,14 @@ None. No schema, data, or API changes. Purely additive CSS classes / one CSS var
 
 #### Automated
 
-- [x] 2.1 Type checking passes (`pnpm exec astro sync && pnpm lint`)
-- [x] 2.2 FSD structure check passes (`pnpm steiger`)
-- [x] 2.3 Unit suite passes (`pnpm test`)
-- [x] 2.4 Production build stays clean (`pnpm build`)
+- [x] 2.1 Type checking passes (`pnpm exec astro sync && pnpm lint`) — 0bca8fd
+- [x] 2.2 FSD structure check passes (`pnpm steiger`) — 0bca8fd
+- [x] 2.3 Unit suite passes (`pnpm test`) — 0bca8fd
+- [x] 2.4 Production build stays clean (`pnpm build`) — 0bca8fd
 
 #### Manual
 
-- [x] 2.5 Combined mode: day row + DP1│DP2 sub-label row both pin, stacked with no overlap/gap
-- [x] 2.6 Two-row frozen corner stays solid on horizontal and vertical scroll
-- [x] 2.7 Focus mode visually unchanged (`--day-header-h` matches prior day-row height)
-- [x] 2.8 Drag/drop + `gap-px` seam checks re-pass in combined mode
+- [x] 2.5 Combined mode: day row + DP1│DP2 sub-label row both pin, stacked with no overlap/gap — 0bca8fd
+- [x] 2.6 Two-row frozen corner stays solid on horizontal and vertical scroll — 0bca8fd
+- [x] 2.7 Focus mode visually unchanged (`--day-header-h` matches prior day-row height) — 0bca8fd
+- [x] 2.8 Drag/drop + `gap-px` seam checks re-pass in combined mode — 0bca8fd

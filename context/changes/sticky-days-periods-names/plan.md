@@ -200,20 +200,20 @@ None. No schema, data, or API changes. Purely additive CSS classes / one CSS var
 
 #### Automated
 
-- [ ] 1.1 Type checking passes (`pnpm exec astro sync && pnpm lint`)
-- [ ] 1.2 FSD structure check passes (`pnpm steiger`)
-- [ ] 1.3 Unit suite passes (`pnpm test`)
-- [ ] 1.4 Production build stays clean (`pnpm build`)
+- [x] 1.1 Type checking passes (`pnpm exec astro sync && pnpm lint`)
+- [x] 1.2 FSD structure check passes (`pnpm steiger`)
+- [x] 1.3 Unit suite passes (`pnpm test`)
+- [x] 1.4 Production build stays clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 1.5 Focus mode: day row, period column, corner all freeze on scroll
-- [ ] 1.6 Combined mode: day row, period column, corner freeze (sub-label row not yet — expected)
-- [ ] 1.7 Drag feedback floats above sticky headers while scrolled
-- [ ] 1.8 Drop registers on a cell tucked under a sticky header
-- [ ] 1.9 Period-break bands render correctly beneath the sticky left column
-- [ ] 1.10 `gap-px` seam reads as a grid hairline (no bleed, incl. dark mode)
-- [ ] 1.11 Sub-`lg` viewport behaves / no visual regression
+- [x] 1.5 Focus mode: day row, period column, corner all freeze on scroll
+- [x] 1.6 Combined mode: day row, period column, corner freeze (sub-label row not yet — expected)
+- [x] 1.7 Drag feedback floats above sticky headers while scrolled
+- [x] 1.8 Drop registers on a cell tucked under a sticky header
+- [x] 1.9 Period-break bands render correctly beneath the sticky left column
+- [x] 1.10 `gap-px` seam reads as a grid hairline (no bleed, incl. dark mode)
+- [x] 1.11 Sub-`lg` viewport behaves / no visual regression
 
 ### Phase 2: Combined-mode cohort sub-label row
 

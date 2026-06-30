@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { cohortLabel, type Cohort, type PlacementWeek } from "@/shared/config";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import SlotCell from "./slot-cell/SlotCell";
@@ -88,7 +88,15 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
         role="grid"
         aria-label={gridLabel}
         className="bg-border grid gap-px rounded-lg"
-        style={{ gridTemplateColumns: `auto repeat(${days}, ${subColumns})` }}
+        style={
+          {
+            gridTemplateColumns: `auto repeat(${days}, ${subColumns})`,
+            // Single source of truth: the day-row height. Day cells consume it; the combined-mode
+            // sub-label row offsets its sticky `top` against it (+1px for the grid gap) so the two
+            // pinned header rows never drift. Matches the content-driven `p-2 text-xs` height (2rem).
+            "--day-header-h": "2rem",
+          } as CSSProperties
+        }
       >
         {/* `contents` keeps each row out of the CSS grid box model while still exposing
             `role="row"` so cells nest under rows in the accessibility tree. */}
@@ -102,7 +110,7 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
               key={day}
               role="columnheader"
               style={multi ? { gridColumn: `span ${columns.length}` } : undefined}
-              className="bg-background text-muted-foreground sticky top-0 z-10 p-2 text-center text-xs font-medium shadow-[0_1px_0_0_var(--color-border)]"
+              className="bg-background text-muted-foreground sticky top-0 z-10 h-[var(--day-header-h)] p-2 text-center text-xs font-medium shadow-[0_1px_0_0_var(--color-border)]"
             >
               {dayLabel(day)}
             </div>
@@ -112,14 +120,17 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
         {/* Cohort sub-labels under each day — combined only (a single column needs none). */}
         {multi && (
           <div role="row" className="contents">
-            <div role="presentation" className="bg-background p-1" />
+            <div
+              role="presentation"
+              className="bg-background sticky top-[calc(var(--day-header-h)_+_1px)] left-0 z-20 p-1 shadow-[1px_1px_0_0_var(--color-border)]"
+            />
             {dayList.map((day) => (
               <Fragment key={day}>
                 {columns.map((column) => (
                   <div
                     key={column.cohort}
                     role="columnheader"
-                    className="bg-background text-muted-foreground p-1 text-center text-xs font-medium"
+                    className="bg-background text-muted-foreground sticky top-[calc(var(--day-header-h)_+_1px)] z-10 p-1 text-center text-xs font-medium shadow-[0_1px_0_0_var(--color-border)]"
                   >
                     {cohortLabel(column.cohort)}
                   </div>

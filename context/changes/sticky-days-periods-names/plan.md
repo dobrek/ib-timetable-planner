@@ -200,33 +200,33 @@ None. No schema, data, or API changes. Purely additive CSS classes / one CSS var
 
 #### Automated
 
-- [x] 1.1 Type checking passes (`pnpm exec astro sync && pnpm lint`)
-- [x] 1.2 FSD structure check passes (`pnpm steiger`)
-- [x] 1.3 Unit suite passes (`pnpm test`)
-- [x] 1.4 Production build stays clean (`pnpm build`)
+- [x] 1.1 Type checking passes (`pnpm exec astro sync && pnpm lint`) — a4e2e39
+- [x] 1.2 FSD structure check passes (`pnpm steiger`) — a4e2e39
+- [x] 1.3 Unit suite passes (`pnpm test`) — a4e2e39
+- [x] 1.4 Production build stays clean (`pnpm build`) — a4e2e39
 
 #### Manual
 
-- [x] 1.5 Focus mode: day row, period column, corner all freeze on scroll
-- [x] 1.6 Combined mode: day row, period column, corner freeze (sub-label row not yet — expected)
-- [x] 1.7 Drag feedback floats above sticky headers while scrolled
-- [x] 1.8 Drop registers on a cell tucked under a sticky header
-- [x] 1.9 Period-break bands render correctly beneath the sticky left column
-- [x] 1.10 `gap-px` seam reads as a grid hairline (no bleed, incl. dark mode)
-- [x] 1.11 Sub-`lg` viewport behaves / no visual regression
+- [x] 1.5 Focus mode: day row, period column, corner all freeze on scroll — a4e2e39
+- [x] 1.6 Combined mode: day row, period column, corner freeze (sub-label row not yet — expected) — a4e2e39
+- [x] 1.7 Drag feedback floats above sticky headers while scrolled — a4e2e39
+- [x] 1.8 Drop registers on a cell tucked under a sticky header — a4e2e39
+- [x] 1.9 Period-break bands render correctly beneath the sticky left column — a4e2e39
+- [x] 1.10 `gap-px` seam reads as a grid hairline (no bleed, incl. dark mode) — a4e2e39
+- [x] 1.11 Sub-`lg` viewport behaves / no visual regression — a4e2e39
 
 ### Phase 2: Combined-mode cohort sub-label row
 
 #### Automated
 
-- [ ] 2.1 Type checking passes (`pnpm exec astro sync && pnpm lint`)
-- [ ] 2.2 FSD structure check passes (`pnpm steiger`)
-- [ ] 2.3 Unit suite passes (`pnpm test`)
-- [ ] 2.4 Production build stays clean (`pnpm build`)
+- [x] 2.1 Type checking passes (`pnpm exec astro sync && pnpm lint`)
+- [x] 2.2 FSD structure check passes (`pnpm steiger`)
+- [x] 2.3 Unit suite passes (`pnpm test`)
+- [x] 2.4 Production build stays clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 2.5 Combined mode: day row + DP1│DP2 sub-label row both pin, stacked with no overlap/gap
-- [ ] 2.6 Two-row frozen corner stays solid on horizontal and vertical scroll
-- [ ] 2.7 Focus mode visually unchanged (`--day-header-h` matches prior day-row height)
-- [ ] 2.8 Drag/drop + `gap-px` seam checks re-pass in combined mode
+- [x] 2.5 Combined mode: day row + DP1│DP2 sub-label row both pin, stacked with no overlap/gap
+- [x] 2.6 Two-row frozen corner stays solid on horizontal and vertical scroll
+- [x] 2.7 Focus mode visually unchanged (`--day-header-h` matches prior day-row height)
+- [x] 2.8 Drag/drop + `gap-px` seam checks re-pass in combined mode

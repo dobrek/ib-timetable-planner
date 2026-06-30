@@ -28,3 +28,11 @@ export {
   type WeekMode,
   type PlacementWeek,
 } from "./week";
+export {
+  SUBJECT_COLOR_VALUES,
+  SUBJECT_COLORS,
+  subjectColorSchema,
+  subjectChipClass,
+  toSubjectColor,
+  type SubjectColor,
+} from "./subject-colors";

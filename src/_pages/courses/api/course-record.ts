@@ -12,4 +12,5 @@ export const toCourseRecord = (input: CourseInput) => ({
   group_index: input.groupIndex,
   hours_per_week: input.hoursPerWeek,
   week_mode: input.weekMode,
+  color: input.color,
 });

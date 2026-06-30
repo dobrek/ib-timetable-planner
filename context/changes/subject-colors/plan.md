@@ -700,35 +700,35 @@ validation budget is provably untouched (the hash hand-picks 5 fields; `color` i
 
 #### Automated
 
-- [x] 2.1 Type-check passes: `pnpm check`
-- [x] 2.2 Unit tests pass: `pnpm test`
-- [x] 2.3 Integration tests pass (wire-map assertions updated): `pnpm test:integration`
-- [x] 2.4 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [x] 2.5 Build is clean: `pnpm build`
+- [x] 2.1 Type-check passes: `pnpm check` — aa83014
+- [x] 2.2 Unit tests pass: `pnpm test` — aa83014
+- [x] 2.3 Integration tests pass (wire-map assertions updated): `pnpm test:integration` — aa83014
+- [x] 2.4 Lint + structure pass: `pnpm lint && pnpm steiger` — aa83014
+- [x] 2.5 Build is clean: `pnpm build` — aa83014
 
 #### Manual
 
-- [x] 2.6 Plan-detail board/palette/overlay/shelf render identically to before (invisible refactor)
-- [x] 2.7 Grouping overlay names, collision dialog, and error banners still name courses correctly
+- [x] 2.6 Plan-detail board/palette/overlay/shelf render identically to before (invisible refactor) — aa83014
+- [x] 2.7 Grouping overlay names, collision dialog, and error banners still name courses correctly — aa83014
 
 ### Phase 3: Data + Write/Read Path
 
 #### Automated
 
-- [ ] 3.1 Local DB applies cleanly: `pnpm exec supabase db reset`
-- [ ] 3.2 Generated types include `color`; `pnpm check` passes against record + loaders
-- [ ] 3.3 Unit tests pass: `pnpm test`
-- [ ] 3.4 Integration: color round-trips through both loaders: `pnpm test:integration`
-- [ ] 3.5 Integration: `clone_plan` carries color (silent-drop guard): `pnpm test:integration`
-- [ ] 3.6 Integration: color-only edit leaves groupings non-stale (isolation): `pnpm test:integration`
-- [ ] 3.7 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [ ] 3.8 Build is clean: `pnpm build`
+- [x] 3.1 Local DB applies cleanly: `pnpm exec supabase db reset`
+- [x] 3.2 Generated types include `color`; `pnpm check` passes against record + loaders
+- [x] 3.3 Unit tests pass: `pnpm test`
+- [x] 3.4 Integration: color round-trips through both loaders: `pnpm test:integration`
+- [x] 3.5 Integration: `clone_plan` carries color (silent-drop guard): `pnpm test:integration`
+- [x] 3.6 Integration: color-only edit leaves groupings non-stale (isolation): `pnpm test:integration`
+- [x] 3.7 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 3.8 Build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.9 Editor swatch UI feel: pick a color/"None", confirm it round-trips on re-open
-- [ ] 3.10 Courses table unchanged (no color cell); board not yet painted
-- [ ] 3.11 Swatches keyboard-reachable + screen-reader-named ("Rose", …, "No color")
+- [x] 3.9 Editor swatch UI feel: pick a color/"None", confirm it round-trips on re-open
+- [x] 3.10 Courses table unchanged (no color cell); board not yet painted
+- [x] 3.11 Swatches keyboard-reachable + screen-reader-named ("Rose", …, "No color")
 
 ### Phase 4: Paint the Chips
 

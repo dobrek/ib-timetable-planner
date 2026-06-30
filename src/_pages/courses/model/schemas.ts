@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cohortSchema, weekModeSchema } from "@/shared/config";
+import { cohortSchema, subjectColorSchema, weekModeSchema } from "@/shared/config";
 import { LEVEL_NONE } from "./course";
 
 /**
@@ -43,6 +43,8 @@ export const courseInput = z.object({
   cohort: cohortSchema,
   // Fortnightly eligibility: `agnostic` (meets every week) | `biweekly` (week A or B only).
   weekMode: weekModeSchema.default("agnostic"),
+  // Optional, visual-only subject color (a palette enum key). "None" = null.
+  color: subjectColorSchema.nullable().default(null),
   // A course is co-taught by a set of one-or-more equal teachers (app-enforced ≥1).
   teacherIds: z.array(z.uuid()).min(1, "At least one teacher is required"),
 });

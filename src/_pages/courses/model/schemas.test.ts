@@ -13,6 +13,7 @@ const validCourse = {
   hoursPerWeek: 4,
   cohort: "dp1" as const,
   weekMode: "agnostic" as const,
+  color: null,
   teacherIds: [UUID_B],
 };
 
@@ -28,6 +29,19 @@ describe("courseInput", () => {
 
   it("accepts a bi-weekly course", () => {
     expect(courseInput.parse({ ...validCourse, weekMode: "biweekly" }).weekMode).toBe("biweekly");
+  });
+
+  it("accepts a valid subject color key", () => {
+    expect(courseInput.parse({ ...validCourse, color: "rose" }).color).toBe("rose");
+  });
+
+  it("rejects an unknown subject color key", () => {
+    expect(courseInput.safeParse({ ...validCourse, color: "magenta" }).success).toBe(false);
+  });
+
+  it("defaults color to null when omitted", () => {
+    const { color: _omitted, ...withoutColor } = validCourse;
+    expect(courseInput.parse(withoutColor).color).toBeNull();
   });
 
   it("trims the name", () => {

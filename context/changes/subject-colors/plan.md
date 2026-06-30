@@ -69,10 +69,12 @@ a collision and confirm the red/amber tone wins; `pnpm check` + `pnpm test` + `p
 ## What We're NOT Doing
 
 - **No free-form hex / `<input type="color">`.** Representation is a fixed token-key enum only.
-- **No color on the CRUD pages.** `CourseTable`, `StudentTable` `ChoiceBadges`, `TeacherTable`
-  `AssignmentBadges`, and the `MultiSelect`/dialog course chips are explicitly out of scope. (The
-  catalog *read path* still carries `color` so the **editor** can pre-fill the swatch — but the
-  table cell is not colored.)
+- **No color on the CRUD pages.** `StudentTable` `ChoiceBadges`, `TeacherTable` `AssignmentBadges`,
+  and the `MultiSelect`/dialog course chips are explicitly out of scope. (The catalog *read path*
+  still carries `color` so the **editor** can pre-fill the swatch.)
+  **Post-plan addendum (fc83f28):** the Courses table (`CourseTable`) now shows a small decorative,
+  `aria-hidden` color dot before the course name (reusing `subjectChipClass`) — it carries no
+  accessible name; the Students/Teachers tables stay uncolored.
 - **No shell/legend work.** There is no subject chip in the app shell today; we add none.
 - **No coloring of prose / text-only consumers.** `CollisionDetailsDialog`, placement error banners,
   and the palette-filter option labels read `.name` only and stay uncolored.

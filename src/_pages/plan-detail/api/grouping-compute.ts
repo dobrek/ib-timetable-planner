@@ -31,7 +31,7 @@ export const computeAndPersistGroupings = async (supabase: Supabase, input: Comp
     failure: "Plan lookup failed",
   });
 
-  const { courses, names, warnings } = await loadCohortCourses(supabase, planId, cohort);
+  const { courses, courseDisplay, warnings } = await loadCohortCourses(supabase, planId, cohort);
 
   let results;
   try {
@@ -46,5 +46,5 @@ export const computeAndPersistGroupings = async (supabase: Supabase, input: Comp
   const catalogHash = await computeCatalogHash(courses);
   await persistGroupings(supabase, { planId, cohort, catalogHash, results });
 
-  return { groupings: results, names, catalogHash, warnings };
+  return { groupings: results, courseDisplay, catalogHash, warnings };
 };

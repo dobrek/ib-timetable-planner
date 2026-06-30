@@ -1,4 +1,5 @@
 import type { Cohort } from "@/shared/config";
+import type { CourseDisplay } from "./course-display";
 import type { BoardAvailabilityCell } from "./cross-cohort/availability-index";
 import type { SiblingOccupancyCell } from "./cross-cohort/cross-cohort-index";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
@@ -51,8 +52,8 @@ export type PlannerBoardProps = {
   groupings: PlannerGrouping[];
   /** Per-cohort palette staleness (live catalog hash ≠ stored grouping hash); drives the palette notice only. */
   stale: boolean;
-  /** courseId → display name, resolved at the edge (never baked into drag payloads). */
-  names: Record<string, string>;
+  /** courseId → display data (name + optional color), resolved at the edge (never baked into drag payloads). */
+  courseDisplay: Record<string, CourseDisplay>;
   /** studentKey → full name for this cohort's catalog enrollments. */
   studentNames: Record<string, string>;
   placements: PlannerPlacement[];

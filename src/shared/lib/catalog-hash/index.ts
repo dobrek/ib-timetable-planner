@@ -1,2 +1,2 @@
 export { computeCatalogHash } from "./compute-catalog-hash";
-export type { CatalogSnapshot, CohortCatalog, ComputeWarning, GroupingCourse } from "./types";
+export type { CatalogSnapshot, CohortCatalog, CourseDisplay, ComputeWarning, GroupingCourse } from "./types";

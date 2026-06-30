@@ -3,6 +3,7 @@ import { cohortLabel, siblingCohort, type Cohort, type PlacementWeek } from "@/s
 import { cn } from "@/shared/lib/class-names";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
+import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
 import type { CollisionViolation } from "../../model/collision/constraints";
 import { otherWeek, sharedSingleWeek, weekLabel } from "../../model/week";
 
@@ -12,9 +13,9 @@ export type CollisionInspectionTarget = { day: number; period: number; courseId:
 type Props = {
   /** Inspection target, or null when closed. */
   target: CollisionInspectionTarget | null;
-  /** All violations in the inspected cell; ids are resolved through the name records below. */
+  /** All violations in the inspected cell; ids are resolved through the display/name records below. */
   violations: CollisionViolation[];
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   teacherNames: Record<string, string>;
   studentNames: Record<string, string>;
   /** Inspected cell's placement weeks (courseId → week) — drives the same-week clash hint. */
@@ -32,7 +33,7 @@ type Props = {
 export default function CollisionDetailsDialog({
   target,
   violations,
-  names,
+  courseDisplay,
   teacherNames,
   studentNames,
   weekByCourseId,
@@ -51,7 +52,7 @@ export default function CollisionDetailsDialog({
           <DetailsBody
             target={target}
             violations={violations}
-            names={names}
+            courseDisplay={courseDisplay}
             teacherNames={teacherNames}
             studentNames={studentNames}
             weekByCourseId={weekByCourseId}
@@ -66,7 +67,7 @@ export default function CollisionDetailsDialog({
 function DetailsBody({
   target,
   violations,
-  names,
+  courseDisplay,
   teacherNames,
   studentNames,
   weekByCourseId,
@@ -74,7 +75,7 @@ function DetailsBody({
 }: {
   target: CollisionInspectionTarget;
   violations: CollisionViolation[];
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   teacherNames: Record<string, string>;
   studentNames: Record<string, string>;
   weekByCourseId: Record<string, PlacementWeek>;
@@ -91,8 +92,8 @@ function DetailsBody({
           Collisions — {dayLabel(target.day)} {periodLabel(target.period)}
         </DialogTitle>
         <DialogDescription>
-          Every constraint violation among the courses in this slot; {names[target.courseId] ?? target.courseId} is
-          highlighted.
+          Every constraint violation among the courses in this slot;{" "}
+          {resolveCourseDisplay(courseDisplay, target.courseId).name} is highlighted.
         </DialogDescription>
       </DialogHeader>
 
@@ -105,7 +106,11 @@ function DetailsBody({
                 <li key={violation.teacherKey}>
                   {teacherNames[violation.teacherKey] ?? violation.teacherKey} teaches{" "}
                   {violation.courseIds.length === 2 ? "both" : "all"} of:{" "}
-                  <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
+                  <CourseNameList
+                    courseIds={violation.courseIds}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />
                   <SameWeekHint courseIds={violation.courseIds} weekByCourseId={weekByCourseId} />
                 </li>
               ))}
@@ -121,7 +126,11 @@ function DetailsBody({
                 <li key={`${violation.teacherKey}:${violation.courseIds.join(":")}`}>
                   {teacherNames[violation.teacherKey] ?? violation.teacherKey} is also teaching in{" "}
                   {cohortLabel(siblingCohort(cohort))} at this time:{" "}
-                  <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
+                  <CourseNameList
+                    courseIds={violation.courseIds}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />
                 </li>
               ))}
             </ul>
@@ -135,7 +144,11 @@ function DetailsBody({
               {unavailableBlock.map((violation) => (
                 <li key={`${violation.teacherKey}:${violation.courseIds.join(":")}`}>
                   {teacherNames[violation.teacherKey] ?? violation.teacherKey} cannot teach this slot:{" "}
-                  <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
+                  <CourseNameList
+                    courseIds={violation.courseIds}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />
                 </li>
               ))}
             </ul>
@@ -152,7 +165,11 @@ function DetailsBody({
               {unavailableWarn.map((violation) => (
                 <li key={`${violation.teacherKey}:${violation.courseIds.join(":")}`}>
                   {teacherNames[violation.teacherKey] ?? violation.teacherKey} prefers not to teach this slot:{" "}
-                  <CourseNameList courseIds={violation.courseIds} names={names} emphasizedId={target.courseId} />
+                  <CourseNameList
+                    courseIds={violation.courseIds}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />
                 </li>
               ))}
             </ul>
@@ -165,9 +182,18 @@ function DetailsBody({
             <ul className="space-y-2">
               {grouped.student.map((violation) => (
                 <li key={violation.courseIds.join(":")}>
-                  <CourseName id={violation.courseIds[0]} names={names} emphasizedId={target.courseId} /> ↔{" "}
-                  <CourseName id={violation.courseIds[1]} names={names} emphasizedId={target.courseId} /> —{" "}
-                  {violation.studentKeys.length} shared student{violation.studentKeys.length === 1 ? "" : "s"}:
+                  <CourseName
+                    id={violation.courseIds[0]}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />{" "}
+                  ↔{" "}
+                  <CourseName
+                    id={violation.courseIds[1]}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />{" "}
+                  — {violation.studentKeys.length} shared student{violation.studentKeys.length === 1 ? "" : "s"}:
                   <p>{violation.studentKeys.map((key) => studentNames[key] ?? key).join(", ")}</p>
                   <SameWeekHint courseIds={violation.courseIds} weekByCourseId={weekByCourseId} />
                 </li>
@@ -182,8 +208,8 @@ function DetailsBody({
             <ul className="space-y-1">
               {grouped["duplicate-course"].map((violation) => (
                 <li key={violation.courseId}>
-                  <CourseName id={violation.courseId} names={names} emphasizedId={target.courseId} /> is placed more
-                  than once in this slot.
+                  <CourseName id={violation.courseId} courseDisplay={courseDisplay} emphasizedId={target.courseId} /> is
+                  placed more than once in this slot.
                 </li>
               ))}
             </ul>
@@ -194,17 +220,29 @@ function DetailsBody({
   );
 }
 
-function CourseName({ id, names, emphasizedId }: { id: string; names: Record<string, string>; emphasizedId: string }) {
-  return <span className={cn(id === emphasizedId && "text-foreground font-medium")}>{names[id] ?? id}</span>;
+function CourseName({
+  id,
+  courseDisplay,
+  emphasizedId,
+}: {
+  id: string;
+  courseDisplay: Record<string, CourseDisplay>;
+  emphasizedId: string;
+}) {
+  return (
+    <span className={cn(id === emphasizedId && "text-foreground font-medium")}>
+      {resolveCourseDisplay(courseDisplay, id).name}
+    </span>
+  );
 }
 
 function CourseNameList({
   courseIds,
-  names,
+  courseDisplay,
   emphasizedId,
 }: {
   courseIds: string[];
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   emphasizedId: string;
 }) {
   return (
@@ -212,7 +250,7 @@ function CourseNameList({
       {courseIds.map((id, index) => (
         <Fragment key={id}>
           {index > 0 && ", "}
-          <CourseName id={id} names={names} emphasizedId={emphasizedId} />
+          <CourseName id={id} courseDisplay={courseDisplay} emphasizedId={emphasizedId} />
         </Fragment>
       ))}
     </>

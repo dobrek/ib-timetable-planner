@@ -687,29 +687,29 @@ validation budget is provably untouched (the hash hand-picks 5 fields; `color` i
 
 #### Automated
 
-- [x] 1.1 Type-check passes: `pnpm check`
-- [x] 1.2 Config unit tests pass: `pnpm test -- subject-colors`
-- [x] 1.3 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [x] 1.4 Build is clean: `pnpm build`
+- [x] 1.1 Type-check passes: `pnpm check` — 527a5c4
+- [x] 1.2 Config unit tests pass: `pnpm test -- subject-colors` — 527a5c4
+- [x] 1.3 Lint + structure pass: `pnpm lint && pnpm steiger` — 527a5c4
+- [x] 1.4 Build is clean: `pnpm build` — 527a5c4
 
 #### Manual
 
-- [x] 1.5 A `bg-subject-rose text-subject-rose-foreground` element is legible in light + dark
+- [x] 1.5 A `bg-subject-rose text-subject-rose-foreground` element is legible in light + dark — 527a5c4
 
 ### Phase 2: Display-Map Consolidation Refactor
 
 #### Automated
 
-- [ ] 2.1 Type-check passes: `pnpm check`
-- [ ] 2.2 Unit tests pass: `pnpm test`
-- [ ] 2.3 Integration tests pass (wire-map assertions updated): `pnpm test:integration`
-- [ ] 2.4 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [ ] 2.5 Build is clean: `pnpm build`
+- [x] 2.1 Type-check passes: `pnpm check`
+- [x] 2.2 Unit tests pass: `pnpm test`
+- [x] 2.3 Integration tests pass (wire-map assertions updated): `pnpm test:integration`
+- [x] 2.4 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 2.5 Build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.6 Plan-detail board/palette/overlay/shelf render identically to before (invisible refactor)
-- [ ] 2.7 Grouping overlay names, collision dialog, and error banners still name courses correctly
+- [x] 2.6 Plan-detail board/palette/overlay/shelf render identically to before (invisible refactor)
+- [x] 2.7 Grouping overlay names, collision dialog, and error banners still name courses correctly
 
 ### Phase 3: Data + Write/Read Path
 

@@ -1,5 +1,6 @@
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { PlacementWeek, WeekMode } from "@/shared/config";
+import { resolveCourseDisplay, type CourseDisplay } from "../course-display";
 import type { CellData } from "../drag";
 import { occupiesCell, type LocalPlacement, type PlannerPlacement } from "./placement";
 
@@ -136,9 +137,9 @@ export function groupFailureError(outcomes: MemberOutcome[], attempted: number):
   return failedCourseIds.length > 0 ? { kind: "groupFailure", failedCourseIds, attempted } : null;
 }
 
-export function placementErrorMessage(error: PlacementError, names: Record<string, string>): string {
+export function placementErrorMessage(error: PlacementError, courseDisplay: Record<string, CourseDisplay>): string {
   if (error.kind === "message") return error.message;
-  const failedNames = error.failedCourseIds.map((id) => names[id] ?? id);
+  const failedNames = error.failedCourseIds.map((id) => resolveCourseDisplay(courseDisplay, id).name);
   return groupFailureMessage(failedNames, error.attempted);
 }
 

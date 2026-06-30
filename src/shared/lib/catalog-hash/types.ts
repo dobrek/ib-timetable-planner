@@ -5,7 +5,15 @@
  * re-exports these so constraint-core signatures are unchanged.
  */
 
-import type { WeekMode } from "@/shared/config";
+import type { SubjectColor, WeekMode } from "@/shared/config";
+
+/**
+ * Per-course display data resolved at the render edge — the `name` (the fixture's natural key) plus
+ * the optional author-chosen `color`. Kept off `GroupingCourse`/the catalog hash (display-only,
+ * never a constraint input). Lives here next to `CohortCatalog`, which carries the map; the
+ * plan-detail `model/course-display.ts` re-exports it and owns the `resolveCourseDisplay` edge helper.
+ */
+export type CourseDisplay = { name: string; color: SubjectColor | null };
 
 export type GroupingCourse = {
   id: string;
@@ -27,7 +35,7 @@ export type CatalogSnapshot = GroupingCourse[];
 
 export type CohortCatalog = {
   courses: GroupingCourse[];
-  /** course.id → reconstructed composite name (the fixture's natural key) for display + cross-check. */
-  names: Map<string, string>;
+  /** course.id → display data (composite name + optional color), resolved at the render edge. */
+  courseDisplay: Map<string, CourseDisplay>;
   warnings: ComputeWarning[];
 };

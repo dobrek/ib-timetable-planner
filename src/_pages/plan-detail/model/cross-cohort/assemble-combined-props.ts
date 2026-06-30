@@ -1,5 +1,6 @@
 import type { Cohort } from "@/shared/config";
 import { projectFromPlacements } from "./cross-cohort-index";
+import type { CourseDisplay } from "../course-display";
 import type { PlannerBoardProps } from "../drag";
 import type { GroupingCourse, PlannerGrouping } from "../grouping/grouping";
 import type { ParkedBundle } from "../placement/parked";
@@ -11,8 +12,8 @@ export type CombinedCohortInputs = {
   groupings: PlannerGrouping[];
   placements: PlannerPlacement[];
   catalog: GroupingCourse[];
-  /** courseId → display name for *this* cohort's catalog. */
-  names: Record<string, string>;
+  /** courseId → display data (name + optional color) for *this* cohort's catalog. */
+  courseDisplay: Record<string, CourseDisplay>;
   /** studentKey → full name for this cohort's catalog enrollments. */
   studentNames: Record<string, string>;
   stale: boolean;
@@ -43,7 +44,7 @@ const buildColumn = (own: CombinedCohortInputs, other: CombinedCohortInputs): Pl
   cohort: own.cohort,
   groupings: own.groupings,
   stale: own.stale,
-  names: own.names,
+  courseDisplay: own.courseDisplay,
   studentNames: own.studentNames,
   placements: own.placements,
   catalog: own.catalog,

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import GroupingBox from "./GroupingBox";
 import GroupingFilter from "./GroupingFilter";
 import PaletteCourseChip from "./PaletteCourseChip";
+import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
 import type { CourseDrag } from "../../model/drag";
 import { companionCourseOptions } from "../../model/grouping/companion-course-options";
 import { filterGroupings } from "../../model/grouping/filter-groupings";
@@ -14,7 +15,7 @@ import type { HoursStat } from "../../model/hours";
 
 type Props = {
   groupings: PlannerGrouping[];
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   hours: Map<string, HoursStat>;
 };
 
@@ -28,7 +29,7 @@ type Props = {
  * state lives here (`usePaletteFilter`), while the membership predicates and cascading options are
  * pure `model/` functions (`filterGroupings`, `companionCourseOptions`, `reconcileCompanion`).
  */
-export default function PaletteBody({ groupings, names, hours }: Props) {
+export default function PaletteBody({ groupings, courseDisplay, hours }: Props) {
   const sortedGroupings = useMemo(() => sortGroupingsForPalette(groupings), [groupings]);
   const {
     leadingCourseId,
@@ -37,14 +38,14 @@ export default function PaletteBody({ groupings, names, hours }: Props) {
     setCompanionCourseId,
     companionOptions,
     visibleGroupings,
-  } = usePaletteFilter(sortedGroupings, names);
+  } = usePaletteFilter(sortedGroupings, courseDisplay);
 
   return (
     <>
       <div className="shrink-0">
         <GroupingFilter
           groupings={groupings}
-          names={names}
+          courseDisplay={courseDisplay}
           value={leadingCourseId}
           onChange={setLeadingCourseId}
           companionValue={companionCourseId}
@@ -53,9 +54,11 @@ export default function PaletteBody({ groupings, names, hours }: Props) {
         />
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-        {leadingCourseId !== null && <PromotedCourseChip courseId={leadingCourseId} names={names} hours={hours} />}
+        {leadingCourseId !== null && (
+          <PromotedCourseChip courseId={leadingCourseId} courseDisplay={courseDisplay} hours={hours} />
+        )}
         {visibleGroupings.map((grouping) => (
-          <GroupingBox key={grouping.id} grouping={grouping} names={names} hours={hours} />
+          <GroupingBox key={grouping.id} grouping={grouping} courseDisplay={courseDisplay} hours={hours} />
         ))}
       </div>
     </>
@@ -70,11 +73,11 @@ export default function PaletteBody({ groupings, names, hours }: Props) {
  */
 function PromotedCourseChip({
   courseId,
-  names,
+  courseDisplay,
   hours,
 }: {
   courseId: string;
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   hours: Map<string, HoursStat>;
 }) {
   const { ref, isDragging } = useDraggable<CourseDrag>({
@@ -84,7 +87,7 @@ function PromotedCourseChip({
   return (
     <PaletteCourseChip
       ref={ref}
-      name={names[courseId] ?? courseId}
+      name={resolveCourseDisplay(courseDisplay, courseId).name}
       hours={hours.get(courseId)}
       isDragging={isDragging}
     />
@@ -99,11 +102,11 @@ function PromotedCourseChip({
  * no longer co-occurs with the leading course can never silently mis-filter), and the
  * two-predicate membership filter (`filterGroupings`). Exported for the slice's hook test.
  */
-export function usePaletteFilter(groupings: PlannerGrouping[], names: Record<string, string>) {
+export function usePaletteFilter(groupings: PlannerGrouping[], courseDisplay: Record<string, CourseDisplay>) {
   const [leadingCourseId, setLeadingCourseId] = useState<string | null>(null);
   const [companionCourseId, setCompanionCourseId] = useState<string | null>(null);
 
-  const companionOptions = sortByName(companionCourseOptions(groupings, names, leadingCourseId));
+  const companionOptions = sortByName(companionCourseOptions(groupings, courseDisplay, leadingCourseId));
 
   // Adjust-state-during-render (not an effect, precedent PlannerBoard): if the companion is no longer
   // among the current options — because the leading course changed or cleared — drop it to null in

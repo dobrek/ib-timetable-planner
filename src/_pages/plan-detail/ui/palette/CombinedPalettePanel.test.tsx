@@ -10,6 +10,7 @@ import CombinedPalettePanel, { usePaletteFilter } from "./CombinedPalettePanel";
 // GroupingStalePanel.test's own mock.
 vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn() }));
 import type { HoursStat } from "../../model/hours";
+import type { CourseDisplay } from "../../model/course-display";
 import type { LeadingCourseOption } from "../../model/grouping/leading-course-options";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
 
@@ -24,7 +25,12 @@ const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({
 // g1: a+b, g2: a+c, g3: c+d — so `b` co-occurs with `a` but NOT with `d`, which lets a
 // leading change from `a`→`d` strand the companion `b` and exercise the reset rule.
 const GROUPINGS = [grouping("g1", ["c-a", "c-b"]), grouping("g2", ["c-a", "c-c"]), grouping("g3", ["c-c", "c-d"])];
-const NAMES = { "c-a": "Alpha", "c-b": "Beta", "c-c": "Gamma", "c-d": "Delta" };
+const NAMES: Record<string, CourseDisplay> = {
+  "c-a": { name: "Alpha", color: null },
+  "c-b": { name: "Beta", color: null },
+  "c-c": { name: "Gamma", color: null },
+  "c-d": { name: "Delta", color: null },
+};
 
 const ids = (groupings: PlannerGrouping[]) => groupings.map((g) => g.id);
 const optionIds = (options: LeadingCourseOption[]) => options.map((o) => o.id);
@@ -102,7 +108,7 @@ describe("GroupingFilter companion select", () => {
   const renderFilter = (overrides: Partial<React.ComponentProps<typeof GroupingFilter>> = {}) => {
     const props: React.ComponentProps<typeof GroupingFilter> = {
       groupings: GROUPINGS,
-      names: NAMES,
+      courseDisplay: NAMES,
       value: null,
       onChange: vi.fn(),
       companionValue: null,
@@ -146,7 +152,7 @@ describe("GroupingFilter companion select", () => {
       return (
         <GroupingFilter
           groupings={GROUPINGS}
-          names={NAMES}
+          courseDisplay={NAMES}
           value={filter.leadingCourseId}
           onChange={filter.setLeadingCourseId}
           companionValue={filter.companionCourseId}
@@ -183,7 +189,7 @@ describe("CombinedPalettePanel collapse disclosure (single cohort, no toolbar)",
           cohort: "dp1",
           planId: "plan-1",
           groupings: GROUPINGS,
-          names: NAMES,
+          courseDisplay: NAMES,
           hours: new Map<string, HoursStat>(),
           stale: false,
         },

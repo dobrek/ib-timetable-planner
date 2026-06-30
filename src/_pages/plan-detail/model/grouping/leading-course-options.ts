@@ -1,3 +1,4 @@
+import { resolveCourseDisplay, type CourseDisplay } from "../course-display";
 import type { PlannerGrouping } from "./grouping";
 
 /** A leading-course filter option: a distinct member course plus the number of groupings it appears in. */
@@ -5,7 +6,7 @@ export type LeadingCourseOption = { id: string; name: string; groupCount: number
 
 /**
  * Distinct member courses across `groupings`, each enriched with its display `name`
- * (`names[id]`, falling back to the `id`) and its group count — the number of
+ * (resolved from `courseDisplay`, falling back to the `id`) and its group count — the number of
  * groupings whose member set contains it. Counts accumulate in a single pass over
  * `memberIds` (one `Map`, not `filter().length` per id). Returned unsorted — the
  * caller picks an ordering (`sortByGroupCount` / `sortByName`).
@@ -15,7 +16,7 @@ export type LeadingCourseOption = { id: string; name: string; groupCount: number
  */
 export const leadingCourseOptions = (
   groupings: PlannerGrouping[],
-  names: Record<string, string>,
+  courseDisplay: Record<string, CourseDisplay>,
 ): LeadingCourseOption[] => {
   const counts = new Map<string, number>();
   for (const grouping of groupings) {
@@ -23,7 +24,11 @@ export const leadingCourseOptions = (
       counts.set(id, (counts.get(id) ?? 0) + 1);
     }
   }
-  return [...counts].map(([id, groupCount]) => ({ id, name: names[id] ?? id, groupCount }));
+  return [...counts].map(([id, groupCount]) => ({
+    id,
+    name: resolveCourseDisplay(courseDisplay, id).name,
+    groupCount,
+  }));
 };
 
 /**

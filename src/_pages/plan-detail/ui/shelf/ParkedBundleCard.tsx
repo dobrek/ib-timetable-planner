@@ -1,6 +1,7 @@
 import { useDraggable } from "@dnd-kit/react";
 import { GripVertical, X } from "lucide-react";
 import { cohortLabel, type Cohort } from "@/shared/config";
+import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
 import type { ParkedDrag } from "../../model/drag";
 import type { LocalParkedBundle, ParkedMember } from "../../model/placement/parked";
 import { cn } from "@/shared/lib/class-names";
@@ -9,7 +10,7 @@ import { stopDrag } from "../../lib/drag-inert";
 
 type Props = {
   bundle: LocalParkedBundle;
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   /** The bundle's owning cohort — always set; tags the card DP1/DP2 and scopes its place-back drag
    *  to that cohort (one shared shelf in combined; the single board tags its one cohort too). */
   cohort: Cohort;
@@ -26,7 +27,7 @@ type Props = {
  * card is the `parked` draggable (drop it on a slot to place it back); the ghost "×" discards it
  * outright (the only non-place-back exit from the shelf). Semantic tokens only.
  */
-export default function ParkedBundleCard({ bundle, names, cohort, onRemove }: Props) {
+export default function ParkedBundleCard({ bundle, courseDisplay, cohort, onRemove }: Props) {
   const { ref, isDragging } = useDraggable<ParkedDrag>({
     id: `parked:${bundle.id}`,
     data: { kind: "parked", shelfBundleId: bundle.id, cohort },
@@ -73,7 +74,7 @@ export default function ParkedBundleCard({ bundle, names, cohort, onRemove }: Pr
       <ul className="space-y-1 px-2 pb-2">
         {bundle.members.map((member) => (
           <li key={member.courseId} className="flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs">
-            <span className="truncate">{names[member.courseId] ?? member.courseId}</span>
+            <span className="truncate">{resolveCourseDisplay(courseDisplay, member.courseId).name}</span>
             <WeekTag week={member.week} />
           </li>
         ))}

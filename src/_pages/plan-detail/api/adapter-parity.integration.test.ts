@@ -49,15 +49,15 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
   it("Supabase adapter ≡ fixture adapter on the dp2 catalog", async () => {
     const fixtureCourses = loadFixtureCourses(FIXTURE_DIR);
-    const { courses: dbCourses, names } = await loadCohortCourses(supabase, planId, COHORT);
+    const { courses: dbCourses, courseDisplay } = await loadCohortCourses(supabase, planId, COHORT);
 
     // Re-key the Supabase projection on the composite name (the fixture's id),
     // translating UUID tokens to the fixture's name/code tokens.
     const dbByName = new Map<string, GroupingCourse>(
       dbCourses.map((course) => [
-        names.get(course.id) ?? course.id,
+        courseDisplay.get(course.id)?.name ?? course.id,
         {
-          id: names.get(course.id) ?? course.id,
+          id: courseDisplay.get(course.id)?.name ?? course.id,
           teacherKeys: course.teacherKeys.map((id) => teacherCode.get(id) ?? `?${id}`),
           hours: course.hours,
           studentKeys: course.studentKeys.map((id) => studentName.get(id) ?? `?${id}`),

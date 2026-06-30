@@ -127,7 +127,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     const oppositeVariants = response.groupings.flatMap((r) => r.variants).filter((v) => v.oppositeWeek === true);
     expect(oppositeVariants.length).toBeGreaterThan(0);
     const eeCasPair = oppositeVariants.find((v) => {
-      const names = v.memberIds.map((id) => response.names.get(id) ?? id);
+      const names = v.memberIds.map((id) => response.courseDisplay.get(id)?.name ?? id);
       return names.some((n) => n.startsWith("EE")) && names.some((n) => n.startsWith("CAS"));
     });
     expect(eeCasPair, "an EE+CAS opposite-week pair should be emitted").toBeTruthy();

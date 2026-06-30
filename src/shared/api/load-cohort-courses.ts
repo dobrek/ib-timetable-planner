@@ -84,10 +84,15 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
   });
 
   const courses = [...regularCourses, ...virtualCourses];
-  const names = new Map(courses.map((course) => [course.id, compositeName(courseById.get(course.id))]));
+  // Display side map (name + color), built once beside the grouping projection. Color is `null` here
+  // (no column yet); Phase 3 fills the real value. It NEVER enters the `GroupingCourse` projection or
+  // the catalog hash — display-only, so staleness is untouched.
+  const courseDisplay = new Map(
+    courses.map((course) => [course.id, { name: compositeName(courseById.get(course.id)), color: null }]),
+  );
   const warnings = collectWarnings(courses, mergeChildIds);
 
-  return { courses, names, warnings };
+  return { courses, courseDisplay, warnings };
 };
 
 type CourseRow = {

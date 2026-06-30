@@ -10,7 +10,11 @@ const grouping = (id: string, memberIds: string[]): PlannerGrouping => ({
   oppositeWeek: false,
 });
 
-const names = { "c-a": "Alpha", "c-b": "Beta", "c-c": "Gamma" };
+const names = {
+  "c-a": { name: "Alpha", color: null },
+  "c-b": { name: "Beta", color: null },
+  "c-c": { name: "Gamma", color: null },
+};
 
 describe("companionCourseOptions", () => {
   it("returns an empty array when no leading course is set", () => {

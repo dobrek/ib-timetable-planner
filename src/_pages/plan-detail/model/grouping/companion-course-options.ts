@@ -1,5 +1,6 @@
 import { leadingCourseOptions } from "./leading-course-options";
 import type { LeadingCourseOption } from "./leading-course-options";
+import type { CourseDisplay } from "../course-display";
 import type { PlannerGrouping } from "./grouping";
 
 /**
@@ -15,10 +16,10 @@ import type { PlannerGrouping } from "./grouping";
  */
 export const companionCourseOptions = (
   groupings: PlannerGrouping[],
-  names: Record<string, string>,
+  courseDisplay: Record<string, CourseDisplay>,
   leadingId: string | null,
 ): LeadingCourseOption[] => {
   if (leadingId === null) return [];
   const subset = groupings.filter((grouping) => grouping.memberIds.includes(leadingId));
-  return leadingCourseOptions(subset, names).filter((option) => option.id !== leadingId);
+  return leadingCourseOptions(subset, courseDisplay).filter((option) => option.id !== leadingId);
 };

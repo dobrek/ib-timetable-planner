@@ -734,16 +734,16 @@ validation budget is provably untouched (the hash hand-picks 5 fields; `color` i
 
 #### Automated
 
-- [x] 4.1 Type-check passes: `pnpm check`
-- [x] 4.2 Unit tests pass (incl. color×tone precedence): `pnpm test`
-- [x] 4.3 Integration tests pass: `pnpm test:integration`
-- [x] 4.4 Isolation E2E passes (color edit ⇏ stale): `pnpm test:e2e -- subject-color-isolation`
-- [x] 4.5 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [x] 4.6 Build is clean: `pnpm build`
+- [x] 4.1 Type-check passes: `pnpm check` — a087ea0
+- [x] 4.2 Unit tests pass (incl. color×tone precedence): `pnpm test` — a087ea0
+- [x] 4.3 Integration tests pass: `pnpm test:integration` — a087ea0
+- [x] 4.4 Isolation E2E passes (color edit ⇏ stale): `pnpm test:e2e -- subject-color-isolation` — a087ea0
+- [x] 4.5 Lint + structure pass: `pnpm lint && pnpm steiger` — a087ea0
+- [x] 4.6 Build is clean: `pnpm build` — a087ea0
 
 #### Manual
 
-- [x] 4.7 Colored course shows on all 5 plan-detail surfaces, light + dark
-- [x] 4.8 Collision tone overrides color; clearing the collision restores it
-- [x] 4.9 Uncolored course renders neutral as today; drag previews show color
-- [x] 4.10 No regression in ordering/badges/toggles; drag-drop still <200ms
+- [x] 4.7 Colored course shows on all 5 plan-detail surfaces, light + dark — a087ea0
+- [x] 4.8 Collision tone overrides color; clearing the collision restores it — a087ea0
+- [x] 4.9 Uncolored course renders neutral as today; drag previews show color — a087ea0
+- [x] 4.10 No regression in ordering/badges/toggles; drag-drop still <200ms — a087ea0

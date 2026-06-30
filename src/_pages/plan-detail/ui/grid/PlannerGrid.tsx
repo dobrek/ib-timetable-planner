@@ -93,13 +93,16 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
         {/* `contents` keeps each row out of the CSS grid box model while still exposing
             `role="row"` so cells nest under rows in the accessibility tree. */}
         <div role="row" className="contents">
-          <div role="presentation" className="bg-background p-2" />
+          <div
+            role="presentation"
+            className="bg-background sticky top-0 left-0 z-20 p-2 shadow-[1px_1px_0_0_var(--color-border)]"
+          />
           {dayList.map((day) => (
             <div
               key={day}
               role="columnheader"
               style={multi ? { gridColumn: `span ${columns.length}` } : undefined}
-              className="bg-background text-muted-foreground p-2 text-center text-xs font-medium"
+              className="bg-background text-muted-foreground sticky top-0 z-10 p-2 text-center text-xs font-medium shadow-[0_1px_0_0_var(--color-border)]"
             >
               {dayLabel(day)}
             </div>
@@ -131,7 +134,7 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
             <div role="row" className="contents">
               <div
                 role="rowheader"
-                className="bg-background text-muted-foreground flex items-center justify-center p-2 text-xs font-medium"
+                className="bg-background text-muted-foreground sticky left-0 z-10 flex items-center justify-center p-2 text-xs font-medium shadow-[1px_0_0_0_var(--color-border)]"
               >
                 {periodLabel(period)}
               </div>

@@ -15,11 +15,12 @@ import {
 } from "@/shared/ui";
 import { leadingCourseOptions, sortByGroupCount, sortByName } from "../../model/grouping/leading-course-options";
 import type { LeadingCourseOption } from "../../model/grouping/leading-course-options";
+import type { CourseDisplay } from "../../model/course-display";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
 
 type Props = {
   groupings: PlannerGrouping[];
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   value: string | null;
   onChange: (courseId: string | null) => void;
   companionValue: string | null;
@@ -48,7 +49,7 @@ const ANY_COMPANION = "__any__";
  */
 export default function GroupingFilter({
   groupings,
-  names,
+  courseDisplay,
   value,
   onChange,
   companionValue,
@@ -56,7 +57,7 @@ export default function GroupingFilter({
   companionOptions,
 }: Props) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("by-groups");
-  const base = leadingCourseOptions(groupings, names);
+  const base = leadingCourseOptions(groupings, courseDisplay);
   const courses = sortOrder === "by-groups" ? sortByGroupCount(base) : sortByName(base);
 
   return (

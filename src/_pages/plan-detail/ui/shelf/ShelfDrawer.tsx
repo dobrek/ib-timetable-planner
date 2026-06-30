@@ -3,6 +3,7 @@ import { Inbox, Pin, PinOff } from "lucide-react";
 import type { Cohort } from "@/shared/config";
 import ParkedBundleCard from "./ParkedBundleCard";
 import CollapsibleEdgePanel, { EDGE_PANEL_ICON_BUTTON } from "../chrome/CollapsibleEdgePanel";
+import type { CourseDisplay } from "../../model/course-display";
 import type { ShelfData } from "../../model/drag";
 import type { LocalParkedBundle } from "../../model/placement/parked";
 import { cn } from "@/shared/lib/class-names";
@@ -10,7 +11,7 @@ import { Button } from "@/shared/ui";
 
 type Props = {
   parkedBundles: LocalParkedBundle[];
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   /** Runtime open/closed — owned by `PlannerBoard` so the badge can drive it too. */
   expanded: boolean;
   /** Per-device pin (keep open). When pinned the drawer never auto-collapses. */
@@ -36,7 +37,7 @@ type Props = {
  */
 export default function ShelfDrawer({
   parkedBundles,
-  names,
+  courseDisplay,
   expanded,
   pinned,
   cohortById,
@@ -99,7 +100,7 @@ export default function ShelfDrawer({
               <ParkedBundleCard
                 key={bundle.id}
                 bundle={bundle}
-                names={names}
+                courseDisplay={courseDisplay}
                 cohort={cohort}
                 onRemove={onRemoveParked}
               />

@@ -220,7 +220,7 @@ const toCohortState = (
 ) => ({
   cohort: props.cohort,
   groupings: props.groupings,
-  names: props.names,
+  courseDisplay: props.courseDisplay,
   stale: props.stale,
   hours: deriv.hours,
   incompleteCount: deriv.incompleteCount,

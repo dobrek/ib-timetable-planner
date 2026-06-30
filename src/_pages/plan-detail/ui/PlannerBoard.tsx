@@ -73,7 +73,10 @@ export default function PlannerBoard({
   // The `focus === "combined"` discriminant (not the `combined` alias) narrows `focus` to `Cohort`.
   const activeCohort: Cohort = focus === "combined" ? paletteCohort : focus;
 
-  const overlayNames = useMemo(() => ({ ...dp1.names, ...dp2.names }), [dp1.names, dp2.names]);
+  const overlayCourseDisplay = useMemo(
+    () => ({ ...dp1.courseDisplay, ...dp2.courseDisplay }),
+    [dp1.courseDisplay, dp2.courseDisplay],
+  );
 
   const shelfCohortById = useMemo(() => {
     if (combined) {
@@ -123,7 +126,7 @@ export default function PlannerBoard({
       cohort: state.cohort,
       planId,
       groupings: state.groupings,
-      names: state.names,
+      courseDisplay: state.courseDisplay,
       hours: state.hours,
       stale: state.stale,
     };
@@ -133,7 +136,7 @@ export default function PlannerBoard({
     return {
       cohort,
       placements: state.placements,
-      names: state.names,
+      courseDisplay: state.courseDisplay,
       collisions: state.collisions,
       wiring: {
         dropHints: state.dropHints,
@@ -207,10 +210,10 @@ export default function PlannerBoard({
       center={
         <div className="flex min-h-0 flex-col gap-3">
           {dp1.error && (
-            <ErrorBanner message={placementErrorMessage(dp1.error, dp1.names)} onDismiss={dp1.clearError} />
+            <ErrorBanner message={placementErrorMessage(dp1.error, dp1.courseDisplay)} onDismiss={dp1.clearError} />
           )}
           {dp2.error && (
-            <ErrorBanner message={placementErrorMessage(dp2.error, dp2.names)} onDismiss={dp2.clearError} />
+            <ErrorBanner message={placementErrorMessage(dp2.error, dp2.courseDisplay)} onDismiss={dp2.clearError} />
           )}
           <div className="min-h-0 flex-1 overflow-auto">
             <PlannerGrid
@@ -226,7 +229,7 @@ export default function PlannerBoard({
       shelf={
         <ShelfDrawer
           parkedBundles={parkedBundles}
-          names={combined ? overlayNames : resolveState(focus).names}
+          courseDisplay={combined ? overlayCourseDisplay : resolveState(focus).courseDisplay}
           expanded={shelfExpanded}
           pinned={pinned}
           cohortById={shelfCohortById}
@@ -239,7 +242,7 @@ export default function PlannerBoard({
         <CollisionDetailsDialog
           target={inspection?.target ?? null}
           violations={inspection && inspected ? inspectedViolations(inspection.target, inspected.collisions) : []}
-          names={inspected?.names ?? overlayNames}
+          courseDisplay={inspected?.courseDisplay ?? overlayCourseDisplay}
           teacherNames={shared.teacherNames}
           studentNames={inspection ? resolveProps(inspection.cohort).studentNames : {}}
           weekByCourseId={inspection && inspected ? inspectedWeeks(inspection.target, inspected.placements) : {}}
@@ -252,7 +255,7 @@ export default function PlannerBoard({
       overlay={
         <GroupDragOverlay
           groupings={[...dp1.groupings, ...dp2.groupings]}
-          names={overlayNames}
+          courseDisplay={overlayCourseDisplay}
           placements={[...dp1.placements, ...dp2.placements]}
           parkedBundles={[...dp1.parkedBundles, ...dp2.parkedBundles]}
           placementsByCohort={{ dp1: dp1.placements, dp2: dp2.placements }}

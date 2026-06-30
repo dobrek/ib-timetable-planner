@@ -15,7 +15,11 @@ const placement = (id: string, courseId: string, day = 1, period = 1): LocalPlac
 describe("groupCellOccupants", () => {
   it("sorts each cell's occupants by display name, then courseId", () => {
     const placements = [placement("p1", "zebra"), placement("p2", "apple"), placement("p3", "mango")];
-    const names = { zebra: "Zebra", apple: "Apple", mango: "Mango" };
+    const names = {
+      zebra: { name: "Zebra", color: null },
+      apple: { name: "Apple", color: null },
+      mango: { name: "Mango", color: null },
+    };
 
     const occupants = groupCellOccupants(placements, names, new Map()).get(cellKey(1, 1));
 
@@ -25,7 +29,7 @@ describe("groupCellOccupants", () => {
   it("breaks name ties by courseId", () => {
     // Two occupants share a display name → courseId decides the order.
     const placements = [placement("p1", "b-id"), placement("p2", "a-id")];
-    const names = { "a-id": "Same", "b-id": "Same" };
+    const names = { "a-id": { name: "Same", color: null }, "b-id": { name: "Same", color: null } };
 
     const occupants = groupCellOccupants(placements, names, new Map()).get(cellKey(1, 1));
 
@@ -50,7 +54,11 @@ describe("groupCellOccupants", () => {
         },
       ],
     ]);
-    const names = { block: "Block", warn: "Warn", gone: "Gone" };
+    const names = {
+      block: { name: "Block", color: null },
+      warn: { name: "Warn", color: null },
+      gone: { name: "Gone", color: null },
+    };
     const placements = [placement("p1", "block"), placement("p2", "warn"), placement("p3", "gone")];
 
     const occupants = groupCellOccupants(placements, names, collisions).get(cellKey(1, 1)) ?? [];
@@ -69,17 +77,21 @@ describe("groupCellOccupants", () => {
       ],
     ]);
 
-    const occupant = groupCellOccupants([placement("p1", "solo")], { solo: "Solo" }, collisions).get(
-      cellKey(1, 1),
-    )?.[0];
+    const occupant = groupCellOccupants(
+      [placement("p1", "solo")],
+      { solo: { name: "Solo", color: null } },
+      collisions,
+    ).get(cellKey(1, 1))?.[0];
 
     expect(occupant).toMatchObject({ blocking: false, warning: false, unavailable: true });
   });
 
   it("yields all-false flags for a collision-free cell", () => {
-    const occupant = groupCellOccupants([placement("p1", "clean")], { clean: "Clean" }, new Map()).get(
-      cellKey(1, 1),
-    )?.[0];
+    const occupant = groupCellOccupants(
+      [placement("p1", "clean")],
+      { clean: { name: "Clean", color: null } },
+      new Map(),
+    ).get(cellKey(1, 1))?.[0];
 
     expect(occupant).toMatchObject({ name: "Clean", blocking: false, warning: false, unavailable: false });
   });

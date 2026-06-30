@@ -17,7 +17,11 @@ describe("leadingCourseOptions", () => {
   it("produces one entry per distinct member course with its group count", () => {
     const options = leadingCourseOptions(
       [grouping("g1", ["c-a", "c-b"]), grouping("g2", ["c-a", "c-c"]), grouping("g3", ["c-a"])],
-      { "c-a": "Alpha", "c-b": "Beta", "c-c": "Gamma" },
+      {
+        "c-a": { name: "Alpha", color: null },
+        "c-b": { name: "Beta", color: null },
+        "c-c": { name: "Gamma", color: null },
+      },
     );
     const byId = new Map(options.map((o) => [o.id, o]));
     expect(byId.size).toBe(3);
@@ -26,8 +30,8 @@ describe("leadingCourseOptions", () => {
     expect(byId.get("c-c")?.groupCount).toBe(1);
   });
 
-  it("resolves the name from `names`, falling back to the id when missing", () => {
-    const options = leadingCourseOptions([grouping("g1", ["c-a", "c-b"])], { "c-a": "Alpha" });
+  it("resolves the name from `courseDisplay`, falling back to the id when missing", () => {
+    const options = leadingCourseOptions([grouping("g1", ["c-a", "c-b"])], { "c-a": { name: "Alpha", color: null } });
     const byId = new Map(options.map((o) => [o.id, o.name]));
     expect(byId.get("c-a")).toBe("Alpha");
     expect(byId.get("c-b")).toBe("c-b");

@@ -6,6 +6,7 @@ import type { CollisionInspectionTarget } from "../overlay/CollisionDetailsDialo
 import type { CellCollisions } from "../../model/collision/collisions";
 import { cellKey } from "../../model/collision/cell-key";
 import { groupCellOccupants } from "../../model/collision/cell-occupants";
+import type { CourseDisplay } from "../../model/course-display";
 import type { CellData } from "../../model/drag";
 import type { DropHint } from "../../model/drop-hints";
 import { isBundled } from "../../model/exploded-cells";
@@ -44,7 +45,7 @@ export type CellWiring = {
 export type PairedColumn = {
   cohort: Cohort;
   placements: LocalPlacement[];
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   collisions: Map<string, CellCollisions>;
   wiring: CellWiring;
 };
@@ -76,7 +77,9 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
   const multi = columns.length > 1;
   // Resolve each column's occupants once (name + collision flags), exactly as before per column.
-  const byCell = columns.map((column) => groupCellOccupants(column.placements, column.names, column.collisions));
+  const byCell = columns.map((column) =>
+    groupCellOccupants(column.placements, column.courseDisplay, column.collisions),
+  );
   const subColumns = columns.map(() => "minmax(7rem, 1fr)").join(" ");
 
   return (

@@ -215,14 +215,16 @@ describe("group batch transitions", () => {
   });
 
   it("placementErrorMessage passes a message error through verbatim", () => {
-    expect(placementErrorMessage({ kind: "message", message: "boom" }, { A: "Math HL" })).toBe("boom");
+    expect(placementErrorMessage({ kind: "message", message: "boom" }, { A: { name: "Math HL", color: null } })).toBe(
+      "boom",
+    );
   });
 
   it("placementErrorMessage resolves failed course ids to display names", () => {
     expect(
       placementErrorMessage(
         { kind: "groupFailure", failedCourseIds: ["A", "B"], attempted: 6 },
-        { A: "Math HL", B: "Physics SL" },
+        { A: { name: "Math HL", color: null }, B: { name: "Physics SL", color: null } },
       ),
     ).toBe("2 of 6 courses failed to save: Math HL, Physics SL");
   });

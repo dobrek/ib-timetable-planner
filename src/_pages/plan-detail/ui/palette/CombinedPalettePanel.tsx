@@ -5,6 +5,7 @@ import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import GroupingStalePanel from "./GroupingStalePanel";
 import PaletteBody from "./PaletteBody";
 import CollapsibleEdgePanel from "../chrome/CollapsibleEdgePanel";
+import type { CourseDisplay } from "../../model/course-display";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
 import type { HoursStat } from "../../model/hours";
 import { resolvePaletteView } from "../../model/grouping/palette-view";
@@ -18,7 +19,7 @@ export type PaletteCohortData = {
   cohort: Cohort;
   planId: string;
   groupings: PlannerGrouping[];
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   hours: Map<string, HoursStat>;
   stale: boolean;
 };
@@ -91,7 +92,7 @@ export default function CombinedPalettePanel({
       }
     >
       {view === "ready" ? (
-        <PaletteBody groupings={active.groupings} names={active.names} hours={active.hours} />
+        <PaletteBody groupings={active.groupings} courseDisplay={active.courseDisplay} hours={active.hours} />
       ) : view === "stale" ? (
         <GroupingStalePanel planId={active.planId} cohort={active.cohort} />
       ) : (

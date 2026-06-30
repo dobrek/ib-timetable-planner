@@ -2,6 +2,7 @@ import { useDraggable } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
 import HoursCounter from "./HoursCounter";
 import PaletteCourseChip from "./PaletteCourseChip";
+import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
 import type { GroupDrag } from "../../model/drag";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
 import type { HoursStat } from "../../model/hours";
@@ -10,7 +11,7 @@ import { Badge } from "@/shared/ui";
 
 type Props = {
   grouping: PlannerGrouping;
-  names: Record<string, string>;
+  courseDisplay: Record<string, CourseDisplay>;
   /** courseId → placed/required hours, recomputed on every placement change. */
   hours: Map<string, HoursStat>;
 };
@@ -22,9 +23,9 @@ type Props = {
  * the only draggability hint, and member rows are display-only (name + hours, never draggable).
  * A 1-member grouping is effectively a single course, so it renders as a chip instead of a box.
  * The box stays in place while dragging (GroupDragOverlay carries the pointer-following clone).
- * Display names are resolved at the edge from `names`.
+ * Display names are resolved at the edge from `courseDisplay`.
  */
-export default function GroupingBox({ grouping, names, hours }: Props) {
+export default function GroupingBox({ grouping, courseDisplay, hours }: Props) {
   // While a GroupDragOverlay is mounted for this drag, the Feedback plugin uses the overlay as
   // the moving element and leaves this box in the palette layout, so the isDragging treatment
   // below is the in-place "in use" state.
@@ -38,7 +39,7 @@ export default function GroupingBox({ grouping, names, hours }: Props) {
     return (
       <PaletteCourseChip
         ref={ref}
-        name={names[memberId] ?? memberId}
+        name={resolveCourseDisplay(courseDisplay, memberId).name}
         hours={hours.get(memberId)}
         isDragging={isDragging}
       />
@@ -69,7 +70,11 @@ export default function GroupingBox({ grouping, names, hours }: Props) {
       </div>
       <ul className="space-y-1 px-2 pb-2">
         {grouping.memberIds.map((courseId) => (
-          <MemberRow key={courseId} name={names[courseId] ?? courseId} hours={hours.get(courseId)} />
+          <MemberRow
+            key={courseId}
+            name={resolveCourseDisplay(courseDisplay, courseId).name}
+            hours={hours.get(courseId)}
+          />
         ))}
       </ul>
     </div>

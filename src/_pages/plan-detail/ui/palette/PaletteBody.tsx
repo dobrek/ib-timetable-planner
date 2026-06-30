@@ -84,10 +84,12 @@ function PromotedCourseChip({
     id: `single:${courseId}`,
     data: { kind: "course", courseId },
   });
+  const display = resolveCourseDisplay(courseDisplay, courseId);
   return (
     <PaletteCourseChip
       ref={ref}
-      name={resolveCourseDisplay(courseDisplay, courseId).name}
+      name={display.name}
+      color={display.color}
       hours={hours.get(courseId)}
       isDragging={isDragging}
     />

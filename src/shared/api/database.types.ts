@@ -273,6 +273,7 @@ export type Database = {
       courses: {
         Row: {
           cohort: Database["public"]["Enums"]["cohort"]
+          color: string | null
           created_at: string
           group_index: number
           hours_per_week: number
@@ -285,6 +286,7 @@ export type Database = {
         }
         Insert: {
           cohort: Database["public"]["Enums"]["cohort"]
+          color?: string | null
           created_at?: string
           group_index?: number
           hours_per_week: number
@@ -297,6 +299,7 @@ export type Database = {
         }
         Update: {
           cohort?: Database["public"]["Enums"]["cohort"]
+          color?: string | null
           created_at?: string
           group_index?: number
           hours_per_week?: number

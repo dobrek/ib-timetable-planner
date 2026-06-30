@@ -1,4 +1,5 @@
 import { assertNoQueryErrors, type SupabaseClient } from "@/shared/api";
+import { toSubjectColor } from "@/shared/config";
 import { groupBy } from "@/shared/lib/collections";
 import { withSupabase, type LoaderResult } from "@/shared/lib/result";
 import type { CourseRow, TeacherOption } from "../model/course";
@@ -18,7 +19,7 @@ const fetchCatalog = async (client: SupabaseClient, planId: string): Promise<Cat
   const [coursesRes, teachersRes, mergesRes, overlapsRes, courseTeachersRes] = await Promise.all([
     client
       .from("courses")
-      .select("id, cohort, name, level, group_index, hours_per_week, week_mode")
+      .select("id, cohort, name, level, group_index, hours_per_week, week_mode, color")
       .eq("plan_id", planId)
       .order("name")
       .limit(500),
@@ -50,6 +51,7 @@ const fetchCatalog = async (client: SupabaseClient, planId: string): Promise<Cat
         groupIndex: c.group_index,
         hours: c.hours_per_week,
         weekMode: c.week_mode,
+        color: toSubjectColor(c.color),
         teacherIds,
         teacherLabels: teacherIds.map((id) => teacherLabel.get(id) ?? id),
         isMerged: childLinksByParent.has(c.id),

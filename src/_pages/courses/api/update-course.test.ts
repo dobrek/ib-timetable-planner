@@ -24,6 +24,7 @@ const input = {
   hoursPerWeek: 4,
   cohort: "dp1" as const,
   weekMode: "agnostic" as const,
+  color: "rose" as const,
   teacherIds: ["teacher-1"],
 };
 

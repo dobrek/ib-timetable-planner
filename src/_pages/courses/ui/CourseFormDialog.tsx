@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Ban } from "lucide-react";
 import { useEffect } from "react";
 import { useForm, type DefaultValues } from "react-hook-form";
 import { submitForm } from "@/shared/lib/forms";
@@ -24,8 +25,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  ToggleGroup,
+  ToggleGroupItem,
 } from "@/shared/ui";
-import { COHORTS, type Cohort, type WeekMode } from "@/shared/config";
+import { COHORTS, SUBJECT_COLORS, subjectChipClass, type Cohort, type WeekMode } from "@/shared/config";
+import { cn } from "@/shared/lib/class-names";
 import { createCourse, updateCourse } from "../api/course-client";
 import { GROUP_OPTIONS } from "../lib/labels";
 import type { CourseRow, TeacherOption } from "../model/course";
@@ -196,6 +200,43 @@ export default function CourseFormDialog({ open, onClose, planId, teachers, cour
 
             <FormField
               control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Color</FormLabel>
+                  <FormControl>
+                    <ToggleGroup
+                      type="single"
+                      value={field.value ?? "none"}
+                      onValueChange={(value) => {
+                        // Radix single-toggle yields "" when the active item is re-clicked; treat
+                        // both that and the explicit "None" swatch as "no color".
+                        field.onChange(value === "" || value === "none" ? null : value);
+                      }}
+                      onBlur={field.onBlur}
+                      className="w-fit flex-wrap"
+                      aria-label="Subject color"
+                    >
+                      <ToggleGroupItem value="none" size="sm" aria-label="No color">
+                        <Ban className="text-muted-foreground" aria-hidden="true" />
+                      </ToggleGroupItem>
+                      {SUBJECT_COLORS.map((option) => (
+                        <ToggleGroupItem key={option.value} value={option.value} size="sm" aria-label={option.label}>
+                          <span
+                            aria-hidden="true"
+                            className={cn("size-4 rounded-full", subjectChipClass(option.value))}
+                          />
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="teacherIds"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
@@ -275,6 +316,7 @@ const courseFormValues = (planId: string, course: CourseRow): DefaultValues<Cour
   teacherIds: course.teacherIds,
   cohort: course.cohort,
   weekMode: course.weekMode,
+  color: course.color,
 });
 
 const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<CourseFormValues> => ({
@@ -286,6 +328,7 @@ const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<Co
   teacherIds: [],
   cohort,
   weekMode: "agnostic",
+  color: null,
 });
 
 /** The two week-eligibility states, in display order. */

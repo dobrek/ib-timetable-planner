@@ -11,6 +11,7 @@ const row = (id: string, cohort: Cohort, teacherIds: string[]): CourseRow => ({
   groupIndex: 0,
   hours: 4,
   weekMode: "agnostic",
+  color: null,
   teacherIds,
   teacherLabels: teacherIds,
   isMerged: false,

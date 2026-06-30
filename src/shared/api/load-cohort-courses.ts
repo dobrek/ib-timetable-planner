@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config/cohorts";
-import type { WeekMode } from "@/shared/config";
+import { toSubjectColor, type WeekMode } from "@/shared/config";
 import { groupByInto, unique } from "@/shared/lib/collections";
 import type { CohortCatalog, ComputeWarning, GroupingCourse } from "@/shared/lib/catalog-hash";
 import { DomainError } from "@/shared/lib/errors";
@@ -84,11 +84,14 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
   });
 
   const courses = [...regularCourses, ...virtualCourses];
-  // Display side map (name + color), built once beside the grouping projection. Color is `null` here
-  // (no column yet); Phase 3 fills the real value. It NEVER enters the `GroupingCourse` projection or
-  // the catalog hash — display-only, so staleness is untouched.
+  // Display side map (name + color), built once beside the grouping projection from the raw course
+  // rows. It NEVER enters the `GroupingCourse` projection or the catalog hash — display-only, so the
+  // <200ms validation budget and staleness are untouched.
   const courseDisplay = new Map(
-    courses.map((course) => [course.id, { name: compositeName(courseById.get(course.id)), color: null }]),
+    courses.map((course) => {
+      const row = courseById.get(course.id);
+      return [course.id, { name: compositeName(row), color: toSubjectColor(row?.color ?? null) }];
+    }),
   );
   const warnings = collectWarnings(courses, mergeChildIds);
 
@@ -102,13 +105,15 @@ type CourseRow = {
   group_index: number;
   hours_per_week: number;
   week_mode: WeekMode;
+  /** Optional subject color (palette enum key or null); consumed only into the display side map. */
+  color: string | null;
 };
 
 const fetchCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CourseRow[]> =>
   unwrapMany(
     await supabase
       .from("courses")
-      .select("id, name, level, group_index, hours_per_week, week_mode")
+      .select("id, name, level, group_index, hours_per_week, week_mode, color")
       .eq("plan_id", planId)
       .eq("cohort", cohort)
       .order("id"),

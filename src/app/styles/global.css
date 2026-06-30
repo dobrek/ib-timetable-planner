@@ -43,6 +43,25 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Optional per-course subject colors. Light: same-hue 100 bg + 900 foreground (AA by
+     construction); flipped in `.dark`. Sourced from Tailwind v4's built-in OKLCH palette vars. */
+  --subject-rose: var(--color-rose-100);
+  --subject-rose-foreground: var(--color-rose-900);
+  --subject-amber: var(--color-amber-100);
+  --subject-amber-foreground: var(--color-amber-900);
+  --subject-emerald: var(--color-emerald-100);
+  --subject-emerald-foreground: var(--color-emerald-900);
+  --subject-sky: var(--color-sky-100);
+  --subject-sky-foreground: var(--color-sky-900);
+  --subject-violet: var(--color-violet-100);
+  --subject-violet-foreground: var(--color-violet-900);
+  --subject-teal: var(--color-teal-100);
+  --subject-teal-foreground: var(--color-teal-900);
+  --subject-orange: var(--color-orange-100);
+  --subject-orange-foreground: var(--color-orange-900);
+  --subject-indigo: var(--color-indigo-100);
+  --subject-indigo-foreground: var(--color-indigo-900);
 }
 
 .dark {
@@ -82,6 +101,24 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Subject colors flip: dark 900 bg + light 100 foreground. */
+  --subject-rose: var(--color-rose-900);
+  --subject-rose-foreground: var(--color-rose-100);
+  --subject-amber: var(--color-amber-900);
+  --subject-amber-foreground: var(--color-amber-100);
+  --subject-emerald: var(--color-emerald-900);
+  --subject-emerald-foreground: var(--color-emerald-100);
+  --subject-sky: var(--color-sky-900);
+  --subject-sky-foreground: var(--color-sky-100);
+  --subject-violet: var(--color-violet-900);
+  --subject-violet-foreground: var(--color-violet-100);
+  --subject-teal: var(--color-teal-900);
+  --subject-teal-foreground: var(--color-teal-100);
+  --subject-orange: var(--color-orange-900);
+  --subject-orange-foreground: var(--color-orange-100);
+  --subject-indigo: var(--color-indigo-900);
+  --subject-indigo-foreground: var(--color-indigo-100);
 }
 
 @theme inline {
@@ -125,6 +162,22 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-subject-rose: var(--subject-rose);
+  --color-subject-rose-foreground: var(--subject-rose-foreground);
+  --color-subject-amber: var(--subject-amber);
+  --color-subject-amber-foreground: var(--subject-amber-foreground);
+  --color-subject-emerald: var(--subject-emerald);
+  --color-subject-emerald-foreground: var(--subject-emerald-foreground);
+  --color-subject-sky: var(--subject-sky);
+  --color-subject-sky-foreground: var(--subject-sky-foreground);
+  --color-subject-violet: var(--subject-violet);
+  --color-subject-violet-foreground: var(--subject-violet-foreground);
+  --color-subject-teal: var(--subject-teal);
+  --color-subject-teal-foreground: var(--subject-teal-foreground);
+  --color-subject-orange: var(--subject-orange);
+  --color-subject-orange-foreground: var(--subject-orange-foreground);
+  --color-subject-indigo: var(--subject-indigo);
+  --color-subject-indigo-foreground: var(--subject-indigo-foreground);
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
 }

@@ -687,14 +687,14 @@ validation budget is provably untouched (the hash hand-picks 5 fields; `color` i
 
 #### Automated
 
-- [ ] 1.1 Type-check passes: `pnpm check`
-- [ ] 1.2 Config unit tests pass: `pnpm test -- subject-colors`
-- [ ] 1.3 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [ ] 1.4 Build is clean: `pnpm build`
+- [x] 1.1 Type-check passes: `pnpm check`
+- [x] 1.2 Config unit tests pass: `pnpm test -- subject-colors`
+- [x] 1.3 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 1.4 Build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.5 A `bg-subject-rose text-subject-rose-foreground` element is legible in light + dark
+- [x] 1.5 A `bg-subject-rose text-subject-rose-foreground` element is legible in light + dark
 
 ### Phase 2: Display-Map Consolidation Refactor
 

@@ -12,6 +12,7 @@ import {
   useHintMode,
   usePaletteDisclosure,
   useShelfDisclosure,
+  useZoom,
 } from "./chrome";
 import { useUndoKeymap } from "../model/history/use-undo-keymap";
 import { PlannerGrid, type PairedColumn } from "./grid";
@@ -67,9 +68,11 @@ export default function PlannerBoard({
     usePaletteDisclosure(paletteCollapsed);
   const [paletteCohort, setPaletteCohort] = useState<Cohort>("dp1");
   const [activeDragCohort, setActiveDragCohort] = useState<Cohort | null>(null);
-  // TEMP: zoom spike — removed in Phase 4. Crude driver for the `zoom` prop so the make-or-break
-  // gate can be exercised by hand across 0.25–1.5 before any persistence/UI exists.
-  const [spikeZoom, setSpikeZoom] = useState(1);
+
+  const { zoom, setZoom } = useZoom();
+  // The single numeric scale fed to the grid wrapper. Fit is a Phase-2 placeholder (1) — the measured
+  // scale is resolved in Phase 3.
+  const effectiveZoom = zoom.mode === "manual" ? zoom.level : 1;
   const [inspection, setInspection] = useState<{ cohort: Cohort; target: CollisionInspectionTarget } | null>(null);
 
   const combined = focus === "combined";
@@ -200,7 +203,8 @@ export default function PlannerBoard({
           undoRedo={history}
           trailing={
             <>
-              {/* TEMP: zoom spike — removed in Phase 4. */}
+              {/* TEMP: zoom spike — removed in Phase 4. Now backed by the persisted `useZoom` pref so
+                  manual zoom survives reloads / syncs across tabs while the real popover is built. */}
               <label className="flex items-center gap-2 text-xs" data-slot="temp-zoom-spike">
                 <span className="text-muted-foreground">Zoom</span>
                 <input
@@ -208,13 +212,13 @@ export default function PlannerBoard({
                   min={0.25}
                   max={1.5}
                   step={0.05}
-                  value={spikeZoom}
+                  value={effectiveZoom}
                   onChange={(event) => {
-                    setSpikeZoom(Number(event.target.value));
+                    setZoom({ mode: "manual", level: Number(event.target.value) });
                   }}
                   aria-label="Zoom level (spike)"
                 />
-                <span className="tabular-nums">{Math.round(spikeZoom * 100)}%</span>
+                <span className="tabular-nums">{Math.round(effectiveZoom * 100)}%</span>
               </label>
               <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
             </>
@@ -245,7 +249,7 @@ export default function PlannerBoard({
               gridLabel={`${planName} timetable`}
               columns={columns}
               activeDragCohort={combined ? activeDragCohort : null}
-              zoom={spikeZoom}
+              zoom={effectiveZoom}
             />
           </div>
         </div>

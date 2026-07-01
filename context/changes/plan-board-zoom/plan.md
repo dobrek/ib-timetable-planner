@@ -557,35 +557,35 @@ the full popover UX + theming before closing the change.
 
 #### Automated
 
-- [x] 1.1 Type checking passes: `pnpm check`
-- [x] 1.2 Linting passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Build stays clean: `pnpm build`
+- [x] 1.1 Type checking passes: `pnpm check` — d5f349e
+- [x] 1.2 Linting passes: `pnpm lint` — d5f349e
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — d5f349e
+- [x] 1.4 Build stays clean: `pnpm build` — d5f349e
 
 #### Manual
 
-- [x] 1.5 Drop accuracy correct at 0.25/0.5/0.75/1.0/1.25/1.5 (focus + combined)
-- [x] 1.6 Sticky day/period headers stay frozen while scrolling at each level
-- [x] 1.7 Top-layer drag feedback tracks the cursor without drift at each level
-- [x] 1.8 Scroll extent / `min-w-full` correct at each level (open question #1 resolved; zoom target = `data-slot="planner-grid"` wrapper)
-- [x] 1.9 Chrome (palette/shelf/summary bar/banners) stays at 100% at every level
-- [x] 1.10 Zoom target's `scrollWidth`/`scrollHeight` scale with applied zoom (post-zoom — de-risks Phase 3 divide-out)
+- [x] 1.5 Drop accuracy correct at 0.25/0.5/0.75/1.0/1.25/1.5 (focus + combined) — d5f349e
+- [x] 1.6 Sticky day/period headers stay frozen while scrolling at each level — d5f349e
+- [x] 1.7 Top-layer drag feedback tracks the cursor without drift at each level — d5f349e
+- [x] 1.8 Scroll extent / `min-w-full` correct at each level (open question #1 resolved; zoom target = `data-slot="planner-grid"` wrapper) — d5f349e
+- [x] 1.9 Chrome (palette/shelf/summary bar/banners) stays at 100% at every level — d5f349e
+- [x] 1.10 Zoom target's `scrollWidth`/`scrollHeight` scale with applied zoom (post-zoom — de-risks Phase 3 divide-out) — d5f349e
 
 ### Phase 2: Persistence + State + Manual Wiring
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `pnpm test` (`board-zoom.test.ts`)
-- [ ] 2.2 Type checking passes: `pnpm check`
-- [ ] 2.3 Linting passes: `pnpm lint`
-- [ ] 2.4 FSD structure check passes: `pnpm steiger`
-- [ ] 2.5 Build stays clean: `pnpm build`
+- [x] 2.1 Unit tests pass: `pnpm test` (`board-zoom.test.ts`)
+- [x] 2.2 Type checking passes: `pnpm check`
+- [x] 2.3 Linting passes: `pnpm lint`
+- [x] 2.4 FSD structure check passes: `pnpm steiger`
+- [x] 2.5 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.6 A manual zoom persists across a page reload
-- [ ] 2.7 A zoom change syncs across tabs (cross-tab `storage`)
-- [ ] 2.8 Storage-blocked (private mode) degrades to default without crashing
+- [x] 2.6 A manual zoom persists across a page reload
+- [x] 2.7 A zoom change syncs across tabs (cross-tab `storage`)
+- [x] 2.8 Storage-blocked (private mode) degrades to default without crashing
 
 ### Phase 3: Fit-to-Scale
 

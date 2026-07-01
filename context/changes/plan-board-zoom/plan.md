@@ -557,19 +557,19 @@ the full popover UX + theming before closing the change.
 
 #### Automated
 
-- [ ] 1.1 Type checking passes: `pnpm check`
-- [ ] 1.2 Linting passes: `pnpm lint`
-- [ ] 1.3 FSD structure check passes: `pnpm steiger`
-- [ ] 1.4 Build stays clean: `pnpm build`
+- [x] 1.1 Type checking passes: `pnpm check`
+- [x] 1.2 Linting passes: `pnpm lint`
+- [x] 1.3 FSD structure check passes: `pnpm steiger`
+- [x] 1.4 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.5 Drop accuracy correct at 0.25/0.5/0.75/1.0/1.25/1.5 (focus + combined)
-- [ ] 1.6 Sticky day/period headers stay frozen while scrolling at each level
-- [ ] 1.7 Top-layer drag feedback tracks the cursor without drift at each level
-- [ ] 1.8 Scroll extent / `min-w-full` correct at each level (open question #1 resolved; zoom target node recorded)
-- [ ] 1.9 Chrome (palette/shelf/summary bar/banners) stays at 100% at every level
-- [ ] 1.10 Zoom target's `scrollWidth`/`scrollHeight` scale with applied zoom (post-zoom — de-risks Phase 3 divide-out)
+- [x] 1.5 Drop accuracy correct at 0.25/0.5/0.75/1.0/1.25/1.5 (focus + combined)
+- [x] 1.6 Sticky day/period headers stay frozen while scrolling at each level
+- [x] 1.7 Top-layer drag feedback tracks the cursor without drift at each level
+- [x] 1.8 Scroll extent / `min-w-full` correct at each level (open question #1 resolved; zoom target = `data-slot="planner-grid"` wrapper)
+- [x] 1.9 Chrome (palette/shelf/summary bar/banners) stays at 100% at every level
+- [x] 1.10 Zoom target's `scrollWidth`/`scrollHeight` scale with applied zoom (post-zoom — de-risks Phase 3 divide-out)
 
 ### Phase 2: Persistence + State + Manual Wiring
 

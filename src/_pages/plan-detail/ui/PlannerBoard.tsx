@@ -67,6 +67,9 @@ export default function PlannerBoard({
     usePaletteDisclosure(paletteCollapsed);
   const [paletteCohort, setPaletteCohort] = useState<Cohort>("dp1");
   const [activeDragCohort, setActiveDragCohort] = useState<Cohort | null>(null);
+  // TEMP: zoom spike — removed in Phase 4. Crude driver for the `zoom` prop so the make-or-break
+  // gate can be exercised by hand across 0.25–1.5 before any persistence/UI exists.
+  const [spikeZoom, setSpikeZoom] = useState(1);
   const [inspection, setInspection] = useState<{ cohort: Cohort; target: CollisionInspectionTarget } | null>(null);
 
   const combined = focus === "combined";
@@ -195,7 +198,27 @@ export default function PlannerBoard({
           planId={planId}
           active={focus}
           undoRedo={history}
-          trailing={<DragHintModeToggle mode={hintMode} onChange={setHintMode} />}
+          trailing={
+            <>
+              {/* TEMP: zoom spike — removed in Phase 4. */}
+              <label className="flex items-center gap-2 text-xs" data-slot="temp-zoom-spike">
+                <span className="text-muted-foreground">Zoom</span>
+                <input
+                  type="range"
+                  min={0.25}
+                  max={1.5}
+                  step={0.05}
+                  value={spikeZoom}
+                  onChange={(event) => {
+                    setSpikeZoom(Number(event.target.value));
+                  }}
+                  aria-label="Zoom level (spike)"
+                />
+                <span className="tabular-nums">{Math.round(spikeZoom * 100)}%</span>
+              </label>
+              <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
+            </>
+          }
         />
       }
       palette={
@@ -222,6 +245,7 @@ export default function PlannerBoard({
               gridLabel={`${planName} timetable`}
               columns={columns}
               activeDragCohort={combined ? activeDragCohort : null}
+              zoom={spikeZoom}
             />
           </div>
         </div>

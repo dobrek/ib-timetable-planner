@@ -1,10 +1,10 @@
 ---
 change_id: plan-board-zoom
 title: Plan board zoom
-status: impl_reviewed
+status: archived
 created: 2026-07-01
 updated: 2026-07-01
-archived_at: null
+archived_at: 2026-07-01T16:26:47Z
 ---
 
 ## Notes

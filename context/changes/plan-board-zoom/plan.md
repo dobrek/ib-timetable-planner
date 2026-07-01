@@ -593,22 +593,22 @@ the full popover UX + theming before closing the change.
 
 #### Automated
 
-- [x] 4.1 Unit tests pass: `pnpm test`
-- [x] 4.2 Type checking passes: `pnpm check`
-- [x] 4.3 Linting passes: `pnpm lint`
-- [x] 4.4 FSD structure check passes: `pnpm steiger`
-- [x] 4.5 Build stays clean: `pnpm build`
-- [x] 4.6 `pnpm audit --audit-level=high` clean
+- [x] 4.1 Unit tests pass: `pnpm test` — 35498ef
+- [x] 4.2 Type checking passes: `pnpm check` — 35498ef
+- [x] 4.3 Linting passes: `pnpm lint` — 35498ef
+- [x] 4.4 FSD structure check passes: `pnpm steiger` — 35498ef
+- [x] 4.5 Build stays clean: `pnpm build` — 35498ef
+- [x] 4.6 `pnpm audit --audit-level=high` clean — 35498ef
 
 #### Manual
 
-- [x] 4.7 Gear button appears; old inline drag-hint toggle removed from the bar
-- [x] 4.8 Popover shows Zoom slider (25–150%, 5% step) + `%` readout + Reset + relocated toggle
-- [x] 4.9 Slider scales only the grid; Reset → 100%; collision toggle still works
-- [x] 4.10 Popover stays open during slider drag; closes on outside-click / Escape
-- [x] 4.11 Slider/Reset/gear keyboard-reachable with accessible names
-- [x] 4.12 No literal/palette colors in the slider render (light + dark correct)
+- [x] 4.7 Gear button appears; old inline drag-hint toggle removed from the bar — 35498ef
+- [x] 4.8 Popover shows Zoom slider (25–150%, 5% step) + `%` readout + Reset + relocated toggle — 35498ef
+- [x] 4.9 Slider scales only the grid; Reset → 100%; collision toggle still works — 35498ef
+- [x] 4.10 Popover stays open during slider drag; closes on outside-click / Escape — 35498ef
+- [x] 4.11 Slider/Reset/gear keyboard-reachable with accessible names — 35498ef
+- [x] 4.12 No literal/palette colors in the slider render (light + dark correct) — 35498ef
 
 #### E2E
 
-- [x] 4.13 `pnpm test:e2e`: a chip dropped at ~50% zoom lands on the expected `(day, period)` cell (coarse regression tripwire)
+- [x] 4.13 `pnpm test:e2e`: a chip dropped at ~50% zoom lands on the expected `(day, period)` cell (coarse regression tripwire) — 35498ef

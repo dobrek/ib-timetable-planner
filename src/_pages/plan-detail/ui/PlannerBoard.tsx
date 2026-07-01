@@ -3,8 +3,8 @@ import type { Cohort } from "@/shared/config";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import {
   BoardHeader,
+  BoardSettingsMenu,
   BoardShell,
-  DragHintModeToggle,
   ErrorBanner,
   PlanSummaryBar,
   inspectedViolations,
@@ -199,28 +199,7 @@ export default function PlannerBoard({
           planId={planId}
           active={focus}
           undoRedo={history}
-          trailing={
-            <>
-              {/* TEMP: zoom spike — removed in Phase 4. Now backed by the persisted `useZoom` pref so
-                  manual zoom survives reloads / syncs across tabs while the real popover is built. */}
-              <label className="flex items-center gap-2 text-xs" data-slot="temp-zoom-spike">
-                <span className="text-muted-foreground">Zoom</span>
-                <input
-                  type="range"
-                  min={0.25}
-                  max={1.5}
-                  step={0.05}
-                  value={zoom}
-                  onChange={(event) => {
-                    setZoom(Number(event.target.value));
-                  }}
-                  aria-label="Zoom level (spike)"
-                />
-                <span className="tabular-nums">{Math.round(zoom * 100)}%</span>
-              </label>
-              <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
-            </>
-          }
+          trailing={<BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode} />}
         />
       }
       palette={

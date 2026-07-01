@@ -80,6 +80,7 @@ export {
   SelectTrigger,
   SelectValue,
 } from "./select";
+export { Slider } from "./slider";
 export { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
 export { ToggleGroup, ToggleGroupItem, toggleGroupItemVariants } from "./toggle-group";

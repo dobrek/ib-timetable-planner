@@ -14,7 +14,7 @@ Interactive timetable planner for IB (International Baccalaureate) programmes. A
 ## Prerequisites
 
 - Node.js 24.15.0 (see `.node-version`)
-- [pnpm](https://pnpm.io/) 10.32.1 (declared in `packageManager`)
+- [pnpm](https://pnpm.io/) 11.9.0 (declared in `packageManager`)
 - [Docker Desktop](https://www.docker.com/) — required by the local Supabase stack
 
 ## Getting Started

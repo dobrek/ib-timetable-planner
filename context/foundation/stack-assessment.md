@@ -37,7 +37,7 @@ gates_failed: 0
   (`pnpm test`) and a separate integration config (`vitest.integration.config.ts`);
   Playwright drives E2E (`test:e2e`) with an author-provisioning pretest. Co-located
   `*.test.ts` convention is documented in CLAUDE.md.
-- **Package manager — pnpm 10.32.1** (pinned in `packageManager`, `pnpm-lock.yaml`).
+- **Package manager — pnpm 11.9.0** (pinned in `packageManager`, `pnpm-lock.yaml`).
 - **CI/CD — GitHub Actions** (`.github/workflows/ci.yml`): install → astro sync →
   lint → steiger → test → build, then deploy on push to `main`.
 - **Deployment — Cloudflare Workers / workerd** (`wrangler.jsonc`,

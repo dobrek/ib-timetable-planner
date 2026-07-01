@@ -28,7 +28,7 @@ recommended_fixes: 6
 
 ```
 Status: present (pnpm-lock.yaml)
-Package manager: pnpm@10.32.1 (pinned in packageManager; Node 24.15.0 pinned in .node-version)
+Package manager: pnpm@11.9.0 (pinned in packageManager; Node 24.15.0 pinned in .node-version)
 ```
 
 Dependency state is fully pinned and reproducible. No action needed.

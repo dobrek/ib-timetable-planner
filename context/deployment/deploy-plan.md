@@ -4,7 +4,7 @@
 
 The scaffold is in place: Astro 6 + React 19 on Cloudflare Workers (workerd), `@astrojs/cloudflare` adapter, `wrangler.jsonc` with `nodejs_compat` and compatibility date `2026-05-08`, Supabase SSR client at [src/lib/supabase.ts](src/lib/supabase.ts), auth endpoints under [src/pages/api/auth/](src/pages/api/auth/), and a CI workflow that gates on `astro sync → lint → build` but does not deploy.
 
-[context/foundation/infrastructure.md](context/foundation/infrastructure.md) recommends Cloudflare Workers (Workers + Static Assets) and flags load-bearing day-one decisions: Supabase region must match author geography (EU for a Polish school), `nodejs_compat` dep traps, daily `pg_dump` discipline, scoped Cloudflare API token. [context/foundation/tech-stack.md](context/foundation/tech-stack.md) pins pnpm 10.32.1 / Node 24.15.0 and `ci_default_flow: auto-deploy-on-merge`.
+[context/foundation/infrastructure.md](context/foundation/infrastructure.md) recommends Cloudflare Workers (Workers + Static Assets) and flags load-bearing day-one decisions: Supabase region must match author geography (EU for a Polish school), `nodejs_compat` dep traps, daily `pg_dump` discipline, scoped Cloudflare API token. [context/foundation/tech-stack.md](context/foundation/tech-stack.md) pins pnpm 11.9.0 / Node 24.15.0 and `ci_default_flow: auto-deploy-on-merge`.
 
 Goal of this plan: take the scaffold from "builds locally" to "running in production on Cloudflare Workers, talking to a hosted Supabase project, with a first manual deploy verified by hand and a CI auto-deploy lane added in a follow-up phase". An empty hosted Supabase project already exists — Phase 1 includes verification steps to confirm its region and access before we wire it up. **Local Supabase is the primary dev path**; production Supabase is reachable via an env-swap for quick smoke testing.
 
@@ -12,7 +12,7 @@ Goal of this plan: take the scaffold from "builds locally" to "running in produc
 
 Do this once before Phase 0. None of these mutate the hosted project or the production Worker.
 
-- [x] **P.1 Node + pnpm.** Confirm `node --version` ≈ `v24.15.0` (matching [.node-version](.node-version)) and `pnpm --version` ≈ `10.32.1` (matching `packageManager` in [package.json](package.json)). If using `nvm` / `fnm` / `volta`, run their respective `use` commands inside the repo so the right Node is active.
+- [x] **P.1 Node + pnpm.** Confirm `node --version` ≈ `v24.15.0` (matching [.node-version](.node-version)) and `pnpm --version` ≈ `11.9.0` (matching `packageManager` in [package.json](package.json)). If using `nvm` / `fnm` / `volta`, run their respective `use` commands inside the repo so the right Node is active.
 - [x] **P.2 Wrangler CLI.** Already pinned in `devDependencies`. Sanity-check: `pnpm exec wrangler --version`. Do **not** install wrangler globally — always go through `pnpm exec` so the version matches the repo.
 - [x] **P.3 Supabase CLI.** Already pinned in `devDependencies` (`"supabase": "^2.101.0"`). Do **not** install globally — always go through `pnpm exec` so the version matches the repo. Sanity-check: `pnpm exec supabase --version`.
 - [x] **P.4 Docker Desktop running.** Required by `pnpm exec supabase start` (the local stack runs in containers). Confirm `docker info` returns without error.

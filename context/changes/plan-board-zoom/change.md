@@ -1,7 +1,7 @@
 ---
 change_id: plan-board-zoom
 title: Plan board zoom
-status: implemented
+status: impl_reviewed
 created: 2026-07-01
 updated: 2026-07-01
 archived_at: null

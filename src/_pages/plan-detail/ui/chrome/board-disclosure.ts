@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore } from "react";
+import { DEFAULT_ZOOM, readZoom, subscribeZoom, writeZoom } from "../../lib/board-zoom";
 import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../../lib/drag-hint-mode";
 import { writePaletteCollapsed } from "../../lib/palette-collapsed";
 import { DEFAULT_SHELF_PINNED, readShelfPinned, subscribeShelfPinned, writeShelfPinned } from "../../lib/shelf-pinned";
@@ -18,6 +19,14 @@ import { DEFAULT_SHELF_PINNED, readShelfPinned, subscribeShelfPinned, writeShelf
 export function useHintMode() {
   const hintMode = useSyncExternalStore(subscribeHintMode, readHintMode, () => DEFAULT_HINT_MODE);
   return { hintMode, setHintMode: writeHintMode };
+}
+
+// Per-device board zoom, persisted in localStorage. Same `useSyncExternalStore` contract as
+// `useHintMode` — the server snapshot (`DEFAULT_ZOOM`) drives SSR and the hydration render so the
+// stored value can't trip a hydration mismatch, then the client switches to the persisted state.
+export function useZoom() {
+  const zoom = useSyncExternalStore(subscribeZoom, readZoom, () => DEFAULT_ZOOM);
+  return { zoom, setZoom: writeZoom };
 }
 
 // Owns the shelf drawer's open/closed disclosure. `pinned` is the per-device persisted pref

@@ -17,7 +17,7 @@ export function toneClass(tone: CellTone, hintMode: HintMode): string {
     case "warning":
       return "ring-warning bg-warning/5 ring-2 ring-inset";
     case "bundled":
-      return "bg-accent/40 ring-ring rounded-md ring-1 ring-inset";
+      return "ring-ring rounded-md ring-1 ring-inset";
     case "base":
       return "";
   }

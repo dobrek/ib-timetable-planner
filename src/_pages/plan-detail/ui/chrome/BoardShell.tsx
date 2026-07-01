@@ -53,7 +53,7 @@ export default function BoardShell({
         {/* `minmax(0,1fr)` on the board column (not bare `1fr`, whose min is min-content): lets the
             timetable track shrink + scroll instead of forcing the grid wider than the viewport — so
             the `auto` palette/shelf columns are never cropped when both are expanded. */}
-        <div data-slot={gridDataSlot} className="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+        <div data-slot={gridDataSlot} className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
           {palette}
           {center}
           {shelf}

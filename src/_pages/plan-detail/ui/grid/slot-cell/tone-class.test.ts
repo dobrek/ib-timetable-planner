@@ -12,7 +12,7 @@ describe("toneClass — non-hint tones", () => {
     ["blocking", "ring-destructive ring-2 ring-inset"],
     ["drop-target", "bg-accent ring-ring ring-2 ring-inset"],
     ["warning", "ring-warning bg-warning/5 ring-2 ring-inset"],
-    ["bundled", "bg-accent/40 ring-ring rounded-md ring-1 ring-inset"],
+    ["bundled", "ring-ring rounded-md ring-1 ring-inset"],
     ["base", ""],
   ];
   // hintMode is irrelevant for non-hint tones — assert it does not change the mapping.

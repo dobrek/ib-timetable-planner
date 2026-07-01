@@ -69,7 +69,7 @@ export default function CombinedPalettePanel({
       openWidthClass="w-64"
       dataSlot="planner-palette"
       railClassName="bg-background hover:bg-accent rounded-lg border"
-      bodyClassName="gap-6"
+      bodyClassName="gap-3"
       toolbar={
         showSwitcher ? (
           <Tabs

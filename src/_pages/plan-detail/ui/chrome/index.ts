@@ -1,6 +1,7 @@
 // Public surface of the chrome feature folder: the board frame components plus the disclosure /
 // inspection orchestration hooks both boards wire in.
 export { default as BoardHeader } from "./BoardHeader";
+export { default as BoardSettingsMenu } from "./BoardSettingsMenu";
 export { default as BoardShell } from "./BoardShell";
 export { default as CollapsibleEdgePanel, EDGE_PANEL_ICON_BUTTON } from "./CollapsibleEdgePanel";
 export { default as CohortSwitcher } from "./CohortSwitcher";

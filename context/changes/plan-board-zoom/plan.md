@@ -577,38 +577,38 @@ the full popover UX + theming before closing the change.
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `pnpm test` (`board-zoom.test.ts`, number-based)
-- [x] 3.2 Type checking passes: `pnpm check`
-- [x] 3.3 Linting passes: `pnpm lint`
-- [x] 3.4 FSD structure check passes: `pnpm steiger`
-- [x] 3.5 Build stays clean: `pnpm build`
+- [x] 3.1 Unit tests pass: `pnpm test` (`board-zoom.test.ts`, number-based) — 557b23f
+- [x] 3.2 Type checking passes: `pnpm check` — 557b23f
+- [x] 3.3 Linting passes: `pnpm lint` — 557b23f
+- [x] 3.4 FSD structure check passes: `pnpm steiger` — 557b23f
+- [x] 3.5 Build stays clean: `pnpm build` — 557b23f
 
 #### Manual
 
-- [x] 3.6 Manual slider still scales only the grid; persists across reload / syncs across tabs
-- [x] 3.7 Scroll container shows its normal scrollbar again; scrolls on both axes
-- [x] 3.8 No Fit affordance remains anywhere (fit code fully reverted)
+- [x] 3.6 Manual slider still scales only the grid; persists across reload / syncs across tabs — 557b23f
+- [x] 3.7 Scroll container shows its normal scrollbar again; scrolls on both axes — 557b23f
+- [x] 3.8 No Fit affordance remains anywhere (fit code fully reverted) — 557b23f
 
 ### Phase 4: Board Settings Popover + Cleanup
 
 #### Automated
 
-- [ ] 4.1 Unit tests pass: `pnpm test`
-- [ ] 4.2 Type checking passes: `pnpm check`
-- [ ] 4.3 Linting passes: `pnpm lint`
-- [ ] 4.4 FSD structure check passes: `pnpm steiger`
-- [ ] 4.5 Build stays clean: `pnpm build`
-- [ ] 4.6 `pnpm audit --audit-level=high` clean
+- [x] 4.1 Unit tests pass: `pnpm test`
+- [x] 4.2 Type checking passes: `pnpm check`
+- [x] 4.3 Linting passes: `pnpm lint`
+- [x] 4.4 FSD structure check passes: `pnpm steiger`
+- [x] 4.5 Build stays clean: `pnpm build`
+- [x] 4.6 `pnpm audit --audit-level=high` clean
 
 #### Manual
 
-- [ ] 4.7 Gear button appears; old inline drag-hint toggle removed from the bar
-- [ ] 4.8 Popover shows Zoom slider (25–150%, 5% step) + `%` readout + Reset + relocated toggle
-- [ ] 4.9 Slider scales only the grid; Reset → 100%; collision toggle still works
-- [ ] 4.10 Popover stays open during slider drag; closes on outside-click / Escape
-- [ ] 4.11 Slider/Reset/gear keyboard-reachable with accessible names
-- [ ] 4.12 No literal/palette colors in the slider render (light + dark correct)
+- [x] 4.7 Gear button appears; old inline drag-hint toggle removed from the bar
+- [x] 4.8 Popover shows Zoom slider (25–150%, 5% step) + `%` readout + Reset + relocated toggle
+- [x] 4.9 Slider scales only the grid; Reset → 100%; collision toggle still works
+- [x] 4.10 Popover stays open during slider drag; closes on outside-click / Escape
+- [x] 4.11 Slider/Reset/gear keyboard-reachable with accessible names
+- [x] 4.12 No literal/palette colors in the slider render (light + dark correct)
 
 #### E2E
 
-- [ ] 4.13 `pnpm test:e2e`: a chip dropped at ~50% zoom lands on the expected `(day, period)` cell (coarse regression tripwire)
+- [x] 4.13 `pnpm test:e2e`: a chip dropped at ~50% zoom lands on the expected `(day, period)` cell (coarse regression tripwire)

@@ -61,6 +61,9 @@ type Props = {
   /** Source cohort of the active drag (or the palette's active cohort) — the OTHER column's cells
    *  recede as non-targets. Null = no drag / no cohort signal; ignored when there is one column. */
   activeDragCohort: Cohort | null;
+  /** Board-scoped zoom applied via CSS `zoom` on the grid wrapper (1 = 100%). Scales only the grid
+   *  subtree — palette/shelf/summary bar/banners (all siblings outside the wrapper) stay at 100%. */
+  zoom: number;
 };
 
 /**
@@ -72,7 +75,7 @@ type Props = {
  * the single provider) while the collision/hint maps stay keyed by bare `cellKey`. The cell internals
  * (`SlotCell`, `PlacedChip`, `WeekToggle`) are reused unchanged.
  */
-export default function PlannerGrid({ days, periods, gridLabel, columns, activeDragCohort }: Props) {
+export default function PlannerGrid({ days, periods, gridLabel, columns, activeDragCohort, zoom }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
   const multi = columns.length > 1;
@@ -83,7 +86,7 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
   const subColumns = columns.map(() => "minmax(7rem, 1fr)").join(" ");
 
   return (
-    <div data-slot="planner-grid" className="w-max min-w-full">
+    <div data-slot="planner-grid" className="w-max min-w-full" style={{ zoom }}>
       <div
         role="grid"
         aria-label={gridLabel}

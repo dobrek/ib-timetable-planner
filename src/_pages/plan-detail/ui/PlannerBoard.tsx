@@ -69,10 +69,8 @@ export default function PlannerBoard({
   const [paletteCohort, setPaletteCohort] = useState<Cohort>("dp1");
   const [activeDragCohort, setActiveDragCohort] = useState<Cohort | null>(null);
 
+  // Per-device manual zoom (a plain number, 1 = 100%), persisted and cross-tab-synced via `useZoom`.
   const { zoom, setZoom } = useZoom();
-  // The single numeric scale fed to the grid wrapper. Fit is a Phase-2 placeholder (1) — the measured
-  // scale is resolved in Phase 3.
-  const effectiveZoom = zoom.mode === "manual" ? zoom.level : 1;
   const [inspection, setInspection] = useState<{ cohort: Cohort; target: CollisionInspectionTarget } | null>(null);
 
   const combined = focus === "combined";
@@ -212,13 +210,13 @@ export default function PlannerBoard({
                   min={0.25}
                   max={1.5}
                   step={0.05}
-                  value={effectiveZoom}
+                  value={zoom}
                   onChange={(event) => {
-                    setZoom({ mode: "manual", level: Number(event.target.value) });
+                    setZoom(Number(event.target.value));
                   }}
                   aria-label="Zoom level (spike)"
                 />
-                <span className="tabular-nums">{Math.round(effectiveZoom * 100)}%</span>
+                <span className="tabular-nums">{Math.round(zoom * 100)}%</span>
               </label>
               <DragHintModeToggle mode={hintMode} onChange={setHintMode} />
             </>
@@ -249,7 +247,7 @@ export default function PlannerBoard({
               gridLabel={`${planName} timetable`}
               columns={columns}
               activeDragCohort={combined ? activeDragCohort : null}
-              zoom={effectiveZoom}
+              zoom={zoom}
             />
           </div>
         </div>

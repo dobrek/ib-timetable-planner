@@ -10,6 +10,24 @@ which scales *everything* (palette, summary bar, shelf). This scopes zoom to the
 Zoom level persists **per device** in `localStorage`, mirroring the existing drag-hint / shelf-pinned
 cosmetic prefs.
 
+## Scope change (2026-07-01) — Fit-to-Scale removed
+
+After the Phase-3 Fit spike was hand-verified working, the author judged **Fit-to-Scale not worth
+keeping**: the auto-fitted result was consistently worse than a user picking a level by hand. **Fit is
+cut entirely.** The feature is now **just the manual zoom slider** (persisted per device), surfaced from
+a gear → *Board settings* popover.
+
+Consequences (reflected in the revised Phase 3 / Phase 4 below):
+
+- **No Fit mode, no measurement, no `fit-scale`/`use-element-size`.** The Phase-3 Fit code (both new
+  `model/` files, the content/port refs, the `PlannerGrid` ref prop, and `scrollbar-none`) was never
+  committed — it is reverted, and the scroll container keeps its normal scrollbar.
+- **`ZoomState` collapses to a plain number.** With Fit gone the discriminated union is pointless;
+  `board-zoom.ts` now persists a single `number` (1 = 100%). A primitive `getSnapshot` is also inherently
+  referentially stable, so the Phase-2 snapshot-cache workaround (React #185) is no longer needed.
+- **Phase 3 is repurposed** from "Fit-to-Scale" to "Remove Fit + simplify zoom state"; **Phase 4** keeps
+  the gear popover but drops the Fit button / `fitScale` prop (slider + `%` readout + Reset only).
+
 ## Current State Analysis
 
 The board render path funnels the entire grid through a single scroll container that already owns the
@@ -287,78 +305,55 @@ the persistence + cross-tab manual checks before proceeding to Phase 3.
 
 ---
 
-## Phase 3: Fit-to-Scale
+## Phase 3: Remove Fit + Simplify Zoom State
+
+> **Superseded by the Scope change above.** The original Phase 3 built Fit-to-Scale (an
+> `use-element-size` hook, a pure `fit-scale` function, and a measured fit-mode resolution with a
+> `scrollbar-none` stabilizer). That code was spike-verified working but judged not worth keeping, so
+> it was **reverted before commit**. Phase 3 now *removes* the Fit surface and collapses the zoom state
+> to a plain number.
 
 ### Overview
 
-Measure the grid's natural content size against the scroll port and resolve fit mode to the largest
-shrink-only scale that fits both dimensions, re-fitting on resize and content change.
+Drop every trace of Fit and reduce the persisted zoom to a single `number`. Manual zoom keeps working
+end-to-end (still driven by the temporary slider); the scroll container keeps its normal scrollbar.
 
 ### Changes Required:
 
-#### 1. Element-size measurement hook
+#### 1. Delete the Fit model files
 
-**File**: `src/_pages/plan-detail/model/use-element-size.ts` (new)
+**Files**: `src/_pages/plan-detail/model/fit-scale.ts`, `.../fit-scale.test.ts`,
+`.../use-element-size.ts` (all removed).
 
-**Intent**: A reusable `ResizeObserver`-backed hook returning a live size for a ref'd element,
-rAF-throttled so bursts (window resize, palette/shelf toggle, content growth) coalesce. No such hook
-exists in the repo today.
+**Intent**: No measurement, no fit math — nothing consumes them once Fit is gone.
 
-**Contract**: `useElementSize(ref): { width: number; height: number }`. Use `ResizeObserver` **only as
-a change trigger** — do **not** read sizes off the observer's `contentRect` / `borderBoxSize` (whose
-element-level-`zoom` reporting differs from `scrollWidth` and has shifted across Chromium versions).
-Inside the `requestAnimationFrame` callback, read the sizes **directly from the DOM**: `scrollWidth`/
-`scrollHeight` for the content node (the measured extent Phase 3 §3 divides by `appliedZoom`) and
-`clientWidth`/`clientHeight` for the scroll container (available size, outside the zoom target). Schedule
-state updates through `requestAnimationFrame`, and clean up both the observer and any pending frame on
-unmount. Effects live in the hook, not a component body (ui-conventions). **Do not** fall back to
-`contentRect` — the single, pinned source keeps the divide-out in Phase 3 §3 correct.
+#### 2. Collapse `ZoomState` to a `number`
 
-#### 2. Pure fit-scale function
+**File**: `src/_pages/plan-detail/lib/board-zoom.ts` (+ `board-zoom.test.ts`)
 
-**File**: `src/_pages/plan-detail/model/fit-scale.ts` (new)
+**Contract**: `DEFAULT_ZOOM = 1` (a `number`); `readZoom(): number` / `writeZoom(level: number)`;
+`parseZoom(raw): number` returns `DEFAULT_ZOOM` on null/empty/non-finite and clamps into
+`[MIN_ZOOM, MAX_ZOOM]`. Keep `MIN_ZOOM`/`MAX_ZOOM`/`ZOOM_STEP`. Because a primitive `getSnapshot` is
+inherently referentially stable, **drop the Phase-2 snapshot cache** (its only job was to keep an object
+return from looping — React #185). `board-zoom.test.ts` becomes pure `parseZoom` number tests (no jsdom,
+no snapshot-stability test).
 
-**Intent**: The pure, unit-testable fit math, independent of the DOM and of the currently-applied zoom.
+#### 3. Simplify the board wiring
 
-**Contract**: `fitScale({ contentW, contentH, availW, availH, appliedZoom }): number` — divide out the
-applied zoom to recover natural content size (`naturalW = contentW / appliedZoom`, same for H), then
-`clamp(min(availW/naturalW, availH/naturalH), MIN_ZOOM, 1)` (shrink-only: `max = 1`). Guard against
-zero/NaN dimensions (return `1`). Express as declarative `const` composition, not an accumulator loop
-(lessons.md "declarative pipelines").
+**Files**: `src/_pages/plan-detail/ui/PlannerBoard.tsx`, `.../ui/grid/PlannerGrid.tsx`
 
-#### 3. Resolve fit mode in the board
-
-**File**: `src/_pages/plan-detail/ui/PlannerBoard.tsx`
-
-**Intent**: Replace the Phase-2 fit placeholder with the measured scale so fit mode is live and sticky
-across resizes.
-
-**Contract**: Ref the scroll container (`:218`) for available size and the grid content node (the Phase-1
-`zoom` target inside `PlannerGrid`, exposed via a forwarded ref) for content size. Compute
-`const fittedScale = fitScale(...)` **unconditionally** (feeding both measured sizes plus the current
-`effectiveZoom` as `appliedZoom`), then derive `effectiveZoom = zoom.mode === "fit" ? fittedScale :
-zoom.level`. Because fit divides out the applied zoom, `fittedScale` is stable regardless of the current
-level — so it is also the correct value to surface even while in manual mode. Thread `fittedScale` down
-to `BoardSettingsMenu` / `ZoomControl` in Phase 4 (their `fitScale` prop), so grabbing the slider while
-in fit mode starts from the fitted value.
-
-**Stabilize the available-size measurement — add `scrollbar-none` to the scroll container (`:218`).** Fit
-reads the container's `clientWidth`/`clientHeight` as the available size; on classic-scrollbar platforms
-(Windows/Linux) those values *shrink* by the scrollbar width whenever a scrollbar is present, so the
-"fit shrinks → scrollbar disappears → `clientWidth` grows → re-fit larger" cycle can oscillate by ~15px
-(invisible on macOS overlay scrollbars, so it would slip past local verification). Add Tailwind v4.3's
-`scrollbar-none` (`scrollbar-width: none` + hides the WebKit scrollbar; verified available at
-`tailwindcss@4.3.0`) to the `min-h-0 flex-1 overflow-auto` container so the scrollbar's width no longer
-enters `clientWidth`, killing the oscillation source cross-platform. The container still scrolls (wheel /
-trackpad / keyboard / dnd `AutoScroller`). **Tradeoff**: the primary board scroller loses its visible
-scrollbar affordance and drag-to-scroll — accepted here as the chosen fix; revisit with
-`scrollbar-gutter: stable` if the missing scrollbar proves confusing when zoomed in past fit.
+**Contract**: `useZoom()` now returns `{ zoom: number; setZoom: (level: number) => void }`. Pass `zoom`
+straight to `PlannerGrid`'s `zoom` prop. Remove the content/port refs, the `useElementSize`/`fitScale`
+imports and effects, and the `scrollbar-none` class (restore the plain `min-h-0 flex-1 overflow-auto`
+container). Remove the `ref` prop re-added to `PlannerGrid` for measurement. The temporary control stays
+a plain-number slider (`value={zoom}`, `onChange={(e) => setZoom(Number(e.target.value))}`); its Fit
+button is removed.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
-- Unit tests pass: `pnpm test` (new `fit-scale.test.ts`)
+- Unit tests pass: `pnpm test` (`board-zoom.test.ts`, now number-based)
 - Type checking passes: `pnpm check`
 - Linting passes: `pnpm lint`
 - FSD structure check passes: `pnpm steiger`
@@ -366,24 +361,17 @@ scrollbar affordance and drag-to-scroll — accepted here as the chosen fix; rev
 
 #### Manual Verification:
 
-- With fit mode active (set via the temporary control), the whole grid fits the visible port in both
-  focus and combined modes; nothing overflows.
-- Resizing the window (and toggling palette/shelf) re-fits the board smoothly without thrash or
-  oscillation; scrolling / dnd auto-scroll during a drag does **not** trigger a re-fit.
-- Fit never enlarges past 100% (a small plan on a large port stays at 100%, not stretched).
-- A very tall/dense combined plan bottoms out at 25% and scrolls the remainder (MIN_ZOOM clamp).
-- With the scroll container's scrollbar hidden (`scrollbar-none`), both-axis scrolling still works via
-  wheel / trackpad / keyboard, and re-fit no longer oscillates by a scrollbar width (verify on a
-  classic-scrollbar setup if one is available, since macOS overlay scrollbars mask the effect).
+- The manual zoom slider still scales only the grid and persists across reload / syncs across tabs.
+- The scroll container shows its normal scrollbar again and scrolls on both axes.
+- No Fit affordance remains anywhere.
 
-**Implementation Note**: After Phase 3 automated verification passes, pause for human confirmation of
-the fit + resize manual checks before proceeding to Phase 4.
+**Implementation Note**: After Phase 3 automated verification passes, pause for human confirmation of the
+manual checks before proceeding to Phase 4.
 
 ### Tests:
 
-- `src/_pages/plan-detail/model/fit-scale.test.ts` — shrink-only cap at 1 (content smaller than port →
-  1); binds on the tighter of width/height; divides out `appliedZoom` correctly (same result whether
-  measured at zoom 1 or 0.5); clamps to `MIN_ZOOM`; returns 1 on zero/NaN dimensions.
+- `src/_pages/plan-detail/lib/board-zoom.test.ts` — `parseZoom` returns `DEFAULT_ZOOM` on
+  null/empty/non-numeric; clamps out-of-range into `[MIN_ZOOM, MAX_ZOOM]`; round-trips a valid level.
 
 ---
 
@@ -415,17 +403,15 @@ cross-slice primitive, then detokenize the CLI's literal colors.
 
 **File**: `src/_pages/plan-detail/ui/chrome/ZoomControl.tsx` (new)
 
-**Intent**: The Zoom section of the popover — a continuous slider bound to the manual level, a `%`
-readout, and Fit / Reset buttons.
+**Intent**: The Zoom section of the popover — a continuous slider bound to the level, a `%` readout, and
+a Reset button. (Fit removed per the Scope change.)
 
-**Contract**: Props `{ zoom: ZoomState; setZoom: (z: ZoomState) => void; fitScale: number }`. Slider
-`value={[zoom.mode === "manual" ? zoom.level : fitScale]}`, `min={MIN_ZOOM}`, `max={MAX_ZOOM}`,
-`step={ZOOM_STEP}`, `onValueChange={([level]) => setZoom({ mode: "manual", level })}` (grabbing the
-slider switches fit → manual from the computed fitted value). A `tabular-nums` `%` readout of the
-current effective level. `Fit` button → `setZoom({ mode: "fit" })` (lucide `Maximize`/`Scan`); `Reset`
-button → `setZoom({ mode: "manual", level: 1 })` (lucide `RotateCcw`). Root `data-slot="zoom-control"`;
-slider `aria-label="Zoom level"`; every button gets `aria-label` + native `title` (role+name e2e
-contract, `ui-conventions.md:94-100`). Build only from `Button`/`Slider` token-based variants.
+**Contract**: Props `{ zoom: number; setZoom: (level: number) => void }`. Slider `value={[zoom]}`,
+`min={MIN_ZOOM}`, `max={MAX_ZOOM}`, `step={ZOOM_STEP}`, `onValueChange={([level]) => setZoom(level)}`. A
+`tabular-nums` `%` readout of the current level (`Math.round(zoom * 100)%`). `Reset` button →
+`setZoom(1)` (lucide `RotateCcw`). Root `data-slot="zoom-control"`; slider `aria-label="Zoom level"`;
+the Reset button gets `aria-label` + native `title` (role+name e2e contract, `ui-conventions.md:94-100`).
+Build only from `Button`/`Slider` token-based variants.
 
 #### 3. Board settings menu (gear + popover)
 
@@ -434,7 +420,7 @@ contract, `ui-conventions.md:94-100`). Build only from `Button`/`Slider` token-b
 **Intent**: The single board-settings affordance in the top bar — a gear `Button` opening a `Popover`
 that hosts the Zoom section and the relocated drag-hint toggle under two labelled sections.
 
-**Contract**: Props `{ zoom, setZoom, fitScale, hintMode, setHintMode }`. Gear `Button`
+**Contract**: Props `{ zoom, setZoom, hintMode, setHintMode }`. Gear `Button`
 (`variant="ghost" size="icon"`, lucide `Settings`/gear, `aria-label="Board settings"`, native `title`)
 as `PopoverTrigger`; `PopoverContent` with a **Zoom** section (`<ZoomControl … />`) and a **While
 dragging** section (`<DragHintModeToggle mode={hintMode} onChange={setHintMode} />`). Popover keeps the
@@ -448,10 +434,10 @@ default dismiss behavior (stays open during slider drag; closes on outside click
 **Intent**: Wire the real control into the bar and delete the Phase-1 temporary control.
 
 **Contract**: Replace the `PlanSummaryBar` `trailing={<DragHintModeToggle … />}` with
-`trailing={<BoardSettingsMenu zoom={zoom} setZoom={setZoom} fitScale={fitScale} hintMode={hintMode}
-setHintMode={setHintMode} />}`. Remove the `// TEMP: zoom spike` control and its local state. Keep the
-`effectiveZoom` → `PlannerGrid` wiring. `DragHintModeToggle` is no longer rendered directly by the board
-(now nested in the menu) but is still exported for the menu's use.
+`trailing={<BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode}
+/>}`. Remove the `// TEMP: zoom spike` control. Keep the `zoom` → `PlannerGrid` wiring.
+`DragHintModeToggle` is no longer rendered directly by the board (now nested in the menu) but is still
+exported for the menu's use.
 
 ### Success Criteria:
 
@@ -470,12 +456,12 @@ setHintMode={setHintMode} />}`. Remove the `// TEMP: zoom spike` control and its
 
 - The gear button (`⚙`, `aria-label="Board settings"`) appears in the top bar; the old inline drag-hint
   toggle no longer sits directly in the bar.
-- Opening the popover shows the Zoom slider (25–150%, 5% steps) with a live `%` readout and Fit / Reset
-  buttons, plus the **While dragging** collision-emphasis toggle unchanged in behavior.
-- Dragging the slider scales only the grid; Fit fits the board; Reset returns to 100%; the collision
-  toggle still changes drag-hint encoding.
+- Opening the popover shows the Zoom slider (25–150%, 5% steps) with a live `%` readout and a Reset
+  button, plus the **While dragging** collision-emphasis toggle unchanged in behavior.
+- Dragging the slider scales only the grid; Reset returns to 100%; the collision toggle still changes
+  drag-hint encoding.
 - The popover stays open during a slider drag and closes on outside-click / Escape.
-- Slider, Fit, Reset, and gear are all reachable by keyboard and expose accessible names.
+- Slider, Reset, and gear are all reachable by keyboard and expose accessible names.
 - No literal/palette colors in the slider render (light + dark themes both correct).
 
 **Implementation Note**: After Phase 4 automated verification passes, pause for human confirmation of
@@ -487,9 +473,9 @@ the full popover UX + theming before closing the change.
 
 ### Unit Tests:
 
-- `board-zoom.test.ts` — `parseZoom` default/clamp/round-trip behavior (Phase 2).
-- `fit-scale.test.ts` — shrink-only cap, tighter-dimension binding, `appliedZoom` division, MIN_ZOOM
-  clamp, zero/NaN guard (Phase 3).
+- `board-zoom.test.ts` — `parseZoom` default/clamp/round-trip behavior on a plain number level
+  (Phase 2, simplified in Phase 3). (Fit-to-Scale and its `fit-scale.test.ts` were cut — see the Scope
+  change.)
 
 ### Integration Tests:
 
@@ -575,34 +561,33 @@ the full popover UX + theming before closing the change.
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `pnpm test` (`board-zoom.test.ts`)
-- [x] 2.2 Type checking passes: `pnpm check`
-- [x] 2.3 Linting passes: `pnpm lint`
-- [x] 2.4 FSD structure check passes: `pnpm steiger`
-- [x] 2.5 Build stays clean: `pnpm build`
+- [x] 2.1 Unit tests pass: `pnpm test` (`board-zoom.test.ts`) — eaf3b6b
+- [x] 2.2 Type checking passes: `pnpm check` — eaf3b6b
+- [x] 2.3 Linting passes: `pnpm lint` — eaf3b6b
+- [x] 2.4 FSD structure check passes: `pnpm steiger` — eaf3b6b
+- [x] 2.5 Build stays clean: `pnpm build` — eaf3b6b
 
 #### Manual
 
-- [x] 2.6 A manual zoom persists across a page reload
-- [x] 2.7 A zoom change syncs across tabs (cross-tab `storage`)
-- [x] 2.8 Storage-blocked (private mode) degrades to default without crashing
+- [x] 2.6 A manual zoom persists across a page reload — eaf3b6b
+- [x] 2.7 A zoom change syncs across tabs (cross-tab `storage`) — eaf3b6b
+- [x] 2.8 Storage-blocked (private mode) degrades to default without crashing — eaf3b6b
 
-### Phase 3: Fit-to-Scale
+### Phase 3: Remove Fit + Simplify Zoom State
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `pnpm test` (`fit-scale.test.ts`)
-- [ ] 3.2 Type checking passes: `pnpm check`
-- [ ] 3.3 Linting passes: `pnpm lint`
-- [ ] 3.4 FSD structure check passes: `pnpm steiger`
-- [ ] 3.5 Build stays clean: `pnpm build`
+- [x] 3.1 Unit tests pass: `pnpm test` (`board-zoom.test.ts`, number-based)
+- [x] 3.2 Type checking passes: `pnpm check`
+- [x] 3.3 Linting passes: `pnpm lint`
+- [x] 3.4 FSD structure check passes: `pnpm steiger`
+- [x] 3.5 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.6 Fit fits the whole grid in focus + combined; nothing overflows
-- [ ] 3.7 Re-fits smoothly on window resize / panel toggle; no re-fit on scroll / auto-scroll
-- [ ] 3.8 Fit never enlarges past 100%; bottoms out at 25% for a very tall plan
-- [ ] 3.9 `scrollbar-none` container still scrolls (wheel/trackpad/keyboard); no scrollbar-width fit oscillation
+- [x] 3.6 Manual slider still scales only the grid; persists across reload / syncs across tabs
+- [x] 3.7 Scroll container shows its normal scrollbar again; scrolls on both axes
+- [x] 3.8 No Fit affordance remains anywhere (fit code fully reverted)
 
 ### Phase 4: Board Settings Popover + Cleanup
 
@@ -618,10 +603,10 @@ the full popover UX + theming before closing the change.
 #### Manual
 
 - [ ] 4.7 Gear button appears; old inline drag-hint toggle removed from the bar
-- [ ] 4.8 Popover shows Zoom slider (25–150%, 5% step) + `%` readout + Fit/Reset + relocated toggle
-- [ ] 4.9 Slider scales only the grid; Fit fits; Reset → 100%; collision toggle still works
+- [ ] 4.8 Popover shows Zoom slider (25–150%, 5% step) + `%` readout + Reset + relocated toggle
+- [ ] 4.9 Slider scales only the grid; Reset → 100%; collision toggle still works
 - [ ] 4.10 Popover stays open during slider drag; closes on outside-click / Escape
-- [ ] 4.11 Slider/Fit/Reset/gear keyboard-reachable with accessible names
+- [ ] 4.11 Slider/Reset/gear keyboard-reachable with accessible names
 - [ ] 4.12 No literal/palette colors in the slider render (light + dark correct)
 
 #### E2E

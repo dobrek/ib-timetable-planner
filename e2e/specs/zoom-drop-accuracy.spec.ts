@@ -43,6 +43,9 @@ test.describe("drop accuracy under board zoom", () => {
     await page.getByRole("button", { name: "Board settings" }).click();
     const slider = page.getByRole("slider", { name: "Zoom level" });
     await slider.focus();
+    // The 10× ArrowLeft arithmetic (1.0 → 0.5) is only valid from a 100% start — assert the
+    // precondition so a future path that persists zoom into storageState fails loudly here, not silently.
+    await expect(slider).toHaveAttribute("aria-valuenow", "1");
     for (let i = 0; i < 10; i++) await slider.press("ArrowLeft");
     await expect(slider).toHaveAttribute("aria-valuenow", "0.5");
     await page.keyboard.press("Escape"); // close the popover so it can't intercept the drag

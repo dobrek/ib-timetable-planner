@@ -57,16 +57,6 @@ export default function CourseCatalog({ planId, courses: initialCourses, teacher
           selectedIds={filters.selectedTeacherIds}
           onChange={filters.setSelectedTeacherIds}
         />
-        <Button
-          variant={filters.hideMerged ? "default" : "outline"}
-          size="sm"
-          aria-pressed={filters.hideMerged}
-          onClick={() => {
-            filters.setHideMerged(!filters.hideMerged);
-          }}
-        >
-          Hide merged
-        </Button>
       </div>
 
       <Tabs
@@ -84,7 +74,7 @@ export default function CourseCatalog({ planId, courses: initialCourses, teacher
         </TabsList>
 
         {COHORTS.map((cohort) => {
-          const rows = filterCourses(courses, cohort.value, filters.selectedTeacherIds, filters.hideMerged);
+          const rows = filterCourses(courses, cohort.value, filters.selectedTeacherIds);
           return (
             <TabsContent key={cohort.value} value={cohort.value}>
               <CourseTable

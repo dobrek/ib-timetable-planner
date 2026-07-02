@@ -81,7 +81,7 @@ export default function TeacherTable({
 
             return (
               <TableRow key={row.id}>
-                <TableCell className="font-medium">
+                <TableCell>
                   <span className="flex items-center gap-2">
                     {row.code}
                     <AvailabilityBadge row={row} onEditAvailability={onEditAvailability} />

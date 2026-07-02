@@ -41,7 +41,7 @@ export default function PaletteBody({ groupings, courseDisplay, hours }: Props) 
   } = usePaletteFilter(sortedGroupings, courseDisplay);
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col gap-6">
       <div className="shrink-0">
         <GroupingFilter
           groupings={groupings}
@@ -53,7 +53,7 @@ export default function PaletteBody({ groupings, courseDisplay, hours }: Props) 
           companionOptions={companionOptions}
         />
       </div>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="flex min-h-0 flex-1 scrollbar-none flex-col gap-2 overflow-y-auto">
         {leadingCourseId !== null && (
           <PromotedCourseChip courseId={leadingCourseId} courseDisplay={courseDisplay} hours={hours} />
         )}
@@ -61,7 +61,7 @@ export default function PaletteBody({ groupings, courseDisplay, hours }: Props) 
           <GroupingBox key={grouping.id} grouping={grouping} courseDisplay={courseDisplay} hours={hours} />
         ))}
       </div>
-    </>
+    </div>
   );
 }
 

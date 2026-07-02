@@ -9,8 +9,6 @@ export type CatalogFilterState = {
   setActiveCohort: (cohort: Cohort) => void;
   selectedTeacherIds: string[];
   setSelectedTeacherIds: (ids: string[]) => void;
-  hideMerged: boolean;
-  setHideMerged: (value: boolean) => void;
 };
 
 /** Owns catalog filter state; URL seeding/mirroring lives in the shared hook. */
@@ -30,10 +28,6 @@ export function useCatalogFilters(teachers: readonly TeacherOption[]): CatalogFi
     selectedTeacherIds: state.teacherIds,
     setSelectedTeacherIds: (ids) => {
       setState((current) => ({ ...current, teacherIds: ids }));
-    },
-    hideMerged: state.hideMerged,
-    setHideMerged: (value) => {
-      setState((current) => ({ ...current, hideMerged: value }));
     },
   };
 }

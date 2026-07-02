@@ -63,7 +63,7 @@ export default function GroupingFilter({
   return (
     <div className="flex flex-col gap-1 text-sm" data-slot="grouping-filter">
       <div className="flex items-center gap-1">
-        <span className="text-muted-foreground font-medium">Leading course</span>
+        <span className="text-muted-foreground text-xs">Leading course</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="ml-auto size-7" aria-label="Sort order">
@@ -101,7 +101,7 @@ export default function GroupingFilter({
           ))}
         </SelectContent>
       </Select>
-      <span className="text-muted-foreground mt-1 font-medium">Companion course</span>
+      <span className="text-muted-foreground mt-1 text-xs">Companion course</span>
       <Select
         value={companionValue ?? ANY_COMPANION}
         onValueChange={(next) => {

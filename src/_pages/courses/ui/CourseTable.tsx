@@ -48,7 +48,7 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className="font-medium">
+              <TableCell>
                 <span className="flex flex-wrap items-center gap-2">
                   <CourseColorDot color={row.color} />
                   {row.name}

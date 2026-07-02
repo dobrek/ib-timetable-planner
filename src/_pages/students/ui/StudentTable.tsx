@@ -55,7 +55,7 @@ export default function StudentTable({ rows, totalCount, coursesById, onEdit, on
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className="font-medium">{row.fullName}</TableCell>
+              <TableCell>{row.fullName}</TableCell>
               <TableCell>
                 <ChoiceBadges choiceCourseIds={row.choiceCourseIds} coursesById={coursesById} />
               </TableCell>

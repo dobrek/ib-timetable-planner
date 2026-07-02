@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { COHORTS } from "@/shared/config";
-import { Button, Input, Toaster } from "@/shared/ui";
+import { Button, Input, Tabs, TabsList, TabsTrigger, Toaster } from "@/shared/ui";
 import { filterTeachers, type CohortFilter } from "../model/filter-teachers";
 import { useCatalogDialogs } from "../model/use-catalog-dialogs";
 import { useCatalogFilters } from "../model/use-catalog-filters";
@@ -57,21 +57,20 @@ export default function TeacherCatalog({ planId, teachers, days, periods }: Prop
           className="max-w-sm"
           aria-label="Search teachers"
         />
-        <div className="flex items-center gap-1" role="group" aria-label="Filter by cohort">
-          {cohortOptions.map((option) => (
-            <Button
-              key={option.value}
-              variant={filters.cohort === option.value ? "default" : "outline"}
-              size="sm"
-              aria-pressed={filters.cohort === option.value}
-              onClick={() => {
-                filters.setCohort(option.value);
-              }}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
+        <Tabs
+          value={filters.cohort}
+          onValueChange={(value) => {
+            filters.setCohort(value as CohortFilter);
+          }}
+        >
+          <TabsList>
+            {cohortOptions.map((cohort) => (
+              <TabsTrigger key={cohort.value} value={cohort.value}>
+                {cohort.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       <TeacherTable

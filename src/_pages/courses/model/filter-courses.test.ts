@@ -49,15 +49,9 @@ describe("filterCourses", () => {
     expect(filterCourses(coTaught, "dp1", ["t9"]).map((r) => r.id)).toEqual([]);
   });
 
-  it("drops merged courses when hideMerged is set", () => {
-    const withMerged: CourseRow[] = [...courses, { ...row("e", "dp1", ["t1"]), isMerged: true }];
-    expect(filterCourses(withMerged, "dp1", [], true).map((r) => r.id)).toEqual(["a", "b", "d"]);
-    expect(filterCourses(withMerged, "dp1", [], false).map((r) => r.id)).toEqual(["a", "b", "d", "e"]);
-  });
-
   it("does not mutate its inputs", () => {
     const snapshot = JSON.stringify(courses);
-    filterCourses(courses, "dp1", ["t1"], true);
+    filterCourses(courses, "dp1", ["t1"]);
     expect(JSON.stringify(courses)).toBe(snapshot);
   });
 });

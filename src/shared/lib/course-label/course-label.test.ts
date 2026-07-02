@@ -3,7 +3,7 @@ import { formatCourseBadgeLabel, formatCourseRowBadgeLabel } from "./course-labe
 
 describe("formatCourseBadgeLabel", () => {
   it("includes the level and circled group-index suffix", () => {
-    expect(formatCourseBadgeLabel({ name: "Math", level: "HL", groupIndex: 2 })).toBe("Math HL②");
+    expect(formatCourseBadgeLabel({ name: "Math", level: "HL", groupIndex: 2 })).toBe("Math HL ②");
   });
 
   it("omits the level when 'none' and the suffix when groupIndex is 0", () => {
@@ -17,6 +17,6 @@ describe("formatCourseBadgeLabel", () => {
 
 describe("formatCourseRowBadgeLabel", () => {
   it("bridges a snake_case catalog row to the label", () => {
-    expect(formatCourseRowBadgeLabel({ name: "Bio", level: "HL", group_index: 1 })).toBe("Bio HL①");
+    expect(formatCourseRowBadgeLabel({ name: "Bio", level: "HL", group_index: 1 })).toBe("Bio HL ①");
   });
 });

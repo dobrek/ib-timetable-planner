@@ -1,10 +1,10 @@
 ---
 change_id: courses-left-info
 title: Courses left info
-status: impl_reviewed
+status: archived
 created: 2026-07-01
 updated: 2026-07-02
-archived_at: null
+archived_at: 2026-07-02T11:18:22Z
 ---
 
 ## Notes

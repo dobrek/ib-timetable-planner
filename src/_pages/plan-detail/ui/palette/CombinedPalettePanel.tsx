@@ -92,7 +92,15 @@ export default function CombinedPalettePanel({
       }
     >
       {view === "ready" ? (
-        <PaletteBody groupings={active.groupings} courseDisplay={active.courseDisplay} hours={active.hours} />
+        // Key by cohort so a cohort switch remounts PaletteBody, resetting its palette filter
+        // (leading + companion) to a clean slate — a selection from one cohort never lingers,
+        // possibly stale, into the other. Focus mode has a single fixed cohort → no remount.
+        <PaletteBody
+          key={activeCohort}
+          groupings={active.groupings}
+          courseDisplay={active.courseDisplay}
+          hours={active.hours}
+        />
       ) : view === "stale" ? (
         <GroupingStalePanel planId={active.planId} cohort={active.cohort} />
       ) : (

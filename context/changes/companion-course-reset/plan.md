@@ -216,30 +216,30 @@ None — no schema, data, or persisted-state changes.
 
 #### Automated
 
-- [x] 1.1 Type checking passes: `pnpm check`
-- [x] 1.2 Unit + hook/RTL tests pass: `pnpm test`
-- [x] 1.3 Linting passes: `pnpm lint`
-- [x] 1.4 FSD structure check passes: `pnpm steiger`
-- [x] 1.5 Production build stays clean: `pnpm build`
+- [x] 1.1 Type checking passes: `pnpm check` — 2b68d05
+- [x] 1.2 Unit + hook/RTL tests pass: `pnpm test` — 2b68d05
+- [x] 1.3 Linting passes: `pnpm lint` — 2b68d05
+- [x] 1.4 FSD structure check passes: `pnpm steiger` — 2b68d05
+- [x] 1.5 Production build stays clean: `pnpm build` — 2b68d05
 
 #### Manual
 
-- [x] 1.6 Changing to a leading course where the old companion still co-occurs resets the companion to "Any companion"
-- [x] 1.7 Clearing the leading course resets and disables the companion
-- [x] 1.8 No regression to the leading filter, sort toggle, promoted chip, or palette drag-and-drop
+- [x] 1.6 Changing to a leading course where the old companion still co-occurs resets the companion to "Any companion" — 2b68d05
+- [x] 1.7 Clearing the leading course resets and disables the companion — 2b68d05
+- [x] 1.8 No regression to the leading filter, sort toggle, promoted chip, or palette drag-and-drop — 2b68d05
 
 ### Phase 2: Reset the whole filter on cohort switch
 
 #### Automated
 
-- [ ] 2.1 Type checking passes: `pnpm check`
-- [ ] 2.2 Unit + hook/RTL tests pass: `pnpm test`
-- [ ] 2.3 Linting passes: `pnpm lint`
-- [ ] 2.4 FSD structure check passes: `pnpm steiger`
-- [ ] 2.5 Production build stays clean: `pnpm build`
+- [x] 2.1 Type checking passes: `pnpm check`
+- [x] 2.2 Unit + hook/RTL tests pass: `pnpm test`
+- [x] 2.3 Linting passes: `pnpm lint`
+- [x] 2.4 FSD structure check passes: `pnpm steiger`
+- [x] 2.5 Production build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.6 Switching cohort clears both leading and companion; switching back stays cleared
-- [ ] 2.7 Focus mode shows no behavior change and no spurious remounts
-- [ ] 2.8 Cohort selection still persists across a recompute refresh (cookie untouched)
+- [x] 2.6 Switching cohort clears both leading and companion; switching back stays cleared
+- [x] 2.7 Focus mode shows no behavior change and no spurious remounts
+- [x] 2.8 Cohort selection still persists across a recompute refresh (cookie untouched)

@@ -1,8 +1,10 @@
 import { DragDropProvider } from "@dnd-kit/react";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { Cohort } from "@/shared/config";
 import GroupingFilter from "./GroupingFilter";
-import CombinedPalettePanel, { usePaletteFilter } from "./CombinedPalettePanel";
+import CombinedPalettePanel, { usePaletteFilter, type PaletteCohortData } from "./CombinedPalettePanel";
 
 // CombinedPalettePanel imports GroupingStalePanel (the stale body), which deep-imports
 // `@/shared/lib/forms` → `astro:transitions/client` — an astro virtual module Vitest can't resolve.
@@ -256,5 +258,60 @@ describe("CombinedPalettePanel collapse disclosure (single cohort, no toolbar)",
     fireEvent.keyDown(leading, { key: "Enter" });
     fireEvent.click(screen.getByRole("option", { name: "Alpha (2)" }));
     expect(paletteCount()).toBe("3");
+  });
+});
+
+describe("CombinedPalettePanel cohort switch (two ready cohorts, with toolbar)", () => {
+  const readyCohort = (cohort: Cohort): PaletteCohortData => ({
+    cohort,
+    planId: `plan-${cohort}`,
+    groupings: GROUPINGS,
+    courseDisplay: NAMES,
+    hours: new Map<string, HoursStat>(),
+    stale: false,
+  });
+
+  // `activeCohort` is a controlled prop and the cohort tab's onValueChange only calls
+  // onActiveCohortChange — it does not mutate activeCohort itself. So the harness lifts the active
+  // cohort into state and feeds it back; without this, key={activeCohort} never changes, PaletteBody
+  // never remounts, and the reset assertion would falsely fail.
+  function Harness() {
+    const [cohort, setCohort] = useState<Cohort>("dp1");
+    return (
+      <DragDropProvider>
+        <CombinedPalettePanel
+          cohorts={[readyCohort("dp1"), readyCohort("dp2")]}
+          activeCohort={cohort}
+          onActiveCohortChange={setCohort}
+          collapsed={false}
+          onCollapsedChange={vi.fn()}
+        />
+      </DragDropProvider>
+    );
+  }
+
+  it("switching cohort remounts the palette and clears both the leading and companion selects", () => {
+    render(<Harness />);
+    const leading = screen.getByRole("combobox", { name: "Leading course" });
+    const companion = screen.getByRole("combobox", { name: "Companion course" });
+
+    // In dp1, pick leading Alpha then companion Beta.
+    fireEvent.keyDown(leading, { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Alpha (2)" }));
+    fireEvent.keyDown(companion, { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Beta (1)" }));
+    expect(leading).toHaveTextContent("Alpha (2)");
+    expect(companion).toHaveTextContent("Beta (1)");
+
+    // Switch to dp2 → PaletteBody remounts, both selects reset to their cleared labels. Radix Tabs
+    // selects on mousedown (button 0), not on a bare click event, so drive it with mouseDown.
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "DP2" }));
+    expect(screen.getByRole("combobox", { name: "Leading course" })).toHaveTextContent("All groupings");
+    expect(screen.getByRole("combobox", { name: "Companion course" })).toHaveTextContent("Any companion");
+
+    // Switch back to dp1 → a fresh mount, not the old selection, so it is still cleared.
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "DP1" }));
+    expect(screen.getByRole("combobox", { name: "Leading course" })).toHaveTextContent("All groupings");
+    expect(screen.getByRole("combobox", { name: "Companion course" })).toHaveTextContent("Any companion");
   });
 });

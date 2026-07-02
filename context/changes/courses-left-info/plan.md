@@ -273,17 +273,17 @@ No data migration. Pure display change. The `data-incomplete` test hook is repla
 
 #### Automated
 
-- [x] 2.1 Type checking + lint pass (`pnpm check` + `pnpm lint`)
-- [x] 2.2 FSD structure check passes (`pnpm steiger`)
-- [x] 2.3 Unit tests pass (`pnpm test`)
-- [x] 2.4 Production build stays clean (`pnpm build`)
-- [x] 2.5 E2E suite passes (`pnpm test:e2e`)
+- [x] 2.1 Type checking + lint pass (`pnpm check` + `pnpm lint`) — e3da15a
+- [x] 2.2 FSD structure check passes (`pnpm steiger`) — e3da15a
+- [x] 2.3 Unit tests pass (`pnpm test`) — e3da15a
+- [x] 2.4 Production build stays clean (`pnpm build`) — e3da15a
+- [x] 2.5 E2E suite passes (`pnpm test:e2e`) — e3da15a
 
 #### Manual
 
-- [x] 2.6 Bar reads "N hours left to place"; over-placing adds "· M over" (warning); Math+English case is non-cancelling
-- [x] 2.7 Popover lists correct Missing/Over-placed courses with counters, subtotals, largest-gap-first
-- [x] 2.8 Combined shows DP1/DP2 subheaders; focus shows one cohort, no subheader
-- [x] 2.9 "All course hours placed" is plain/non-clickable; "All hours placed · M over" stays clickable to the Over section
-- [x] 2.10 Semantic tokens verified light/dark; slim-bar layout intact
-- [x] 2.11 Keyboard: trigger focusable + operable; popover closes on Escape / outside click
+- [x] 2.6 Bar reads "N hours left to place"; over-placing adds "· M over" (warning); Math+English case is non-cancelling — e3da15a
+- [x] 2.7 Popover lists correct Missing/Over-placed courses with counters, subtotals, largest-gap-first — e3da15a
+- [x] 2.8 Combined shows DP1/DP2 subheaders; focus shows one cohort, no subheader — e3da15a
+- [x] 2.9 "All course hours placed" is plain/non-clickable; "All hours placed · M over" stays clickable to the Over section — e3da15a
+- [x] 2.10 Semantic tokens verified light/dark; slim-bar layout intact — e3da15a
+- [x] 2.11 Keyboard: trigger focusable + operable; popover closes on Escape / outside click — e3da15a

@@ -1,7 +1,7 @@
 ---
 change_id: courses-left-info
 title: Courses left info
-status: implementing
+status: implemented
 created: 2026-07-01
 updated: 2026-07-02
 archived_at: null

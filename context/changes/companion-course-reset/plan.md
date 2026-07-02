@@ -232,14 +232,14 @@ None — no schema, data, or persisted-state changes.
 
 #### Automated
 
-- [x] 2.1 Type checking passes: `pnpm check`
-- [x] 2.2 Unit + hook/RTL tests pass: `pnpm test`
-- [x] 2.3 Linting passes: `pnpm lint`
-- [x] 2.4 FSD structure check passes: `pnpm steiger`
-- [x] 2.5 Production build stays clean: `pnpm build`
+- [x] 2.1 Type checking passes: `pnpm check` — 692917c
+- [x] 2.2 Unit + hook/RTL tests pass: `pnpm test` — 692917c
+- [x] 2.3 Linting passes: `pnpm lint` — 692917c
+- [x] 2.4 FSD structure check passes: `pnpm steiger` — 692917c
+- [x] 2.5 Production build stays clean: `pnpm build` — 692917c
 
 #### Manual
 
-- [x] 2.6 Switching cohort clears both leading and companion; switching back stays cleared
-- [x] 2.7 Focus mode shows no behavior change and no spurious remounts
-- [x] 2.8 Cohort selection still persists across a recompute refresh (cookie untouched)
+- [x] 2.6 Switching cohort clears both leading and companion; switching back stays cleared — 692917c
+- [x] 2.7 Focus mode shows no behavior change and no spurious remounts — 692917c
+- [x] 2.8 Cohort selection still persists across a recompute refresh (cookie untouched) — 692917c

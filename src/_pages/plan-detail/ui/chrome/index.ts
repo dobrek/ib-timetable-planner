@@ -14,5 +14,11 @@ export {
   type CoursesLeftRow,
   type CoursesLeftSummary,
 } from "./courses-left-summary";
-export { useHintMode, usePaletteDisclosure, useShelfDisclosure, useZoom } from "./board-disclosure";
+export {
+  useHintMode,
+  usePaletteCohortSelection,
+  usePaletteDisclosure,
+  useShelfDisclosure,
+  useZoom,
+} from "./board-disclosure";
 export { inspectedViolations, inspectedWeeks, useCollisionInspection } from "./board-inspection";

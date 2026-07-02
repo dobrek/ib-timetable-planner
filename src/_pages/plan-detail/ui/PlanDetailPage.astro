@@ -2,6 +2,7 @@
 import PlannerBoard from "./PlannerBoard";
 import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
 import type { BoardSurface } from "../lib/board-surface";
+import type { Cohort } from "@/shared/config";
 
 type Props = {
   planName: string;
@@ -10,9 +11,10 @@ type Props = {
   dp1: PlannerBoardProps;
   dp2: PlannerBoardProps;
   paletteCollapsed: boolean;
+  initialPaletteCohort: Cohort;
 };
 
-const { planName, focus, shared, dp1, dp2, paletteCollapsed } = Astro.props;
+const { planName, focus, shared, dp1, dp2, paletteCollapsed, initialPaletteCohort } = Astro.props;
 ---
 
 <div class="flex h-full min-h-0 flex-1 flex-col">
@@ -23,6 +25,7 @@ const { planName, focus, shared, dp1, dp2, paletteCollapsed } = Astro.props;
     dp1={dp1}
     dp2={dp2}
     paletteCollapsed={paletteCollapsed}
+    initialPaletteCohort={initialPaletteCohort}
     client:load
   />
 </div>

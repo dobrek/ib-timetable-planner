@@ -6,6 +6,7 @@ import { createClient } from "@/shared/api";
 import { loadCombinedPlannerData } from "@/_pages/plan-detail/api";
 import { boardSurfaceSchema } from "@/_pages/plan-detail/lib/board-surface";
 import { COOKIE_NAME, parsePaletteCollapsed } from "@/_pages/plan-detail/lib/palette-collapsed";
+import { COOKIE_NAME as PALETTE_COHORT_COOKIE, parsePaletteCohort } from "@/_pages/plan-detail/lib/palette-cohort";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 // `?focus=` selects the surface — dp1 / dp2 / combined; missing/garbage coerces to combined (the
@@ -17,6 +18,9 @@ if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 
 // Read the per-device palette-collapse pref server-side so the island can seed flash-free
 // initial state (a client-only read would render expanded for one frame then snap shut).
 const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.value);
+// Same rationale for the combined-mode palette cohort: seeding from the cookie keeps the selection
+// across the full-document refresh a stale-grouping recompute triggers (else it snaps back to dp1).
+const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT_COOKIE)?.value);
 ---
 
 {
@@ -33,6 +37,7 @@ const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.v
         dp1={result.value.dp1}
         dp2={result.value.dp2}
         paletteCollapsed={paletteCollapsed}
+        initialPaletteCohort={initialPaletteCohort}
       />
     </SidebarLayout>
   ) : (

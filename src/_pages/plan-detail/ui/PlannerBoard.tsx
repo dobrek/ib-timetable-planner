@@ -11,6 +11,7 @@ import {
   inspectedViolations,
   inspectedWeeks,
   useHintMode,
+  usePaletteCohortSelection,
   usePaletteDisclosure,
   useShelfDisclosure,
   useZoom,
@@ -37,6 +38,8 @@ type Props = {
   dp1: PlannerBoardProps;
   dp2: PlannerBoardProps;
   paletteCollapsed: boolean;
+  /** SSR seed (from cookie) for the combined-mode palette cohort, so a recompute refresh keeps it. */
+  initialPaletteCohort: Cohort;
 };
 
 /**
@@ -55,6 +58,7 @@ export default function PlannerBoard({
   dp1: dp1Props,
   dp2: dp2Props,
   paletteCollapsed,
+  initialPaletteCohort,
 }: Props) {
   const { planId, days, periods } = shared;
   const { dp1, dp2, history } = useCombinedBoardState(shared, dp1Props, dp2Props, focus);
@@ -67,7 +71,7 @@ export default function PlannerBoard({
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
   const { collapsed: paletteCollapsedState, setCollapsed: setPaletteCollapsed } =
     usePaletteDisclosure(paletteCollapsed);
-  const [paletteCohort, setPaletteCohort] = useState<Cohort>("dp1");
+  const { paletteCohort, setPaletteCohort } = usePaletteCohortSelection(initialPaletteCohort);
   const [activeDragCohort, setActiveDragCohort] = useState<Cohort | null>(null);
 
   // Per-device manual zoom (a plain number, 1 = 100%), persisted and cross-tab-synced via `useZoom`.

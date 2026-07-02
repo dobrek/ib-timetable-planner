@@ -1,6 +1,8 @@
 import { useState, useSyncExternalStore } from "react";
+import type { Cohort } from "@/shared/config";
 import { DEFAULT_ZOOM, readZoom, subscribeZoom, writeZoom } from "../../lib/board-zoom";
 import { DEFAULT_HINT_MODE, readHintMode, subscribeHintMode, writeHintMode } from "../../lib/drag-hint-mode";
+import { writePaletteCohort } from "../../lib/palette-cohort";
 import { writePaletteCollapsed } from "../../lib/palette-collapsed";
 import { DEFAULT_SHELF_PINNED, readShelfPinned, subscribeShelfPinned, writeShelfPinned } from "../../lib/shelf-pinned";
 
@@ -61,6 +63,22 @@ export function usePaletteDisclosure(initialCollapsed: boolean) {
     setCollapsed: (next: boolean) => {
       setCollapsed(next);
       writePaletteCollapsed(next);
+    },
+  };
+}
+
+// Owns the combined-board palette's cohort selection. Seeded from the SSR `initialPaletteCohort`
+// prop (read from the cookie server-side) so a stale-grouping recompute — which forces a full-
+// document refresh that remounts the island — comes back on the same cohort instead of snapping to
+// dp1. The switcher writes the cookie so the choice survives that reload. Mirror of
+// `usePaletteDisclosure`; only wired (and thus only written) in combined mode.
+export function usePaletteCohortSelection(initialCohort: Cohort) {
+  const [paletteCohort, setPaletteCohort] = useState<Cohort>(initialCohort);
+  return {
+    paletteCohort,
+    setPaletteCohort: (next: Cohort) => {
+      setPaletteCohort(next);
+      writePaletteCohort(next);
     },
   };
 }

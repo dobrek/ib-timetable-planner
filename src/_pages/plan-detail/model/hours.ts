@@ -24,15 +24,33 @@ export const deriveHours = (placements: PlannerPlacement[], catalog: GroupingCou
   return stats;
 };
 
+/** A course's identity plus its placed/required hours — no display concern (resolved at the edge). */
+export type CourseHours = { courseId: string; placed: number; required: number };
+
+/** Courses still needing board hours (placed < required): the "Missing" set for the top-bar breakdown. */
+export const deriveUnplaced = (stats: Map<string, HoursStat>): CourseHours[] =>
+  [...stats]
+    .filter(([, { placed, required }]) => placed < required)
+    .map(([courseId, { placed, required }]) => ({ courseId, placed, required }));
+
 /**
- * Plan-wide rollup: how many courses still need hours (placed < required). A course is
- * "complete" once its required hours are placed; 0-hour merge-children (required 0) are
- * complete from the start and never counted. Over-placed courses count as complete.
+ * Courses with too many board hours (placed > required): the "Over-placed" set. The `required > 0`
+ * guard is load-bearing — a 0-hour merge-child stays in the catalog as a placeable course, so a
+ * dropped one reads as `{ placed: 1, required: 0 }`; without the guard `placed > required` would
+ * flag it. A required-0 course is never "over-placed" by design.
  */
-export const countIncompleteCourses = (stats: Map<string, HoursStat>): number => {
-  let incomplete = 0;
-  for (const { placed, required } of stats.values()) {
-    if (placed < required) incomplete += 1;
-  }
-  return incomplete;
-};
+export const deriveOverplaced = (stats: Map<string, HoursStat>): CourseHours[] =>
+  [...stats]
+    .filter(([, { placed, required }]) => placed > required && required > 0)
+    .map(([courseId, { placed, required }]) => ({ courseId, placed, required }));
+
+/**
+ * The two independent clamped hour totals the bar headline needs. Computed per course and summed
+ * separately — never netted: over-placement on one course must not cancel a deficit on another
+ * (Math 4/2 + English 0/2 reads "2 left · 2 over", not zero). `hoursOver` reuses the guarded
+ * over-placed set, so 0-hour merge-children contribute nothing.
+ */
+export const summarizeHours = (stats: Map<string, HoursStat>): { hoursLeft: number; hoursOver: number } => ({
+  hoursLeft: deriveUnplaced(stats).reduce((sum, { placed, required }) => sum + (required - placed), 0),
+  hoursOver: deriveOverplaced(stats).reduce((sum, { placed, required }) => sum + (placed - required), 0),
+});

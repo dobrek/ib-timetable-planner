@@ -188,7 +188,7 @@ function useCohortDerivations(
 ) {
   const placements = base.api.placements;
   const collisions = useCollisions(placements, base.catalogById, base.availabilityIndex, freshIndex);
-  const { hours, incompleteCount } = useHours(placements, props.catalog);
+  const { hours, unplaced, overplaced, hoursLeft, hoursOver } = useHours(placements, props.catalog);
   const { dropHints, startDragHints, clearDragHints } = useDragHints(
     base.catalogById,
     placements,
@@ -201,7 +201,10 @@ function useCohortDerivations(
   return {
     collisions,
     hours,
-    incompleteCount,
+    unplaced,
+    overplaced,
+    hoursLeft,
+    hoursOver,
     dropHints,
     startDragHints,
     clearDragHints,
@@ -223,7 +226,10 @@ const toCohortState = (
   courseDisplay: props.courseDisplay,
   stale: props.stale,
   hours: deriv.hours,
-  incompleteCount: deriv.incompleteCount,
+  unplaced: deriv.unplaced,
+  overplaced: deriv.overplaced,
+  hoursLeft: deriv.hoursLeft,
+  hoursOver: deriv.hoursOver,
   placements: base.api.placements,
   parkedBundles: base.api.parkedBundles,
   collisions: deriv.collisions,

@@ -5,7 +5,7 @@ import { deriveCellViolations, type CellCollisions } from "./collision/collision
 import type { CellData, DragData, SharedBoardProps } from "./drag";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
-import { countIncompleteCourses, deriveHours } from "./hours";
+import { deriveHours, deriveOverplaced, deriveUnplaced, summarizeHours } from "./hours";
 import type { LocalPlacement } from "./placement/placement";
 
 /**
@@ -67,8 +67,10 @@ export function useDragHints(
 
 export function useHours(placements: LocalPlacement[], catalog: GroupingCourse[]) {
   const hours = useMemo(() => deriveHours(placements, catalog), [placements, catalog]);
-  const incompleteCount = useMemo(() => countIncompleteCourses(hours), [hours]);
-  return { hours, incompleteCount };
+  const unplaced = useMemo(() => deriveUnplaced(hours), [hours]);
+  const overplaced = useMemo(() => deriveOverplaced(hours), [hours]);
+  const { hoursLeft, hoursOver } = useMemo(() => summarizeHours(hours), [hours]);
+  return { hours, unplaced, overplaced, hoursLeft, hoursOver };
 }
 
 // Turns the hook's `lastDuplicated` outcome into a transient, self-clearing highlight the grid

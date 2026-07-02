@@ -180,7 +180,9 @@ export default function PlannerBoard({
   const columns = states.map((state) => buildColumn(state.cohort, state));
   const cohorts = states.map(paletteData);
   const parkedBundles = states.flatMap((state) => state.parkedBundles);
-  const incompleteCount = states.reduce((count, state) => count + state.incompleteCount, 0);
+  // Phase-1 bridge: `unplaced.length` equals the old `incompleteCount` (courses with placed < required),
+  // keeping the current "N courses left" bar compiling until Phase 2 swaps in the hours-based summary.
+  const incompleteCount = states.reduce((count, state) => count + state.unplaced.length, 0);
   const inspected = inspection ? resolveState(inspection.cohort) : null;
 
   return (

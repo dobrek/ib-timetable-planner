@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countIncompleteCourses, deriveHours } from "./hours";
+import { deriveHours, deriveOverplaced, deriveUnplaced, summarizeHours } from "./hours";
 import type { GroupingCourse } from "./grouping/grouping";
 import type { PlannerPlacement } from "./placement/placement";
 
@@ -56,28 +56,73 @@ describe("deriveHours", () => {
   });
 });
 
-describe("countIncompleteCourses", () => {
-  it("counts courses with placed < required", () => {
-    const placements = [placement("p1", "A", 1, 1)];
-    const stats = deriveHours(placements, [course("A", 4), course("B", 2)]);
-    expect(countIncompleteCourses(stats)).toBe(2); // A: 1/4, B: 0/2
+const idsOf = (rows: { courseId: string }[]) => rows.map((row) => row.courseId);
+
+describe("deriveUnplaced", () => {
+  it("returns only the courses still needing board hours", () => {
+    const stats = deriveHours([placement("p1", "A", 1, 1)], [course("A", 4), course("B", 2)]);
+    expect(idsOf(deriveUnplaced(stats))).toEqual(["A", "B"]); // A: 1/4, B: 0/2
   });
 
-  it("does not count a fully-placed course", () => {
+  it("excludes a fully-placed course", () => {
     const placements = [placement("p1", "A", 1, 1), placement("p2", "A", 1, 2)];
-    expect(countIncompleteCourses(deriveHours(placements, [course("A", 2)]))).toBe(0);
+    expect(deriveUnplaced(deriveHours(placements, [course("A", 2)]))).toEqual([]);
   });
 
-  it("does not count an over-placed course", () => {
+  it("excludes an over-placed course", () => {
     const placements = [placement("p1", "A", 1, 1), placement("p2", "A", 1, 2), placement("p3", "A", 1, 3)];
-    expect(countIncompleteCourses(deriveHours(placements, [course("A", 2)]))).toBe(0);
+    expect(deriveUnplaced(deriveHours(placements, [course("A", 2)]))).toEqual([]);
   });
 
-  it("never counts a 0-hour merge-child as incomplete", () => {
-    expect(countIncompleteCourses(deriveHours([], [course("M", 0)]))).toBe(0);
+  it("carries the placed/required hours for each returned course", () => {
+    const stats = deriveHours([placement("p1", "A", 1, 1)], [course("A", 4)]);
+    expect(deriveUnplaced(stats)).toEqual([{ courseId: "A", placed: 1, required: 4 }]);
+  });
+});
+
+describe("deriveOverplaced", () => {
+  it("returns only the courses with too many board hours", () => {
+    const overA = [placement("p1", "A", 1, 1), placement("p2", "A", 1, 2), placement("p3", "A", 1, 3)];
+    const stats = deriveHours(overA, [course("A", 2), course("B", 2)]);
+    expect(deriveOverplaced(stats)).toEqual([{ courseId: "A", placed: 3, required: 2 }]); // B is only 0/2
   });
 
-  it("returns 0 for an empty catalog", () => {
-    expect(countIncompleteCourses(deriveHours([], []))).toBe(0);
+  it("excludes an exactly-placed course", () => {
+    const placements = [placement("p1", "A", 1, 1), placement("p2", "A", 1, 2)];
+    expect(deriveOverplaced(deriveHours(placements, [course("A", 2)]))).toEqual([]);
+  });
+
+  it("never flags a placed 0-hour merge-child (required 0) as over-placed", () => {
+    // The `required > 0` guard: a dropped 0-hour child reads as {placed:1, required:0}; a naive
+    // `placed > required` (1 > 0) would spuriously flag it. This is the case the guard exists for.
+    const stats = deriveHours([placement("p1", "M", 1, 1)], [course("M", 0)]);
+    expect(stats.get("M")).toEqual({ placed: 1, required: 0 });
+    expect(deriveOverplaced(stats)).toEqual([]);
+  });
+});
+
+describe("summarizeHours", () => {
+  it("never nets over-placement against under-placement (Math+English)", () => {
+    // Math over-placed 4/2, English under-placed 0/2 → must read "2 left · 2 over", not cancel to 0.
+    const mathPlacements = [
+      placement("p1", "MATH", 1, 1),
+      placement("p2", "MATH", 1, 2),
+      placement("p3", "MATH", 1, 3),
+      placement("p4", "MATH", 1, 4),
+    ];
+    const stats = deriveHours(mathPlacements, [course("MATH", 2), course("ENG", 2)]);
+    expect(summarizeHours(stats)).toEqual({ hoursLeft: 2, hoursOver: 2 });
+  });
+
+  it("counts a placed 0-hour merge-child as 0 on both sides", () => {
+    const stats = deriveHours([placement("p1", "M", 1, 1)], [course("M", 0)]);
+    expect(summarizeHours(stats)).toEqual({ hoursLeft: 0, hoursOver: 0 });
+  });
+
+  it("returns zeros for an empty catalog", () => {
+    const stats = deriveHours([], []);
+    expect(summarizeHours(stats)).toEqual({ hoursLeft: 0, hoursOver: 0 });
+    expect(deriveUnplaced(stats)).toEqual([]);
+    expect(deriveOverplaced(stats)).toEqual([]);
   });
 });

@@ -56,17 +56,24 @@ describe("useCollisions", () => {
 describe("useHours", () => {
   const placements = [placement("p1", "c1", 1, 1)];
 
-  it("derives hours and the incomplete-course count", () => {
+  it("derives the unplaced list and the two clamped hour totals", () => {
     const { result } = renderHook(() => useHours(placements, CATALOG));
-    // c1 has 4 hours but only one period placed → incomplete; c2/c3 unplaced → also incomplete.
-    expect(result.current.incompleteCount).toBeGreaterThan(0);
+    // Each course needs 4h; c1 is 1/4, c2 and c3 are 0/4 → all three unplaced, none over-placed.
+    expect(result.current.unplaced.map((row) => row.courseId)).toEqual(["c1", "c2", "c3"]);
+    expect(result.current.overplaced).toEqual([]);
+    expect(result.current.hoursLeft).toBe(11); // (4-1) + (4-0) + (4-0)
+    expect(result.current.hoursOver).toBe(0);
   });
 
-  it("keeps both derived values referentially stable across a re-render", () => {
+  it("keeps every derived value referentially stable across a re-render", () => {
     const { result, rerender } = renderHook(() => useHours(placements, CATALOG));
-    const first = result.current.hours;
+    const { hours, unplaced, overplaced, hoursLeft, hoursOver } = result.current;
     rerender();
-    expect(result.current.hours).toBe(first);
+    expect(result.current.hours).toBe(hours);
+    expect(result.current.unplaced).toBe(unplaced);
+    expect(result.current.overplaced).toBe(overplaced);
+    expect(result.current.hoursLeft).toBe(hoursLeft);
+    expect(result.current.hoursOver).toBe(hoursOver);
   });
 });
 

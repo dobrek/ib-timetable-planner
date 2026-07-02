@@ -52,7 +52,7 @@ describe("usePaletteFilter", () => {
   it("picking a leading course populates the companion options (co-occurring, leading excluded) and narrows the list", () => {
     const { result } = renderHook(() => usePaletteFilter(GROUPINGS, NAMES));
     act(() => {
-      result.current.setLeadingCourseId("c-a");
+      result.current.onLeadingChange("c-a");
     });
     // Alphabetical: Beta (c-b), Gamma (c-c); the leading course c-a is absent.
     expect(optionIds(result.current.companionOptions)).toEqual(["c-b", "c-c"]);
@@ -62,7 +62,7 @@ describe("usePaletteFilter", () => {
   it("selecting a companion narrows the list to groupings containing both courses", () => {
     const { result } = renderHook(() => usePaletteFilter(GROUPINGS, NAMES));
     act(() => {
-      result.current.setLeadingCourseId("c-a");
+      result.current.onLeadingChange("c-a");
     });
     act(() => {
       result.current.setCompanionCourseId("c-b");
@@ -74,7 +74,7 @@ describe("usePaletteFilter", () => {
   it("changing the leading course resets the companion to null (reset-on-change)", () => {
     const { result } = renderHook(() => usePaletteFilter(GROUPINGS, NAMES));
     act(() => {
-      result.current.setLeadingCourseId("c-a");
+      result.current.onLeadingChange("c-a");
     });
     act(() => {
       result.current.setCompanionCourseId("c-b");
@@ -83,7 +83,7 @@ describe("usePaletteFilter", () => {
     // (Here c-b also happens to be invalid for c-d, so this shape can't tell the two apart — see
     // the discriminating test below for a companion that stays valid across the change.)
     act(() => {
-      result.current.setLeadingCourseId("c-d");
+      result.current.onLeadingChange("c-d");
     });
     expect(result.current.companionCourseId).toBeNull();
     expect(optionIds(result.current.companionOptions)).toEqual(["c-c"]);
@@ -93,7 +93,7 @@ describe("usePaletteFilter", () => {
   it("resets the companion on a leading change even when it still co-occurs with the new leading (reset-on-change, not reset-on-invalidation)", () => {
     const { result } = renderHook(() => usePaletteFilter(CO_OCCURRING, NAMES));
     act(() => {
-      result.current.setLeadingCourseId("c-a");
+      result.current.onLeadingChange("c-a");
     });
     act(() => {
       result.current.setCompanionCourseId("c-b");
@@ -102,7 +102,7 @@ describe("usePaletteFilter", () => {
     // c-b is STILL a valid companion for c-d (they co-occur in g2), so a validity guard alone would
     // keep it — yet the leading change must reset it to "Any companion" (companionCourseId === null).
     act(() => {
-      result.current.setLeadingCourseId("c-d");
+      result.current.onLeadingChange("c-d");
     });
     expect(result.current.companionCourseId).toBeNull();
     // c-b remains an offered option, proving the reset is change-driven, not invalidation-driven.
@@ -112,13 +112,13 @@ describe("usePaletteFilter", () => {
   it("clearing the leading course disables (empties options) and resets the companion", () => {
     const { result } = renderHook(() => usePaletteFilter(GROUPINGS, NAMES));
     act(() => {
-      result.current.setLeadingCourseId("c-a");
+      result.current.onLeadingChange("c-a");
     });
     act(() => {
       result.current.setCompanionCourseId("c-b");
     });
     act(() => {
-      result.current.setLeadingCourseId(null);
+      result.current.onLeadingChange(null);
     });
     expect(result.current.companionOptions).toEqual([]);
     expect(result.current.companionCourseId).toBeNull();
@@ -181,7 +181,7 @@ describe("GroupingFilter companion select", () => {
           groupings={GROUPINGS}
           courseDisplay={NAMES}
           value={filter.leadingCourseId}
-          onChange={filter.setLeadingCourseId}
+          onChange={filter.onLeadingChange}
           companionValue={filter.companionCourseId}
           onCompanionChange={filter.setCompanionCourseId}
           companionOptions={filter.companionOptions}

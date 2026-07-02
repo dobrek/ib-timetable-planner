@@ -33,7 +33,7 @@ export default function PaletteBody({ groupings, courseDisplay, hours }: Props) 
   const sortedGroupings = useMemo(() => sortGroupingsForPalette(groupings), [groupings]);
   const {
     leadingCourseId,
-    setLeadingCourseId,
+    onLeadingChange,
     companionCourseId,
     setCompanionCourseId,
     companionOptions,
@@ -47,7 +47,7 @@ export default function PaletteBody({ groupings, courseDisplay, hours }: Props) 
           groupings={groupings}
           courseDisplay={courseDisplay}
           value={leadingCourseId}
-          onChange={setLeadingCourseId}
+          onChange={onLeadingChange}
           companionValue={companionCourseId}
           onCompanionChange={setCompanionCourseId}
           companionOptions={companionOptions}
@@ -130,9 +130,9 @@ export function usePaletteFilter(groupings: PlannerGrouping[], courseDisplay: Re
 
   return {
     leadingCourseId,
-    // Exposed as `setLeadingCourseId`, but this is the reset-wrapping `changeLeading` handler (it also
-    // clears the companion), not the raw useState setter — the consumer + hook test drive it by this key.
-    setLeadingCourseId: changeLeading,
+    // Leading changes route through this handler, not a raw setter: it also clears the companion,
+    // so a leading change always resets the companion to "Any companion". Named to signal that.
+    onLeadingChange: changeLeading,
     companionCourseId: validCompanion,
     setCompanionCourseId,
     companionOptions,

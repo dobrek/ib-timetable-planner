@@ -8,5 +8,11 @@ export { default as CohortSwitcher } from "./CohortSwitcher";
 export { default as PlanSummaryBar } from "./PlanSummaryBar";
 export { default as UndoRedoControls, type UndoRedoControlsProps } from "./UndoRedoControls";
 export { default as ErrorBanner } from "./ErrorBanner";
+export {
+  buildCoursesLeftSummary,
+  type CoursesLeftCohort,
+  type CoursesLeftRow,
+  type CoursesLeftSummary,
+} from "./courses-left-summary";
 export { useHintMode, usePaletteDisclosure, useShelfDisclosure, useZoom } from "./board-disclosure";
 export { inspectedViolations, inspectedWeeks, useCollisionInspection } from "./board-inspection";

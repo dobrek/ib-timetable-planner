@@ -260,30 +260,30 @@ No data migration. Pure display change. The `data-incomplete` test hook is repla
 
 #### Automated
 
-- [x] 1.1 Type checking passes (`pnpm check` — `astro check` after `astro sync`)
-- [x] 1.2 Unit tests pass (`pnpm test`)
-- [x] 1.3 Linting passes (`pnpm lint`)
-- [x] 1.4 FSD structure check passes (`pnpm steiger`)
+- [x] 1.1 Type checking passes (`pnpm check` — `astro check` after `astro sync`) — ef33bf4
+- [x] 1.2 Unit tests pass (`pnpm test`) — ef33bf4
+- [x] 1.3 Linting passes (`pnpm lint`) — ef33bf4
+- [x] 1.4 FSD structure check passes (`pnpm steiger`) — ef33bf4
 
 #### Manual
 
-- [x] 1.5 App still builds and the board renders (`pnpm dev`)
+- [x] 1.5 App still builds and the board renders (`pnpm dev`) — ef33bf4
 
 ### Phase 2: UI — bar assembly + Popover + a11y + e2e
 
 #### Automated
 
-- [ ] 2.1 Type checking + lint pass (`pnpm check` + `pnpm lint`)
-- [ ] 2.2 FSD structure check passes (`pnpm steiger`)
-- [ ] 2.3 Unit tests pass (`pnpm test`)
-- [ ] 2.4 Production build stays clean (`pnpm build`)
-- [ ] 2.5 E2E suite passes (`pnpm test:e2e`)
+- [x] 2.1 Type checking + lint pass (`pnpm check` + `pnpm lint`)
+- [x] 2.2 FSD structure check passes (`pnpm steiger`)
+- [x] 2.3 Unit tests pass (`pnpm test`)
+- [x] 2.4 Production build stays clean (`pnpm build`)
+- [x] 2.5 E2E suite passes (`pnpm test:e2e`)
 
 #### Manual
 
-- [ ] 2.6 Bar reads "N hours left to place"; over-placing adds "· M over" (warning); Math+English case is non-cancelling
-- [ ] 2.7 Popover lists correct Missing/Over-placed courses with counters, subtotals, largest-gap-first
-- [ ] 2.8 Combined shows DP1/DP2 subheaders; focus shows one cohort, no subheader
-- [ ] 2.9 "All course hours placed" is plain/non-clickable; "All hours placed · M over" stays clickable to the Over section
-- [ ] 2.10 Semantic tokens verified light/dark; slim-bar layout intact
-- [ ] 2.11 Keyboard: trigger focusable + operable; popover closes on Escape / outside click
+- [x] 2.6 Bar reads "N hours left to place"; over-placing adds "· M over" (warning); Math+English case is non-cancelling
+- [x] 2.7 Popover lists correct Missing/Over-placed courses with counters, subtotals, largest-gap-first
+- [x] 2.8 Combined shows DP1/DP2 subheaders; focus shows one cohort, no subheader
+- [x] 2.9 "All course hours placed" is plain/non-clickable; "All hours placed · M over" stays clickable to the Over section
+- [x] 2.10 Semantic tokens verified light/dark; slim-bar layout intact
+- [x] 2.11 Keyboard: trigger focusable + operable; popover closes on Escape / outside click

@@ -7,6 +7,7 @@ import {
   BoardShell,
   ErrorBanner,
   PlanSummaryBar,
+  buildCoursesLeftSummary,
   inspectedViolations,
   inspectedWeeks,
   useHintMode,
@@ -180,9 +181,18 @@ export default function PlannerBoard({
   const columns = states.map((state) => buildColumn(state.cohort, state));
   const cohorts = states.map(paletteData);
   const parkedBundles = states.flatMap((state) => state.parkedBundles);
-  // Phase-1 bridge: `unplaced.length` equals the old `incompleteCount` (courses with placed < required),
-  // keeping the current "N courses left" bar compiling until Phase 2 swaps in the hours-based summary.
-  const incompleteCount = states.reduce((count, state) => count + state.unplaced.length, 0);
+  // Display-resolved, sorted, cohort-tagged breakdown for the top-bar counter + its popover, built from
+  // the same `states` array that already resolves active cohorts. Auto-memoized by React Compiler.
+  const summary = buildCoursesLeftSummary(
+    states.map((state) => ({
+      cohort: state.cohort,
+      courseDisplay: state.courseDisplay,
+      unplaced: state.unplaced,
+      overplaced: state.overplaced,
+      hoursLeft: state.hoursLeft,
+      hoursOver: state.hoursOver,
+    })),
+  );
   const inspected = inspection ? resolveState(inspection.cohort) : null;
 
   return (
@@ -193,7 +203,8 @@ export default function PlannerBoard({
       header={
         <PlanSummaryBar
           planName={planName}
-          incompleteCount={incompleteCount}
+          summary={summary}
+          combined={combined}
           parkedCount={parkedBundles.length}
           onExpandShelf={() => {
             setExpanded(true);

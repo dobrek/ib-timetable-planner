@@ -32,6 +32,10 @@ const NAMES: Record<string, CourseDisplay> = {
   "c-d": { name: "Delta", color: null },
 };
 
+// c-b co-occurs with BOTH c-a (g1) and c-d (g2), so a c-a→c-d leading change leaves c-b a valid
+// companion option — the only shape that discriminates reset-on-change from reset-on-invalidation.
+const CO_OCCURRING = [grouping("g1", ["c-a", "c-b"]), grouping("g2", ["c-d", "c-b"])];
+
 const ids = (groupings: PlannerGrouping[]) => groupings.map((g) => g.id);
 const optionIds = (options: LeadingCourseOption[]) => options.map((o) => o.id);
 
@@ -65,7 +69,7 @@ describe("usePaletteFilter", () => {
     expect(ids(result.current.visibleGroupings)).toEqual(["g1"]);
   });
 
-  it("changing the leading course resets a now-invalid companion to null (stale reset)", () => {
+  it("changing the leading course resets the companion to null (reset-on-change)", () => {
     const { result } = renderHook(() => usePaletteFilter(GROUPINGS, NAMES));
     act(() => {
       result.current.setLeadingCourseId("c-a");
@@ -73,13 +77,34 @@ describe("usePaletteFilter", () => {
     act(() => {
       result.current.setCompanionCourseId("c-b");
     });
-    // c-b does not co-occur with c-d, so switching the leading course strands it → reset.
+    // Switching the leading course away from c-a resets the companion via the change handler.
+    // (Here c-b also happens to be invalid for c-d, so this shape can't tell the two apart — see
+    // the discriminating test below for a companion that stays valid across the change.)
     act(() => {
       result.current.setLeadingCourseId("c-d");
     });
     expect(result.current.companionCourseId).toBeNull();
     expect(optionIds(result.current.companionOptions)).toEqual(["c-c"]);
     expect(ids(result.current.visibleGroupings)).toEqual(["g3"]);
+  });
+
+  it("resets the companion on a leading change even when it still co-occurs with the new leading (reset-on-change, not reset-on-invalidation)", () => {
+    const { result } = renderHook(() => usePaletteFilter(CO_OCCURRING, NAMES));
+    act(() => {
+      result.current.setLeadingCourseId("c-a");
+    });
+    act(() => {
+      result.current.setCompanionCourseId("c-b");
+    });
+    expect(result.current.companionCourseId).toBe("c-b");
+    // c-b is STILL a valid companion for c-d (they co-occur in g2), so a validity guard alone would
+    // keep it — yet the leading change must reset it to "Any companion" (companionCourseId === null).
+    act(() => {
+      result.current.setLeadingCourseId("c-d");
+    });
+    expect(result.current.companionCourseId).toBeNull();
+    // c-b remains an offered option, proving the reset is change-driven, not invalidation-driven.
+    expect(optionIds(result.current.companionOptions)).toEqual(["c-b"]);
   });
 
   it("clearing the leading course disables (empties options) and resets the companion", () => {
@@ -145,7 +170,7 @@ describe("GroupingFilter companion select", () => {
     expect(props.onCompanionChange).toHaveBeenCalledWith("c-b");
   });
 
-  it("reflects the stale reset in the rendered Select — the companion trigger returns to 'Any companion' after the leading course changes", () => {
+  it("reflects the reset in the rendered Select — the companion trigger returns to 'Any companion' after the leading course changes", () => {
     // Wire the real hook to the component so the reset propagates hook → prop → rendered Select.
     function Wired() {
       const filter = usePaletteFilter(GROUPINGS, NAMES);
@@ -172,7 +197,7 @@ describe("GroupingFilter companion select", () => {
     fireEvent.click(screen.getByRole("option", { name: "Beta (1)" }));
     expect(companion).toHaveTextContent("Beta (1)");
 
-    // Switch leading to Delta — Beta no longer co-occurs, so the rendered companion resets.
+    // Switch leading to Delta — the leading change resets the rendered companion back to "Any companion".
     fireEvent.keyDown(leading, { key: "Enter" });
     fireEvent.click(screen.getByRole("option", { name: "Delta (1)" }));
     expect(companion).toHaveTextContent("Any companion");

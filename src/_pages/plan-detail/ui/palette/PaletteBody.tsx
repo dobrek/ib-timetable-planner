@@ -99,20 +99,30 @@ function PromotedCourseChip({
 /**
  * Thin orchestrator for the palette's two-select filter. Holds the leading and companion
  * selection state and delegates every decision to the pure `model/` functions: the
- * cascading companion option list (`companionCourseOptions`, sorted alphabetically), the
- * stale-companion reset (`reconcileCompanion`, applied during render so a companion that
- * no longer co-occurs with the leading course can never silently mis-filter), and the
- * two-predicate membership filter (`filterGroupings`). Exported for the slice's hook test.
+ * cascading companion option list (`companionCourseOptions`, sorted alphabetically) and the
+ * two-predicate membership filter (`filterGroupings`). A leading-course change always resets
+ * the companion to "Any companion" via the wrapped `changeLeading` handler — even when the old
+ * companion still co-occurs with the new leading course; `reconcileCompanion` stays as the
+ * residual validity guard that drops a companion a data change left invalid. Exported for the
+ * slice's hook test.
  */
 export function usePaletteFilter(groupings: PlannerGrouping[], courseDisplay: Record<string, CourseDisplay>) {
   const [leadingCourseId, setLeadingCourseId] = useState<string | null>(null);
   const [companionCourseId, setCompanionCourseId] = useState<string | null>(null);
 
+  // A leading-course change (or clear) always resets the companion — even when the old companion
+  // would still co-occur with the new leading course. This is the slice's first change-handler
+  // reset; `reconcileCompanion` below is the residual validity guard, not the change trigger.
+  const changeLeading = (next: string | null) => {
+    setLeadingCourseId(next);
+    setCompanionCourseId(null);
+  };
+
   const companionOptions = sortByName(companionCourseOptions(groupings, courseDisplay, leadingCourseId));
 
-  // Adjust-state-during-render (not an effect, precedent PlannerBoard): if the companion is no longer
-  // among the current options — because the leading course changed or cleared — drop it to null in
-  // the same render that recomputes the filter.
+  // Adjust-state-during-render (not an effect, precedent PlannerBoard): residual validity guard — if a
+  // data change left the companion no longer among the current options, drop it to null in the same
+  // render that recomputes the filter. (The leading-change reset is handled by `changeLeading` above.)
   const validCompanion = reconcileCompanion(companionCourseId, companionOptions);
   if (validCompanion !== companionCourseId) setCompanionCourseId(validCompanion);
 
@@ -120,7 +130,9 @@ export function usePaletteFilter(groupings: PlannerGrouping[], courseDisplay: Re
 
   return {
     leadingCourseId,
-    setLeadingCourseId,
+    // Exposed as `setLeadingCourseId`, but this is the reset-wrapping `changeLeading` handler (it also
+    // clears the companion), not the raw useState setter — the consumer + hook test drive it by this key.
+    setLeadingCourseId: changeLeading,
     companionCourseId: validCompanion,
     setCompanionCourseId,
     companionOptions,

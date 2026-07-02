@@ -1,6 +1,0 @@
----
-// The catalog is plan-scoped now (/plans/[id]/courses); old bookmarks land on the hub.
-// 302 via Astro.response (not a top-level `return Astro.redirect`) — see index.astro.
-Astro.response.status = 302;
-Astro.response.headers.set("Location", "/plans");
----

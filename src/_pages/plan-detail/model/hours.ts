@@ -45,12 +45,16 @@ export const deriveOverplaced = (stats: Map<string, HoursStat>): CourseHours[] =
     .map(([courseId, { placed, required }]) => ({ courseId, placed, required }));
 
 /**
- * The two independent clamped hour totals the bar headline needs. Computed per course and summed
- * separately — never netted: over-placement on one course must not cancel a deficit on another
- * (Math 4/2 + English 0/2 reads "2 left · 2 over", not zero). `hoursOver` reuses the guarded
- * over-placed set, so 0-hour merge-children contribute nothing.
+ * The two independent clamped hour totals the bar headline needs, summed from the already-derived
+ * `deriveUnplaced` / `deriveOverplaced` sets so the stats Map is walked once (single source of truth).
+ * The two sums stay separate — never netted: over-placement on one course must not cancel a deficit on
+ * another (Math 4/2 + English 0/2 reads "2 left · 2 over", not zero). The `required > 0` guard lives in
+ * `deriveOverplaced`, so a 0-hour merge-child never reaches `overplaced` and contributes nothing.
  */
-export const summarizeHours = (stats: Map<string, HoursStat>): { hoursLeft: number; hoursOver: number } => ({
-  hoursLeft: deriveUnplaced(stats).reduce((sum, { placed, required }) => sum + (required - placed), 0),
-  hoursOver: deriveOverplaced(stats).reduce((sum, { placed, required }) => sum + (placed - required), 0),
+export const summarizeHours = (
+  unplaced: CourseHours[],
+  overplaced: CourseHours[],
+): { hoursLeft: number; hoursOver: number } => ({
+  hoursLeft: unplaced.reduce((sum, { placed, required }) => sum + (required - placed), 0),
+  hoursOver: overplaced.reduce((sum, { placed, required }) => sum + (placed - required), 0),
 });

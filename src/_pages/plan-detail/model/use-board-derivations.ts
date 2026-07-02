@@ -69,7 +69,7 @@ export function useHours(placements: LocalPlacement[], catalog: GroupingCourse[]
   const hours = useMemo(() => deriveHours(placements, catalog), [placements, catalog]);
   const unplaced = useMemo(() => deriveUnplaced(hours), [hours]);
   const overplaced = useMemo(() => deriveOverplaced(hours), [hours]);
-  const { hoursLeft, hoursOver } = useMemo(() => summarizeHours(hours), [hours]);
+  const { hoursLeft, hoursOver } = useMemo(() => summarizeHours(unplaced, overplaced), [unplaced, overplaced]);
   return { hours, unplaced, overplaced, hoursLeft, hoursOver };
 }
 

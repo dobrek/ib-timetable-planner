@@ -111,17 +111,17 @@ describe("summarizeHours", () => {
       placement("p4", "MATH", 1, 4),
     ];
     const stats = deriveHours(mathPlacements, [course("MATH", 2), course("ENG", 2)]);
-    expect(summarizeHours(stats)).toEqual({ hoursLeft: 2, hoursOver: 2 });
+    expect(summarizeHours(deriveUnplaced(stats), deriveOverplaced(stats))).toEqual({ hoursLeft: 2, hoursOver: 2 });
   });
 
   it("counts a placed 0-hour merge-child as 0 on both sides", () => {
     const stats = deriveHours([placement("p1", "M", 1, 1)], [course("M", 0)]);
-    expect(summarizeHours(stats)).toEqual({ hoursLeft: 0, hoursOver: 0 });
+    expect(summarizeHours(deriveUnplaced(stats), deriveOverplaced(stats))).toEqual({ hoursLeft: 0, hoursOver: 0 });
   });
 
   it("returns zeros for an empty catalog", () => {
     const stats = deriveHours([], []);
-    expect(summarizeHours(stats)).toEqual({ hoursLeft: 0, hoursOver: 0 });
+    expect(summarizeHours(deriveUnplaced(stats), deriveOverplaced(stats))).toEqual({ hoursLeft: 0, hoursOver: 0 });
     expect(deriveUnplaced(stats)).toEqual([]);
     expect(deriveOverplaced(stats)).toEqual([]);
   });

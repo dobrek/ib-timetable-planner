@@ -31,12 +31,14 @@ test.describe("courses-left popover", () => {
     await computeGroupings(page, courseDisplay);
 
     // --- The bar reports unplaced HOURS as a Popover trigger (2h course, nothing placed → > 0).
-    const trigger = page.locator('[data-slot="plan-summary"]');
+    // Located by role/accessible-name (e2e/CLAUDE.md); data-hours-left is read as an assertion, not a locator.
+    const trigger = page.getByRole("button", { name: /show breakdown/ });
     await expect(trigger).toBeVisible();
     expect(Number(await trigger.getAttribute("data-hours-left"))).toBeGreaterThan(0);
 
     // --- Clicking it opens the breakdown; the Missing section lists the course with its counter.
-    const popover = page.locator('[data-slot="courses-left-popover"]');
+    // The Popover content is a Radix dialog; scope the row's hours-counter (no role/text) inside it.
+    const popover = page.getByRole("dialog");
     await clickToReveal(trigger, popover);
     await expect(popover.getByText("Course placement")).toBeVisible();
     await expect(popover.getByText("Missing", { exact: true })).toBeVisible();

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { catalog, course, placement } from "./__fixtures__/builders";
-import { criterionId, deriveLensMatches, type LensCriterion } from "./lens";
+import {
+  buildLensOptions,
+  criterionId,
+  deriveLensMatches,
+  mergeEffectiveCriteria,
+  pruneCriteria,
+  type LensCohortSource,
+  type LensCriterion,
+} from "./lens";
 import type { LocalPlacement } from "./placement/placement";
 
 // Two math courses share teacher "kk"; student "s2" takes both maths; "bio" is disjoint.
@@ -70,5 +78,82 @@ describe("deriveLensMatches", () => {
 describe("criterionId", () => {
   it("derives the stable kind:key identity", () => {
     expect(criterionId(crit("teacher", "kk"))).toBe("teacher:kk");
+  });
+});
+
+// Picker-source fixtures: dp1 has one teacher (t1) + one student; dp2 has t2 and a same-named course.
+const dp1Source: LensCohortSource = {
+  cohort: "dp1",
+  courseDisplay: { "c-math": { name: "Math_AA-HL", color: "sky" }, "c-bio": { name: "Biology-SL", color: null } },
+  catalog: [course("c-math", "t1"), course("c-bio", "t1")],
+  studentNames: { s1: "Ada Byron" },
+};
+
+const dp2Source: LensCohortSource = {
+  cohort: "dp2",
+  courseDisplay: { "c-math-2": { name: "Math_AA-HL", color: null } },
+  catalog: [course("c-math-2", "t2")],
+  studentNames: { s2: "Grace Hopper" },
+};
+
+const teacherNames = { t1: "Kay Kay", t2: "Lin Lee", t3: "Unassigned Teacher" };
+
+describe("buildLensOptions", () => {
+  it("lists only the visible cohorts' courses and students, sorted by label", () => {
+    const groups = buildLensOptions([dp1Source], teacherNames, false);
+    expect(groups.courses.map((o) => o.label)).toEqual(["Biology-SL", "Math_AA-HL"]);
+    expect(groups.students.map((o) => o.label)).toEqual(["Ada Byron"]);
+    expect(groups.courses.map((o) => o.criterion.key)).toEqual(["c-bio", "c-math"]);
+  });
+
+  it("filters teachers to those appearing in a visible catalog's teacherKeys", () => {
+    const focused = buildLensOptions([dp1Source], teacherNames, false);
+    expect(focused.teachers.map((o) => o.criterion.key)).toEqual(["t1"]);
+    const combined = buildLensOptions([dp1Source, dp2Source], teacherNames, true);
+    expect(combined.teachers.map((o) => o.criterion.key)).toEqual(["t1", "t2"]);
+  });
+
+  it("cohort-tags course/student labels on the combined view, never teachers", () => {
+    const groups = buildLensOptions([dp1Source, dp2Source], teacherNames, true);
+    expect(groups.courses.map((o) => o.cohortTag)).toEqual(["DP1", "DP1", "DP2"]);
+    expect(groups.students.map((o) => o.cohortTag)).toEqual(["DP1", "DP2"]);
+    expect(groups.teachers.every((o) => o.cohortTag === undefined)).toBe(true);
+  });
+
+  it("leaves labels untagged on a focused view and carries the course color swatch", () => {
+    const groups = buildLensOptions([dp1Source], teacherNames, false);
+    expect(groups.courses.every((o) => o.cohortTag === undefined)).toBe(true);
+    expect(groups.courses.find((o) => o.criterion.key === "c-math")?.color).toBe("sky");
+  });
+});
+
+describe("mergeEffectiveCriteria", () => {
+  const committed = [crit("course", "c-math"), crit("teacher", "t1")];
+
+  it("passes committed through untouched when there is no preview", () => {
+    expect(mergeEffectiveCriteria(committed, null)).toBe(committed);
+  });
+
+  it("appends a previewed criterion not yet committed", () => {
+    expect(mergeEffectiveCriteria(committed, crit("student", "s1"))).toEqual([...committed, crit("student", "s1")]);
+  });
+
+  it("dedups a preview that is already committed (stable identity)", () => {
+    expect(mergeEffectiveCriteria(committed, crit("teacher", "t1"))).toBe(committed);
+  });
+});
+
+describe("pruneCriteria", () => {
+  it("keeps criteria whose entity still exists and drops the rest", () => {
+    const universe = {
+      course: new Set(["c-math"]),
+      teacher: new Set(["t1"]),
+      student: new Set<string>(),
+    };
+    const pruned = pruneCriteria(
+      [crit("course", "c-math"), crit("course", "c-gone"), crit("teacher", "t1"), crit("student", "s-gone")],
+      universe,
+    );
+    expect(pruned).toEqual([crit("course", "c-math"), crit("teacher", "t1")]);
   });
 });

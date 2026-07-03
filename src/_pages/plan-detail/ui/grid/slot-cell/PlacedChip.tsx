@@ -23,6 +23,9 @@ export type ChipWiring = {
    *  single-course move is guarded (one board, two columns in combined; the single board its one). */
   cohort: Cohort;
   bundled: boolean;
+  /** Placement ids matched by the active highlight lens; null = lens inactive. Each chip resolves
+   *  its own membership from this shared set — no per-chip boolean threads through the cell. */
+  lensMatched: Set<string> | null;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
@@ -40,6 +43,7 @@ export function PlacedChip({
   period,
   cohort,
   bundled,
+  lensMatched,
   onRemove,
   onSetWeek,
   onInspect,
@@ -67,6 +71,10 @@ export function PlacedChip({
         placement.pending && "opacity-60",
         !placement.pending && !bundled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
+        // Highlight lens: matches keep full strength plus the semantic ring (static — the pulse
+        // stays exclusive to `justDuplicated`); the rest recedes on the shared opacity axis, which
+        // preserves the collision red/amber underneath so a dimmed blocking chip still reads red.
+        lensMatched !== null && (lensMatched.has(placement.id) ? "ring-ring ring-2 ring-inset" : "opacity-40"),
       )}
     >
       <span className="truncate">{name}</span>

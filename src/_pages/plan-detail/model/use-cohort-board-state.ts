@@ -3,6 +3,7 @@ import { buildCrossCohortIndex, projectFromPlacements, type CrossCohortIndex } f
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
 import type { LocalPlacement } from "./placement/placement";
+import type { LensCriterion } from "./lens";
 import { usePlacements, type UsePlacementsArgs } from "./use-placements";
 import { useHistoryControls, useHistoryRecorder } from "./history/use-history";
 import { useExplodedCells } from "./use-exploded-cells";
@@ -13,6 +14,7 @@ import {
   useDragHints,
   useDuplicateHighlight,
   useHours,
+  useLensMatches,
 } from "./use-board-derivations";
 
 /**
@@ -44,6 +46,7 @@ export function useCombinedBoardState(
   dp1Props: PlannerBoardProps,
   dp2Props: PlannerBoardProps,
   focus: BoardSurface = "combined",
+  lensCriteria: LensCriterion[] = NO_LENS_CRITERIA,
 ) {
   // History recorder built FIRST: its stable `record` exists before either `usePlacements` runs, so
   // each cohort can receive it as `onRecord` (the upstream half of the ordering cycle).
@@ -81,8 +84,8 @@ export function useCombinedBoardState(
     [dp2Hidden, dp2SeedIndex, dp1Base.api.placements, dp1Base.teacherKeysByCourseId],
   );
 
-  const dp1Deriv = useCohortDerivations(dp1Props, dp1Base, dp1Index);
-  const dp2Deriv = useCohortDerivations(dp2Props, dp2Base, dp2Index);
+  const dp1Deriv = useCohortDerivations(dp1Props, dp1Base, dp1Index, lensCriteria);
+  const dp2Deriv = useCohortDerivations(dp2Props, dp2Base, dp2Index, lensCriteria);
 
   // History controls bound LAST: `undo`/`redo` need each cohort's reconcile/snapshot/busy, which
   // only exist now that both bases have run (the downstream half of the ordering cycle).
@@ -185,6 +188,7 @@ function useCohortDerivations(
   props: PlannerBoardProps,
   base: ReturnType<typeof useCohortPlacements>,
   freshIndex: CrossCohortIndex,
+  lensCriteria: LensCriterion[] = NO_LENS_CRITERIA,
 ) {
   const placements = base.api.placements;
   const collisions = useCollisions(placements, base.catalogById, base.availabilityIndex, freshIndex);
@@ -198,8 +202,10 @@ function useCohortDerivations(
   );
   const { isExploded, toggleExploded } = useExplodedCells();
   const justDuplicated = useDuplicateHighlight(base.api.lastDuplicated);
+  const lensMatches = useLensMatches(placements, base.catalogById, lensCriteria);
   return {
     collisions,
+    lensMatches,
     hours,
     unplaced,
     overplaced,
@@ -233,6 +239,7 @@ const toCohortState = (
   placements: base.api.placements,
   parkedBundles: base.api.parkedBundles,
   collisions: deriv.collisions,
+  lensMatches: deriv.lensMatches,
   dropHints: deriv.dropHints,
   isExploded: deriv.isExploded,
   toggleExploded: deriv.toggleExploded,
@@ -257,3 +264,7 @@ const toCohortState = (
     removeParked: base.api.removeParked,
   },
 });
+
+// Stable no-criteria default so the lens memo's `criteria` dep never churns while the lens is off
+// (a literal `[]` default would be a fresh identity per render).
+const NO_LENS_CRITERIA: LensCriterion[] = [];

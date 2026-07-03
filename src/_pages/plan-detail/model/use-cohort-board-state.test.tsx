@@ -159,6 +159,8 @@ describe("useCohortBoardState (single cohort: seed === fresh)", () => {
     expect(result.current.placements).toHaveLength(2);
     expect(result.current.collisions.has(cellKey(1, 1))).toBe(true);
     expect(result.current.weekModeByCourseId.get("c1")).toBe("agnostic");
+    // No lens criteria threaded (the seam's default) → the lens derivation stays inactive.
+    expect(result.current.lensMatches).toBeNull();
     // The board dispatches drops through these — every action the single board wires must be present.
     expect(typeof result.current.actions.addCourse).toBe("function");
     expect(typeof result.current.actions.parkMembers).toBe("function");

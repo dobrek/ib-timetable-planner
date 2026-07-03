@@ -1,7 +1,7 @@
 ---
 change_id: planner-board-search-discovery
 title: Planner board search discovery
-status: plan_reviewed
+status: implementing
 created: 2026-07-03
 updated: 2026-07-03
 archived_at: null

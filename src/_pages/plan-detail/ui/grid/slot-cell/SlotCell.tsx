@@ -36,6 +36,9 @@ type Props = {
   /** Combined view (S-06): true while a drag is active over the *other* cohort — recede this cell
    *  as a non-target so accidental cross-cohort drops on adjacent cells are visually discouraged. */
   dimmed?: boolean;
+  /** Placement ids matched by the active highlight lens; null = lens inactive. Shared by every
+   *  chip in the cell — each `PlacedChip` resolves its own membership. */
+  lensMatched: Set<string> | null;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
@@ -66,6 +69,7 @@ export default function SlotCell({
   bundled,
   justDuplicated,
   dimmed,
+  lensMatched,
   onRemove,
   onSetWeek,
   onToggleBundle,
@@ -101,7 +105,7 @@ export default function SlotCell({
   // `CellOccupant` (name + flags), so this wiring holds only the slot-level identity + callbacks.
   // NOTE: this is a fresh object each render, so it would defeat a `React.memo(PlacedChip)` —
   // stabilize it (e.g. `useMemo` in a named hook) before adding that memo, or the memo no-ops.
-  const chipWiring: ChipWiring = { day, period, cohort, bundled, onRemove, onSetWeek, onInspect };
+  const chipWiring: ChipWiring = { day, period, cohort, bundled, lensMatched, onRemove, onSetWeek, onInspect };
 
   return (
     <div

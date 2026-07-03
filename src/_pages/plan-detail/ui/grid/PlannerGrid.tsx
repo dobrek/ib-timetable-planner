@@ -17,12 +17,12 @@ import { breaksAfterPeriod } from "../../lib/period-breaks";
 /**
  * The cell wiring shared by every column the grid renders — the cell-level drag-hint state plus the
  * per-chip handlers. One `CellWiring` object is built per column at the board level (`buildColumn`) and
- * passed down as a single `wiring` prop instead of re-listing the 11 fields at every hop; the grid
+ * passed down as a single `wiring` prop instead of re-listing the 12 fields at every hop; the grid
  * resolves the per-cell values (this cell's hint, `bundled`, the `justDuplicated` pulse match) from it
  * inline, so `SlotCell` stays a dumb presentational component taking already-resolved scalars. A shared
  * Context was rejected because a broadcast Context re-renders every cell consumer whenever its value
  * changes (React Compiler memoization does not shrink that fan-out), while the bundle already solves the
- * actual pain — re-listing the 11 fields at every hop. The cadence is low, not per-tick: `dropHints` is
+ * actual pain — re-listing the 12 fields at every hop. The cadence is low, not per-tick: `dropHints` is
  * set once at drag start and cleared at drag end, `hintMode` changes on user toggle, and per-hover
  * reactivity is per-cell `useDroppable` — no board-wide re-render (see `ui-conventions.md`
  * §"State management").
@@ -36,6 +36,9 @@ export type CellWiring = {
   isExploded: (day: number, period: number) => boolean;
   /** The cell a duplicate just landed on (with a nonce), or null; the matching cell pulses. */
   justDuplicated: (CellData & { nonce: number }) | null;
+  /** Placement ids matched by the active highlight lens; null = lens inactive. Membership is
+   *  resolved per chip in `PlacedChip` (the set is shared by every cell in the column). */
+  lensMatched: Set<string> | null;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;

@@ -113,6 +113,25 @@ export const mergeEffectiveCriteria = (committed: LensCriterion[], preview: Lens
   return committedIds.has(criterionId(preview)) ? committed : [...committed, preview];
 };
 
+/** The lens-bar aggregate: the union total plus per-criterion counts across the visible cohorts. */
+export type LensCounts = { total: number; byCriterion: Map<string, number> };
+
+/**
+ * Sum per-criterion counts and union totals across the visible cohorts' lens derivations.
+ * Placement ids are globally unique, so the union total is a plain sum of per-cohort unions. A
+ * criterion absent from every visible cohort yields 0 (the `·0` chip on a focused view).
+ */
+export const combineLensCounts = (visibleMatches: (LensMatches | null)[], criteria: LensCriterion[]): LensCounts => {
+  const present = visibleMatches.filter((matches): matches is LensMatches => matches !== null);
+  const byCriterion = new Map(
+    criteria.map((criterion) => {
+      const id = criterionId(criterion);
+      return [id, present.reduce((sum, matches) => sum + (matches.countsByCriterion.get(id) ?? 0), 0)] as const;
+    }),
+  );
+  return { total: present.reduce((sum, matches) => sum + matches.matched.size, 0), byCriterion };
+};
+
 /** Per-kind valid-key sets — the plan-wide entity universe a rehydrated lens is pruned against. */
 export type LensKeyUniverse = Record<LensKind, ReadonlySet<string>>;
 

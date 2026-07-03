@@ -8,7 +8,7 @@ type Props = {
   onDragEnd: (event: DragEndEvent) => void;
   /** data-slot on the 3-column grid. The one board passes "planner-board" in every mode. */
   gridDataSlot: string;
-  /** Top bar above the grid: the board's `PlanSummaryBar` (counts + surface switcher + hint toggle). */
+  /** Header block above the grid: the `PlanSummaryBar` fragment (plus lens bar / live region). */
   header: ReactNode;
   /** 1st column — the one palette panel (`CombinedPalettePanel`, with an optional cohort switcher). */
   palette: ReactNode;
@@ -29,7 +29,8 @@ type Props = {
  * slot content; the `focus`-conditioned variation lives OUTSIDE the shell:
  *
  * - focus mode keeps the full-screen `empty` early-return (it never renders `BoardShell` then);
- * - the `header` is always `PlanSummaryBar` (counts = the focused cohort's, or the sum in combined);
+ * - the `header` is a fragment: `PlanSummaryBar` (counts = the focused cohort's, or the sum in
+ *   combined), the active-lens bar while lens criteria exist, and the lens's live region;
  * - the `center` carries up-to-2 error banners (the hidden cohort never errors in focus) + the grid;
  * - the `overlay` always passes `placementsByCohort`;
  * - the board owns its inspection wiring and passes a fully-built `dialog`.

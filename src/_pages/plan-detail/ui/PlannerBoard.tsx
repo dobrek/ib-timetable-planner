@@ -17,7 +17,7 @@ import {
   useZoom,
 } from "./chrome";
 import { useUndoKeymap } from "../model/history/use-undo-keymap";
-import { LensPicker, useLens, useLensKeymap } from "./lens";
+import { LensAnnouncer, LensBar, LensPicker, useLens, useLensKeymap } from "./lens";
 import { PlannerGrid, type PairedColumn } from "./grid";
 import { CollisionDetailsDialog, type CollisionInspectionTarget, GroupDragOverlay } from "./overlay";
 import { CombinedPalettePanel, ComputeGroupingsEmptyState, type PaletteCohortData } from "./palette";
@@ -26,7 +26,7 @@ import { cellKey } from "../model/collision/cell-key";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
 import { applyDropAction } from "../model/cross-cohort/drop-dispatch";
 import type { DragData, DropTargetData, PlannerBoardProps, SharedBoardProps } from "../model/drag";
-import { buildLensOptions } from "../model/lens";
+import { buildLensOptions, combineLensCounts } from "../model/lens";
 import { resolvePaletteView } from "../model/grouping/palette-view";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
@@ -213,17 +213,21 @@ export default function PlannerBoard({
   );
   const inspected = inspection ? resolveState(inspection.cohort) : null;
   // Picker options come from the VISIBLE cohorts' props (courses/students cohort-tagged when
-  // combined; teachers filtered to visible catalogs). Auto-memoized by React Compiler.
+  // combined; teachers filtered to visible catalogs). The bar instead resolves labels against the
+  // PLAN-WIDE set, so an off-screen cohort's criterion still names its `·0` chip. Counts span the
+  // visible cohorts only. All auto-memoized by React Compiler.
+  const toLensSource = ({ cohort, courseDisplay, catalog, studentNames }: PlannerBoardProps) => ({
+    cohort,
+    courseDisplay,
+    catalog,
+    studentNames,
+  });
   const visibleCohortProps = combined ? [dp1Props, dp2Props] : [resolveProps(focus)];
-  const lensOptions = buildLensOptions(
-    visibleCohortProps.map(({ cohort, courseDisplay, catalog, studentNames }) => ({
-      cohort,
-      courseDisplay,
-      catalog,
-      studentNames,
-    })),
-    shared.teacherNames,
-    combined,
+  const lensOptions = buildLensOptions(visibleCohortProps.map(toLensSource), shared.teacherNames, combined);
+  const planWideLensOptions = buildLensOptions([dp1Props, dp2Props].map(toLensSource), shared.teacherNames, false);
+  const lensCounts = combineLensCounts(
+    states.map((state) => state.lensMatches),
+    lens.criteria,
   );
 
   return (
@@ -232,32 +236,47 @@ export default function PlannerBoard({
       onDragEnd={handleDrop}
       gridDataSlot="planner-board"
       header={
-        <PlanSummaryBar
-          planName={planName}
-          summary={summary}
-          combined={combined}
-          parkedCount={parkedBundles.length}
-          onExpandShelf={() => {
-            setExpanded(true);
-          }}
-          planId={planId}
-          active={focus}
-          undoRedo={history}
-          trailing={
-            <>
-              <LensPicker
-                open={lens.open}
-                setOpen={lens.setOpen}
-                options={lensOptions}
-                criteria={lens.criteria}
-                onToggle={lens.toggleCriterion}
-                preview={lens.preview}
-                onPreview={lens.setPreview}
-              />
-              <BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode} />
-            </>
-          }
-        />
+        <>
+          <PlanSummaryBar
+            planName={planName}
+            summary={summary}
+            combined={combined}
+            parkedCount={parkedBundles.length}
+            onExpandShelf={() => {
+              setExpanded(true);
+            }}
+            planId={planId}
+            active={focus}
+            undoRedo={history}
+            trailing={
+              <>
+                <LensPicker
+                  open={lens.open}
+                  setOpen={lens.setOpen}
+                  options={lensOptions}
+                  criteria={lens.criteria}
+                  onToggle={lens.toggleCriterion}
+                  preview={lens.preview}
+                  onPreview={lens.setPreview}
+                />
+                <BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode} />
+              </>
+            }
+          />
+          {lens.criteria.length > 0 && (
+            <LensBar
+              criteria={lens.criteria}
+              counts={lensCounts}
+              options={planWideLensOptions}
+              onRemove={lens.removeCriterion}
+              onClearAll={lens.clearAll}
+              onOpenPicker={() => {
+                lens.setOpen(true);
+              }}
+            />
+          )}
+          <LensAnnouncer criteria={lens.criteria} total={lensCounts.total} />
+        </>
       }
       palette={
         <CombinedPalettePanel

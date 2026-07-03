@@ -26,7 +26,7 @@ import { cellKey } from "../model/collision/cell-key";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
 import { applyDropAction } from "../model/cross-cohort/drop-dispatch";
 import type { DragData, DropTargetData, PlannerBoardProps, SharedBoardProps } from "../model/drag";
-import { buildLensOptions, combineLensCounts } from "../model/lens";
+import { buildLensOptions, buildLensUniverse, combineLensCounts, type LensCohortSource } from "../model/lens";
 import { resolvePaletteView } from "../model/grouping/palette-view";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
@@ -64,8 +64,8 @@ export default function PlannerBoard({
 }: Props) {
   const { planId, days, periods } = shared;
   // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
-  // per-cohort lens derivation.
-  const lens = useLens(planId);
+  // per-cohort lens derivation. The universe (both cohorts, plan-wide) prunes the rehydrated lens.
+  const lens = useLens(planId, buildLensUniverse([toLensSource(dp1Props), toLensSource(dp2Props)]));
   const { dp1, dp2, history } = useCombinedBoardState(shared, dp1Props, dp2Props, focus, lens.effectiveCriteria);
   const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
   const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
@@ -216,12 +216,6 @@ export default function PlannerBoard({
   // combined; teachers filtered to visible catalogs). The bar instead resolves labels against the
   // PLAN-WIDE set, so an off-screen cohort's criterion still names its `·0` chip. Counts span the
   // visible cohorts only. All auto-memoized by React Compiler.
-  const toLensSource = ({ cohort, courseDisplay, catalog, studentNames }: PlannerBoardProps) => ({
-    cohort,
-    courseDisplay,
-    catalog,
-    studentNames,
-  });
   const visibleCohortProps = combined ? [dp1Props, dp2Props] : [resolveProps(focus)];
   const lensOptions = buildLensOptions(visibleCohortProps.map(toLensSource), shared.teacherNames, combined);
   const planWideLensOptions = buildLensOptions([dp1Props, dp2Props].map(toLensSource), shared.teacherNames, false);
@@ -345,3 +339,11 @@ export default function PlannerBoard({
     />
   );
 }
+
+/** Project one cohort's board props onto the lens's picker/universe input shape. */
+const toLensSource = ({ cohort, courseDisplay, catalog, studentNames }: PlannerBoardProps): LensCohortSource => ({
+  cohort,
+  courseDisplay,
+  catalog,
+  studentNames,
+});

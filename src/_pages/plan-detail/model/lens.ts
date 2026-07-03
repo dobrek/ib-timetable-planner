@@ -139,6 +139,17 @@ export type LensKeyUniverse = Record<LensKind, ReadonlySet<string>>;
 export const pruneCriteria = (criteria: LensCriterion[], validKeys: LensKeyUniverse): LensCriterion[] =>
   criteria.filter((criterion) => validKeys[criterion.kind].has(criterion.key));
 
+/**
+ * The PLAN-WIDE entity universe (always both cohorts — never the visible subset, so an off-screen
+ * cohort's criteria survive a focus switch while deleted entities don't). Teachers span the union
+ * of both catalogs' `teacherKeys` — the same union the loader builds for `teacherNames`.
+ */
+export const buildLensUniverse = (cohorts: LensCohortSource[]): LensKeyUniverse => ({
+  course: new Set(cohorts.flatMap((source) => Object.keys(source.courseDisplay))),
+  teacher: new Set(cohorts.flatMap((source) => source.catalog.flatMap((course) => course.teacherKeys))),
+  student: new Set(cohorts.flatMap((source) => Object.keys(source.studentNames))),
+});
+
 /** Per-kind predicate: course matches by placement id; teacher/student via the catalog key sets. */
 const matchesCriterion =
   (catalogById: Map<string, GroupingCourse>, criterion: LensCriterion) =>

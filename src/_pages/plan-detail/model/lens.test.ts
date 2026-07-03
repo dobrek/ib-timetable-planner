@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { catalog, course, placement } from "./__fixtures__/builders";
 import {
   buildLensOptions,
+  buildLensUniverse,
   combineLensCounts,
   criterionId,
   deriveLensMatches,
@@ -189,5 +190,14 @@ describe("pruneCriteria", () => {
       universe,
     );
     expect(pruned).toEqual([crit("course", "c-math"), crit("teacher", "t1")]);
+  });
+});
+
+describe("buildLensUniverse", () => {
+  it("spans BOTH cohorts' courses, catalog teachers, and students", () => {
+    const universe = buildLensUniverse([dp1Source, dp2Source]);
+    expect(universe.course).toEqual(new Set(["c-math", "c-bio", "c-math-2"]));
+    expect(universe.teacher).toEqual(new Set(["t1", "t2"]));
+    expect(universe.student).toEqual(new Set(["s1", "s2"]));
   });
 });

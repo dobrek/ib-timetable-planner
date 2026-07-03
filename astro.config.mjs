@@ -13,7 +13,7 @@ import cloudflare from "@astrojs/cloudflare";
  * evaluated keep a stale `react` chunk URL while `react-dom/server` reloads with a
  * fresh one, yielding two React instances and an "Invalid hook call" in dev SSR.
  * Including them in the initial scan keeps a single React instance. Dev-only —
- * `optimizeDeps` does not affect the production build. Uses the Vite 7 Environment
+ * `optimizeDeps` does not affect the production build. Uses the Vite 8 Environment
  * API per the Astro Cloudflare adapter guidance.
  */
 function ssrPrebundleDeps() {

@@ -305,6 +305,7 @@ No runtime performance change is expected — this is a framework version bump, 
 
 #### Manual
 
-- [x] 4.4 Branch-preview deploy smoke: auth → planner board → drag-drop with live validation → one CRUD op → sign out — LOCAL preview smoke on the real workerd build passed (auth → board hydrates → sign out; drag-drop + live validation + CRUD covered by the 23 e2e specs against the same `pnpm build && pnpm preview` output). HOSTED branch-preview deploy is deferred to the user as the pre-merge release step (outward-facing; watch-item: adapter v14 auto-provisions KV `SESSION` + Images `IMAGES` bindings at deploy) — 11d5c06
+- [x] 4.4 LOCAL preview smoke on the real workerd build: auth → board hydrates → sign out; drag-drop + live validation + CRUD covered by the 23 e2e specs against the same `pnpm build && pnpm preview` output — 11d5c06
 - [x] 4.5 `compressHTML: 'jsx'` spacing re-confirmed on preview render — screenshot of the production build clean (breadcrumb, sidebar labels, badge pills, cohort tabs) — 11d5c06
 - [x] 4.6 `ui-conventions.md:232` corrected; CI `wranglerVersion` pin verified against lockfile (lockfile + CI pin both wrangler@4.102.0 — no drift) — 11d5c06
+- [ ] 4.7 HOSTED branch-preview deploy smoke (pre-merge release step, outward-facing): auth → planner board → drag-drop with live validation → one CRUD op → sign out. Confirm adapter-v14 auto-enabled KV `SESSION` + Images `IMAGES` bindings do not block the hosted deploy (neither declared in `wrangler.jsonc`; app uses no `Astro.session`/`astro:assets`, so unused if provisioned)

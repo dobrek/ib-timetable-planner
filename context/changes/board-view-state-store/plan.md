@@ -187,27 +187,27 @@ None — no schema, data, or API change.
 
 #### Automated
 
-- [x] 1.1 No stale symbols remain in ui-conventions.md (grep useCellWiring|PairedPlannerGrid|groupByCell empty)
-- [x] 1.2 "every drag tick" gone from PlannerGrid.tsx (grep empty)
-- [x] 1.3 `pnpm check` passes
-- [x] 1.4 `pnpm lint` passes
+- [x] 1.1 No stale symbols remain in ui-conventions.md (grep useCellWiring|PairedPlannerGrid|groupByCell empty) — 4e3804d
+- [x] 1.2 "every drag tick" gone from PlannerGrid.tsx (grep empty) — 4e3804d
+- [x] 1.3 `pnpm check` passes — 4e3804d
+- [x] 1.4 `pnpm lint` passes — 4e3804d
 
 #### Manual
 
-- [x] 1.5 Every factual claim in the rewritten section resolves at the cited file:line
-- [x] 1.6 Trigger checklist applied to the lens case yields the spread verdict
-- [x] 1.7 Docblock and convention section are contradiction-free
+- [x] 1.5 Every factual claim in the rewritten section resolves at the cited file:line — 4e3804d
+- [x] 1.6 Trigger checklist applied to the lens case yields the spread verdict — 4e3804d
+- [x] 1.7 Docblock and convention section are contradiction-free — 4e3804d
 
 ### Phase 2: Propagate Downstream & Capture the Lesson
 
 #### Automated
 
-- [ ] 2.1 Research §4 addendum present and links frame.md (grep matches)
-- [ ] 2.2 New lesson entry present in lessons.md (grep matches)
-- [ ] 2.3 Follow-up recommendation recorded in change.md (grep matches)
-- [ ] 2.4 `pnpm check` and `pnpm lint` pass
+- [x] 2.1 Research §4 addendum present and links frame.md (grep matches)
+- [x] 2.2 New lesson entry present in lessons.md (grep matches)
+- [x] 2.3 Follow-up recommendation recorded in change.md (grep matches)
+- [x] 2.4 `pnpm check` and `pnpm lint` pass
 
 #### Manual
 
-- [ ] 2.5 Lesson reads as a class rule, not an incident report
-- [ ] 2.6 All cross-links resolve (frame ↔ plan ↔ research addendum ↔ convention)
+- [x] 2.5 Lesson reads as a class rule, not an incident report
+- [x] 2.6 All cross-links resolve (frame ↔ plan ↔ research addendum ↔ convention)

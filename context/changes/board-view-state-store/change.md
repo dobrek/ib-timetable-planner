@@ -28,3 +28,13 @@ Costs to weigh (stack-specific):
 Suggested route: **`/10x-frame`** first to fix the adoption threshold/trigger (when is a selector store warranted board-wide?) before planning. Outcome may update `ui-conventions.md:219-235` and the lens plan's §4 "trap" note.
 
 Sibling context: `context/changes/planner-board-search-discovery/research.md` §4 (Architecture fit & performance). The lens itself threads the spread regardless of how this lands — this change does not block it.
+
+## Follow-up recommendation (deferred)
+
+The frame's Narrowing Signals + Reframed Problem Statement (`frame.md`) located the real per-flag authoring cost — ~15 edit sites — in three cost centers *outside* the prop-spread transport this change debated:
+
+1. **Persistence-module cloning** — five near-identical ~50-line `lib/` `useSyncExternalStore` micro-stores (`drag-hint-mode.ts`, `board-zoom.ts`, `shelf-pinned.ts`, `palette-cohort.ts`, `palette-collapsed.ts`).
+2. **Control-surface widening** — `BoardSettingsMenu` value/setter pairs plus a bespoke control file per flag.
+3. **Derivation-seam plumbing** — `use-board-derivations.ts → useCohortDerivations → toCohortState → useCombinedBoardState`.
+
+A consolidation change targeting these is worth considering **after the highlight/discovery lens lands** — the lens reshapes what's worth consolidating, so this change deliberately opens **no follow-up folder now** (per plan "What We're NOT Doing"). Recorded here so the cost-center evidence isn't lost.

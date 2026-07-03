@@ -257,30 +257,30 @@ No runtime performance change is expected — this is a framework version bump, 
 
 #### Automated
 
-- [x] 1.1 `pnpm install` completes; lockfile resolves astro@7.0.6, @astrojs/cloudflare@14.x, @astrojs/react@6.x, vite@8.x
-- [x] 1.2 `pnpm exec astro sync` completes without error
-- [x] 1.3 Type gate passes: `pnpm check`
-- [x] 1.4 Production build clean under Vite 8: `pnpm build`
-- [x] 1.5 Lint passes: `pnpm lint`
-- [x] 1.6 FSD structure gate passes: `pnpm steiger`
-- [x] 1.7 Unit suite passes: `pnpm test`
+- [x] 1.1 `pnpm install` completes; lockfile resolves astro@7.0.6, @astrojs/cloudflare@14.x, @astrojs/react@6.x, vite@8.x — 09bbcad
+- [x] 1.2 `pnpm exec astro sync` completes without error — 09bbcad
+- [x] 1.3 Type gate passes: `pnpm check` — 09bbcad
+- [x] 1.4 Production build clean under Vite 8: `pnpm build` — 09bbcad
+- [x] 1.5 Lint passes: `pnpm lint` — 09bbcad
+- [x] 1.6 FSD structure gate passes: `pnpm steiger` — 09bbcad
+- [x] 1.7 Unit suite passes: `pnpm test` — 09bbcad
 
 #### Manual
 
-- [x] 1.8 Cross-checked adapter v14 / react v6 CHANGELOGs vs usage; confirmed no forced config migration (or applied it)
-- [x] 1.9 Confirmed React Compiler auto-memoization still active (Babel `target: "19"` preserved)
+- [x] 1.8 Cross-checked adapter v14 / react v6 CHANGELOGs vs usage; confirmed no forced config migration (or applied it) — 09bbcad
+- [x] 1.9 Confirmed React Compiler auto-memoization still active (Babel `target: "19"` preserved) — 09bbcad
 
 ### Phase 2: Dev-SSR stability verification
 
 #### Automated
 
-- [ ] 2.1 Cold-start dev boots and serves `GET /auth/signin` → HTTP 200 (with `node_modules/.vite` cleared)
+- [x] 2.1 Cold-start dev boots and serves `GET /auth/signin` → HTTP 200 (with `node_modules/.vite` cleared)
 
 #### Manual
 
-- [ ] 2.2 React-dedup cold-start test passes across ≥3 cold starts WITH the plugin (no "Invalid hook call" on `/auth/signin` and `/plans/:id`)
-- [ ] 2.3 HMR and `navigate()` client navigation work
-- [ ] 2.4 `compressHTML: 'jsx'` first-pass visual spacing acceptable on pages with adjacent inline elements
+- [x] 2.2 React-dedup cold-start test passes across ≥3 cold starts WITH the plugin (no "Invalid hook call" on `/auth/signin` and `/plans/:id`)
+- [x] 2.3 HMR and `navigate()` client navigation work
+- [x] 2.4 `compressHTML: 'jsx'` first-pass visual spacing acceptable on pages with adjacent inline elements
 
 ### Phase 3: `ssrPrebundleDeps` removal experiment
 

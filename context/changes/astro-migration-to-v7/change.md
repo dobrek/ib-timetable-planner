@@ -1,7 +1,7 @@
 ---
 change_id: astro-migration-to-v7
 title: Astro migration to v7
-status: implementing
+status: implemented
 created: 2026-07-03
 updated: 2026-07-03
 archived_at: null

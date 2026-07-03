@@ -11,9 +11,13 @@ type Props = ComponentProps<"button"> & {
  * The lens's fake-input entry point: a `<button>` styled like a search input (magnifier,
  * placeholder text, `⌘K` kbd hint) so the feature and its shortcut advertise themselves in one
  * element — announced honestly as a button (stable `aria-label`, no focus-trap ambiguity). Active
- * state swaps the placeholder for a filled "N criteria" treatment; below `md` it collapses to the
- * icon (the aria-label keeps the accessible name intact). Spread-friendly so `PopoverTrigger
- * asChild` can wire it as the picker's anchor.
+ * state shows a filled "N criteria" treatment; below `md` it collapses to the icon (the aria-label
+ * keeps the accessible name intact). Spread-friendly so `PopoverTrigger asChild` can wire it as
+ * the picker's anchor.
+ *
+ * The trigger's width is FIXED at its empty-state size: the placeholder span always stays in flow
+ * (turned `invisible` while active) and the count overlays it, so toggling criteria never resizes
+ * the trigger and the top-bar elements to its left don't jump.
  */
 export default function LensTrigger({ criteriaCount, className, ...props }: Props) {
   const active = criteriaCount > 0;
@@ -31,13 +35,17 @@ export default function LensTrigger({ criteriaCount, className, ...props }: Prop
       {...props}
     >
       <Search className="size-4 shrink-0" aria-hidden="true" />
-      {active ? (
-        <span className="hidden font-medium whitespace-nowrap tabular-nums md:inline">
-          {criteriaCount} {criteriaCount === 1 ? "criterion" : "criteria"}
+      <span className="relative hidden md:inline-block">
+        {/* Width anchor: always rendered so active/empty occupy the same footprint. */}
+        <span aria-hidden={active || undefined} className={cn("whitespace-nowrap", active && "invisible")}>
+          Highlight courses, teachers, students…
         </span>
-      ) : (
-        <span className="hidden whitespace-nowrap md:inline">Highlight courses, teachers, students…</span>
-      )}
+        {active && (
+          <span className="absolute inset-y-0 left-0 flex items-center font-medium whitespace-nowrap tabular-nums">
+            {criteriaCount} {criteriaCount === 1 ? "criterion" : "criteria"}
+          </span>
+        )}
+      </span>
       <kbd
         aria-hidden="true"
         className="bg-muted text-muted-foreground pointer-events-none hidden rounded border px-1 font-mono text-[10px] md:inline"

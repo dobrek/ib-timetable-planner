@@ -152,6 +152,7 @@ export default function PlannerBoard({
         hintMode,
         isExploded: state.isExploded,
         justDuplicated: state.justDuplicated,
+        lensMatched: state.lensMatches?.matched ?? null,
         onRemove: state.actions.removePlacement,
         onSetWeek: state.actions.setWeek,
         onToggleBundle: state.toggleExploded,

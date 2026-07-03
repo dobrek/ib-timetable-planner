@@ -35,6 +35,7 @@ const renderCell = (occupants: CellOccupant[], bundled: boolean, overrides: Part
     hintMode: DEFAULT_HINT_MODE,
     bundled,
     justDuplicated: false,
+    lensMatched: null,
     onRemove: vi.fn(),
     onSetWeek: vi.fn(),
     onToggleBundle: vi.fn(),

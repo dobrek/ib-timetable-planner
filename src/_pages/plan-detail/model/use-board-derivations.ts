@@ -6,6 +6,7 @@ import type { CellData, DragData, SharedBoardProps } from "./drag";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
 import { deriveHours, deriveOverplaced, deriveUnplaced, summarizeHours } from "./hours";
+import { deriveLensMatches, type LensCriterion } from "./lens";
 import type { LocalPlacement } from "./placement/placement";
 
 /**
@@ -92,6 +93,17 @@ export function useDuplicateHighlight(last: (CellData & { nonce: number }) | nul
     };
   }, [last]);
   return last && last.nonce !== clearedNonce ? last : null;
+}
+
+// The highlight lens's match union over one cohort's placements — null while no criteria are active
+// (mirrors `dropHints`' null-means-inactive). Deps are orthogonal to the collision/hint memos, so a
+// lens change never re-runs them and a placement mutation re-runs this one linear pass alongside.
+export function useLensMatches(
+  placements: LocalPlacement[],
+  catalogById: Map<string, GroupingCourse>,
+  criteria: LensCriterion[],
+) {
+  return useMemo(() => deriveLensMatches(placements, catalogById, criteria), [placements, catalogById, criteria]);
 }
 
 export type { CellCollisions };

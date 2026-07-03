@@ -336,14 +336,14 @@ None — no schema, no persisted server state, no data migration. Rollback is a 
 
 #### Automated
 
-- [ ] 1.1 `pnpm test` green incl. new `model/lens.test.ts`
-- [ ] 1.2 `pnpm check` clean
-- [ ] 1.3 `pnpm lint` and `pnpm steiger` clean
-- [ ] 1.4 `pnpm build` clean
+- [x] 1.1 `pnpm test` green incl. new `model/lens.test.ts`
+- [x] 1.2 `pnpm check` clean
+- [x] 1.3 `pnpm lint` and `pnpm steiger` clean
+- [x] 1.4 `pnpm build` clean
 
 #### Manual
 
-- [ ] 1.5 Board renders/behaves identically with no lens (all three surfaces)
+- [x] 1.5 Board renders/behaves identically with no lens (all three surfaces)
 
 ### Phase 2: Trigger + Picker — the lens becomes usable
 

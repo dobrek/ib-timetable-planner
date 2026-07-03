@@ -21,7 +21,7 @@ Every component file reads top-down from **what** to **how**:
 
 Open the file, see the component shape immediately; scroll down only for implementation detail. Function declarations are hoisted, so hooks defined below the component are valid.
 
-The trailing-constants rule (item 6) documents an existing slice norm, not a new one: `HINT_CLASS`/`toneClass` (`ui/slot-cell/tone-class.ts`), `PLUGINS` (`PlannerBoard`), and `groupByCell` (`PlannerGrid`) already sit at the bottom of their files. `const`-bound pure helpers (`mergeRefs`, `stopDrag`) follow the same rule.
+The trailing-constants rule (item 6) documents an existing slice norm, not a new one: `HINT_CLASS`/`toneClass` (`ui/slot-cell/tone-class.ts`) and `PLUGINS` (`PlannerBoard`) already sit at the bottom of their files. `const`-bound pure helpers (`mergeRefs`, `stopDrag`) follow the same rule.
 
 ## Hook granularity
 
@@ -218,21 +218,43 @@ import { createCourse } from "../api/course-client";
 
 ## State management
 
-No global store library (Zustand, Context) unless:
+Local state lives in hooks; shared derived state is computed once at the orchestrator and passed down (see "Shared lookups"). A **store** or a broadcast **Context** is not the default — but the two are different tools with opposite re-render semantics, and the choice between "store", "Context", and "props" is made by the adoption-trigger checklist below, not by fiat.
 
-- State must cross multiple React islands on the same page, or
-- Optimistic mutation paths become too complex for hooks alone.
+**Context vs. selector store — know which you mean.** A React **Context** is a *broadcast*: when its value changes, **every** consumer re-renders, however deep the tree or however small the slice each one reads. The React Compiler (a real build transform — `astro.config.mjs` wires `@astrojs/react` with `babel-plugin-react-compiler`, `target: "19"`) auto-memoizes render-pure components, but memoization **does not shrink a Context's fan-out** — a changed Context value still re-renders all consumers. A **selector store** (`useSyncExternalStore` + a stable store ref) is the opposite: it is *granular*, so only the components whose selected slice actually changed re-render. `hintMode` already is exactly such a store (`lib/drag-hint-mode.ts`, subscribed via `useHintMode` in `chrome/board-disclosure.ts:21`) — a leaf could subscribe to it directly today. Treat them as distinct tools: a Context is the broadcast tool, a store is the granular one, and "no store by default" never meant "no `useSyncExternalStore`".
 
-The courses slice uses custom hooks + RHF for forms. Overlap edits use in-memory updates; other mutations use `navigate()` to re-run the server loader.
+### Adoption-trigger checklist
 
-### Cell wiring is a spread, not a Context (amendment — `plan-detail-refactor`)
+Reach for a store (or a Context that carries a *stable store ref*, so the context value itself never changes and the broadcast never fires) when **at least one** holds:
 
-The plan-detail board threads ~11 per-cell handlers + drag-hint state (`CellWiring`) from the board down to each `SlotCell`. The fix for the prop-drill is a **bundled object + `{...wiring}` spread** (`useCellWiring` → `PlannerGrid`/`PairedPlannerGrid`), **not** a `BoardWiringContext`. The real rationale (beyond the no-Context default above):
+1. **State must cross multiple React islands** on the same page — props cannot bridge two `client:` roots.
+2. **A cross-cutting selection is consumed at many leaves** while the intermediate layers neither read nor transform it — a store lets those leaves subscribe directly instead of threading a prop through uninvolved hops.
+3. **Per-flag persistence micro-modules have accumulated** to where folding them into one store pays for the novelty — today there are five near-identical ~50-line `useSyncExternalStore` clones under `lib/`: `drag-hint-mode.ts`, `board-zoom.ts`, `shelf-pinned.ts`, `palette-cohort.ts`, `palette-collapsed.ts`.
+4. **Optimistic mutation flows outgrow hooks** — the reconcile/rollback logic no longer fits a hook over pure `model/` transitions.
 
-- **The React Compiler runs as a real build transform** (`astro.config.mjs` wires `@astrojs/react` with `babel-plugin-react-compiler`, `target: "19"`), so render-pure islands are auto-memoized. But auto-memoizing a *component* doesn't shrink a Context's fan-out: when a shared Context value changes, every consumer still re-renders. `useCellWiring`'s `useMemo` keeps the bundled wiring object referentially stable.
-- **`dropHints`/`hintMode` change on every drag tick.** A single broad-fan-out Context value would re-render *every* cell consumer on each hint update — exactly the cost the per-cell prop structure bounds — and the placement/constraint pass already runs against a **<200ms per drag-drop budget**. Context here would be both convention-discouraged *and* a measurable perf regression.
+**The current plan-detail board meets none of these.** The page mounts **one** island (`PlanDetailPage.astro:29`), so trigger 1 is out. What the grid chain (`PlannerBoard → PlannerGrid → SlotCell → PlacedChip`) threads down is not a bare selection but **per-cohort derived data** — `dropHints`, `justDuplicated`, collisions, ~11 handlers — assembled in `toCohortState` (`use-cohort-board-state.ts:219-259`) and rebuilt fresh per column in `buildColumn` (`PlannerBoard.tsx:150-166`, unmemoized). A selection-only store would remove **~1 of ~8** chain edit sites, so trigger 2 does not pay. Persistence has five clones but no felt consolidation pain yet (trigger 3 — watch it), and the optimistic path (`usePlacements` over pure transitions) is still hook-sized (trigger 4). Verdict for today: **hooks + spread, no store.**
 
-The combined view already proved the spread pattern (`PairedPlannerGrid` spreads `{...column.wiring}`); the single board now adopts it.
+### Lane-choice rule for a new board flag
+
+When a new plan-detail view flag arrives, pick its transport by **where it is consumed**, not by habit:
+
+| The flag is… | Lane | Precedent |
+| --- | --- | --- |
+| consumed at the **grid** level | a direct `PlannerGrid` prop | `zoom` (`PlannerGrid.tsx:89`) |
+| consumed **per-cell / per-chip** | a `CellWiring` field, resolved per cell in the grid | `hintMode` (`PlannerGrid.tsx:162`) |
+| a **persisted device preference** | a `lib/` `useSyncExternalStore` micro-store + a chrome hook | `drag-hint-mode.ts` |
+| **per-cohort derived data** | the derivation pipeline, exposed via `toCohortState` | `dropHints`, `justDuplicated` |
+
+The board threads its ~11 per-cell handlers + drag-hint state (`CellWiring`) as a **bundled object + `{...wiring}` spread** — built per column in `buildColumn` (`PlannerBoard.tsx:150-166`) and resolved per cell in the grid — rather than re-listing the fields at every hop. That is the fix for the prop-drill, and it stands **not** on any per-tick frequency claim but on two facts: a broadcast Context would re-render every cell on each change (fan-out, above), and the bundle removes the per-hop re-listing that was the real authoring cost. The cadence is in fact low: `dropHints` is set once at drag start and cleared at drag end (`use-board-derivations.ts:52-65`), `hintMode` changes on user toggle, and per-hover reactivity is per-cell `useDroppable` (`SlotCell.tsx:174`) — not a board-wide re-render.
+
+### Where the real per-flag cost sits
+
+Measured against the current board, a new cell-reaching flag costs **~15 edit sites**, and most of them are **outside** the transport this section used to debate. The cost centers, in order: **persistence-module cloning** (each persisted flag copies a ~50-line `lib/` micro-store), **control-surface widening** (`BoardSettingsMenu` value/setter pairs + a bespoke control file per flag), and **transport-independent derivation plumbing** (`use-board-derivations.ts → useCohortDerivations → toCohortState → useCombinedBoardState`). Future friction work should aim here, not at the spread. Evidence: `context/changes/board-view-state-store/frame.md` (Narrowing Signals).
+
+### Worked example — the highlight/discovery lens
+
+The lens (highlight placements by subject / teacher / student) is the next board-level flag. Run it through the checklist: still one island (trigger 1 — no); it *is* a cross-cutting selection, but it is consumed per-chip through the same derivation pipeline the other view flags use, and its match set is per-cohort derived data — so it rides `toCohortState` + the `{...wiring}` spread like `justDuplicated`, saving nothing by moving to a store (trigger 2 — no); triggers 3–4 are unrelated. **Verdict: thread it via the spread, no Context, no store** — which is exactly what the lens research concludes (`context/changes/planner-board-search-discovery/research.md` §4).
+
+For non-board slices: the courses slice uses custom hooks + RHF for forms. Overlap edits use in-memory updates; other mutations use `navigate()` to re-run the server loader.
 
 ## Astro layouts & inline scripts
 

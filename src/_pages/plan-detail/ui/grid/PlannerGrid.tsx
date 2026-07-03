@@ -20,8 +20,12 @@ import { breaksAfterPeriod } from "../../lib/period-breaks";
  * passed down as a single `wiring` prop instead of re-listing the 11 fields at every hop; the grid
  * resolves the per-cell values (this cell's hint, `bundled`, the `justDuplicated` pulse match) from it
  * inline, so `SlotCell` stays a dumb presentational component taking already-resolved scalars. A shared
- * Context was rejected: `dropHints`/`hintMode` change on every drag tick, so one Context value would
- * re-render all cells against the <200ms budget (see `ui-conventions.md` §"State management").
+ * Context was rejected because a broadcast Context re-renders every cell consumer whenever its value
+ * changes (React Compiler memoization does not shrink that fan-out), while the bundle already solves the
+ * actual pain — re-listing the 11 fields at every hop. The cadence is low, not per-tick: `dropHints` is
+ * set once at drag start and cleared at drag end, `hintMode` changes on user toggle, and per-hover
+ * reactivity is per-cell `useDroppable` — no board-wide re-render (see `ui-conventions.md`
+ * §"State management").
  */
 export type CellWiring = {
   /** cellKey → drag hint (sparse: absent = free); null when no drag is active. */

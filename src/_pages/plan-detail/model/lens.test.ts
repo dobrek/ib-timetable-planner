@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { catalog, course, placement } from "./__fixtures__/builders";
 import {
   buildLensOptions,
+  combineLensCounts,
   criterionId,
   deriveLensMatches,
   mergeEffectiveCriteria,
   pruneCriteria,
   type LensCohortSource,
   type LensCriterion,
+  type LensMatches,
 } from "./lens";
 import type { LocalPlacement } from "./placement/placement";
 
@@ -140,6 +142,38 @@ describe("mergeEffectiveCriteria", () => {
 
   it("dedups a preview that is already committed (stable identity)", () => {
     expect(mergeEffectiveCriteria(committed, crit("teacher", "t1"))).toBe(committed);
+  });
+});
+
+describe("combineLensCounts", () => {
+  const dp1Matches: LensMatches = {
+    matched: new Set(["p1", "p2"]),
+    countsByCriterion: new Map([
+      ["teacher:kk", 2],
+      ["course:c-x", 1],
+    ]),
+  };
+  const dp2Matches: LensMatches = {
+    matched: new Set(["p9"]),
+    countsByCriterion: new Map([["teacher:kk", 1]]),
+  };
+
+  it("sums per-criterion counts and union totals across visible cohorts", () => {
+    const counts = combineLensCounts([dp1Matches, dp2Matches], [crit("teacher", "kk"), crit("course", "c-x")]);
+    expect(counts.total).toBe(3);
+    expect(counts.byCriterion.get("teacher:kk")).toBe(3);
+    expect(counts.byCriterion.get("course:c-x")).toBe(1);
+  });
+
+  it("yields 0 for a criterion absent from every visible cohort (the ·0 chip)", () => {
+    const counts = combineLensCounts([dp1Matches], [crit("student", "s-offscreen")]);
+    expect(counts.byCriterion.get("student:s-offscreen")).toBe(0);
+  });
+
+  it("ignores inactive (null) cohort derivations", () => {
+    const counts = combineLensCounts([dp1Matches, null], [crit("teacher", "kk")]);
+    expect(counts.total).toBe(2);
+    expect(counts.byCriterion.get("teacher:kk")).toBe(2);
   });
 });
 

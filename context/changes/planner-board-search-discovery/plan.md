@@ -349,30 +349,30 @@ None — no schema, no persisted server state, no data migration. Rollback is a 
 
 #### Automated
 
-- [x] 2.1 `pnpm test` green incl. `buildLensOptions` + `use-lens-keymap` tests
-- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 2.1 `pnpm test` green incl. `buildLensOptions` + `use-lens-keymap` tests — 648b370
+- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean — 648b370
 
 #### Manual
 
-- [x] 2.3 Trigger + ⌘K open the same picker; search filters all groups
-- [x] 2.4 Live union on check/uncheck; preview-on-navigate; preview drops on close
-- [x] 2.5 Esc layering correct against picker, settings/hours popovers, collision dialog
-- [x] 2.6 Monochrome readability verified (matched ring, dimmed legibility, collision hues, light + dark)
-- [x] 2.7 Lens × drag composition acceptable
+- [x] 2.3 Trigger + ⌘K open the same picker; search filters all groups — 648b370
+- [x] 2.4 Live union on check/uncheck; preview-on-navigate; preview drops on close — 648b370
+- [x] 2.5 Esc layering correct against picker, settings/hours popovers, collision dialog — 648b370
+- [x] 2.6 Monochrome readability verified (matched ring, dimmed legibility, collision hues, light + dark) — 648b370
+- [x] 2.7 Lens × drag composition acceptable — 648b370
 
 ### Phase 3: Active-Lens Bar + counts + a11y
 
 #### Automated
 
-- [ ] 3.1 `pnpm test` green incl. `combineLensCounts` + `LensBar` tests
-- [ ] 3.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 3.1 `pnpm test` green incl. `combineLensCounts` + `LensBar` tests
+- [x] 3.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
 
 #### Manual
 
-- [ ] 3.3 Bar chips + counts correct (combined and focused views, `·0` case)
-- [ ] 3.4 Remove/Clear all/chip-reopens-picker interactions work
-- [ ] 3.5 Zero-match message shows instead of an unexplained fully-dimmed board
-- [ ] 3.6 VoiceOver announces the total when criteria change
+- [x] 3.3 Bar chips + counts correct (combined and focused views, `·0` case)
+- [x] 3.4 Remove/Clear all/chip-reopens-picker interactions work
+- [x] 3.5 Zero-match message shows instead of an unexplained fully-dimmed board
+- [x] 3.6 VoiceOver announces the total when criteria change
 
 ### Phase 4: Session persistence + e2e
 

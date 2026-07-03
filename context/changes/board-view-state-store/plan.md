@@ -202,12 +202,12 @@ None — no schema, data, or API change.
 
 #### Automated
 
-- [x] 2.1 Research §4 addendum present and links frame.md (grep matches)
-- [x] 2.2 New lesson entry present in lessons.md (grep matches)
-- [x] 2.3 Follow-up recommendation recorded in change.md (grep matches)
-- [x] 2.4 `pnpm check` and `pnpm lint` pass
+- [x] 2.1 Research §4 addendum present and links frame.md (grep matches) — 1b4ea1d
+- [x] 2.2 New lesson entry present in lessons.md (grep matches) — 1b4ea1d
+- [x] 2.3 Follow-up recommendation recorded in change.md (grep matches) — 1b4ea1d
+- [x] 2.4 `pnpm check` and `pnpm lint` pass — 1b4ea1d
 
 #### Manual
 
-- [x] 2.5 Lesson reads as a class rule, not an incident report
-- [x] 2.6 All cross-links resolve (frame ↔ plan ↔ research addendum ↔ convention)
+- [x] 2.5 Lesson reads as a class rule, not an incident report — 1b4ea1d
+- [x] 2.6 All cross-links resolve (frame ↔ plan ↔ research addendum ↔ convention) — 1b4ea1d

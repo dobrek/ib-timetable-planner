@@ -17,6 +17,7 @@ import {
   useZoom,
 } from "./chrome";
 import { useUndoKeymap } from "../model/history/use-undo-keymap";
+import { LensPicker, useLens, useLensKeymap } from "./lens";
 import { PlannerGrid, type PairedColumn } from "./grid";
 import { CollisionDetailsDialog, type CollisionInspectionTarget, GroupDragOverlay } from "./overlay";
 import { CombinedPalettePanel, ComputeGroupingsEmptyState, type PaletteCohortData } from "./palette";
@@ -25,6 +26,7 @@ import { cellKey } from "../model/collision/cell-key";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
 import { applyDropAction } from "../model/cross-cohort/drop-dispatch";
 import type { DragData, DropTargetData, PlannerBoardProps, SharedBoardProps } from "../model/drag";
+import { buildLensOptions } from "../model/lens";
 import { resolvePaletteView } from "../model/grouping/palette-view";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
@@ -61,7 +63,10 @@ export default function PlannerBoard({
   initialPaletteCohort,
 }: Props) {
   const { planId, days, periods } = shared;
-  const { dp1, dp2, history } = useCombinedBoardState(shared, dp1Props, dp2Props, focus);
+  // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
+  // per-cohort lens derivation.
+  const lens = useLens(planId);
+  const { dp1, dp2, history } = useCombinedBoardState(shared, dp1Props, dp2Props, focus, lens.effectiveCriteria);
   const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
   const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
 
@@ -77,6 +82,14 @@ export default function PlannerBoard({
   // Per-device manual zoom (a plain number, 1 = 100%), persisted and cross-tab-synced via `useZoom`.
   const { zoom, setZoom } = useZoom();
   const [inspection, setInspection] = useState<{ cohort: Cohort; target: CollisionInspectionTarget } | null>(null);
+
+  useLensKeymap({
+    open: lens.open,
+    setOpen: lens.setOpen,
+    hasCriteria: lens.criteria.length > 0,
+    clearAll: lens.clearAll,
+    inspectionOpen: inspection !== null,
+  });
 
   const combined = focus === "combined";
   // The `focus === "combined"` discriminant (not the `combined` alias) narrows `focus` to `Cohort`.
@@ -199,6 +212,19 @@ export default function PlannerBoard({
     })),
   );
   const inspected = inspection ? resolveState(inspection.cohort) : null;
+  // Picker options come from the VISIBLE cohorts' props (courses/students cohort-tagged when
+  // combined; teachers filtered to visible catalogs). Auto-memoized by React Compiler.
+  const visibleCohortProps = combined ? [dp1Props, dp2Props] : [resolveProps(focus)];
+  const lensOptions = buildLensOptions(
+    visibleCohortProps.map(({ cohort, courseDisplay, catalog, studentNames }) => ({
+      cohort,
+      courseDisplay,
+      catalog,
+      studentNames,
+    })),
+    shared.teacherNames,
+    combined,
+  );
 
   return (
     <BoardShell
@@ -217,7 +243,20 @@ export default function PlannerBoard({
           planId={planId}
           active={focus}
           undoRedo={history}
-          trailing={<BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode} />}
+          trailing={
+            <>
+              <LensPicker
+                open={lens.open}
+                setOpen={lens.setOpen}
+                options={lensOptions}
+                criteria={lens.criteria}
+                onToggle={lens.toggleCriterion}
+                preview={lens.preview}
+                onPreview={lens.setPreview}
+              />
+              <BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode} />
+            </>
+          }
         />
       }
       palette={

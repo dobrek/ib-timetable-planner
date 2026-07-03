@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isFromTextField } from "../../lib/editable-target";
 
 type UndoKeymap = {
   undo: () => void;
@@ -46,13 +47,4 @@ function resolveShortcut(event: KeyboardEvent): "undo" | "redo" | null {
   if (key === "z") return event.shiftKey ? "redo" : "undo";
   if (key === "y" && event.ctrlKey && !event.metaKey) return "redo";
   return null;
-}
-
-/** True when the event originates from an editable control, so typing never triggers undo. */
-function isFromTextField(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return true;
-  // `isContentEditable` covers inherited editability in real browsers; the attribute selector is a
-  // deterministic fallback (and handles nested editables) so the guard never depends on the DOM impl.
-  return target.isContentEditable || target.closest('[contenteditable]:not([contenteditable="false"])') !== null;
 }

@@ -336,29 +336,29 @@ None — no schema, no persisted server state, no data migration. Rollback is a 
 
 #### Automated
 
-- [x] 1.1 `pnpm test` green incl. new `model/lens.test.ts`
-- [x] 1.2 `pnpm check` clean
-- [x] 1.3 `pnpm lint` and `pnpm steiger` clean
-- [x] 1.4 `pnpm build` clean
+- [x] 1.1 `pnpm test` green incl. new `model/lens.test.ts` — 040547d
+- [x] 1.2 `pnpm check` clean — 040547d
+- [x] 1.3 `pnpm lint` and `pnpm steiger` clean — 040547d
+- [x] 1.4 `pnpm build` clean — 040547d
 
 #### Manual
 
-- [x] 1.5 Board renders/behaves identically with no lens (all three surfaces)
+- [x] 1.5 Board renders/behaves identically with no lens (all three surfaces) — 040547d
 
 ### Phase 2: Trigger + Picker — the lens becomes usable
 
 #### Automated
 
-- [ ] 2.1 `pnpm test` green incl. `buildLensOptions` + `use-lens-keymap` tests
-- [ ] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 2.1 `pnpm test` green incl. `buildLensOptions` + `use-lens-keymap` tests
+- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
 
 #### Manual
 
-- [ ] 2.3 Trigger + ⌘K open the same picker; search filters all groups
-- [ ] 2.4 Live union on check/uncheck; preview-on-navigate; preview drops on close
-- [ ] 2.5 Esc layering correct against picker, settings/hours popovers, collision dialog
-- [ ] 2.6 Monochrome readability verified (matched ring, dimmed legibility, collision hues, light + dark)
-- [ ] 2.7 Lens × drag composition acceptable
+- [x] 2.3 Trigger + ⌘K open the same picker; search filters all groups
+- [x] 2.4 Live union on check/uncheck; preview-on-navigate; preview drops on close
+- [x] 2.5 Esc layering correct against picker, settings/hours popovers, collision dialog
+- [x] 2.6 Monochrome readability verified (matched ring, dimmed legibility, collision hues, light + dark)
+- [x] 2.7 Lens × drag composition acceptable
 
 ### Phase 3: Active-Lens Bar + counts + a11y
 

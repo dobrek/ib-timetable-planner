@@ -19,15 +19,15 @@ type PlanSummaryBarProps = {
   planId: string;
   /** The current `?focus=` surface (a cohort or combined), driving the switcher's active segment. */
   active: BoardSurface;
-  /** Undo/redo stack state + triggers — rendered as toolbar buttons beside the drag-hint toggle. */
+  /** Undo/redo stack state + triggers — rendered as toolbar buttons beside the trailing controls. */
   undoRedo?: UndoRedoControlsProps;
-  /** Trailing controls (the drag-hint toggle) — the one header for every mode. */
+  /** Trailing controls (the lens trigger/picker + the board-settings menu) — the one header for every mode. */
   trailing?: ReactNode;
 };
 
 /** Slim board heading row: plan name + surface switcher + a parked-count cue + how many course hours
- *  still need placing (a Popover trigger revealing which courses), with the drag-hint toggle trailing
- *  so there is one header for all modes. */
+ *  still need placing (a Popover trigger revealing which courses), with the lens trigger and the
+ *  board-settings menu trailing so there is one header for all modes. */
 export default function PlanSummaryBar({
   planName,
   summary,

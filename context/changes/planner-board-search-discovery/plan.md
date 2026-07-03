@@ -378,12 +378,12 @@ None — no schema, no persisted server state, no data migration. Rollback is a 
 
 #### Automated
 
-- [x] 4.1 `pnpm test` green incl. `lens-session` + `pruneCriteria` tests
-- [x] 4.2 `pnpm test:e2e` green incl. `lens-highlight.spec.ts`
-- [x] 4.3 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 4.1 `pnpm test` green incl. `lens-session` + `pruneCriteria` tests — 2b46cbe
+- [x] 4.2 `pnpm test:e2e` green incl. `lens-highlight.spec.ts` — 2b46cbe
+- [x] 4.3 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean — 2b46cbe
 
 #### Manual
 
-- [x] 4.4 Focus-switch matrix: DP1 → Combined → DP2 lens intact (counts span cohorts, `·0` chips)
-- [x] 4.5 Reload keeps the lens; a new tab starts clean
-- [x] 4.6 Storage-blocked degradation: lens still works in-page when sessionStorage throws
+- [x] 4.4 Focus-switch matrix: DP1 → Combined → DP2 lens intact (counts span cohorts, `·0` chips) — 2b46cbe
+- [x] 4.5 Reload keeps the lens; a new tab starts clean — 2b46cbe
+- [x] 4.6 Storage-blocked degradation: lens still works in-page when sessionStorage throws — 2b46cbe

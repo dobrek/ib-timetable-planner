@@ -1,10 +1,10 @@
 ---
 change_id: board-view-state-store
 title: Challenge the no-Context/no-store rule for board view flags
-status: implemented
+status: archived
 created: 2026-07-03
 updated: 2026-07-03
-archived_at: null
+archived_at: 2026-07-03T13:39:58Z
 ---
 
 ## Notes

@@ -274,26 +274,26 @@ No runtime performance change is expected — this is a framework version bump, 
 
 #### Automated
 
-- [x] 2.1 Cold-start dev boots and serves `GET /auth/signin` → HTTP 200 (with `node_modules/.vite` cleared)
+- [x] 2.1 Cold-start dev boots and serves `GET /auth/signin` → HTTP 200 (with `node_modules/.vite` cleared) — c274824
 
 #### Manual
 
-- [x] 2.2 React-dedup cold-start test passes across ≥3 cold starts WITH the plugin (no "Invalid hook call" on `/auth/signin` and `/plans/:id`)
-- [x] 2.3 HMR and `navigate()` client navigation work
-- [x] 2.4 `compressHTML: 'jsx'` first-pass visual spacing acceptable on pages with adjacent inline elements
+- [x] 2.2 React-dedup cold-start test passes across ≥3 cold starts WITH the plugin (no "Invalid hook call" on `/auth/signin` and `/plans/:id`) — c274824
+- [x] 2.3 HMR and `navigate()` client navigation work — c274824
+- [x] 2.4 `compressHTML: 'jsx'` first-pass visual spacing acceptable on pages with adjacent inline elements — c274824
 
 ### Phase 3: `ssrPrebundleDeps` removal experiment
 
 #### Automated
 
-- [ ] 3.1 Production build still clean whichever way the decision lands: `pnpm build`
-- [ ] 3.2 Type gate still clean: `pnpm check`
+- [x] 3.1 Production build still clean whichever way the decision lands: `pnpm build`
+- [x] 3.2 Type gate still clean: `pnpm check`
 
 #### Manual
 
-- [ ] 3.3 Cold-start test run WITHOUT the plugin (≥3 cold starts); regression result recorded
-- [ ] 3.4 Decision applied — `astro.config.mjs` matches it (deleted if clean; restored/re-tuned if not)
-- [ ] 3.5 Outcome documented in `research.md` open-decision entry
+- [x] 3.3 Cold-start test run WITHOUT the plugin (≥3 cold starts); regression result recorded — regression RETURNED (reloads=3, crashes=23 on /plans/:id, all 3 cold starts)
+- [x] 3.4 Decision applied — `astro.config.mjs` matches it (deleted if clean; restored/re-tuned if not) — restored + re-tuned (astro runtime modules added), landed in c274824
+- [x] 3.5 Outcome documented in `research.md` open-decision entry
 
 ### Phase 4: Full gate, doc fix & merge readiness
 

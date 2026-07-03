@@ -1,9 +1,9 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  // Vite 8 resolves tsconfig `paths` natively — no `vite-tsconfig-paths` plugin needed.
+  resolve: { tsconfigPaths: true },
   test: {
     // Stub Astro virtual modules so slice code reaching them through the
     // `@/shared/api` barrel (env-reading `createClient`) and the action wrapper

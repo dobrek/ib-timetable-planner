@@ -248,7 +248,7 @@ The board threads its ~11 per-cell handlers + drag-hint state (`CellWiring`) as 
 
 ### Where the real per-flag cost sits
 
-Measured against the current board, a new cell-reaching flag costs **~15 edit sites**, and most of them are **outside** the transport this section used to debate. The cost centers, in order: **persistence-module cloning** (each persisted flag copies a ~50-line `lib/` micro-store), **control-surface widening** (`BoardSettingsMenu` value/setter pairs + a bespoke control file per flag), and **transport-independent derivation plumbing** (`use-board-derivations.ts → useCohortDerivations → toCohortState → useCombinedBoardState`). Future friction work should aim here, not at the spread. Evidence: `context/changes/board-view-state-store/frame.md` (Narrowing Signals).
+Measured against the current board, a new cell-reaching flag costs **~15 edit sites**, and most of them are **outside** the transport this section used to debate. The cost centers, in order: **persistence-module cloning** (each persisted flag copies a ~50-line `lib/` micro-store), **control-surface widening** (`BoardSettingsMenu` value/setter pairs + a bespoke control file per flag), and **transport-independent derivation plumbing** (`use-board-derivations.ts → useCohortDerivations → toCohortState → useCombinedBoardState`). Future friction work should aim here, not at the spread. Evidence: `context/archive/2026-07-03-board-view-state-store/frame.md` (Narrowing Signals).
 
 ### Worked example — the highlight/discovery lens
 

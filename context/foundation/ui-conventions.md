@@ -229,7 +229,7 @@ The courses slice uses custom hooks + RHF for forms. Overlap edits use in-memory
 
 The plan-detail board threads ~11 per-cell handlers + drag-hint state (`CellWiring`) from the board down to each `SlotCell`. The fix for the prop-drill is a **bundled object + `{...wiring}` spread** (`useCellWiring` → `PlannerGrid`/`PairedPlannerGrid`), **not** a `BoardWiringContext`. The real rationale (beyond the no-Context default above):
 
-- **There is no React Compiler transform** — only the `eslint-plugin-react-compiler` lint rule (`astro.config.mjs` wires `@astrojs/react` with no babel options). So memoization is **all manual**; a new shared value must be referentially stable by hand (`useCellWiring`'s `useMemo`).
+- **The React Compiler runs as a real build transform** (`astro.config.mjs` wires `@astrojs/react` with `babel-plugin-react-compiler`, `target: "19"`), so render-pure islands are auto-memoized. But auto-memoizing a *component* doesn't shrink a Context's fan-out: when a shared Context value changes, every consumer still re-renders. `useCellWiring`'s `useMemo` keeps the bundled wiring object referentially stable.
 - **`dropHints`/`hintMode` change on every drag tick.** A single broad-fan-out Context value would re-render *every* cell consumer on each hint update — exactly the cost the per-cell prop structure bounds — and the placement/constraint pass already runs against a **<200ms per drag-drop budget**. Context here would be both convention-discouraged *and* a measurable perf regression.
 
 The combined view already proved the spread pattern (`PairedPlannerGrid` spreads `{...column.wiring}`); the single board now adopts it.

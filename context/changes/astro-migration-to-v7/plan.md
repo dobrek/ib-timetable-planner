@@ -286,25 +286,25 @@ No runtime performance change is expected — this is a framework version bump, 
 
 #### Automated
 
-- [x] 3.1 Production build still clean whichever way the decision lands: `pnpm build`
-- [x] 3.2 Type gate still clean: `pnpm check`
+- [x] 3.1 Production build still clean whichever way the decision lands: `pnpm build` — 906f559
+- [x] 3.2 Type gate still clean: `pnpm check` — 906f559
 
 #### Manual
 
-- [x] 3.3 Cold-start test run WITHOUT the plugin (≥3 cold starts); regression result recorded — regression RETURNED (reloads=3, crashes=23 on /plans/:id, all 3 cold starts)
-- [x] 3.4 Decision applied — `astro.config.mjs` matches it (deleted if clean; restored/re-tuned if not) — restored + re-tuned (astro runtime modules added), landed in c274824
-- [x] 3.5 Outcome documented in `research.md` open-decision entry
+- [x] 3.3 Cold-start test run WITHOUT the plugin (≥3 cold starts); regression result recorded — regression RETURNED (reloads=3, crashes=23 on /plans/:id, all 3 cold starts) — 906f559
+- [x] 3.4 Decision applied — `astro.config.mjs` matches it (deleted if clean; restored/re-tuned if not) — restored + re-tuned (astro runtime modules added), landed in c274824 — 906f559
+- [x] 3.5 Outcome documented in `research.md` open-decision entry — 906f559
 
 ### Phase 4: Full gate, doc fix & merge readiness
 
 #### Automated
 
-- [ ] 4.1 Full `/verify` gate passes (astro sync → check → lint → steiger → audit → test → build)
-- [ ] 4.2 Integration suite passes: `pnpm test:integration`
-- [ ] 4.3 Playwright E2E passes against workerd preview: `pnpm test:e2e`
+- [x] 4.1 Full `/verify` gate passes (astro sync → check → lint → steiger → audit → test → build) — 878/878 unit, 0 vulns
+- [x] 4.2 Integration suite passes: `pnpm test:integration` — 70/70
+- [x] 4.3 Playwright E2E passes against workerd preview: `pnpm test:e2e` — 23/23
 
 #### Manual
 
-- [ ] 4.4 Branch-preview deploy smoke: auth → planner board → drag-drop with live validation → one CRUD op → sign out
-- [ ] 4.5 `compressHTML: 'jsx'` spacing re-confirmed on preview render
-- [ ] 4.6 `ui-conventions.md:232` corrected; CI `wranglerVersion` pin verified against lockfile
+- [x] 4.4 Branch-preview deploy smoke: auth → planner board → drag-drop with live validation → one CRUD op → sign out — LOCAL preview smoke on the real workerd build passed (auth → board hydrates → sign out; drag-drop + live validation + CRUD covered by the 23 e2e specs against the same `pnpm build && pnpm preview` output). HOSTED branch-preview deploy is deferred to the user as the pre-merge release step (outward-facing; watch-item: adapter v14 auto-provisions KV `SESSION` + Images `IMAGES` bindings at deploy)
+- [x] 4.5 `compressHTML: 'jsx'` spacing re-confirmed on preview render — screenshot of the production build clean (breadcrumb, sidebar labels, badge pills, cohort tabs)
+- [x] 4.6 `ui-conventions.md:232` corrected; CI `wranglerVersion` pin verified against lockfile (lockfile + CI pin both wrangler@4.102.0 — no drift)

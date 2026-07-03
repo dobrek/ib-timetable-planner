@@ -364,26 +364,26 @@ None — no schema, no persisted server state, no data migration. Rollback is a 
 
 #### Automated
 
-- [x] 3.1 `pnpm test` green incl. `combineLensCounts` + `LensBar` tests
-- [x] 3.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 3.1 `pnpm test` green incl. `combineLensCounts` + `LensBar` tests — 38627e6
+- [x] 3.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean — 38627e6
 
 #### Manual
 
-- [x] 3.3 Bar chips + counts correct (combined and focused views, `·0` case)
-- [x] 3.4 Remove/Clear all/chip-reopens-picker interactions work
-- [x] 3.5 Zero-match message shows instead of an unexplained fully-dimmed board
-- [x] 3.6 VoiceOver announces the total when criteria change
+- [x] 3.3 Bar chips + counts correct (combined and focused views, `·0` case) — 38627e6
+- [x] 3.4 Remove/Clear all/chip-reopens-picker interactions work — 38627e6
+- [x] 3.5 Zero-match message shows instead of an unexplained fully-dimmed board — 38627e6
+- [x] 3.6 VoiceOver announces the total when criteria change — 38627e6
 
 ### Phase 4: Session persistence + e2e
 
 #### Automated
 
-- [ ] 4.1 `pnpm test` green incl. `lens-session` + `pruneCriteria` tests
-- [ ] 4.2 `pnpm test:e2e` green incl. `lens-highlight.spec.ts`
-- [ ] 4.3 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 4.1 `pnpm test` green incl. `lens-session` + `pruneCriteria` tests
+- [x] 4.2 `pnpm test:e2e` green incl. `lens-highlight.spec.ts`
+- [x] 4.3 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
 
 #### Manual
 
-- [ ] 4.4 Focus-switch matrix: DP1 → Combined → DP2 lens intact (counts span cohorts, `·0` chips)
-- [ ] 4.5 Reload keeps the lens; a new tab starts clean
-- [ ] 4.6 Storage-blocked degradation: lens still works in-page when sessionStorage throws
+- [x] 4.4 Focus-switch matrix: DP1 → Combined → DP2 lens intact (counts span cohorts, `·0` chips)
+- [x] 4.5 Reload keeps the lens; a new tab starts clean
+- [x] 4.6 Storage-blocked degradation: lens still works in-page when sessionStorage throws

@@ -34,10 +34,15 @@ function useLensAnnouncement(criteria: LensCriterion[], total: number): string {
     if (lastSignature.current === signature) return;
     lastSignature.current = signature;
     // The guard means an empty signature here is a real clear (it was non-empty before).
-    setMessage(signature === "" ? "Lens cleared" : announcementText(total));
-  }, [signature, total]);
+    // The criteria count prefix keeps the string unique across criteria changes that leave the
+    // total unchanged — an unchanged string is a no-op DOM write, which screen readers skip.
+    setMessage(signature === "" ? "Lens cleared" : announcementText(criteria.length, total));
+  }, [signature, criteria.length, total]);
   return message;
 }
 
-const announcementText = (total: number): string =>
-  total === 0 ? "No placements match the lens" : `${total} ${total === 1 ? "placement" : "placements"} highlighted`;
+const announcementText = (count: number, total: number): string => {
+  const criteriaText = `${count} ${count === 1 ? "criterion" : "criteria"}`;
+  if (total === 0) return `${criteriaText} — no placements match the lens`;
+  return `${criteriaText} — ${total} ${total === 1 ? "placement" : "placements"} highlighted`;
+};

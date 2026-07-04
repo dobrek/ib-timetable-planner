@@ -12,7 +12,7 @@ type LensKeymap = {
 
 /**
  * Bind the lens's global shortcuts while the board island is mounted, modeled on
- * `model/history/use-undo-keymap.ts` (window keydown, editable-target guard). ⌘K / Ctrl+K opens
+ * `ui/history/use-undo-keymap.ts` (window keydown, editable-target guard). ⌘K / Ctrl+K opens
  * the picker; Esc with the picker CLOSED clears the criteria. The picker's own first-Esc close is
  * Radix's built-in — this hook only owns the second Esc.
  *
@@ -31,6 +31,8 @@ export function useLensKeymap({ open, setOpen, hasCriteria, clearAll, inspection
     const onKeyDown = (event: KeyboardEvent) => {
       if (isFromTextField(event.target)) return;
       if (isOpenChord(event)) {
+        // Defer to any open overlay — opening the picker beneath a focus-locked layer helps no one.
+        if (inspectionOpen || hasOpenRadixLayer()) return;
         event.preventDefault();
         setOpen(true);
         return;

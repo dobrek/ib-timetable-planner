@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Check } from "lucide-react";
 import { subjectChipClass } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
@@ -36,6 +37,11 @@ type Props = {
  * names exist across cohorts on the combined view.
  */
 export default function LensPicker({ open, setOpen, options, criteria, onToggle, preview, onPreview }: Props) {
+  // cmdk auto-highlights the first item on open/filter — without this gate, merely opening the
+  // picker would dim the whole board against the first course. Preview only follows highlights the
+  // user caused (arrow keys, typing, pointer), tracked in capture phase so the arming runs before
+  // cmdk's own handlers move the highlight.
+  const interacted = useRef(false);
   const checkedIds = new Set(criteria.map(criterionId));
   const criterionByValue = new Map(
     [...options.courses, ...options.teachers, ...options.students].map(
@@ -43,7 +49,13 @@ export default function LensPicker({ open, setOpen, options, criteria, onToggle,
     ),
   );
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        interacted.current = false;
+        setOpen(next);
+      }}
+    >
       <PopoverTrigger asChild>
         <LensTrigger criteriaCount={criteria.length} />
       </PopoverTrigger>
@@ -53,7 +65,14 @@ export default function LensPicker({ open, setOpen, options, criteria, onToggle,
         <Command
           value={preview ? criterionId(preview) : ""}
           filter={keywordFilter}
+          onKeyDownCapture={() => {
+            interacted.current = true;
+          }}
+          onPointerMoveCapture={() => {
+            interacted.current = true;
+          }}
           onValueChange={(value) => {
+            if (!interacted.current) return;
             onPreview(criterionByValue.get(value) ?? null);
           }}
         >

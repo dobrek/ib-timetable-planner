@@ -1,4 +1,4 @@
-import type { LensCriterion, LensKind } from "../model/lens";
+import { criterionId, type LensCriterion, type LensKind } from "../model/lens";
 
 /**
  * The lens's per-tab persistence bridge: plain guarded read/write functions over sessionStorage,
@@ -16,7 +16,9 @@ export function readLensSession(planId: string): LensCriterion[] {
     const raw = window.sessionStorage.getItem(sessionKey(planId));
     if (raw === null) return [];
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.every(isLensCriterion) ? parsed : [];
+    return Array.isArray(parsed) && parsed.every(isLensCriterion)
+      ? dedupeCriteria(parsed).slice(0, MAX_RESTORED_CRITERIA)
+      : [];
   } catch {
     return [];
   }
@@ -35,6 +37,19 @@ export function writeLensSession(planId: string, criteria: LensCriterion[]): voi
 const sessionKey = (planId: string): string => `planner-lens:${planId}`;
 
 const LENS_KINDS: readonly LensKind[] = ["course", "teacher", "student"];
+
+/** Hand-edited payloads can hold unbounded duplicates — restore at most one of each, capped. */
+const MAX_RESTORED_CRITERIA = 50;
+
+const dedupeCriteria = (criteria: LensCriterion[]): LensCriterion[] => {
+  const seen = new Set<string>();
+  return criteria.filter((criterion) => {
+    const id = criterionId(criterion);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+};
 
 /** Shape gate for stored payloads — anything hand-edited or from an old format reads as empty. */
 const isLensCriterion = (value: unknown): value is LensCriterion =>

@@ -69,6 +69,17 @@ describe("lens-session", () => {
     expect(readLensSession("plan-a")).toEqual([]);
   });
 
+  it("dedupes hand-edited duplicate criteria on read", () => {
+    store.set("planner-lens:plan-a", JSON.stringify([criteria[0], criteria[0], criteria[1]]));
+    expect(readLensSession("plan-a")).toEqual(criteria);
+  });
+
+  it("caps an oversized restored list at 50 criteria", () => {
+    const oversized = Array.from({ length: 200 }, (_, i) => ({ kind: "course", key: `c-${String(i)}` }));
+    store.set("planner-lens:plan-a", JSON.stringify(oversized));
+    expect(readLensSession("plan-a")).toHaveLength(50);
+  });
+
   it("degrades to [] / a silent no-op when storage throws (private mode / policy)", () => {
     vi.stubGlobal("window", { sessionStorage: throwingStorage });
     expect(readLensSession("plan-a")).toEqual([]);

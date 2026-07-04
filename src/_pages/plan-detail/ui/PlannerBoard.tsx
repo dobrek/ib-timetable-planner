@@ -16,7 +16,7 @@ import {
   useShelfDisclosure,
   useZoom,
 } from "./chrome";
-import { useUndoKeymap } from "../model/history/use-undo-keymap";
+import { useUndoKeymap } from "./history/use-undo-keymap";
 import { LensAnnouncer, LensBar, LensPicker, useLens, useLensKeymap } from "./lens";
 import { PlannerGrid, type PairedColumn } from "./grid";
 import { CollisionDetailsDialog, type CollisionInspectionTarget, GroupDragOverlay } from "./overlay";

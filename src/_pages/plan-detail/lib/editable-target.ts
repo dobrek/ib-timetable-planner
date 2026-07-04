@@ -1,7 +1,7 @@
 /**
  * True when the event originates from an editable control (`input`, `textarea`, contenteditable),
  * so global board shortcuts never hijack typing. Shared by the undo/redo and lens keymaps —
- * promoted from `model/history/use-undo-keymap.ts` when the lens keymap became its second consumer.
+ * promoted from `ui/history/use-undo-keymap.ts` when the lens keymap became its second consumer.
  */
 export function isFromTextField(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;

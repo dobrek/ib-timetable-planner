@@ -50,6 +50,22 @@ describe("useLensKeymap — open chord", () => {
     field.dispatchEvent(keydown({ key: "k", metaKey: true }));
     expect(setOpen).not.toHaveBeenCalled();
   });
+
+  it("ignores the chord while the inspection dialog is open", () => {
+    const { setOpen } = mount({ inspectionOpen: true });
+    document.body.dispatchEvent(keydown({ key: "k", metaKey: true }));
+    expect(setOpen).not.toHaveBeenCalled();
+  });
+
+  it("ignores the chord while a Radix layer is open in the DOM", () => {
+    const { setOpen } = mount();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("data-state", "open");
+    document.body.appendChild(dialog);
+    document.body.dispatchEvent(keydown({ key: "k", metaKey: true }));
+    expect(setOpen).not.toHaveBeenCalled();
+  });
 });
 
 describe("useLensKeymap — Esc clear gating", () => {

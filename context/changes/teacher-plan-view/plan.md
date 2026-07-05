@@ -380,29 +380,29 @@ No schema changes. Phase 1 is a pure code move — reviewable as `git mv` + impo
 
 #### Automated
 
-- [x] 3.1 Type gate passes: `pnpm check`
-- [x] 3.2 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [x] 3.3 Unit suite green: `pnpm test`
-- [x] 3.4 Integration test green: `pnpm test:integration`
-- [x] 3.5 Production build clean: `pnpm build`
+- [x] 3.1 Type gate passes: `pnpm check` — c93b1c4
+- [x] 3.2 Lint + structure pass: `pnpm lint && pnpm steiger` — c93b1c4
+- [x] 3.3 Unit suite green: `pnpm test` — c93b1c4
+- [x] 3.4 Integration test green: `pnpm test:integration` — c93b1c4
+- [x] 3.5 Production build clean: `pnpm build` — c93b1c4
 
 #### Manual
 
-- [x] 3.6 Grid filtering, availability shading, conflict badge + dialog verified
-- [x] 3.7 Merged composite: one grid block, resolved children in the list
-- [x] 3.8 Course list details (times, hours, co-teachers, badges, rosters) verified
-- [x] 3.9 Switcher navigates; Teachers nav item highlighted; URL shareable
-- [x] 3.10 404s and signed-out redirect verified
-- [x] 3.11 Dark mode renders correctly
+- [x] 3.6 Grid filtering, availability shading, conflict badge + dialog verified — c93b1c4
+- [x] 3.7 Merged composite: one grid block, resolved children in the list — c93b1c4
+- [x] 3.8 Course list details (times, hours, co-teachers, badges, rosters) verified — c93b1c4
+- [x] 3.9 Switcher navigates; Teachers nav item highlighted; URL shareable — c93b1c4
+- [x] 3.10 404s and signed-out redirect verified — c93b1c4
+- [x] 3.11 Dark mode renders correctly — c93b1c4
 
 ### Phase 4: Entry points + e2e
 
 #### Automated
 
-- [ ] 4.1 Full local gate green: `pnpm check && pnpm lint && pnpm steiger && pnpm test && pnpm build`
-- [ ] 4.2 E2E suite green including the new spec: `pnpm test:e2e`
+- [x] 4.1 Full local gate green: `pnpm check && pnpm lint && pnpm steiger && pnpm test && pnpm build`
+- [x] 4.2 E2E suite green including the new spec: `pnpm test:e2e`
 
 #### Manual
 
-- [ ] 4.3 Both teachers-table entry points navigate correctly
-- [ ] 4.4 Final end-to-end walkthrough on the local stack
+- [x] 4.3 Both teachers-table entry points navigate correctly
+- [x] 4.4 Final end-to-end walkthrough on the local stack

@@ -74,6 +74,7 @@ export default function TeacherCatalog({ planId, teachers, days, periods }: Prop
       </div>
 
       <TeacherTable
+        planId={planId}
         rows={rows}
         totalCount={teachers.length}
         cohortFilter={filters.cohort}

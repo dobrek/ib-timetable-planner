@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CalendarOff, MoreHorizontal, Plus } from "lucide-react";
 import { cohortLabel, type Cohort } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
@@ -21,6 +22,7 @@ import { sortTeachers } from "../model/sort-teachers";
 import type { CourseAssignment, TeacherRow } from "../model/teacher";
 
 type Props = {
+  planId: string;
   rows: TeacherRow[];
   totalCount: number;
   cohortFilter: CohortFilter;
@@ -31,6 +33,7 @@ type Props = {
 };
 
 export default function TeacherTable({
+  planId,
   rows,
   totalCount,
   cohortFilter,
@@ -83,11 +86,21 @@ export default function TeacherTable({
               <TableRow key={row.id}>
                 <TableCell>
                   <span className="flex items-center gap-2">
-                    {row.code}
+                    <TeacherViewLink planId={planId} row={row}>
+                      {row.code}
+                    </TeacherViewLink>
                     <AvailabilityBadge row={row} onEditAvailability={onEditAvailability} />
                   </span>
                 </TableCell>
-                <TableCell>{row.fullName ?? "—"}</TableCell>
+                <TableCell>
+                  {row.fullName ? (
+                    <TeacherViewLink planId={planId} row={row}>
+                      {row.fullName}
+                    </TeacherViewLink>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
                 <TableCell className={cn(cohortGroupClass(cohortFilter, "dp1"))}>
                   <AssignmentBadges assignments={cohortAssignments(row.assignments, "dp1")} />
                 </TableCell>
@@ -99,6 +112,7 @@ export default function TeacherTable({
                 <TableCell className={cn("text-right", totalColumnClass(cohortFilter))}>{dp1h + dp2h}</TableCell>
                 <TableCell className="text-right">
                   <TeacherRowActions
+                    planId={planId}
                     row={row}
                     onEdit={onEdit}
                     onDelete={onDelete}
@@ -129,11 +143,13 @@ function AssignmentBadges({ assignments }: { assignments: CourseAssignment[] }) 
 }
 
 function TeacherRowActions({
+  planId,
   row,
   onEdit,
   onDelete,
   onEditAvailability,
 }: {
+  planId: string;
   row: TeacherRow;
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
@@ -147,6 +163,9 @@ function TeacherRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <a href={teacherViewHref(planId, row.id)}>View plan</a>
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
             onEdit(row);
@@ -206,6 +225,26 @@ function AvailabilityBadge({
       </button>
     </Badge>
   );
+}
+
+/**
+ * Master→detail entry: the code/name text links straight to the teacher's plan view.
+ * The link's accessible name stays its text — an aria-label would replace it and change
+ * the cell's accessible name out from under `getByRole("cell", { name: code })` consumers.
+ */
+function TeacherViewLink({ planId, row, children }: { planId: string; row: TeacherRow; children: ReactNode }) {
+  return (
+    <a
+      href={teacherViewHref(planId, row.id)}
+      className="hover:text-foreground decoration-muted-foreground/50 underline-offset-4 hover:underline"
+    >
+      {children}
+    </a>
+  );
+}
+
+function teacherViewHref(planId: string, teacherId: string): string {
+  return `/plans/${planId}/teachers/${teacherId}`;
 }
 
 function cohortGroupClass(cohortFilter: CohortFilter, cohort: Cohort) {

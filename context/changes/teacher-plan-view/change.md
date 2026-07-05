@@ -1,7 +1,7 @@
 ---
 change_id: teacher-plan-view
 title: Teacher plan view
-status: implementing
+status: implemented
 created: 2026-07-05
 updated: 2026-07-05
 archived_at: null

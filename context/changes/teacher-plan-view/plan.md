@@ -399,10 +399,10 @@ No schema changes. Phase 1 is a pure code move — reviewable as `git mv` + impo
 
 #### Automated
 
-- [x] 4.1 Full local gate green: `pnpm check && pnpm lint && pnpm steiger && pnpm test && pnpm build`
-- [x] 4.2 E2E suite green including the new spec: `pnpm test:e2e`
+- [x] 4.1 Full local gate green: `pnpm check && pnpm lint && pnpm steiger && pnpm test && pnpm build` — 9f69300
+- [x] 4.2 E2E suite green including the new spec: `pnpm test:e2e` — 9f69300
 
 #### Manual
 
-- [x] 4.3 Both teachers-table entry points navigate correctly
-- [x] 4.4 Final end-to-end walkthrough on the local stack
+- [x] 4.3 Both teachers-table entry points navigate correctly — 9f69300
+- [x] 4.4 Final end-to-end walkthrough on the local stack — 9f69300

@@ -353,28 +353,28 @@ No schema changes. Phase 1 is a pure code move — reviewable as `git mv` + impo
 
 #### Automated
 
-- [x] 1.1 Type gate passes: `pnpm exec astro sync && pnpm check`
-- [x] 1.2 Lint passes: `pnpm lint`
-- [x] 1.3 FSD structure passes with the new layer: `pnpm steiger`
-- [x] 1.4 Unit suite green with tests in moved locations: `pnpm test`
-- [x] 1.5 Production build clean: `pnpm build`
+- [x] 1.1 Type gate passes: `pnpm exec astro sync && pnpm check` — e16a854
+- [x] 1.2 Lint passes: `pnpm lint` — e16a854
+- [x] 1.3 FSD structure passes with the new layer: `pnpm steiger` — e16a854
+- [x] 1.4 Unit suite green with tests in moved locations: `pnpm test` — e16a854
+- [x] 1.5 Production build clean: `pnpm build` — e16a854
 
 #### Manual
 
-- [x] 1.6 Board smoke test — drag-drop, collision badge + dialog, lens, week toggle, undo all unchanged
-- [x] 1.7 CLAUDE.md/README constraint-core pointers read correctly
+- [x] 1.6 Board smoke test — drag-drop, collision badge + dialog, lens, week toggle, undo all unchanged — e16a854
+- [x] 1.7 CLAUDE.md/README constraint-core pointers read correctly — e16a854
 
 ### Phase 2: Perspective model + period times (pure domain, TDD)
 
 #### Automated
 
-- [ ] 2.1 New unit tests pass: `pnpm test`
-- [ ] 2.2 Type gate passes: `pnpm check`
-- [ ] 2.3 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 2.1 New unit tests pass: `pnpm test`
+- [x] 2.2 Type gate passes: `pnpm check`
+- [x] 2.3 Lint + structure pass: `pnpm lint && pnpm steiger`
 
 #### Manual
 
-- [ ] 2.4 Placeholder bell-schedule values reviewed
+- [x] 2.4 Placeholder bell-schedule values reviewed
 
 ### Phase 3: Teacher view page — loader, route, UI
 

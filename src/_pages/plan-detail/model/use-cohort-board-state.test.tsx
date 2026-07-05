@@ -1,13 +1,16 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { placeCourse } from "../api/placement-client";
-import { cellKey } from "./collision/cell-key";
-import { course, placement as buildPlacement } from "./__fixtures__/builders";
-import { EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort/cross-cohort-index";
+import {
+  cellKey,
+  course,
+  EMPTY_CROSS_COHORT_INDEX,
+  type LocalPlacement,
+  placement as buildPlacement,
+} from "@/entities/timetable";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
 import { indexFromPlacements, useCohortBoardState, useCombinedBoardState } from "./use-cohort-board-state";
 import type { GroupingCourse } from "./grouping/grouping";
-import type { LocalPlacement } from "./placement/placement";
 
 // `usePlacements` (driven through the assembler) calls the action clients on the write path; mock the
 // network edge so the optimistic state lands synchronously and we can assert the cross-cohort cycle.

@@ -4,7 +4,7 @@ import type { CellData } from "../drag";
 import type { AffectedScope, AffectedSlice } from "../history/history-entry";
 import type { EditKind } from "../history/history-label";
 import type { LocalParkedBundle } from "./parked";
-import type { LocalPlacement } from "./placement";
+import type { LocalPlacement } from "@/entities/timetable";
 import type { PlacementError } from "./placement-transitions";
 
 /**

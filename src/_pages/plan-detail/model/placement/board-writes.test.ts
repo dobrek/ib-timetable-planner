@@ -1,13 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { WeekMode } from "@/shared/config";
-import { EMPTY_AVAILABILITY_INDEX } from "../cross-cohort/availability-index";
-import { EMPTY_CROSS_COHORT_INDEX } from "../cross-cohort/cross-cohort-index";
-import { course, placement } from "../__fixtures__/builders";
+import {
+  course,
+  EMPTY_AVAILABILITY_INDEX,
+  EMPTY_CROSS_COHORT_INDEX,
+  type LocalPlacement,
+  placement,
+  type PlannerPlacement,
+} from "@/entities/timetable";
 import type { GroupingCourse } from "../grouping/grouping";
 import { createBoardWrites, type BoardDeps } from "./board-writes";
 import type { LocalParkedBundle } from "./parked";
-import type { LocalPlacement, PlannerPlacement } from "./placement";
 import type { WriteContext } from "./write-context";
 
 // Drive the board factory against a FAKE WriteContext + boardDeps — stub stores applying functional

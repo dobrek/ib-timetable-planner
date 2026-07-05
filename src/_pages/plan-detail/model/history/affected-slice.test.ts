@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
-import { cellKey } from "../collision/cell-key";
+import { cellKey, type LocalPlacement } from "@/entities/timetable";
 import type { LocalParkedBundle, ParkedMember } from "../placement/parked";
-import type { LocalPlacement } from "../placement/placement";
 import { sliceAt } from "./affected-slice";
 import type { AffectedScope } from "./history-entry";
 

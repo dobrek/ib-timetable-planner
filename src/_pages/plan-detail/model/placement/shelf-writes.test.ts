@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { PlacementWeek } from "@/shared/config";
-import { placement } from "../__fixtures__/builders";
+import { type LocalPlacement, placement, type PlannerPlacement } from "@/entities/timetable";
 import type { LocalParkedBundle, ParkedMember } from "./parked";
-import type { LocalPlacement, PlannerPlacement } from "./placement";
 import { createShelfWrites } from "./shelf-writes";
 import type { WriteContext } from "./write-context";
 

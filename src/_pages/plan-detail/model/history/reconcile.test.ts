@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
 import type { ParkedMember } from "../placement/parked";
-import type { PlannerPlacement } from "../placement/placement";
+import type { PlannerPlacement } from "@/entities/timetable";
 import type { AffectedSlice } from "./history-entry";
 import { diffReconcile } from "./reconcile";
 

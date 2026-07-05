@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { buildAvailabilityIndex, type AvailabilityIndex } from "./cross-cohort/availability-index";
-import type { CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
-import { deriveCellViolations, type CellCollisions } from "./collision/collisions";
+import {
+  type AvailabilityIndex,
+  buildAvailabilityIndex,
+  type CellCollisions,
+  type CrossCohortIndex,
+  deriveCellViolations,
+  deriveHours,
+  deriveLensMatches,
+  deriveOverplaced,
+  deriveUnplaced,
+  type LensCriterion,
+  type LocalPlacement,
+  summarizeHours,
+} from "@/entities/timetable";
 import type { CellData, DragData, SharedBoardProps } from "./drag";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
-import { deriveHours, deriveOverplaced, deriveUnplaced, summarizeHours } from "./hours";
-import { deriveLensMatches, type LensCriterion } from "./lens";
-import type { LocalPlacement } from "./placement/placement";
 
 /**
  * The pure per-cohort board derivations, composed in one place by the per-cohort assembler

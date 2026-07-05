@@ -1,4 +1,4 @@
-import { cellKey } from "../collision/cell-key";
+import { cellKey } from "@/entities/timetable";
 import type { CellData } from "../drag";
 import type { AffectedScope } from "../history/history-entry";
 import type { ParkedMember } from "./parked";

@@ -1,5 +1,5 @@
 import { weeksDisjoint } from "../../week";
-import type { GroupingCourse } from "../../grouping/grouping";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import type { CellConstraint, CollisionViolation } from "./types";
 
 /**

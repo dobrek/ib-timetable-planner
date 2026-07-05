@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { PlacementWeek } from "@/shared/config";
-import { cellKey } from "../../model/collision/cell-key";
-import type { CellCollisions } from "../../model/collision/collisions";
-import type { LocalPlacement } from "../../model/placement/placement";
-import type { CollisionInspectionTarget } from "../overlay/CollisionDetailsDialog";
+import {
+  type CellCollisions,
+  cellKey,
+  type CollisionInspectionTarget,
+  type LocalPlacement,
+} from "@/entities/timetable";
 
 /**
  * The collision-details dialog's active-inspection state and its two pure selectors, lifted out of

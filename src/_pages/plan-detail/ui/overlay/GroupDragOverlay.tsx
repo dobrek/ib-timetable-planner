@@ -2,11 +2,10 @@ import { DragOverlay } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
 import { subjectChipClass, type Cohort } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
-import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
+import { type CourseDisplay, type LocalPlacement, resolveCourseDisplay } from "@/entities/timetable";
 import type { DragData } from "../../model/drag";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
 import type { LocalParkedBundle } from "../../model/placement/parked";
-import type { LocalPlacement } from "../../model/placement/placement";
 
 type Props = {
   groupings: PlannerGrouping[];

@@ -70,13 +70,14 @@ The app is served at `http://localhost:4321`. Local Supabase Studio is at `http:
 
 ## Project Structure
 
-The codebase follows [Feature-Sliced Design](https://feature-sliced.design/) (enforced by `pnpm steiger`). Layers import downward only: `app` → `_pages` → `shared`.
+The codebase follows [Feature-Sliced Design](https://feature-sliced.design/) (enforced by `pnpm steiger`). Layers import downward only: `app` → `_pages` → `entities` → `shared`.
 
 ```
 src/
 ├── app/            # App shell, layouts, global styles
 ├── _pages/         # FSD page slices (e.g. plan-detail/, courses/, teachers/)
 │   └── <slice>/    #   api/ (Supabase), model/ (domain logic + hooks), lib/, ui/
+├── entities/       # Business-domain slices (timetable/ — pure read-side scheduling core)
 ├── shared/         # Reused across slices: api/ (Supabase client), lib/, config/, ui/
 ├── actions/        # Astro Actions (thin; logic lives in slice model/api)
 ├── pages/          # Astro file-routing — routes + API endpoints (src/pages/api/)
@@ -88,7 +89,7 @@ public/             # Static assets
 wrangler.jsonc      # Cloudflare Workers configuration
 ```
 
-> The two-cohort (dp1/dp2) constraint/validation core lives in `src/_pages/plan-detail/model/`.
+> The pure two-cohort (dp1/dp2) constraint/validation core lives in `src/entities/timetable/` (shared by the editing board and the read-only perspective views). Editing orchestration (drag state, optimistic placements, hooks) stays in `src/_pages/plan-detail/model/`.
 
 ## Environment Profiles
 

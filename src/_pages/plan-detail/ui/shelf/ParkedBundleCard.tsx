@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/react";
 import { GripVertical, X } from "lucide-react";
 import { cohortLabel, subjectChipClass, type Cohort } from "@/shared/config";
-import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
+import { resolveCourseDisplay, type CourseDisplay } from "@/entities/timetable";
 import type { ParkedDrag } from "../../model/drag";
 import type { LocalParkedBundle, ParkedMember } from "../../model/placement/parked";
 import { cn } from "@/shared/lib/class-names";

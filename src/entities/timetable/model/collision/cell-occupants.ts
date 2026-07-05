@@ -3,7 +3,7 @@ import { groupBy } from "@/shared/lib/collections";
 import { cellKey } from "./cell-key";
 import { type CellCollisions } from "./collisions";
 import { resolveCourseDisplay, type CourseDisplay } from "../course-display";
-import type { LocalPlacement } from "../placement/placement";
+import type { LocalPlacement } from "../placement";
 
 /**
  * A per-cell occupant view-model: the placement identity token plus its display name and

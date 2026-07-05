@@ -1,5 +1,5 @@
 import type { LocalParkedBundle, ParkedMember } from "../placement/parked";
-import type { LocalPlacement } from "../placement/placement";
+import type { LocalPlacement } from "@/entities/timetable";
 import { memberSetKey, placementBusinessKey } from "./affected-slice";
 import type { PlacementKey, PlacementSpec } from "./history-entry";
 import type { ReconcileResult } from "./reconcile-exec";

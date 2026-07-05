@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { groupCellOccupants } from "./cell-occupants";
 import { cellKey } from "./cell-key";
 import { type CellCollisions } from "./collisions";
-import type { LocalPlacement } from "../placement/placement";
+import type { LocalPlacement } from "../placement";
 
 const placement = (id: string, courseId: string, day = 1, period = 1): LocalPlacement => ({
   id,

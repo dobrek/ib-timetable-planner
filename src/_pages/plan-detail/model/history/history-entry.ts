@@ -1,6 +1,6 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { ParkedMember } from "../placement/parked";
-import type { PlannerPlacement } from "../placement/placement";
+import type { PlannerPlacement } from "@/entities/timetable";
 
 // The vocabulary the whole undo/redo feature shares: what an edit touched (`AffectedScope`),
 // the snapshot of that region (`AffectedSlice`), one history entry, and the reconcile plan that

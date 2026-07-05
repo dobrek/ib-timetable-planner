@@ -1,4 +1,4 @@
-import type { GroupingCourse } from "../../grouping/grouping";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import type { CellConstraint } from "./types";
 
 /** A course id appearing more than once among the cell's occupants — one violation per duplicated id. */

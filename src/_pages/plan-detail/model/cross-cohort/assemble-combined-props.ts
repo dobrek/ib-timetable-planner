@@ -1,10 +1,8 @@
 import type { Cohort } from "@/shared/config";
-import { projectFromPlacements } from "./cross-cohort-index";
-import type { CourseDisplay } from "../course-display";
+import { type CourseDisplay, type PlannerPlacement, projectFromPlacements } from "@/entities/timetable";
 import type { PlannerBoardProps } from "../drag";
 import type { GroupingCourse, PlannerGrouping } from "../grouping/grouping";
 import type { ParkedBundle } from "../placement/parked";
-import type { PlannerPlacement } from "../placement/placement";
 
 /** One cohort's already-loaded, domain-mapped board data — the per-column half the assembler pairs. */
 export type CombinedCohortInputs = {

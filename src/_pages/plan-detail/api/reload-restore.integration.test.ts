@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { createPlan as createFactoryPlan, placeCourse, seedPlanCatalog, teardown } from "@/test/factories";
 import { loadCombinedPlannerData } from "./load";
-import type { PlannerPlacement } from "../model/placement/placement";
+import type { PlannerPlacement } from "@/entities/timetable";
 
 // Risk #4 (placed work survives reload) + Risk #2 (the move-duplicate hazard) driven through the
 // PRODUCTION read boundary — `loadCombinedPlannerData`, the exact loader a browser reload re-runs

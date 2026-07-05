@@ -13,7 +13,7 @@ import type { Database } from "@/shared/api/database.types";
  *   - Invariant (app-enforced): an `agnostic` course is always `both`; a `biweekly` course is `a`/`b`.
  *
  * The `weeksDisjoint` predicate that the board / enumeration / drag paths share lives in
- * `plan-detail/model/week.ts` (the constraint core), built on these types.
+ * `entities/timetable/model/week.ts` (the constraint core), built on these types.
  */
 
 export type WeekMode = Database["public"]["Enums"]["course_week_mode"];

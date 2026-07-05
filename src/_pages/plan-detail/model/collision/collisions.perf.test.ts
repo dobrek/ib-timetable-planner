@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
-import { deriveCellViolations } from "./collisions";
-import { buildCrossCohortIndex, projectFromPlacements } from "../cross-cohort/cross-cohort-index";
+import {
+  buildCrossCohortIndex,
+  deriveCellViolations,
+  type PlannerPlacement,
+  projectFromPlacements,
+} from "@/entities/timetable";
 import { deriveDropHints } from "../drop-hints";
 import type { GroupingCourse } from "../grouping/grouping";
-import type { PlannerPlacement } from "../placement/placement";
 
 /**
  * INFORMATIONAL perf guard for the sub-200 ms drag budget with BOTH cohorts live (S-06). Wraps the

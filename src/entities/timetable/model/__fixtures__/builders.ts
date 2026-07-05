@@ -11,12 +11,12 @@
  * collision rules read teacher/student/week only).
  */
 import type { PlacementWeek } from "@/shared/config";
-import type { AvailabilityIndex } from "../cross-cohort/availability-index";
+import type { AvailabilityIndex } from "../availability-index";
 import type { CellCollisions } from "../collision/collisions";
 import type { BoardContext } from "../collision/constraints";
-import type { CrossCohortIndex } from "../cross-cohort/cross-cohort-index";
-import type { GroupingCourse } from "../grouping/grouping";
-import type { PlannerPlacement } from "../placement/placement";
+import type { CrossCohortIndex } from "../cross-cohort-index";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { PlannerPlacement } from "../placement";
 
 /** A single-teacher (or teacher-less, when `teacher === null`) course. `studentKeys` defaults `[]`. */
 export const course = (id: string, teacher: string | null, studentKeys: string[] = []): GroupingCourse => ({

@@ -3,13 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
 import { deleteShelfBundle, shelveBundle, shelveCourses, unshelveBundle } from "../api/shelf-client";
-import { EMPTY_AVAILABILITY_INDEX } from "./cross-cohort/availability-index";
-import { biweekly, catalog, course, placement } from "./__fixtures__/builders";
-import { cellKey } from "./collision/cell-key";
-import { deriveCellViolations } from "./collision/collisions";
-import { EMPTY_CROSS_COHORT_INDEX } from "./cross-cohort/cross-cohort-index";
+import {
+  biweekly,
+  catalog,
+  cellKey,
+  course,
+  deriveCellViolations,
+  EMPTY_AVAILABILITY_INDEX,
+  EMPTY_CROSS_COHORT_INDEX,
+  placement,
+  type PlannerPlacement,
+} from "@/entities/timetable";
 import type { GroupingCourse } from "./grouping/grouping";
-import type { PlannerPlacement } from "./placement/placement";
 import { usePlacements } from "./use-placements";
 
 // The async boundary under test is the orchestration glue, so the network edge is mocked.

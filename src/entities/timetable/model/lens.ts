@@ -1,7 +1,7 @@
 import { cohortLabel, type Cohort, type SubjectColor } from "@/shared/config";
 import type { CourseDisplay } from "./course-display";
-import type { GroupingCourse } from "./grouping/grouping";
-import type { LocalPlacement } from "./placement/placement";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { LocalPlacement } from "./placement";
 
 /**
  * The board highlight/discovery lens: an OR-union of course / teacher / student criteria over the

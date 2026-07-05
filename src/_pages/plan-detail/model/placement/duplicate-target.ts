@@ -1,11 +1,13 @@
-import type { AvailabilityIndex } from "../cross-cohort/availability-index";
-import { cellKey } from "../collision/cell-key";
-import { bucketByCell } from "../collision/collisions";
-import type { CrossCohortIndex } from "../cross-cohort/cross-cohort-index";
+import {
+  type AvailabilityIndex,
+  bucketByCell,
+  cellKey,
+  type CrossCohortIndex,
+  type PlannerPlacement,
+} from "@/entities/timetable";
 import { deriveDropHints, type DropHint } from "../drop-hints";
 import type { CellData } from "../drag";
 import type { GroupingCourse } from "../grouping/grouping";
-import type { PlannerPlacement } from "./placement";
 
 export type FindDuplicateTargetArgs = {
   /** The placed cell being duplicated; the scan starts at the cell right after it and wraps. */

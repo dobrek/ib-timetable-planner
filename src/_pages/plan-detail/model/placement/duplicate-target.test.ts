@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PlacementWeek, WeekMode } from "@/shared/config";
-import type { AvailabilityIndex } from "../cross-cohort/availability-index";
-import { cellKey } from "../collision/cell-key";
-import type { CrossCohortIndex } from "../cross-cohort/cross-cohort-index";
+import { type AvailabilityIndex, cellKey, type CrossCohortIndex, type PlannerPlacement } from "@/entities/timetable";
 import { findDuplicateTarget } from "./duplicate-target";
 import type { GroupingCourse } from "../grouping/grouping";
-import type { PlannerPlacement } from "./placement";
 
 const course = (
   id: string,

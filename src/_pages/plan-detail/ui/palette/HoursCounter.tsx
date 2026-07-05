@@ -1,4 +1,4 @@
-import type { HoursStat } from "../../model/hours";
+import type { HoursStat } from "@/entities/timetable";
 import { cn } from "@/shared/lib/class-names";
 
 type Props = {

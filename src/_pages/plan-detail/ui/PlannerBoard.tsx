@@ -19,14 +19,21 @@ import {
 import { useUndoKeymap } from "./history/use-undo-keymap";
 import { LensAnnouncer, LensBar, LensPicker, useLens, useLensKeymap } from "./lens";
 import { PlannerGrid, type PairedColumn } from "./grid";
-import { CollisionDetailsDialog, type CollisionInspectionTarget, GroupDragOverlay } from "./overlay";
+import { GroupDragOverlay } from "./overlay";
+import {
+  buildLensOptions,
+  buildLensUniverse,
+  cellKey,
+  CollisionDetailsDialog,
+  type CollisionInspectionTarget,
+  combineLensCounts,
+  type LensCohortSource,
+} from "@/entities/timetable";
 import { CombinedPalettePanel, ComputeGroupingsEmptyState, type PaletteCohortData } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
-import { cellKey } from "../model/collision/cell-key";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";
 import { applyDropAction } from "../model/cross-cohort/drop-dispatch";
 import type { DragData, DropTargetData, PlannerBoardProps, SharedBoardProps } from "../model/drag";
-import { buildLensOptions, buildLensUniverse, combineLensCounts, type LensCohortSource } from "../model/lens";
 import { resolvePaletteView } from "../model/grouping/palette-view";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";

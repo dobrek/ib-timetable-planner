@@ -1,4 +1,4 @@
-import type { CellOccupant } from "../../../model/collision/cell-occupants";
+import type { CellOccupant } from "@/entities/timetable";
 import { PlacedChip, type ChipWiring } from "./PlacedChip";
 
 /**

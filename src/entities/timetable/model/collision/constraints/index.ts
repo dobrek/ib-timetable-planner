@@ -1,4 +1,4 @@
-import type { GroupingCourse } from "../../grouping/grouping";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { crossCohortTeacher } from "./cross-cohort-teacher";
 import { duplicateCourse } from "./duplicate-course";
 import { studentConflict } from "./student-conflict";

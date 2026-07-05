@@ -1,5 +1,5 @@
 import { violatesAny } from "./constraints";
-import type { GroupingCourse } from "../grouping/grouping";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 
 /**
  * Registry-derived fast path: true iff `course` violates any registered cell

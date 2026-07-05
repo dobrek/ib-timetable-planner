@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CellData } from "../drag";
-import type { LocalPlacement, PlannerPlacement } from "./placement";
+import type { LocalPlacement, PlannerPlacement } from "@/entities/timetable";
 import {
   addManyOptimistic,
   addOptimistic,

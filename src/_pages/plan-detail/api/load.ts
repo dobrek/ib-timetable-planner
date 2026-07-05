@@ -3,12 +3,11 @@ import { type Cohort } from "@/shared/config";
 import { parseGridPreset } from "@/shared/lib/grid";
 import { unique } from "@/shared/lib/collections";
 import { err, ok, type Result } from "@/shared/lib/result";
-import type { BoardAvailabilityCell } from "../model/cross-cohort/availability-index";
+import type { BoardAvailabilityCell, PlannerPlacement } from "@/entities/timetable";
 import { assembleCombinedProps, type CombinedCohortInputs } from "../model/cross-cohort/assemble-combined-props";
 import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping/grouping";
 import type { ParkedBundle } from "../model/placement/parked";
-import type { PlannerPlacement } from "../model/placement/placement";
 import { toPlannerPlacement } from "./placements";
 import { isGroupingStale } from "./staleness";
 

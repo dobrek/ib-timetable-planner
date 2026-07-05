@@ -1,4 +1,4 @@
-import { hasIntersection } from "../collision/intersects";
+import { hasIntersection } from "@/entities/timetable";
 import type { GroupingCourse } from "./grouping";
 
 // Thrown when either cap (distinct results or traversal nodes) is crossed. The

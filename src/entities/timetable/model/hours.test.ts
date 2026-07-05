@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deriveHours, deriveOverplaced, deriveUnplaced, summarizeHours } from "./hours";
-import type { GroupingCourse } from "./grouping/grouping";
-import type { PlannerPlacement } from "./placement/placement";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { PlannerPlacement } from "./placement";
 
 const course = (id: string, hours: number): GroupingCourse => ({
   id,

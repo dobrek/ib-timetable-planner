@@ -14,8 +14,10 @@ export * from "./model/collision/collisions";
 export * from "./model/collision/cell-occupants";
 export * from "./model/collision/intersects";
 export * from "./model/collision/constraints";
+export * from "./model/teacher-perspective";
 // Test-fixture builders travel with the domain; consumer-slice tests import them
 // through this barrel so no cross-slice deep import exists.
 export * from "./model/__fixtures__/builders";
 export * from "./lib/period-breaks";
+export * from "./lib/period-times";
 export { default as CollisionDetailsDialog, type CollisionInspectionTarget } from "./ui/CollisionDetailsDialog";

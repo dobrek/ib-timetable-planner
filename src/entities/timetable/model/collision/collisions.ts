@@ -51,16 +51,24 @@ export const deriveCellViolations = (
       occupiedByTeacher,
     });
     if (violations.length > 0) {
-      collisions.set(key, {
-        blockingIds: collectIdsBySeverity(violations, "block"),
-        warningIds: collectIdsBySeverity(violations, "warn"),
-        unavailableIds: collectUnavailableIds(violations),
-        violations,
-      });
+      collisions.set(key, buildCellCollisions(violations));
     }
   }
   return collisions;
 };
+
+/**
+ * Project a violation list into the `CellCollisions` render sets. The single home of the
+ * severity semantics (every kind blocks except teacher-unavailable, which carries its own
+ * severity) — shared by the full-board derivation above and the teacher-perspective
+ * narrowing, so a filtered violation list rebuilds identical sets.
+ */
+export const buildCellCollisions = (violations: CollisionViolation[]): CellCollisions => ({
+  blockingIds: collectIdsBySeverity(violations, "block"),
+  warningIds: collectIdsBySeverity(violations, "warn"),
+  unavailableIds: collectUnavailableIds(violations),
+  violations,
+});
 
 /**
  * Group placements into their `(day, period)` cells, projecting each to its

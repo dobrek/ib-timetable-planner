@@ -368,32 +368,32 @@ No schema changes. Phase 1 is a pure code move — reviewable as `git mv` + impo
 
 #### Automated
 
-- [x] 2.1 New unit tests pass: `pnpm test`
-- [x] 2.2 Type gate passes: `pnpm check`
-- [x] 2.3 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 2.1 New unit tests pass: `pnpm test` — 8e3acf4
+- [x] 2.2 Type gate passes: `pnpm check` — 8e3acf4
+- [x] 2.3 Lint + structure pass: `pnpm lint && pnpm steiger` — 8e3acf4
 
 #### Manual
 
-- [x] 2.4 Placeholder bell-schedule values reviewed
+- [x] 2.4 Placeholder bell-schedule values reviewed — 8e3acf4
 
 ### Phase 3: Teacher view page — loader, route, UI
 
 #### Automated
 
-- [ ] 3.1 Type gate passes: `pnpm check`
-- [ ] 3.2 Lint + structure pass: `pnpm lint && pnpm steiger`
-- [ ] 3.3 Unit suite green: `pnpm test`
-- [ ] 3.4 Integration test green: `pnpm test:integration`
-- [ ] 3.5 Production build clean: `pnpm build`
+- [x] 3.1 Type gate passes: `pnpm check`
+- [x] 3.2 Lint + structure pass: `pnpm lint && pnpm steiger`
+- [x] 3.3 Unit suite green: `pnpm test`
+- [x] 3.4 Integration test green: `pnpm test:integration`
+- [x] 3.5 Production build clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.6 Grid filtering, availability shading, conflict badge + dialog verified
-- [ ] 3.7 Merged composite: one grid block, resolved children in the list
-- [ ] 3.8 Course list details (times, hours, co-teachers, badges, rosters) verified
-- [ ] 3.9 Switcher navigates; Teachers nav item highlighted; URL shareable
-- [ ] 3.10 404s and signed-out redirect verified
-- [ ] 3.11 Dark mode renders correctly
+- [x] 3.6 Grid filtering, availability shading, conflict badge + dialog verified
+- [x] 3.7 Merged composite: one grid block, resolved children in the list
+- [x] 3.8 Course list details (times, hours, co-teachers, badges, rosters) verified
+- [x] 3.9 Switcher navigates; Teachers nav item highlighted; URL shareable
+- [x] 3.10 404s and signed-out redirect verified
+- [x] 3.11 Dark mode renders correctly
 
 ### Phase 4: Entry points + e2e
 

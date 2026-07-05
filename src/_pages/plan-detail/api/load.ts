@@ -1,4 +1,12 @@
-import { loadCohortCourses, assertNoQueryErrors, unwrapMany, type SupabaseClient } from "@/shared/api";
+import {
+  assertNoQueryErrors,
+  loadCohortCourses,
+  loadPlacements,
+  loadStudentNames,
+  loadTeacherAvailability,
+  loadTeacherNames,
+  type SupabaseClient,
+} from "@/shared/api";
 import { type Cohort } from "@/shared/config";
 import { parseGridPreset } from "@/shared/lib/grid";
 import { unique } from "@/shared/lib/collections";
@@ -64,15 +72,15 @@ export const loadCombinedPlannerData = async (
     availabilityResult,
   ] = await Promise.all([
     fetchGroupings(supabase, id, "dp1"),
-    fetchPlacements(supabase, id, "dp1"),
+    loadPlacements(supabase, id, "dp1"),
     fetchShelfBundles(supabase, id, "dp1"),
     loadCohortCourses(supabase, id, "dp1"),
     fetchGroupings(supabase, id, "dp2"),
-    fetchPlacements(supabase, id, "dp2"),
+    loadPlacements(supabase, id, "dp2"),
     fetchShelfBundles(supabase, id, "dp2"),
     loadCohortCourses(supabase, id, "dp2"),
     // Availability is cohort-independent — fetched once and shared by both columns.
-    supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", id),
+    loadTeacherAvailability(supabase, id),
   ]);
   assertNoQueryErrors("Combined planner board", [
     dp1Groupings,
@@ -88,9 +96,9 @@ export const loadCombinedPlannerData = async (
   // sibling cohort's teacher. Student names stay per cohort — enrollments are cohort-scoped.
   const allCourses = [...dp1Catalog.courses, ...dp2Catalog.courses];
   const [teacherNames, dp1StudentNames, dp2StudentNames] = await Promise.all([
-    fetchTeacherNames(supabase, unique(allCourses.flatMap((course) => course.teacherKeys))),
-    fetchStudentNames(supabase, unique(dp1Catalog.courses.flatMap((course) => course.studentKeys))),
-    fetchStudentNames(supabase, unique(dp2Catalog.courses.flatMap((course) => course.studentKeys))),
+    loadTeacherNames(supabase, unique(allCourses.flatMap((course) => course.teacherKeys))),
+    loadStudentNames(supabase, unique(dp1Catalog.courses.flatMap((course) => course.studentKeys))),
+    loadStudentNames(supabase, unique(dp2Catalog.courses.flatMap((course) => course.studentKeys))),
   ]);
 
   const availability = mapAvailability(availabilityResult.data ?? []);
@@ -142,13 +150,6 @@ const fetchGroupings = (supabase: SupabaseClient, planId: string, cohort: Cohort
     .eq("plan_id", planId)
     .eq("cohort", cohort);
 
-const fetchPlacements = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>
-  supabase
-    .from("placements")
-    .select("id, course_id, day, period, week, bundle_id")
-    .eq("plan_id", planId)
-    .eq("cohort", cohort);
-
 const fetchShelfBundles = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>
   supabase
     .from("shelf_bundles")
@@ -197,21 +198,3 @@ const mapParkedBundles = (
     id: row.id,
     members: row.shelf_bundle_courses.map((member) => ({ courseId: member.course_id, week: member.week })),
   }));
-
-const fetchTeacherNames = async (supabase: SupabaseClient, ids: string[]): Promise<Record<string, string>> => {
-  if (ids.length === 0) return {};
-  const rows = unwrapMany(
-    await supabase.from("teachers").select("id, full_name, code").in("id", ids),
-    "Failed to load teacher names",
-  );
-  return Object.fromEntries(rows.map((row) => [row.id, row.full_name ?? row.code]));
-};
-
-const fetchStudentNames = async (supabase: SupabaseClient, ids: string[]): Promise<Record<string, string>> => {
-  if (ids.length === 0) return {};
-  const rows = unwrapMany(
-    await supabase.from("students").select("id, full_name").in("id", ids),
-    "Failed to load student names",
-  );
-  return Object.fromEntries(rows.map((row) => [row.id, row.full_name]));
-};

@@ -4,6 +4,11 @@ import type { Database } from "./database.types";
 export { createClient } from "./supabase";
 export { isPlanId, loadPlanSummary, type PlanSummary } from "./load-plan-summary";
 export { loadCohortCourses } from "./load-cohort-courses";
+export { loadPlacements } from "./load-placements";
+export { loadTeacherAvailability } from "./load-teacher-availability";
+export { loadTeacherNames } from "./load-teacher-names";
+export { loadStudentNames } from "./load-student-names";
+export { loadCourseMerges, type CourseMerge } from "./load-course-merges";
 export {
   UNIQUE_VIOLATION,
   NOT_FOUND_ROW,

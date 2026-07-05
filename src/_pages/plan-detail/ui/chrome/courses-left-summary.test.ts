@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCoursesLeftSummary } from "./courses-left-summary";
-import type { CourseDisplay } from "../../model/course-display";
-import type { CourseHours } from "../../model/hours";
+import type { CourseDisplay, CourseHours } from "@/entities/timetable";
 import type { Cohort, SubjectColor } from "@/shared/config";
 
 const hours = (courseId: string, placed: number, required: number): CourseHours => ({ courseId, placed, required });

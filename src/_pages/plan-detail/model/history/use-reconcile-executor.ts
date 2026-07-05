@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { Rpcs } from "../../api/rpcs";
 import type { LocalParkedBundle, ParkedMember } from "../placement/parked";
-import type { LocalPlacement } from "../placement/placement";
+import type { LocalPlacement } from "@/entities/timetable";
 import { errorOf, type PlacementError } from "../placement/placement-transitions";
 import { memberSetKey, placementBusinessKey } from "./affected-slice";
 import type { AffectedScope, AffectedSlice } from "./history-entry";

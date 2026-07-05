@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
 import { makeRpcs } from "../api/rpcs";
-import type { AvailabilityIndex } from "./cross-cohort/availability-index";
-import type { CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
+import type { AvailabilityIndex, CrossCohortIndex, LocalPlacement, PlannerPlacement } from "@/entities/timetable";
 import type { CellData } from "./drag";
 import type { GroupingCourse } from "./grouping/grouping";
 import type { PlacementError } from "./placement/placement-transitions";
 import type { LocalParkedBundle, ParkedBundle, ParkedMember } from "./placement/parked";
-import type { LocalPlacement, PlannerPlacement } from "./placement/placement";
 import { createBoardWrites, type DuplicateOutcome } from "./placement/board-writes";
 import { createShelfWrites } from "./placement/shelf-writes";
 import type { WriteContext } from "./placement/write-context";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
 import type { LocalParkedBundle, ParkedMember } from "../placement/parked";
-import type { LocalPlacement } from "../placement/placement";
+import type { LocalPlacement } from "@/entities/timetable";
 import type { PlacementKey } from "./history-entry";
 import {
   reconcileCardsOptimistic,

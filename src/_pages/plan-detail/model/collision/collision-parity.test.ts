@@ -25,16 +25,24 @@
  * bi-weekly × cross-cohort false-positive guards, asserted through both boundaries.
  */
 import { describe, expect, it } from "vitest";
-import type { AvailabilityIndex } from "../cross-cohort/availability-index";
-import { cellKey } from "./cell-key";
-import { deriveCellViolations } from "./collisions";
-import type { CollisionViolation } from "./constraints";
-import type { CrossCohortIndex } from "../cross-cohort/cross-cohort-index";
+import {
+  avail,
+  type AvailabilityIndex,
+  biweekly,
+  catalog,
+  cellKey,
+  type CollisionViolation,
+  coTaught,
+  course,
+  type CrossCohortIndex,
+  deriveCellViolations,
+  occupiedBy,
+  placement,
+  type PlannerPlacement,
+} from "@/entities/timetable";
 import { deriveDropHints } from "../drop-hints";
 import type { DropHint } from "../drop-hints";
 import type { GroupingCourse } from "../grouping/grouping";
-import type { PlannerPlacement } from "../placement/placement";
-import { avail, biweekly, catalog, coTaught, course, occupiedBy, placement } from "../__fixtures__/builders";
 
 /** The drag what-if's expected affordance — a `DropHint`, or `"free"` for an omitted (free) cell. */
 type ExpectedDragHint = DropHint | "free";

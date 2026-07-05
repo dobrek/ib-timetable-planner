@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { WeekMode } from "@/shared/config";
-import { cellKey } from "./collision/cell-key";
+import { cellKey, type PlannerPlacement } from "@/entities/timetable";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
-import type { PlannerPlacement } from "./placement/placement";
 
 const course = (
   id: string,

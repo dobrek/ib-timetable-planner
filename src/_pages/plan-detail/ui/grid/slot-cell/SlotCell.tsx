@@ -3,14 +3,17 @@ import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { cohortLabel, type Cohort, type PlacementWeek } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
-import type { CollisionInspectionTarget } from "../../overlay/CollisionDetailsDialog";
-import { cellKey } from "../../../model/collision/cell-key";
-import type { CellOccupant } from "../../../model/collision/cell-occupants";
+import {
+  cellKey,
+  type CellOccupant,
+  type CollisionInspectionTarget,
+  hasBiweekly,
+  partitionByWeek,
+} from "@/entities/timetable";
 import type { BundleDrag, CellDropData } from "../../../model/drag";
 import type { DropHint } from "../../../model/drop-hints";
 import type { HintMode } from "../../../lib/drag-hint-mode";
 import { resolveCellTone } from "../../../model/collision/cell-tone";
-import { hasBiweekly, partitionByWeek } from "../../../model/week";
 import { toneClass } from "./tone-class";
 import { SlotHeader } from "./SlotHeader";
 import { PlacedChip, type ChipWiring } from "./PlacedChip";

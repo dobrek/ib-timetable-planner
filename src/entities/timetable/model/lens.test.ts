@@ -12,7 +12,7 @@ import {
   type LensCriterion,
   type LensMatches,
 } from "./lens";
-import type { LocalPlacement } from "./placement/placement";
+import type { LocalPlacement } from "./placement";
 
 // Two math courses share teacher "kk"; student "s2" takes both maths; "bio" is disjoint.
 const byId = catalog(

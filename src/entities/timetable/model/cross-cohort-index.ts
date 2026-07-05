@@ -1,5 +1,5 @@
 import type { PlacementWeek } from "@/shared/config";
-import { cellKey } from "../collision/cell-key";
+import { cellKey } from "./collision/cell-key";
 
 /**
  * One sibling-cohort teacher-occupancy cell as it arrives on the island (a JSON-serializable

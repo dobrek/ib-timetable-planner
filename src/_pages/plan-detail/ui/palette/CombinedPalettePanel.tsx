@@ -5,9 +5,8 @@ import ComputeGroupingsEmptyState from "./ComputeGroupingsEmptyState";
 import GroupingStalePanel from "./GroupingStalePanel";
 import PaletteBody from "./PaletteBody";
 import CollapsibleEdgePanel from "../chrome/CollapsibleEdgePanel";
-import type { CourseDisplay } from "../../model/course-display";
+import type { CourseDisplay, HoursStat } from "@/entities/timetable";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
-import type { HoursStat } from "../../model/hours";
 import { resolvePaletteView } from "../../model/grouping/palette-view";
 
 // Re-exported so the palette test and any consumer keep a stable import site even though the filter

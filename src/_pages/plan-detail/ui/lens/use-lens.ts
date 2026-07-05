@@ -5,7 +5,7 @@ import {
   pruneCriteria,
   type LensCriterion,
   type LensKeyUniverse,
-} from "../../model/lens";
+} from "@/entities/timetable";
 import { readLensSession, writeLensSession } from "../../lib/lens-session";
 
 /**

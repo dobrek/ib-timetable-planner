@@ -5,13 +5,12 @@ import { createPlan, seedPlanCatalog, teardown } from "@/test/factories";
 import { loadCombinedPlannerData } from "./load";
 import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "./placements";
 import { deleteShelfBundle, shelveBundle, shelveCourses, unshelveBundle } from "./shelf";
-import { cellKey } from "../model/collision/cell-key";
+import { cellKey, type PlannerPlacement } from "@/entities/timetable";
 import { memberSetKey, sliceAt } from "../model/history/affected-slice";
 import type { AffectedScope } from "../model/history/history-entry";
 import { diffReconcile } from "../model/history/reconcile";
 import { executeReconcilePlan, type ReconcileDeps } from "../model/history/reconcile-exec";
 import type { ParkedBundle } from "../model/placement/parked";
-import type { PlannerPlacement } from "../model/placement/placement";
 
 // Risk-driving the undo executor end-to-end: for every editing op, snapshot S0, apply the forward
 // edit via the domain fns, then drive `executeReconcilePlan` (over the SAME domain fns, real

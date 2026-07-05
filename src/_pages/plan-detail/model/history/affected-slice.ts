@@ -1,6 +1,5 @@
-import { cellKey } from "../collision/cell-key";
+import { cellKey, type LocalPlacement, type PlannerPlacement } from "@/entities/timetable";
 import type { LocalParkedBundle, ParkedMember } from "../placement/parked";
-import type { LocalPlacement, PlannerPlacement } from "../placement/placement";
 import type { AffectedScope, AffectedSlice, PlacementKey } from "./history-entry";
 
 /**

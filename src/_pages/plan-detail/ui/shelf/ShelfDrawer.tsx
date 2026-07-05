@@ -3,7 +3,7 @@ import { Inbox, Pin, PinOff } from "lucide-react";
 import type { Cohort } from "@/shared/config";
 import ParkedBundleCard from "./ParkedBundleCard";
 import CollapsibleEdgePanel, { EDGE_PANEL_ICON_BUTTON } from "../chrome/CollapsibleEdgePanel";
-import type { CourseDisplay } from "../../model/course-display";
+import type { CourseDisplay } from "@/entities/timetable";
 import type { ShelfData } from "../../model/drag";
 import type { LocalParkedBundle } from "../../model/placement/parked";
 import { cn } from "@/shared/lib/class-names";

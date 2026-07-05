@@ -1,10 +1,12 @@
 import type { Cohort } from "@/shared/config";
-import type { CourseDisplay } from "./course-display";
-import type { BoardAvailabilityCell } from "./cross-cohort/availability-index";
-import type { SiblingOccupancyCell } from "./cross-cohort/cross-cohort-index";
+import type {
+  BoardAvailabilityCell,
+  CourseDisplay,
+  PlannerPlacement,
+  SiblingOccupancyCell,
+} from "@/entities/timetable";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
 import type { ParkedBundle } from "./placement/parked";
-import type { PlannerPlacement } from "./placement/placement";
 
 /**
  * Drag payload carried on the draggable's `data`. Identity is opaque ids — never names.

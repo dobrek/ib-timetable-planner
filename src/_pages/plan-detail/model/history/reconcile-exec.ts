@@ -1,6 +1,6 @@
 import type { CellData } from "../drag";
 import type { ParkedMember } from "../placement/parked";
-import type { PlannerPlacement } from "../placement/placement";
+import type { PlannerPlacement } from "@/entities/timetable";
 import { memberSetKey } from "./affected-slice";
 import type { PlacementSpec, ReconcilePlan } from "./history-entry";
 

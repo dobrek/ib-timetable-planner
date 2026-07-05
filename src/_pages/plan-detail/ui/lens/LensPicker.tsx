@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui";
-import { criterionId, type LensCriterion, type LensOption, type LensOptionGroups } from "../../model/lens";
+import { criterionId, type LensCriterion, type LensOption, type LensOptionGroups } from "@/entities/timetable";
 import LensTrigger from "./LensTrigger";
 
 type Props = {

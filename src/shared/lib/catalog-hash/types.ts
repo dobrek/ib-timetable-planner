@@ -1,7 +1,7 @@
 /**
  * Pure data shapes for the cohort-catalog projection and its fingerprint. Moved here
  * from `plan-detail` so the plans hub's clone flow can recompute hashes without a
- * same-layer cross-slice import (steiger `forbidden-imports`). `plan-detail/model`
+ * same-layer cross-slice import (steiger `forbidden-imports`). `entities/timetable`
  * re-exports these so constraint-core signatures are unchanged.
  */
 
@@ -10,8 +10,8 @@ import type { SubjectColor, WeekMode } from "@/shared/config";
 /**
  * Per-course display data resolved at the render edge — the `name` (the fixture's natural key) plus
  * the optional author-chosen `color`. Kept off `GroupingCourse`/the catalog hash (display-only,
- * never a constraint input). Lives here next to `CohortCatalog`, which carries the map; the
- * plan-detail `model/course-display.ts` re-exports it and owns the `resolveCourseDisplay` edge helper.
+ * never a constraint input). Lives here next to `CohortCatalog`, which carries the map;
+ * `entities/timetable/model/course-display.ts` re-exports it and owns the `resolveCourseDisplay` edge helper.
  */
 export type CourseDisplay = { name: string; color: SubjectColor | null };
 

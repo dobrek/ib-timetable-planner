@@ -1,11 +1,11 @@
 import type { PlacementWeek } from "@/shared/config";
-import { type AvailabilityIndex, EMPTY_AVAILABILITY_INDEX } from "../cross-cohort/availability-index";
+import { type AvailabilityIndex, EMPTY_AVAILABILITY_INDEX } from "../availability-index";
 import { cellKey } from "./cell-key";
-import { type CrossCohortIndex, EMPTY_CROSS_COHORT_INDEX } from "../cross-cohort/cross-cohort-index";
+import { type CrossCohortIndex, EMPTY_CROSS_COHORT_INDEX } from "../cross-cohort-index";
 import type { CollisionViolation } from "./constraints";
 import { explainCell } from "./constraints";
-import type { GroupingCourse } from "../grouping/grouping";
-import type { PlannerPlacement } from "../placement/placement";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { PlannerPlacement } from "../placement";
 
 export type CellCollisions = {
   /** Course ids in BLOCKING violations (collisions + strong-NO) — drives the destructive

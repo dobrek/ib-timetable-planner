@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import GroupingBox from "./GroupingBox";
 import GroupingFilter from "./GroupingFilter";
 import PaletteCourseChip from "./PaletteCourseChip";
-import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
+import { type CourseDisplay, type HoursStat, resolveCourseDisplay } from "@/entities/timetable";
 import type { CourseDrag } from "../../model/drag";
 import { companionCourseOptions } from "../../model/grouping/companion-course-options";
 import { filterGroupings } from "../../model/grouping/filter-groupings";
@@ -11,7 +11,6 @@ import { sortByName } from "../../model/grouping/leading-course-options";
 import { reconcileCompanion } from "../../model/grouping/reconcile-companion";
 import { sortGroupingsForPalette } from "../../model/grouping/sort-groupings";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
-import type { HoursStat } from "../../model/hours";
 
 type Props = {
   groupings: PlannerGrouping[];

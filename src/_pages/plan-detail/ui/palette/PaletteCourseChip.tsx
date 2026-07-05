@@ -2,7 +2,7 @@ import { GripVertical } from "lucide-react";
 import type { Ref } from "react";
 import { subjectChipClass, type SubjectColor } from "@/shared/config";
 import HoursCounter from "./HoursCounter";
-import type { HoursStat } from "../../model/hours";
+import type { HoursStat } from "@/entities/timetable";
 import { cn } from "@/shared/lib/class-names";
 
 type Props = {

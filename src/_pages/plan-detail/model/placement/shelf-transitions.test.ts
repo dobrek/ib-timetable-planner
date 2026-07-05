@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LocalParkedBundle, ParkedMember } from "./parked";
-import type { LocalPlacement } from "./placement";
+import type { LocalPlacement } from "@/entities/timetable";
 import {
   membersAtCell,
   parkAddOptimistic,

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { dayField, periodField, toPlannerPlacement } from "./placements";
 import type { ParkedBundle } from "../model/placement/parked";
-import type { PlannerPlacement } from "../model/placement/placement";
+import type { PlannerPlacement } from "@/entities/timetable";
 import type { SupabaseClient } from "@/shared/api";
 import { cohortSchema, placementWeekSchema } from "@/shared/config";
 import { DomainError } from "@/shared/lib/errors";

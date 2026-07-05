@@ -15,7 +15,7 @@ import {
 } from "@/shared/ui";
 import { leadingCourseOptions, sortByGroupCount, sortByName } from "../../model/grouping/leading-course-options";
 import type { LeadingCourseOption } from "../../model/grouping/leading-course-options";
-import type { CourseDisplay } from "../../model/course-display";
+import type { CourseDisplay } from "@/entities/timetable";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
 
 type Props = {

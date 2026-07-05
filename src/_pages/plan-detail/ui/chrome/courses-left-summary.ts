@@ -1,6 +1,5 @@
 import type { Cohort, SubjectColor } from "@/shared/config";
-import { resolveCourseDisplay, type CourseDisplay } from "../../model/course-display";
-import type { CourseHours } from "../../model/hours";
+import { type CourseDisplay, type CourseHours, resolveCourseDisplay } from "@/entities/timetable";
 
 /** One popover row: course identity resolved to display (name + subject color) plus its hours. */
 export type CoursesLeftRow = {

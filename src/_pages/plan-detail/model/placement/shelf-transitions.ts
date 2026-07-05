@@ -1,5 +1,5 @@
 import type { LocalParkedBundle, ParkedMember } from "./parked";
-import type { LocalPlacement } from "./placement";
+import type { LocalPlacement } from "@/entities/timetable";
 
 // Pure, immutable transitions for the parked-list side of park / place-back / discard —
 // the shelf analogue of `placement-transitions.ts`. The two-store atomic update (board +

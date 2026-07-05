@@ -1,9 +1,13 @@
 import { useMemo } from "react";
-import { buildCrossCohortIndex, projectFromPlacements, type CrossCohortIndex } from "./cross-cohort/cross-cohort-index";
+import {
+  buildCrossCohortIndex,
+  type CrossCohortIndex,
+  type LensCriterion,
+  type LocalPlacement,
+  projectFromPlacements,
+} from "@/entities/timetable";
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
-import type { LocalPlacement } from "./placement/placement";
-import type { LensCriterion } from "./lens";
 import { usePlacements, type UsePlacementsArgs } from "./use-placements";
 import { useHistoryControls, useHistoryRecorder } from "./history/use-history";
 import { useExplodedCells } from "./use-exploded-cells";

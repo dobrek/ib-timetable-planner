@@ -2,17 +2,19 @@ import { Fragment, type CSSProperties } from "react";
 import { cohortLabel, type Cohort, type PlacementWeek } from "@/shared/config";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import SlotCell from "./slot-cell/SlotCell";
-import type { CollisionInspectionTarget } from "../overlay/CollisionDetailsDialog";
-import type { CellCollisions } from "../../model/collision/collisions";
-import { cellKey } from "../../model/collision/cell-key";
-import { groupCellOccupants } from "../../model/collision/cell-occupants";
-import type { CourseDisplay } from "../../model/course-display";
+import {
+  breaksAfterPeriod,
+  type CellCollisions,
+  cellKey,
+  type CollisionInspectionTarget,
+  type CourseDisplay,
+  groupCellOccupants,
+  type LocalPlacement,
+} from "@/entities/timetable";
 import type { CellData } from "../../model/drag";
 import type { DropHint } from "../../model/drop-hints";
 import { isBundled } from "../../model/exploded-cells";
-import type { LocalPlacement } from "../../model/placement/placement";
 import type { HintMode } from "../../lib/drag-hint-mode";
-import { breaksAfterPeriod } from "../../lib/period-breaks";
 
 /**
  * The cell wiring shared by every column the grid renders — the cell-level drag-hint state plus the

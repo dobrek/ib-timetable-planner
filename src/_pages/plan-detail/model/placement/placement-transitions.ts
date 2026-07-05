@@ -1,8 +1,13 @@
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { PlacementWeek, WeekMode } from "@/shared/config";
-import { resolveCourseDisplay, type CourseDisplay } from "../course-display";
+import {
+  type CourseDisplay,
+  type LocalPlacement,
+  occupiesCell,
+  type PlannerPlacement,
+  resolveCourseDisplay,
+} from "@/entities/timetable";
 import type { CellData } from "../drag";
-import { occupiesCell, type LocalPlacement, type PlannerPlacement } from "./placement";
 
 // These stay as small, separately-testable pure transitions (add/move/remove × single/many).
 // The "one member-set primitive" the plan describes is composed one level up in

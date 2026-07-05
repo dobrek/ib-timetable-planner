@@ -1,7 +1,7 @@
 import { actions } from "astro:actions";
 import type { Cohort } from "@/shared/config";
 import type { ParkedBundle, ParkedMember } from "../model/placement/parked";
-import type { PlannerPlacement } from "../model/placement/placement";
+import type { PlannerPlacement } from "@/entities/timetable";
 import { callActionData } from "./call-action";
 
 /** Lift the bundle at a cell off the board into the shelf; returns the new parked card (empty members). */

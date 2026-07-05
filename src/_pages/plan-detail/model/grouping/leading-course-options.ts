@@ -1,4 +1,4 @@
-import { resolveCourseDisplay, type CourseDisplay } from "../course-display";
+import { resolveCourseDisplay, type CourseDisplay } from "@/entities/timetable";
 import type { PlannerGrouping } from "./grouping";
 
 /** A leading-course filter option: a distinct member course plus the number of groupings it appears in. */

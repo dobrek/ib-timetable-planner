@@ -1,5 +1,5 @@
 import type { PlacementWeek } from "@/shared/config";
-import type { GroupingCourse } from "../../grouping/grouping";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 
 /**
  * Structured collision explanation. Ids stay opaque (uuids) — display names are

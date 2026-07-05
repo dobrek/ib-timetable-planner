@@ -11,8 +11,7 @@ import CombinedPalettePanel, { usePaletteFilter, type PaletteCohortData } from "
 // Mock it (the panel renders the ready body here, so the stale path is never exercised) — mirrors
 // GroupingStalePanel.test's own mock.
 vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn() }));
-import type { HoursStat } from "../../model/hours";
-import type { CourseDisplay } from "../../model/course-display";
+import type { CourseDisplay, HoursStat } from "@/entities/timetable";
 import type { LeadingCourseOption } from "../../model/grouping/leading-course-options";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
 

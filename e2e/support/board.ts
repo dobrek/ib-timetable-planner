@@ -174,9 +174,19 @@ export async function groupCell(page: Page, slot: string): Promise<void> {
   await clickBundleToggle(page, slot, "Group slot");
 }
 
-/** Remove every course in the bundled cell via the bulk-remove trash; the cell goes empty. */
+/**
+ * Remove every course in the bundled cell via the bulk-remove trash; the cell goes empty.
+ * Retried like `duplicateCell`/`placeFromPalette`: right after a move the cell's placements
+ * are still optimistically pending and the remove verb is a no-op until they reconcile, so a
+ * single bare click can be silently dropped under load. Skips once the cell has emptied.
+ */
 export async function removeBundle(page: Page, slot: string): Promise<void> {
-  await cell(page, slot).getByRole("button", { name: "Remove all from slot", exact: true }).click();
+  const occupants = cell(page, slot).getByRole("button");
+  await expect(async () => {
+    if ((await occupants.count()) === 0) return; // already emptied on a previous attempt
+    await cell(page, slot).getByRole("button", { name: "Remove all from slot", exact: true }).click();
+    await expect(occupants).toHaveCount(0, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 /**

@@ -34,6 +34,8 @@ export type StudentPlanViewData = {
   student: StudentSummary;
   /** Every student of the plan — BOTH cohorts, for the switcher's cohort toggle (name-ordered). */
   students: StudentSummary[];
+  /** First name-ordered student per cohort — resolved cap-independently, for the cohort tabs. */
+  cohortLeads: Record<Cohort, StudentSummary | undefined>;
   /** FULL cohort catalog — the course-item builder resolves merge children through it. */
   courses: GroupingCourse[];
   courseDisplay: Record<string, CourseDisplay>;
@@ -78,8 +80,9 @@ export const loadStudentPlanView = async (
 
   // The switcher list (both cohorts) rides along in the cohort batch: it doesn't depend on
   // the resolved cohort, and identity is already gated above so the not-found path is cheap.
-  const [students, catalog, placementsResult, merges, courseInfo] = await Promise.all([
+  const [students, cohortLeads, catalog, placementsResult, merges, courseInfo] = await Promise.all([
     fetchPlanStudents(supabase, planId),
+    fetchCohortLeads(supabase, planId),
     loadCohortCourses(supabase, planId, student.cohort),
     loadPlacements(supabase, planId, student.cohort),
     loadCourseMerges(supabase, planId),
@@ -101,6 +104,7 @@ export const loadStudentPlanView = async (
     periods,
     student,
     students,
+    cohortLeads,
     courses: catalog.courses,
     courseDisplay: Object.fromEntries(catalog.courseDisplay),
     placements: (placementsResult.data ?? []).map(toPlannerPlacement),
@@ -133,6 +137,41 @@ const fetchPlanStudents = async (supabase: SupabaseClient, planId: string): Prom
     "Failed to load the plan's students",
   );
   return rows.map((row) => ({ id: row.id, fullName: row.full_name, cohort: row.cohort }));
+};
+
+/**
+ * The first name-ordered student of each cohort, resolved cap-independently — one row-scoped
+ * head query per cohort, NOT derived from the capped switcher list. Mirrors `fetchPlanStudent`:
+ * a cohort whose students all rank past the 500 switcher cap must still resolve its lead, so the
+ * inactive tab links (or correctly disables) regardless of plan size — never a false empty cohort.
+ */
+const fetchCohortLeads = async (
+  supabase: SupabaseClient,
+  planId: string,
+): Promise<Record<Cohort, StudentSummary | undefined>> => {
+  const [dp1, dp2] = await Promise.all([
+    fetchCohortLead(supabase, planId, "dp1"),
+    fetchCohortLead(supabase, planId, "dp2"),
+  ]);
+  return { dp1, dp2 };
+};
+
+/** First student of one cohort by name — a single-row head query, independent of the switcher cap. */
+const fetchCohortLead = async (
+  supabase: SupabaseClient,
+  planId: string,
+  cohort: Cohort,
+): Promise<StudentSummary | undefined> => {
+  const { data, error } = await supabase
+    .from("students")
+    .select("id, full_name, cohort")
+    .eq("plan_id", planId)
+    .eq("cohort", cohort)
+    .order("full_name")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Cohort lead lookup failed: ${error.message}`);
+  return data ? { id: data.id, fullName: data.full_name, cohort: data.cohort } : undefined;
 };
 
 /** Cohort-narrowed (unlike the teacher view's plan-wide fetch): no cross-cohort rendering exists. */

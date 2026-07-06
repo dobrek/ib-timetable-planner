@@ -55,7 +55,12 @@ export default function StudentPlanPage({ data }: Props) {
           <h1 className="text-xl font-semibold">{student.fullName}</h1>
           <p className="text-muted-foreground text-sm">{planName} — student schedule</p>
         </div>
-        <StudentSwitcher planId={data.planId} students={data.students} current={student} />
+        <StudentSwitcher
+          planId={data.planId}
+          students={data.students}
+          current={student}
+          cohortLeads={data.cohortLeads}
+        />
       </header>
 
       <ScheduleGrid

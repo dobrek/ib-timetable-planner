@@ -193,7 +193,7 @@ Stand up `src/_pages/student-plan-view/` mirroring the teacher slice, minus ever
 
 **Intent**: The slimmed single-cohort page: header (student name; "planName — student schedule" subtitle) + `StudentSwitcher` + widget `ScheduleGrid` + widget `PerspectiveCourseList`. Static after hydration; plain render-time calls into entity functions.
 
-**Contract**: `studentCourses(courses, student.id)` → id set → `perspectivePlacements(placements, ids)` → `groupCellOccupants(studentPlacements, courseDisplay, new Map())` (no cohort tags, no `unavailable`, no `onInspect`). Items via `buildPerspectiveCourseItems` with the student membership predicate, `hours = deriveHours(placements, courses)` over the FULL cohort inputs. Card roster: `{ label: "Teachers (N)", names: item.teacherKeys.map(k => teacherNames[k] ?? k).sort(...) }`; no `inlineNote`. Empty message: "This student has no courses in this plan."
+**Contract**: `studentCourses(courses, student.id)` → id set → `perspectivePlacements(placements, ids)` → `groupCellOccupants(studentPlacements, courseDisplay, new Map())` (no cohort tags, no `unavailable`, no `onInspect`). Items via `buildPerspectiveCourseItems` with the student membership predicate, `hours = deriveHours(placements, courses)` over the FULL cohort inputs, then `.filter(item => mineIds.has(item.courseId))` — a merge parent resolves to ALL its children, but a student attends only the child they chose, so sibling children are dropped from the card list (the grid still shows the merged session via the parent's placement). Card roster: `{ label: "Teachers (N)", names: item.teacherKeys.map(k => teacherNames[k] ?? k).sort(...) }`; no `inlineNote`. Empty message: "This student has no courses in this plan."
 
 #### 3. Switcher
 

@@ -1,7 +1,7 @@
 ---
 change_id: student-plan-view
 title: Student plan view
-status: implementing
+status: implemented
 created: 2026-07-06
 updated: 2026-07-06
 archived_at: null

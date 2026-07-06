@@ -273,16 +273,16 @@ new pure helper.
 
 #### Automated
 
-- [ ] 1.1 Type checking passes: `pnpm check`
-- [ ] 1.2 Linting passes: `pnpm lint`
-- [ ] 1.3 FSD structure check passes: `pnpm steiger`
-- [ ] 1.4 Unit suite (incl. new `cohortLeads` test) passes: `pnpm test`
+- [x] 1.1 Type checking passes: `pnpm check`
+- [x] 1.2 Linting passes: `pnpm lint`
+- [x] 1.3 FSD structure check passes: `pnpm steiger`
+- [x] 1.4 Unit suite (incl. new `cohortLeads` test) passes: `pnpm test`
 
 #### Manual
 
-- [ ] 1.5 Inactive cohort tab navigates to that cohort's first student — heading, grid, course list update in one step
-- [ ] 1.6 Active tab is non-navigating; dropdown lists the current cohort with the current student check-marked
-- [ ] 1.7 On a plan whose other cohort is empty, that tab renders disabled and does nothing when clicked
+- [x] 1.5 Inactive cohort tab navigates to that cohort's first student — heading, grid, course list update in one step
+- [x] 1.6 Active tab is non-navigating; dropdown lists the current cohort with the current student check-marked
+- [x] 1.7 On a plan whose other cohort is empty, that tab renders disabled and does nothing when clicked
 
 ### Phase 2: E2E realignment + CI gate
 

@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { COHORTS, type Cohort } from "@/shared/config";
+import { COHORTS } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import {
   Button,
@@ -13,6 +12,7 @@ import {
   TabsTrigger,
 } from "@/shared/ui";
 import type { StudentSummary } from "../api/loader";
+import { cohortLeads } from "../lib";
 
 type Props = {
   planId: string;
@@ -21,30 +21,43 @@ type Props = {
 };
 
 /**
- * Student switcher with a cohort dimension the teacher switcher lacks: a dp1/dp2 toggle
- * (client state — a bare cohort has no URL; initialized to the current student's cohort)
- * re-scopes the dropdown list without navigating, and picking a student navigates via a
- * plain anchor to their stable URL (shareable, middle-clickable). The current student is
- * check-marked only while their own cohort is selected.
+ * Student switcher with a cohort dimension the teacher switcher lacks: a dp1/dp2 tab pair that
+ * mirrors the board's `CohortSwitcher` contract. The active tab (the current student's cohort) is
+ * a plain, non-navigating trigger; the inactive tab is an anchor to the other cohort's first
+ * name-ordered student, so toggling cohort navigates the whole page in one step (a shareable,
+ * middle-clickable URL) — a student belongs to exactly one cohort, so the only outcome of
+ * switching is jumping to a different student. Where the other cohort has no students, its tab
+ * renders disabled rather than linking nowhere. The dropdown is scoped to the current cohort, so
+ * the current student is always listed and check-marked; picking a student navigates via a plain
+ * anchor to their stable URL.
  */
 export default function StudentSwitcher({ planId, students, current }: Props) {
-  const [cohort, setCohort] = useState<Cohort>(current.cohort);
-  const scoped = students.filter((student) => student.cohort === cohort);
+  const leads = cohortLeads(students);
+  const scoped = students.filter((student) => student.cohort === current.cohort);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Tabs
-        value={cohort}
-        onValueChange={(value) => {
-          setCohort(value as Cohort);
-        }}
-      >
+      <Tabs value={current.cohort}>
         <TabsList>
-          {COHORTS.map((option) => (
-            <TabsTrigger key={option.value} value={option.value}>
-              {option.label}
-            </TabsTrigger>
-          ))}
+          {COHORTS.map((option) => {
+            if (option.value === current.cohort) {
+              return (
+                <TabsTrigger key={option.value} value={option.value}>
+                  {option.label}
+                </TabsTrigger>
+              );
+            }
+            const lead = leads[option.value];
+            return lead ? (
+              <TabsTrigger key={option.value} value={option.value} asChild>
+                <a href={`/plans/${planId}/students/${lead.id}`}>{option.label}</a>
+              </TabsTrigger>
+            ) : (
+              <TabsTrigger key={option.value} value={option.value} disabled aria-disabled="true">
+                {option.label}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
       </Tabs>
 

@@ -354,33 +354,33 @@ No schema or data migrations. Module moves (`course-list` → entity, grid/card 
 
 #### Automated
 
-- [x] 2.1 Type check passes: `pnpm check`
-- [x] 2.2 Unit tests pass: `pnpm test`
-- [x] 2.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 2.4 Build stays clean: `pnpm build`
-- [x] 2.5 Teacher e2e passes unmodified: `pnpm test:e2e` (teacher-plan-view spec)
+- [x] 2.1 Type check passes: `pnpm check` — a0e2367
+- [x] 2.2 Unit tests pass: `pnpm test` — a0e2367
+- [x] 2.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger` — a0e2367
+- [x] 2.4 Build stays clean: `pnpm build` — a0e2367
+- [x] 2.5 Teacher e2e passes unmodified: `pnpm test:e2e` (teacher-plan-view spec) — a0e2367
 
 #### Manual
 
-- [x] 2.6 Teacher view pixel-equivalent (grid shading, badges, dialog, course cards)
+- [x] 2.6 Teacher view pixel-equivalent (grid shading, badges, dialog, course cards) — a0e2367
 
 ### Phase 3: Student slice — loader, page, switcher, route, entry point
 
 #### Automated
 
-- [ ] 3.1 Type check passes: `pnpm check`
-- [ ] 3.2 Unit tests pass: `pnpm test`
-- [ ] 3.3 Lint + FSD structure pass (override removed): `pnpm lint && pnpm steiger`
-- [ ] 3.4 Build stays clean: `pnpm build`
-- [ ] 3.5 Integration tests pass: `pnpm test:integration`
+- [x] 3.1 Type check passes: `pnpm check`
+- [x] 3.2 Unit tests pass: `pnpm test`
+- [x] 3.3 Lint + FSD structure pass (override removed): `pnpm lint && pnpm steiger`
+- [x] 3.4 Build stays clean: `pnpm build`
+- [x] 3.5 Integration tests pass: `pnpm test:integration`
 
 #### Manual
 
-- [ ] 3.6 Students table name link and "View plan" action open the student's view
-- [ ] 3.7 Grid shows exactly the student's placed courses (incl. merged course + week labels)
-- [ ] 3.8 Course cards list the right Teachers, hours, and occurrence times
-- [ ] 3.9 Switcher: toggle re-scopes without navigating; picking navigates; check-mark only on own cohort
-- [ ] 3.10 Unknown student id → 404; Students nav stays highlighted
+- [x] 3.6 Students table name link and "View plan" action open the student's view
+- [x] 3.7 Grid shows exactly the student's placed courses (incl. merged course + week labels)
+- [x] 3.8 Course cards list the right Teachers, hours, and occurrence times
+- [x] 3.9 Switcher: toggle re-scopes without navigating; picking navigates; check-mark only on own cohort
+- [x] 3.10 Unknown student id → 404; Students nav stays highlighted
 
 ### Phase 4: E2E + lens.ts move-back
 

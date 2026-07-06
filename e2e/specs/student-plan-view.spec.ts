@@ -8,8 +8,9 @@ import { clickToReveal, createPlan, createTeacher, deletePlan, gotoStable, short
 // Locks the page's role-based contract end to end: the students-table name link navigates to
 // the student's stable URL, the static single-cohort grid (`role="grid"`) shows the student's
 // placed course, the course list below carries the occurrence line and the Teachers roster,
-// and the switcher's novel interaction — the cohort toggle re-scopes the dropdown WITHOUT
-// navigating — before a cross-cohort pick renders the sibling student's (empty) view.
+// and the switcher's cohort tab NAVIGATES — clicking the other cohort's tab jumps straight to
+// that cohort's first student (heading, grid, and course list update in one step), mirroring the
+// board's `CohortSwitcher`. Where the other cohort has no students, that tab renders disabled.
 //
 // Authenticated `chromium` project (reuses storageState from auth.setup). Modeled on
 // teacher-plan-view.spec.ts; conventions in e2e/CLAUDE.md — role-based locators only,
@@ -19,7 +20,7 @@ test.describe("student plan view", () => {
   // Catalog authoring spans four pages plus a grouping compute and a board drag.
   test.describe.configure({ timeout: 120_000 });
 
-  test("students-table link opens the student's view; grid + course list render; cohort toggle re-scopes; picking navigates", async ({
+  test("students-table link opens the student's view; grid + course list render; cohort tab navigates to the other cohort's student", async ({
     page,
   }) => {
     const id = shortId();
@@ -57,20 +58,45 @@ test.describe("student plan view", () => {
     await expect(card.getByRole("list", { name: "Occurrences" })).toContainText("Wed P5");
     await expect(card.getByRole("list", { name: `Teachers of ${course}` })).toContainText(teacher);
 
-    // The cohort toggle re-scopes the dropdown WITHOUT navigating: the DP1 student drops out
-    // of the list, the DP2 student appears, and the URL stays the current student's.
-    const urlBeforeToggle = page.url();
-    await page.getByRole("tab", { name: "DP2" }).click();
+    // The active tab is the current cohort; its dropdown is scoped to that cohort with the current
+    // student check-marked (aria-current), and the other cohort's student is absent from the list.
+    await expect(page.getByRole("tab", { name: "DP1" })).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "Switch student" }).click();
-    await expect(page.getByRole("menuitem", { name: dp2Student })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: student })).toHaveCount(0);
-    expect(page.url()).toBe(urlBeforeToggle);
+    await expect(page.getByRole("menuitem", { name: student })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("menuitem", { name: dp2Student })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menuitem", { name: student })).toBeHidden();
 
-    // Picking the DP2 student navigates; their (empty) view still renders the full grid.
-    await page.getByRole("menuitem", { name: dp2Student }).click();
+    // The cohort tab navigates: clicking DP2 jumps straight to that cohort's first student —
+    // the whole page updates (heading, grid, course list) in one step, with no dropdown dance.
+    // The dp2 student has no choices, so their view renders the full grid and the empty message.
+    await page.getByRole("tab", { name: "DP2" }).click();
     await page.waitForURL(/\/students\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("grid", { name: `${dp2Student} timetable` })).toBeVisible();
     await expect(page.getByText("This student has no courses in this plan.")).toBeVisible();
+
+    await deletePlan(page, plan.name);
+  });
+
+  test("the other cohort's tab is disabled when that cohort has no students", async ({ page }) => {
+    const id = shortId();
+    const student = `Solo ${id}`;
+
+    const plan = await createPlan(page, "student-plan-view-empty-cohort");
+    await createStudentWithoutChoices(page, plan.id, { name: student, cohort: "DP1" });
+
+    // Open the lone dp1 student's view. dp2 has no students, so its tab has no lead to link to.
+    await gotoStable(page, `/plans/${plan.id}/students`);
+    await page.getByRole("link", { name: student, exact: true }).click();
+    await page.waitForURL(/\/students\/[0-9a-f-]{36}$/);
+
+    const dp2Tab = page.getByRole("tab", { name: "DP2" });
+    await expect(dp2Tab).toBeDisabled();
+
+    // A disabled trigger is not an anchor — a forced click cannot navigate anywhere.
+    const urlBefore = page.url();
+    await dp2Tab.click({ force: true });
+    await expect(page).toHaveURL(urlBefore);
 
     await deletePlan(page, plan.name);
   });
@@ -78,8 +104,9 @@ test.describe("student plan view", () => {
 
 /**
  * Author a student with NO course choices (empty choice sets are valid — no min choice
- * count): the cross-cohort probe whose view renders the empty course list. Local to this
- * spec (the shared `createStudent` always picks one course).
+ * count): the cross-cohort probe whose view renders the empty course list, and the lone
+ * student in the disabled-tab plan. Local to this spec (the shared `createStudent` always
+ * picks one course).
  */
 async function createStudentWithoutChoices(
   page: Page,

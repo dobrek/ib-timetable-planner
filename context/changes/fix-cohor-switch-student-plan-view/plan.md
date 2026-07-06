@@ -273,25 +273,25 @@ new pure helper.
 
 #### Automated
 
-- [x] 1.1 Type checking passes: `pnpm check`
-- [x] 1.2 Linting passes: `pnpm lint`
-- [x] 1.3 FSD structure check passes: `pnpm steiger`
-- [x] 1.4 Unit suite (incl. new `cohortLeads` test) passes: `pnpm test`
+- [x] 1.1 Type checking passes: `pnpm check` — 9251b44
+- [x] 1.2 Linting passes: `pnpm lint` — 9251b44
+- [x] 1.3 FSD structure check passes: `pnpm steiger` — 9251b44
+- [x] 1.4 Unit suite (incl. new `cohortLeads` test) passes: `pnpm test` — 9251b44
 
 #### Manual
 
-- [x] 1.5 Inactive cohort tab navigates to that cohort's first student — heading, grid, course list update in one step
-- [x] 1.6 Active tab is non-navigating; dropdown lists the current cohort with the current student check-marked
-- [x] 1.7 On a plan whose other cohort is empty, that tab renders disabled and does nothing when clicked
+- [x] 1.5 Inactive cohort tab navigates to that cohort's first student — heading, grid, course list update in one step — 9251b44
+- [x] 1.6 Active tab is non-navigating; dropdown lists the current cohort with the current student check-marked — 9251b44
+- [x] 1.7 On a plan whose other cohort is empty, that tab renders disabled and does nothing when clicked — 9251b44
 
 ### Phase 2: E2E realignment + CI gate
 
 #### Automated
 
-- [ ] 2.1 `student-plan-view` e2e spec passes: `pnpm test:e2e`
-- [ ] 2.2 Full local CI gate green: `/verify`
+- [x] 2.1 `student-plan-view` e2e spec passes: `pnpm test:e2e`
+- [x] 2.2 Full local CI gate green: `/verify`
 
 #### Manual
 
-- [ ] 2.3 E2E run confirms the tab click navigates the whole page, not a dropdown re-scope
-- [ ] 2.4 No lingering references to the old "re-scopes the dropdown WITHOUT navigating" behavior remain
+- [x] 2.3 E2E run confirms the tab click navigates the whole page, not a dropdown re-scope
+- [x] 2.4 No lingering references to the old "re-scopes the dropdown WITHOUT navigating" behavior remain

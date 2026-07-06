@@ -3,13 +3,20 @@ import { Badge } from "@/shared/ui";
 import { formatCourseBadgeLabel } from "@/shared/lib/course-label";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import type { CourseDisplay } from "@/shared/lib/catalog-hash";
-import { periodTimeRange, resolveCourseDisplay, weekLabel, type PlannerPlacement } from "@/entities/timetable";
+import {
+  periodTimeRange,
+  resolveCourseDisplay,
+  weekLabel,
+  type PerspectiveCourseItem,
+  type PlannerPlacement,
+} from "@/entities/timetable";
 import type { CourseInfo } from "../api/loader";
-import type { TeacherCourseItem } from "../model/course-list";
 
 type Props = {
   /** Real courses the teacher conducts (both cohorts, composites resolved to children). */
-  items: TeacherCourseItem[];
+  items: PerspectiveCourseItem[];
+  /** The viewed teacher — excluded from each card's co-teachers line. */
+  teacherKey: string;
   courseInfo: Record<string, CourseInfo>;
   courseDisplay: Record<string, CourseDisplay>;
   studentNames: Record<string, string>;
@@ -23,7 +30,14 @@ type Props = {
  * (per-teacher volume is small, and collapsed-out-of-DOM content would break every
  * future print path).
  */
-export default function TeacherCourseList({ items, courseInfo, courseDisplay, studentNames, teacherNames }: Props) {
+export default function TeacherCourseList({
+  items,
+  teacherKey,
+  courseInfo,
+  courseDisplay,
+  studentNames,
+  teacherNames,
+}: Props) {
   if (items.length === 0) {
     return (
       <section aria-label="Courses">
@@ -42,6 +56,7 @@ export default function TeacherCourseList({ items, courseInfo, courseDisplay, st
         <CourseCard
           key={item.courseId}
           item={item}
+          teacherKey={teacherKey}
           title={titleOf(item)}
           mergedIntoName={item.mergedIntoId ? resolveCourseDisplay(courseDisplay, item.mergedIntoId).name : null}
           studentNames={studentNames}
@@ -51,7 +66,7 @@ export default function TeacherCourseList({ items, courseInfo, courseDisplay, st
     </section>
   );
 
-  function titleOf(item: TeacherCourseItem): string {
+  function titleOf(item: PerspectiveCourseItem): string {
     // Every plan course row should be in `courseInfo` (fetched plan-wide, incl. merge
     // children), but the catalog and course queries are not snapshot-isolated — degrade,
     // don't crash, if a course landed between them.
@@ -61,18 +76,20 @@ export default function TeacherCourseList({ items, courseInfo, courseDisplay, st
 
 function CourseCard({
   item,
+  teacherKey,
   title,
   mergedIntoName,
   studentNames,
   teacherNames,
 }: {
-  item: TeacherCourseItem;
+  item: PerspectiveCourseItem;
+  teacherKey: string;
   title: string;
   mergedIntoName: string | null;
   studentNames: Record<string, string>;
   teacherNames: Record<string, string>;
 }) {
-  const coTeachers = item.coTeacherKeys.map((key) => teacherNames[key] ?? key);
+  const coTeachers = item.teacherKeys.filter((key) => key !== teacherKey).map((key) => teacherNames[key] ?? key);
   const roster = item.studentKeys.map((key) => studentNames[key] ?? key).sort((a, b) => a.localeCompare(b));
 
   return (

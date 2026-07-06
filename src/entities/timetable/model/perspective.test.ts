@@ -4,10 +4,11 @@ import { cellKey } from "./collision/cell-key";
 import { deriveCellViolations, type CellCollisions } from "./collision/collisions";
 import {
   narrowViolationsToTeacher,
+  perspectivePlacements,
+  studentCourses,
   teacherCourses,
-  teacherPlacements,
   teacherUnavailableCells,
-} from "./teacher-perspective";
+} from "./perspective";
 
 describe("teacherCourses", () => {
   it("keeps only courses whose teacher set contains the key", () => {
@@ -31,11 +32,21 @@ describe("teacherCourses", () => {
   });
 });
 
-describe("teacherPlacements", () => {
-  it("keeps only placements of the teacher's courses", () => {
+describe("studentCourses", () => {
+  it("keeps only courses whose student set contains the key", () => {
+    const mine = course("c1", "T1", ["s1", "s2"]);
+    const other = course("c2", "T1", ["s3"]);
+    expect(studentCourses([mine, other], "s1")).toEqual([mine]);
+    expect(studentCourses([mine, other], "s3")).toEqual([other]);
+    expect(studentCourses([mine, other], "s9")).toEqual([]);
+  });
+});
+
+describe("perspectivePlacements", () => {
+  it("keeps only placements of the person's courses", () => {
     const mine = placement("p1", "c1", 1, 1);
     const other = placement("p2", "c2", 2, 3);
-    expect(teacherPlacements([mine, other], new Set(["c1"]))).toEqual([mine]);
+    expect(perspectivePlacements([mine, other], new Set(["c1"]))).toEqual([mine]);
   });
 });
 

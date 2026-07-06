@@ -1,45 +1,48 @@
 import type { Cohort } from "@/shared/config";
 import type { CourseMerge } from "@/shared/api";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
-import { teacherCourses, type HoursStat, type PlannerPlacement } from "@/entities/timetable";
+import type { HoursStat } from "./hours";
+import type { PlannerPlacement } from "./placement";
 
 /**
- * One row of the teacher's course list — always a REAL course: merge-parent composites are
+ * One row of a person's course list — always a REAL course: merge-parent composites are
  * resolved to their children (each with its own roster), mirroring the choice-picker
  * precedent that composites are scheduling artifacts. A child absent from the grouping
  * catalog (no direct student choices) still gets a row with an empty roster.
  */
-export type TeacherCourseItem = {
+export type PerspectiveCourseItem = {
   courseId: string;
   cohort: Cohort;
   /** Placements that schedule this course — the composite parent's for a merge child. */
   occurrences: PlannerPlacement[];
   /** Hours placed/required (`deriveHours` stat); a merge child falls back to its parent's. */
   hours: HoursStat | null;
-  /** The other members of the course's teacher set (the current teacher excluded). */
-  coTeacherKeys: string[];
+  /** The FULL teacher set (a catalog-absent merge child falls back to its parent's). */
+  teacherKeys: string[];
   studentKeys: string[];
   /** Set on a merge child: the composite parent whose single block carries it on the grid. */
   mergedIntoId?: string;
 };
 
 /**
- * Build one cohort's course-list rows for a teacher: filter the catalog by teacher-set
- * membership, resolve merge parents to children, attach occurrences (sorted by day, then
- * period) and hours. Children are skipped as standalone entries when their parent is also
- * the teacher's (merges require identical teacher sets, so the parent row covers them).
+ * Build one cohort's course-list rows for a person: filter the catalog by the `memberOf`
+ * predicate (the only persona input — teacher-set or student-set membership), resolve
+ * merge parents to children, attach occurrences (sorted by day, then period) and hours.
+ * Children are skipped as standalone entries when their parent is also the person's
+ * (merges require identical teacher sets, so the parent row covers them). Persona UIs
+ * derive their "people" lines from the raw `teacherKeys`/`studentKeys` at render.
  */
-export const buildTeacherCourseItems = (input: {
+export const buildPerspectiveCourseItems = (input: {
   cohort: Cohort;
   courses: GroupingCourse[];
   placements: PlannerPlacement[];
   merges: CourseMerge[];
   hours: Map<string, HoursStat>;
-  teacherKey: string;
-}): TeacherCourseItem[] => {
-  const { cohort, courses, placements, merges, hours, teacherKey } = input;
+  memberOf: (course: GroupingCourse) => boolean;
+}): PerspectiveCourseItem[] => {
+  const { cohort, courses, placements, merges, hours, memberOf } = input;
   const catalogById = new Map(courses.map((course) => [course.id, course]));
-  const mine = teacherCourses(courses, teacherKey);
+  const mine = courses.filter(memberOf);
   const mineIds = new Set(mine.map((course) => course.id));
   const childrenOf = new Map<string, string[]>();
   const parentOf = new Map<string, string>();
@@ -52,16 +55,16 @@ export const buildTeacherCourseItems = (input: {
   const occurrencesOf = (courseId: string): PlannerPlacement[] =>
     placements.filter((placement) => placement.courseId === courseId).sort(byDayThenPeriod);
 
-  const toItem = (course: GroupingCourse): TeacherCourseItem => ({
+  const toItem = (course: GroupingCourse): PerspectiveCourseItem => ({
     courseId: course.id,
     cohort,
     occurrences: occurrencesOf(course.id),
     hours: hours.get(course.id) ?? null,
-    coTeacherKeys: course.teacherKeys.filter((key) => key !== teacherKey),
+    teacherKeys: course.teacherKeys,
     studentKeys: course.studentKeys,
   });
 
-  const toChildItem = (childId: string, parent: GroupingCourse): TeacherCourseItem => {
+  const toChildItem = (childId: string, parent: GroupingCourse): PerspectiveCourseItem => {
     const child = catalogById.get(childId);
     return {
       courseId: childId,
@@ -71,7 +74,7 @@ export const buildTeacherCourseItems = (input: {
       // carries itself (legitimate for partially-merged courses).
       occurrences: [...occurrencesOf(childId), ...occurrencesOf(parent.id)].sort(byDayThenPeriod),
       hours: (child && hours.get(childId)) ?? hours.get(parent.id) ?? null,
-      coTeacherKeys: (child ?? parent).teacherKeys.filter((key) => key !== teacherKey),
+      teacherKeys: (child ?? parent).teacherKeys,
       studentKeys: child?.studentKeys ?? [],
       mergedIntoId: parent.id,
     };

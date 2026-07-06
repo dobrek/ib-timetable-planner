@@ -6,23 +6,28 @@ import type { CollisionViolation } from "./collision/constraints";
 import type { PlannerPlacement } from "./placement";
 
 /**
- * The pure filtering/narrowing layer between full board data and a single-teacher
- * perspective view. Derive from the FULL cohort inputs first (placements, availability,
- * sibling cross-cohort index), then narrow with these functions — pre-filtering the
+ * The pure filtering/narrowing layer between full board data and a single-person
+ * perspective view (a timetable seen through one teacher or one student). The membership
+ * predicates are persona-symmetric; the *collision* helpers below stay teacher-specific
+ * by design and follow derive-then-narrow: compute from the FULL cohort inputs first
+ * (placements, availability, sibling cross-cohort index), then narrow — pre-filtering the
  * inputs would silently drop student-overlap and cross-cohort conflicts with other
- * teachers' courses. Generic "timetable viewed through one teacher"; the student view
- * will mirror this shape.
+ * teachers' courses.
  */
 
 /** Courses the teacher conducts — `teacherKeys` membership (the lens predicate). */
 export const teacherCourses = (courses: GroupingCourse[], teacherKey: string): GroupingCourse[] =>
   courses.filter((course) => course.teacherKeys.includes(teacherKey));
 
-/** The teacher's occupied cells: placements of the teacher's courses. */
-export const teacherPlacements = (
+/** Courses the student attends — `studentKeys` membership (the student mirror of `teacherCourses`). */
+export const studentCourses = (courses: GroupingCourse[], studentKey: string): GroupingCourse[] =>
+  courses.filter((course) => course.studentKeys.includes(studentKey));
+
+/** The person's occupied cells: placements of their courses (either persona's id set). */
+export const perspectivePlacements = (
   placements: PlannerPlacement[],
-  teacherCourseIds: ReadonlySet<string>,
-): PlannerPlacement[] => placements.filter((placement) => teacherCourseIds.has(placement.courseId));
+  courseIds: ReadonlySet<string>,
+): PlannerPlacement[] => placements.filter((placement) => courseIds.has(placement.courseId));
 
 /**
  * Narrow a full-board violation map to the cells/violations involving the teacher:

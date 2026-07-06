@@ -341,14 +341,14 @@ No schema or data migrations. Module moves (`course-list` → entity, grid/card 
 
 #### Automated
 
-- [ ] 1.1 Type check passes: `pnpm check`
-- [ ] 1.2 Unit tests pass (moved builder test included): `pnpm test`
-- [ ] 1.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 1.4 Build stays clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check`
+- [x] 1.2 Unit tests pass (moved builder test included): `pnpm test`
+- [x] 1.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 1.4 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.5 Teacher view renders identically against local seed data
+- [x] 1.5 Teacher view renders identically against local seed data
 
 ### Phase 2: widgets/timetable-board + teacher-view refactor
 

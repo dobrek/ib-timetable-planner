@@ -3,15 +3,16 @@ import type { Cohort, PlacementWeek } from "@/shared/config";
 import {
   buildAvailabilityIndex,
   buildCrossCohortIndex,
+  buildPerspectiveCourseItems,
   CollisionDetailsDialog,
   cellKey,
   deriveCellViolations,
   deriveHours,
   groupCellOccupants,
   narrowViolationsToTeacher,
+  perspectivePlacements,
   projectFromPlacements,
   teacherCourses,
-  teacherPlacements,
   teacherUnavailableCells,
   type AvailabilityIndex,
   type CellCollisions,
@@ -21,7 +22,6 @@ import {
   type PlannerPlacement,
 } from "@/entities/timetable";
 import type { TeacherPlanViewData, TeacherViewCohortData } from "../api/loader";
-import { buildTeacherCourseItems } from "../model/course-list";
 import TeacherCourseList from "./TeacherCourseList";
 import TeacherScheduleGrid, { type TeacherGridOccupant } from "./TeacherScheduleGrid";
 import TeacherSwitcher from "./TeacherSwitcher";
@@ -49,22 +49,23 @@ export default function TeacherPlanPage({ data }: Props) {
     { cohort: "dp2", view: dp2 },
   ]);
 
+  const taughtByTeacher = (candidate: { teacherKeys: string[] }): boolean => candidate.teacherKeys.includes(teacher.id);
   const items = [
-    ...buildTeacherCourseItems({
+    ...buildPerspectiveCourseItems({
       cohort: "dp1",
       courses: data.dp1.courses,
       placements: data.dp1.placements,
       merges: data.merges,
       hours: dp1.hours,
-      teacherKey: teacher.id,
+      memberOf: taughtByTeacher,
     }),
-    ...buildTeacherCourseItems({
+    ...buildPerspectiveCourseItems({
       cohort: "dp2",
       courses: data.dp2.courses,
       placements: data.dp2.placements,
       merges: data.merges,
       hours: dp2.hours,
-      teacherKey: teacher.id,
+      memberOf: taughtByTeacher,
     }),
   ];
 
@@ -101,6 +102,7 @@ export default function TeacherPlanPage({ data }: Props) {
 
       <TeacherCourseList
         items={items}
+        teacherKey={teacher.id}
         courseInfo={data.courseInfo}
         courseDisplay={courseDisplay}
         studentNames={studentNames}
@@ -150,7 +152,7 @@ const deriveCohortView = (
 
   const courseIds = new Set(teacherCourses(own.courses, teacherKey).map((course) => course.id));
   const collisions = narrowViolationsToTeacher(violations, teacherKey, courseIds);
-  const placements = teacherPlacements(own.placements, courseIds);
+  const placements = perspectivePlacements(own.placements, courseIds);
 
   return {
     collisions,

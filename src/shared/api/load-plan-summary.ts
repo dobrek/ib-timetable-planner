@@ -5,8 +5,11 @@ type SupabaseClient = SupabaseClientGeneric<Database>;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Route-param guard: true when the id is a well-formed UUID. */
+export const isUuid = (id: string | undefined): id is string => !!id && UUID_RE.test(id);
+
 /** Route-param guard: true when the id is a well-formed plan UUID. */
-export const isPlanId = (id: string | undefined): id is string => !!id && UUID_RE.test(id);
+export const isPlanId = isUuid;
 
 /** The plan context every plan-scoped page resolves: identity + display name + grid preset. */
 export type PlanSummary = { id: string; name: string; slot_grid_preset: string };

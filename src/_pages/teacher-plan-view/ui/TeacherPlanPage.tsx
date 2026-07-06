@@ -13,6 +13,7 @@ import {
   teacherCourses,
   teacherPlacements,
   teacherUnavailableCells,
+  type AvailabilityIndex,
   type CellCollisions,
   type CellOccupant,
   type CollisionInspectionTarget,
@@ -140,7 +141,7 @@ const deriveCohortView = (
   own: TeacherViewCohortData,
   sibling: TeacherViewCohortData,
   teacherKey: string,
-  availabilityIndex: ReturnType<typeof buildAvailabilityIndex>,
+  availabilityIndex: AvailabilityIndex,
 ): CohortView => {
   const catalogById = new Map(own.courses.map((course) => [course.id, course]));
   const siblingTeacherKeys = new Map(sibling.courses.map((course) => [course.id, course.teacherKeys]));

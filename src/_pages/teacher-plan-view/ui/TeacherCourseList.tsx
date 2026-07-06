@@ -52,8 +52,10 @@ export default function TeacherCourseList({ items, courseInfo, courseDisplay, st
   );
 
   function titleOf(item: TeacherCourseItem): string {
-    // Every plan course row is in `courseInfo` (fetched plan-wide, incl. merge children).
-    return formatCourseBadgeLabel(courseInfo[item.courseId]);
+    // Every plan course row should be in `courseInfo` (fetched plan-wide, incl. merge
+    // children), but the catalog and course queries are not snapshot-isolated — degrade,
+    // don't crash, if a course landed between them.
+    return formatCourseBadgeLabel(courseInfo[item.courseId] ?? { name: item.courseId, level: "none", groupIndex: 0 });
   }
 }
 

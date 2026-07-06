@@ -12,7 +12,7 @@ export type CourseMerge = { parentId: string; childId: string };
  */
 export const loadCourseMerges = async (supabase: SupabaseClient, planId: string): Promise<CourseMerge[]> => {
   const rows = unwrapMany(
-    await supabase.from("course_merges").select("parent_course_id, child_course_id").eq("plan_id", planId),
+    await supabase.from("course_merges").select("parent_course_id, child_course_id").eq("plan_id", planId).limit(2000),
     "Failed to load course merges",
   );
   return rows.map((row) => ({ parentId: row.parent_course_id, childId: row.child_course_id }));

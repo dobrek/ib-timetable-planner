@@ -1,5 +1,6 @@
 import {
   assertNoQueryErrors,
+  isUuid,
   loadCohortCourses,
   loadPlacements,
   loadStudentNames,
@@ -18,8 +19,6 @@ import type { GroupingCourse, PlannerGrouping } from "../model/grouping/grouping
 import type { ParkedBundle } from "../model/placement/parked";
 import { toPlannerPlacement } from "./placements";
 import { isGroupingStale } from "./staleness";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Expected absences: a missing plan vs. a misconfigured/empty environment. */
 export type PlannerPageError = { kind: "not-found" } | { kind: "unavailable"; message: string };
@@ -48,7 +47,7 @@ export const loadCombinedPlannerData = async (
   id: string | undefined,
 ): Promise<CombinedPlannerPageResult> => {
   if (!supabase) return err({ kind: "unavailable", message: "Supabase is not configured" });
-  if (!id || !UUID_RE.test(id)) return err({ kind: "not-found" });
+  if (!isUuid(id)) return err({ kind: "not-found" });
 
   const { data: plan, error: planError } = await supabase
     .from("plans")

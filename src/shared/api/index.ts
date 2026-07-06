@@ -2,7 +2,7 @@ import type { SupabaseClient as SupabaseClientGeneric } from "@supabase/supabase
 import type { Database } from "./database.types";
 
 export { createClient } from "./supabase";
-export { isPlanId, loadPlanSummary, type PlanSummary } from "./load-plan-summary";
+export { isPlanId, isUuid, loadPlanSummary, type PlanSummary } from "./load-plan-summary";
 export { loadCohortCourses } from "./load-cohort-courses";
 export { loadPlacements } from "./load-placements";
 export { loadTeacherAvailability } from "./load-teacher-availability";

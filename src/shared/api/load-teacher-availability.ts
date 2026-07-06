@@ -5,4 +5,4 @@ import type { SupabaseClient } from "@/shared/api";
  * PostgREST response, so composing loaders keep batching through `assertNoQueryErrors`.
  */
 export const loadTeacherAvailability = (supabase: SupabaseClient, planId: string) =>
-  supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", planId);
+  supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", planId).limit(5000);

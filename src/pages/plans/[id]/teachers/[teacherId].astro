@@ -17,6 +17,8 @@ const [plan, result] =
 
 if (!supabase) Astro.response.status = 503;
 else if (!plan) Astro.response.status = 404;
+// "unavailable" → 503 is defensive-only here: the loader returns it solely for a null
+// client, and this route only calls it when `supabase` is non-null.
 else if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
 
 const data = result?.ok && plan ? result.value : null;

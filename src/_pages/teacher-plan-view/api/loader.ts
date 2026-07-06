@@ -1,5 +1,6 @@
 import {
   assertNoQueryErrors,
+  isUuid,
   loadCohortCourses,
   loadCourseMerges,
   loadPlacements,
@@ -16,8 +17,6 @@ import { unique } from "@/shared/lib/collections";
 import { parseGridPreset } from "@/shared/lib/grid";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { BoardAvailabilityCell, PlannerPlacement } from "@/entities/timetable";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Expected absences: missing plan / teacher not in the plan vs. a misconfigured environment. */
 export type TeacherViewError = { kind: "not-found" } | { kind: "unavailable"; message: string };
@@ -73,7 +72,7 @@ export const loadTeacherPlanView = async (
   teacherId: string,
 ): Promise<TeacherPlanViewResult> => {
   if (!supabase) return err({ kind: "unavailable", message: "Supabase is not configured" });
-  if (!UUID_RE.test(planId) || !UUID_RE.test(teacherId)) return err({ kind: "not-found" });
+  if (!isUuid(planId) || !isUuid(teacherId)) return err({ kind: "not-found" });
 
   const { data: plan, error: planError } = await supabase
     .from("plans")
@@ -157,7 +156,11 @@ const fetchPlanTeachers = async (supabase: SupabaseClient, planId: string): Prom
 
 const fetchCourseInfo = async (supabase: SupabaseClient, planId: string): Promise<Record<string, CourseInfo>> => {
   const rows = unwrapMany(
-    await supabase.from("courses").select("id, cohort, name, level, group_index, hours_per_week").eq("plan_id", planId),
+    await supabase
+      .from("courses")
+      .select("id, cohort, name, level, group_index, hours_per_week")
+      .eq("plan_id", planId)
+      .limit(2000),
     "Failed to load course rows",
   );
   return Object.fromEntries(

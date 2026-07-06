@@ -1,10 +1,10 @@
 ---
 change_id: fix-cohor-switch-student-plan-view
 title: Fix cohor switch student plan view
-status: implemented
+status: archived
 created: 2026-07-06
 updated: 2026-07-06
-archived_at: null
+archived_at: 2026-07-06T18:50:56Z
 ---
 
 ## Notes

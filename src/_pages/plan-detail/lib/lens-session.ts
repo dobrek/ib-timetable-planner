@@ -1,4 +1,4 @@
-import { criterionId, type LensCriterion, type LensKind } from "@/entities/timetable";
+import { criterionId, type LensCriterion, type LensKind } from "../model/lens";
 
 /**
  * The lens's per-tab persistence bridge: plain guarded read/write functions over sessionStorage,

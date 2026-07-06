@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import {
   buildCrossCohortIndex,
   type CrossCohortIndex,
-  type LensCriterion,
   type LocalPlacement,
   projectFromPlacements,
 } from "@/entities/timetable";
+import { type LensCriterion } from "./lens";
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
 import { usePlacements, type UsePlacementsArgs } from "./use-placements";

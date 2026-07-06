@@ -20,15 +20,8 @@ import { useUndoKeymap } from "./history/use-undo-keymap";
 import { LensAnnouncer, LensBar, LensPicker, useLens, useLensKeymap } from "./lens";
 import { PlannerGrid, type PairedColumn } from "./grid";
 import { GroupDragOverlay } from "./overlay";
-import {
-  buildLensOptions,
-  buildLensUniverse,
-  cellKey,
-  CollisionDetailsDialog,
-  type CollisionInspectionTarget,
-  combineLensCounts,
-  type LensCohortSource,
-} from "@/entities/timetable";
+import { cellKey, CollisionDetailsDialog, type CollisionInspectionTarget } from "@/entities/timetable";
+import { buildLensOptions, buildLensUniverse, combineLensCounts, type LensCohortSource } from "../model/lens";
 import { CombinedPalettePanel, ComputeGroupingsEmptyState, type PaletteCohortData } from "./palette";
 import ShelfDrawer from "./shelf/ShelfDrawer";
 import { resolveCombinedDrop } from "../model/cross-cohort/drop-router";

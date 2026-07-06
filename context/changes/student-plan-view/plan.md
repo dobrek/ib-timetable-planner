@@ -368,30 +368,30 @@ No schema or data migrations. Module moves (`course-list` → entity, grid/card 
 
 #### Automated
 
-- [x] 3.1 Type check passes: `pnpm check`
-- [x] 3.2 Unit tests pass: `pnpm test`
-- [x] 3.3 Lint + FSD structure pass (override removed): `pnpm lint && pnpm steiger`
-- [x] 3.4 Build stays clean: `pnpm build`
-- [x] 3.5 Integration tests pass: `pnpm test:integration`
+- [x] 3.1 Type check passes: `pnpm check` — 0707e8d
+- [x] 3.2 Unit tests pass: `pnpm test` — 0707e8d
+- [x] 3.3 Lint + FSD structure pass (override removed): `pnpm lint && pnpm steiger` — 0707e8d
+- [x] 3.4 Build stays clean: `pnpm build` — 0707e8d
+- [x] 3.5 Integration tests pass: `pnpm test:integration` — 0707e8d
 
 #### Manual
 
-- [x] 3.6 Students table name link and "View plan" action open the student's view
-- [x] 3.7 Grid shows exactly the student's placed courses (incl. merged course + week labels)
-- [x] 3.8 Course cards list the right Teachers, hours, and occurrence times
-- [x] 3.9 Switcher: toggle re-scopes without navigating; picking navigates; check-mark only on own cohort
-- [x] 3.10 Unknown student id → 404; Students nav stays highlighted
+- [x] 3.6 Students table name link and "View plan" action open the student's view — 0707e8d
+- [x] 3.7 Grid shows exactly the student's placed courses (incl. merged course + week labels) — 0707e8d
+- [x] 3.8 Course cards list the right Teachers, hours, and occurrence times — 0707e8d
+- [x] 3.9 Switcher: toggle re-scopes without navigating; picking navigates; check-mark only on own cohort — 0707e8d
+- [x] 3.10 Unknown student id → 404; Students nav stays highlighted — 0707e8d
 
 ### Phase 4: E2E + lens.ts move-back
 
 #### Automated
 
-- [ ] 4.1 Type check passes: `pnpm check`
-- [ ] 4.2 Unit tests pass (lens test in its new home): `pnpm test`
-- [ ] 4.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 4.4 Build stays clean: `pnpm build`
-- [ ] 4.5 Full e2e suite passes (new student spec + unmodified teacher spec): `pnpm test:e2e`
+- [x] 4.1 Type check passes: `pnpm check`
+- [x] 4.2 Unit tests pass (lens test in its new home): `pnpm test`
+- [x] 4.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 4.4 Build stays clean: `pnpm build`
+- [x] 4.5 Full e2e suite passes (new student spec + unmodified teacher spec): `pnpm test:e2e`
 
 #### Manual
 
-- [ ] 4.6 Board lens works unchanged after the move
+- [x] 4.6 Board lens works unchanged after the move

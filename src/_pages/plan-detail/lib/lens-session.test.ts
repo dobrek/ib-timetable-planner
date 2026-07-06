@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LensCriterion } from "@/entities/timetable";
+import type { LensCriterion } from "../model/lens";
 import { readLensSession, writeLensSession } from "./lens-session";
 
 // Node-env suite (the `unit` project): `window` is absent by default — which pins the SSR guard —

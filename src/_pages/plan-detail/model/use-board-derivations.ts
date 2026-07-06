@@ -6,13 +6,12 @@ import {
   type CrossCohortIndex,
   deriveCellViolations,
   deriveHours,
-  deriveLensMatches,
   deriveOverplaced,
   deriveUnplaced,
-  type LensCriterion,
   type LocalPlacement,
   summarizeHours,
 } from "@/entities/timetable";
+import { deriveLensMatches, type LensCriterion } from "./lens";
 import type { CellData, DragData, SharedBoardProps } from "./drag";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";

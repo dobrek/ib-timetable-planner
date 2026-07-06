@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { LensCriterion, LensKeyUniverse } from "../../model/lens";
+import type { LensCriterion, LensKeyUniverse } from "@/entities/timetable";
 import { useLens } from "./use-lens";
 
 const PLAN_ID = "plan-1";

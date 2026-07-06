@@ -22,6 +22,10 @@ export type StudentViewError = { kind: "not-found" } | { kind: "unavailable"; me
 
 export type StudentSummary = { id: string; fullName: string; cohort: Cohort };
 
+// The course list's `CourseInfo` prop shape lives with the widget; re-exported so the
+// route and slice barrel keep one import home for the loader's data types.
+export type { CourseInfo };
+
 export type StudentPlanViewData = {
   planId: string;
   planName: string;
@@ -67,11 +71,15 @@ export const loadStudentPlanView = async (
   if (planError) throw new Error(`Plan lookup failed: ${planError.message}`);
   if (!plan) return err({ kind: "not-found" });
 
-  const students = await fetchPlanStudents(supabase, planId);
-  const student = students.find((row) => row.id === studentId);
+  // Resolve identity with a row-scoped query, NOT by scanning the capped switcher list —
+  // a plan with >500 students would otherwise 404 a valid member ranked past the cutoff.
+  const student = await fetchPlanStudent(supabase, planId, studentId);
   if (!student) return err({ kind: "not-found" });
 
-  const [catalog, placementsResult, merges, courseInfo] = await Promise.all([
+  // The switcher list (both cohorts) rides along in the cohort batch: it doesn't depend on
+  // the resolved cohort, and identity is already gated above so the not-found path is cheap.
+  const [students, catalog, placementsResult, merges, courseInfo] = await Promise.all([
+    fetchPlanStudents(supabase, planId),
     loadCohortCourses(supabase, planId, student.cohort),
     loadPlacements(supabase, planId, student.cohort),
     loadCourseMerges(supabase, planId),
@@ -102,6 +110,23 @@ export const loadStudentPlanView = async (
   });
 };
 
+/** The viewed student, scoped to the plan — row-level `maybeSingle`, independent of the switcher cap. */
+const fetchPlanStudent = async (
+  supabase: SupabaseClient,
+  planId: string,
+  studentId: string,
+): Promise<StudentSummary | null> => {
+  const { data, error } = await supabase
+    .from("students")
+    .select("id, full_name, cohort")
+    .eq("id", studentId)
+    .eq("plan_id", planId)
+    .maybeSingle();
+  if (error) throw new Error(`Student lookup failed: ${error.message}`);
+  return data ? { id: data.id, fullName: data.full_name, cohort: data.cohort } : null;
+};
+
+/** The plan's full student list (both cohorts) for the switcher — name-ordered, capped. */
 const fetchPlanStudents = async (supabase: SupabaseClient, planId: string): Promise<StudentSummary[]> => {
   const rows = unwrapMany(
     await supabase.from("students").select("id, full_name, cohort").eq("plan_id", planId).order("full_name").limit(500),

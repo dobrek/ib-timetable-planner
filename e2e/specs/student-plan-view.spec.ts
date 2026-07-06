@@ -3,7 +3,7 @@ import { computeGroupings, display, placeFromPalette } from "../support/board";
 import { createCourse, createStudent, selectFromCombobox } from "../support/catalog";
 import { clickToReveal, createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../support/planner";
 
-// Student plan view — browser-level coverage (plan Phase 4, context/changes/student-plan-view/plan.md).
+// Student plan view — browser-level coverage (context/changes/fix-cohor-switch-student-plan-view/plan.md).
 //
 // Locks the page's role-based contract end to end: the students-table name link navigates to
 // the student's stable URL, the static single-cohort grid (`role="grid"`) shows the student's

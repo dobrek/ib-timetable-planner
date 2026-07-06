@@ -1,5 +1,5 @@
 import { Check, ChevronsUpDown } from "lucide-react";
-import { COHORTS } from "@/shared/config";
+import { COHORTS, type Cohort } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import {
   Button,
@@ -12,12 +12,13 @@ import {
   TabsTrigger,
 } from "@/shared/ui";
 import type { StudentSummary } from "../api/loader";
-import { cohortLeads } from "../lib";
 
 type Props = {
   planId: string;
   students: StudentSummary[];
   current: StudentSummary;
+  /** First name-ordered student per cohort, resolved cap-independently by the loader. */
+  cohortLeads: Record<Cohort, StudentSummary | undefined>;
 };
 
 /**
@@ -31,8 +32,7 @@ type Props = {
  * the current student is always listed and check-marked; picking a student navigates via a plain
  * anchor to their stable URL.
  */
-export default function StudentSwitcher({ planId, students, current }: Props) {
-  const leads = cohortLeads(students);
+export default function StudentSwitcher({ planId, students, current, cohortLeads }: Props) {
   const scoped = students.filter((student) => student.cohort === current.cohort);
 
   return (
@@ -47,7 +47,7 @@ export default function StudentSwitcher({ planId, students, current }: Props) {
                 </TabsTrigger>
               );
             }
-            const lead = leads[option.value];
+            const lead = cohortLeads[option.value];
             return lead ? (
               <TabsTrigger key={option.value} value={option.value} asChild>
                 <a href={`/plans/${planId}/students/${lead.id}`}>{option.label}</a>
@@ -69,7 +69,6 @@ export default function StudentSwitcher({ planId, students, current }: Props) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-          {scoped.length === 0 && <DropdownMenuItem disabled>No students in this cohort</DropdownMenuItem>}
           {scoped.map((student) => (
             <DropdownMenuItem key={student.id} asChild>
               <a

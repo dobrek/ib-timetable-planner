@@ -39,6 +39,10 @@ afterAll(async () => {
     );
     expect(data.students.find((student) => student.id === scenario.dp2Student)?.cohort).toBe("dp2");
 
+    // Cohort leads: the first name-ordered student of each cohort, resolved cap-independently.
+    expect(data.cohortLeads.dp1?.id).toBe(scenario.s1);
+    expect(data.cohortLeads.dp2?.id).toBe(scenario.dp2Student);
+
     // Cohort scoping: the dp1 catalog/placements only — the dp2 course never appears.
     const courseIds = new Set(data.courses.map((course) => course.id));
     expect(courseIds.has(scenario.courseA)).toBe(true);

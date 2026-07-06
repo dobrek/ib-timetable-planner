@@ -1,10 +1,10 @@
 ---
 change_id: student-plan-view
 title: Student plan view
-status: impl_reviewed
+status: archived
 created: 2026-07-06
 updated: 2026-07-06
-archived_at: null
+archived_at: 2026-07-06T12:16:44Z
 ---
 
 ## Notes

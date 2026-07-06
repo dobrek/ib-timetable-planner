@@ -12,36 +12,36 @@ import {
   type CollisionInspectionTarget,
 } from "@/entities/timetable";
 
-/** One chip on the teacher grid: the resolved occupant view-model tagged with its cohort. */
-export type TeacherGridOccupant = CellOccupant & { cohort: Cohort };
+/**
+ * One chip on the grid: the resolved occupant view-model, optionally tagged with its
+ * cohort (the teacher view merges both cohorts and tags every chip; the single-cohort
+ * student view passes untagged occupants and no tag is rendered).
+ */
+export type GridOccupant = CellOccupant & { cohort?: Cohort };
 
 type Props = {
   days: number;
   periods: number;
   gridLabel: string;
-  /** cellKey → the teacher's chips at that slot (both cohorts merged, cohort-tagged). */
-  occupantsByCell: Map<string, TeacherGridOccupant[]>;
-  /** cellKey → severity of the teacher's availability block — shades the cell. */
-  unavailable: Map<string, AvailabilitySeverity>;
-  onInspect: (cohort: Cohort, target: CollisionInspectionTarget) => void;
+  /** cellKey → the person's chips at that slot. */
+  occupantsByCell: Map<string, GridOccupant[]>;
+  /** cellKey → severity of an availability block — shades the cell (teacher-only decoration). */
+  unavailable?: Map<string, AvailabilitySeverity>;
+  /** Opens the collision dialog from a chip badge; badges render only when provided. */
+  onInspect?: (cohort: Cohort, target: CollisionInspectionTarget) => void;
 };
 
 /**
- * The static, print-viable teacher timetable: no zoom, no sticky headers, no drag, no
+ * The static, print-viable perspective timetable: no zoom, no sticky headers, no drag, no
  * `overflow-auto` ancestor dependency — all content always in the DOM (the collision
  * *dialog* is the sanctioned disclosure exception; its badges stay visible). Mirrors the
  * board grid's ARIA contract (`grid`/`row`/`columnheader`/`rowheader`/`gridcell`, cells
  * named even when empty) and its visual language (border-gap grid, break bands, subject
- * chip tones) — semantic theme tokens only.
+ * chip tones) — semantic theme tokens only. Teacher-only decorations (`unavailable`
+ * shading, `onInspect` badges, per-chip cohort tag) are additive: absent props change
+ * nothing about the markup contract.
  */
-export default function TeacherScheduleGrid({
-  days,
-  periods,
-  gridLabel,
-  occupantsByCell,
-  unavailable,
-  onInspect,
-}: Props) {
+export default function ScheduleGrid({ days, periods, gridLabel, occupantsByCell, unavailable, onInspect }: Props) {
   const dayList = Array.from({ length: days }, (_, i) => i + 1);
   const periodList = Array.from({ length: periods }, (_, i) => i + 1);
 
@@ -77,12 +77,12 @@ export default function TeacherScheduleGrid({
             {dayList.map((day) => {
               const key = cellKey(day, period);
               return (
-                <TeacherSlotCell
+                <SlotCell
                   key={day}
                   day={day}
                   period={period}
                   occupants={occupantsByCell.get(key) ?? []}
-                  shading={unavailable.get(key)}
+                  shading={unavailable?.get(key)}
                   onInspect={onInspect}
                 />
               );
@@ -97,7 +97,7 @@ export default function TeacherScheduleGrid({
   );
 }
 
-function TeacherSlotCell({
+function SlotCell({
   day,
   period,
   occupants,
@@ -106,9 +106,9 @@ function TeacherSlotCell({
 }: {
   day: number;
   period: number;
-  occupants: TeacherGridOccupant[];
+  occupants: GridOccupant[];
   shading: AvailabilitySeverity | undefined;
-  onInspect: (cohort: Cohort, target: CollisionInspectionTarget) => void;
+  onInspect: ((cohort: Cohort, target: CollisionInspectionTarget) => void) | undefined;
 }) {
   const hasBlocking = occupants.some((occupant) => occupant.blocking);
   const label = shading
@@ -128,7 +128,7 @@ function TeacherSlotCell({
       )}
     >
       {occupants.map((occupant) => (
-        <TeacherChip key={occupant.placement.id} occupant={occupant} day={day} period={period} onInspect={onInspect} />
+        <Chip key={occupant.placement.id} occupant={occupant} day={day} period={period} onInspect={onInspect} />
       ))}
     </div>
   );
@@ -139,16 +139,16 @@ function TeacherSlotCell({
  * tokens, the same collision red/amber precedence — without the board chip's drag or
  * remove affordances. Bi-weekly placements carry their week label inline (no lanes).
  */
-function TeacherChip({
+function Chip({
   occupant,
   day,
   period,
   onInspect,
 }: {
-  occupant: TeacherGridOccupant;
+  occupant: GridOccupant;
   day: number;
   period: number;
-  onInspect: (cohort: Cohort, target: CollisionInspectionTarget) => void;
+  onInspect: ((cohort: Cohort, target: CollisionInspectionTarget) => void) | undefined;
 }) {
   const { placement, name, color, blocking, warning, unavailable, cohort } = occupant;
   // Collision tones take precedence over the subject color, exactly like the board chip —
@@ -161,17 +161,17 @@ function TeacherChip({
 
   return (
     <div
-      data-slot="teacher-chip"
+      data-slot="perspective-chip"
       aria-roledescription="placement"
       aria-invalid={blocking}
       className={cn("flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs", tone)}
     >
       <span className="truncate">{name}</span>
-      <span className="text-muted-foreground shrink-0 text-[10px] uppercase">{cohortLabel(cohort)}</span>
+      {cohort && <span className="text-muted-foreground shrink-0 text-[10px] uppercase">{cohortLabel(cohort)}</span>}
       {placement.week !== "both" && (
         <span className="text-muted-foreground shrink-0 text-[10px]">{weekLabel(placement.week)}</span>
       )}
-      {(blocking || warning) && (
+      {(blocking || warning) && onInspect && cohort && (
         <Badge
           variant={blocking ? "destructive" : "warning"}
           asChild

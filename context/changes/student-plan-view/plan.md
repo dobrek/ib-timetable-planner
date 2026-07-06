@@ -341,28 +341,28 @@ No schema or data migrations. Module moves (`course-list` → entity, grid/card 
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Unit tests pass (moved builder test included): `pnpm test`
-- [x] 1.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 1.4 Build stays clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check` — 51f16f4
+- [x] 1.2 Unit tests pass (moved builder test included): `pnpm test` — 51f16f4
+- [x] 1.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger` — 51f16f4
+- [x] 1.4 Build stays clean: `pnpm build` — 51f16f4
 
 #### Manual
 
-- [x] 1.5 Teacher view renders identically against local seed data
+- [x] 1.5 Teacher view renders identically against local seed data — 51f16f4
 
 ### Phase 2: widgets/timetable-board + teacher-view refactor
 
 #### Automated
 
-- [ ] 2.1 Type check passes: `pnpm check`
-- [ ] 2.2 Unit tests pass: `pnpm test`
-- [ ] 2.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 2.4 Build stays clean: `pnpm build`
-- [ ] 2.5 Teacher e2e passes unmodified: `pnpm test:e2e` (teacher-plan-view spec)
+- [x] 2.1 Type check passes: `pnpm check`
+- [x] 2.2 Unit tests pass: `pnpm test`
+- [x] 2.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 2.4 Build stays clean: `pnpm build`
+- [x] 2.5 Teacher e2e passes unmodified: `pnpm test:e2e` (teacher-plan-view spec)
 
 #### Manual
 
-- [ ] 2.6 Teacher view pixel-equivalent (grid shading, badges, dialog, course cards)
+- [x] 2.6 Teacher view pixel-equivalent (grid shading, badges, dialog, course cards)
 
 ### Phase 3: Student slice — loader, page, switcher, route, entry point
 

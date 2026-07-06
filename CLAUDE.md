@@ -5,7 +5,7 @@
 ## Hard rules
 
 - **Workers runtime, both dev and prod.** No Node-only APIs (`fs`, `child_process`, `net`, native modules). Confirm `pnpm build` stays clean.
-- **FSD layout is steiger-enforced.** `pnpm steiger` is a CI gate (`--fail-on-warnings`). Respect layer import direction: `app` → `_pages` → `entities` → `shared`; never import upward. Config: @steiger.config.ts.
+- **FSD layout is steiger-enforced.** `pnpm steiger` is a CI gate (`--fail-on-warnings`). Respect layer import direction: `app` → `_pages` → `widgets` → `entities` → `shared`; never import upward. Config: @steiger.config.ts.
 - **Supabase is the runtime source of truth** for catalog, students, teachers, placements. `data/*.csv` are reference fixtures only — never read at runtime.
 - **Placement/constraint validation has a <200ms budget** per drag-drop. The pure two-cohort (dp1/dp2) constraint core lives in `src/entities/timetable/` (shared by the board and the read-only perspective views) — read it before touching constraint logic; don't reinvent it. Editing orchestration (drag state, optimistic placements, hooks) stays in `src/_pages/plan-detail/model/`.
 - **Auth is deny-by-default** in `src/middleware.ts`. Don't widen the allowlist without reason.
@@ -13,7 +13,7 @@
 
 ## Project Structure
 
-FSD layers under `src/`: `app/` (shell, layouts, styles), `_pages/<slice>/` (page slices, underscored to avoid clashing with Astro routing), `entities/` (business-domain slices — `timetable/` holds the pure read-side scheduling core), `shared/` (`api`, `lib`, `config`, `ui`). Each slice splits into `api`, `lib`, `model`, `ui` segments. `src/pages/` is Astro file-routing (+ `src/pages/api/`); `src/actions/` holds Astro Actions. `supabase/` migrations + seed, `context/foundation/` PRD/tech-stack/conventions.
+FSD layers under `src/`: `app/` (shell, layouts, styles), `_pages/<slice>/` (page slices, underscored to avoid clashing with Astro routing), `widgets/` (composed read-only UI shared across page slices — `timetable-board/`), `entities/` (business-domain slices — `timetable/` holds the pure read-side scheduling core), `shared/` (`api`, `lib`, `config`, `ui`). Each slice splits into `api`, `lib`, `model`, `ui` segments. `src/pages/` is Astro file-routing (+ `src/pages/api/`); `src/actions/` holds Astro Actions. `supabase/` migrations + seed, `context/foundation/` PRD/tech-stack/conventions.
 
 ## Commands
 

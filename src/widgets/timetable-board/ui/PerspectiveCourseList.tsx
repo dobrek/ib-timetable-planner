@@ -10,57 +10,57 @@ import {
   type PerspectiveCourseItem,
   type PlannerPlacement,
 } from "@/entities/timetable";
-import type { CourseInfo } from "../api/loader";
+import type { CourseInfo } from "../model/course-info";
+
+/**
+ * One card's content: the entity item plus the persona's pre-rendered "people" props —
+ * computed by the page (which owns name resolution), so the widget stays
+ * name-resolution-free.
+ */
+export type PerspectiveCard = {
+  item: PerspectiveCourseItem;
+  /** Optional line between occurrences and roster (the teacher's "Co-teachers: …"). */
+  inlineNote?: string;
+  /** Always-visible roster: heading "`label` (N)", list named "`label` of `title`". */
+  roster: { label: string; names: string[]; emptyMessage: string };
+};
 
 type Props = {
-  /** Real courses the teacher conducts (both cohorts, composites resolved to children). */
-  items: PerspectiveCourseItem[];
-  /** The viewed teacher — excluded from each card's co-teachers line. */
-  teacherKey: string;
+  cards: PerspectiveCard[];
   courseInfo: Record<string, CourseInfo>;
   courseDisplay: Record<string, CourseDisplay>;
-  studentNames: Record<string, string>;
-  teacherNames: Record<string, string>;
+  emptyMessage: string;
 };
 
 /**
  * The course list below the grid: one card per real course, with occurrence times
- * ("Mon P3 · 09:55–10:40 · week A"), hours placed/required, co-teachers, cohort/level
- * badges, and an always-visible compact multi-column roster — never conditional-rendered
- * (per-teacher volume is small, and collapsed-out-of-DOM content would break every
- * future print path).
+ * ("Mon P3 · 09:55–10:40 · week A"), hours placed/required, cohort/level badges, and an
+ * always-visible compact multi-column roster — never conditional-rendered (per-person
+ * volume is small, and collapsed-out-of-DOM content would break every future print path).
  */
-export default function TeacherCourseList({
-  items,
-  teacherKey,
-  courseInfo,
-  courseDisplay,
-  studentNames,
-  teacherNames,
-}: Props) {
-  if (items.length === 0) {
+export default function PerspectiveCourseList({ cards, courseInfo, courseDisplay, emptyMessage }: Props) {
+  if (cards.length === 0) {
     return (
       <section aria-label="Courses">
         <h2 className="text-lg font-medium">Courses</h2>
-        <p className="text-muted-foreground mt-2 text-sm">This teacher conducts no courses in this plan.</p>
+        <p className="text-muted-foreground mt-2 text-sm">{emptyMessage}</p>
       </section>
     );
   }
 
-  const sorted = [...items].sort((a, b) => titleOf(a).localeCompare(titleOf(b)));
+  const sorted = [...cards].sort((a, b) => titleOf(a.item).localeCompare(titleOf(b.item)));
 
   return (
     <section aria-label="Courses" className="flex flex-col gap-3">
       <h2 className="text-lg font-medium">Courses</h2>
-      {sorted.map((item) => (
+      {sorted.map((card) => (
         <CourseCard
-          key={item.courseId}
-          item={item}
-          teacherKey={teacherKey}
-          title={titleOf(item)}
-          mergedIntoName={item.mergedIntoId ? resolveCourseDisplay(courseDisplay, item.mergedIntoId).name : null}
-          studentNames={studentNames}
-          teacherNames={teacherNames}
+          key={card.item.courseId}
+          card={card}
+          title={titleOf(card.item)}
+          mergedIntoName={
+            card.item.mergedIntoId ? resolveCourseDisplay(courseDisplay, card.item.mergedIntoId).name : null
+          }
         />
       ))}
     </section>
@@ -75,22 +75,15 @@ export default function TeacherCourseList({
 }
 
 function CourseCard({
-  item,
-  teacherKey,
+  card,
   title,
   mergedIntoName,
-  studentNames,
-  teacherNames,
 }: {
-  item: PerspectiveCourseItem;
-  teacherKey: string;
+  card: PerspectiveCard;
   title: string;
   mergedIntoName: string | null;
-  studentNames: Record<string, string>;
-  teacherNames: Record<string, string>;
 }) {
-  const coTeachers = item.teacherKeys.filter((key) => key !== teacherKey).map((key) => teacherNames[key] ?? key);
-  const roster = item.studentKeys.map((key) => studentNames[key] ?? key).sort((a, b) => a.localeCompare(b));
+  const { item, inlineNote, roster } = card;
 
   return (
     <article aria-label={title} className="border-border bg-background rounded-lg border p-4">
@@ -120,23 +113,25 @@ function CourseCard({
           <p className="text-muted-foreground text-xs">Not scheduled yet</p>
         )}
 
-        {coTeachers.length > 0 && <p className="text-muted-foreground text-xs">Co-teachers: {coTeachers.join(", ")}</p>}
+        {inlineNote && <p className="text-muted-foreground text-xs">{inlineNote}</p>}
 
         <div>
-          <h4 className="text-muted-foreground text-xs font-medium">Students ({roster.length})</h4>
-          {roster.length > 0 ? (
+          <h4 className="text-muted-foreground text-xs font-medium">
+            {roster.label} ({roster.names.length})
+          </h4>
+          {roster.names.length > 0 ? (
             <ul
-              aria-label={`Students of ${title}`}
+              aria-label={`${roster.label} of ${title}`}
               className="mt-1 columns-2 gap-x-6 text-xs sm:columns-3 lg:columns-4"
             >
-              {roster.map((name, index) => (
+              {roster.names.map((name, index) => (
                 <li key={`${name}-${String(index)}`} className="break-inside-avoid">
                   {name}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-muted-foreground mt-1 text-xs">No students assigned.</p>
+            <p className="text-muted-foreground mt-1 text-xs">{roster.emptyMessage}</p>
           )}
         </div>
       </div>

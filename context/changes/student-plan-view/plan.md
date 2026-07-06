@@ -386,12 +386,12 @@ No schema or data migrations. Module moves (`course-list` → entity, grid/card 
 
 #### Automated
 
-- [x] 4.1 Type check passes: `pnpm check`
-- [x] 4.2 Unit tests pass (lens test in its new home): `pnpm test`
-- [x] 4.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 4.4 Build stays clean: `pnpm build`
-- [x] 4.5 Full e2e suite passes (new student spec + unmodified teacher spec): `pnpm test:e2e`
+- [x] 4.1 Type check passes: `pnpm check` — f63efa4
+- [x] 4.2 Unit tests pass (lens test in its new home): `pnpm test` — f63efa4
+- [x] 4.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger` — f63efa4
+- [x] 4.4 Build stays clean: `pnpm build` — f63efa4
+- [x] 4.5 Full e2e suite passes (new student spec + unmodified teacher spec): `pnpm test:e2e` — f63efa4
 
 #### Manual
 
-- [x] 4.6 Board lens works unchanged after the move
+- [x] 4.6 Board lens works unchanged after the move — f63efa4

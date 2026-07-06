@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { LensCounts, LensCriterion, LensOptionGroups } from "@/entities/timetable";
+import type { LensCounts, LensCriterion, LensOptionGroups } from "../../model/lens";
 import LensBar from "./LensBar";
 
 // Locks the bar's user contract: one labeled chip per criterion with its ·N count, per-chip remove

@@ -7,7 +7,7 @@ import {
   type LensCriterion,
   type LensKind,
   type LensOptionGroups,
-} from "@/entities/timetable";
+} from "../../model/lens";
 
 type Props = {
   criteria: LensCriterion[];

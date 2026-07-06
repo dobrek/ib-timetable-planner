@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catalog, course, placement } from "./__fixtures__/builders";
+import { catalog, course, placement } from "@/entities/timetable";
 import {
   buildLensOptions,
   buildLensUniverse,
@@ -12,7 +12,7 @@ import {
   type LensCriterion,
   type LensMatches,
 } from "./lens";
-import type { LocalPlacement } from "./placement";
+import type { LocalPlacement } from "@/entities/timetable";
 
 // Two math courses share teacher "kk"; student "s2" takes both maths; "bio" is disjoint.
 const byId = catalog(

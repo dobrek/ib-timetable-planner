@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { criterionId, type LensCriterion } from "@/entities/timetable";
+import { criterionId, type LensCriterion } from "../../model/lens";
 
 type Props = {
   /** COMMITTED criteria only — announcements key off their identity, never the preview. */

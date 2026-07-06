@@ -1,10 +1,10 @@
 ---
 change_id: teacher-plan-view
 title: Teacher plan view
-status: impl_reviewed
+status: archived
 created: 2026-07-05
 updated: 2026-07-06
-archived_at: null
+archived_at: 2026-07-06T07:52:15Z
 ---
 
 ## Notes

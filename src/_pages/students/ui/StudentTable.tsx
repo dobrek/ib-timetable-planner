@@ -1,4 +1,5 @@
 import { MoreHorizontal, Plus } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   Badge,
   Button,
@@ -16,6 +17,7 @@ import {
 import type { CourseOption, StudentRow } from "../model/student";
 
 type Props = {
+  planId: string;
   rows: StudentRow[];
   totalCount: number;
   coursesById: Map<string, CourseOption>;
@@ -24,7 +26,15 @@ type Props = {
   onCreateFirst: () => void;
 };
 
-export default function StudentTable({ rows, totalCount, coursesById, onEdit, onDelete, onCreateFirst }: Props) {
+export default function StudentTable({
+  planId,
+  rows,
+  totalCount,
+  coursesById,
+  onEdit,
+  onDelete,
+  onCreateFirst,
+}: Props) {
   if (totalCount === 0) {
     return (
       <div className="py-12 text-center">
@@ -55,13 +65,17 @@ export default function StudentTable({ rows, totalCount, coursesById, onEdit, on
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell>{row.fullName}</TableCell>
+              <TableCell>
+                <StudentViewLink planId={planId} row={row}>
+                  {row.fullName}
+                </StudentViewLink>
+              </TableCell>
               <TableCell>
                 <ChoiceBadges choiceCourseIds={row.choiceCourseIds} coursesById={coursesById} />
               </TableCell>
               <TableCell className="text-right">{row.choiceCourseIds.length}</TableCell>
               <TableCell className="text-right">
-                <StudentRowActions row={row} onEdit={onEdit} onDelete={onDelete} />
+                <StudentRowActions planId={planId} row={row} onEdit={onEdit} onDelete={onDelete} />
               </TableCell>
             </TableRow>
           ))}
@@ -95,10 +109,12 @@ function ChoiceBadges({
 }
 
 function StudentRowActions({
+  planId,
   row,
   onEdit,
   onDelete,
 }: {
+  planId: string;
   row: StudentRow;
   onEdit: (student: StudentRow) => void;
   onDelete: (student: StudentRow) => void;
@@ -111,6 +127,9 @@ function StudentRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <a href={studentViewHref(planId, row.id)}>View plan</a>
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
             onEdit(row);
@@ -129,4 +148,24 @@ function StudentRowActions({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/**
+ * Master→detail entry: the name text links straight to the student's plan view. The
+ * link's accessible name stays its text — an aria-label would replace it and change the
+ * cell's accessible name out from under `getByRole` consumers.
+ */
+function StudentViewLink({ planId, row, children }: { planId: string; row: StudentRow; children: ReactNode }) {
+  return (
+    <a
+      href={studentViewHref(planId, row.id)}
+      className="hover:text-foreground decoration-muted-foreground/50 underline-offset-4 hover:underline"
+    >
+      {children}
+    </a>
+  );
+}
+
+function studentViewHref(planId: string, studentId: string): string {
+  return `/plans/${planId}/students/${studentId}`;
 }

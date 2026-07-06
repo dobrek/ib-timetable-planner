@@ -83,6 +83,7 @@ export default function StudentCatalog({ planId, students, courses }: Props) {
           return (
             <TabsContent key={cohort.value} value={cohort.value}>
               <StudentTable
+                planId={planId}
                 rows={rows}
                 totalCount={cohortTotal}
                 coursesById={coursesById}

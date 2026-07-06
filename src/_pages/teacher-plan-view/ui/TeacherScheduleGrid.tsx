@@ -121,7 +121,7 @@ function TeacherSlotCell({
       aria-label={label}
       aria-invalid={hasBlocking || undefined}
       className={cn(
-        "flex min-h-16 flex-col gap-1 p-1",
+        "flex min-h-[34px] flex-col gap-1 p-1",
         // Availability shading via semantic tokens: strong blocks read destructive-tinted,
         // soft preferences read warning-tinted; free cells stay plain background.
         shading === "strong" ? "bg-destructive/10" : shading === "soft" ? "bg-warning/10" : "bg-background",

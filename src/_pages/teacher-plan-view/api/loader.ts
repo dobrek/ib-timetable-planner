@@ -11,27 +11,21 @@ import {
   type CourseMerge,
   type SupabaseClient,
 } from "@/shared/api";
-import type { Cohort } from "@/shared/config";
 import type { CourseDisplay, GroupingCourse } from "@/shared/lib/catalog-hash";
 import { unique } from "@/shared/lib/collections";
 import { parseGridPreset } from "@/shared/lib/grid";
 import { err, ok, type Result } from "@/shared/lib/result";
 import type { BoardAvailabilityCell, PlannerPlacement } from "@/entities/timetable";
+import type { CourseInfo } from "@/widgets/timetable-board";
 
 /** Expected absences: missing plan / teacher not in the plan vs. a misconfigured environment. */
 export type TeacherViewError = { kind: "not-found" } | { kind: "unavailable"; message: string };
 
 export type TeacherSummary = { id: string; code: string; fullName: string | null };
 
-/** Raw badge/display fields for EVERY course row in the plan — including merge children
- *  absent from the grouping catalog (no direct choices), which the course list still renders. */
-export type CourseInfo = {
-  name: string;
-  level: string;
-  groupIndex: number;
-  cohort: Cohort;
-  hoursPerWeek: number;
-};
+// The course list's `CourseInfo` prop shape lives with the widget; re-exported so the
+// route and slice barrel keep one import home for the loader's data types.
+export type { CourseInfo };
 
 export type TeacherViewCohortData = {
   /** FULL cohort catalog — collision derivation needs every course, not just the teacher's. */

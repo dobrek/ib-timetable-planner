@@ -70,13 +70,14 @@ The app is served at `http://localhost:4321`. Local Supabase Studio is at `http:
 
 ## Project Structure
 
-The codebase follows [Feature-Sliced Design](https://feature-sliced.design/) (enforced by `pnpm steiger`). Layers import downward only: `app` → `_pages` → `entities` → `shared`.
+The codebase follows [Feature-Sliced Design](https://feature-sliced.design/) (enforced by `pnpm steiger`). Layers import downward only: `app` → `_pages` → `widgets` → `entities` → `shared`.
 
 ```
 src/
 ├── app/            # App shell, layouts, global styles
 ├── _pages/         # FSD page slices (e.g. plan-detail/, courses/, teachers/)
 │   └── <slice>/    #   api/ (Supabase), model/ (domain logic + hooks), lib/, ui/
+├── widgets/        # Composed read-only UI shared across page slices (timetable-board)
 ├── entities/       # Business-domain slices (timetable/ — pure read-side scheduling core)
 ├── shared/         # Reused across slices: api/ (Supabase client), lib/, config/, ui/
 ├── actions/        # Astro Actions (thin; logic lives in slice model/api)

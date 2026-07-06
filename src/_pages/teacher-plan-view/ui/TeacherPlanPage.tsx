@@ -21,9 +21,13 @@ import {
   type HoursStat,
   type PlannerPlacement,
 } from "@/entities/timetable";
+import {
+  PerspectiveCourseList,
+  ScheduleGrid,
+  type GridOccupant,
+  type PerspectiveCard,
+} from "@/widgets/timetable-board";
 import type { TeacherPlanViewData, TeacherViewCohortData } from "../api/loader";
-import TeacherCourseList from "./TeacherCourseList";
-import TeacherScheduleGrid, { type TeacherGridOccupant } from "./TeacherScheduleGrid";
 import TeacherSwitcher from "./TeacherSwitcher";
 
 type Props = { data: TeacherPlanViewData };
@@ -71,6 +75,20 @@ export default function TeacherPlanPage({ data }: Props) {
 
   const courseDisplay = { ...data.dp1.courseDisplay, ...data.dp2.courseDisplay };
   const studentNames = { ...data.dp1.studentNames, ...data.dp2.studentNames };
+  // The persona's card decorations: a co-teachers note (the viewed teacher excluded) and
+  // the always-visible student roster — names resolved here so the widget stays generic.
+  const cards: PerspectiveCard[] = items.map((item) => {
+    const coTeachers = item.teacherKeys.filter((key) => key !== teacher.id).map((key) => data.teacherNames[key] ?? key);
+    return {
+      item,
+      ...(coTeachers.length > 0 ? { inlineNote: `Co-teachers: ${coTeachers.join(", ")}` } : {}),
+      roster: {
+        label: "Students",
+        names: item.studentKeys.map((key) => studentNames[key] ?? key).sort((a, b) => a.localeCompare(b)),
+        emptyMessage: "No students assigned.",
+      },
+    };
+  });
   const inspected = inspection
     ? ((inspection.cohort === "dp1" ? dp1 : dp2).collisions.get(
         cellKey(inspection.target.day, inspection.target.period),
@@ -89,7 +107,7 @@ export default function TeacherPlanPage({ data }: Props) {
         <TeacherSwitcher planId={data.planId} teachers={data.teachers} current={teacher} />
       </header>
 
-      <TeacherScheduleGrid
+      <ScheduleGrid
         days={data.days}
         periods={data.periods}
         gridLabel={`${teacherTitle} timetable`}
@@ -100,13 +118,11 @@ export default function TeacherPlanPage({ data }: Props) {
         }}
       />
 
-      <TeacherCourseList
-        items={items}
-        teacherKey={teacher.id}
+      <PerspectiveCourseList
+        cards={cards}
         courseInfo={data.courseInfo}
         courseDisplay={courseDisplay}
-        studentNames={studentNames}
-        teacherNames={data.teacherNames}
+        emptyMessage="This teacher conducts no courses in this plan."
       />
 
       <CollisionDetailsDialog
@@ -162,8 +178,8 @@ const deriveCohortView = (
   };
 };
 
-const mergeCohortOccupants = (views: { cohort: Cohort; view: CohortView }[]): Map<string, TeacherGridOccupant[]> => {
-  const merged = new Map<string, TeacherGridOccupant[]>();
+const mergeCohortOccupants = (views: { cohort: Cohort; view: CohortView }[]): Map<string, GridOccupant[]> => {
+  const merged = new Map<string, GridOccupant[]>();
   for (const { cohort, view } of views) {
     for (const [key, occupants] of view.occupants) {
       const tagged = occupants.map((occupant) => ({ ...occupant, cohort }));

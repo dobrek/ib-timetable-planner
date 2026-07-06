@@ -288,10 +288,10 @@ new pure helper.
 
 #### Automated
 
-- [x] 2.1 `student-plan-view` e2e spec passes: `pnpm test:e2e`
-- [x] 2.2 Full local CI gate green: `/verify`
+- [x] 2.1 `student-plan-view` e2e spec passes: `pnpm test:e2e` — f49a849
+- [x] 2.2 Full local CI gate green: `/verify` — f49a849
 
 #### Manual
 
-- [x] 2.3 E2E run confirms the tab click navigates the whole page, not a dropdown re-scope
-- [x] 2.4 No lingering references to the old "re-scopes the dropdown WITHOUT navigating" behavior remain
+- [x] 2.3 E2E run confirms the tab click navigates the whole page, not a dropdown re-scope — f49a849
+- [x] 2.4 No lingering references to the old "re-scopes the dropdown WITHOUT navigating" behavior remain — f49a849

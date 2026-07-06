@@ -1,9 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
-import { deriveHours, teacherCourses } from "@/entities/timetable";
+import { buildPerspectiveCourseItems, deriveHours, teacherCourses } from "@/entities/timetable";
 import { addAvailability, addMerge, addStudentWithChoices, createPlan, placeCourse, teardown } from "@/test/factories";
-import { buildTeacherCourseItems } from "../model/course-list";
 import { loadTeacherPlanView, type TeacherPlanViewData } from "./loader";
 
 // Local-only (service_role/secret key, bypasses RLS); skips when the env/stack is absent.
@@ -84,13 +83,13 @@ afterAll(async () => {
  * each with its OWN roster; the children's occurrence times are the parent's placements.
  */
 function assertMergeResolvesToChildrenWithOwnRosters(data: TeacherPlanViewData, t1: string, scenario: Scenario): void {
-  const items = buildTeacherCourseItems({
+  const items = buildPerspectiveCourseItems({
     cohort: "dp1",
     courses: data.dp1.courses,
     placements: data.dp1.placements,
     merges: data.merges,
     hours: deriveHours(data.dp1.placements, data.dp1.courses),
-    teacherKey: t1,
+    memberOf: (candidate) => candidate.teacherKeys.includes(t1),
   });
 
   const ids = items.map((item) => item.courseId);

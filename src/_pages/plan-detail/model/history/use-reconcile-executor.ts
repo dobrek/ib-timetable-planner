@@ -70,6 +70,7 @@ export function useReconcileExecutor({
     const removedRows = placementsRef.current.filter((row) => removeKeys.has(placementBusinessKey(row)));
     const deletedCards = matchCardsByMemberSet(parkedBundlesRef.current, plan.cardsToDelete);
     const cardIdByMemberSet = new Map(deletedCards.map((card) => [memberSetKey(card.members), card.id]));
+    const placementIdByKey = new Map(removedRows.map((row) => [placementBusinessKey(row), row.id]));
 
     const placeEntries: PlaceEntry[] = plan.toPlace.map((spec) => ({ tempId: crypto.randomUUID(), spec }));
     const cardEntries: CardEntry[] = plan.cardsToCreate.map((members) => ({ tempId: crypto.randomUUID(), members }));
@@ -96,6 +97,7 @@ export function useReconcileExecutor({
       shelve: (cell) => rpcs.shelveBundle({ day: cell.day, period: cell.period }),
       unshelve: (shelfBundleId, targetCell) =>
         rpcs.unshelveBundle({ shelfBundleId, targetDay: targetCell.day, targetPeriod: targetCell.period }),
+      setOptional: (placementId, isOptional) => rpcs.updatePlacementOptional(placementId, isOptional),
       place: (spec) =>
         rpcs.placeCourse({
           courseId: spec.courseId,
@@ -107,9 +109,11 @@ export function useReconcileExecutor({
       removeMembers: (cell, courseIds) => rpcs.removeBundleMembers({ day: cell.day, period: cell.period, courseIds }),
       createCard: (members) => rpcs.shelveCourses({ members }),
       deleteCard: (shelfBundleId) => rpcs.deleteShelfBundle({ shelfBundleId }),
-      // resolveCardId stays a local closure over `cardIdByMemberSet` (captured at call time) — it is
-      // not an RPC, so it cannot bind into `rpcs`.
+      // resolveCardId / resolvePlacementId stay local closures over the pre-mutation captures — they
+      // are not RPCs, so they cannot bind into `rpcs`. An optional-flip updates the live row in
+      // place, and the plan carries business keys, never ids — hence the resolver.
       resolveCardId: (members) => cardIdByMemberSet.get(memberSetKey(members)),
+      resolvePlacementId: (key) => placementIdByKey.get(placementBusinessKey(key)),
     };
 
     try {

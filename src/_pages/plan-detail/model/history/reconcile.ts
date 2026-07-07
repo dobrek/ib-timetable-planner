@@ -8,8 +8,9 @@ import type { AffectedSlice, PlacementKey, ReconcilePlan } from "./history-entry
  * slice, operation-agnostically. Board rows are diffed by their business key
  * `(courseId, day, period, week, isOptional)`: anything in `current` but not `target` is removed;
  * anything in `target` but not `current` is placed. So a move = remove@source + place@target, a
- * week-flip = remove@oldWeek + place@newWeek (an optional-flip decomposes the same way), a
- * merge-undo = places at both cells, a no-op = empty plan.
+ * week-flip = remove@oldWeek + place@newWeek (an optional-flip diffs the same way, though the
+ * executor recognizes that shape and updates the row in place), a merge-undo = places at both
+ * cells, a no-op = empty plan.
  * Shelf cards are diffed as a multiset over member-sets → `cardsToDelete` / `cardsToCreate`.
  *
  * Removes precede places (and card-deletes precede card-creates) at execution time so a re-place

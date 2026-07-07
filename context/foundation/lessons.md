@@ -71,3 +71,10 @@
 - **Problem**: A later refactor that deletes or renames the cited mechanism does not include the convention text in its diff, so the rule silently goes stale — it now reads arbitrary and, worse, propagates **false premises** into new artifacts that cite it in good faith. Concrete: `unify-views` deleted `useCellWiring`/`PairedPlannerGrid` and reduced `dropHints` to a set-once-per-drag value, but the `plan-detail-refactor` amendment kept all three claims; `board-view-state-store/change.md` then inherited three false premises (a 5-hop chain, a memoized wiring hook, per-tick re-renders) verbatim from the stale text before the frame caught them.
 - **Rule**: When writing OR consuming a convention amendment that cites concrete code mechanisms, verify each cited symbol still exists (**grep, not memory**) before relying on it. When a refactor deletes or renames a mechanism a convention cites, updating that convention **and its in-code copies** is part of that refactor's definition of done — a doc that names a mechanism is coupled to it. Prefer rationale stated as an invariant (broadcast fan-out) over one pinned to a mutable measurement (a per-tick frequency), and cite `file:line` so the next reader can re-verify cheaply.
 - **Applies to**: research, frame, plan, plan-review, impl-review
+
+## Re-create SQL functions from the latest live definition, not the original migration
+
+- **Context**: Supabase migrations that re-create an existing SQL function full-body (`CREATE OR REPLACE` or `DROP` + `CREATE`) in `supabase/migrations/`.
+- **Problem**: Copying the body from the migration that ORIGINALLY defined the function silently reverts every later amendment. Concrete: `optional-subject-in-bundle` re-created `shelve_bundle`/`shelve_courses` from their original migrations, dropping the empty-source RAISE guards added by `20260626120006` — and no test pinned them, so CI stayed green on the regression.
+- **Rule**: Full-body SQL function re-creates must copy from the latest live definition, not the original migration.
+- **Applies to**: plan, plan-review, implement, impl-review

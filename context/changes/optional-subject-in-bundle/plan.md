@@ -490,16 +490,16 @@ All schema changes are additive (`boolean not null default false`) — no backfi
 
 #### Automated
 
-- [x] 4.1 Type check: `pnpm check`
-- [x] 4.2 Unit suite incl. summary derivation tests: `pnpm test`
-- [x] 4.3 Integration suite: `pnpm test:integration` (incl. new shelf-flag + clone-carry tests; green at CI concurrency --maxWorkers=2)
-- [x] 4.4 E2E incl. the new optional-subject scenario: `pnpm test:e2e` (28 passed)
-- [x] 4.5 Full local CI gate: `/verify` (PASS, all 8 steps)
+- [x] 4.1 Type check: `pnpm check` — 9dc6c5d
+- [x] 4.2 Unit suite incl. summary derivation tests: `pnpm test` — 9dc6c5d
+- [x] 4.3 Integration suite: `pnpm test:integration` (incl. new shelf-flag + clone-carry tests; green at CI concurrency --maxWorkers=2) — 9dc6c5d
+- [x] 4.4 E2E incl. the new optional-subject scenario: `pnpm test:e2e` (28 passed) — 9dc6c5d
+- [x] 4.5 Full local CI gate: `/verify` (PASS, all 8 steps) — 9dc6c5d
 
 #### Manual
 
-- [x] 4.6 Popover "Optional" section shows correct counts; disappears when none (optional-subject e2e + live Playwright check)
-- [x] 4.7 Student + teacher perspectives render optional chips distinctly (verified live via Playwright MCP; collision tone dominates on a real conflict)
-- [x] 4.8 Park → card cue → unpark → flag survives (verified live: card cue + reload + unpark restores optional chip; gesture covered by shelf-durability e2e)
-- [x] 4.9 Drag overlay shows optional cue (verified live mid-drag: optional member row dashed+dimmed)
-- [x] 4.10 Duplicate + clone carry the flag (unit: duplicate mirrors flags; integration: clone_plan carry + place_course replay)
+- [x] 4.6 Popover "Optional" section shows correct counts; disappears when none (optional-subject e2e + live Playwright check) — 9dc6c5d
+- [x] 4.7 Student + teacher perspectives render optional chips distinctly (verified live via Playwright MCP; collision tone dominates on a real conflict) — 9dc6c5d
+- [x] 4.8 Park → card cue → unpark → flag survives (verified live: card cue + reload + unpark restores optional chip; gesture covered by shelf-durability e2e) — 9dc6c5d
+- [x] 4.9 Drag overlay shows optional cue (verified live mid-drag: optional member row dashed+dimmed) — 9dc6c5d
+- [x] 4.10 Duplicate + clone carry the flag (unit: duplicate mirrors flags; integration: clone_plan carry + place_course replay) — 9dc6c5d

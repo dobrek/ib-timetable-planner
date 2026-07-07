@@ -1,7 +1,7 @@
 ---
 change_id: optional-subject-in-bundle
 title: Optional subject in bundle
-status: implemented
+status: impl_reviewed
 created: 2026-07-07
 updated: 2026-07-07
 archived_at: null

@@ -287,6 +287,48 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(legacyParked?.[0]?.is_optional).toBe(false);
   });
 
+  it("guard: shelve_bundle on an empty cell raises and mints no orphan shelf header", async () => {
+    const { count: before } = await supabase
+      .from("shelf_bundles")
+      .select("id", { count: "exact", head: true })
+      .eq("plan_id", planId);
+
+    const { error } = await supabase.rpc("shelve_bundle", {
+      p_plan_id: planId,
+      p_cohort: "dp1",
+      p_day: 3,
+      p_period: 4,
+    });
+    expect(error?.message).toContain("shelve_bundle: no placements at cell");
+
+    const { count: after } = await supabase
+      .from("shelf_bundles")
+      .select("id", { count: "exact", head: true })
+      .eq("plan_id", planId);
+    expect(after).toBe(before);
+  });
+
+  it("guard: shelve_courses with an empty course set raises and mints no orphan shelf header", async () => {
+    const { count: before } = await supabase
+      .from("shelf_bundles")
+      .select("id", { count: "exact", head: true })
+      .eq("plan_id", planId);
+
+    const { error } = await supabase.rpc("shelve_courses", {
+      p_plan_id: planId,
+      p_cohort: "dp1",
+      p_course_ids: [],
+      p_weeks: [],
+    });
+    expect(error?.message).toContain("shelve_courses: empty course set");
+
+    const { count: after } = await supabase
+      .from("shelf_bundles")
+      .select("id", { count: "exact", head: true })
+      .eq("plan_id", planId);
+    expect(after).toBe(before);
+  });
+
   it("shelve_courses parks an arbitrary course-set directly with the given weeks", async () => {
     // The off-board park (a palette grouping never placed): no cell, no placements read.
     const { data, error } = await supabase.rpc("shelve_courses", {

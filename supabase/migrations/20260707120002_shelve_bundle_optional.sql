@@ -1,7 +1,9 @@
 -- shelve_bundle, extended to copy each member's optional flag into its shelf twin —
 -- parking a bundle must not silently reset a pending "optional" decision. Full body
--- copied from 20260626120001_shelve_bundle_fn.sql (create or replace, same signature)
--- with is_optional added to the step-2 membership copy's column list AND SELECT.
+-- copied from the LIVE definition in 20260626120006_guard_empty_shelf.sql (create or
+-- replace, same signature) with is_optional added to the step-2 membership copy's
+-- column list AND SELECT. The empty-cell RAISE guard is retained — dropping it would
+-- reintroduce the orphan-husk race that migration closed.
 --
 -- SECURITY INVOKER + set search_path = '' unchanged. Do NOT switch to DEFINER.
 create or replace function shelve_bundle(
@@ -17,6 +19,14 @@ as $$
 declare
   v_shelf public.shelf_bundles;
 begin
+  -- guard: nothing placed at this cell → abort, mint no orphan husk
+  if not exists (
+    select 1 from public.placements
+     where plan_id = p_plan_id and cohort = p_cohort and day = p_day and period = p_period
+  ) then
+    raise exception 'shelve_bundle: no placements at cell (day %, period %)', p_day, p_period;
+  end if;
+
   -- 1. mint the shelf header
   insert into public.shelf_bundles (plan_id, cohort)
   values (p_plan_id, p_cohort)

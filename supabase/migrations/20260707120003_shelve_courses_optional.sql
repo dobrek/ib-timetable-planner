@@ -8,6 +8,10 @@
 -- the array explicitly only when the flag threading lands. A null/short array coalesces
 -- per element to false via WITH ORDINALITY.
 --
+-- Body copied from the LIVE definition in 20260626120006_guard_empty_shelf.sql — the
+-- empty-set RAISE guard is retained; dropping it would let a null/empty course set mint
+-- an orphan shelf header (ghost parked card) again.
+--
 -- SECURITY INVOKER + set search_path = '' unchanged (every table public.-qualified):
 -- the authenticated RLS policies gate the writes. Do NOT switch to DEFINER.
 
@@ -27,6 +31,11 @@ as $$
 declare
   v_shelf public.shelf_bundles;
 begin
+  -- guard: empty course set → abort (the action's Zod input also enforces .min(1))
+  if p_course_ids is null or array_length(p_course_ids, 1) is null then
+    raise exception 'shelve_courses: empty course set';
+  end if;
+
   insert into public.shelf_bundles (plan_id, cohort)
   values (p_plan_id, p_cohort)
   returning * into v_shelf;

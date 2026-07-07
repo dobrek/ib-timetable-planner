@@ -64,12 +64,24 @@ export function addOptimistic(
   ];
 }
 
-export function addReconcile(prev: LocalPlacement[], tempId: string, real: PlannerPlacement): LocalPlacement[] {
-  return prev.map((p) => (p.id === tempId ? real : p));
-}
-
 export function addRollback(prev: LocalPlacement[], tempId: string): LocalPlacement[] {
   return prev.filter((p) => p.id !== tempId);
+}
+
+// --- Single-row updates (add-reconcile and the setWeek / setOptional flips all share these) ---
+
+/**
+ * Optimistically patch one row's field(s); rollback re-patches the previous value. The single-field
+ * flips (A/B week, optional mark ⇄ accept) need no pending gate here — their controls are disabled
+ * while the row is `pending`, so the id is always a real one.
+ */
+export function patchRow(prev: LocalPlacement[], id: string, patch: Partial<PlannerPlacement>): LocalPlacement[] {
+  return prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
+}
+
+/** Swap one row (a temp or an optimistically-patched row) for its settled server row, by id. */
+export function replaceRow(prev: LocalPlacement[], id: string, row: PlannerPlacement): LocalPlacement[] {
+  return prev.map((p) => (p.id === id ? row : p));
 }
 
 // --- Add group (batch) ---
@@ -195,38 +207,6 @@ export function removeTarget(
   if (!row) return err("not-found");
   if (row.pending) return err("pending");
   return ok(row);
-}
-
-// --- Set week (A/B) ---
-
-/** Optimistically move a chip to the other lane. The row already has a real id (only placed
- * bi-weekly chips expose the control), so no `pending` gate is needed — the control stays live. */
-export function setWeekOptimistic(prev: LocalPlacement[], id: string, week: PlacementWeek): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? { ...p, week } : p));
-}
-
-export function setWeekReconcile(prev: LocalPlacement[], id: string, updated: PlannerPlacement): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? updated : p));
-}
-
-export function setWeekRollback(prev: LocalPlacement[], id: string, prevWeek: PlacementWeek): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? { ...p, week: prevWeek } : p));
-}
-
-// --- Set optional (mark / accept) ---
-
-/** Optimistically flip a chip's optional flag. Like `setWeekOptimistic`, the row already has a real
- * id (the menu is disabled while `pending`), so no pending gate is needed here. */
-export function setOptionalOptimistic(prev: LocalPlacement[], id: string, isOptional: boolean): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? { ...p, isOptional } : p));
-}
-
-export function setOptionalReconcile(prev: LocalPlacement[], id: string, updated: PlannerPlacement): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? updated : p));
-}
-
-export function setOptionalRollback(prev: LocalPlacement[], id: string, prevValue: boolean): LocalPlacement[] {
-  return prev.map((p) => (p.id === id ? { ...p, isOptional: prevValue } : p));
 }
 
 // --- Bundle move/remove (whole-slot batch) ---

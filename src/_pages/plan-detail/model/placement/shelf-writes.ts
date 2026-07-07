@@ -115,19 +115,17 @@ export function createShelfWrites(ctx: WriteContext): ShelfWrites {
     const scope: AffectedScope = { cells: [cellKey(target.day, target.period)], cardSets: [card.members] };
     const before = snapshot(scope);
 
-    const weekByMember = new Map(card.members.map((m) => [m.courseId, m.week] as const));
-    const optionalByMember = new Map(card.members.map((m) => [m.courseId, m.isOptional] as const));
-    const eligible = eligibleMembers(
-      placementsRef.current,
-      card.members.map((m) => m.courseId),
-      target,
+    const eligible = new Set(
+      eligibleMembers(
+        placementsRef.current,
+        card.members.map((m) => m.courseId),
+        target,
+      ),
     );
-    const entries = eligible.map((courseId) => ({
-      tempId: crypto.randomUUID(),
-      courseId,
-      week: weekByMember.get(courseId) ?? "both",
-      isOptional: optionalByMember.get(courseId) ?? false,
-    }));
+    // Each parked member already carries its own week/flag — the entries are the members, filtered.
+    const entries = card.members
+      .filter((m) => eligible.has(m.courseId))
+      .map((m) => ({ tempId: crypto.randomUUID(), courseId: m.courseId, week: m.week, isOptional: m.isOptional }));
 
     setParkedBundles((prev) => unparkOptimistic(prev, shelfBundleId));
     setPlacements((prev) => addManyOptimistic(prev, entries, target));

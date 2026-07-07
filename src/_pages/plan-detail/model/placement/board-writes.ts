@@ -1,6 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { PlacementWeek, WeekMode } from "@/shared/config";
-import { type AvailabilityIndex, cellKey, type CrossCohortIndex } from "@/entities/timetable";
+import {
+  type AvailabilityIndex,
+  cellKey,
+  type CrossCohortIndex,
+  type LocalPlacement,
+  type PlannerPlacement,
+} from "@/entities/timetable";
 import type { CellData } from "../drag";
 import type { GroupingCourse } from "../grouping/grouping";
 import type { AffectedScope } from "../history/history-entry";
@@ -9,7 +15,6 @@ import { findDuplicateTarget } from "./duplicate-target";
 import {
   addManyOptimistic,
   addOptimistic,
-  addReconcile,
   addRollback,
   canAdd,
   eligibleMembers,
@@ -23,16 +28,12 @@ import {
   oppositeWeekAssignment,
   outcomesByCourse,
   partitionBundleMove,
+  patchRow,
   removeManyOptimistic,
   removeManyRollback,
   removeTarget,
+  replaceRow,
   resolveDropWeek,
-  setOptionalOptimistic,
-  setOptionalReconcile,
-  setOptionalRollback,
-  setWeekOptimistic,
-  setWeekReconcile,
-  setWeekRollback,
   settleMany,
   type MemberOutcome,
 } from "./placement-transitions";
@@ -131,18 +132,13 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
       return;
     }
 
-    // Mirror the source's exact A/B layout — carry each member's week explicitly so the fan-out
-    // does not re-resolve it (which could swap A/B between members for a bi-weekly pair).
-    // The optional flags mirror the same way: a duplicated optional member stays optional.
-    const weekByMember = new Map(placeable.map((p) => [p.courseId, p.week] as const));
-    const optionalByMember = new Map(placeable.map((p) => [p.courseId, p.isOptional] as const));
+    // Mirror the source's exact layout — each member spec carries its week explicitly so the
+    // fan-out does not re-resolve it (which could swap A/B between members for a bi-weekly pair),
+    // and its optional flag the same way: a duplicated optional member stays optional.
     void persistAddGroup(
-      placeable.map((p) => p.courseId),
+      placeable.map((p) => ({ courseId: p.courseId, week: p.week, isOptional: p.isOptional })),
       target,
-      false,
-      weekByMember,
-      "duplicate",
-      optionalByMember,
+      { editKind: "duplicate" },
     );
     setLastDuplicated((prev) => ({ ...target, nonce: (prev?.nonce ?? 0) + 1 }));
   }
@@ -164,7 +160,7 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
 
     try {
       const row = await rpcs.placeCourse({ courseId, day: cell.day, period: cell.period, week, isOptional: false });
-      setPlacements((prev) => addReconcile(prev, tempId, row));
+      setPlacements((prev) => replaceRow(prev, tempId, row));
       recordEdit("add", scope, before, cell);
       setError(null); // a fully-successful settle dismisses any stale banner from a prior failure
     } catch (err: unknown) {
@@ -176,15 +172,21 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
   // Group fan-out: one idempotent place_course per eligible member. They share the cell's
   // bundle (find-or-create), members already in the cell are skipped, and the optimistic batch
   // and settlement each land in one state update so collision/hours derivations recompute once.
+  // Each member spec carries its own week/flag — a new per-member attribute extends the spec,
+  // not the parameter list (no parallel maps to keep aligned, no silent trailing-arg default).
   async function persistAddGroup(
-    memberIds: string[],
+    members: GroupMemberSpec[],
     cell: CellData,
-    oppositeWeek: boolean,
-    weekByMember?: Map<string, PlacementWeek>,
-    editKind: EditKind = "addGroup",
-    optionalByMember?: Map<string, boolean>,
+    opts: { oppositeWeek?: boolean; editKind?: EditKind } = {},
   ) {
-    const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
+    const eligibleIds = new Set(
+      eligibleMembers(
+        placementsRef.current,
+        members.map((m) => m.courseId),
+        cell,
+      ),
+    );
+    const eligible = members.filter((m) => eligibleIds.has(m.courseId));
     if (eligible.length === 0) return;
 
     const scope = cellScope(cell);
@@ -193,18 +195,18 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
     // Week precedence: an explicit per-member week (a duplicate mirroring the source's A/B layout)
     // wins; else an opposite-week grouping alternates a/b; else each member resolves by its own
     // eligibility (agnostic ⇒ both, bi-weekly ⇒ first free week).
-    const oppositeWeekByMember = oppositeWeek ? oppositeWeekAssignment(eligible) : null;
-    const weekFor = (courseId: string): PlacementWeek =>
-      weekByMember?.get(courseId) ??
-      oppositeWeekByMember?.get(courseId) ??
-      resolveDropWeek(weekModeOf(courseId), placementsRef.current, cell);
+    const oppositeWeekByMember = opts.oppositeWeek ? oppositeWeekAssignment(eligible.map((m) => m.courseId)) : null;
+    const weekOf = (member: GroupMemberSpec): PlacementWeek =>
+      member.week ??
+      oppositeWeekByMember?.get(member.courseId) ??
+      resolveDropWeek(weekModeOf(member.courseId), placementsRef.current, cell);
 
     // Only a duplicate supplies per-member flags (mirroring the source); fresh drops are never optional.
-    const entries = eligible.map((courseId) => ({
+    const entries = eligible.map((member) => ({
       tempId: crypto.randomUUID(),
-      courseId,
-      week: weekFor(courseId),
-      isOptional: optionalByMember?.get(courseId) ?? false,
+      courseId: member.courseId,
+      week: weekOf(member),
+      isOptional: member.isOptional ?? false,
     }));
     setPlacements((prev) => addManyOptimistic(prev, entries, cell));
 
@@ -213,7 +215,7 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
       setPlacements((prev) => settleMany(prev, outcomes));
 
       // Record once if at least one member landed (a fully-failed batch leaves the cell unchanged).
-      if (outcomes.some(({ result }) => result !== null)) recordEdit(editKind, scope, before, cell);
+      if (outcomes.some(({ result }) => result !== null)) recordEdit(opts.editKind ?? "addGroup", scope, before, cell);
 
       // Clear a stale banner on a successful settle BEFORE the partial-failure setError below — so a
       // real groupFailure still surfaces. The obvious "clear at the very end" ordering would wipe it.
@@ -334,72 +336,79 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
     }
   }
 
-  // Flip a placed bi-weekly chip between the A and B lanes. Optimistic: set the new week,
-  // persist via updatePlacementWeek, reconcile to the server row; on failure roll back the week.
-  async function persistSetWeek(placementId: string, week: PlacementWeek) {
+  // Flip one field of a placed chip. One skeleton serves every single-field verb: guard (missing /
+  // pending / no-op), snapshot scope, optimistic patch, RPC, reconcile to the server row, record
+  // the edit; a failure re-patches the previous value. The descriptor spells a field's
+  // read/patch/RPC/edit-kind once, so a fix to the skeleton reaches every verb.
+  async function persistSetField<V>(placementId: string, value: V, edit: SingleFieldEdit<V>) {
     const row = placementsRef.current.find((p) => p.id === placementId);
-    if (!row || row.pending || row.week === week) return;
-    const prevWeek = row.week;
+    if (!row || row.pending || edit.read(row) === value) return;
+    const prevValue = edit.read(row);
     const cell: CellData = { day: row.day, period: row.period };
     const scope = cellScope(cell);
     const before = snapshot(scope);
 
-    setPlacements((prev) => setWeekOptimistic(prev, placementId, week));
+    setPlacements((prev) => patchRow(prev, placementId, edit.patch(value)));
 
     try {
-      const updated = await rpcs.updatePlacementWeek(placementId, week);
-      setPlacements((prev) => setWeekReconcile(prev, placementId, updated));
-      recordEdit("setWeek", scope, before, cell);
+      const updated = await edit.rpc(placementId, value);
+      setPlacements((prev) => replaceRow(prev, placementId, updated));
+      recordEdit(edit.editKind(value), scope, before, cell);
       setError(null);
     } catch (err: unknown) {
-      setPlacements((prev) => setWeekRollback(prev, placementId, prevWeek));
+      setPlacements((prev) => patchRow(prev, placementId, edit.patch(prevValue)));
       setError(errorOf(err));
     }
   }
 
-  // Flip a chip's optional flag (mark ⇄ accept). Mirrors persistSetWeek: guard, snapshot scope,
-  // optimistic set, RPC, reconcile, record — the direction picks the edit kind so the undo
-  // tooltip names it ("Mark optional at …" / "Accept course at …"); on failure roll back.
-  async function persistSetOptional(placementId: string, isOptional: boolean) {
-    const row = placementsRef.current.find((p) => p.id === placementId);
-    if (!row || row.pending || row.isOptional === isOptional) return;
-    const prevValue = row.isOptional;
-    const cell: CellData = { day: row.day, period: row.period };
-    const scope = cellScope(cell);
-    const before = snapshot(scope);
-
-    setPlacements((prev) => setOptionalOptimistic(prev, placementId, isOptional));
-
-    try {
-      const updated = await rpcs.updatePlacementOptional(placementId, isOptional);
-      setPlacements((prev) => setOptionalReconcile(prev, placementId, updated));
-      recordEdit(isOptional ? "markOptional" : "acceptOptional", scope, before, cell);
-      setError(null);
-    } catch (err: unknown) {
-      setPlacements((prev) => setOptionalRollback(prev, placementId, prevValue));
-      setError(errorOf(err));
-    }
-  }
+  // The two single-field verbs: the A/B week lane flip, and the optional mark ⇄ accept — whose
+  // direction picks the edit kind so the undo tooltip names it ("Mark optional at …" / "Accept
+  // course at …").
+  const weekEdit: SingleFieldEdit<PlacementWeek> = {
+    read: (row) => row.week,
+    patch: (week) => ({ week }),
+    rpc: (placementId, week) => rpcs.updatePlacementWeek(placementId, week),
+    editKind: () => "setWeek",
+  };
+  const optionalEdit: SingleFieldEdit<boolean> = {
+    read: (row) => row.isOptional,
+    patch: (isOptional) => ({ isOptional }),
+    rpc: (placementId, isOptional) => rpcs.updatePlacementOptional(placementId, isOptional),
+    editKind: (isOptional) => (isOptional ? "markOptional" : "acceptOptional"),
+  };
 
   return {
     addCourse: (courseId, cell) => void persistAdd(courseId, cell),
     addGroup: (memberIds, cell, opts) =>
       void persistAddGroup(
-        memberIds,
+        memberIds.map((courseId) => ({ courseId, week: opts?.weekByMember?.get(courseId) })),
         cell,
-        opts?.oppositeWeek ?? false,
-        opts?.weekByMember,
-        opts?.editKind ?? "addGroup",
+        { oppositeWeek: opts?.oppositeWeek, editKind: opts?.editKind },
       ),
     movePlacement,
     removePlacement,
-    setWeek: (placementId, week) => void persistSetWeek(placementId, week),
-    setOptional: (placementId, isOptional) => void persistSetOptional(placementId, isOptional),
+    setWeek: (placementId, week) => void persistSetField(placementId, week, weekEdit),
+    setOptional: (placementId, isOptional) => void persistSetField(placementId, isOptional, optionalEdit),
     moveBundle: (day, period, target) => void persistMoveMembers({ day, period }, courseIdsAt(day, period), target),
     removeBundle: (day, period) => void persistRemoveMembers({ day, period }, courseIdsAt(day, period)),
     duplicateBundle,
   };
 }
+
+/**
+ * One member of a group fan-out. `week` absent ⇒ resolved by the drop rules (opposite-week
+ * alternation, then per-member eligibility); `isOptional` absent ⇒ false (fresh drops are never
+ * optional — only a duplicate mirrors flags from its source).
+ */
+type GroupMemberSpec = { courseId: string; week?: PlacementWeek; isOptional?: boolean };
+
+/** Descriptor for a single-field chip edit — the one home for a field's read/patch/RPC/edit-kind. */
+type SingleFieldEdit<V> = {
+  read: (row: LocalPlacement) => V;
+  patch: (value: V) => Partial<PlannerPlacement>;
+  rpc: (placementId: string, value: V) => Promise<PlannerPlacement>;
+  editKind: (value: V) => EditKind;
+};
 
 /** A single-cell scope (the common case: add/move/remove/setWeek touch one or two cells, no cards). */
 const cellScope = (cell: CellData): AffectedScope => ({ cells: [cellKey(cell.day, cell.period)], cardSets: [] });

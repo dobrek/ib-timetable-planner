@@ -254,6 +254,38 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(restored[0]?.is_optional).toBe(true);
   });
 
+  it("merge: unshelve onto a cell already holding the course preserves the board row's optional flag", async () => {
+    // Board twin: a placed course with a pending optional decision.
+    const placed = await placeCourse(supabase, {
+      planId,
+      cohort: "dp1",
+      courseId: courseC,
+      day: 7,
+      period: 1,
+      isOptional: true,
+    });
+    // Shelf twin of the SAME course, parked non-optional (e.g. parked before the decision was made).
+    const { data: card, error } = await supabase.rpc("shelve_courses", {
+      p_plan_id: planId,
+      p_cohort: "dp1",
+      p_course_ids: [courseC],
+      p_weeks: ["both"],
+      p_optionals: [false],
+    });
+    if (error) throw error;
+
+    // The merge case: place-back lands on the twin's cell. place_course hits placements_unique;
+    // its conflict update must NOT clobber the board row's flag with the shelf twin's
+    // (20260707140000 — is_optional is single-writer, applied to fresh inserts only).
+    const restored = await unshelve(card.id, 7, 1);
+    expect(restored).toHaveLength(1);
+    expect(restored[0].id).toBe(placed.id);
+    expect(restored[0].is_optional).toBe(true);
+
+    const { data: row } = await supabase.from("placements").select("is_optional").eq("id", placed.id).single();
+    expect(row?.is_optional).toBe(true);
+  });
+
   it("shelve_courses parks explicit optional flags via the third parallel array (and defaults false without it)", async () => {
     const { data: withFlags, error: flagErr } = await supabase.rpc("shelve_courses", {
       p_plan_id: planId,

@@ -89,7 +89,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(accepted.isOptional).toBe(false);
   });
 
-  it("place_course persists an explicit optional flag and converges on replay", async () => {
+  it("place_course applies an explicit optional flag on insert and preserves it on replay", async () => {
     const placement = await placeCourse(supabase, {
       planId,
       cohort: "dp1",
@@ -101,7 +101,9 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     });
     expect(placement.isOptional).toBe(true);
 
-    // Idempotent replay with a different flag converges on the requested state (undo-replay path).
+    // Idempotent replay with a different flag returns the existing row UNCHANGED: is_optional is a
+    // single-writer column (update_placement_optional), so a re-place — notably the unshelve merge
+    // path — must never reset a pending optional decision (20260707140000).
     const replayed = await placeCourse(supabase, {
       planId,
       cohort: "dp1",
@@ -112,7 +114,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       isOptional: false,
     });
     expect(replayed.id).toBe(placement.id);
-    expect(replayed.isOptional).toBe(false);
+    expect(replayed.isOptional).toBe(true);
   });
 
   it("inserts a bi-weekly placement on week a and flips it to b via updatePlacementWeek", async () => {

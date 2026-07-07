@@ -11,6 +11,8 @@ export type EditKind =
   | "remove"
   | "removeBundle"
   | "setWeek"
+  | "markOptional"
+  | "acceptOptional"
   | "lift"
   | "placeBack"
   | "parkMembers"
@@ -40,6 +42,10 @@ export function describeEdit(kind: EditKind, cell?: CellData): string {
       return `Remove bundle${where}`;
     case "setWeek":
       return `Flip week${where}`;
+    case "markOptional":
+      return `Mark optional${where}`;
+    case "acceptOptional":
+      return `Accept course${where}`;
     case "lift":
       return `Lift bundle${where}`;
     case "placeBack":

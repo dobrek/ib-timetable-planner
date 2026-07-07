@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { useDraggable } from "@dnd-kit/react";
-import { TriangleAlert, UserX, X } from "lucide-react";
+import { TriangleAlert, UserX } from "lucide-react";
 import { subjectChipClass, type Cohort, type PlacementWeek, type SubjectColor } from "@/shared/config";
-import { Badge, Button } from "@/shared/ui";
+import { Badge } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import { type CellOccupant, type CollisionInspectionTarget, isBiweekly } from "@/entities/timetable";
 import type { PlacementDrag } from "../../../model/drag";
 import { stopDrag } from "../../../lib/drag-inert";
+import { ChipMenu } from "./ChipMenu";
 import { WeekToggle } from "./WeekToggle";
 
 /**
@@ -26,6 +28,7 @@ export type ChipWiring = {
   lensMatched: Set<string> | null;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
+  onSetOptional: (placementId: string, isOptional: boolean) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
 };
 
@@ -33,7 +36,8 @@ export type ChipWiring = {
  * One placed course-hour. A chip in a blocking violation reads destructive and counts invalid; a
  * warn-only chip reads amber. The collision badge opens the details dialog; the A/B control (only
  * on a bi-weekly placement) moves the chip between week lanes. While the cell is bundled the chip's
- * own drag and remove go inert — the whole slot drags as one unit.
+ * own drag and per-member "⋯" menu go inert — the whole slot drags as one unit. An optional member
+ * composes a dashed/dimmed/tagged axis BELOW the tone ladder (a collision is never masked).
  */
 export function PlacedChip({
   occupant,
@@ -44,13 +48,18 @@ export function PlacedChip({
   lensMatched,
   onRemove,
   onSetWeek,
+  onSetOptional,
   onInspect,
 }: ChipWiring & { occupant: CellOccupant }) {
   const { placement, name, color, blocking, warning, unavailable } = occupant;
+  // Menu open state lives here so the chip's own drag can go inert while its portal-rendered menu
+  // is anchored to it — dragging the chip with the menu open would orphan the menu (first
+  // dropdown-inside-a-draggable in the codebase; the catalog "⋯" precedents are static tables).
+  const [menuOpen, setMenuOpen] = useState(false);
   const { ref, isDragging } = useDraggable<PlacementDrag>({
     id: placement.id,
     data: { kind: "placement", placementId: placement.id, courseId: placement.courseId, cohort },
-    disabled: bundled || placement.pending === true,
+    disabled: bundled || placement.pending === true || menuOpen,
   });
 
   // A bi-weekly placement always resolves to a single week (a/b); agnostic stays `both`.
@@ -60,12 +69,17 @@ export function PlacedChip({
     <div
       ref={ref}
       data-slot="placed-chip"
+      data-optional={placement.isOptional ? "true" : undefined}
       aria-roledescription="placement"
       // Blocking (collision/strong-NO) is the invalid state; the Badge already styles aria-invalid.
       aria-invalid={blocking}
       className={cn(
         CHIP_LAYOUT,
         chipToneClass({ blocking, warning, color }),
+        // Optional axis: dashed restyles the tone's border without recoloring it; the dim is a
+        // single light step (NOT opacity — pending/drag/lens already stack multiplicatively on
+        // that axis, and a dimmed optional blocking chip must still read red).
+        placement.isOptional && "border-dashed saturate-75",
         placement.pending && "opacity-60",
         !placement.pending && !bundled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
@@ -76,6 +90,13 @@ export function PlacedChip({
       )}
     >
       <span className="truncate">{name}</span>
+      {/* The "not quite real" cue (ghost grammar, see WeekLane's dashed placeholder) — text-only,
+          token-based, and never a tone: the collision badge next to it keeps full strength. */}
+      {placement.isOptional && (
+        <span data-slot="optional-tag" className="text-muted-foreground shrink-0 text-[10px] italic">
+          optional
+        </span>
+      )}
       {(blocking || warning) && (
         <Badge
           variant={blocking ? "destructive" : "warning"}
@@ -96,7 +117,8 @@ export function PlacedChip({
         </Badge>
       )}
       {/* The A/B control gates on week only (it opts out of drag), so a bundled opposite-week
-          pair stays adjustable; the remove button stays bundled-gated like before. */}
+          pair stays adjustable; the "⋯" member menu (Mark as optional / Accept / Remove) is
+          bundled-gated exactly like the inline remove it replaced. */}
       {(biweekly || !bundled) && (
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
           {biweekly && (
@@ -109,20 +131,19 @@ export function PlacedChip({
             />
           )}
           {!bundled && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              data-slot="remove-placement"
-              aria-label={`Remove ${name}`}
-              disabled={placement.pending}
-              {...stopDrag(() => {
+            <ChipMenu
+              name={name}
+              isOptional={placement.isOptional}
+              pending={placement.pending === true}
+              open={menuOpen}
+              onOpenChange={setMenuOpen}
+              onSetOptional={(isOptional) => {
+                onSetOptional(placement.id, isOptional);
+              }}
+              onRemove={() => {
                 onRemove(placement.id);
-              })}
-              className="text-muted-foreground hover:bg-destructive/20 hover:text-destructive size-5 rounded"
-            >
-              <X className="size-4" />
-            </Button>
+              }}
+            />
           )}
         </div>
       )}

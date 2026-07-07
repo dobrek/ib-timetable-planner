@@ -47,10 +47,16 @@ export const updatePlacementWeekInput = z.object({
   week: placementWeekSchema,
 });
 
+export const updatePlacementOptionalInput = z.object({
+  id: z.uuid(),
+  isOptional: z.boolean(),
+});
+
 export type PlaceCourseInput = z.infer<typeof placeCourseInput>;
 export type MoveBundleMembersInput = z.infer<typeof moveBundleMembersInput>;
 export type RemoveBundleMembersInput = z.infer<typeof removeBundleMembersInput>;
 export type UpdatePlacementWeekInput = z.infer<typeof updatePlacementWeekInput>;
+export type UpdatePlacementOptionalInput = z.infer<typeof updatePlacementOptionalInput>;
 
 export type PlacementRow = {
   id: string;
@@ -143,6 +149,22 @@ export const updatePlacementWeek = async (
   const updated = unwrapRow(
     await supabase.from("placements").update({ week: input.week }).eq("id", input.id).select().single(),
     { notFound: "Placement not found", failure: "Failed to update placement week" },
+  );
+  return toPlannerPlacement(updated);
+};
+
+/**
+ * Flip a single placement's optional flag (mark ⇄ accept). A plain in-place column update like
+ * `updatePlacementWeek` — the unique key excludes `is_optional`, and the flag never touches bundle
+ * membership. Used by the per-chip "⋯" menu's Mark as optional / Accept items.
+ */
+export const updatePlacementOptional = async (
+  supabase: Supabase,
+  input: UpdatePlacementOptionalInput,
+): Promise<PlannerPlacement> => {
+  const updated = unwrapRow(
+    await supabase.from("placements").update({ is_optional: input.isOptional }).eq("id", input.id).select().single(),
+    { notFound: "Placement not found", failure: "Failed to update placement optional flag" },
   );
   return toPlannerPlacement(updated);
 };

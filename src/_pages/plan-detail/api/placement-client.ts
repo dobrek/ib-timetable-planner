@@ -43,3 +43,7 @@ export function removeBundleMembers(args: {
 export function updatePlacementWeek(id: string, week: PlacementWeek): Promise<PlannerPlacement> {
   return callActionData(actions.updatePlacementWeek, { id, week });
 }
+
+export function updatePlacementOptional(id: string, isOptional: boolean): Promise<PlannerPlacement> {
+  return callActionData(actions.updatePlacementOptional, { id, isOptional });
+}

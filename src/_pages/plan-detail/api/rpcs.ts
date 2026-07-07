@@ -1,6 +1,12 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { ParkedMember } from "../model/placement/parked";
-import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "./placement-client";
+import {
+  moveBundleMembers,
+  placeCourse,
+  removeBundleMembers,
+  updatePlacementOptional,
+  updatePlacementWeek,
+} from "./placement-client";
 import { deleteShelfBundle, shelveBundle, shelveCourses, unshelveBundle } from "./shelf-client";
 
 /**
@@ -24,6 +30,7 @@ export function makeRpcs(planId: string, cohort: Cohort) {
     removeBundleMembers: (args: { day: number; period: number; courseIds: string[] }) =>
       removeBundleMembers({ planId, cohort, ...args }),
     updatePlacementWeek: (id: string, week: PlacementWeek) => updatePlacementWeek(id, week),
+    updatePlacementOptional: (id: string, isOptional: boolean) => updatePlacementOptional(id, isOptional),
     shelveBundle: (args: { day: number; period: number }) => shelveBundle({ planId, cohort, ...args }),
     unshelveBundle: (args: { shelfBundleId: string; targetDay: number; targetPeriod: number }) =>
       unshelveBundle({ planId, cohort, ...args }),

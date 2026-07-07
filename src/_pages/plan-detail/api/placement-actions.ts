@@ -6,6 +6,8 @@ import {
   placeCourseInput,
   removeBundleMembers,
   removeBundleMembersInput,
+  updatePlacementOptional,
+  updatePlacementOptionalInput,
   updatePlacementWeek,
   updatePlacementWeekInput,
 } from "./placements";
@@ -15,4 +17,5 @@ export const placementActions = {
   moveBundleMembers: defineDomainAction({ input: moveBundleMembersInput, run: moveBundleMembers }),
   removeBundleMembers: defineDomainAction({ input: removeBundleMembersInput, run: removeBundleMembers }),
   updatePlacementWeek: defineDomainAction({ input: updatePlacementWeekInput, run: updatePlacementWeek }),
+  updatePlacementOptional: defineDomainAction({ input: updatePlacementOptionalInput, run: updatePlacementOptional }),
 };

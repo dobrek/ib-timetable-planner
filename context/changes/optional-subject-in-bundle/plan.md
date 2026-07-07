@@ -458,33 +458,33 @@ All schema changes are additive (`boolean not null default false`) — no backfi
 
 #### Automated
 
-- [x] 2.1 Type check passes (the sweep is complete): `pnpm check`
-- [x] 2.2 Unit suite green incl. extended key tests: `pnpm test`
-- [x] 2.3 Integration suite green: `pnpm test:integration`
-- [x] 2.4 Lint + FSD boundaries: `pnpm lint && pnpm steiger`
-- [x] 2.5 Build clean: `pnpm build`
+- [x] 2.1 Type check passes (the sweep is complete): `pnpm check` — 8c839a4
+- [x] 2.2 Unit suite green incl. extended key tests: `pnpm test` — 8c839a4
+- [x] 2.3 Integration suite green: `pnpm test:integration` — 8c839a4
+- [x] 2.4 Lint + FSD boundaries: `pnpm lint && pnpm steiger` — 8c839a4
+- [x] 2.5 Build clean: `pnpm build` — 8c839a4
 
 #### Manual
 
-- [x] 2.6 Smoke: undo/redo of move/remove/shelve flows works exactly as before (verified via full Playwright e2e suite, 27 specs green incl. undo-redo + shelf-durability)
+- [x] 2.6 Smoke: undo/redo of move/remove/shelve flows works exactly as before (verified via full Playwright e2e suite, 27 specs green incl. undo-redo + shelf-durability) — 8c839a4
 
 ### Phase 3: The Verb + Board Chip UI + E2E Realignment
 
 #### Automated
 
-- [ ] 3.1 Type check: `pnpm check`
-- [ ] 3.2 Unit suite incl. new trio/writer tests: `pnpm test`
-- [ ] 3.3 Integration suite incl. optional round-trip + undo-restores-flag: `pnpm test:integration`
-- [ ] 3.4 E2E suite green with realigned bundle-operations: `pnpm test:e2e`
-- [ ] 3.5 Lint + steiger + build: `pnpm lint && pnpm steiger && pnpm build`
+- [x] 3.1 Type check: `pnpm check`
+- [x] 3.2 Unit suite incl. new trio/writer tests: `pnpm test`
+- [x] 3.3 Integration suite incl. optional round-trip + undo-restores-flag: `pnpm test:integration`
+- [x] 3.4 E2E suite green with realigned bundle-operations: `pnpm test:e2e`
+- [x] 3.5 Lint + steiger + build: `pnpm lint && pnpm steiger && pnpm build`
 
 #### Manual
 
-- [ ] 3.6 Mark/Accept/Remove via "⋯" menu work; optional chip reads dashed/dimmed/tagged
-- [ ] 3.7 Bundled: no menu trigger; week toggle still inline-adjustable
-- [ ] 3.8 Undo/redo walks mark → accept → remove with correct labels; undo of remove resurrects as optional
-- [ ] 3.9 Collision tone dominates optional treatment; drag works (chip inert while menu open); reload preserves flag
-- [ ] 3.10 Headline counter unchanged when marking optional
+- [x] 3.6 Mark/Accept/Remove via "⋯" menu work; optional chip reads dashed/dimmed/tagged (verified live via Playwright MCP on workerd preview)
+- [x] 3.7 Bundled: no menu trigger; week toggle still inline-adjustable (verified live: 0 triggers while bundled; WeekToggle path untouched)
+- [x] 3.8 Undo/redo walks mark → accept → remove with correct labels; undo of remove resurrects as optional (labels + undo-of-accept verified live; remove-resurrects pinned by reconcile integration test)
+- [x] 3.9 Collision tone dominates optional treatment; drag works (chip inert while menu open); reload preserves flag (tone ladder untouched + on top; reload verified live)
+- [x] 3.10 Headline counter unchanged when marking optional (verified live: "3 hours left to place" before/after)
 
 ### Phase 4: Review Surfaces + New E2E Scenario
 

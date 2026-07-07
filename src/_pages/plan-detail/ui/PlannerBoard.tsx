@@ -168,6 +168,7 @@ export default function PlannerBoard({
         lensMatched: state.lensMatches?.matched ?? null,
         onRemove: state.actions.removePlacement,
         onSetWeek: state.actions.setWeek,
+        onSetOptional: state.actions.setOptional,
         onToggleBundle: state.toggleExploded,
         onRemoveBundle: state.actions.removeBundle,
         onDuplicateBundle: state.actions.duplicateBundle,

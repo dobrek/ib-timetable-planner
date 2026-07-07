@@ -59,6 +59,7 @@ function makeHarness(opts: { placements?: LocalPlacement[]; parked?: LocalParked
     moveBundleMembers: vi.fn(),
     removeBundleMembers: vi.fn(),
     updatePlacementWeek: vi.fn(),
+    updatePlacementOptional: vi.fn(),
     shelveBundle: vi.fn(),
     unshelveBundle: vi.fn(),
     deleteShelfBundle: vi.fn(),

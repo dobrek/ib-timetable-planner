@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { createPlan as createFactoryPlan, seedPlanCatalog, teardown } from "@/test/factories";
-import { placeCourse, updatePlacementWeek } from "./placements";
+import { placeCourse, updatePlacementOptional, updatePlacementWeek } from "./placements";
 
 // Drives the real placeCourse / updatePlacementWeek domain functions against the
 // local Supabase with the service_role client (bypasses RLS for setup + assertions).
@@ -63,6 +63,56 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
     const { data } = await supabase.from("placements").select("week").eq("id", placement.id).single();
     expect(data?.week).toBe("both");
+  });
+
+  it("defaults a fresh placement to non-optional, marks it via updatePlacementOptional, and round-trips", async () => {
+    const placement = await placeCourse(supabase, {
+      planId,
+      cohort: "dp1",
+      courseId: agnosticCourseId,
+      day: 3,
+      period: 3,
+      week: "both",
+      isOptional: false,
+    });
+    expect(placement.isOptional).toBe(false);
+
+    const marked = await updatePlacementOptional(supabase, { id: placement.id, isOptional: true });
+    expect(marked.id).toBe(placement.id);
+    expect(marked.isOptional).toBe(true);
+
+    // Reload projection (the shared select's column) shows the durable flag; accept clears it.
+    const { data } = await supabase.from("placements").select("is_optional").eq("id", placement.id).single();
+    expect(data?.is_optional).toBe(true);
+
+    const accepted = await updatePlacementOptional(supabase, { id: placement.id, isOptional: false });
+    expect(accepted.isOptional).toBe(false);
+  });
+
+  it("place_course persists an explicit optional flag and converges on replay", async () => {
+    const placement = await placeCourse(supabase, {
+      planId,
+      cohort: "dp1",
+      courseId: biweeklyCourseId,
+      day: 4,
+      period: 4,
+      week: "a",
+      isOptional: true,
+    });
+    expect(placement.isOptional).toBe(true);
+
+    // Idempotent replay with a different flag converges on the requested state (undo-replay path).
+    const replayed = await placeCourse(supabase, {
+      planId,
+      cohort: "dp1",
+      courseId: biweeklyCourseId,
+      day: 4,
+      period: 4,
+      week: "a",
+      isOptional: false,
+    });
+    expect(replayed.id).toBe(placement.id);
+    expect(replayed.isOptional).toBe(false);
   });
 
   it("inserts a bi-weekly placement on week a and flips it to b via updatePlacementWeek", async () => {

@@ -43,6 +43,7 @@ export type CellWiring = {
   lensMatched: Set<string> | null;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
+  onSetOptional: (placementId: string, isOptional: boolean) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
   onDuplicateBundle: (day: number, period: number) => void;

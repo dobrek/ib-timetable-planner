@@ -64,6 +64,7 @@ function makeHarness(
     moveBundleMembers: vi.fn(),
     removeBundleMembers: vi.fn(),
     updatePlacementWeek: vi.fn(),
+    updatePlacementOptional: vi.fn(),
     shelveBundle: vi.fn(),
     unshelveBundle: vi.fn(),
     deleteShelfBundle: vi.fn(),
@@ -273,6 +274,59 @@ describe("createBoardWrites — setWeek", () => {
   });
 });
 
+describe("createBoardWrites — setOptional", () => {
+  it("marks optimistically, reconciles to the server row, and records markOptional", async () => {
+    const h = makeHarness({ placements: [placement("p1", "c1", 1, 1)] });
+    h.rpcs.updatePlacementOptional.mockResolvedValueOnce({ ...serverRow("p1", "c1", 1, 1), isOptional: true });
+
+    h.writes.setOptional("p1", true);
+    expect(h.placements.ref.current[0].isOptional).toBe(true); // optimistic
+
+    await flush();
+    expect(h.rpcs.updatePlacementOptional).toHaveBeenCalledWith("p1", true);
+    expect(h.recordEdit).toHaveBeenCalledWith("markOptional", expect.anything(), expect.anything(), {
+      day: 1,
+      period: 1,
+    });
+    expect(h.setError).toHaveBeenLastCalledWith(null);
+  });
+
+  it("records acceptOptional when clearing the flag", async () => {
+    const h = makeHarness({ placements: [{ ...placement("p1", "c1", 1, 1), isOptional: true }] });
+    h.rpcs.updatePlacementOptional.mockResolvedValueOnce(serverRow("p1", "c1", 1, 1));
+
+    h.writes.setOptional("p1", false);
+    await flush();
+
+    expect(h.rpcs.updatePlacementOptional).toHaveBeenCalledWith("p1", false);
+    expect(h.recordEdit).toHaveBeenCalledWith("acceptOptional", expect.anything(), expect.anything(), {
+      day: 1,
+      period: 1,
+    });
+  });
+
+  it("no-ops on a same-value flip (no RPC, no record)", async () => {
+    const h = makeHarness({ placements: [placement("p1", "c1", 1, 1)] });
+
+    h.writes.setOptional("p1", false);
+    await flush();
+
+    expect(h.rpcs.updatePlacementOptional).not.toHaveBeenCalled();
+    expect(h.recordEdit).not.toHaveBeenCalled();
+  });
+
+  it("rolls the flag back when the update rejects", async () => {
+    const h = makeHarness({ placements: [placement("p1", "c1", 1, 1)] });
+    h.rpcs.updatePlacementOptional.mockRejectedValueOnce(new Error("optional boom"));
+
+    h.writes.setOptional("p1", true);
+    await flush();
+
+    expect(h.placements.ref.current[0].isOptional).toBe(false);
+    expect(h.setError).toHaveBeenLastCalledWith({ kind: "message", message: "optional boom" });
+  });
+});
+
 describe("createBoardWrites — addGroup", () => {
   it("honors an explicit weekByMember over resolveDropWeek", async () => {
     const h = makeHarness({ weekModes: new Map([["A", "biweekly"]]) });
@@ -328,6 +382,22 @@ describe("createBoardWrites — duplicateBundle", () => {
 
     await flush();
     expect(h.rpcs.placeCourse).toHaveBeenCalledWith(expect.objectContaining({ courseId: "A", day: 1, period: 2 }));
+  });
+
+  it("mirrors each source member's optional flag onto the copy (like weeks)", async () => {
+    const h = makeHarness({
+      placements: [{ ...placement("p1", "A", 1, 1), isOptional: true }, placement("p2", "B", 1, 1)],
+      catalog: [course("A", "ta"), course("B", "tb")],
+      days: 3,
+      periods: 3,
+    });
+    h.rpcs.placeCourse.mockResolvedValue(serverRow("srv", "x", 1, 2));
+
+    h.writes.duplicateBundle(1, 1);
+    await flush();
+
+    expect(h.rpcs.placeCourse).toHaveBeenCalledWith(expect.objectContaining({ courseId: "A", isOptional: true }));
+    expect(h.rpcs.placeCourse).toHaveBeenCalledWith(expect.objectContaining({ courseId: "B", isOptional: false }));
   });
 
   it("sets the message error and places nothing when no empty slot qualifies", () => {

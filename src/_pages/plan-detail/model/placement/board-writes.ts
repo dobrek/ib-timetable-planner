@@ -27,6 +27,9 @@ import {
   removeManyRollback,
   removeTarget,
   resolveDropWeek,
+  setOptionalOptimistic,
+  setOptionalReconcile,
+  setOptionalRollback,
   setWeekOptimistic,
   setWeekReconcile,
   setWeekRollback,
@@ -64,6 +67,7 @@ export type BoardWrites = {
   movePlacement: (placementId: string, cell: CellData) => void;
   removePlacement: (placementId: string) => void;
   setWeek: (placementId: string, week: PlacementWeek) => void;
+  setOptional: (placementId: string, isOptional: boolean) => void;
   moveBundle: (day: number, period: number, target: CellData) => void;
   removeBundle: (day: number, period: number) => void;
   duplicateBundle: (day: number, period: number) => void;
@@ -353,6 +357,30 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
     }
   }
 
+  // Flip a chip's optional flag (mark ⇄ accept). Mirrors persistSetWeek: guard, snapshot scope,
+  // optimistic set, RPC, reconcile, record — the direction picks the edit kind so the undo
+  // tooltip names it ("Mark optional at …" / "Accept course at …"); on failure roll back.
+  async function persistSetOptional(placementId: string, isOptional: boolean) {
+    const row = placementsRef.current.find((p) => p.id === placementId);
+    if (!row || row.pending || row.isOptional === isOptional) return;
+    const prevValue = row.isOptional;
+    const cell: CellData = { day: row.day, period: row.period };
+    const scope = cellScope(cell);
+    const before = snapshot(scope);
+
+    setPlacements((prev) => setOptionalOptimistic(prev, placementId, isOptional));
+
+    try {
+      const updated = await rpcs.updatePlacementOptional(placementId, isOptional);
+      setPlacements((prev) => setOptionalReconcile(prev, placementId, updated));
+      recordEdit(isOptional ? "markOptional" : "acceptOptional", scope, before, cell);
+      setError(null);
+    } catch (err: unknown) {
+      setPlacements((prev) => setOptionalRollback(prev, placementId, prevValue));
+      setError(errorOf(err));
+    }
+  }
+
   return {
     addCourse: (courseId, cell) => void persistAdd(courseId, cell),
     addGroup: (memberIds, cell, opts) =>
@@ -366,6 +394,7 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
     movePlacement,
     removePlacement,
     setWeek: (placementId, week) => void persistSetWeek(placementId, week),
+    setOptional: (placementId, isOptional) => void persistSetOptional(placementId, isOptional),
     moveBundle: (day, period, target) => void persistMoveMembers({ day, period }, courseIdsAt(day, period), target),
     removeBundle: (day, period) => void persistRemoveMembers({ day, period }, courseIdsAt(day, period)),
     duplicateBundle,

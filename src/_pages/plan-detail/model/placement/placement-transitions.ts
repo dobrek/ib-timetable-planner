@@ -213,6 +213,22 @@ export function setWeekRollback(prev: LocalPlacement[], id: string, prevWeek: Pl
   return prev.map((p) => (p.id === id ? { ...p, week: prevWeek } : p));
 }
 
+// --- Set optional (mark / accept) ---
+
+/** Optimistically flip a chip's optional flag. Like `setWeekOptimistic`, the row already has a real
+ * id (the menu is disabled while `pending`), so no pending gate is needed here. */
+export function setOptionalOptimistic(prev: LocalPlacement[], id: string, isOptional: boolean): LocalPlacement[] {
+  return prev.map((p) => (p.id === id ? { ...p, isOptional } : p));
+}
+
+export function setOptionalReconcile(prev: LocalPlacement[], id: string, updated: PlannerPlacement): LocalPlacement[] {
+  return prev.map((p) => (p.id === id ? updated : p));
+}
+
+export function setOptionalRollback(prev: LocalPlacement[], id: string, prevValue: boolean): LocalPlacement[] {
+  return prev.map((p) => (p.id === id ? { ...p, isOptional: prevValue } : p));
+}
+
 // --- Bundle move/remove (whole-slot batch) ---
 
 export type BundlePartition = { movers: string[]; mergers: string[] };

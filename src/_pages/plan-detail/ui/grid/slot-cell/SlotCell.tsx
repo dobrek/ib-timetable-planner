@@ -44,6 +44,7 @@ type Props = {
   lensMatched: Set<string> | null;
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
+  onSetOptional: (placementId: string, isOptional: boolean) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
   onRemoveBundle: (day: number, period: number) => void;
   onDuplicateBundle: (day: number, period: number) => void;
@@ -75,6 +76,7 @@ export default function SlotCell({
   lensMatched,
   onRemove,
   onSetWeek,
+  onSetOptional,
   onToggleBundle,
   onRemoveBundle,
   onDuplicateBundle,
@@ -108,7 +110,17 @@ export default function SlotCell({
   // `CellOccupant` (name + flags), so this wiring holds only the slot-level identity + callbacks.
   // NOTE: this is a fresh object each render, so it would defeat a `React.memo(PlacedChip)` —
   // stabilize it (e.g. `useMemo` in a named hook) before adding that memo, or the memo no-ops.
-  const chipWiring: ChipWiring = { day, period, cohort, bundled, lensMatched, onRemove, onSetWeek, onInspect };
+  const chipWiring: ChipWiring = {
+    day,
+    period,
+    cohort,
+    bundled,
+    lensMatched,
+    onRemove,
+    onSetWeek,
+    onSetOptional,
+    onInspect,
+  };
 
   return (
     <div

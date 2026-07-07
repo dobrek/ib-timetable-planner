@@ -35,7 +35,7 @@ beforeEach(() => {
 
 describe("makeRpcs", () => {
   it("binds planId + cohort onto placeCourse", () => {
-    void makeRpcs(PLAN, COHORT).placeCourse({ courseId: "c1", day: 0, period: 1, week: "both" });
+    void makeRpcs(PLAN, COHORT).placeCourse({ courseId: "c1", day: 0, period: 1, week: "both", isOptional: false });
     expect(placeMock).toHaveBeenCalledWith({
       planId: PLAN,
       cohort: COHORT,
@@ -43,6 +43,7 @@ describe("makeRpcs", () => {
       day: 0,
       period: 1,
       week: "both",
+      isOptional: false,
     });
   });
 
@@ -104,7 +105,7 @@ describe("makeRpcs", () => {
   });
 
   it("binds planId + cohort onto shelveCourses", () => {
-    const members = [{ courseId: "c1", week: "both" as const }];
+    const members = [{ courseId: "c1", week: "both" as const, isOptional: false }];
     void makeRpcs(PLAN, COHORT).shelveCourses({ members });
     expect(shelveCoursesMock).toHaveBeenCalledWith({ planId: PLAN, cohort: COHORT, members });
   });

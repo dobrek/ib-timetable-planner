@@ -40,7 +40,7 @@ export type HistoryEntry = {
 };
 
 /** A placement identified by its business key — never by id (identity is not preserved across replay). */
-export type PlacementKey = { courseId: string; day: number; period: number; week: PlacementWeek };
+export type PlacementKey = { courseId: string; day: number; period: number; week: PlacementWeek; isOptional: boolean };
 
 /** The coordinates to (re-)place a course-hour at. Same shape as a key; named for intent at call sites. */
 export type PlacementSpec = PlacementKey;

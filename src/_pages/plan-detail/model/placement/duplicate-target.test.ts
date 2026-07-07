@@ -23,7 +23,7 @@ const placement = (
   day: number,
   period: number,
   week: PlacementWeek = "both",
-): PlannerPlacement => ({ id, courseId, day, period, week });
+): PlannerPlacement => ({ id, courseId, day, period, week, isOptional: false });
 
 const catalog = (...courses: GroupingCourse[]): Map<string, GroupingCourse> => new Map(courses.map((c) => [c.id, c]));
 

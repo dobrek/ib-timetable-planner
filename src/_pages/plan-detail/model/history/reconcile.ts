@@ -1,25 +1,26 @@
 import type { ParkedMember } from "../placement/parked";
 import type { PlannerPlacement } from "@/entities/timetable";
-import { memberSetKey } from "./affected-slice";
+import { memberSetKey, placementBusinessKey } from "./affected-slice";
 import type { AffectedSlice, PlacementKey, ReconcilePlan } from "./history-entry";
 
 /**
  * Compute the minimal RPC plan that drives the live affected slice (`current`) to a `target`
  * slice, operation-agnostically. Board rows are diffed by their business key
- * `(courseId, day, period, week)`: anything in `current` but not `target` is removed; anything in
- * `target` but not `current` is placed. So a move = remove@source + place@target, a week-flip =
- * remove@oldWeek + place@newWeek, a merge-undo = places at both cells, a no-op = empty plan.
+ * `(courseId, day, period, week, isOptional)`: anything in `current` but not `target` is removed;
+ * anything in `target` but not `current` is placed. So a move = remove@source + place@target, a
+ * week-flip = remove@oldWeek + place@newWeek (an optional-flip decomposes the same way), a
+ * merge-undo = places at both cells, a no-op = empty plan.
  * Shelf cards are diffed as a multiset over member-sets → `cardsToDelete` / `cardsToCreate`.
  *
  * Removes precede places (and card-deletes precede card-creates) at execution time so a re-place
  * never collides with a row the same plan is about to delete (the one-placed-bundle-per-cell index).
  */
 export function diffReconcile(current: AffectedSlice, target: AffectedSlice): ReconcilePlan {
-  const currentKeys = new Set(current.placements.map(placementKey));
-  const targetKeys = new Set(target.placements.map(placementKey));
+  const currentKeys = new Set(current.placements.map(placementBusinessKey));
+  const targetKeys = new Set(target.placements.map(placementBusinessKey));
 
-  const toRemove = current.placements.filter((row) => !targetKeys.has(placementKey(row))).map(toPlacementKey);
-  const toPlace = target.placements.filter((row) => !currentKeys.has(placementKey(row))).map(toPlacementKey);
+  const toRemove = current.placements.filter((row) => !targetKeys.has(placementBusinessKey(row))).map(toPlacementKey);
+  const toPlace = target.placements.filter((row) => !currentKeys.has(placementBusinessKey(row))).map(toPlacementKey);
 
   const cardsToDelete = multisetDifference(current.cards, target.cards);
   const cardsToCreate = multisetDifference(target.cards, current.cards);
@@ -27,14 +28,12 @@ export function diffReconcile(current: AffectedSlice, target: AffectedSlice): Re
   return { toRemove, toPlace, cardsToDelete, cardsToCreate };
 }
 
-const placementKey = ({ courseId, day, period, week }: PlannerPlacement): string =>
-  `${courseId}|${day}|${period}|${week}`;
-
-const toPlacementKey = ({ courseId, day, period, week }: PlannerPlacement): PlacementKey => ({
+const toPlacementKey = ({ courseId, day, period, week, isOptional }: PlannerPlacement): PlacementKey => ({
   courseId,
   day,
   period,
   week,
+  isOptional,
 });
 
 /** The member-sets in `minuend` not matched one-for-one by an equal member-set in `subtrahend`. */

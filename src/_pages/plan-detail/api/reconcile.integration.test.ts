@@ -32,7 +32,7 @@ let B1: string; // a bi-weekly dp1 course
 let B2: string; // a second bi-weekly dp1 course
 
 const keysOf = (placements: PlannerPlacement[]): string[] =>
-  placements.map((p) => `${p.courseId}|${p.day}|${p.period}|${p.week}`).sort();
+  placements.map((p) => `${p.courseId}|${p.day}|${p.period}|${p.week}|${p.isOptional}`).sort();
 const cardsOf = (cards: ParkedBundle[]): string[] => cards.map((c) => memberSetKey(c.members)).sort();
 
 async function loadCohort(planId: string): Promise<{ placements: PlannerPlacement[]; parkedBundles: ParkedBundle[] }> {
@@ -70,6 +70,7 @@ function domainDeps(planId: string, cardIdByMemberSet: Map<string, string>): Rec
         day: spec.day,
         period: spec.period,
         week: spec.week,
+        isOptional: spec.isOptional,
       }),
     removeMembers: (cell, courseIds) =>
       removeBundleMembers(supabase, { planId, cohort: COHORT, day: cell.day, period: cell.period, courseIds }),
@@ -126,7 +127,7 @@ const boardScope = (...cells: [number, number][]): AffectedScope => ({
   }
 
   const place = (planId: string, courseId: string, day: number, period: number, week: "both" | "a" | "b" = "both") =>
-    placeCourse(supabase, { planId, cohort: COHORT, courseId, day, period, week });
+    placeCourse(supabase, { planId, cohort: COHORT, courseId, day, period, week, isOptional: false });
 
   it("add", async () => {
     const planId = await freshPlan("recon-add");
@@ -218,14 +219,24 @@ const boardScope = (...cells: [number, number][]): AffectedScope => ({
   it("lift (board → shelf)", async () => {
     const planId = await freshPlan("recon-lift");
     await place(planId, AG, 1, 1);
-    const scope: AffectedScope = { cells: [cellKey(1, 1)], cardSets: [[{ courseId: AG, week: "both" }]] };
+    const scope: AffectedScope = {
+      cells: [cellKey(1, 1)],
+      cardSets: [[{ courseId: AG, week: "both", isOptional: false }]],
+    };
     await roundTrip(planId, scope, () => shelveBundle(supabase, { planId, cohort: COHORT, day: 1, period: 1 }));
   });
 
   it("place-back (shelf → board)", async () => {
     const planId = await freshPlan("recon-placeback");
-    const card = await shelveCourses(supabase, { planId, cohort: COHORT, members: [{ courseId: AG, week: "both" }] });
-    const scope: AffectedScope = { cells: [cellKey(1, 1)], cardSets: [[{ courseId: AG, week: "both" }]] };
+    const card = await shelveCourses(supabase, {
+      planId,
+      cohort: COHORT,
+      members: [{ courseId: AG, week: "both", isOptional: false }],
+    });
+    const scope: AffectedScope = {
+      cells: [cellKey(1, 1)],
+      cardSets: [[{ courseId: AG, week: "both", isOptional: false }]],
+    };
     await roundTrip(planId, scope, () =>
       unshelveBundle(supabase, { planId, cohort: COHORT, shelfBundleId: card.id, targetDay: 1, targetPeriod: 1 }),
     );
@@ -233,16 +244,20 @@ const boardScope = (...cells: [number, number][]): AffectedScope => ({
 
   it("park-set (arbitrary set onto the shelf)", async () => {
     const planId = await freshPlan("recon-park");
-    const scope: AffectedScope = { cells: [], cardSets: [[{ courseId: B2, week: "a" }]] };
+    const scope: AffectedScope = { cells: [], cardSets: [[{ courseId: B2, week: "a", isOptional: false }]] };
     await roundTrip(planId, scope, () =>
-      shelveCourses(supabase, { planId, cohort: COHORT, members: [{ courseId: B2, week: "a" }] }),
+      shelveCourses(supabase, { planId, cohort: COHORT, members: [{ courseId: B2, week: "a", isOptional: false }] }),
     );
   });
 
   it("discard (delete a parked card)", async () => {
     const planId = await freshPlan("recon-discard");
-    const card = await shelveCourses(supabase, { planId, cohort: COHORT, members: [{ courseId: AG, week: "both" }] });
-    const scope: AffectedScope = { cells: [], cardSets: [[{ courseId: AG, week: "both" }]] };
+    const card = await shelveCourses(supabase, {
+      planId,
+      cohort: COHORT,
+      members: [{ courseId: AG, week: "both", isOptional: false }],
+    });
+    const scope: AffectedScope = { cells: [], cardSets: [[{ courseId: AG, week: "both", isOptional: false }]] };
     await roundTrip(planId, scope, () => deleteShelfBundle(supabase, { planId, shelfBundleId: card.id }));
   });
 

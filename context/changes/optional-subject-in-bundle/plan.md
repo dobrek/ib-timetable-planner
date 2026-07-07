@@ -444,29 +444,29 @@ All schema changes are additive (`boolean not null default false`) — no backfi
 
 #### Automated
 
-- [x] 1.1 Migrations apply from scratch: `pnpm exec supabase db reset` completes cleanly
-- [x] 1.2 Type check passes after types regen: `pnpm check`
-- [x] 1.3 Unit suite green (untouched): `pnpm test`
-- [x] 1.4 Integration suite green with default-false flag: `pnpm test:integration`
-- [x] 1.5 Build clean: `pnpm build`
+- [x] 1.1 Migrations apply from scratch: `pnpm exec supabase db reset` completes cleanly — cd5cf6d
+- [x] 1.2 Type check passes after types regen: `pnpm check` — cd5cf6d
+- [x] 1.3 Unit suite green (untouched): `pnpm test` — cd5cf6d
+- [x] 1.4 Integration suite green with default-false flag: `pnpm test:integration` — cd5cf6d
+- [x] 1.5 Build clean: `pnpm build` — cd5cf6d
 
 #### Manual
 
-- [x] 1.6 Smoke: place, group, move, shelve/unshelve, duplicate, clone — all behave exactly as before (verified via full Playwright e2e suite, 27 specs green, + clone integration test)
+- [x] 1.6 Smoke: place, group, move, shelve/unshelve, duplicate, clone — all behave exactly as before (verified via full Playwright e2e suite, 27 specs green, + clone integration test) — cd5cf6d
 
 ### Phase 2: Flag Threading & History-Key Integrity
 
 #### Automated
 
-- [ ] 2.1 Type check passes (the sweep is complete): `pnpm check`
-- [ ] 2.2 Unit suite green incl. extended key tests: `pnpm test`
-- [ ] 2.3 Integration suite green: `pnpm test:integration`
-- [ ] 2.4 Lint + FSD boundaries: `pnpm lint && pnpm steiger`
-- [ ] 2.5 Build clean: `pnpm build`
+- [x] 2.1 Type check passes (the sweep is complete): `pnpm check`
+- [x] 2.2 Unit suite green incl. extended key tests: `pnpm test`
+- [x] 2.3 Integration suite green: `pnpm test:integration`
+- [x] 2.4 Lint + FSD boundaries: `pnpm lint && pnpm steiger`
+- [x] 2.5 Build clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.6 Smoke: undo/redo of move/remove/shelve flows works exactly as before
+- [x] 2.6 Smoke: undo/redo of move/remove/shelve flows works exactly as before (verified via full Playwright e2e suite, 27 specs green incl. undo-redo + shelf-durability)
 
 ### Phase 3: The Verb + Board Chip UI + E2E Realignment
 

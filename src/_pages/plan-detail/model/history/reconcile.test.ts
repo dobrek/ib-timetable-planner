@@ -11,20 +11,36 @@ const pp = (courseId: string, day: number, period: number, week: PlacementWeek =
   day,
   period,
   week,
+  isOptional: false,
   bundleId: `bundle-${day}-${period}`,
 });
 
-const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({ courseId, week });
+const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({
+  courseId,
+  week,
+  isOptional: false,
+});
 
 const slice = (placements: PlannerPlacement[], cards: ParkedMember[][] = []): AffectedSlice => ({ placements, cards });
 
-const keyOf = ({ courseId, day, period, week }: { courseId: string; day: number; period: number; week: string }) =>
-  `${courseId}|${day}|${period}|${week}`;
+const keyOf = ({
+  courseId,
+  day,
+  period,
+  week,
+  isOptional,
+}: {
+  courseId: string;
+  day: number;
+  period: number;
+  week: string;
+  isOptional: boolean;
+}) => `${courseId}|${day}|${period}|${week}|${isOptional}`;
 
 describe("diffReconcile — board", () => {
   it("add: target gains a placement → toPlace only", () => {
     const plan = diffReconcile(slice([]), slice([pp("A", 1, 1)]));
-    expect(plan.toPlace).toEqual([{ courseId: "A", day: 1, period: 1, week: "both" }]);
+    expect(plan.toPlace).toEqual([{ courseId: "A", day: 1, period: 1, week: "both", isOptional: false }]);
     expect(plan.toRemove).toEqual([]);
     expect(plan.cardsToCreate).toEqual([]);
     expect(plan.cardsToDelete).toEqual([]);
@@ -32,20 +48,28 @@ describe("diffReconcile — board", () => {
 
   it("remove: target loses a placement → toRemove only", () => {
     const plan = diffReconcile(slice([pp("A", 1, 1)]), slice([]));
-    expect(plan.toRemove).toEqual([{ courseId: "A", day: 1, period: 1, week: "both" }]);
+    expect(plan.toRemove).toEqual([{ courseId: "A", day: 1, period: 1, week: "both", isOptional: false }]);
     expect(plan.toPlace).toEqual([]);
   });
 
   it("move: relocate one course → remove@source + place@target", () => {
     const plan = diffReconcile(slice([pp("A", 1, 1)]), slice([pp("A", 2, 3)]));
-    expect(plan.toRemove).toEqual([{ courseId: "A", day: 1, period: 1, week: "both" }]);
-    expect(plan.toPlace).toEqual([{ courseId: "A", day: 2, period: 3, week: "both" }]);
+    expect(plan.toRemove).toEqual([{ courseId: "A", day: 1, period: 1, week: "both", isOptional: false }]);
+    expect(plan.toPlace).toEqual([{ courseId: "A", day: 2, period: 3, week: "both", isOptional: false }]);
   });
 
   it("week-flip: same cell, week a → b → remove@a + place@b", () => {
     const plan = diffReconcile(slice([pp("A", 1, 1, "a")]), slice([pp("A", 1, 1, "b")]));
-    expect(plan.toRemove).toEqual([{ courseId: "A", day: 1, period: 1, week: "a" }]);
-    expect(plan.toPlace).toEqual([{ courseId: "A", day: 1, period: 1, week: "b" }]);
+    expect(plan.toRemove).toEqual([{ courseId: "A", day: 1, period: 1, week: "a", isOptional: false }]);
+    expect(plan.toPlace).toEqual([{ courseId: "A", day: 1, period: 1, week: "b", isOptional: false }]);
+  });
+
+  it("optional-flip: same cell, flag flips → remove@false + place@true (never an empty plan)", () => {
+    // The flag is part of the business key: without it this diff would be empty and undoing a
+    // mark/accept would silently no-op (a dead history entry).
+    const plan = diffReconcile(slice([pp("A", 1, 1)]), slice([{ ...pp("A", 1, 1), isOptional: true }]));
+    expect(plan.toRemove).toEqual([{ courseId: "A", day: 1, period: 1, week: "both", isOptional: false }]);
+    expect(plan.toPlace).toEqual([{ courseId: "A", day: 1, period: 1, week: "both", isOptional: true }]);
   });
 
   it("merge-undo: restores placements at both cells (source split back out)", () => {
@@ -53,8 +77,8 @@ describe("diffReconcile — board", () => {
     const current = slice([pp("A", 1, 1), pp("B", 1, 1)]);
     const target = slice([pp("A", 1, 1), pp("B", 2, 3)]);
     const plan = diffReconcile(current, target);
-    expect(plan.toRemove).toEqual([{ courseId: "B", day: 1, period: 1, week: "both" }]);
-    expect(plan.toPlace).toEqual([{ courseId: "B", day: 2, period: 3, week: "both" }]);
+    expect(plan.toRemove).toEqual([{ courseId: "B", day: 1, period: 1, week: "both", isOptional: false }]);
+    expect(plan.toPlace).toEqual([{ courseId: "B", day: 2, period: 3, week: "both", isOptional: false }]);
   });
 
   it("no-op: identical slices → empty plan", () => {
@@ -67,8 +91,8 @@ describe("diffReconcile — board", () => {
     const plan = diffReconcile(slice([pp("A", 1, 1)]), slice([pp("A", 2, 2)]));
     expect(plan.toRemove).toHaveLength(1);
     expect(plan.toPlace).toHaveLength(1);
-    expect(keyOf(plan.toRemove[0])).toBe("A|1|1|both"); // the source row, the one a re-place must not collide with
-    expect(keyOf(plan.toPlace[0])).toBe("A|2|2|both");
+    expect(keyOf(plan.toRemove[0])).toBe("A|1|1|both|false"); // the source row, the one a re-place must not collide with
+    expect(keyOf(plan.toPlace[0])).toBe("A|2|2|both|false");
   });
 });
 
@@ -109,8 +133,8 @@ describe("diffReconcile — combined (lift-undo)", () => {
     const target = slice([pp("A", 1, 1), pp("B", 1, 1, "a")]);
     const plan = diffReconcile(current, target);
     expect(plan.toPlace).toEqual([
-      { courseId: "A", day: 1, period: 1, week: "both" },
-      { courseId: "B", day: 1, period: 1, week: "a" },
+      { courseId: "A", day: 1, period: 1, week: "both", isOptional: false },
+      { courseId: "B", day: 1, period: 1, week: "a", isOptional: false },
     ]);
     expect(plan.toRemove).toEqual([]);
     expect(plan.cardsToDelete).toEqual([[member("A"), member("B", "a")]]);

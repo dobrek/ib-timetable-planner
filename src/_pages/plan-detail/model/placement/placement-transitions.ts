@@ -58,7 +58,10 @@ export function addOptimistic(
   cell: CellData,
   week: PlacementWeek,
 ): LocalPlacement[] {
-  return [...prev, { id: tempId, courseId, day: cell.day, period: cell.period, week, pending: true }];
+  return [
+    ...prev,
+    { id: tempId, courseId, day: cell.day, period: cell.period, week, isOptional: false, pending: true },
+  ];
 }
 
 export function addReconcile(prev: LocalPlacement[], tempId: string, real: PlannerPlacement): LocalPlacement[] {
@@ -71,7 +74,7 @@ export function addRollback(prev: LocalPlacement[], tempId: string): LocalPlacem
 
 // --- Add group (batch) ---
 
-export type BatchEntry = { tempId: string; courseId: string; week: PlacementWeek };
+export type BatchEntry = { tempId: string; courseId: string; week: PlacementWeek; isOptional: boolean };
 /** `result: null` means the member failed to persist and rolls back. */
 export type BatchOutcome = { tempId: string; result: PlannerPlacement | null };
 /** A batch outcome tagged with its course — the reconcile-by-course shape the group/place-back fan-outs build. */
@@ -84,12 +87,13 @@ export function eligibleMembers(placements: LocalPlacement[], memberIds: string[
 export function addManyOptimistic(prev: LocalPlacement[], entries: BatchEntry[], cell: CellData): LocalPlacement[] {
   return [
     ...prev,
-    ...entries.map(({ tempId, courseId, week }) => ({
+    ...entries.map(({ tempId, courseId, week, isOptional }) => ({
       id: tempId,
       courseId,
       day: cell.day,
       period: cell.period,
       week,
+      isOptional,
       pending: true,
     })),
   ];

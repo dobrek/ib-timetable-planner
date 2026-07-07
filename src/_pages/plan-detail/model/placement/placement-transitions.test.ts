@@ -38,6 +38,7 @@ const p = (
   day,
   period,
   week,
+  isOptional: false,
   ...(pending ? { pending } : {}),
 });
 
@@ -49,6 +50,7 @@ const server = (id: string, courseId: string, day: number, period: number, bundl
   day,
   period,
   week: "both",
+  isOptional: false,
   ...(bundleId ? { bundleId } : {}),
 });
 
@@ -134,8 +136,8 @@ describe("group batch transitions", () => {
       addManyOptimistic(
         prev,
         [
-          { tempId: "t1", courseId: "A", week: "both" },
-          { tempId: "t2", courseId: "B", week: "both" },
+          { tempId: "t1", courseId: "A", week: "both", isOptional: false },
+          { tempId: "t2", courseId: "B", week: "both", isOptional: false },
         ],
         cell(1, 1),
       ),
@@ -145,7 +147,7 @@ describe("group batch transitions", () => {
   it("addManyOptimistic does not mutate the input array", () => {
     const prev = [p("p1", "X", 2, 2)];
     const snapshot = [...prev];
-    addManyOptimistic(prev, [{ tempId: "t1", courseId: "A", week: "both" }], cell(1, 1));
+    addManyOptimistic(prev, [{ tempId: "t1", courseId: "A", week: "both", isOptional: false }], cell(1, 1));
     expect(prev).toEqual(snapshot);
   });
 
@@ -335,7 +337,7 @@ describe("bundle move/remove transitions", () => {
   it("moveManyOptimistic moves movers to the target (pending) and drops mergers in one pass", () => {
     const prev = [p("s_a", "A", 1, 1), p("s_b", "B", 1, 1), p("t_b", "B", 2, 2), p("t_c", "C", 2, 2)];
     expect(moveManyOptimistic(prev, ["s_a"], ["s_b"], cell(2, 2))).toEqual([
-      { id: "s_a", courseId: "A", day: 2, period: 2, week: "both", pending: true },
+      { id: "s_a", courseId: "A", day: 2, period: 2, week: "both", isOptional: false, pending: true },
       p("t_b", "B", 2, 2),
       p("t_c", "C", 2, 2),
     ]);

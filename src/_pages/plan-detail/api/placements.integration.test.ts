@@ -57,6 +57,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       day: 1,
       period: 1,
       week: "both",
+      isOptional: false,
     });
     expect(placement.week).toBe("both");
 
@@ -72,6 +73,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       day: 2,
       period: 2,
       week: "a",
+      isOptional: false,
     });
     expect(placement.week).toBe("a");
 

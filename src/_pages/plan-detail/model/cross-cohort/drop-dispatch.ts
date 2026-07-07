@@ -62,7 +62,13 @@ export function applyDropAction(
       break;
     case "parkCourse":
       park(
-        [{ courseId: action.courseId, week: defaultParkedWeek(action.courseId, weekModeByCourseId) }],
+        [
+          {
+            courseId: action.courseId,
+            week: defaultParkedWeek(action.courseId, weekModeByCourseId),
+            isOptional: false,
+          },
+        ],
         actions,
         effects,
       );

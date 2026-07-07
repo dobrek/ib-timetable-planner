@@ -32,16 +32,16 @@ describe("groupingParkedMembers", () => {
   it("alternates an opposite-week grouping's members a/b (sorted by id)", () => {
     const groupings = [grouping({ id: "g1", memberIds: ["c2", "c1"], oppositeWeek: true })];
     expect(groupingParkedMembers("g1", groupings, weekModes({ c1: "biweekly", c2: "biweekly" }))).toEqual([
-      { courseId: "c2", week: "b" },
-      { courseId: "c1", week: "a" },
+      { courseId: "c2", week: "b", isOptional: false },
+      { courseId: "c1", week: "a", isOptional: false },
     ]);
   });
 
   it("resolves each member of a plain grouping by its own default week", () => {
     const groupings = [grouping({ id: "g1", memberIds: ["c1", "c2"] })];
     expect(groupingParkedMembers("g1", groupings, weekModes({ c1: "biweekly", c2: "agnostic" }))).toEqual([
-      { courseId: "c1", week: "a" },
-      { courseId: "c2", week: "both" },
+      { courseId: "c1", week: "a", isOptional: false },
+      { courseId: "c2", week: "both", isOptional: false },
     ]);
   });
 

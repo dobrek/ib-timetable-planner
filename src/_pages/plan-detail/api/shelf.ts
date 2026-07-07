@@ -35,7 +35,9 @@ export const deleteShelfBundleInput = z.object({
 export const shelveCoursesInput = z.object({
   planId: z.uuid(),
   cohort: cohortSchema,
-  members: z.array(z.object({ courseId: z.uuid(), week: placementWeekSchema })).min(1),
+  members: z
+    .array(z.object({ courseId: z.uuid(), week: placementWeekSchema, isOptional: z.boolean().default(false) }))
+    .min(1),
 });
 
 export type ShelveBundleInput = z.infer<typeof shelveBundleInput>;
@@ -101,6 +103,7 @@ export const shelveCourses = async (supabase: Supabase, input: ShelveCoursesInpu
     p_cohort: input.cohort,
     p_course_ids: input.members.map((member) => member.courseId),
     p_weeks: input.members.map((member) => member.week),
+    p_optionals: input.members.map((member) => member.isOptional),
   });
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to shelve courses: ${error.message}`);
   return { id: data.id, members: input.members };

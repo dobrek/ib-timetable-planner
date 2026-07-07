@@ -11,6 +11,7 @@ export function placeCourse(args: {
   day: number;
   period: number;
   week: PlacementWeek;
+  isOptional: boolean;
 }): Promise<PlannerPlacement> {
   return callActionData(actions.placeCourse, args);
 }

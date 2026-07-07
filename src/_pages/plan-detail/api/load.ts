@@ -152,7 +152,7 @@ const fetchGroupings = (supabase: SupabaseClient, planId: string, cohort: Cohort
 const fetchShelfBundles = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>
   supabase
     .from("shelf_bundles")
-    .select("id, shelf_bundle_courses(course_id, week)")
+    .select("id, shelf_bundle_courses(course_id, week, is_optional)")
     .eq("plan_id", planId)
     .eq("cohort", cohort);
 
@@ -191,9 +191,16 @@ const mapAvailability = (
   rows.map((row) => ({ teacherKey: row.teacher_id, day: row.day, period: row.period, severity: row.severity }));
 
 const mapParkedBundles = (
-  rows: { id: string; shelf_bundle_courses: { course_id: string; week: PlannerPlacement["week"] }[] }[],
+  rows: {
+    id: string;
+    shelf_bundle_courses: { course_id: string; week: PlannerPlacement["week"]; is_optional: boolean }[];
+  }[],
 ): ParkedBundle[] =>
   rows.map((row) => ({
     id: row.id,
-    members: row.shelf_bundle_courses.map((member) => ({ courseId: member.course_id, week: member.week })),
+    members: row.shelf_bundle_courses.map((member) => ({
+      courseId: member.course_id,
+      week: member.week,
+      isOptional: member.is_optional,
+    })),
   }));

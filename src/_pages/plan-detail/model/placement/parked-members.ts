@@ -28,8 +28,10 @@ export const groupingParkedMembers = (
   const grouping = groupings.find((candidate) => candidate.id === groupingId);
   if (!grouping) return [];
   const weekByMember = grouping.oppositeWeek ? oppositeWeekAssignment(grouping.memberIds) : null;
+  // A palette grouping was never placed, so its members carry no pending optional decision.
   return grouping.memberIds.map((courseId) => ({
     courseId,
     week: weekByMember?.get(courseId) ?? defaultParkedWeek(courseId, weekModeByCourseId),
+    isOptional: false,
   }));
 };

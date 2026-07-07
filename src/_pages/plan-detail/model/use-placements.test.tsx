@@ -68,6 +68,7 @@ function serverEcho(prefix = "srv"): void {
       day: placeArgs.day,
       period: placeArgs.period,
       week: placeArgs.week,
+      isOptional: false,
       bundleId: `bundle-${placeArgs.day}-${placeArgs.period}`,
     }),
   );
@@ -81,12 +82,15 @@ function serverEcho(prefix = "srv"): void {
         day: moveArgs.targetDay,
         period: moveArgs.targetPeriod,
         week: "both" as const,
+        isOptional: false,
         bundleId: `bundle-${moveArgs.targetDay}-${moveArgs.targetPeriod}`,
       })),
     ),
   );
   removeMock.mockResolvedValue(undefined);
-  updateWeekMock.mockImplementation((id, week) => Promise.resolve({ id, courseId: "echo", day: 1, period: 1, week }));
+  updateWeekMock.mockImplementation((id, week) =>
+    Promise.resolve({ id, courseId: "echo", day: 1, period: 1, week, isOptional: false }),
+  );
   shelveMock.mockImplementation((a) => Promise.resolve({ id: `shelf-${a.day}-${a.period}`, members: [] }));
   unshelveMock.mockResolvedValue([]);
   deleteShelfMock.mockResolvedValue(undefined);
@@ -134,7 +138,15 @@ describe("usePlacements — add", () => {
     const tempId = result.current.placements[0].id;
 
     await act(async () => {
-      place.resolve({ id: "srv-1", courseId: "c1", day: 1, period: 1, week: "both", bundleId: "bundle-1-1" });
+      place.resolve({
+        id: "srv-1",
+        courseId: "c1",
+        day: 1,
+        period: 1,
+        week: "both",
+        isOptional: false,
+        bundleId: "bundle-1-1",
+      });
       await place.promise;
     });
 
@@ -181,7 +193,9 @@ describe("usePlacements — move", () => {
     expect(result.current.placements[0]).toMatchObject({ courseId: "c1", day: 2, period: 3, pending: true });
 
     await act(async () => {
-      move.resolve([{ id: "p1", courseId: "c1", day: 2, period: 3, week: "both", bundleId: "bundle-2-3" }]);
+      move.resolve([
+        { id: "p1", courseId: "c1", day: 2, period: 3, week: "both", isOptional: false, bundleId: "bundle-2-3" },
+      ]);
       await move.promise;
     });
 
@@ -446,6 +460,7 @@ describe("usePlacements — duplicateBundle", () => {
       day: 1,
       period: 1,
       week: "both",
+      isOptional: false,
       pending: true,
     };
     const { result } = renderHook(() => usePlacements([pendingRow], args(new Map(), { catalog: [a] })));
@@ -630,16 +645,16 @@ describe("usePlacements — placeBack", () => {
     {
       id: "s1",
       members: [
-        { courseId: "c1", week: "both" as const },
-        { courseId: "c2", week: "both" as const },
+        { courseId: "c1", week: "both" as const, isOptional: false },
+        { courseId: "c2", week: "both" as const, isOptional: false },
       ],
     },
   ];
 
   it("removes the card and adds placements at the target, reconciling by courseId", async () => {
     unshelveMock.mockResolvedValueOnce([
-      { id: "srv-1", courseId: "c1", day: 2, period: 2, week: "both", bundleId: "bundle-2-2" },
-      { id: "srv-2", courseId: "c2", day: 2, period: 2, week: "both", bundleId: "bundle-2-2" },
+      { id: "srv-1", courseId: "c1", day: 2, period: 2, week: "both", isOptional: false, bundleId: "bundle-2-2" },
+      { id: "srv-2", courseId: "c2", day: 2, period: 2, week: "both", isOptional: false, bundleId: "bundle-2-2" },
     ]);
 
     const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: parked }));
@@ -666,8 +681,8 @@ describe("usePlacements — placeBack", () => {
   it("drops a member already present at an occupied target from the optimistic add (merge, no duplicate)", async () => {
     const seeded = [placement("existing", "c2", 2, 2)]; // c2 twin already at target
     unshelveMock.mockResolvedValueOnce([
-      { id: "srv-1", courseId: "c1", day: 2, period: 2, week: "both", bundleId: "bundle-2-2" },
-      { id: "existing", courseId: "c2", day: 2, period: 2, week: "both", bundleId: "bundle-2-2" },
+      { id: "srv-1", courseId: "c1", day: 2, period: 2, week: "both", isOptional: false, bundleId: "bundle-2-2" },
+      { id: "existing", courseId: "c2", day: 2, period: 2, week: "both", isOptional: false, bundleId: "bundle-2-2" },
     ]);
 
     const { result } = renderHook(() => usePlacements(seeded, { ...args(), initialParked: parked }));
@@ -707,7 +722,7 @@ describe("usePlacements — placeBack", () => {
 });
 
 describe("usePlacements — removeParked (discard)", () => {
-  const parked = [{ id: "s1", members: [{ courseId: "c1", week: "both" as const }] }];
+  const parked = [{ id: "s1", members: [{ courseId: "c1", week: "both" as const, isOptional: false }] }];
 
   it("discards the card optimistically and calls deleteShelfBundle", async () => {
     const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: parked }));
@@ -742,7 +757,9 @@ describe("usePlacements — removeParked (discard)", () => {
   });
 
   it("is a no-op for a pending card", () => {
-    const pendingParked = [{ id: "tmp", members: [{ courseId: "c1", week: "both" as const }], pending: true }];
+    const pendingParked = [
+      { id: "tmp", members: [{ courseId: "c1", week: "both" as const, isOptional: false }], pending: true },
+    ];
     const { result } = renderHook(() => usePlacements([], { ...args(), initialParked: pendingParked }));
     act(() => {
       result.current.removeParked("tmp");
@@ -754,8 +771,8 @@ describe("usePlacements — removeParked (discard)", () => {
 
 describe("usePlacements — parkMembers (park a course-set directly)", () => {
   const members = [
-    { courseId: "c1", week: "a" as const },
-    { courseId: "c2", week: "b" as const },
+    { courseId: "c1", week: "a" as const, isOptional: false },
+    { courseId: "c2", week: "b" as const, isOptional: false },
   ];
 
   it("adds a pending card immediately, then reconciles its id; no board placements touched", async () => {

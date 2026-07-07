@@ -13,7 +13,7 @@ import SlotCell from "./SlotCell";
 // bundled-gated. The cell is a dnd droppable/draggable, so it renders inside a DragDropProvider.
 
 const occupant = (courseId: string, name: string, week: PlacementWeek = "both"): CellOccupant => ({
-  placement: { id: `p-${courseId}`, courseId, day: 2, period: 3, week },
+  placement: { id: `p-${courseId}`, courseId, day: 2, period: 3, week, isOptional: false },
   name,
   color: null,
   blocking: false,

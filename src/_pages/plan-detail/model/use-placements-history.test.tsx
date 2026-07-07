@@ -39,7 +39,11 @@ const COHORT: Cohort = "dp1";
 
 type RecordFn = (entry: Omit<HistoryEntry, "cohort">) => void;
 
-const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({ courseId, week });
+const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({
+  courseId,
+  week,
+  isOptional: false,
+});
 
 function serverEcho(): void {
   let n = 0;
@@ -50,6 +54,7 @@ function serverEcho(): void {
       day: a.day,
       period: a.period,
       week: a.week,
+      isOptional: false,
       bundleId: `bundle-${a.day}-${a.period}`,
     }),
   );
@@ -61,12 +66,15 @@ function serverEcho(): void {
         day: a.targetDay,
         period: a.targetPeriod,
         week: "both" as const,
+        isOptional: false,
         bundleId: `bundle-${a.targetDay}-${a.targetPeriod}`,
       })),
     ),
   );
   removeMock.mockResolvedValue(undefined);
-  updateWeekMock.mockImplementation((id, week) => Promise.resolve({ id, courseId: "echo", day: 1, period: 1, week }));
+  updateWeekMock.mockImplementation((id, week) =>
+    Promise.resolve({ id, courseId: "echo", day: 1, period: 1, week, isOptional: false }),
+  );
   shelveMock.mockImplementation((a) => Promise.resolve({ id: `shelf-${a.day}-${a.period}`, members: [] }));
   unshelveMock.mockImplementation((a) =>
     Promise.resolve([
@@ -76,6 +84,7 @@ function serverEcho(): void {
         day: a.targetDay,
         period: a.targetPeriod,
         week: "both",
+        isOptional: false,
         bundleId: "b",
       },
     ]),
@@ -329,7 +338,10 @@ describe("applyReconcile", () => {
     const { result } = renderHook(() => usePlacements([], mkArgs(undefined)));
     await act(async () => {
       await result.current.applyReconcile(
-        { placements: [{ id: "stale", courseId: "c1", day: 1, period: 1, week: "both" }], cards: [] },
+        {
+          placements: [{ id: "stale", courseId: "c1", day: 1, period: 1, week: "both", isOptional: false }],
+          cards: [],
+        },
         { cells: ["1:1"], cardSets: [] },
       );
     });

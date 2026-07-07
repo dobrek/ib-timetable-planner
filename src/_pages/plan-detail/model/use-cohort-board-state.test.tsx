@@ -41,6 +41,7 @@ const placement = (courseId: string, day: number, period: number): LocalPlacemen
   day,
   period,
   week: "both",
+  isOptional: false,
 });
 
 describe("indexFromPlacements (live cross-cohort index)", () => {
@@ -100,6 +101,7 @@ describe("useCombinedBoardState (live cross-cohort re-validation)", () => {
         day: args.day,
         period: args.period,
         week: args.week,
+        isOptional: false,
         bundleId: `bundle-${args.day}-${args.period}`,
       }),
     );

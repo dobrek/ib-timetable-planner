@@ -12,7 +12,7 @@ import { useHistoryControls, useHistoryRecorder, type CohortHistoryApi } from ".
 const SCOPE: AffectedScope = { cells: ["1:1"], cardSets: [] };
 const emptySlice = (): AffectedSlice => ({ placements: [], cards: [] });
 const sliceOf = (id: string): AffectedSlice => ({
-  placements: [{ id, courseId: id, day: 1, period: 1, week: "both" }],
+  placements: [{ id, courseId: id, day: 1, period: 1, week: "both", isOptional: false }],
   cards: [],
 });
 

@@ -12,7 +12,7 @@ import { deleteShelfBundle, shelveBundle, shelveCourses, unshelveBundle } from "
  */
 export function makeRpcs(planId: string, cohort: Cohort) {
   return {
-    placeCourse: (args: { courseId: string; day: number; period: number; week: PlacementWeek }) =>
+    placeCourse: (args: { courseId: string; day: number; period: number; week: PlacementWeek; isOptional: boolean }) =>
       placeCourse({ planId, cohort, ...args }),
     moveBundleMembers: (args: {
       day: number;

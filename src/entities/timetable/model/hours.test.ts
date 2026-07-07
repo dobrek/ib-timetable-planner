@@ -17,6 +17,7 @@ const placement = (id: string, courseId: string, day: number, period: number): P
   day,
   period,
   week: "both",
+  isOptional: false,
 });
 
 describe("deriveHours", () => {

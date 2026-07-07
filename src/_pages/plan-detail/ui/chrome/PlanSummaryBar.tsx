@@ -48,7 +48,6 @@ export default function PlanSummaryBar({
             <button
               type="button"
               data-slot="parked-badge"
-              data-parked={parkedCount}
               aria-label={`${parkedCount} parked — open shelf`}
               onClick={onExpandShelf}
             >
@@ -82,7 +81,7 @@ function HoursSummary({
 }) {
   if (hoursLeft === 0 && hoursOver === 0) {
     return (
-      <span data-slot="plan-summary" data-hours-left={0} data-hours-over={0} className="text-muted-foreground text-sm">
+      <span data-slot="plan-summary" className="text-muted-foreground text-sm">
         <span className="text-foreground font-medium">All course hours placed</span>
       </span>
     );
@@ -93,8 +92,6 @@ function HoursSummary({
         <button
           type="button"
           data-slot="plan-summary"
-          data-hours-left={hoursLeft}
-          data-hours-over={hoursOver}
           aria-label={`${ariaLabel(hoursLeft, hoursOver)} — show breakdown`}
           className="text-muted-foreground hover:decoration-foreground decoration-muted-foreground/50 cursor-pointer text-sm underline decoration-dotted underline-offset-4"
         >

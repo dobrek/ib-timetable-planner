@@ -170,7 +170,6 @@ function Chip({
   return (
     <div
       data-slot="perspective-chip"
-      data-optional={placement.isOptional ? "true" : undefined}
       aria-roledescription="placement"
       aria-invalid={blocking}
       className={cn(

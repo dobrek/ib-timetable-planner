@@ -31,19 +31,23 @@ test.describe("courses-left popover", () => {
     await computeGroupings(page, courseDisplay);
 
     // --- The bar reports unplaced HOURS as a Popover trigger (2h course, nothing placed → > 0).
-    // Located by role/accessible-name (e2e/CLAUDE.md); data-hours-left is read as an assertion, not a locator.
+    // The trigger's accessible name spells the hours out ("N hours left to place — show breakdown");
+    // the zero state renders a plain "All course hours placed" span instead, so a name matching
+    // "hours left to place" is itself the proof the count is positive.
     const trigger = page.getByRole("button", { name: /show breakdown/ });
     await expect(trigger).toBeVisible();
-    expect(Number(await trigger.getAttribute("data-hours-left"))).toBeGreaterThan(0);
+    await expect(trigger).toHaveAccessibleName(/^\d+ hours? left to place/);
 
-    // --- Clicking it opens the breakdown; the Missing section lists the course with its counter.
-    // The Popover content is a Radix dialog; scope the row's hours-counter (no role/text) inside it.
+    // --- Clicking it opens the breakdown; the Missing section lists the course row with its
+    // visible placed/required counter ("0/2").
     const popover = page.getByRole("dialog");
     await clickToReveal(trigger, popover);
     await expect(popover.getByText("Course placement")).toBeVisible();
     await expect(popover.getByText("Missing", { exact: true })).toBeVisible();
     await expect(popover.getByText(/hours? left/)).toBeVisible();
-    await expect(popover.locator('[data-slot="hours-counter"]').first()).toBeVisible();
+    const missingRow = popover.getByRole("listitem").filter({ hasText: courseDisplay });
+    await expect(missingRow).toBeVisible();
+    await expect(missingRow).toContainText(/\d+\/\d+/);
 
     await deletePlan(page, plan.name);
   });

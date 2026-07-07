@@ -77,7 +77,6 @@ export default function ParkedBundleCard({ bundle, courseDisplay, cohort, onRemo
           return (
             <li
               key={member.courseId}
-              data-optional={member.isOptional ? "true" : undefined}
               className={cn(
                 "flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs",
                 subjectChipClass(display.color),

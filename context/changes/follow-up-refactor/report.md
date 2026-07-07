@@ -81,9 +81,9 @@ Three field-identical `toPlannerPlacement` mappers (each with its own inline row
 
 The ~20-line guard/snapshot/optimistic/RPC/reconcile/recordEdit/rollback skeleton now exists twice ("Mirrors persistSetWeek", says the comment). The only real divergence — constant `"setWeek"` vs `isOptional ? "markOptional" : "acceptOptional"` — parameterizes trivially.
 
-**Action points**
-- [ ] Extract one parameterized single-field persist helper (field patch + rpc + edit-kind picker); rewrite both verbs on top of it.
-- [ ] Collapse the transition trios to a shared `replaceRow(prev, id, updated)` + per-field patch.
+**Action points** — **DONE** in `a54d1d2`
+- [x] `persistSetField<V>` + `SingleFieldEdit<V>` descriptor (read/patch/RPC/edit-kind spelled once per field); `setWeek`/`setOptional` are now two descriptors over one skeleton.
+- [x] Trios (and `addReconcile`, which was the same map) collapsed into shared `patchRow`/`replaceRow` in placement-transitions.
 
 ### B4. `persistAddGroup` parallel-map positional params — **CONFIRMED**
 
@@ -91,9 +91,9 @@ The ~20-line guard/snapshot/optimistic/RPC/reconcile/recordEdit/rollback skeleto
 
 Sixth optional positional param `optionalByMember?: Map<string, boolean>` parallel to `weekByMember`; call sites build parallel maps from the same member rows only to re-zip by courseId. The public `addGroup` wrapper already omits the trailing map and typechecks — the exact silent-flag-reset shape.
 
-**Action points**
-- [ ] Change `persistAddGroup` to accept per-member specs (`{courseId, week, isOptional}[]`) — `duplicateBundle` maps `placeable` straight to specs; kill both parallel maps.
-- [ ] Apply the same member-spec shape to `persistPlaceBack`'s entry building.
+**Action points** — **DONE** in `a54d1d2`
+- [x] `persistAddGroup(members: GroupMemberSpec[], cell, opts)` — both parallel maps and the positional-arg soup are gone; `duplicateBundle` maps `placeable` straight to specs. The public `addGroup(memberIds, cell, opts)` surface is unchanged (its wrapper builds the specs).
+- [x] `persistPlaceBack`'s entries are now the parked members themselves, filtered by eligibility — the `?? "both"` / `?? false` re-zip defaults are gone.
 
 ### B5. Tests re-spell `placementBusinessKey` — **CONFIRMED**
 

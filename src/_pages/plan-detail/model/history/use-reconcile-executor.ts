@@ -97,7 +97,13 @@ export function useReconcileExecutor({
       unshelve: (shelfBundleId, targetCell) =>
         rpcs.unshelveBundle({ shelfBundleId, targetDay: targetCell.day, targetPeriod: targetCell.period }),
       place: (spec) =>
-        rpcs.placeCourse({ courseId: spec.courseId, day: spec.day, period: spec.period, week: spec.week }),
+        rpcs.placeCourse({
+          courseId: spec.courseId,
+          day: spec.day,
+          period: spec.period,
+          week: spec.week,
+          isOptional: spec.isOptional,
+        }),
       removeMembers: (cell, courseIds) => rpcs.removeBundleMembers({ day: cell.day, period: cell.period, courseIds }),
       createCard: (members) => rpcs.shelveCourses({ members }),
       deleteCard: (shelfBundleId) => rpcs.deleteShelfBundle({ shelfBundleId }),

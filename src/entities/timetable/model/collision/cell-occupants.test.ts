@@ -10,6 +10,7 @@ const placement = (id: string, courseId: string, day = 1, period = 1): LocalPlac
   day,
   period,
   week: "both",
+  isOptional: false,
 });
 
 describe("groupCellOccupants", () => {

@@ -25,6 +25,7 @@ const serverRow = (id: string, courseId: string, day: number, period: number): P
   day,
   period,
   week: "both",
+  isOptional: false,
   bundleId: `bundle-${day}-${period}`,
 });
 
@@ -349,7 +350,15 @@ describe("createBoardWrites — duplicateBundle", () => {
     empty.writes.duplicateBundle(2, 2);
     expect(empty.rpcs.placeCourse).not.toHaveBeenCalled();
 
-    const pending: LocalPlacement = { id: "p1", courseId: "A", day: 1, period: 1, week: "both", pending: true };
+    const pending: LocalPlacement = {
+      id: "p1",
+      courseId: "A",
+      day: 1,
+      period: 1,
+      week: "both",
+      isOptional: false,
+      pending: true,
+    };
     const busy = makeHarness({ placements: [pending], catalog: [course("A", "ta")] });
     busy.writes.duplicateBundle(1, 1);
     expect(busy.rpcs.placeCourse).not.toHaveBeenCalled();

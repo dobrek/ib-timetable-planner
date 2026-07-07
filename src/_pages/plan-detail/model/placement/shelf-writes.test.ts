@@ -11,7 +11,11 @@ import type { WriteContext } from "./write-context";
 // framework-free `shelf-transitions.test.ts` style. The public handlers are fire-and-forget
 // (`void persist*`), so each test flushes the microtask queue after dispatching.
 
-const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({ courseId, week });
+const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({
+  courseId,
+  week,
+  isOptional: false,
+});
 
 const card = (id: string, members: ParkedMember[], pending?: boolean): LocalParkedBundle => ({
   id,
@@ -25,6 +29,7 @@ const serverRow = (id: string, courseId: string, day: number, period: number): P
   day,
   period,
   week: "both",
+  isOptional: false,
   bundleId: `bundle-${day}-${period}`,
 });
 

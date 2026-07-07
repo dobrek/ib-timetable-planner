@@ -18,6 +18,8 @@ export const placeCourseInput = z.object({
   period: periodField,
   // Agnostic courses default to `both`; the drop path resolves bi-weekly courses to `a`/`b`.
   week: placementWeekSchema.default("both"),
+  // Carried so unshelve/undo-replay/duplicate restore a member's optional flag; fresh drops default false.
+  isOptional: z.boolean().default(false),
 });
 
 /** Move a member-set (course ids) from a source cell to a target cell — single move, whole-bundle move, and merge are all this. */
@@ -56,6 +58,7 @@ export type PlacementRow = {
   day: number;
   period: number;
   week: PlacementWeek;
+  is_optional: boolean;
   bundle_id: string;
 };
 
@@ -65,6 +68,7 @@ export const toPlannerPlacement = (row: PlacementRow): PlannerPlacement => ({
   day: row.day,
   period: row.period,
   week: row.week,
+  isOptional: row.is_optional,
   bundleId: row.bundle_id,
 });
 
@@ -82,6 +86,7 @@ export const placeCourse = async (supabase: Supabase, input: PlaceCourseInput): 
     p_day: input.day,
     p_period: input.period,
     p_week: input.week,
+    p_is_optional: input.isOptional,
   });
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to place course: ${error.message}`);
   return toPlannerPlacement(data);

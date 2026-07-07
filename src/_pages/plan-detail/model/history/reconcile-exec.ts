@@ -138,6 +138,6 @@ function groupByCell(keys: { courseId: string; day: number; period: number }[]):
   return [...byCell.values()];
 }
 
-/** Order-free key over a placement set's `{courseId, week}` pairs — comparable against `memberSetKey`. */
-const memberWeekKey = (rows: { courseId: string; week: ParkedMember["week"] }[]): string =>
-  memberSetKey(rows.map((row) => ({ courseId: row.courseId, week: row.week })));
+/** Order-free key over a placement set's `{courseId, week, isOptional}` triples — comparable against `memberSetKey`. */
+const memberWeekKey = (rows: { courseId: string; week: ParkedMember["week"]; isOptional: boolean }[]): string =>
+  memberSetKey(rows.map((row) => ({ courseId: row.courseId, week: row.week, isOptional: row.isOptional })));

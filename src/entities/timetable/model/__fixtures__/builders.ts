@@ -42,14 +42,14 @@ export const coTaught = (id: string, teacherKeys: string[], studentKeys: string[
   weekMode: "agnostic",
 });
 
-/** One placed course-hour. `week` defaults `both` (agnostic). */
+/** One placed course-hour. `week` defaults `both` (agnostic); never optional (the flag is inert here). */
 export const placement = (
   id: string,
   courseId: string,
   day: number,
   period: number,
   week: PlacementWeek = "both",
-): PlannerPlacement => ({ id, courseId, day, period, week });
+): PlannerPlacement => ({ id, courseId, day, period, week, isOptional: false });
 
 /** A validation catalog keyed by course id. */
 export const catalog = (...courses: GroupingCourse[]): Map<string, GroupingCourse> =>

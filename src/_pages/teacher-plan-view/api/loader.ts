@@ -177,6 +177,7 @@ const toPlannerPlacement = (row: {
   day: number;
   period: number;
   week: PlannerPlacement["week"];
+  is_optional: boolean;
   bundle_id: string;
 }): PlannerPlacement => ({
   id: row.id,
@@ -184,5 +185,6 @@ const toPlannerPlacement = (row: {
   day: row.day,
   period: row.period,
   week: row.week,
+  isOptional: row.is_optional,
   bundleId: row.bundle_id,
 });

@@ -116,6 +116,7 @@ export function createShelfWrites(ctx: WriteContext): ShelfWrites {
     const before = snapshot(scope);
 
     const weekByMember = new Map(card.members.map((m) => [m.courseId, m.week] as const));
+    const optionalByMember = new Map(card.members.map((m) => [m.courseId, m.isOptional] as const));
     const eligible = eligibleMembers(
       placementsRef.current,
       card.members.map((m) => m.courseId),
@@ -125,6 +126,7 @@ export function createShelfWrites(ctx: WriteContext): ShelfWrites {
       tempId: crypto.randomUUID(),
       courseId,
       week: weekByMember.get(courseId) ?? "both",
+      isOptional: optionalByMember.get(courseId) ?? false,
     }));
 
     setParkedBundles((prev) => unparkOptimistic(prev, shelfBundleId));

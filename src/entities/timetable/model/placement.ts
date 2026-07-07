@@ -9,6 +9,12 @@ export type PlannerPlacement = {
   /** Which fortnightly week this placement runs on. Agnostic courses are always `both`. */
   week: PlacementWeek;
   /**
+   * Durable "temporary choice" marker: the author flagged this member as optional instead of
+   * removing it, to be accepted (flag cleared) or truly removed later. Render/review-only —
+   * validation treats an optional member exactly like any placement (it still collides).
+   */
+  isOptional: boolean;
+  /**
    * The bundle this placement belongs to. The server always supplies it (`bundle_id` is
    * `NOT NULL`); it is `undefined` only on an unsettled optimistic row, before `settleMany`
    * swaps in the server row. Carried for forward use (S-07 park / S-08 undo) — no S-05 code

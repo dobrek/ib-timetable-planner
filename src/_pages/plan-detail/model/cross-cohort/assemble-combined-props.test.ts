@@ -27,12 +27,12 @@ describe("assembleCombinedProps", () => {
   it("returns both cohorts fully-editable, each carrying its own placements + catalog", () => {
     const dp1 = cohortInputs({
       cohort: "dp1",
-      placements: [{ id: "p1", courseId: "c1", day: 1, period: 1, week: "both" }],
+      placements: [{ id: "p1", courseId: "c1", day: 1, period: 1, week: "both", isOptional: false }],
       catalog: [course("c1", ["t1"])],
     });
     const dp2 = cohortInputs({
       cohort: "dp2",
-      placements: [{ id: "p2", courseId: "c2", day: 2, period: 2, week: "both" }],
+      placements: [{ id: "p2", courseId: "c2", day: 2, period: 2, week: "both", isOptional: false }],
       catalog: [course("c2", ["t2"])],
     });
 
@@ -49,12 +49,12 @@ describe("assembleCombinedProps", () => {
   it("derives each cohort's crossCohortOccupancy from the *other* cohort's placements", () => {
     const dp1 = cohortInputs({
       cohort: "dp1",
-      placements: [{ id: "p1", courseId: "c1", day: 1, period: 1, week: "a" }],
+      placements: [{ id: "p1", courseId: "c1", day: 1, period: 1, week: "a", isOptional: false }],
       catalog: [course("c1", ["shared"])],
     });
     const dp2 = cohortInputs({
       cohort: "dp2",
-      placements: [{ id: "p2", courseId: "c2", day: 3, period: 4, week: "b" }],
+      placements: [{ id: "p2", courseId: "c2", day: 3, period: 4, week: "b", isOptional: false }],
       catalog: [course("c2", ["shared"])],
     });
 

@@ -42,9 +42,9 @@ export function unparkRollback(prev: LocalParkedBundle[], removed: LocalParkedBu
 
 // --- Source read (the park source) ---
 
-/** Read a cell's occupant `{courseId, week}` set — the membership captured when lifting it. */
+/** Read a cell's occupant `{courseId, week, isOptional}` set — the membership captured when lifting it. */
 export function membersAtCell(placements: LocalPlacement[], day: number, period: number): ParkedMember[] {
   return placements
     .filter((placement) => placement.day === day && placement.period === period)
-    .map((placement) => ({ courseId: placement.courseId, week: placement.week }));
+    .map((placement) => ({ courseId: placement.courseId, week: placement.week, isOptional: placement.isOptional }));
 }

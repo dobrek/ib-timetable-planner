@@ -118,7 +118,7 @@ describe("applyDropAction — action → actions.* mapping", () => {
     applyDropAction({ kind: "parkCourse", cohort: "dp1", courseId: "c5" }, () => makeState(actions), {
       collapseUnlessPinned,
     });
-    expect(mocks.parkMembers).toHaveBeenCalledWith([{ courseId: "c5", week: "a" }]);
+    expect(mocks.parkMembers).toHaveBeenCalledWith([{ courseId: "c5", week: "a", isOptional: false }]);
     expect(collapseUnlessPinned).toHaveBeenCalledTimes(1);
   });
 
@@ -129,8 +129,8 @@ describe("applyDropAction — action → actions.* mapping", () => {
       collapseUnlessPinned,
     });
     expect(mocks.parkMembers).toHaveBeenCalledWith([
-      { courseId: "c1", week: "both" },
-      { courseId: "c5", week: "a" },
+      { courseId: "c1", week: "both", isOptional: false },
+      { courseId: "c5", week: "a", isOptional: false },
     ]);
     expect(collapseUnlessPinned).toHaveBeenCalledTimes(1);
   });

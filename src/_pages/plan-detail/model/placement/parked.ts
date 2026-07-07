@@ -1,7 +1,7 @@
 import type { PlacementWeek } from "@/shared/config";
 
-/** One course in a parked (shelved) bundle, carrying its A/B week so the formation survives. */
-export type ParkedMember = { courseId: string; week: PlacementWeek };
+/** One course in a parked (shelved) bundle, carrying its A/B week and optional flag so the formation survives. */
+export type ParkedMember = { courseId: string; week: PlacementWeek; isOptional: boolean };
 
 /**
  * A parked bundle: the server-durable off-board unit (a `shelf_bundles` row + its

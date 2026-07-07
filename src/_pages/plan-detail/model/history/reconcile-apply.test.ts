@@ -26,6 +26,7 @@ const lp = (
   day,
   period,
   week,
+  isOptional: false,
   bundleId: `bundle-${day}-${period}`,
 });
 const key = (courseId: string, day: number, period: number, week: PlacementWeek = "both"): PlacementKey => ({
@@ -33,8 +34,13 @@ const key = (courseId: string, day: number, period: number, week: PlacementWeek 
   day,
   period,
   week,
+  isOptional: false,
 });
-const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({ courseId, week });
+const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({
+  courseId,
+  week,
+  isOptional: false,
+});
 const card = (id: string, members: ParkedMember[]): LocalParkedBundle => ({ id, members });
 
 describe("reconcilePlacementsOptimistic", () => {
@@ -44,7 +50,7 @@ describe("reconcilePlacementsOptimistic", () => {
     const next = reconcilePlacementsOptimistic(prev, [key("A", 1, 1)], placeEntries);
     expect(next).toEqual([
       lp("p2", "B", 2, 2),
-      { id: "t1", courseId: "A", day: 3, period: 3, week: "both", pending: true },
+      { id: "t1", courseId: "A", day: 3, period: 3, week: "both", isOptional: false, pending: true },
     ]);
     expect(prev).toHaveLength(2); // input not mutated
   });
@@ -61,14 +67,18 @@ describe("reconcileCardsOptimistic", () => {
 
 describe("settleReconcilePlacements", () => {
   it("swaps placed temps for their server rows by course id", () => {
-    const prev = [{ id: "t1", courseId: "A", day: 3, period: 3, week: "both" as const, pending: true }];
+    const prev = [
+      { id: "t1", courseId: "A", day: 3, period: 3, week: "both" as const, isOptional: false, pending: true },
+    ];
     const placeEntries: PlaceEntry[] = [{ tempId: "t1", spec: key("A", 3, 3) }];
     const next = settleReconcilePlacements(prev, placeEntries, [lp("srv-A", "A", 3, 3)]);
     expect(next).toEqual([lp("srv-A", "A", 3, 3)]);
   });
 
   it("drops a temp the RPC did not return a row for", () => {
-    const prev = [{ id: "t1", courseId: "A", day: 3, period: 3, week: "both" as const, pending: true }];
+    const prev = [
+      { id: "t1", courseId: "A", day: 3, period: 3, week: "both" as const, isOptional: false, pending: true },
+    ];
     const placeEntries: PlaceEntry[] = [{ tempId: "t1", spec: key("A", 3, 3) }];
     expect(settleReconcilePlacements(prev, placeEntries, [])).toEqual([]);
   });
@@ -87,7 +97,7 @@ describe("rollback", () => {
   it("rollbackReconcilePlacements drops the optimistic places and restores the removed rows", () => {
     const prev = [
       lp("p2", "B", 2, 2),
-      { id: "t1", courseId: "A", day: 3, period: 3, week: "both" as const, pending: true },
+      { id: "t1", courseId: "A", day: 3, period: 3, week: "both" as const, isOptional: false, pending: true },
     ];
     const placeEntries: PlaceEntry[] = [{ tempId: "t1", spec: key("A", 3, 3) }];
     const next = rollbackReconcilePlacements(prev, placeEntries, [lp("p1", "A", 1, 1)]);

@@ -10,14 +10,20 @@ const key = (courseId: string, day: number, period: number, week: PlacementWeek 
   day,
   period,
   week,
+  isOptional: false,
 });
-const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({ courseId, week });
+const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({
+  courseId,
+  week,
+  isOptional: false,
+});
 const row = (courseId: string, day: number, period: number, week: PlacementWeek = "both"): PlannerPlacement => ({
   id: `srv-${courseId}-${day}-${period}`,
   courseId,
   day,
   period,
   week,
+  isOptional: false,
   bundleId: `bundle-${day}-${period}`,
 });
 

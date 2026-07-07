@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
 import { cellKey, type LocalPlacement } from "@/entities/timetable";
 import type { LocalParkedBundle, ParkedMember } from "../placement/parked";
-import { sliceAt } from "./affected-slice";
+import { memberSetKey, placementBusinessKey, sliceAt } from "./affected-slice";
 import type { AffectedScope } from "./history-entry";
 
 const lp = (
@@ -18,11 +18,16 @@ const lp = (
   day,
   period,
   week,
+  isOptional: false,
   bundleId: `bundle-${day}-${period}`,
   ...(pending ? { pending } : {}),
 });
 
-const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({ courseId, week });
+const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({
+  courseId,
+  week,
+  isOptional: false,
+});
 
 const card = (id: string, members: ParkedMember[]): LocalParkedBundle => ({ id, members });
 
@@ -43,7 +48,7 @@ describe("sliceAt — board", () => {
   it("strips the local-only pending flag to a clean PlannerPlacement", () => {
     const result = sliceAt([lp("p1", "A", 1, 1, "a", true)], [], scope([cellKey(1, 1)]));
     expect(result.placements).toEqual([
-      { id: "p1", courseId: "A", day: 1, period: 1, week: "a", bundleId: "bundle-1-1" },
+      { id: "p1", courseId: "A", day: 1, period: 1, week: "a", isOptional: false, bundleId: "bundle-1-1" },
     ]);
     expect("pending" in result.placements[0]).toBe(false);
   });
@@ -72,6 +77,25 @@ describe("sliceAt — shelf", () => {
     const cards = [card("s1", [member("A")]), card("s2", [member("A")])];
     const result = sliceAt([], cards, scope([], [[member("A")], [member("A")]]));
     expect(result.cards).toEqual([[member("A")], [member("A")]]);
+  });
+});
+
+describe("business keys — the optional axis", () => {
+  it("placementBusinessKey separates two rows differing only in isOptional", () => {
+    const key = { courseId: "A", day: 1, period: 1, week: "both" as const };
+    expect(placementBusinessKey({ ...key, isOptional: false })).not.toBe(
+      placementBusinessKey({ ...key, isOptional: true }),
+    );
+  });
+
+  it("memberSetKey separates two member-sets differing only in isOptional", () => {
+    expect(memberSetKey([member("A")])).not.toBe(memberSetKey([{ ...member("A"), isOptional: true }]));
+  });
+
+  it("sliceAt does not match a card whose member-set differs only in the flag", () => {
+    const cards = [card("s1", [member("A")])];
+    const result = sliceAt([], cards, scope([], [[{ ...member("A"), isOptional: true }]]));
+    expect(result.cards).toEqual([]);
   });
 });
 

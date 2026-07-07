@@ -42,6 +42,7 @@ const buildCohort = (seed: number): { catalog: Map<string, GroupingCourse>; plac
     day: (i % DAYS) + 1,
     period: (i % PERIODS) + 1,
     week: WEEKS[i % WEEKS.length],
+    isOptional: false,
   }));
   return { catalog: new Map(courses.map((course) => [course.id, course])), placements };
 };

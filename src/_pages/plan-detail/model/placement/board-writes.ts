@@ -129,13 +129,16 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
 
     // Mirror the source's exact A/B layout — carry each member's week explicitly so the fan-out
     // does not re-resolve it (which could swap A/B between members for a bi-weekly pair).
+    // The optional flags mirror the same way: a duplicated optional member stays optional.
     const weekByMember = new Map(placeable.map((p) => [p.courseId, p.week] as const));
+    const optionalByMember = new Map(placeable.map((p) => [p.courseId, p.isOptional] as const));
     void persistAddGroup(
       placeable.map((p) => p.courseId),
       target,
       false,
       weekByMember,
       "duplicate",
+      optionalByMember,
     );
     setLastDuplicated((prev) => ({ ...target, nonce: (prev?.nonce ?? 0) + 1 }));
   }
@@ -156,7 +159,7 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
     setPlacements((prev) => addOptimistic(prev, tempId, courseId, cell, week));
 
     try {
-      const row = await rpcs.placeCourse({ courseId, day: cell.day, period: cell.period, week });
+      const row = await rpcs.placeCourse({ courseId, day: cell.day, period: cell.period, week, isOptional: false });
       setPlacements((prev) => addReconcile(prev, tempId, row));
       recordEdit("add", scope, before, cell);
       setError(null); // a fully-successful settle dismisses any stale banner from a prior failure
@@ -175,6 +178,7 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
     oppositeWeek: boolean,
     weekByMember?: Map<string, PlacementWeek>,
     editKind: EditKind = "addGroup",
+    optionalByMember?: Map<string, boolean>,
   ) {
     const eligible = eligibleMembers(placementsRef.current, memberIds, cell);
     if (eligible.length === 0) return;
@@ -191,7 +195,13 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
       oppositeWeekByMember?.get(courseId) ??
       resolveDropWeek(weekModeOf(courseId), placementsRef.current, cell);
 
-    const entries = eligible.map((courseId) => ({ tempId: crypto.randomUUID(), courseId, week: weekFor(courseId) }));
+    // Only a duplicate supplies per-member flags (mirroring the source); fresh drops are never optional.
+    const entries = eligible.map((courseId) => ({
+      tempId: crypto.randomUUID(),
+      courseId,
+      week: weekFor(courseId),
+      isOptional: optionalByMember?.get(courseId) ?? false,
+    }));
     setPlacements((prev) => addManyOptimistic(prev, entries, cell));
 
     try {
@@ -218,11 +228,16 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
   }
 
   async function persistMember(
-    { tempId, courseId, week }: { tempId: string; courseId: string; week: PlacementWeek },
+    {
+      tempId,
+      courseId,
+      week,
+      isOptional,
+    }: { tempId: string; courseId: string; week: PlacementWeek; isOptional: boolean },
     cell: CellData,
   ): Promise<MemberOutcome> {
     try {
-      const row = await rpcs.placeCourse({ courseId, day: cell.day, period: cell.period, week });
+      const row = await rpcs.placeCourse({ courseId, day: cell.day, period: cell.period, week, isOptional });
       return { tempId, courseId, result: row };
     } catch (err: unknown) {
       // The banner names which members failed; keep the underlying reason traceable.

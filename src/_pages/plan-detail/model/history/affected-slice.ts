@@ -20,27 +20,38 @@ export function sliceAt(placements: LocalPlacement[], cards: LocalParkedBundle[]
   return { placements: slicePlacements, cards: sliceCards };
 }
 
-const toPlannerPlacement = ({ id, courseId, day, period, week, bundleId }: LocalPlacement): PlannerPlacement => ({
+const toPlannerPlacement = ({
   id,
   courseId,
   day,
   period,
   week,
+  isOptional,
+  bundleId,
+}: LocalPlacement): PlannerPlacement => ({
+  id,
+  courseId,
+  day,
+  period,
+  week,
+  isOptional,
   ...(bundleId !== undefined ? { bundleId } : {}),
 });
 
 /**
- * Canonical business key for a placement — `${courseId}|${day}|${period}|${week}`. The one home for
- * the reconcile-matching key the optimistic apply (`reconcile-apply.ts`) and the executor both key on;
- * the two MUST agree, so they share this single derivation rather than re-spelling it.
+ * Canonical business key for a placement — `${courseId}|${day}|${period}|${week}|${isOptional}`. The
+ * one home for the reconcile-matching key the diff (`reconcile.ts`), the optimistic apply
+ * (`reconcile-apply.ts`), and the executor all key on; they MUST agree, so they share this single
+ * derivation rather than re-spelling it. `isOptional` is part of the key so a flag flip diffs to a
+ * non-empty plan (undo of a mark/accept works) and a re-place restores the flag.
  */
-export const placementBusinessKey = ({ courseId, day, period, week }: PlacementKey): string =>
-  `${courseId}|${day}|${period}|${week}`;
+export const placementBusinessKey = ({ courseId, day, period, week, isOptional }: PlacementKey): string =>
+  `${courseId}|${day}|${period}|${week}|${isOptional}`;
 
-/** Canonical, order-free key for a member-set so two formations with the same `{course, week}` pairs match. */
+/** Canonical, order-free key for a member-set so two formations with the same `{course, week, optional}` triples match. */
 export const memberSetKey = (members: ParkedMember[]): string =>
   members
-    .map((member) => `${member.courseId}:${member.week}`)
+    .map((member) => `${member.courseId}:${member.week}:${member.isOptional}`)
     .sort()
     .join("|");
 

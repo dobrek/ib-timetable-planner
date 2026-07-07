@@ -10,7 +10,11 @@ import {
   unparkRollback,
 } from "./shelf-transitions";
 
-const member = (courseId: string, week: ParkedMember["week"] = "both"): ParkedMember => ({ courseId, week });
+const member = (courseId: string, week: ParkedMember["week"] = "both"): ParkedMember => ({
+  courseId,
+  week,
+  isOptional: false,
+});
 
 const card = (id: string, members: ParkedMember[], pending?: boolean): LocalParkedBundle => ({
   id,
@@ -24,7 +28,7 @@ const p = (
   day: number,
   period: number,
   week: LocalPlacement["week"] = "both",
-): LocalPlacement => ({ id, courseId, day, period, week });
+): LocalPlacement => ({ id, courseId, day, period, week, isOptional: false });
 
 describe("park transitions", () => {
   it("parkAddOptimistic appends a pending card carrying the members", () => {

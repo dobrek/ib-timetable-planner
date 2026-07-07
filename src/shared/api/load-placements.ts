@@ -8,7 +8,7 @@ import type { Cohort } from "@/shared/config/cohorts";
 export const loadPlacements = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>
   supabase
     .from("placements")
-    .select("id, course_id, day, period, week, bundle_id")
+    .select("id, course_id, day, period, week, is_optional, bundle_id")
     .eq("plan_id", planId)
     .eq("cohort", cohort)
     .limit(2000);

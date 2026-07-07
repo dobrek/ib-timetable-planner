@@ -16,7 +16,7 @@ const cohortInput = (opts: {
   overplaced?: CourseHours[];
   hoursLeft?: number;
   hoursOver?: number;
-  placements?: { courseId: string; isOptional: boolean }[];
+  optionalByCourse?: { courseId: string; count: number }[];
 }) => ({
   cohort: opts.cohort ?? "dp1",
   courseDisplay: opts.courseDisplay ?? {},
@@ -24,11 +24,11 @@ const cohortInput = (opts: {
   overplaced: opts.overplaced ?? [],
   hoursLeft: opts.hoursLeft ?? (opts.unplaced ?? []).reduce((s, c) => s + (c.required - c.placed), 0),
   hoursOver: opts.hoursOver ?? (opts.overplaced ?? []).reduce((s, c) => s + (c.placed - c.required), 0),
-  placements: opts.placements ?? [],
+  optionalByCourse: opts.optionalByCourse ?? [],
+  optionalCount: (opts.optionalByCourse ?? []).reduce((s, c) => s + c.count, 0),
 });
 
-const optional = (courseId: string): { courseId: string; isOptional: boolean } => ({ courseId, isOptional: true });
-const regular = (courseId: string): { courseId: string; isOptional: boolean } => ({ courseId, isOptional: false });
+const optionalCount = (courseId: string, count: number) => ({ courseId, count });
 
 const idsOf = (rows: { courseId: string }[]) => rows.map((row) => row.courseId);
 
@@ -70,11 +70,11 @@ describe("buildCoursesLeftSummary", () => {
     expect(summary.cohorts.map((c) => c.cohort)).toEqual(["dp1", "dp2"]);
   });
 
-  it("derives optional rows: filters flagged placements, groups by course, counts per course", () => {
+  it("resolves the model's optional counts to display rows", () => {
     const summary = buildCoursesLeftSummary([
       cohortInput({
         courseDisplay: { A: display("Alpha"), B: display("Beta") },
-        placements: [optional("A"), optional("A"), regular("A"), optional("B"), regular("C")],
+        optionalByCourse: [optionalCount("A", 2), optionalCount("B", 1)],
       }),
     ]);
     expect(summary.optionalCount).toBe(3);
@@ -89,25 +89,22 @@ describe("buildCoursesLeftSummary", () => {
       cohortInput({
         courseDisplay: { A: display("Zulu"), B: display("Alpha"), C: display("Mike") },
         // A count 1 (Zulu), B count 1 (Alpha), C count 2 (Mike) → C first, then Alpha < Zulu.
-        placements: [optional("A"), optional("B"), optional("C"), optional("C")],
+        optionalByCourse: [optionalCount("A", 1), optionalCount("B", 1), optionalCount("C", 2)],
       }),
     ]);
     expect(idsOf(summary.cohorts[0].optional)).toEqual(["C", "B", "A"]);
   });
 
-  it("zero-state: no optional placements → optionalCount 0 and empty per-cohort optional rows", () => {
-    const summary = buildCoursesLeftSummary([
-      cohortInput({ placements: [regular("A"), regular("B")] }),
-      cohortInput({ cohort: "dp2" }),
-    ]);
+  it("zero-state: no optional counts → optionalCount 0 and empty per-cohort optional rows", () => {
+    const summary = buildCoursesLeftSummary([cohortInput({}), cohortInput({ cohort: "dp2" })]);
     expect(summary.optionalCount).toBe(0);
     expect(summary.cohorts.every((cohort) => cohort.optional.length === 0)).toBe(true);
   });
 
   it("sums optionalCount across cohorts while rows stay per-cohort", () => {
     const summary = buildCoursesLeftSummary([
-      cohortInput({ cohort: "dp1", placements: [optional("A")] }),
-      cohortInput({ cohort: "dp2", placements: [optional("B"), optional("B")] }),
+      cohortInput({ cohort: "dp1", optionalByCourse: [optionalCount("A", 1)] }),
+      cohortInput({ cohort: "dp2", optionalByCourse: [optionalCount("B", 2)] }),
     ]);
     expect(summary.optionalCount).toBe(3);
     expect(idsOf(summary.cohorts[0].optional)).toEqual(["A"]);

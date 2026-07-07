@@ -19,6 +19,7 @@ import {
   useDuplicateHighlight,
   useHours,
   useLensMatches,
+  useOptionalTally,
 } from "./use-board-derivations";
 
 /**
@@ -197,6 +198,7 @@ function useCohortDerivations(
   const placements = base.api.placements;
   const collisions = useCollisions(placements, base.catalogById, base.availabilityIndex, freshIndex);
   const { hours, unplaced, overplaced, hoursLeft, hoursOver } = useHours(placements, props.catalog);
+  const { optionalByCourse, optionalCount } = useOptionalTally(placements);
   const { dropHints, startDragHints, clearDragHints } = useDragHints(
     base.catalogById,
     placements,
@@ -215,6 +217,8 @@ function useCohortDerivations(
     overplaced,
     hoursLeft,
     hoursOver,
+    optionalByCourse,
+    optionalCount,
     dropHints,
     startDragHints,
     clearDragHints,
@@ -240,6 +244,8 @@ const toCohortState = (
   overplaced: deriv.overplaced,
   hoursLeft: deriv.hoursLeft,
   hoursOver: deriv.hoursOver,
+  optionalByCourse: deriv.optionalByCourse,
+  optionalCount: deriv.optionalCount,
   placements: base.api.placements,
   parkedBundles: base.api.parkedBundles,
   collisions: deriv.collisions,

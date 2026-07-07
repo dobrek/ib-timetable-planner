@@ -1,6 +1,6 @@
 import { DragOverlay } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
-import { subjectChipClass, type Cohort } from "@/shared/config";
+import { optionalChipClass, subjectChipClass, type Cohort } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import { type CourseDisplay, type LocalPlacement, resolveCourseDisplay } from "@/entities/timetable";
 import type { DragData } from "../../model/drag";
@@ -93,7 +93,7 @@ function OverlayCard({
                 "truncate rounded-md border px-1.5 py-1 text-xs",
                 subjectChipClass(display.color),
                 // A dragged set keeps its optional cues — same dashed+dim axis as the chips.
-                member.isOptional && "border-dashed saturate-75",
+                member.isOptional && optionalChipClass,
               )}
             >
               {display.name}

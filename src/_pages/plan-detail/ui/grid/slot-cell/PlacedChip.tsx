@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { useDraggable } from "@dnd-kit/react";
 import { TriangleAlert, UserX } from "lucide-react";
-import { subjectChipClass, type Cohort, type PlacementWeek, type SubjectColor } from "@/shared/config";
-import { Badge } from "@/shared/ui";
+import {
+  optionalChipClass,
+  subjectChipClass,
+  type Cohort,
+  type PlacementWeek,
+  type SubjectColor,
+} from "@/shared/config";
+import { Badge, OptionalTag } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import { type CellOccupant, type CollisionInspectionTarget, isBiweekly } from "@/entities/timetable";
 import type { PlacementDrag } from "../../../model/drag";
@@ -76,10 +82,8 @@ export function PlacedChip({
       className={cn(
         CHIP_LAYOUT,
         chipToneClass({ blocking, warning, color }),
-        // Optional axis: dashed restyles the tone's border without recoloring it; the dim is a
-        // single light step (NOT opacity — pending/drag/lens already stack multiplicatively on
-        // that axis, and a dimmed optional blocking chip must still read red).
-        placement.isOptional && "border-dashed saturate-75",
+        // Optional axis composes below the tone — see optionalChipClass for the saturate-vs-opacity rationale.
+        placement.isOptional && optionalChipClass,
         placement.pending && "opacity-60",
         !placement.pending && !bundled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
@@ -90,13 +94,8 @@ export function PlacedChip({
       )}
     >
       <span className="truncate">{name}</span>
-      {/* The "not quite real" cue (ghost grammar, see WeekLane's dashed placeholder) — text-only,
-          token-based, and never a tone: the collision badge next to it keeps full strength. */}
-      {placement.isOptional && (
-        <span data-slot="optional-tag" className="text-muted-foreground shrink-0 text-[10px] italic">
-          optional
-        </span>
-      )}
+      {/* The "not quite real" cue (ghost grammar, see WeekLane's dashed placeholder). */}
+      {placement.isOptional && <OptionalTag />}
       {(blocking || warning) && (
         <Badge
           variant={blocking ? "destructive" : "warning"}

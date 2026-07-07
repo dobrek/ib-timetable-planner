@@ -58,6 +58,7 @@ export { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 export { Input } from "./input";
 export { MultiSelect, type MultiSelectItem } from "./multi-select";
 export { NumberField } from "./number-field";
+export { OptionalTag } from "./optional-tag";
 export { Label } from "./label";
 export {
   Popover,

@@ -15,6 +15,7 @@ import { deriveLensMatches, type LensCriterion } from "./lens";
 import type { CellData, DragData, SharedBoardProps } from "./drag";
 import { deriveDropHints, resolveDragHintContext, type DragHintContext } from "./drop-hints";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
+import { deriveOptionalTally } from "./optional-tally";
 
 /**
  * The pure per-cohort board derivations, composed in one place by the per-cohort assembler
@@ -79,6 +80,12 @@ export function useHours(placements: LocalPlacement[], catalog: GroupingCourse[]
   const overplaced = useMemo(() => deriveOverplaced(hours), [hours]);
   const { hoursLeft, hoursOver } = useMemo(() => summarizeHours(unplaced, overplaced), [unplaced, overplaced]);
   return { hours, unplaced, overplaced, hoursLeft, hoursOver };
+}
+
+/** The cohort's pending-optional tally — derived here like the hours siblings, so the popover
+ * summary at the UI edge only resolves display names and sorts. */
+export function useOptionalTally(placements: LocalPlacement[]) {
+  return useMemo(() => deriveOptionalTally(placements), [placements]);
 }
 
 // Turns the hook's `lastDuplicated` outcome into a transient, self-clearing highlight the grid

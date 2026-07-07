@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { PlannerPlacement } from "@/entities/timetable";
+import { toPlannerPlacement, type PlannerPlacement } from "@/entities/timetable";
 import { unwrapRow, type SupabaseClient } from "@/shared/api";
-import { cohortSchema, placementWeekSchema, type PlacementWeek } from "@/shared/config";
+import { cohortSchema, placementWeekSchema } from "@/shared/config";
 import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
 
@@ -57,26 +57,6 @@ export type MoveBundleMembersInput = z.infer<typeof moveBundleMembersInput>;
 export type RemoveBundleMembersInput = z.infer<typeof removeBundleMembersInput>;
 export type UpdatePlacementWeekInput = z.infer<typeof updatePlacementWeekInput>;
 export type UpdatePlacementOptionalInput = z.infer<typeof updatePlacementOptionalInput>;
-
-export type PlacementRow = {
-  id: string;
-  course_id: string;
-  day: number;
-  period: number;
-  week: PlacementWeek;
-  is_optional: boolean;
-  bundle_id: string;
-};
-
-export const toPlannerPlacement = (row: PlacementRow): PlannerPlacement => ({
-  id: row.id,
-  courseId: row.course_id,
-  day: row.day,
-  period: row.period,
-  week: row.week,
-  isOptional: row.is_optional,
-  bundleId: row.bundle_id,
-});
 
 /**
  * Place a single course-hour into its cell, creating the cell's bundle if absent —

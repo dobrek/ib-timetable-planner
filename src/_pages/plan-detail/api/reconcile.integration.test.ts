@@ -37,8 +37,7 @@ let AG: string; // an agnostic dp1 course (week `both`)
 let B1: string; // a bi-weekly dp1 course
 let B2: string; // a second bi-weekly dp1 course
 
-const keysOf = (placements: PlannerPlacement[]): string[] =>
-  placements.map((p) => `${p.courseId}|${p.day}|${p.period}|${p.week}|${p.isOptional}`).sort();
+const keysOf = (placements: PlannerPlacement[]): string[] => placements.map(placementBusinessKey).sort();
 const cardsOf = (cards: ParkedBundle[]): string[] => cards.map((c) => memberSetKey(c.members)).sort();
 
 async function loadCohort(planId: string): Promise<{ placements: PlannerPlacement[]; parkedBundles: ParkedBundle[] }> {

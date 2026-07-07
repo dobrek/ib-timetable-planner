@@ -3,6 +3,7 @@
 // derivation, availability/cross-cohort indexes) shared by the editing board
 // (`_pages/plan-detail`) and the read-only perspective views.
 export * from "./model/placement";
+export * from "./model/placement-row";
 export * from "./model/week";
 export * from "./model/course-display";
 export * from "./model/hours";

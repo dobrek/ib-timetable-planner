@@ -71,9 +71,9 @@ Three field-identical `toPlannerPlacement` mappers (each with its own inline row
 
 `border-dashed saturate-75` spelled verbatim four times; the italic `optional` tag span (`data-slot="optional-tag"`) three times (once as a private `OptionalTag`). The dim strategy is load-bearing (saturate, not opacity, so a dimmed blocking chip still reads red) — that rationale lives in one copy's comment only.
 
-**Action points**
-- [ ] Export `optionalChipClass` beside `subjectChipClass` in `src/shared/config/subject-colors.ts` (all four files already import from there); move the saturate-vs-opacity rationale into its doc comment.
-- [ ] Add one shared tag component (e.g. `src/shared/ui/optional-tag.tsx`) and use it in all three tag sites.
+**Action points** — **DONE** (see git log: `refactor(optional-subject-in-bundle): single homes for the optional visual axis and tally`)
+- [x] `optionalChipClass` lives in `src/shared/config/optional-chip.ts` (own concept file, per the barrel convention) with the saturate-vs-opacity rationale in its doc comment; all four components consume it.
+- [x] Shared `OptionalTag` in `src/shared/ui/optional-tag.tsx` (same `data-slot`, byte-identical DOM — e2e contract untouched); ParkedBundleCard's private copy deleted.
 
 ### B3. Single-field write machinery cloned instead of parameterized — **CONFIRMED**
 
@@ -110,9 +110,9 @@ Both hand-roll `${courseId}|${day}|${period}|${week}|${isOptional}` despite the 
 
 Every sibling input (unplaced/overplaced/hoursLeft) arrives pre-derived from model (`use-cohort-board-state` → `useHours`); the Optional tally alone is derived in ui from raw `state.placements`. `optionalCount` is also a second, independent derivation that must equal the sum of the rows' counts. (Perf is fine — React Compiler memoizes, N ≤ 2000, off the drag hot path.)
 
-**Action points**
-- [ ] Move the optional filter/group derivation into `use-cohort-board-state` next to `hoursLeft`; keep only sort/name resolution in `courses-left-summary.ts` (its header already justifies exactly that split).
-- [ ] Derive the headline count from the rows (single source) instead of a second filter pass.
+**Action points** — **DONE** (same commit as B2)
+- [x] `deriveOptionalTally` (model/optional-tally.ts) + `useOptionalTally` beside `useHours`; threaded through `toCohortState` so the summary receives pre-derived counts and only resolves display + sorts.
+- [x] One pass yields both the per-course counts and the headline total from the same filtered array — the double derivation and the per-course re-filter are gone.
 
 ### B7. `data-optional` as state channel and test contract — **CONFIRMED (deliberate deviation)**
 

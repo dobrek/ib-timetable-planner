@@ -444,15 +444,15 @@ All schema changes are additive (`boolean not null default false`) — no backfi
 
 #### Automated
 
-- [ ] 1.1 Migrations apply from scratch: `pnpm exec supabase db reset` completes cleanly
-- [ ] 1.2 Type check passes after types regen: `pnpm check`
-- [ ] 1.3 Unit suite green (untouched): `pnpm test`
-- [ ] 1.4 Integration suite green with default-false flag: `pnpm test:integration`
-- [ ] 1.5 Build clean: `pnpm build`
+- [x] 1.1 Migrations apply from scratch: `pnpm exec supabase db reset` completes cleanly
+- [x] 1.2 Type check passes after types regen: `pnpm check`
+- [x] 1.3 Unit suite green (untouched): `pnpm test`
+- [x] 1.4 Integration suite green with default-false flag: `pnpm test:integration`
+- [x] 1.5 Build clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.6 Smoke: place, group, move, shelve/unshelve, duplicate, clone — all behave exactly as before
+- [x] 1.6 Smoke: place, group, move, shelve/unshelve, duplicate, clone — all behave exactly as before (verified via full Playwright e2e suite, 27 specs green, + clone integration test)
 
 ### Phase 2: Flag Threading & History-Key Integrity
 

@@ -472,34 +472,34 @@ All schema changes are additive (`boolean not null default false`) — no backfi
 
 #### Automated
 
-- [x] 3.1 Type check: `pnpm check`
-- [x] 3.2 Unit suite incl. new trio/writer tests: `pnpm test`
-- [x] 3.3 Integration suite incl. optional round-trip + undo-restores-flag: `pnpm test:integration`
-- [x] 3.4 E2E suite green with realigned bundle-operations: `pnpm test:e2e`
-- [x] 3.5 Lint + steiger + build: `pnpm lint && pnpm steiger && pnpm build`
+- [x] 3.1 Type check: `pnpm check` — 7b4bf0c
+- [x] 3.2 Unit suite incl. new trio/writer tests: `pnpm test` — 7b4bf0c
+- [x] 3.3 Integration suite incl. optional round-trip + undo-restores-flag: `pnpm test:integration` — 7b4bf0c
+- [x] 3.4 E2E suite green with realigned bundle-operations: `pnpm test:e2e` — 7b4bf0c
+- [x] 3.5 Lint + steiger + build: `pnpm lint && pnpm steiger && pnpm build` — 7b4bf0c
 
 #### Manual
 
-- [x] 3.6 Mark/Accept/Remove via "⋯" menu work; optional chip reads dashed/dimmed/tagged (verified live via Playwright MCP on workerd preview)
-- [x] 3.7 Bundled: no menu trigger; week toggle still inline-adjustable (verified live: 0 triggers while bundled; WeekToggle path untouched)
-- [x] 3.8 Undo/redo walks mark → accept → remove with correct labels; undo of remove resurrects as optional (labels + undo-of-accept verified live; remove-resurrects pinned by reconcile integration test)
-- [x] 3.9 Collision tone dominates optional treatment; drag works (chip inert while menu open); reload preserves flag (tone ladder untouched + on top; reload verified live)
-- [x] 3.10 Headline counter unchanged when marking optional (verified live: "3 hours left to place" before/after)
+- [x] 3.6 Mark/Accept/Remove via "⋯" menu work; optional chip reads dashed/dimmed/tagged (verified live via Playwright MCP on workerd preview) — 7b4bf0c
+- [x] 3.7 Bundled: no menu trigger; week toggle still inline-adjustable (verified live: 0 triggers while bundled; WeekToggle path untouched) — 7b4bf0c
+- [x] 3.8 Undo/redo walks mark → accept → remove with correct labels; undo of remove resurrects as optional (labels + undo-of-accept verified live; remove-resurrects pinned by reconcile integration test) — 7b4bf0c
+- [x] 3.9 Collision tone dominates optional treatment; drag works (chip inert while menu open); reload preserves flag (tone ladder untouched + on top; reload verified live) — 7b4bf0c
+- [x] 3.10 Headline counter unchanged when marking optional (verified live: "3 hours left to place" before/after) — 7b4bf0c
 
 ### Phase 4: Review Surfaces + New E2E Scenario
 
 #### Automated
 
-- [ ] 4.1 Type check: `pnpm check`
-- [ ] 4.2 Unit suite incl. summary derivation tests: `pnpm test`
-- [ ] 4.3 Integration suite: `pnpm test:integration`
-- [ ] 4.4 E2E incl. the new optional-subject scenario: `pnpm test:e2e`
-- [ ] 4.5 Full local CI gate: `/verify`
+- [x] 4.1 Type check: `pnpm check`
+- [x] 4.2 Unit suite incl. summary derivation tests: `pnpm test`
+- [x] 4.3 Integration suite: `pnpm test:integration` (incl. new shelf-flag + clone-carry tests; green at CI concurrency --maxWorkers=2)
+- [x] 4.4 E2E incl. the new optional-subject scenario: `pnpm test:e2e` (28 passed)
+- [x] 4.5 Full local CI gate: `/verify` (PASS, all 8 steps)
 
 #### Manual
 
-- [ ] 4.6 Popover "Optional" section shows correct counts; disappears when none
-- [ ] 4.7 Student + teacher perspectives render optional chips distinctly
-- [ ] 4.8 Park → card cue → unpark → flag survives
-- [ ] 4.9 Drag overlay shows optional cue
-- [ ] 4.10 Duplicate + clone carry the flag
+- [x] 4.6 Popover "Optional" section shows correct counts; disappears when none (optional-subject e2e + live Playwright check)
+- [x] 4.7 Student + teacher perspectives render optional chips distinctly (verified live via Playwright MCP; collision tone dominates on a real conflict)
+- [x] 4.8 Park → card cue → unpark → flag survives (verified live: card cue + reload + unpark restores optional chip; gesture covered by shelf-durability e2e)
+- [x] 4.9 Drag overlay shows optional cue (verified live mid-drag: optional member row dashed+dimmed)
+- [x] 4.10 Duplicate + clone carry the flag (unit: duplicate mirrors flags; integration: clone_plan carry + place_course replay)

@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import { cohortLabel, subjectChipClass } from "@/shared/config";
 import { PopoverContent, PopoverHeader, PopoverTitle } from "@/shared/ui";
 import { cn } from "@/shared/lib/class-names";
 import HoursCounter from "../palette/HoursCounter";
-import type { CoursesLeftCohort, CoursesLeftRow, CoursesLeftSummary } from "./courses-left-summary";
+import type { CoursesLeftCohort, CoursesLeftRow, CoursesLeftSummary, OptionalCourseRow } from "./courses-left-summary";
 
 type Props = {
   summary: CoursesLeftSummary;
@@ -12,14 +13,17 @@ type Props = {
 
 /**
  * Presentational Popover content for the top-bar placement breakdown: a Missing section (courses
- * still needing board hours) and, when any course is over-placed, a warning-toned Over-placed
- * section. Rows mirror the palette member row — subject-color chip + truncated name + placed/required
- * counter. No state, no data fetching; every value arrives assembled via `summary`. The Missing
- * section renders only when hours are left, so the "all placed · M over" state opens straight to it.
+ * still needing board hours), a warning-toned Over-placed section when any course is over-placed,
+ * and an Optional section — the review checklist of pending per-member decisions — when any
+ * placement is marked optional. Rows mirror the palette member row — subject-color chip +
+ * truncated name + placed/required counter (Optional rows carry their count instead). No state,
+ * no data fetching; every value arrives assembled via `summary`. The Missing section renders only
+ * when hours are left, so the "all placed · M over" state opens straight to it.
  */
 export default function CoursesLeftPopover({ summary, combined }: Props) {
   const missingCount = summary.cohorts.reduce((count, cohort) => count + cohort.missing.length, 0);
   const overCount = summary.cohorts.reduce((count, cohort) => count + cohort.over.length, 0);
+  const optionalCourseCount = summary.cohorts.reduce((count, cohort) => count + cohort.optional.length, 0);
   return (
     <PopoverContent align="end" data-slot="courses-left-popover" className="w-80">
       <PopoverHeader>
@@ -31,6 +35,7 @@ export default function CoursesLeftPopover({ summary, combined }: Props) {
             title="Missing"
             subtitle={`${countLabel(missingCount)} · ${hourLabel(summary.hoursLeft)} left`}
             pick={(cohort) => cohort.missing}
+            renderRow={(row) => <CourseRow key={row.courseId} row={row} />}
             cohorts={summary.cohorts}
             combined={combined}
           />
@@ -40,9 +45,20 @@ export default function CoursesLeftPopover({ summary, combined }: Props) {
             title="Over-placed"
             subtitle={`${countLabel(overCount)} · ${hourLabel(summary.hoursOver)} over`}
             pick={(cohort) => cohort.over}
+            renderRow={(row) => <CourseRow key={row.courseId} row={row} />}
             cohorts={summary.cohorts}
             combined={combined}
             warning
+          />
+        )}
+        {summary.optionalCount > 0 && (
+          <Section
+            title="Optional"
+            subtitle={`${countLabel(optionalCourseCount)} · ${summary.optionalCount} optional`}
+            pick={(cohort) => cohort.optional}
+            renderRow={(row) => <OptionalRow key={row.courseId} row={row} />}
+            cohorts={summary.cohorts}
+            combined={combined}
           />
         )}
       </div>
@@ -50,17 +66,19 @@ export default function CoursesLeftPopover({ summary, combined }: Props) {
   );
 }
 
-function Section({
+function Section<Row>({
   title,
   subtitle,
   pick,
+  renderRow,
   cohorts,
   combined,
   warning = false,
 }: {
   title: string;
   subtitle: string;
-  pick: (cohort: CoursesLeftCohort) => CoursesLeftRow[];
+  pick: (cohort: CoursesLeftCohort) => Row[];
+  renderRow: (row: Row) => ReactNode;
   cohorts: CoursesLeftCohort[];
   combined: boolean;
   warning?: boolean;
@@ -79,11 +97,7 @@ function Section({
             {combined && (
               <span className="text-muted-foreground text-xs font-medium">{cohortLabel(cohort.cohort)}</span>
             )}
-            <ul className="flex flex-col gap-1">
-              {rows.map((row) => (
-                <CourseRow key={row.courseId} row={row} />
-              ))}
-            </ul>
+            <ul className="flex flex-col gap-1">{rows.map(renderRow)}</ul>
           </div>
         );
       })}
@@ -99,6 +113,22 @@ function CourseRow({ row }: { row: CoursesLeftRow }) {
     >
       <span className="truncate">{row.name}</span>
       <HoursCounter hours={{ placed: row.placed, required: row.required }} />
+    </li>
+  );
+}
+
+/** An Optional-section row: `name · N optional` — a pending decision, not an hours gap, so no HoursCounter. */
+function OptionalRow({ row }: { row: OptionalCourseRow }) {
+  return (
+    <li
+      data-slot="optional-course-row"
+      className={cn(
+        "flex items-center gap-1 rounded-md border border-dashed px-1.5 py-1 text-xs",
+        subjectChipClass(row.color),
+      )}
+    >
+      <span className="truncate">{row.name}</span>
+      <span className="text-muted-foreground ml-auto shrink-0 text-[10px] italic">{row.count} optional</span>
     </li>
   );
 }

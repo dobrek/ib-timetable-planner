@@ -138,6 +138,8 @@ function SlotCell({
  * A simpler presentational chip in the board's design language — shared subject-color
  * tokens, the same collision red/amber precedence — without the board chip's drag or
  * remove affordances. Bi-weekly placements carry their week label inline (no lanes).
+ * An optional member mirrors the board chip's composable axis (dashed + dim + inline
+ * "optional" cue) below the tone ladder — a conflict is never masked.
  */
 function Chip({
   occupant,
@@ -162,11 +164,21 @@ function Chip({
   return (
     <div
       data-slot="perspective-chip"
+      data-optional={placement.isOptional ? "true" : undefined}
       aria-roledescription="placement"
       aria-invalid={blocking}
-      className={cn("flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs", tone)}
+      className={cn(
+        "flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs",
+        tone,
+        placement.isOptional && "border-dashed saturate-75",
+      )}
     >
       <span className="truncate">{name}</span>
+      {placement.isOptional && (
+        <span data-slot="optional-tag" className="text-muted-foreground shrink-0 text-[10px] italic">
+          optional
+        </span>
+      )}
       {cohort && <span className="text-muted-foreground shrink-0 text-[10px] uppercase">{cohortLabel(cohort)}</span>}
       {placement.week !== "both" && (
         <span className="text-muted-foreground shrink-0 text-[10px]">{weekLabel(placement.week)}</span>

@@ -210,6 +210,7 @@ export default function PlannerBoard({
       overplaced: state.overplaced,
       hoursLeft: state.hoursLeft,
       hoursOver: state.hoursOver,
+      placements: state.placements,
     })),
   );
   const inspected = inspection ? resolveState(inspection.cohort) : null;

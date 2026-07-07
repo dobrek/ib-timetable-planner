@@ -37,22 +37,31 @@ export default function GroupDragOverlay({
         const data = source.data as DragData;
         if (data.kind === "grouping") {
           const grouping = groupings.find((candidate) => candidate.id === data.groupingId);
-          return grouping ? <OverlayCard memberIds={grouping.memberIds} courseDisplay={courseDisplay} /> : null;
+          // A palette grouping was never placed, so its members carry no pending optional decision.
+          return grouping ? (
+            <OverlayCard
+              members={grouping.memberIds.map((courseId) => ({ courseId, isOptional: false }))}
+              courseDisplay={courseDisplay}
+            />
+          ) : null;
         }
         if (data.kind === "bundle") {
           // In the combined view, resolve the dragged cell within its OWN cohort so the overlay
           // never merges the sibling column's courses at the same day/period. The single board has no
           // `placementsByCohort`, so it falls back to its one `placements` set.
           const cellPlacements = placementsByCohort?.[data.cohort] ?? placements;
-          const memberIds = cellPlacements
+          const members = cellPlacements
             .filter((placement) => placement.day === data.day && placement.period === data.period)
-            .map((placement) => placement.courseId);
-          return memberIds.length > 0 ? <OverlayCard memberIds={memberIds} courseDisplay={courseDisplay} /> : null;
+            .map((placement) => ({ courseId: placement.courseId, isOptional: placement.isOptional }));
+          return members.length > 0 ? <OverlayCard members={members} courseDisplay={courseDisplay} /> : null;
         }
         if (data.kind === "parked") {
           const parked = parkedBundles.find((bundle) => bundle.id === data.shelfBundleId);
           return parked ? (
-            <OverlayCard memberIds={parked.members.map((m) => m.courseId)} courseDisplay={courseDisplay} />
+            <OverlayCard
+              members={parked.members.map((m) => ({ courseId: m.courseId, isOptional: m.isOptional }))}
+              courseDisplay={courseDisplay}
+            />
           ) : null;
         }
         return null;
@@ -62,25 +71,30 @@ export default function GroupDragOverlay({
 }
 
 function OverlayCard({
-  memberIds,
+  members,
   courseDisplay,
 }: {
-  memberIds: string[];
+  members: { courseId: string; isOptional: boolean }[];
   courseDisplay: Record<string, CourseDisplay>;
 }) {
   return (
     <div data-slot="group-drag-overlay" className="bg-background w-56 rounded-lg border shadow-lg">
       <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium">
         <GripVertical className="text-muted-foreground size-4" />
-        <span>{memberIds.length} courses</span>
+        <span>{members.length} courses</span>
       </div>
       <ul className="space-y-1 px-2 pb-2">
-        {memberIds.map((courseId) => {
-          const display = resolveCourseDisplay(courseDisplay, courseId);
+        {members.map((member) => {
+          const display = resolveCourseDisplay(courseDisplay, member.courseId);
           return (
             <li
-              key={courseId}
-              className={cn("truncate rounded-md border px-1.5 py-1 text-xs", subjectChipClass(display.color))}
+              key={member.courseId}
+              className={cn(
+                "truncate rounded-md border px-1.5 py-1 text-xs",
+                subjectChipClass(display.color),
+                // A dragged set keeps its optional cues — same dashed+dim axis as the chips.
+                member.isOptional && "border-dashed saturate-75",
+              )}
             >
               {display.name}
             </li>

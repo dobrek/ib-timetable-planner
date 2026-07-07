@@ -10,11 +10,33 @@ export type CoursesLeftRow = {
   required: number;
 };
 
-/** A cohort's two sections: courses still missing board hours, and courses placed past requirement. */
-export type CoursesLeftCohort = { cohort: Cohort; missing: CoursesLeftRow[]; over: CoursesLeftRow[] };
+/** One "Optional" section row: a course with optional placements and how many it has. */
+export type OptionalCourseRow = {
+  courseId: string;
+  name: string;
+  color: SubjectColor | null;
+  count: number;
+};
 
-/** The whole breakdown: the two headline totals plus the per-cohort sections the popover renders. */
-export type CoursesLeftSummary = { hoursLeft: number; hoursOver: number; cohorts: CoursesLeftCohort[] };
+/** A cohort's sections: courses missing board hours, courses placed past requirement, and courses with pending optional placements. */
+export type CoursesLeftCohort = {
+  cohort: Cohort;
+  missing: CoursesLeftRow[];
+  over: CoursesLeftRow[];
+  optional: OptionalCourseRow[];
+};
+
+/** The whole breakdown: the headline totals plus the per-cohort sections the popover renders. */
+export type CoursesLeftSummary = {
+  hoursLeft: number;
+  hoursOver: number;
+  /** Total optional placements across cohorts — the "Optional" section renders only when > 0. */
+  optionalCount: number;
+  cohorts: CoursesLeftCohort[];
+};
+
+/** The slice of a placement the optional derivation reads — `LocalPlacement` satisfies it. */
+type PlacementFlag = { courseId: string; isOptional: boolean };
 
 /** One active cohort's already-derived hours arrays (identity + hours), awaiting display + sort. */
 type CohortInput = {
@@ -24,6 +46,8 @@ type CohortInput = {
   overplaced: CourseHours[];
   hoursLeft: number;
   hoursOver: number;
+  /** The cohort's live placements — the "Optional" review section derives from their flags. */
+  placements: PlacementFlag[];
 };
 
 /**
@@ -33,14 +57,18 @@ type CohortInput = {
  * first: `missing` by hours-left (required − placed) desc, `over` by hours-over (placed − required)
  * desc, each tie broken by name asc. The two totals sum across cohorts and stay independent — the
  * non-netting invariant is inherited from `summarizeHours` upstream and never recombined here.
+ * The additive `optional` section (count desc, name asc) is a review checklist of pending
+ * per-member decisions; it never feeds the hour totals (an optional member still counts as placed).
  */
 export const buildCoursesLeftSummary = (inputs: CohortInput[]): CoursesLeftSummary => ({
   hoursLeft: inputs.reduce((sum, input) => sum + input.hoursLeft, 0),
   hoursOver: inputs.reduce((sum, input) => sum + input.hoursOver, 0),
+  optionalCount: inputs.reduce((sum, input) => sum + input.placements.filter(isOptionalPlacement).length, 0),
   cohorts: inputs.map((input) => ({
     cohort: input.cohort,
     missing: toRows(input.unplaced, input.courseDisplay).sort(byGapThenName(hoursLeftOf)),
     over: toRows(input.overplaced, input.courseDisplay).sort(byGapThenName(hoursOverOf)),
+    optional: toOptionalRows(input.placements, input.courseDisplay),
   })),
 });
 
@@ -51,6 +79,23 @@ const toRows = (courses: CourseHours[], courseDisplay: Record<string, CourseDisp
     const { name, color } = resolveCourseDisplay(courseDisplay, courseId);
     return { courseId, name, color, placed, required };
   });
+
+const isOptionalPlacement = (placement: { isOptional: boolean }): boolean => placement.isOptional;
+
+// One row per course having optional placements: filter → unique course ids → display + count,
+// sorted most-pending first (count desc), ties broken alphabetically by resolved name.
+const toOptionalRows = (
+  placements: PlacementFlag[],
+  courseDisplay: Record<string, CourseDisplay>,
+): OptionalCourseRow[] => {
+  const optional = placements.filter(isOptionalPlacement);
+  return [...new Set(optional.map((placement) => placement.courseId))]
+    .map((courseId) => {
+      const { name, color } = resolveCourseDisplay(courseDisplay, courseId);
+      return { courseId, name, color, count: optional.filter((placement) => placement.courseId === courseId).length };
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+};
 
 const hoursLeftOf = (row: CoursesLeftRow): number => row.required - row.placed;
 const hoursOverOf = (row: CoursesLeftRow): number => row.placed - row.required;

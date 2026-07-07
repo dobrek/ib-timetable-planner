@@ -16,6 +16,7 @@ const cohortInput = (opts: {
   overplaced?: CourseHours[];
   hoursLeft?: number;
   hoursOver?: number;
+  placements?: { courseId: string; isOptional: boolean }[];
 }) => ({
   cohort: opts.cohort ?? "dp1",
   courseDisplay: opts.courseDisplay ?? {},
@@ -23,7 +24,11 @@ const cohortInput = (opts: {
   overplaced: opts.overplaced ?? [],
   hoursLeft: opts.hoursLeft ?? (opts.unplaced ?? []).reduce((s, c) => s + (c.required - c.placed), 0),
   hoursOver: opts.hoursOver ?? (opts.overplaced ?? []).reduce((s, c) => s + (c.placed - c.required), 0),
+  placements: opts.placements ?? [],
 });
+
+const optional = (courseId: string): { courseId: string; isOptional: boolean } => ({ courseId, isOptional: true });
+const regular = (courseId: string): { courseId: string; isOptional: boolean } => ({ courseId, isOptional: false });
 
 const idsOf = (rows: { courseId: string }[]) => rows.map((row) => row.courseId);
 
@@ -63,6 +68,50 @@ describe("buildCoursesLeftSummary", () => {
     expect(summary.hoursLeft).toBe(5);
     expect(summary.hoursOver).toBe(1);
     expect(summary.cohorts.map((c) => c.cohort)).toEqual(["dp1", "dp2"]);
+  });
+
+  it("derives optional rows: filters flagged placements, groups by course, counts per course", () => {
+    const summary = buildCoursesLeftSummary([
+      cohortInput({
+        courseDisplay: { A: display("Alpha"), B: display("Beta") },
+        placements: [optional("A"), optional("A"), regular("A"), optional("B"), regular("C")],
+      }),
+    ]);
+    expect(summary.optionalCount).toBe(3);
+    expect(summary.cohorts[0].optional).toEqual([
+      { courseId: "A", name: "Alpha", color: null, count: 2 },
+      { courseId: "B", name: "Beta", color: null, count: 1 },
+    ]);
+  });
+
+  it("sorts optional rows most-pending-first, ties broken alphabetically by resolved name", () => {
+    const summary = buildCoursesLeftSummary([
+      cohortInput({
+        courseDisplay: { A: display("Zulu"), B: display("Alpha"), C: display("Mike") },
+        // A count 1 (Zulu), B count 1 (Alpha), C count 2 (Mike) → C first, then Alpha < Zulu.
+        placements: [optional("A"), optional("B"), optional("C"), optional("C")],
+      }),
+    ]);
+    expect(idsOf(summary.cohorts[0].optional)).toEqual(["C", "B", "A"]);
+  });
+
+  it("zero-state: no optional placements → optionalCount 0 and empty per-cohort optional rows", () => {
+    const summary = buildCoursesLeftSummary([
+      cohortInput({ placements: [regular("A"), regular("B")] }),
+      cohortInput({ cohort: "dp2" }),
+    ]);
+    expect(summary.optionalCount).toBe(0);
+    expect(summary.cohorts.every((cohort) => cohort.optional.length === 0)).toBe(true);
+  });
+
+  it("sums optionalCount across cohorts while rows stay per-cohort", () => {
+    const summary = buildCoursesLeftSummary([
+      cohortInput({ cohort: "dp1", placements: [optional("A")] }),
+      cohortInput({ cohort: "dp2", placements: [optional("B"), optional("B")] }),
+    ]);
+    expect(summary.optionalCount).toBe(3);
+    expect(idsOf(summary.cohorts[0].optional)).toEqual(["A"]);
+    expect(idsOf(summary.cohorts[1].optional)).toEqual(["B"]);
   });
 
   it("never nets over-placement against under-placement through assembly (Math+English)", () => {

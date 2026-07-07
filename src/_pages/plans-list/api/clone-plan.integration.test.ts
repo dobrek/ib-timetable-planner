@@ -361,6 +361,50 @@ const PLAN_TABLES = [
     expect((clonedGroupings ?? []).some((g) => g.opposite_week)).toBe(true);
   });
 
+  it("preserves is_optional through clone (placements + parked shelf members)", async () => {
+    // Self-contained source: one optional placement + one parked bundle whose member is flagged.
+    // Both explicit column lists in clone_plan (sections 7 and 11) must carry the flag — an
+    // omission would silently reset every pending optional decision on plan duplication.
+    const srcId = await createFactoryPlan(supabase, { name: "Optional Clone Source" });
+    const catalog = await seedPlanCatalog(supabase, srcId);
+    const dp1 = catalog.courses.filter((c) => c.cohort === "dp1");
+    if (dp1.length < 2) throw new Error("seed needs two dp1 courses");
+
+    await placeCourse(supabase, {
+      planId: srcId,
+      cohort: "dp1",
+      courseId: dp1[0].id,
+      day: 1,
+      period: 1,
+      isOptional: true,
+    });
+    const { error: shelfError } = await supabase.rpc("shelve_courses", {
+      p_plan_id: srcId,
+      p_cohort: "dp1",
+      p_course_ids: [dp1[1].id],
+      p_weeks: ["both"],
+      p_optionals: [true],
+    });
+    if (shelfError) throw shelfError;
+
+    const cloneId = await clonePlan(srcId, "Optional Clone Dest");
+
+    const { data: clonedPlacements } = await supabase
+      .from("placements")
+      .select("is_optional")
+      .eq("plan_id", cloneId)
+      .eq("cohort", "dp1");
+    expect(clonedPlacements).toHaveLength(1);
+    expect(clonedPlacements?.[0]?.is_optional).toBe(true);
+
+    const { data: clonedShelfMembers } = await supabase
+      .from("shelf_bundle_courses")
+      .select("is_optional")
+      .eq("plan_id", cloneId);
+    expect(clonedShelfMembers).toHaveLength(1);
+    expect(clonedShelfMembers?.[0]?.is_optional).toBe(true);
+  });
+
   it("cloning the same source twice produces two independent plans", async () => {
     const firstId = await clonePlan(sourcePlanId, "Clone Twice 1");
     const secondId = await clonePlan(sourcePlanId, "Clone Twice 2");

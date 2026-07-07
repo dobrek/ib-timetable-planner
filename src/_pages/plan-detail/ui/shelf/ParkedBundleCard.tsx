@@ -77,18 +77,33 @@ export default function ParkedBundleCard({ bundle, courseDisplay, cohort, onRemo
           return (
             <li
               key={member.courseId}
+              data-optional={member.isOptional ? "true" : undefined}
               className={cn(
                 "flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs",
                 subjectChipClass(display.color),
+                // The parked twin of the board chip's optional axis — the pending decision stays
+                // visible while parked (no invisible state where temporary choices accumulate).
+                member.isOptional && "border-dashed saturate-75",
               )}
             >
               <span className="truncate">{display.name}</span>
+              <OptionalTag isOptional={member.isOptional} />
               <WeekTag week={member.week} />
             </li>
           );
         })}
       </ul>
     </div>
+  );
+}
+
+/** A read-only optional cue on a member row — the WeekTag pattern for the pending-decision axis. */
+function OptionalTag({ isOptional }: { isOptional: boolean }) {
+  if (!isOptional) return null;
+  return (
+    <span data-slot="optional-tag" className="text-muted-foreground shrink-0 text-[10px] italic">
+      optional
+    </span>
   );
 }
 

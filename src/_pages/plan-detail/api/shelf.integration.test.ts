@@ -236,6 +236,57 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(restored[0].week).toBe("a");
   });
 
+  it("optional fidelity: a marked member's flag survives park → shelf twin → unpark", async () => {
+    await placeCourse(supabase, { planId, cohort: "dp1", courseId: courseC, day: 4, period: 3, isOptional: true });
+    const shelf = await shelve(4, 3);
+
+    // The shelf twin carries the flag while parked (no invisible pending-decision state).
+    const { data: parked, error } = await supabase
+      .from("shelf_bundle_courses")
+      .select("course_id, is_optional")
+      .eq("plan_id", planId)
+      .eq("shelf_bundle_id", shelf.id);
+    if (error) throw error;
+    expect(parked[0]?.is_optional).toBe(true);
+
+    // Unshelve re-places through place_course with the stored flag — the placement is optional again.
+    const restored = await unshelve(shelf.id, 4, 4);
+    expect(restored[0]?.is_optional).toBe(true);
+  });
+
+  it("shelve_courses parks explicit optional flags via the third parallel array (and defaults false without it)", async () => {
+    const { data: withFlags, error: flagErr } = await supabase.rpc("shelve_courses", {
+      p_plan_id: planId,
+      p_cohort: "dp1",
+      p_course_ids: [courseA, courseB],
+      p_weeks: ["both", "both"],
+      p_optionals: [true, false],
+    });
+    if (flagErr) throw flagErr;
+    const { data: parked } = await supabase
+      .from("shelf_bundle_courses")
+      .select("course_id, is_optional")
+      .eq("plan_id", planId)
+      .eq("shelf_bundle_id", withFlags.id);
+    expect(parked?.find((m) => m.course_id === courseA)?.is_optional).toBe(true);
+    expect(parked?.find((m) => m.course_id === courseB)?.is_optional).toBe(false);
+
+    // The 4-arg legacy call still resolves (p_optionals defaults null → coalesced false per member).
+    const { data: withoutFlags, error: legacyErr } = await supabase.rpc("shelve_courses", {
+      p_plan_id: planId,
+      p_cohort: "dp1",
+      p_course_ids: [courseC],
+      p_weeks: ["both"],
+    });
+    if (legacyErr) throw legacyErr;
+    const { data: legacyParked } = await supabase
+      .from("shelf_bundle_courses")
+      .select("is_optional")
+      .eq("plan_id", planId)
+      .eq("shelf_bundle_id", withoutFlags.id);
+    expect(legacyParked?.[0]?.is_optional).toBe(false);
+  });
+
   it("shelve_courses parks an arbitrary course-set directly with the given weeks", async () => {
     // The off-board park (a palette grouping never placed): no cell, no placements read.
     const { data, error } = await supabase.rpc("shelve_courses", {

@@ -328,6 +328,7 @@ export type Database = {
           created_at: string
           day: number
           id: string
+          is_optional: boolean
           period: number
           plan_id: string
           week: Database["public"]["Enums"]["placement_week"]
@@ -339,6 +340,7 @@ export type Database = {
           created_at?: string
           day: number
           id?: string
+          is_optional?: boolean
           period: number
           plan_id: string
           week?: Database["public"]["Enums"]["placement_week"]
@@ -350,6 +352,7 @@ export type Database = {
           created_at?: string
           day?: number
           id?: string
+          is_optional?: boolean
           period?: number
           plan_id?: string
           week?: Database["public"]["Enums"]["placement_week"]
@@ -407,6 +410,7 @@ export type Database = {
           course_id: string
           created_at: string
           id: string
+          is_optional: boolean
           plan_id: string
           shelf_bundle_id: string
           week: Database["public"]["Enums"]["placement_week"]
@@ -415,6 +419,7 @@ export type Database = {
           course_id: string
           created_at?: string
           id?: string
+          is_optional?: boolean
           plan_id: string
           shelf_bundle_id: string
           week?: Database["public"]["Enums"]["placement_week"]
@@ -423,6 +428,7 @@ export type Database = {
           course_id?: string
           created_at?: string
           id?: string
+          is_optional?: boolean
           plan_id?: string
           shelf_bundle_id?: string
           week?: Database["public"]["Enums"]["placement_week"]
@@ -664,6 +670,7 @@ export type Database = {
           created_at: string
           day: number
           id: string
+          is_optional: boolean
           period: number
           plan_id: string
           week: Database["public"]["Enums"]["placement_week"]
@@ -680,6 +687,7 @@ export type Database = {
           p_cohort: Database["public"]["Enums"]["cohort"]
           p_course_id: string
           p_day: number
+          p_is_optional?: boolean
           p_period: number
           p_plan_id: string
           p_week?: Database["public"]["Enums"]["placement_week"]
@@ -691,6 +699,7 @@ export type Database = {
           created_at: string
           day: number
           id: string
+          is_optional: boolean
           period: number
           plan_id: string
           week: Database["public"]["Enums"]["placement_week"]
@@ -749,6 +758,7 @@ export type Database = {
         Args: {
           p_cohort: Database["public"]["Enums"]["cohort"]
           p_course_ids: string[]
+          p_optionals?: boolean[]
           p_plan_id: string
           p_weeks: Database["public"]["Enums"]["placement_week"][]
         }
@@ -780,6 +790,7 @@ export type Database = {
           created_at: string
           day: number
           id: string
+          is_optional: boolean
           period: number
           plan_id: string
           week: Database["public"]["Enums"]["placement_week"]

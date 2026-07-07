@@ -49,6 +49,7 @@ type UsePlacements = {
   movePlacement: (placementId: string, cell: CellData) => void;
   removePlacement: (placementId: string) => void;
   setWeek: (placementId: string, week: PlacementWeek) => void;
+  setOptional: (placementId: string, isOptional: boolean) => void;
   moveBundle: (day: number, period: number, target: CellData) => void;
   removeBundle: (day: number, period: number) => void;
   duplicateBundle: (day: number, period: number) => void;

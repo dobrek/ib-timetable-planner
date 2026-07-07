@@ -51,6 +51,14 @@ export const collisionBadge = (page: Page, slot: string, cohort: "DP1" | "DP2" =
 const bundleToggle = (page: Page, slot: string, label: "Ungroup slot" | "Group slot"): Locator =>
   cell(page, slot).getByRole("button", { name: label, exact: true });
 
+/** The per-chip "⋯" member-menu trigger for `displayName` in `slot` — renders only while ungrouped. */
+export const chipMenuTrigger = (
+  page: Page,
+  slot: string,
+  displayName: string,
+  cohort: "DP1" | "DP2" = "DP1",
+): Locator => cell(page, slot, cohort).getByRole("button", { name: `Actions for ${displayName}`, exact: true });
+
 // --- Board flow helpers ------------------------------------------------------------------------
 
 /**
@@ -167,6 +175,54 @@ async function clickBundleToggle(page: Page, slot: string, from: "Ungroup slot" 
 /** Explode a bundled cell into individual chips (ephemeral in-session UI state — no server write). */
 export async function ungroupCell(page: Page, slot: string): Promise<void> {
   await clickBundleToggle(page, slot, "Ungroup slot");
+}
+
+/**
+ * Open the chip's "⋯" member menu and wait for it to actually render. Retried: the trigger
+ * appears the instant the cell ungroups, and a `force: true` click on a freshly-appeared element
+ * skips the stability wait — it can fire at pre-layout-shift coordinates and miss, so a single
+ * click is not enough. `force: true` itself is needed for the same reason as `clickBundleToggle`:
+ * an ungrouped cell's dnd-kit draggable is `aria-disabled`, which Playwright inherits onto nested
+ * buttons as a false "disabled". A retry that finds the menu already open is a no-op (the
+ * trigger click toggles, so re-clicking blindly would close it).
+ */
+export async function openChipMenu(
+  page: Page,
+  slot: string,
+  displayName: string,
+  cohort: "DP1" | "DP2" = "DP1",
+): Promise<void> {
+  const menu = page.getByRole("menu");
+  await expect(async () => {
+    if ((await menu.count()) > 0) return; // already open from a previous attempt
+    await chipMenuTrigger(page, slot, displayName, cohort).click({ force: true });
+    await expect(menu).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+}
+
+/**
+ * Open the chip's "⋯" member menu and click the `item` entry (its accessible menuitem name, e.g.
+ * `Remove <display>`, "Mark as optional", "Accept"). The menu content portals to the body, so the
+ * item is located page-wide by role.
+ */
+export async function chipMenuSelect(page: Page, slot: string, displayName: string, item: string): Promise<void> {
+  await openChipMenu(page, slot, displayName);
+  await page.getByRole("menuitem", { name: item, exact: true }).click();
+}
+
+/**
+ * Remove a chip through its "⋯" menu (the per-member remove's one home since the inline "×"
+ * migrated into it). Retried like `removeBundle`: right after a move the row is still
+ * optimistically pending — the trigger is disabled and the verb no-ops — so a single attempt can
+ * be silently dropped. Skips once the chip is gone.
+ */
+export async function removeViaMenu(page: Page, slot: string, displayName: string): Promise<void> {
+  const chip = placedChip(page, slot, displayName);
+  await expect(async () => {
+    if ((await chip.count()) === 0) return; // already removed on a previous attempt
+    await chipMenuSelect(page, slot, displayName, `Remove ${displayName}`);
+    await expect(chip).toHaveCount(0, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 /** Re-collapse an exploded cell back into one bundle. */

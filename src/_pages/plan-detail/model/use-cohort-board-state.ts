@@ -259,6 +259,7 @@ const toCohortState = (
     movePlacement: base.api.movePlacement,
     removePlacement: base.api.removePlacement,
     setWeek: base.api.setWeek,
+    setOptional: base.api.setOptional,
     moveBundle: base.api.moveBundle,
     removeBundle: base.api.removeBundle,
     duplicateBundle: base.api.duplicateBundle,

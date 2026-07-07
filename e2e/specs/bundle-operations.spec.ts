@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
-  cell,
+  chipMenuTrigger,
   computeGroupings,
   display,
   dragChip,
@@ -11,8 +11,10 @@ import {
   groupCell,
   groupingBox,
   moveBundle,
+  openChipMenu,
   placeGrouping,
   removeBundle,
+  removeViaMenu,
   ungroupCell,
 } from "../support/board";
 import { createCourse, createStudent } from "../support/catalog";
@@ -100,17 +102,18 @@ test.describe("first-class bundle operations", () => {
     await expectBundled(page, origin);
     await expectOccupants(page, origin, [alpha, bravo, charlie]);
 
-    // While grouped, per-chip affordances are inert — the slot moves as one unit (FR-010).
-    const removeCharlie = cell(page, origin).getByRole("button", {
-      name: `Remove ${charlie}`,
-      exact: true,
-    });
-    await expect(removeCharlie).toHaveCount(0);
+    // While grouped, per-chip affordances are inert — the slot moves as one unit (FR-010), so
+    // no "⋯" member menu renders on any chip.
+    const charlieMenu = chipMenuTrigger(page, origin, charlie);
+    await expect(charlieMenu).toHaveCount(0);
 
     // --- Ungroup: a pure in-session presentation flip (no server write). The chips become
-    //     individually operable — the per-chip remove appears.
+    //     individually operable — the per-chip "⋯" menu appears, with Remove inside it.
     await ungroupCell(page, origin);
-    await expect(removeCharlie).toBeVisible();
+    await expect(charlieMenu).toBeVisible();
+    await openChipMenu(page, origin, charlie);
+    await expect(page.getByRole("menuitem", { name: `Remove ${charlie}`, exact: true })).toBeVisible();
+    await page.keyboard.press("Escape"); // close without removing — the drag below needs the chip
 
     // --- A loose chip drags out on its own: it leaves the source bundle and lands alone, so the
     //     target reads as a single (non-bundled) occupant and the source drops to two.
@@ -126,6 +129,12 @@ test.describe("first-class bundle operations", () => {
     await expectOccupants(page, target, [alpha, bravo, charlie]);
     await expectBundled(page, target);
     await expectEmpty(page, origin);
+
+    // --- Per-chip remove through the menu (the migrated inline "×"): ungroup the merged bundle
+    //     and remove one member via its "⋯" → Remove — the cell drops to the remaining two.
+    await ungroupCell(page, target);
+    await removeViaMenu(page, target, charlie);
+    await expectOccupants(page, target, [alpha, bravo]);
 
     await deletePlan(page, plan.name);
   });

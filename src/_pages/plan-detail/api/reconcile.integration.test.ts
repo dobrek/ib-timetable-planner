@@ -3,7 +3,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { createPlan, seedPlanCatalog, teardown } from "@/test/factories";
 import { loadCombinedPlannerData } from "./load";
-import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "./placements";
+import {
+  moveBundleMembers,
+  placeCourse,
+  removeBundleMembers,
+  updatePlacementOptional,
+  updatePlacementWeek,
+} from "./placements";
 import { deleteShelfBundle, shelveBundle, shelveCourses, unshelveBundle } from "./shelf";
 import { cellKey, type PlannerPlacement } from "@/entities/timetable";
 import { memberSetKey, sliceAt } from "../model/history/affected-slice";
@@ -214,6 +220,35 @@ const boardScope = (...cells: [number, number][]): AffectedScope => ({
     const planId = await freshPlan("recon-setweek");
     const placed = await place(planId, B1, 1, 1, "a");
     await roundTrip(planId, boardScope([1, 1]), () => updatePlacementWeek(supabase, { id: placed.id, week: "b" }));
+  });
+
+  it("setOptional (mark) — undoing the mark restores is_optional = false", async () => {
+    const planId = await freshPlan("recon-mark-optional");
+    const placed = await place(planId, AG, 1, 1);
+    // keysOf includes the flag, so an empty diff (dead history entry) would leave the row marked
+    // and fail the S0 equality — this pins both undoability and the non-empty plan.
+    await roundTrip(planId, boardScope([1, 1]), () =>
+      updatePlacementOptional(supabase, { id: placed.id, isOptional: true }),
+    );
+  });
+
+  it("remove of an optional member — undo re-places it AS optional", async () => {
+    const planId = await freshPlan("recon-remove-optional");
+    await placeCourse(supabase, {
+      planId,
+      cohort: COHORT,
+      courseId: AG,
+      day: 1,
+      period: 1,
+      week: "both",
+      isOptional: true,
+    });
+    await roundTrip(planId, boardScope([1, 1]), () =>
+      removeBundleMembers(supabase, { planId, cohort: COHORT, day: 1, period: 1, courseIds: [AG] }),
+    );
+    // The restored projection must carry the flag (keysOf asserted it); double-check the column.
+    const { placements } = await loadCohort(planId);
+    expect(placements.find((p) => p.courseId === AG)?.isOptional).toBe(true);
   });
 
   it("lift (board → shelf)", async () => {

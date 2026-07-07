@@ -22,6 +22,9 @@ import {
   removeManyRollback,
   removeTarget,
   resolveDropWeek,
+  setOptionalOptimistic,
+  setOptionalReconcile,
+  setOptionalRollback,
   settleMany,
 } from "./placement-transitions";
 
@@ -313,6 +316,36 @@ describe("remove transitions", () => {
       ok: false,
       error: "pending",
     });
+  });
+});
+
+describe("set-optional transitions", () => {
+  it("setOptionalOptimistic flips only the target row's flag, immutably", () => {
+    const prev = [p("p1", "A", 1, 1), p("p2", "B", 1, 1)];
+    const next = setOptionalOptimistic(prev, "p1", true);
+    expect(next.find((row) => row.id === "p1")?.isOptional).toBe(true);
+    expect(next.find((row) => row.id === "p2")?.isOptional).toBe(false);
+    expect(prev[0].isOptional).toBe(false);
+  });
+
+  it("setOptionalReconcile swaps the row for the server row", () => {
+    const updated = { ...server("p1", "A", 1, 1), isOptional: true };
+    expect(setOptionalReconcile([p("p1", "A", 1, 1)], "p1", updated)).toEqual([updated]);
+  });
+
+  it("setOptionalRollback restores the previous value", () => {
+    const marked = { ...p("p1", "A", 1, 1), isOptional: true };
+    expect(setOptionalRollback([marked], "p1", false)[0].isOptional).toBe(false);
+  });
+
+  it("addManyOptimistic carries each entry's isOptional onto its created row", () => {
+    const entries = [
+      { tempId: "t1", courseId: "A", week: "both" as const, isOptional: true },
+      { tempId: "t2", courseId: "B", week: "both" as const, isOptional: false },
+    ];
+    const next = addManyOptimistic([], entries, cell(1, 1));
+    expect(next.find((row) => row.id === "t1")?.isOptional).toBe(true);
+    expect(next.find((row) => row.id === "t2")?.isOptional).toBe(false);
   });
 });
 

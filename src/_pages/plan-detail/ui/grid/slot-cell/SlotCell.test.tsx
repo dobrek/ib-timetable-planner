@@ -38,6 +38,7 @@ const renderCell = (occupants: CellOccupant[], bundled: boolean, overrides: Part
     lensMatched: null,
     onRemove: vi.fn(),
     onSetWeek: vi.fn(),
+    onSetOptional: vi.fn(),
     onToggleBundle: vi.fn(),
     onRemoveBundle: vi.fn(),
     onDuplicateBundle,

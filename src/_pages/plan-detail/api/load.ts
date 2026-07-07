@@ -12,12 +12,11 @@ import { type Cohort } from "@/shared/config";
 import { parseGridPreset } from "@/shared/lib/grid";
 import { unique } from "@/shared/lib/collections";
 import { err, ok, type Result } from "@/shared/lib/result";
-import type { BoardAvailabilityCell, PlannerPlacement } from "@/entities/timetable";
+import { toPlannerPlacement, type BoardAvailabilityCell, type PlannerPlacement } from "@/entities/timetable";
 import { assembleCombinedProps, type CombinedCohortInputs } from "../model/cross-cohort/assemble-combined-props";
 import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping/grouping";
 import type { ParkedBundle } from "../model/placement/parked";
-import { toPlannerPlacement } from "./placements";
 import { isGroupingStale } from "./staleness";
 
 /** Expected absences: a missing plan vs. a misconfigured/empty environment. */

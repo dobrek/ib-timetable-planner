@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
 import type { ParkedMember } from "../placement/parked";
 import type { PlannerPlacement } from "@/entities/timetable";
+import { placementBusinessKey } from "./affected-slice";
 import type { AffectedSlice } from "./history-entry";
 import { diffReconcile } from "./reconcile";
 
@@ -22,20 +23,6 @@ const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember =>
 });
 
 const slice = (placements: PlannerPlacement[], cards: ParkedMember[][] = []): AffectedSlice => ({ placements, cards });
-
-const keyOf = ({
-  courseId,
-  day,
-  period,
-  week,
-  isOptional,
-}: {
-  courseId: string;
-  day: number;
-  period: number;
-  week: string;
-  isOptional: boolean;
-}) => `${courseId}|${day}|${period}|${week}|${isOptional}`;
 
 describe("diffReconcile — board", () => {
   it("add: target gains a placement → toPlace only", () => {
@@ -91,8 +78,8 @@ describe("diffReconcile — board", () => {
     const plan = diffReconcile(slice([pp("A", 1, 1)]), slice([pp("A", 2, 2)]));
     expect(plan.toRemove).toHaveLength(1);
     expect(plan.toPlace).toHaveLength(1);
-    expect(keyOf(plan.toRemove[0])).toBe("A|1|1|both|false"); // the source row, the one a re-place must not collide with
-    expect(keyOf(plan.toPlace[0])).toBe("A|2|2|both|false");
+    expect(placementBusinessKey(plan.toRemove[0])).toBe("A|1|1|both|false"); // the source row, the one a re-place must not collide with
+    expect(placementBusinessKey(plan.toPlace[0])).toBe("A|2|2|both|false");
   });
 });
 

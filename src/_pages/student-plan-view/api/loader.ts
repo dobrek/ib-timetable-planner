@@ -14,7 +14,7 @@ import type { CourseDisplay, GroupingCourse } from "@/shared/lib/catalog-hash";
 import { unique } from "@/shared/lib/collections";
 import { parseGridPreset } from "@/shared/lib/grid";
 import { err, ok, type Result } from "@/shared/lib/result";
-import type { PlannerPlacement } from "@/entities/timetable";
+import { toPlannerPlacement, type PlannerPlacement } from "@/entities/timetable";
 import type { CourseInfo } from "@/widgets/timetable-board";
 
 /** Expected absences: missing plan / student not in the plan vs. a misconfigured environment. */
@@ -202,21 +202,3 @@ const fetchCourseInfo = async (
     ]),
   );
 };
-
-const toPlannerPlacement = (row: {
-  id: string;
-  course_id: string;
-  day: number;
-  period: number;
-  week: PlannerPlacement["week"];
-  is_optional: boolean;
-  bundle_id: string;
-}): PlannerPlacement => ({
-  id: row.id,
-  courseId: row.course_id,
-  day: row.day,
-  period: row.period,
-  week: row.week,
-  isOptional: row.is_optional,
-  bundleId: row.bundle_id,
-});

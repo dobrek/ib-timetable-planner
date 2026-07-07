@@ -5,12 +5,12 @@ import type { PlannerPlacement } from "@/entities/timetable";
 import type { ReconcilePlan } from "./history-entry";
 import { executeReconcilePlan, type ReconcileDeps } from "./reconcile-exec";
 
-const key = (courseId: string, day: number, period: number, week: PlacementWeek = "both") => ({
+const key = (courseId: string, day: number, period: number, week: PlacementWeek = "both", isOptional = false) => ({
   courseId,
   day,
   period,
   week,
-  isOptional: false,
+  isOptional,
 });
 const member = (courseId: string, week: PlacementWeek = "both"): ParkedMember => ({
   courseId,
@@ -53,6 +53,10 @@ beforeEach(() => {
       calls.push("unshelve");
       return Promise.resolve([row("A", t.day, t.period)]);
     }),
+    setOptional: vi.fn<ReconcileDeps["setOptional"]>((placementId, isOptional) => {
+      calls.push(`setOptional:${placementId}`);
+      return Promise.resolve({ ...row("A", 1, 1), id: placementId, isOptional });
+    }),
     place: vi.fn<ReconcileDeps["place"]>((spec) => {
       calls.push(`place:${spec.courseId}`);
       return Promise.resolve(row(spec.courseId, spec.day, spec.period, spec.week));
@@ -70,6 +74,7 @@ beforeEach(() => {
       return Promise.resolve();
     }),
     resolveCardId: vi.fn<ReconcileDeps["resolveCardId"]>(() => "resolved-card-id"),
+    resolvePlacementId: vi.fn<ReconcileDeps["resolvePlacementId"]>((k) => `live-${k.courseId}`),
   };
 });
 
@@ -100,6 +105,54 @@ describe("executeReconcilePlan — atomic compound dispatch", () => {
     expect(deps.unshelve).toHaveBeenCalledWith("resolved-card-id", { day: 1, period: 1 });
     expect(deps.place).not.toHaveBeenCalled();
     expect(result.placed).toHaveLength(1);
+  });
+});
+
+describe("executeReconcilePlan — optional-flip dispatch", () => {
+  it("a pure optional-flip routes through one in-place update, never remove+place", async () => {
+    const result = await executeReconcilePlan(
+      plan({ toRemove: [key("A", 1, 1)], toPlace: [key("A", 1, 1, "both", true)] }),
+      deps,
+    );
+    expect(deps.resolvePlacementId).toHaveBeenCalledWith(key("A", 1, 1));
+    expect(deps.setOptional).toHaveBeenCalledExactlyOnceWith("live-A", true);
+    expect(deps.removeMembers).not.toHaveBeenCalled();
+    expect(deps.place).not.toHaveBeenCalled();
+    expect(result.placed).toHaveLength(1);
+  });
+
+  it("flips every member of a multi-course flip, each to its own target flag", async () => {
+    await executeReconcilePlan(
+      plan({
+        toRemove: [key("A", 1, 1, "both", true), key("B", 1, 1)],
+        toPlace: [key("A", 1, 1), key("B", 1, 1, "both", true)],
+      }),
+      deps,
+    );
+    expect(deps.setOptional).toHaveBeenCalledTimes(2);
+    expect(deps.setOptional).toHaveBeenCalledWith("live-A", false);
+    expect(deps.setOptional).toHaveBeenCalledWith("live-B", true);
+    expect(deps.removeMembers).not.toHaveBeenCalled();
+  });
+
+  it("falls back to decomposed remove+place when a flipped row's id cannot be resolved", async () => {
+    vi.mocked(deps.resolvePlacementId).mockReturnValue(undefined);
+    await executeReconcilePlan(plan({ toRemove: [key("A", 1, 1)], toPlace: [key("A", 1, 1, "both", true)] }), deps);
+    expect(deps.setOptional).not.toHaveBeenCalled();
+    expect(deps.removeMembers).toHaveBeenCalledWith({ day: 1, period: 1 }, ["A"]);
+    expect(deps.place).toHaveBeenCalledTimes(1);
+  });
+
+  it("a mixed plan (flip + relocation) is not a pure flip and decomposes", async () => {
+    await executeReconcilePlan(
+      plan({
+        toRemove: [key("A", 1, 1), key("B", 1, 1)],
+        toPlace: [key("A", 1, 1, "both", true), key("B", 2, 2)],
+      }),
+      deps,
+    );
+    expect(deps.setOptional).not.toHaveBeenCalled();
+    expect(deps.place).toHaveBeenCalledTimes(2);
   });
 });
 

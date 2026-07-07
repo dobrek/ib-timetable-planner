@@ -2,25 +2,29 @@ import type { CellData } from "../drag";
 import type { ParkedMember } from "../placement/parked";
 import type { PlannerPlacement } from "@/entities/timetable";
 import { memberSetKey } from "./affected-slice";
-import type { PlacementSpec, ReconcilePlan } from "./history-entry";
+import type { PlacementKey, PlacementSpec, ReconcilePlan } from "./history-entry";
 
 /**
- * The injectable write surface a reconcile runs over. Two tiers: the **atomic compound ops**
- * (`moveMembers` / `shelve` / `unshelve`) that preserve the DB-level atomicity the forward path
- * has, and the **decomposed primitives** (`place` / `removeMembers` / `createCard` / `deleteCard`)
- * the multi-cell fallback (merge-undo) sequences. `resolveCardId` maps a member-set to the current
- * shelf card id. The React hook injects the `api/*-client` wrappers; the integration test injects
- * the `api/*` domain fns over a real Supabase client — both share this one sequencing path.
+ * The injectable write surface a reconcile runs over. Two tiers: the **atomic ops**
+ * (`moveMembers` / `shelve` / `unshelve` / `setOptional`) that preserve the DB-level atomicity the
+ * forward path has, and the **decomposed primitives** (`place` / `removeMembers` / `createCard` /
+ * `deleteCard`) the multi-cell fallback (merge-undo) sequences. `resolveCardId` maps a member-set
+ * to the current shelf card id; `resolvePlacementId` maps a business key to the live row's id
+ * (an optional-flip updates in place, and ids are never carried in the plan). The React hook
+ * injects the `api/*-client` wrappers; the integration test injects the `api/*` domain fns over a
+ * real Supabase client — both share this one sequencing path.
  */
 export type ReconcileDeps = {
   moveMembers: (source: CellData, target: CellData, courseIds: string[]) => Promise<PlannerPlacement[]>;
   shelve: (cell: CellData) => Promise<{ id: string }>;
   unshelve: (shelfBundleId: string, target: CellData) => Promise<PlannerPlacement[]>;
+  setOptional: (placementId: string, isOptional: boolean) => Promise<PlannerPlacement>;
   place: (spec: PlacementSpec) => Promise<PlannerPlacement>;
   removeMembers: (cell: CellData, courseIds: string[]) => Promise<void>;
   createCard: (members: ParkedMember[]) => Promise<{ id: string }>;
   deleteCard: (shelfBundleId: string) => Promise<void>;
   resolveCardId: (members: ParkedMember[]) => string | undefined;
+  resolvePlacementId: (key: PlacementKey) => string | undefined;
 };
 
 export type ReconcileResult = {
@@ -34,8 +38,9 @@ export type ReconcileResult = {
  * Translate a `ReconcilePlan` into RPC calls. **Atomicity-preserving dispatch:** recognize the
  * plan's shape before decomposing — a pure board relocation → one `move_bundle_members`; a lift
  * (board-removes + one card-create) → one `shelve_bundle`; a place-back (one card-delete +
- * board-places) → one `unshelve_bundle`. Only a diff no single RPC covers (notably merge-*undo*,
- * which re-places at two cells) falls back to the decomposed sequence
+ * board-places) → one `unshelve_bundle`; a pure optional-flip (same cells, only flags differ) →
+ * in-place `update_placement_optional` per member. Only a diff no single RPC covers (notably
+ * merge-*undo*, which re-places at two cells) falls back to the decomposed sequence
  * (card-deletes → board-removes → board-places → card-creates) — the lone non-atomic path.
  */
 export async function executeReconcilePlan(plan: ReconcilePlan, deps: ReconcileDeps): Promise<ReconcileResult> {
@@ -54,6 +59,12 @@ export async function executeReconcilePlan(plan: ReconcilePlan, deps: ReconcileD
   const placeBack = asPlaceBack(plan, deps);
   if (placeBack) {
     const placed = await deps.unshelve(placeBack.shelfBundleId, placeBack.target);
+    return { placed, createdCards: [] };
+  }
+
+  const flips = asOptionalFlips(plan, deps);
+  if (flips) {
+    const placed = await Promise.all(flips.map((flip) => deps.setOptional(flip.placementId, flip.isOptional)));
     return { placed, createdCards: [] };
   }
 
@@ -111,6 +122,33 @@ function asPlaceBack(plan: ReconcilePlan, deps: ReconcileDeps): { shelfBundleId:
   if (!shelfBundleId) return null;
   return { shelfBundleId, target };
 }
+
+type OptionalFlip = { placementId: string; isOptional: boolean };
+
+/**
+ * A pure optional-flip: no card changes, and every remove pairs 1:1 with a place at the same
+ * (course, cell, week) — only the flag differs. Executed as one in-place `update_placement_optional`
+ * per member: decomposing would delete the row and re-insert it, so a failure between the two RPCs
+ * loses the placement outright for what is semantically a one-column revert. Requires every flipped
+ * row to resolve to a live id; otherwise falls back to the decomposed sequence.
+ */
+function asOptionalFlips(plan: ReconcilePlan, deps: ReconcileDeps): OptionalFlip[] | null {
+  if (plan.cardsToDelete.length > 0 || plan.cardsToCreate.length > 0) return null;
+  if (plan.toRemove.length === 0 || plan.toRemove.length !== plan.toPlace.length) return null;
+  const partnerByIdentity = new Map(plan.toPlace.map((spec) => [flipIdentity(spec), spec]));
+  const flips: OptionalFlip[] = [];
+  for (const removed of plan.toRemove) {
+    const partner = partnerByIdentity.get(flipIdentity(removed));
+    if (!partner || partner.isOptional === removed.isOptional) return null;
+    const placementId = deps.resolvePlacementId(removed);
+    if (!placementId) return null;
+    flips.push({ placementId, isOptional: partner.isOptional });
+  }
+  return flips;
+}
+
+/** A placement's identity minus the flag — what an optional-flip preserves. */
+const flipIdentity = ({ courseId, day, period, week }: PlacementKey): string => `${courseId}|${day}|${period}|${week}`;
 
 // --- Cell / member-set helpers ---
 

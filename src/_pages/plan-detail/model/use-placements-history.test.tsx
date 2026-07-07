@@ -1,7 +1,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cohort, PlacementWeek, WeekMode } from "@/shared/config";
-import { moveBundleMembers, placeCourse, removeBundleMembers, updatePlacementWeek } from "../api/placement-client";
+import {
+  moveBundleMembers,
+  placeCourse,
+  removeBundleMembers,
+  updatePlacementOptional,
+  updatePlacementWeek,
+} from "../api/placement-client";
 import { deleteShelfBundle, shelveBundle, shelveCourses, unshelveBundle } from "../api/shelf-client";
 import { course, EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX, placement } from "@/entities/timetable";
 import type { GroupingCourse } from "./grouping/grouping";
@@ -17,6 +23,7 @@ vi.mock("../api/placement-client", () => ({
   moveBundleMembers: vi.fn(),
   removeBundleMembers: vi.fn(),
   updatePlacementWeek: vi.fn(),
+  updatePlacementOptional: vi.fn(),
 }));
 vi.mock("../api/shelf-client", () => ({
   shelveBundle: vi.fn(),
@@ -29,6 +36,7 @@ const placeMock = vi.mocked(placeCourse);
 const moveMock = vi.mocked(moveBundleMembers);
 const removeMock = vi.mocked(removeBundleMembers);
 const updateWeekMock = vi.mocked(updatePlacementWeek);
+const updateOptionalMock = vi.mocked(updatePlacementOptional);
 const shelveMock = vi.mocked(shelveBundle);
 const unshelveMock = vi.mocked(unshelveBundle);
 const deleteShelfMock = vi.mocked(deleteShelfBundle);
@@ -74,6 +82,9 @@ function serverEcho(): void {
   removeMock.mockResolvedValue(undefined);
   updateWeekMock.mockImplementation((id, week) =>
     Promise.resolve({ id, courseId: "echo", day: 1, period: 1, week, isOptional: false }),
+  );
+  updateOptionalMock.mockImplementation((id, isOptional) =>
+    Promise.resolve({ id, courseId: "c1", day: 1, period: 1, week: "both", isOptional }),
   );
   shelveMock.mockImplementation((a) => Promise.resolve({ id: `shelf-${a.day}-${a.period}`, members: [] }));
   unshelveMock.mockImplementation((a) =>
@@ -362,6 +373,26 @@ describe("applyReconcile", () => {
     expect(shelveMock).toHaveBeenCalledWith({ planId: PLAN_ID, cohort: COHORT, day: 1, period: 1 });
     expect(result.current.placements).toEqual([]);
     expect(result.current.parkedBundles).toEqual([{ id: "shelf-1-1", members: [member("c1")] }]);
+  });
+
+  it("drives a pure optional-flip in place via update_placement_optional (no remove+place)", async () => {
+    const initial = [placement("p1", "c1", 1, 1)];
+    const { result } = renderHook(() => usePlacements(initial, mkArgs(undefined)));
+    await act(async () => {
+      await result.current.applyReconcile(
+        {
+          placements: [{ id: "stale", courseId: "c1", day: 1, period: 1, week: "both", isOptional: true }],
+          cards: [],
+        },
+        { cells: ["1:1"], cardSets: [] },
+      );
+    });
+    expect(updateOptionalMock).toHaveBeenCalledExactlyOnceWith("p1", true);
+    expect(removeMock).not.toHaveBeenCalled();
+    expect(placeMock).not.toHaveBeenCalled();
+    expect(result.current.placements).toHaveLength(1);
+    expect(result.current.placements[0]).toMatchObject({ id: "p1", isOptional: true });
+    expect(result.current.placements[0].pending).toBeUndefined();
   });
 
   it("rolls both stores back and surfaces the error on RPC failure", async () => {

@@ -12,7 +12,7 @@ import {
 } from "./placements";
 import { deleteShelfBundle, shelveBundle, shelveCourses, unshelveBundle } from "./shelf";
 import { cellKey, type PlannerPlacement } from "@/entities/timetable";
-import { memberSetKey, sliceAt } from "../model/history/affected-slice";
+import { memberSetKey, placementBusinessKey, sliceAt } from "../model/history/affected-slice";
 import type { AffectedScope } from "../model/history/history-entry";
 import { diffReconcile } from "../model/history/reconcile";
 import { executeReconcilePlan, type ReconcileDeps } from "../model/history/reconcile-exec";
@@ -47,7 +47,11 @@ async function loadCohort(planId: string): Promise<{ placements: PlannerPlacemen
   return { placements: result.value.dp1.placements, parkedBundles: result.value.dp1.parkedBundles };
 }
 
-function domainDeps(planId: string, cardIdByMemberSet: Map<string, string>): ReconcileDeps {
+function domainDeps(
+  planId: string,
+  cardIdByMemberSet: Map<string, string>,
+  placementIdByKey: Map<string, string>,
+): ReconcileDeps {
   return {
     moveMembers: (source, target, courseIds) =>
       moveBundleMembers(supabase, {
@@ -80,9 +84,11 @@ function domainDeps(planId: string, cardIdByMemberSet: Map<string, string>): Rec
       }),
     removeMembers: (cell, courseIds) =>
       removeBundleMembers(supabase, { planId, cohort: COHORT, day: cell.day, period: cell.period, courseIds }),
+    setOptional: (placementId, isOptional) => updatePlacementOptional(supabase, { id: placementId, isOptional }),
     createCard: (members) => shelveCourses(supabase, { planId, cohort: COHORT, members }),
     deleteCard: (shelfBundleId) => deleteShelfBundle(supabase, { planId, shelfBundleId }),
     resolveCardId: (members) => cardIdByMemberSet.get(memberSetKey(members)),
+    resolvePlacementId: (key) => placementIdByKey.get(placementBusinessKey(key)),
   };
 }
 
@@ -96,8 +102,9 @@ async function roundTrip(planId: string, scope: AffectedScope, forward: () => Pr
   const s1 = await loadCohort(planId);
   const current = sliceAt(s1.placements, s1.parkedBundles, scope);
   const cardIds = new Map(s1.parkedBundles.map((card) => [memberSetKey(card.members), card.id]));
+  const placementIds = new Map(s1.placements.map((p) => [placementBusinessKey(p), p.id]));
 
-  await executeReconcilePlan(diffReconcile(current, before), domainDeps(planId, cardIds));
+  await executeReconcilePlan(diffReconcile(current, before), domainDeps(planId, cardIds, placementIds));
 
   const restored = await loadCohort(planId);
   expect(keysOf(restored.placements)).toEqual(keysOf(s0.placements));
@@ -230,6 +237,10 @@ const boardScope = (...cells: [number, number][]): AffectedScope => ({
     await roundTrip(planId, boardScope([1, 1]), () =>
       updatePlacementOptional(supabase, { id: placed.id, isOptional: true }),
     );
+    // The flip fast-path updates the row in place — identity survives the undo, proving no
+    // delete+insert window where a failure could lose the placement outright.
+    const { placements } = await loadCohort(planId);
+    expect(placements.find((p) => p.courseId === AG)?.id).toBe(placed.id);
   });
 
   it("remove of an optional member — undo re-places it AS optional", async () => {

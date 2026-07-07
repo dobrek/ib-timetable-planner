@@ -1,11 +1,11 @@
 import { useDraggable } from "@dnd-kit/react";
 import { GripVertical, X } from "lucide-react";
-import { cohortLabel, subjectChipClass, type Cohort } from "@/shared/config";
+import { cohortLabel, optionalChipClass, subjectChipClass, type Cohort } from "@/shared/config";
 import { resolveCourseDisplay, type CourseDisplay } from "@/entities/timetable";
 import type { ParkedDrag } from "../../model/drag";
 import type { LocalParkedBundle, ParkedMember } from "../../model/placement/parked";
 import { cn } from "@/shared/lib/class-names";
-import { Badge, Button } from "@/shared/ui";
+import { Badge, Button, OptionalTag } from "@/shared/ui";
 import { stopDrag } from "../../lib/drag-inert";
 
 type Props = {
@@ -83,27 +83,17 @@ export default function ParkedBundleCard({ bundle, courseDisplay, cohort, onRemo
                 subjectChipClass(display.color),
                 // The parked twin of the board chip's optional axis — the pending decision stays
                 // visible while parked (no invisible state where temporary choices accumulate).
-                member.isOptional && "border-dashed saturate-75",
+                member.isOptional && optionalChipClass,
               )}
             >
               <span className="truncate">{display.name}</span>
-              <OptionalTag isOptional={member.isOptional} />
+              {member.isOptional && <OptionalTag />}
               <WeekTag week={member.week} />
             </li>
           );
         })}
       </ul>
     </div>
-  );
-}
-
-/** A read-only optional cue on a member row — the WeekTag pattern for the pending-decision axis. */
-function OptionalTag({ isOptional }: { isOptional: boolean }) {
-  if (!isOptional) return null;
-  return (
-    <span data-slot="optional-tag" className="text-muted-foreground shrink-0 text-[10px] italic">
-      optional
-    </span>
   );
 }
 

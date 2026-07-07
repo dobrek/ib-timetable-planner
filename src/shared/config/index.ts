@@ -36,3 +36,4 @@ export {
   toSubjectColor,
   type SubjectColor,
 } from "./subject-colors";
+export { optionalChipClass } from "./optional-chip";

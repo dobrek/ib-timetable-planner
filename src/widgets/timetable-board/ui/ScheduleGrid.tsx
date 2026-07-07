@@ -1,8 +1,14 @@
 import { Fragment } from "react";
 import { TriangleAlert, UserX } from "lucide-react";
-import { cohortLabel, subjectChipClass, type AvailabilitySeverity, type Cohort } from "@/shared/config";
+import {
+  cohortLabel,
+  optionalChipClass,
+  subjectChipClass,
+  type AvailabilitySeverity,
+  type Cohort,
+} from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
-import { Badge } from "@/shared/ui";
+import { Badge, OptionalTag } from "@/shared/ui";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import {
   breaksAfterPeriod,
@@ -170,15 +176,11 @@ function Chip({
       className={cn(
         "flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs shadow-xs",
         tone,
-        placement.isOptional && "border-dashed saturate-75",
+        placement.isOptional && optionalChipClass,
       )}
     >
       <span className="truncate">{name}</span>
-      {placement.isOptional && (
-        <span data-slot="optional-tag" className="text-muted-foreground shrink-0 text-[10px] italic">
-          optional
-        </span>
-      )}
+      {placement.isOptional && <OptionalTag />}
       {cohort && <span className="text-muted-foreground shrink-0 text-[10px] uppercase">{cohortLabel(cohort)}</span>}
       {placement.week !== "both" && (
         <span className="text-muted-foreground shrink-0 text-[10px]">{weekLabel(placement.week)}</span>

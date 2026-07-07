@@ -45,9 +45,9 @@
 - `openChipMenu`'s retry short-circuit checks page-wide `page.getByRole("menu").count() > 0` — any open menu satisfies it, and `chipMenuSelect` clicks a page-wide `menuitem`. Radix's dismiss-on-pointerdown makes current call sites safe, but the generic item names ("Mark as optional", "Accept") are exposed to wrong-menu selection.
 - `chipMenuSelect`/`removeViaMenu` never forward a cohort though `openChipMenu` accepts `cohort: "DP1" | "DP2" = "DP1"`. No DP2 call site exists yet; the first one fails loudly (locator timeout) — an API asymmetry waiting for the next spec.
 
-**Action points**
-- [ ] Scope the already-open check and the menuitem click to the target chip's menu (e.g. via `aria-controls`/`aria-expanded` on the trigger, or scope the menu lookup to the triggering cell).
-- [ ] Thread `cohort` through `chipMenuSelect` and `removeViaMenu`.
+**Action points** — **DONE** in `7664f1e`
+- [x] `openChipMenu`'s short-circuit gates on the target trigger's own `aria-expanded`; combined with Radix's single-open-dropdown behavior, the page-wide menuitem click is then provably scoped to this chip's menu.
+- [x] `cohort` threaded through `chipMenuSelect` and `removeViaMenu` (default `"DP1"` — no call-site changes).
 
 ---
 
@@ -120,9 +120,9 @@ Every sibling input (unplaced/overplaced/hoursLeft) arrives pre-derived from mod
 
 Violates `context/foundation/ui-conventions.md` ("User-perceivable state is expressed via ARIA"; "`data-*` is for component identity only — never the test contract") and `e2e/CLAUDE.md` ("Never CSS selectors"). The spec's comment names `data-optional` "the durable cue", so it was a conscious choice — and it follows the pre-existing `data-hours-left` precedent, which deviates the same way. The visible `optional` span is already part of the chip's accessible name, so a conformant assertion exists.
 
-**Action points**
-- [ ] Decide once: either re-assert on accessible names (chip name contains "optional"; popover rows via `getByRole("listitem")`/`getByText`) and drop `data-optional`, **or** amend ui-conventions.md to bless a narrow "durable state cue" exception — the rule and the code should stop disagreeing.
-- [ ] If keeping the convention: also migrate the `data-hours-left` precedent in `courses-left-popover.spec.ts` in the same pass.
+**Action points** — **DONE** in `7664f1e` (decision: keep the convention, drop the attributes)
+- [x] `data-optional` removed from all three components; the spec asserts the visible "optional" tag / the chip's accessible name, and popover rows via `getByRole("listitem").filter({ hasText: /\d+ optional$/ })`. (Note: the nested "Actions for …" trigger contributes to the chip's accessible name — no trailing anchor.)
+- [x] `data-hours-left`/`data-hours-over` migrated the same way (the trigger's accessible name spells the hours; the Missing row's visible `placed/required` counter is asserted in-row); the never-read `data-parked` removed in the same sweep. Zero stateful `data-*` remains in the test contract.
 
 ### B8. Minor (fold into adjacent work, not worth standalone commits)
 

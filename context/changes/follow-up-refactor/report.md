@@ -61,9 +61,9 @@ Every item below was verified as genuine duplication this change either created 
 
 Three field-identical `toPlannerPlacement` mappers (each with its own inline row type) over the single shared select in `src/shared/api/load-placements.ts`. This PR hand-edited all three to thread `is_optional`. FSD forbids cross-page imports — which is exactly why it keeps being re-declared.
 
-**Action points**
-- [ ] Hoist the mapper (and a canonical `PlacementRow` type) to `src/entities/timetable` next to `PlannerPlacement` — the FSD-legal home all three slices already import from. (**Not** `shared/api`: shared cannot import upward from entities.)
-- [ ] Delete the three private copies; a future optional domain field then can't silently drop out of one perspective.
+**Action points** — **DONE** in `feafaee`
+- [x] Mapper + `PlacementRow` hoisted to `src/entities/timetable/model/placement-row.ts`, exported via the entity barrel.
+- [x] All three private copies deleted; `plan-detail/api/load.ts` and `shelf.ts` import from the entity instead of re-exporting through `placements.ts`.
 
 ### B2. Optional visual axis duplicated across four components / two layers — **CONFIRMED**
 
@@ -101,8 +101,8 @@ Sixth optional positional param `optionalByMember?: Map<string, boolean>` parall
 
 Both hand-roll `${courseId}|${day}|${period}|${week}|${isOptional}` despite the exported helper's docstring ("the one home for the reconcile-matching key … rather than re-spelling it"). `PlannerPlacement` structurally satisfies `PlacementKey` — reuse is a one-identifier change; the integration test already imports from that module.
 
-**Action points**
-- [ ] Replace both hand-rolled keys with `placementBusinessKey`; the next key component then can't silently narrow the round-trip assertions.
+**Action points** — **DONE** in `feafaee`
+- [x] Both hand-rolled keys replaced with `placementBusinessKey` (`keysOf` maps it directly; the diff test's literal-string assertions now also pin the canonical spelling).
 
 ### B6. Optional tally derived in the ui segment — **CONFIRMED (altitude only; perf negligible)**
 

@@ -4,7 +4,6 @@ import type { LocalPlacement, PlannerPlacement } from "@/entities/timetable";
 import {
   addManyOptimistic,
   addOptimistic,
-  addReconcile,
   addRollback,
   canAdd,
   eligibleMembers,
@@ -17,14 +16,13 @@ import {
   oppositeWeekAssignment,
   outcomesByCourse,
   partitionBundleMove,
+  patchRow,
   placementErrorMessage,
   removeManyOptimistic,
   removeManyRollback,
   removeTarget,
+  replaceRow,
   resolveDropWeek,
-  setOptionalOptimistic,
-  setOptionalReconcile,
-  setOptionalRollback,
   settleMany,
 } from "./placement-transitions";
 
@@ -85,18 +83,18 @@ describe("add transitions", () => {
     expect(prev).toEqual(snapshot);
   });
 
-  it("addReconcile replaces the temp-id row with the server row", () => {
+  it("replaceRow swaps the temp-id row for the server row", () => {
     const prev = [p("p1", "B", 2, 2), p("temp", "A", 1, 1, true)];
-    expect(addReconcile(prev, "temp", server("real", "A", 1, 1))).toEqual([
+    expect(replaceRow(prev, "temp", server("real", "A", 1, 1))).toEqual([
       p("p1", "B", 2, 2),
       server("real", "A", 1, 1),
     ]);
   });
 
-  it("addReconcile leaves other placements untouched", () => {
+  it("replaceRow leaves other placements untouched", () => {
     const other = p("p1", "B", 2, 2);
     const prev = [other, p("temp", "A", 1, 1, true)];
-    const result = addReconcile(prev, "temp", server("real", "A", 1, 1));
+    const result = replaceRow(prev, "temp", server("real", "A", 1, 1));
     expect(result[0]).toEqual(other);
   });
 
@@ -319,23 +317,23 @@ describe("remove transitions", () => {
   });
 });
 
-describe("set-optional transitions", () => {
-  it("setOptionalOptimistic flips only the target row's flag, immutably", () => {
+describe("single-row updates (the setWeek / setOptional flips)", () => {
+  it("patchRow patches only the target row's field, immutably", () => {
     const prev = [p("p1", "A", 1, 1), p("p2", "B", 1, 1)];
-    const next = setOptionalOptimistic(prev, "p1", true);
+    const next = patchRow(prev, "p1", { isOptional: true });
     expect(next.find((row) => row.id === "p1")?.isOptional).toBe(true);
     expect(next.find((row) => row.id === "p2")?.isOptional).toBe(false);
     expect(prev[0].isOptional).toBe(false);
   });
 
-  it("setOptionalReconcile swaps the row for the server row", () => {
-    const updated = { ...server("p1", "A", 1, 1), isOptional: true };
-    expect(setOptionalReconcile([p("p1", "A", 1, 1)], "p1", updated)).toEqual([updated]);
+  it("patchRow re-patching the previous value rolls the field back", () => {
+    const marked = { ...p("p1", "A", 1, 1), isOptional: true };
+    expect(patchRow([marked], "p1", { isOptional: false })[0].isOptional).toBe(false);
   });
 
-  it("setOptionalRollback restores the previous value", () => {
-    const marked = { ...p("p1", "A", 1, 1), isOptional: true };
-    expect(setOptionalRollback([marked], "p1", false)[0].isOptional).toBe(false);
+  it("replaceRow swaps the flipped row for the settled server row", () => {
+    const updated = { ...server("p1", "A", 1, 1), isOptional: true };
+    expect(replaceRow([p("p1", "A", 1, 1)], "p1", updated)).toEqual([updated]);
   });
 
   it("addManyOptimistic carries each entry's isOptional onto its created row", () => {

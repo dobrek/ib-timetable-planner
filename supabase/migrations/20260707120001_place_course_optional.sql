@@ -50,6 +50,13 @@ begin
   -- RETURNING trick: the bundle_id assignment is a no-op (the existing row sits at the
   -- same cell ⇒ same bundle) that yields the existing row; is_optional converges on the
   -- requested state so a replay restores the flag.
+  --
+  -- Asymmetry, on purpose: `week` is NOT converged on conflict (the sole week writer is
+  -- update_placement_week; place_course must never clobber it on a re-place), while
+  -- is_optional IS (undo-replay re-places through here and must restore the flag).
+  -- Consequence: a caller that omits p_is_optional (default false) and hits an existing
+  -- row RESETS a pending optional decision — always pass the flag explicitly when the
+  -- row may already exist.
   insert into public.placements (plan_id, cohort, course_id, day, period, week, bundle_id, is_optional)
   values (p_plan_id, p_cohort, p_course_id, p_day, p_period, p_week, v_bundle_id, p_is_optional)
   on conflict (plan_id, cohort, day, period, course_id)

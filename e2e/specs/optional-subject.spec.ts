@@ -14,11 +14,11 @@ import { clickToReveal, createPlan, createTeacher, deletePlan, gotoStable, short
 
 // Optional subject in bundle (optional-subject-in-bundle plan Phase 4 #5) — the one browser-level
 // guard for the flagship flow: ungroup a placed bundle, mark a member optional through its "⋯"
-// menu, see the durable cue on the chip (`data-optional`) AND the review checklist in the
-// courses-left popover ("Optional" section, per-course count), then accept it back and see both
-// clear. What the unit/integration layers cannot prove: the real gesture chain (menu → Astro
-// Action → Supabase column → re-derived render) and the popover wiring over live island state.
-// Conventions: e2e/CLAUDE.md; shared board plumbing in ../support/board.ts.
+// menu, see the visible "optional" cue on the chip (part of its accessible name) AND the review
+// checklist in the courses-left popover ("Optional" section, per-course count), then accept it
+// back and see both clear. What the unit/integration layers cannot prove: the real gesture chain
+// (menu → Astro Action → Supabase column → re-derived render) and the popover wiring over live
+// island state. Conventions: e2e/CLAUDE.md; shared board plumbing in ../support/board.ts.
 
 test.describe("optional subject in bundle", () => {
   // Catalog authoring + grouping compute + several menu/popover round-trips — past the 30s default.
@@ -43,23 +43,32 @@ test.describe("optional subject in bundle", () => {
     await expectBundled(page, slot);
     await ungroupCell(page, slot);
 
-    // --- Mark one member optional through its "⋯" menu; the chip carries the durable cue.
-    // Retried like the other board verbs: the row may still be optimistically pending right after
-    // the place, in which case the menu trigger is disabled and a single attempt would be dropped.
+    // --- Mark one member optional through its "⋯" menu; the chip gains the visible "optional"
+    // tag (the user-perceivable cue — also part of the chip's accessible name). Retried like the
+    // other board verbs: the row may still be optimistically pending right after the place, in
+    // which case the menu trigger is disabled and a single attempt would be dropped.
     const bravoChip = placedChip(page, slot, bravo);
+    const bravoTag = bravoChip.getByText("optional", { exact: true });
     await expect(async () => {
-      if ((await bravoChip.getAttribute("data-optional")) === "true") return;
+      if ((await bravoTag.count()) > 0) return;
       await chipMenuSelect(page, slot, bravo, "Mark as optional");
-      await expect(bravoChip).toHaveAttribute("data-optional", "true", { timeout: 2_000 });
+      await expect(bravoTag).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
-    await expect(placedChip(page, slot, alpha)).not.toHaveAttribute("data-optional", "true");
+    // The nested "Actions for …" trigger contributes to the chip's name, so no trailing anchor.
+    await expect(bravoChip).toHaveAccessibleName(/\boptional\b/);
+    await expect(placedChip(page, slot, alpha).getByText("optional", { exact: true })).toHaveCount(0);
 
-    // --- The popover gains the "Optional" review section with the course + its count.
+    // --- The popover gains the "Optional" review section with the course + its count. Rows are
+    // listitems whose visible text carries the per-course count ("N optional"); the hours rows
+    // (Missing/Over) render placed/required counters instead, so the filter is unambiguous.
+    const optionalRow = page
+      .getByRole("dialog")
+      .getByRole("listitem")
+      .filter({ hasText: /\d+ optional$/ });
     const trigger = page.getByRole("button", { name: /show breakdown/ });
     const popover = page.getByRole("dialog");
     await clickToReveal(trigger, popover);
     await expect(popover.getByText("Optional", { exact: true })).toBeVisible();
-    const optionalRow = popover.locator('[data-slot="optional-course-row"]');
     await expect(optionalRow).toHaveCount(1);
     await expect(optionalRow).toContainText(bravo);
     await expect(optionalRow).toContainText("1 optional");
@@ -68,16 +77,16 @@ test.describe("optional subject in bundle", () => {
 
     // --- Accept through the same menu: the chip cue clears…
     await expect(async () => {
-      if ((await bravoChip.getAttribute("data-optional")) !== "true") return;
+      if ((await bravoTag.count()) === 0) return;
       await chipMenuSelect(page, slot, bravo, "Accept");
-      await expect(bravoChip).not.toHaveAttribute("data-optional", "true", { timeout: 2_000 });
+      await expect(bravoTag).toHaveCount(0, { timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
 
     // --- …and the popover section disappears with the last pending decision.
     await clickToReveal(trigger, popover);
     await expect(popover.getByText("Course placement")).toBeVisible();
     await expect(popover.getByText("Optional", { exact: true })).toHaveCount(0);
-    await expect(popover.locator('[data-slot="optional-course-row"]')).toHaveCount(0);
+    await expect(optionalRow).toHaveCount(0);
 
     await deletePlan(page, plan.name);
   });

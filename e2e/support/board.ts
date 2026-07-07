@@ -183,8 +183,9 @@ export async function ungroupCell(page: Page, slot: string): Promise<void> {
  * skips the stability wait — it can fire at pre-layout-shift coordinates and miss, so a single
  * click is not enough. `force: true` itself is needed for the same reason as `clickBundleToggle`:
  * an ungrouped cell's dnd-kit draggable is `aria-disabled`, which Playwright inherits onto nested
- * buttons as a false "disabled". A retry that finds the menu already open is a no-op (the
- * trigger click toggles, so re-clicking blindly would close it).
+ * buttons as a false "disabled". The already-open short-circuit gates on THIS trigger's own
+ * `aria-expanded` (the trigger click toggles, so re-clicking blindly would close it) — never on a
+ * page-wide open menu, which a stray dropdown elsewhere would satisfy.
  */
 export async function openChipMenu(
   page: Page,
@@ -192,10 +193,11 @@ export async function openChipMenu(
   displayName: string,
   cohort: "DP1" | "DP2" = "DP1",
 ): Promise<void> {
+  const trigger = chipMenuTrigger(page, slot, displayName, cohort);
   const menu = page.getByRole("menu");
   await expect(async () => {
-    if ((await menu.count()) > 0) return; // already open from a previous attempt
-    await chipMenuTrigger(page, slot, displayName, cohort).click({ force: true });
+    if ((await trigger.getAttribute("aria-expanded")) === "true") return; // already open from a previous attempt
+    await trigger.click({ force: true });
     await expect(menu).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
 }
@@ -203,10 +205,18 @@ export async function openChipMenu(
 /**
  * Open the chip's "⋯" member menu and click the `item` entry (its accessible menuitem name, e.g.
  * `Remove <display>`, "Mark as optional", "Accept"). The menu content portals to the body, so the
- * item is located page-wide by role.
+ * item is located page-wide by role — safe because `openChipMenu` guarantees THIS chip's trigger
+ * is the expanded one and Radix keeps at most one dropdown open, so the page-wide menu is provably
+ * this chip's.
  */
-export async function chipMenuSelect(page: Page, slot: string, displayName: string, item: string): Promise<void> {
-  await openChipMenu(page, slot, displayName);
+export async function chipMenuSelect(
+  page: Page,
+  slot: string,
+  displayName: string,
+  item: string,
+  cohort: "DP1" | "DP2" = "DP1",
+): Promise<void> {
+  await openChipMenu(page, slot, displayName, cohort);
   await page.getByRole("menuitem", { name: item, exact: true }).click();
 }
 
@@ -216,11 +226,16 @@ export async function chipMenuSelect(page: Page, slot: string, displayName: stri
  * optimistically pending — the trigger is disabled and the verb no-ops — so a single attempt can
  * be silently dropped. Skips once the chip is gone.
  */
-export async function removeViaMenu(page: Page, slot: string, displayName: string): Promise<void> {
-  const chip = placedChip(page, slot, displayName);
+export async function removeViaMenu(
+  page: Page,
+  slot: string,
+  displayName: string,
+  cohort: "DP1" | "DP2" = "DP1",
+): Promise<void> {
+  const chip = placedChip(page, slot, displayName, cohort);
   await expect(async () => {
     if ((await chip.count()) === 0) return; // already removed on a previous attempt
-    await chipMenuSelect(page, slot, displayName, `Remove ${displayName}`);
+    await chipMenuSelect(page, slot, displayName, `Remove ${displayName}`, cohort);
     await expect(chip).toHaveCount(0, { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
 }

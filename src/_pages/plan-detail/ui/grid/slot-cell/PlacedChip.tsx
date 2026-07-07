@@ -75,7 +75,6 @@ export function PlacedChip({
     <div
       ref={ref}
       data-slot="placed-chip"
-      data-optional={placement.isOptional ? "true" : undefined}
       aria-roledescription="placement"
       // Blocking (collision/strong-NO) is the invalid state; the Badge already styles aria-invalid.
       aria-invalid={blocking}

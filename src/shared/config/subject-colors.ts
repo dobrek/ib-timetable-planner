@@ -41,6 +41,29 @@ export const toSubjectColor = (value: string | null): SubjectColor | null => (is
 /** Paired chip classes for a color key; "" when no color (caller keeps its default background). */
 export const subjectChipClass = (color: SubjectColor | null): string => (color ? SUBJECT_CHIP_CLASS[color] : "");
 
+/**
+ * Concrete sRGB hex for each palette hue — the non-CSS companion of `SUBJECT_CHIP_CLASS`, for
+ * consumers that cannot resolve Tailwind classes (the XLSX export's cell fills; any future
+ * canvas/PDF path). `fill`/`text` mirror the **light-mode** chip pair — the `<hue>-100` background +
+ * `<hue>-900` foreground bound to `--subject-<hue>` / `--subject-<hue>-foreground` in
+ * `src/app/styles/global.css:47-64`.
+ *
+ * Tailwind v4's palette is defined in **OKLCH** (`node_modules/tailwindcss/theme.css`), not hex, so
+ * each value below is that hue's v4 `-100`/`-900` OKLCH converted to sRGB hex (D65, standard OKLab
+ * matrices — approximation). Do NOT substitute Tailwind v3 hex values: v4's palette was recalibrated
+ * and its hexes differ subtly. Re-derive from `theme.css` if the tokens ever change.
+ */
+export const SUBJECT_COLOR_HEX: Record<SubjectColor, { fill: string; text: string }> = {
+  rose: { fill: "#FFE4E6", text: "#8B0836" },
+  amber: { fill: "#FEF3C6", text: "#7B3306" },
+  emerald: { fill: "#D0FAE5", text: "#004F3B" },
+  sky: { fill: "#DFF2FE", text: "#024A70" },
+  violet: { fill: "#EDE9FE", text: "#4D179A" },
+  teal: { fill: "#CBFBF1", text: "#0B4F4A" },
+  orange: { fill: "#FFEDD4", text: "#7E2A0C" },
+  indigo: { fill: "#E0E7FF", text: "#312C85" },
+};
+
 /** Whether a stored string is one of the known palette keys. */
 const isSubjectColor = (value: string | null): value is SubjectColor =>
   value !== null && (SUBJECT_COLOR_VALUES as readonly string[]).includes(value);

@@ -16,6 +16,9 @@ export * from "./model/collision/intersects";
 export * from "./model/collision/constraints";
 export * from "./model/perspective";
 export * from "./model/perspective-course-list";
+export * from "./model/export/sheet-types";
+export * from "./model/export/timetable-sheet";
+export * from "./model/export/roster-sheet";
 // Test-fixture builders travel with the domain; consumer-slice tests import them
 // through this barrel so no cross-slice deep import exists.
 export * from "./model/__fixtures__/builders";

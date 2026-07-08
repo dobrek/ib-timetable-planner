@@ -263,16 +263,16 @@ None — additive only. No schema, data, or dependency change.
 
 #### Automated
 
-- [x] 2.1 Type gate passes: `pnpm check`
-- [x] 2.2 Linting passes: `pnpm lint`
-- [x] 2.3 FSD structure passes: `pnpm steiger`
-- [x] 2.4 Production build stays clean: `pnpm build`
+- [x] 2.1 Type gate passes: `pnpm check` — 1d0df45
+- [x] 2.2 Linting passes: `pnpm lint` — 1d0df45
+- [x] 2.3 FSD structure passes: `pnpm steiger` — 1d0df45
+- [x] 2.4 Production build stays clean: `pnpm build` — 1d0df45
 
 #### Manual
 
-- [x] 2.5 Exporting a multi-course teacher downloads `<plan-slug>-<teacher-code>.xlsx`
-- [x] 2.6 Grid sheet mirrors the screen: only the viewed teacher's courses appear, cohort-tagged lines, subject fills, break bands, frozen headers, no collision/availability marks
-- [x] 2.7 One sheet per course, tab `Name · DPx`, deduped; a long/illegal name is sanitized without throwing
-- [x] 2.8 Per-course sheet shows header + roster; empty roster shows "No students assigned."
-- [x] 2.9 Export button is disabled for a teacher with no courses
-- [x] 2.10 A forced failure surfaces the `sonner` toast
+- [x] 2.5 Exporting a multi-course teacher downloads `<plan-slug>-<teacher-code>.xlsx` — 1d0df45
+- [x] 2.6 Grid sheet mirrors the screen: only the viewed teacher's courses appear, cohort-tagged lines, subject fills, break bands, frozen headers, no collision/availability marks — 1d0df45
+- [x] 2.7 One sheet per course, tab `Name · DPx`, deduped; a long/illegal name is sanitized without throwing — 1d0df45
+- [x] 2.8 Per-course sheet shows header + roster; empty roster shows "No students assigned." — 1d0df45
+- [x] 2.9 Export button is disabled for a teacher with no courses — 1d0df45
+- [x] 2.10 A forced failure surfaces the `sonner` toast — 1d0df45

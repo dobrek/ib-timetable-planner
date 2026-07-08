@@ -331,8 +331,8 @@ None — no schema, no persisted state, no server code. Rollback = revert the co
 
 #### Automated
 
-- [x] 3.1 E2E suite passes: `pnpm test:e2e`
-- [x] 3.2 Full local gate passes: `/verify`
+- [x] 3.1 E2E suite passes: `pnpm test:e2e` — 9abcd32
+- [x] 3.2 Full local gate passes: `/verify` — 9abcd32
 
 #### Manual
 

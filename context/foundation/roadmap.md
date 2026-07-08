@@ -200,7 +200,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 
 1. **Undo/redo scope & priority (FR-013, PRD Open Q #1).** Must-have for this change or a fast-follow? Single-step vs. multi-step history? Session-only vs. durable across reload? — Owner: author. Block: **S-08** (and may move the 4–6 week estimate). This is the single highest-leverage decision in the change.
 2. **Combined-view layout / screen-fit (FR-007, PRD Open Q #2).** Two cohort grids side by side strain a laptop screen — compact columns, horizontal scroll, density toggle, or collapse-to-one-column? — Owner: author + design. Block: no (a design input for S-06, resolvable in `/10x-plan`).
-3. **CSV export in scope? (PRD Open Q #3).** Listed as must-preserve in the original product but never implemented. If in scope, it must represent the enriched model (co-teaching, bi-weekly week tags, both cohorts distinguishable) and would become a **new slice**; if not, it drops from the guardrails. — Owner: author. Block: no (does not gate any existing slice; resolving it in-scope adds a slice via `/10x-plan`).
+3. ~~**CSV export in scope? (PRD Open Q #3).**~~ **Resolved 2026-07-08 — in scope, shipped as a styled XLSX workbook** (supersedes the "master-grid CSV"): a client-side board-toolbar export (Combined / DP1 / DP2) that represents the enriched model (both cohorts, co-teaching, bi-weekly week tags, colors) plus a per-cohort subject roster sheet. No CSV variant. See `context/changes/export-to-xlsx/`. — Owner: author.
 
 ## Parked
 
@@ -214,7 +214,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **Student- and teacher-facing self-entry flows** — Why parked: PRD §Non-Goals (carried forward).
 - **Multi-school / cross-school tenancy** — Why parked: PRD §Non-Goals (carried forward).
 - **Mobile-optimized UX** — Why parked: PRD §Non-Goals (carried forward); laptop is the target form factor.
-- **Printable / PDF export** — Why parked: PRD §Non-Goals (carried forward); CSV (if any) only.
+- **Printable / PDF export** — Why parked: PRD §Non-Goals (carried forward); the shipped export artifact is the styled XLSX workbook (see PRD Open Q #3), not print/PDF.
 - **Teacher soft preferences and hours-per-week caps** — Why parked: PRD §Non-Goals (carried forward); hard exclusions only.
 
 ## Done

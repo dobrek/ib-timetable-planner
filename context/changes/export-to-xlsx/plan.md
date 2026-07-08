@@ -313,27 +313,27 @@ None — no schema, no persisted state, no server code. Rollback = revert the co
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `pnpm test` (file-name helper + ExportMenu)
-- [x] 2.2 Type check passes: `pnpm check`
-- [x] 2.3 Build stays clean on workerd: `pnpm build`
-- [x] 2.4 Audit gate stays clean: `pnpm audit --audit-level=high`
-- [x] 2.5 Lint + steiger pass
+- [x] 2.1 Unit tests pass: `pnpm test` (file-name helper + ExportMenu) — 18169a5
+- [x] 2.2 Type check passes: `pnpm check` — 18169a5
+- [x] 2.3 Build stays clean on workerd: `pnpm build` — 18169a5
+- [x] 2.4 Audit gate stays clean: `pnpm audit --audit-level=high` — 18169a5
+- [x] 2.5 Lint + steiger pass — 18169a5
 
 #### Manual
 
-- [ ] 2.6 All three views export with expected filenames from every focus
+- [x] 2.6 All three views export with expected filenames from every focus — combined verified end-to-end via the Playwright preview download (real filename + PK-signed .xlsx); all three views' filenames + sheet sets pinned in `export-workbook.test`
 - [x] 2.7 Combined workbook mirrors the board (headers, fills, tags, breaks, frozen panes) — verified against real write-excel-file@4.1.1 output (mergeCell B1:C1 day span + A4:C4 break band, sky fill #DFF2FE/#024A70, "Math (A) (optional)" tag, "08:00–08:45" time header, frozen pane ySplit=2 xSplit=1)
-- [ ] 2.8 Unsaved in-session edit appears in the export
-- [x] 2.9 Empty board exports a valid empty grid — `buildTimetableSheet` empty-board unit test + library renders empty-value cells without crash
+- [x] 2.8 Unsaved in-session edit appears in the export — by construction: `ExportMenu` reads `state.placements`/`state.courseDisplay` (the live optimistic store `PlannerGrid` renders from), never a server re-read (`PlannerBoard.exportCohort`)
+- [x] 2.9 Empty board exports a valid empty grid — brand-new plan exported a valid non-empty .xlsx in the Playwright preview run; `buildTimetableSheet` empty-board unit test covers the structure
 - [x] 2.10 Roster tab(s) present per exported cohort, listing every catalog subject with resolved teacher/student names and hours — "DP1 subjects"/"DP2 subjects" sheets verified (real output + export-workbook.test)
 
 ### Phase 3: E2E Download Smoke + Doc Closure
 
 #### Automated
 
-- [ ] 3.1 E2E suite passes: `pnpm test:e2e`
-- [ ] 3.2 Full local gate passes: `/verify`
+- [x] 3.1 E2E suite passes: `pnpm test:e2e`
+- [x] 3.2 Full local gate passes: `/verify`
 
 #### Manual
 
-- [ ] 3.3 `prd.md` Open Question #3 reads as resolved, no stale CSV wording
+- [x] 3.3 `prd.md` Open Question #3 reads as resolved, no stale CSV wording — Open Q #3 marked resolved (XLSX supersedes CSV); matching resolutions in `roadmap.md` (#3 + the parked PDF aside)

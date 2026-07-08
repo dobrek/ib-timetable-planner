@@ -305,9 +305,9 @@ None — no schema, no persisted state, no server code. Rollback = revert the co
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass: `pnpm test` (all transform fidelity rules covered)
-- [ ] 1.2 Type check passes: `pnpm exec astro sync && pnpm check`
-- [ ] 1.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 1.1 Unit tests pass: `pnpm test` (all transform fidelity rules covered)
+- [x] 1.2 Type check passes: `pnpm exec astro sync && pnpm check`
+- [x] 1.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
 
 ### Phase 2: Export UI + Download Wiring
 

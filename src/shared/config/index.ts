@@ -31,6 +31,7 @@ export {
 export {
   SUBJECT_COLOR_VALUES,
   SUBJECT_COLORS,
+  SUBJECT_COLOR_HEX,
   subjectColorSchema,
   subjectChipClass,
   toSubjectColor,

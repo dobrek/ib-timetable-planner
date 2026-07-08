@@ -28,6 +28,7 @@ import {
   type PerspectiveCard,
 } from "@/widgets/timetable-board";
 import type { TeacherPlanViewData, TeacherViewCohortData } from "../api/loader";
+import ExportTeacherPlanButton from "./ExportTeacherPlanButton";
 import TeacherSwitcher from "./TeacherSwitcher";
 
 type Props = { data: TeacherPlanViewData };
@@ -97,6 +98,15 @@ export default function TeacherPlanPage({ data }: Props) {
 
   const teacherTitle = teacher.fullName ? `${teacher.fullName} (${teacher.code})` : teacher.code;
 
+  // Export inputs: level per course (structural, not the widget CourseInfo) and the teacher-narrowed
+  // placements per cohort — mirroring `deriveCohortView`'s narrowing so the grid sheet shows only the
+  // viewed teacher's courses, not the whole school's.
+  const courseLevels: Record<string, string> = Object.fromEntries(
+    Object.entries(data.courseInfo).map(([id, info]) => [id, info.level] as const),
+  );
+  const dp1CourseIds = new Set(teacherCourses(data.dp1.courses, teacher.id).map((course) => course.id));
+  const dp2CourseIds = new Set(teacherCourses(data.dp2.courses, teacher.id).map((course) => course.id));
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -104,7 +114,31 @@ export default function TeacherPlanPage({ data }: Props) {
           <h1 className="text-xl font-semibold">{teacherTitle}</h1>
           <p className="text-muted-foreground text-sm">{planName} — teacher schedule</p>
         </div>
-        <TeacherSwitcher planId={data.planId} teachers={data.teachers} current={teacher} />
+        <div className="flex items-center gap-2">
+          <TeacherSwitcher planId={data.planId} teachers={data.teachers} current={teacher} />
+          <ExportTeacherPlanButton
+            planName={planName}
+            teacherCode={teacher.code}
+            days={data.days}
+            periods={data.periods}
+            dp1={{
+              cohort: "dp1",
+              placements: perspectivePlacements(data.dp1.placements, dp1CourseIds),
+              courseDisplay: data.dp1.courseDisplay,
+            }}
+            dp2={{
+              cohort: "dp2",
+              placements: perspectivePlacements(data.dp2.placements, dp2CourseIds),
+              courseDisplay: data.dp2.courseDisplay,
+            }}
+            courseDisplay={courseDisplay}
+            courseLevels={courseLevels}
+            items={items}
+            teacherNames={data.teacherNames}
+            studentNames={studentNames}
+            viewerTeacherId={teacher.id}
+          />
+        </div>
       </header>
 
       <ScheduleGrid

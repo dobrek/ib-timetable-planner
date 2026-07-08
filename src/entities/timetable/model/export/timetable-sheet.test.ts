@@ -126,7 +126,7 @@ describe("buildTimetableSheet — content cells", () => {
     const cell = at(sheet, 2, 1); // first period, first content cell
 
     expect(cell.value).toBeUndefined();
-    expect(cell.borderStyle).toBe("thin");
+    expect(cell.borderStyle).toBe("hair");
   });
 });
 
@@ -230,6 +230,18 @@ describe("buildTimetableSheet — break bands", () => {
     expect(sheet.rows).toHaveLength(7);
     expect(sheet.rows.filter(isBreakRow)).toHaveLength(1);
   });
+
+  it("fills the break band with a grey diagonal hatch and closes it like a period", () => {
+    const sheet = buildTimetableSheet({ days: 1, periods: 6, columns: [col("dp1", [])] });
+    const band = sheet.rows.find(isBreakRow)?.[0];
+
+    expect(band).toMatchObject({ fillPatternStyle: "lightUp" });
+    expect(band?.fillPatternColor).toBeDefined(); // the hatch lines
+    expect(band?.backgroundColor).toBeDefined(); // the band base under the hatch
+    // its bottom rule matches the time-range header's (a period block's closing line)
+    expect(band?.bottomBorderStyle).toBe(at(sheet, 1, 0).bottomBorderStyle);
+    expect(band?.bottomBorderColor).toBe(at(sheet, 1, 0).bottomBorderColor);
+  });
 });
 
 describe("buildTimetableSheet — separators (border weight)", () => {
@@ -239,8 +251,8 @@ describe("buildTimetableSheet — separators (border weight)", () => {
     // columns: [label, day1·dp1, day1·dp2]; the content sub-row is sheet row 2.
     const dp1 = at(sheet, 2, 1);
     const dp2 = at(sheet, 2, 2);
-    expect(dp2.rightBorderStyle).toBe("medium"); // day boundary — heaviest
-    expect(dp1.rightBorderStyle).toBe("thin"); // cohort split — lighter
+    expect(dp2.rightBorderStyle).toBe("thin"); // day boundary — heaviest
+    expect(dp1.rightBorderStyle).toBe("hair"); // cohort split — lighter
     expect(dp1.rightBorderColor).toBe(dp2.rightBorderColor); // both the dark separator color
     expect(dp1.rightBorderColor).not.toBe(dp1.borderColor); // stronger than the internal grid
   });
@@ -248,7 +260,7 @@ describe("buildTimetableSheet — separators (border weight)", () => {
   it("closes the frozen time-label column with a strong right border", () => {
     const sheet = buildTimetableSheet({ days: 1, periods: 1, columns: [col("dp1", [])] });
 
-    expect(at(sheet, 1, 0).rightBorderStyle).toBe("medium");
+    expect(at(sheet, 1, 0).rightBorderStyle).toBe("thin");
   });
 
   it("closes each period block with a strong bottom on its last sub-row and time header", () => {
@@ -261,17 +273,17 @@ describe("buildTimetableSheet — separators (border weight)", () => {
 
     // focus, one day, a 2-tall period → rows: [0] day header, [1] sub-row 0, [2] sub-row 1 (last).
     expect(at(sheet, 1, 1).bottomBorderStyle).toBeUndefined(); // internal sub-row: thin grid
-    expect(at(sheet, 2, 1).bottomBorderStyle).toBe("medium"); // period end
-    expect(at(sheet, 1, 0).bottomBorderStyle).toBe("medium"); // time header closes the block
+    expect(at(sheet, 2, 1).bottomBorderStyle).toBe("thin"); // period end
+    expect(at(sheet, 1, 0).bottomBorderStyle).toBe("thin"); // time header closes the block
   });
 
   it("marks the bottom of the header block (day row in focus, cohort row in combined)", () => {
     const focus = buildTimetableSheet({ days: 1, periods: 1, columns: [col("dp1", [])] });
-    expect(at(focus, 0, 1).bottomBorderStyle).toBe("medium"); // the only header row
+    expect(at(focus, 0, 1).bottomBorderStyle).toBe("thin"); // the only header row
 
     const combined = buildTimetableSheet({ days: 1, periods: 1, columns: [col("dp1", []), col("dp2", [])] });
     expect(at(combined, 0, 1).bottomBorderStyle).toBeUndefined(); // day header — cohort row sits below
-    expect(at(combined, 1, 1).bottomBorderStyle).toBe("medium"); // cohort label row ends the header
+    expect(at(combined, 1, 1).bottomBorderStyle).toBe("thin"); // cohort label row ends the header
   });
 });
 

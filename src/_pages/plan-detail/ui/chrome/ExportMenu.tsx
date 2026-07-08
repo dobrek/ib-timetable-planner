@@ -39,6 +39,7 @@ export default function ExportMenu({ planName, focus, days, periods, teacherName
 
   return (
     <>
+      <Toaster />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -66,7 +67,6 @@ export default function ExportMenu({ planName, focus, days, periods, teacherName
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <Toaster />
     </>
   );
 }

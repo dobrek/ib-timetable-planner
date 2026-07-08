@@ -377,8 +377,11 @@ working from an existing plan:
 - **Workers runtime.** Stays within Cloudflare Workers (workerd) — no Node-only
   APIs — for the new constraint logic and any persistence.
 - **No access control change** (email + password, single Author role).
-- **CSV export** is unresolved (see Open Questions); if built, the master-grid
-  export must distinguish cohorts and represent co-teaching + bi-weekly weeks.
+- **Grid export** shipped as a styled `.xlsx` workbook (Open Question #3
+  resolved 2026-07-08 — XLSX supersedes the "master-grid CSV"; client-side, from
+  the plan-detail board toolbar). The export distinguishes both cohorts and
+  represents co-teaching + bi-weekly weeks; no CSV variant ships. See
+  `context/changes/export-to-xlsx/`.
 
 ## Business Logic Changes
 

@@ -8,17 +8,6 @@ import { clickToReveal, createPlan, deletePlan } from "../support/planner";
 // (`timetable-sheet.test.ts` / `roster-sheet.test.ts`); here we only prove the download happens
 // and produces a real workbook byte stream.
 
-/** Mirrors `exportFileName` (unit-tested in `export-file-name.test.ts`) — kept inline so the spec
- *  takes no cross-boundary import into `src/`. */
-const expectedFileName = (planName: string, view: string): string => {
-  const slug =
-    planName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "plan";
-  return `${slug}-${view}.xlsx`;
-};
-
 test.describe("export to xlsx", () => {
   test("Export → Combined downloads a non-empty .xlsx named for the plan", async ({ page }) => {
     // Combined is the default surface, and its toolbar (Export menu included) renders even on a
@@ -31,7 +20,9 @@ test.describe("export to xlsx", () => {
 
       const [download] = await Promise.all([page.waitForEvent("download"), combinedItem.click()]);
 
-      expect(download.suggestedFilename()).toBe(expectedFileName(plan.name, "combined"));
+      // Assert the wiring, not the slug rule (pinned in `export-file-name.test.ts`): a plan-derived
+      // name (non-empty prefix) with the selected view's suffix. `.+` guards against a bare suffix.
+      expect(download.suggestedFilename()).toMatch(/^.+-combined\.xlsx$/);
       const path = await download.path();
       if (!path) throw new Error("download produced no local path");
       const bytes = readFileSync(path);

@@ -86,7 +86,6 @@ describe("buildTimetableSheet — content cells", () => {
     expect(cell.value).toBe("Math");
     expect(cell.backgroundColor).toBe(SUBJECT_COLOR_HEX.sky.fill);
     expect(cell.textColor).toBe(SUBJECT_COLOR_HEX.sky.text);
-    expect(cell.wrap).toBeUndefined();
   });
 
   it("appends (A)/(B) for week a/b and nothing for both", () => {
@@ -112,7 +111,7 @@ describe("buildTimetableSheet — content cells", () => {
     expect(at(sheet, 1, 1).value).toBe("Math (A) (optional)");
   });
 
-  it("does not fill a colorless single-occupant cell", () => {
+  it("does not fill a colorless occupant cell", () => {
     const plain: Record<string, CourseDisplay> = { math: { name: "Math", color: null } };
     const sheet = buildTimetableSheet({ days: 1, periods: 1, columns: [col("dp1", [placement("math", 1, 1)], plain)] });
 
@@ -122,26 +121,54 @@ describe("buildTimetableSheet — content cells", () => {
     expect(cell.textColor).toBeUndefined();
   });
 
-  it("joins multi-occupant cells with newlines, wraps, and applies no fill even when colored", () => {
-    const display: Record<string, CourseDisplay> = {
-      alpha: { name: "Alpha", color: "sky" },
-      beta: { name: "Beta", color: "rose" },
-    };
+  it("emits empty, bordered filler cells for an empty board without crashing", () => {
+    const sheet = buildTimetableSheet({ days: 2, periods: 2, columns: [col("dp1", []), col("dp2", [])] });
+    const cell = at(sheet, 2, 1); // first period, first content cell
+
+    expect(cell.value).toBeUndefined();
+    expect(cell.borderStyle).toBe("thin");
+  });
+});
+
+describe("buildTimetableSheet — bundles stack as per-occupant sub-rows", () => {
+  const display: Record<string, CourseDisplay> = {
+    alpha: { name: "Alpha", color: "sky" },
+    beta: { name: "Beta", color: "rose" },
+  };
+
+  it("splits a bundle into one colored cell per course, one sub-row each", () => {
     const sheet = buildTimetableSheet({
       days: 1,
       periods: 1,
       columns: [col("dp1", [placement("beta", 1, 1), placement("alpha", 1, 1)], display)],
     });
 
-    const cell = at(sheet, 1, 1);
-    expect(cell.value).toBe("Alpha\nBeta"); // name-sorted
-    expect(cell.wrap).toBe(true);
-    expect(cell.backgroundColor).toBeUndefined();
-    expect(cell.textColor).toBeUndefined();
+    // Name-sorted: Alpha in sub-row 0, Beta in sub-row 1 — each keeps its own color.
+    expect(at(sheet, 1, 1)).toMatchObject({
+      value: "Alpha",
+      backgroundColor: SUBJECT_COLOR_HEX.sky.fill,
+      textColor: SUBJECT_COLOR_HEX.sky.text,
+    });
+    expect(at(sheet, 2, 1)).toMatchObject({
+      value: "Beta",
+      backgroundColor: SUBJECT_COLOR_HEX.rose.fill,
+      textColor: SUBJECT_COLOR_HEX.rose.text,
+    });
   });
 
-  it("orders a cell's occupants by display name", () => {
-    const display: Record<string, CourseDisplay> = {
+  it("gives the period a rowSpanned time header with a null placeholder beneath it", () => {
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("alpha", 1, 1), placement("beta", 1, 1)], display)],
+    });
+
+    expect(at(sheet, 1, 0)).toMatchObject({ value: "08:00–08:45", rowSpan: 2, alignVertical: "center" });
+    expect(sheet.rows[2][0]).toBeNull(); // the merge placeholder under the time header
+  });
+
+  it("stacks 3+ occupants in name order, one per sub-row", () => {
+    const names: Record<string, CourseDisplay> = {
       z: { name: "Zebra", color: null },
       a: { name: "Apple", color: null },
       m: { name: "Mango", color: null },
@@ -149,18 +176,36 @@ describe("buildTimetableSheet — content cells", () => {
     const sheet = buildTimetableSheet({
       days: 1,
       periods: 1,
-      columns: [col("dp1", [placement("z", 1, 1), placement("a", 1, 1), placement("m", 1, 1)], display)],
+      columns: [col("dp1", [placement("z", 1, 1), placement("a", 1, 1), placement("m", 1, 1)], names)],
     });
 
-    expect(at(sheet, 1, 1).value).toBe("Apple\nMango\nZebra");
+    expect([1, 2, 3].map((r) => at(sheet, r, 1).value)).toEqual(["Apple", "Mango", "Zebra"]);
   });
 
-  it("emits empty, bordered content cells for an empty board without crashing", () => {
-    const sheet = buildTimetableSheet({ days: 2, periods: 2, columns: [col("dp1", []), col("dp2", [])] });
-    const cell = at(sheet, 2, 1); // first period, first content cell
+  it("sizes a period to its busiest cell; lighter cells get empty fillers below", () => {
+    const two: Record<string, CourseDisplay> = { m: { name: "Math", color: null }, b: { name: "Bio", color: null } };
+    const one: Record<string, CourseDisplay> = { c: { name: "Chem", color: "teal" } };
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("m", 1, 1), placement("b", 1, 1)], two), col("dp2", [placement("c", 1, 1)], one)],
+    });
 
-    expect(cell.value).toBeUndefined();
-    expect(cell.borderStyle).toBe("thin");
+    // columns: [label, day1·dp1, day1·dp2]; period height 2 → sub-rows at sheet rows 2 and 3.
+    expect(at(sheet, 2, 2).value).toBe("Chem"); // dp2's one course sits in the top sub-row
+    expect(at(sheet, 3, 2).value).toBeUndefined(); // filler beneath it
+    expect(at(sheet, 2, 1).value).toBeDefined(); // dp1 fills both sub-rows
+    expect(at(sheet, 3, 1).value).toBeDefined();
+  });
+
+  it("carries no rowSpan on the time header of a single-height period", () => {
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("math", 1, 1)], { math: { name: "Math", color: null } })],
+    });
+
+    expect(at(sheet, 1, 0).rowSpan).toBeUndefined();
   });
 });
 
@@ -170,10 +215,9 @@ describe("buildTimetableSheet — break bands", () => {
   it("inserts one spacer row after each interior break period (P2, P5)", () => {
     const sheet = buildTimetableSheet({ days: 1, periods: 6, columns: [col("dp1", [])] });
 
-    // header + 6 period rows + 2 break rows (after P2, after P5)
+    // header + 6 single-height period rows + 2 break rows (after P2, after P5)
     expect(sheet.rows).toHaveLength(9);
     expect(sheet.rows.filter(isBreakRow)).toHaveLength(2);
-    // the break spans the full width via a merged lead cell with trailing null
     const breakRow = sheet.rows.find(isBreakRow);
     expect(breakRow?.[0]).toMatchObject({ columnSpan: 2 });
     expect(breakRow?.[1]).toBeNull();

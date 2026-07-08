@@ -3,7 +3,7 @@ import { resolveCourseDisplay, type CourseDisplay } from "../course-display";
 import type { PerspectiveCourseItem } from "../perspective-course-list";
 import type { PlannerPlacement } from "../placement";
 import { buildPerspectiveCourseSheet } from "./perspective-course-sheet";
-import { courseSheetName, dedupeSheetNames } from "./sheet-name";
+import { courseSheetName, dedupeSheetNames, sanitizeSheetName, SHEET_NAME_MAX } from "./sheet-name";
 import { buildTimetableSheet } from "./timetable-sheet";
 import type { TimetableSheet } from "./sheet-types";
 
@@ -45,13 +45,27 @@ export type NamedSheet = { name: string; sheet: TimetableSheet };
  */
 export const buildPerspectiveWorkbook = (
   input: PerspectiveWorkbookInput,
-): { sheets: NamedSheet[]; fileName: string } => ({
-  sheets: [buildGridSheet(input), ...buildCourseSheets(input)],
-  fileName: `${slugify(input.planName)}-${slugify(input.fileCode)}.xlsx`,
-});
+): { sheets: NamedSheet[]; fileName: string } => {
+  const sorted = [...input.items].sort((a, b) => compareItems(a, b, input.courseDisplay));
+  // De-dup workbook-wide — the grid name is disambiguated against the course tabs, not exempt from them.
+  const [gridName, ...courseNames] = dedupeSheetNames([
+    gridSheetName(input),
+    ...sorted.map((item) => courseSheetName(courseNameOf(item, input.courseDisplay), item.cohort)),
+  ]);
+  return {
+    sheets: [buildGridSheet(input, gridName), ...buildCourseSheets(input, sorted, courseNames)],
+    fileName: `${slugify(input.planName)}-${slugify(input.fileCode)}.xlsx`,
+  };
+};
+
+/** The grid tab name: sanitized and length-capped like a course name, defaulting to `Timetable`. */
+const gridSheetName = (input: PerspectiveWorkbookInput): string =>
+  sanitizeSheetName(input.gridSheetName ?? "Timetable")
+    .slice(0, SHEET_NAME_MAX)
+    .trimEnd() || "Timetable";
 
 /** The merged teacher/student grid: both cohorts' placements unioned into one column, cohort-tagged per course. */
-const buildGridSheet = (input: PerspectiveWorkbookInput): NamedSheet => {
+const buildGridSheet = (input: PerspectiveWorkbookInput, name: string): NamedSheet => {
   const union = input.cohorts.flatMap((cohort) => cohort.placements);
   const mergedDisplay: Record<string, CourseDisplay> = Object.fromEntries(
     input.cohorts.flatMap((cohort) => Object.entries(cohort.courseDisplay)),
@@ -64,19 +78,21 @@ const buildGridSheet = (input: PerspectiveWorkbookInput): NamedSheet => {
   const sheet = buildTimetableSheet({
     days: input.days,
     periods: input.periods,
-    columns: [{ cohort: input.cohorts[0].cohort, placements: union, courseDisplay: mergedDisplay }],
+    // Single column, so `cohort` is never read (the cohort sub-label row only renders for multi-column grids);
+    // the default just keeps an empty `cohorts` array from throwing. The visible tag comes from `cohortTag`.
+    columns: [{ cohort: input.cohorts[0]?.cohort ?? "dp1", placements: union, courseDisplay: mergedDisplay }],
     cohortTag,
   });
-  return { name: input.gridSheetName ?? "Timetable", sheet };
+  return { name, sheet };
 };
 
-/** One sheet per course in `(cohort, name)` order, with sanitized, de-duplicated tab names. */
-const buildCourseSheets = (input: PerspectiveWorkbookInput): NamedSheet[] => {
-  const sorted = [...input.items].sort((a, b) => compareItems(a, b, input.courseDisplay));
-  const names = dedupeSheetNames(
-    sorted.map((item) => courseSheetName(courseNameOf(item, input.courseDisplay), item.cohort)),
-  );
-  return sorted.map((item, index) => ({
+/** One sheet per course, paired with its pre-deduped tab name (dedup is workbook-wide, incl. the grid). */
+const buildCourseSheets = (
+  input: PerspectiveWorkbookInput,
+  sorted: PerspectiveCourseItem[],
+  names: string[],
+): NamedSheet[] =>
+  sorted.map((item, index) => ({
     name: names[index],
     sheet: buildPerspectiveCourseSheet({
       item,
@@ -87,7 +103,6 @@ const buildCourseSheets = (input: PerspectiveWorkbookInput): NamedSheet[] => {
       omitTeacherKey: input.omitTeacherKey,
     }),
   }));
-};
 
 /** Resolve a display name via the shared resolver — a catalog-absent merge child degrades to its bare id. */
 const courseNameOf = (item: PerspectiveCourseItem, courseDisplay: Record<string, CourseDisplay>): string =>

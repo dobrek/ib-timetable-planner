@@ -4,7 +4,8 @@ import { cohortLabel, type Cohort } from "@/shared/config";
  * Excel worksheet-name hygiene — the single highest-risk detail of the export, isolated and unit-tested.
  * `write-excel-file` VALIDATES (throws on empty / >31 chars / the illegal set `[ ] / \ : * ?`) but does
  * NOT sanitize, and does NOT enforce the case-insensitive uniqueness Excel itself requires. So the caller
- * owns all three: strip illegal chars, cap at 31, and de-duplicate case-insensitively.
+ * owns hygiene: strip the illegal set (plus leading/trailing spaces and apostrophes, which Excel also
+ * rejects), cap at 31, and de-duplicate case-insensitively.
  */
 
 /** Excel's hard cap on worksheet-name length. */
@@ -12,16 +13,20 @@ export const SHEET_NAME_MAX = 31;
 
 const ILLEGAL_CHARS = /[[\]/\\:*?]+/g;
 
-/** Replace the Excel-illegal set with a space, collapse runs of whitespace, and trim. */
-export const sanitizeSheetName = (raw: string): string => raw.replace(ILLEGAL_CHARS, " ").replace(/\s+/g, " ").trim();
+/** Replace the Excel-illegal set with a space, collapse runs of whitespace, and trim surrounding spaces and apostrophes (Excel forbids a name that starts or ends with `'`). */
+export const sanitizeSheetName = (raw: string): string =>
+  raw
+    .replace(ILLEGAL_CHARS, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s']+|[\s']+$/g, "");
 
-/** `Mathematics HL · DP1` — sanitized name trimmed to leave room for the ` · DPx` cohort suffix within 31 chars. */
+/** `Mathematics HL · DP1` — sanitized name trimmed to leave room for the ` · DPx` cohort suffix within 31 chars; a name that sanitizes to nothing degrades to the bare cohort label. */
 export const courseSheetName = (courseName: string, cohort: Cohort): string => {
   const suffix = ` · ${cohortLabel(cohort)}`;
   const base = sanitizeSheetName(courseName)
     .slice(0, SHEET_NAME_MAX - suffix.length)
     .trimEnd();
-  return `${base}${suffix}`;
+  return base ? `${base}${suffix}` : cohortLabel(cohort);
 };
 
 /**

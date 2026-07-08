@@ -19,6 +19,9 @@ export * from "./model/perspective-course-list";
 export * from "./model/export/sheet-types";
 export * from "./model/export/timetable-sheet";
 export * from "./model/export/roster-sheet";
+export * from "./model/export/perspective-course-sheet";
+export * from "./model/export/sheet-name";
+export * from "./model/export/perspective-workbook";
 // Test-fixture builders travel with the domain; consumer-slice tests import them
 // through this barrel so no cross-slice deep import exists.
 export * from "./model/__fixtures__/builders";

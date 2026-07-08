@@ -1,5 +1,12 @@
 # Export to XLSX Implementation Plan
 
+> **⚠️ Post-implementation supersessions (2026-07-08) — see `change.md` for the authoritative decisions.** Three grid-fidelity rules below were revised *after* this plan was written; the shipped code and its tests implement the revised model:
+> - **One cell per course, vertical sub-rows** — retires "join occupants with `\n` in one cell" (§Critical Details, Phase 1 *Content cells*) and "fill only single-occupant cells" (§Critical Details, Phase 1 *Fills*). Every course now occupies its own sub-row cell and keeps its own subject-color fill; the time-range header `rowSpan`s the period's sub-rows.
+> - **Hatch-filled break bands** — retires "empty cells, small height" (Phase 1 *Break bands*): the spacer rows now carry a grey `lightUp` diagonal-hatch fill.
+> - **Weighted borders** — retires "thin borders" (Phase 1 *Grid styling*): a `hair` internal grid with `thin` day/period/cohort separators.
+>
+> Test-criteria prose at Phase 1 *Success Criteria*, *Testing Strategy*, and *Manual Testing Steps* that still says "newline+wrap / single-occupant fill / neutral bundle cell" describes the retired model — read it as historical.
+
 ## Overview
 
 Add a client-side "Export to XLSX" feature to the plan-detail board: a download-icon dropdown button in the board toolbar lets the author export the placed grid of any view (**combined**, **dp1**, **dp2** — active focus offered first) as a styled `.xlsx` workbook, generated in the browser from the **live board state** (including unsaved optimistic edits) via `write-excel-file`. Besides the timetable sheet, the workbook carries one **subject roster sheet per exported cohort** (all catalog subjects with their assigned teachers and students, names resolved). The workbook assembly is a pair of pure, runtime-agnostic transforms in `entities/timetable`, structured for future server-side batch reuse.
@@ -51,6 +58,8 @@ Two production phases plus a closure phase:
 3. **E2E download smoke + PRD Open Question #3 update.**
 
 ## Critical Implementation Details
+
+> **Superseded — see the banner at the top of this file and `change.md` (2026-07-08).** The "Multi-course cell fills" rule below was retired: each course now occupies its own sub-row cell and keeps its own subject-color fill (one-cell-per-course), rather than one neutral cell per multi-occupant slot.
 
 - **Multi-course cell fills**: a cell's fill is applied **only when the cell has exactly one occupant and that occupant has a color**. Multi-occupant cells stay neutral — a single fill over mixed-color courses would misrepresent them (decision).
 - **Period row headers show only the time range** (e.g. `08:00–08:45`), not "P1" (decision — deliberate deviation from the on-screen header). When `periodTimeRange(period)` returns `null` (periods 11–12 under large presets), fall back to `periodLabel(period)`.
@@ -167,6 +176,8 @@ Fidelity rules (each is a test case):
 Add the `write-excel-file` dependency and the user-facing affordance: an `ExportMenu` (download-icon dropdown) in the board toolbar that builds `TimetableSheetInput` from live state, calls the transform, and saves the file.
 
 ### Changes Required:
+
+> **Addendum (post-implementation):** the sheet-descriptor assembly the plan describes inside `ExportMenu` (item #3) shipped as a separate pure module — `src/_pages/plan-detail/lib/export-workbook.ts` (`buildExportWorkbook(input) → { sheets, fileName }`, with `export-workbook.test.ts`). This keeps `ExportMenu` thin and makes the glue unit-testable without React; `write-excel-file` is imported only at the `ExportMenu` call site. FSD-legal (slice `lib/`, downward imports only).
 
 #### 1. Dependency
 

@@ -1,10 +1,10 @@
 ---
 change_id: export-to-xlsx
 title: Export to xlsx
-status: impl_reviewed
+status: archived
 created: 2026-07-07
 updated: 2026-07-08
-archived_at: null
+archived_at: 2026-07-08T11:33:14Z
 ---
 
 ## Notes

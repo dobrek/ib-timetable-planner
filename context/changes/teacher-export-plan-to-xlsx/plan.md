@@ -249,30 +249,30 @@ None — additive only. No schema, data, or dependency change.
 
 #### Automated
 
-- [x] 1.1 Type gate passes: `pnpm check`
-- [x] 1.2 Unit tests pass: `pnpm test`
-- [x] 1.3 Linting passes: `pnpm lint`
-- [x] 1.4 FSD structure passes: `pnpm steiger`
-- [x] 1.5 Production build stays clean: `pnpm build`
+- [x] 1.1 Type gate passes: `pnpm check` — 9d3f981
+- [x] 1.2 Unit tests pass: `pnpm test` — 9d3f981
+- [x] 1.3 Linting passes: `pnpm lint` — 9d3f981
+- [x] 1.4 FSD structure passes: `pnpm steiger` — 9d3f981
+- [x] 1.5 Production build stays clean: `pnpm build` — 9d3f981
 
 #### Manual
 
-- [x] 1.6 Spot-check a test fixture's tab names and grid labels (`Name · DPx`, `… (DP1)`), including a sanitized long/illegal name and a deduped collision
+- [x] 1.6 Spot-check a test fixture's tab names and grid labels (`Name · DPx`, `… (DP1)`), including a sanitized long/illegal name and a deduped collision — 9d3f981
 
 ### Phase 2: Wire the teacher Export button
 
 #### Automated
 
-- [ ] 2.1 Type gate passes: `pnpm check`
-- [ ] 2.2 Linting passes: `pnpm lint`
-- [ ] 2.3 FSD structure passes: `pnpm steiger`
-- [ ] 2.4 Production build stays clean: `pnpm build`
+- [x] 2.1 Type gate passes: `pnpm check`
+- [x] 2.2 Linting passes: `pnpm lint`
+- [x] 2.3 FSD structure passes: `pnpm steiger`
+- [x] 2.4 Production build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.5 Exporting a multi-course teacher downloads `<plan-slug>-<teacher-code>.xlsx`
-- [ ] 2.6 Grid sheet mirrors the screen: only the viewed teacher's courses appear, cohort-tagged lines, subject fills, break bands, frozen headers, no collision/availability marks
-- [ ] 2.7 One sheet per course, tab `Name · DPx`, deduped; a long/illegal name is sanitized without throwing
-- [ ] 2.8 Per-course sheet shows header + roster; empty roster shows "No students assigned."
-- [ ] 2.9 Export button is disabled for a teacher with no courses
-- [ ] 2.10 A forced failure surfaces the `sonner` toast
+- [x] 2.5 Exporting a multi-course teacher downloads `<plan-slug>-<teacher-code>.xlsx`
+- [x] 2.6 Grid sheet mirrors the screen: only the viewed teacher's courses appear, cohort-tagged lines, subject fills, break bands, frozen headers, no collision/availability marks
+- [x] 2.7 One sheet per course, tab `Name · DPx`, deduped; a long/illegal name is sanitized without throwing
+- [x] 2.8 Per-course sheet shows header + roster; empty roster shows "No students assigned."
+- [x] 2.9 Export button is disabled for a teacher with no courses
+- [x] 2.10 A forced failure surfaces the `sonner` toast

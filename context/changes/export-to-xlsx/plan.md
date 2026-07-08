@@ -305,27 +305,27 @@ None — no schema, no persisted state, no server code. Rollback = revert the co
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `pnpm test` (all transform fidelity rules covered)
-- [x] 1.2 Type check passes: `pnpm exec astro sync && pnpm check`
-- [x] 1.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 1.1 Unit tests pass: `pnpm test` (all transform fidelity rules covered) — 5fafa14
+- [x] 1.2 Type check passes: `pnpm exec astro sync && pnpm check` — 5fafa14
+- [x] 1.3 Lint + FSD structure pass: `pnpm lint && pnpm steiger` — 5fafa14
 
 ### Phase 2: Export UI + Download Wiring
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `pnpm test` (file-name helper + ExportMenu)
-- [ ] 2.2 Type check passes: `pnpm check`
-- [ ] 2.3 Build stays clean on workerd: `pnpm build`
-- [ ] 2.4 Audit gate stays clean: `pnpm audit --audit-level=high`
-- [ ] 2.5 Lint + steiger pass
+- [x] 2.1 Unit tests pass: `pnpm test` (file-name helper + ExportMenu)
+- [x] 2.2 Type check passes: `pnpm check`
+- [x] 2.3 Build stays clean on workerd: `pnpm build`
+- [x] 2.4 Audit gate stays clean: `pnpm audit --audit-level=high`
+- [x] 2.5 Lint + steiger pass
 
 #### Manual
 
 - [ ] 2.6 All three views export with expected filenames from every focus
-- [ ] 2.7 Combined workbook mirrors the board (headers, fills, tags, breaks, frozen panes)
+- [x] 2.7 Combined workbook mirrors the board (headers, fills, tags, breaks, frozen panes) — verified against real write-excel-file@4.1.1 output (mergeCell B1:C1 day span + A4:C4 break band, sky fill #DFF2FE/#024A70, "Math (A) (optional)" tag, "08:00–08:45" time header, frozen pane ySplit=2 xSplit=1)
 - [ ] 2.8 Unsaved in-session edit appears in the export
-- [ ] 2.9 Empty board exports a valid empty grid
-- [ ] 2.10 Roster tab(s) present per exported cohort, listing every catalog subject with resolved teacher/student names and hours
+- [x] 2.9 Empty board exports a valid empty grid — `buildTimetableSheet` empty-board unit test + library renders empty-value cells without crash
+- [x] 2.10 Roster tab(s) present per exported cohort, listing every catalog subject with resolved teacher/student names and hours — "DP1 subjects"/"DP2 subjects" sheets verified (real output + export-workbook.test)
 
 ### Phase 3: E2E Download Smoke + Doc Closure
 

@@ -5,6 +5,7 @@ export { default as BoardSettingsMenu } from "./BoardSettingsMenu";
 export { default as BoardShell } from "./BoardShell";
 export { default as CollapsibleEdgePanel, EDGE_PANEL_ICON_BUTTON } from "./CollapsibleEdgePanel";
 export { default as CohortSwitcher } from "./CohortSwitcher";
+export { default as ExportMenu } from "./ExportMenu";
 export { default as PlanSummaryBar } from "./PlanSummaryBar";
 export { default as UndoRedoControls, type UndoRedoControlsProps } from "./UndoRedoControls";
 export { default as ErrorBanner } from "./ErrorBanner";

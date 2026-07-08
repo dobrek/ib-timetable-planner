@@ -6,6 +6,7 @@ import {
   BoardSettingsMenu,
   BoardShell,
   ErrorBanner,
+  ExportMenu,
   PlanSummaryBar,
   buildCoursesLeftSummary,
   inspectedViolations,
@@ -31,6 +32,7 @@ import { resolvePaletteView } from "../model/grouping/palette-view";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
 import type { BoardSurface } from "../lib/board-surface";
+import type { ExportCohortData } from "../lib/export-workbook";
 
 type Props = {
   planName: string;
@@ -154,6 +156,21 @@ export default function PlannerBoard({
     };
   }
 
+  // Live grid state (placements + display, incl. unsaved optimistic edits) for the timetable sheet;
+  // server-seeded props (catalog, studentNames) for the roster sheet — the catalog has no in-session
+  // edit surface on this page.
+  function exportCohort(cohort: Cohort): ExportCohortData {
+    const state = resolveState(cohort);
+    const cohortProps = resolveProps(cohort);
+    return {
+      cohort,
+      placements: state.placements,
+      courseDisplay: state.courseDisplay,
+      catalog: cohortProps.catalog,
+      studentNames: cohortProps.studentNames,
+    };
+  }
+
   function buildColumn(cohort: Cohort, state: CohortBoardState): PairedColumn {
     return {
       cohort,
@@ -255,6 +272,15 @@ export default function PlannerBoard({
                   onToggle={lens.toggleCriterion}
                   preview={lens.preview}
                   onPreview={lens.setPreview}
+                />
+                <ExportMenu
+                  planName={planName}
+                  focus={focus}
+                  days={days}
+                  periods={periods}
+                  teacherNames={shared.teacherNames}
+                  dp1={exportCohort("dp1")}
+                  dp2={exportCohort("dp2")}
                 />
                 <BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode} />
               </>

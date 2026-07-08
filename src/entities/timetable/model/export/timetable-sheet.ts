@@ -60,19 +60,29 @@ export function buildTimetableSheet(input: TimetableSheetInput): TimetableSheet 
 /** A non-null cell — the builders always produce one; `null` appears only as a span placeholder. */
 type Cell = NonNullable<TimetableSheetCell>;
 
-const BASE_BORDER = { borderStyle: "thin", borderColor: SHEET_BORDER_COLOR } as const;
+const BASE_BORDER = { borderStyle: "hair", borderColor: SHEET_BORDER_COLOR } as const;
 /**
  * Stronger separators over the thin light-gray grid: a darker medium line closes each day column and
  * each period block; a darker thin line marks the cohort split within a day. Per-side overrides win
  * over `BASE_BORDER`, so a strong right/bottom coexists with the thin grid on the other sides.
  */
 const SEPARATOR_COLOR = "#4B5563";
-const DAY_RIGHT = { rightBorderStyle: "medium", rightBorderColor: SEPARATOR_COLOR } as const;
-const COHORT_RIGHT = { rightBorderStyle: "thin", rightBorderColor: SEPARATOR_COLOR } as const;
-const STRONG_BOTTOM = { bottomBorderStyle: "medium", bottomBorderColor: SEPARATOR_COLOR } as const;
+const DAY_RIGHT = { rightBorderStyle: "thin", rightBorderColor: SEPARATOR_COLOR } as const;
+const COHORT_RIGHT = { rightBorderStyle: "hair", rightBorderColor: SEPARATOR_COLOR } as const;
+const STRONG_BOTTOM = { bottomBorderStyle: "thin", bottomBorderColor: SEPARATOR_COLOR } as const;
+/**
+ * Break-band fill — the xlsx echo of the board's faint diagonal hatch (`bg-period-break`): a light
+ * grey base under `lightUp` diagonal hatch lines in a mid grey, so the P2/P5 spacers read as an
+ * intentional separator rather than a blank gap.
+ */
+const BREAK_FILL = {
+  backgroundColor: "#F3F4F6",
+  fillPatternStyle: "lightUp",
+  fillPatternColor: "#9CA3AF",
+} as const;
 const TIME_COLUMN_WIDTH = 12;
-const COURSE_COLUMN_WIDTH = 18;
-const BREAK_ROW_HEIGHT = 6;
+const COURSE_COLUMN_WIDTH = 20;
+const BREAK_ROW_HEIGHT = 10;
 /** Read-only empty map → `groupCellOccupants` reports every occupant as un-collided (clean snapshot). */
 const EMPTY_COLLISIONS = new Map<string, CellCollisions>();
 
@@ -122,9 +132,10 @@ const periodRows = (
   ]);
 };
 
-/** A short empty band across the full width (height on the merged lead cell) — mirrors the board break. */
+/** A hatched grey band across the full width (merged lead cell), closed by the same bottom rule as a
+ *  period block — mirrors the board's faint diagonal break separator. */
 const breakRow = (totalColumns: number): TimetableSheetCell[] => [
-  { height: BREAK_ROW_HEIGHT, columnSpan: totalColumns },
+  { height: BREAK_ROW_HEIGHT, columnSpan: totalColumns, ...BREAK_FILL, ...STRONG_BOTTOM },
   ...Array.from({ length: totalColumns - 1 }, () => null),
 ];
 

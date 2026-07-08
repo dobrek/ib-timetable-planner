@@ -18,7 +18,7 @@ export const SHEET_BORDER_COLOR = "#D1D5DB";
 export type TimetableSheetAlign = "left" | "center" | "right";
 
 /** Border weights the transforms use — thin for the internal grid, medium for strong separators. */
-export type TimetableSheetBorder = "thin" | "medium";
+export type TimetableSheetBorder = "hair" | "thin" | "medium";
 
 /**
  * One styled cell. `null` is a spanned-cell placeholder: a cell carrying `columnSpan: n` must be
@@ -34,8 +34,12 @@ export type TimetableSheetCell = {
   alignVertical?: "top" | "center" | "bottom";
   /** Text wraps within the cell (people lists). */
   wrap?: boolean;
-  /** Cell fill (hex), e.g. a single subject's color. */
+  /** Cell fill (hex) — a subject color on a course cell, or the band base under a break pattern. */
   backgroundColor?: string;
+  /** A patterned fill (over `backgroundColor`): the pattern kind + its line color (hex). Used for
+   *  the break-band hatch. Both must be set for the pattern to render. */
+  fillPatternStyle?: "lightUp" | "lightDown" | "lightGrid";
+  fillPatternColor?: string;
   /** Font color (hex), paired with `backgroundColor`. */
   textColor?: string;
   /** Merge this cell across `columnSpan` columns; emit `columnSpan − 1` trailing `null`s. */

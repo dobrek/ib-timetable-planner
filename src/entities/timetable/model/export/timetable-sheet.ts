@@ -21,6 +21,8 @@ export type TimetableSheetInput = {
   periods: number;
   /** One column in focus mode, two (dp1, dp2) in combined. */
   columns: TimetableSheetColumn[];
+  /** courseId → cohort; when set, each occupant label gains a ` (DP1)`/`(DP2)` suffix. */
+  cohortTag?: ReadonlyMap<string, Cohort>;
 };
 
 /**
@@ -34,7 +36,7 @@ export type TimetableSheetInput = {
  * APIs and no `write-excel-file` import — the caller binds the library.
  */
 export function buildTimetableSheet(input: TimetableSheetInput): TimetableSheet {
-  const { days, periods, columns } = input;
+  const { days, periods, columns, cohortTag } = input;
   const multi = columns.length > 1;
   const dayList = rangeFrom1(days);
   const occupantsByColumn = columns.map((column) =>
@@ -45,7 +47,7 @@ export function buildTimetableSheet(input: TimetableSheetInput): TimetableSheet 
   const rows: TimetableSheetCell[][] = [dayHeaderRow(dayList, columns.length, multi)];
   if (multi) rows.push(cohortLabelRow(dayList, columns));
   for (const period of rangeFrom1(periods)) {
-    rows.push(...periodRows(period, dayList, occupantsByColumn, columns.length));
+    rows.push(...periodRows(period, dayList, occupantsByColumn, columns.length, cohortTag));
     if (breaksAfterPeriod(period, periods)) rows.push(breakRow(totalColumns));
   }
 
@@ -119,6 +121,7 @@ const periodRows = (
   dayList: number[],
   occupantsByColumn: Map<string, CellOccupant[]>[],
   columnsPerDay: number,
+  cohortTag: ReadonlyMap<string, Cohort> | undefined,
 ): TimetableSheetCell[][] => {
   const cells = dayList.flatMap((day) =>
     occupantsByColumn.map((occupants) => occupants.get(cellKey(day, period)) ?? []),
@@ -127,7 +130,7 @@ const periodRows = (
   return rangeFrom0(height).map((subRow) => [
     subRow === 0 ? periodHeaderCell(period, height) : null,
     ...cells.map((occupants, index) =>
-      contentCell(occupants[subRow], index % columnsPerDay === columnsPerDay - 1, subRow === height - 1),
+      contentCell(occupants[subRow], index % columnsPerDay === columnsPerDay - 1, subRow === height - 1, cohortTag),
     ),
   ]);
 };
@@ -197,10 +200,15 @@ const periodTimeLabel = (period: number): string => {
  * strong right border closes its day column (lighter at a cohort split); a strong bottom closes the
  * period when this is its last sub-row.
  */
-const contentCell = (occupant: CellOccupant | undefined, dayEnd: boolean, periodEnd: boolean): Cell => {
+const contentCell = (
+  occupant: CellOccupant | undefined,
+  dayEnd: boolean,
+  periodEnd: boolean,
+  cohortTag: ReadonlyMap<string, Cohort> | undefined,
+): Cell => {
   const fill = occupant ? subjectFill(occupant.color) : null;
   return {
-    ...(occupant ? { value: occupantLabel(occupant) } : {}),
+    ...(occupant ? { value: occupantLabel(occupant, cohortTag) } : {}),
     ...BASE_BORDER,
     ...columnRight(dayEnd),
     ...(periodEnd ? STRONG_BOTTOM : {}),
@@ -208,12 +216,18 @@ const contentCell = (occupant: CellOccupant | undefined, dayEnd: boolean, period
   };
 };
 
-/** The chip's text: name + week tag (`(A)`/`(B)`, nothing for `both`) + `(optional)` when flagged. */
-const occupantLabel = (occupant: CellOccupant): string => {
+/**
+ * The chip's text: name + week tag (`(A)`/`(B)`, nothing for `both`) + `(optional)` when flagged,
+ * then a trailing ` (DP1)`/`(DP2)` when a `cohortTag` maps this occupant's course (the merged
+ * teacher/student grid); absent the tag the label is unchanged (the board export).
+ */
+const occupantLabel = (occupant: CellOccupant, cohortTag: ReadonlyMap<string, Cohort> | undefined): string => {
   const { week, isOptional } = occupant.placement;
   const weekSuffix = week === "a" ? " (A)" : week === "b" ? " (B)" : "";
   const optionalSuffix = isOptional ? " (optional)" : "";
-  return `${occupant.name}${weekSuffix}${optionalSuffix}`;
+  const cohort = cohortTag?.get(occupant.placement.courseId);
+  const cohortSuffix = cohort ? ` (${cohortLabel(cohort)})` : "";
+  return `${occupant.name}${weekSuffix}${optionalSuffix}${cohortSuffix}`;
 };
 
 /** Per-occupant fill: the subject's hex pair, or `null` for a colorless course. */

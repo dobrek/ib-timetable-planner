@@ -209,6 +209,73 @@ describe("buildTimetableSheet — bundles stack as per-occupant sub-rows", () =>
   });
 });
 
+describe("buildTimetableSheet — cohort tag", () => {
+  const display: Record<string, CourseDisplay> = { math: { name: "Math", color: null } };
+
+  it("appends the cohort label to a tagged occupant", () => {
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("math", 1, 1)], display)],
+      cohortTag: new Map<string, Cohort>([["math", "dp1"]]),
+    });
+
+    expect(at(sheet, 1, 1).value).toBe("Math (DP1)");
+  });
+
+  it("uses each course's own cohort for the suffix in a merged column", () => {
+    const both: Record<string, CourseDisplay> = {
+      m: { name: "Math", color: null },
+      e: { name: "English", color: null },
+    };
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("m", 1, 1), placement("e", 1, 1)], both)],
+      cohortTag: new Map<string, Cohort>([
+        ["m", "dp1"],
+        ["e", "dp2"],
+      ]),
+    });
+
+    // name-sorted: English (sub-row 0), Math (sub-row 1) — each carries its own cohort.
+    expect(at(sheet, 1, 1).value).toBe("English (DP2)");
+    expect(at(sheet, 2, 1).value).toBe("Math (DP1)");
+  });
+
+  it("appends the cohort suffix after any week/optional tags", () => {
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("math", 1, 1, { week: "a", isOptional: true })], display)],
+      cohortTag: new Map<string, Cohort>([["math", "dp1"]]),
+    });
+
+    expect(at(sheet, 1, 1).value).toBe("Math (A) (optional) (DP1)");
+  });
+
+  it("leaves labels unchanged when no cohortTag is supplied (the board export)", () => {
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("math", 1, 1)], display)],
+    });
+
+    expect(at(sheet, 1, 1).value).toBe("Math");
+  });
+
+  it("does not tag an occupant absent from the map", () => {
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("math", 1, 1)], display)],
+      cohortTag: new Map<string, Cohort>([["other", "dp2"]]),
+    });
+
+    expect(at(sheet, 1, 1).value).toBe("Math");
+  });
+});
+
 describe("buildTimetableSheet — break bands", () => {
   const isBreakRow = (row: TimetableSheetCell[]) => row[0]?.height !== undefined && row[0]?.value === undefined;
 

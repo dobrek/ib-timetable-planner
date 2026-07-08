@@ -25,11 +25,13 @@ export type TimetableSheetInput = {
 
 /**
  * Turn one view's live grid into styled sheet data — the pure heart of the XLSX export. Mirrors
- * `PlannerGrid`'s layout: a day-header row (each day spanning its cohort sub-columns in combined), an
- * optional cohort sub-label row, then period rows headed by their time range, with break-band spacer
- * rows after P2/P5. Occupants come from `groupCellOccupants` with an **empty** collisions map, so the
- * snapshot is clean and name-sorted with zero new grouping logic. Framework-free: no browser APIs and
- * no `write-excel-file` import — the caller binds the library.
+ * `PlannerGrid`'s layout: a day-header row (each day spanning its cohort sub-columns in combined) and
+ * an optional cohort sub-label row, then each period rendered as a **block of sub-rows** — one per
+ * stacked occupant, mirroring the board's chips. Every occupant is its own cell (so each keeps its own
+ * subject color); the time-range header is one cell that `rowSpan`s the period's sub-rows. Break-band
+ * spacer rows follow P2/P5. Occupants come from `groupCellOccupants` with an **empty** collisions map,
+ * so the snapshot is clean and name-sorted with zero new grouping logic. Framework-free: no browser
+ * APIs and no `write-excel-file` import — the caller binds the library.
  */
 export function buildTimetableSheet(input: TimetableSheetInput): TimetableSheet {
   const { days, periods, columns } = input;
@@ -43,7 +45,7 @@ export function buildTimetableSheet(input: TimetableSheetInput): TimetableSheet 
   const rows: TimetableSheetCell[][] = [dayHeaderRow(dayList, columns.length, multi)];
   if (multi) rows.push(cohortLabelRow(dayList, columns));
   for (const period of rangeFrom1(periods)) {
-    rows.push(periodRow(period, dayList, occupantsByColumn));
+    rows.push(...periodRows(period, dayList, occupantsByColumn));
     if (breaksAfterPeriod(period, periods)) rows.push(breakRow(totalColumns));
   }
 
@@ -67,6 +69,8 @@ const EMPTY_COLLISIONS = new Map<string, CellCollisions>();
 
 const rangeFrom1 = (count: number): number[] => Array.from({ length: count }, (_, i) => i + 1);
 
+const rangeFrom0 = (count: number): number[] => Array.from({ length: count }, (_, i) => i);
+
 const dayHeaderRow = (dayList: number[], subColumns: number, multi: boolean): TimetableSheetCell[] => [
   cornerCell(),
   ...dayList.flatMap((day) => spannedHeader(dayLabel(day), multi ? subColumns : 1)),
@@ -77,16 +81,26 @@ const cohortLabelRow = (dayList: number[], columns: TimetableSheetColumn[]): Tim
   ...dayList.flatMap(() => columns.map((column) => headerCell(cohortLabel(column.cohort)))),
 ];
 
-const periodRow = (
+/**
+ * One period as a block of sub-rows — as tall as the busiest cell in the period (≥ 1). Each sub-row
+ * `i` holds the `i`-th occupant of every day×cohort cell (or an empty filler past that cell's count);
+ * the time-range header sits in the first sub-row and `rowSpan`s the block (its column is `null` in
+ * the following sub-rows, per the merge rule).
+ */
+const periodRows = (
   period: number,
   dayList: number[],
   occupantsByColumn: Map<string, CellOccupant[]>[],
-): TimetableSheetCell[] => [
-  periodHeaderCell(period),
-  ...dayList.flatMap((day) =>
-    occupantsByColumn.map((occupants) => contentCell(occupants.get(cellKey(day, period)) ?? [])),
-  ),
-];
+): TimetableSheetCell[][] => {
+  const cells = dayList.flatMap((day) =>
+    occupantsByColumn.map((occupants) => occupants.get(cellKey(day, period)) ?? []),
+  );
+  const height = Math.max(1, ...cells.map((occupants) => occupants.length));
+  return rangeFrom0(height).map((subRow) => [
+    subRow === 0 ? periodHeaderCell(period, height) : null,
+    ...cells.map((occupants) => contentCell(occupants[subRow])),
+  ]);
+};
 
 /** A short empty band across the full width (height on the merged lead cell) — mirrors the board break. */
 const breakRow = (totalColumns: number): TimetableSheetCell[] => [
@@ -104,10 +118,13 @@ const spannedHeader = (value: string, span: number): TimetableSheetCell[] => [
   ...Array.from({ length: span - 1 }, () => null),
 ];
 
-const periodHeaderCell = (period: number): Cell => ({
+/** The time-range row header, vertically centered and merged down the period's `height` sub-rows. */
+const periodHeaderCell = (period: number, height: number): Cell => ({
   value: periodTimeLabel(period),
   fontWeight: "bold",
   align: "center",
+  alignVertical: "center",
+  ...(height > 1 ? { rowSpan: height } : {}),
   ...BOX_BORDER,
 });
 
@@ -117,13 +134,13 @@ const periodTimeLabel = (period: number): string => {
   return range ? `${range.start}–${range.end}` : periodLabel(period);
 };
 
-const contentCell = (occupants: CellOccupant[]): Cell => {
-  if (occupants.length === 0) return { ...BOX_BORDER };
-  const fill = occupants.length === 1 ? subjectFill(occupants[0].color) : null;
+/** One occupant's own cell, filled by its subject color; a missing occupant is an empty filler cell. */
+const contentCell = (occupant: CellOccupant | undefined): Cell => {
+  if (!occupant) return { ...BOX_BORDER };
+  const fill = subjectFill(occupant.color);
   return {
-    value: occupants.map(occupantLabel).join("\n"),
+    value: occupantLabel(occupant),
     ...BOX_BORDER,
-    ...(occupants.length > 1 ? { wrap: true } : {}),
     ...(fill ? { backgroundColor: fill.fill, textColor: fill.text } : {}),
   };
 };
@@ -136,7 +153,7 @@ const occupantLabel = (occupant: CellOccupant): string => {
   return `${occupant.name}${weekSuffix}${optionalSuffix}`;
 };
 
-/** Fill only for a single occupant with a color; multi-occupant / colorless cells stay neutral. */
+/** Per-occupant fill: the subject's hex pair, or `null` for a colorless course. */
 const subjectFill = (color: SubjectColor | null): { fill: string; text: string } | null =>
   color ? SUBJECT_COLOR_HEX[color] : null;
 

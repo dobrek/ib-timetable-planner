@@ -19,14 +19,17 @@ export type TimetableSheetAlign = "left" | "center" | "right";
 
 /**
  * One styled cell. `null` is a spanned-cell placeholder: a cell carrying `columnSpan: n` must be
- * followed by `n − 1` `null`s in the same row, or downstream columns shift. `value` is string-only
- * (numbers are pre-formatted to text) to keep the transforms uniform and pure.
+ * followed by `n − 1` `null`s in the same row, and a cell carrying `rowSpan: n` must have `null` at
+ * its column in each of the next `n − 1` rows — or the library throws / columns shift. `value` is
+ * string-only (numbers are pre-formatted to text) to keep the transforms uniform and pure.
  */
 export type TimetableSheetCell = {
   value?: string;
   fontWeight?: "bold";
   align?: TimetableSheetAlign;
-  /** Text wraps within the cell (multi-occupant timetable cells, people lists). */
+  /** Vertical alignment (the rowSpan-ned time-range header centers over its period). */
+  alignVertical?: "top" | "center" | "bottom";
+  /** Text wraps within the cell (people lists). */
   wrap?: boolean;
   /** Cell fill (hex), e.g. a single subject's color. */
   backgroundColor?: string;
@@ -34,6 +37,8 @@ export type TimetableSheetCell = {
   textColor?: string;
   /** Merge this cell across `columnSpan` columns; emit `columnSpan − 1` trailing `null`s. */
   columnSpan?: number;
+  /** Merge this cell down `rowSpan` rows; emit `null` at this column in the next `rowSpan − 1` rows. */
+  rowSpan?: number;
   /** Row height (points) — set on any one cell to size that row (break-band spacers). */
   height?: number;
   /** Thin box border on all four sides. */

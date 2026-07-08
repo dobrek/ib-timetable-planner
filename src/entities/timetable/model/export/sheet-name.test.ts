@@ -13,6 +13,11 @@ describe("sanitizeSheetName", () => {
   it("leaves a clean name unchanged", () => {
     expect(sanitizeSheetName("Mathematics HL")).toBe("Mathematics HL");
   });
+
+  it("strips leading and trailing apostrophes (Excel rejects them at the edges)", () => {
+    expect(sanitizeSheetName("'Physics'")).toBe("Physics");
+    expect(sanitizeSheetName("'' Chemistry ''")).toBe("Chemistry");
+  });
 });
 
 describe("courseSheetName", () => {
@@ -29,6 +34,11 @@ describe("courseSheetName", () => {
 
   it("strips illegal characters before applying the suffix", () => {
     expect(courseSheetName("Sci/Bio", "dp1")).toBe("Sci Bio · DP1");
+  });
+
+  it("degrades to the bare cohort label when the name sanitizes to nothing (no leading-space tab)", () => {
+    expect(courseSheetName("///", "dp1")).toBe("DP1");
+    expect(courseSheetName("", "dp2")).toBe("DP2");
   });
 });
 

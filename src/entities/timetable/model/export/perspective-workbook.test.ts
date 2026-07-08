@@ -77,6 +77,18 @@ describe("buildPerspectiveWorkbook — sheet composition", () => {
     expect(new Set(courseNames).size).toBe(courseNames.length);
   });
 
+  it("de-duplicates a course tab that collides with the grid sheet name", () => {
+    const courseDisplay: Record<string, CourseDisplay> = { a: { name: "Timetable", color: null } };
+    const { sheets } = buildPerspectiveWorkbook(
+      baseInput({ gridSheetName: "Timetable · DP1", courseDisplay, items: [item("a", "dp1")] }),
+    );
+
+    const names = sheets.map((sheet) => sheet.name);
+    expect(names[0]).toBe("Timetable · DP1"); // grid keeps its name
+    expect(names[1]).toBe("Timetable · DP1~2"); // colliding course tab is disambiguated
+    expect(new Set(names.map((name) => name.toLowerCase())).size).toBe(names.length);
+  });
+
   it("still yields a sheet for a course with an empty roster", () => {
     const courseDisplay: Record<string, CourseDisplay> = { a: { name: "Physics", color: null } };
     const { sheets } = buildPerspectiveWorkbook(

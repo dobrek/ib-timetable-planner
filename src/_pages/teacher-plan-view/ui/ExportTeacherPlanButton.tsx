@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import writeXlsxFile from "write-excel-file/browser";
@@ -53,7 +54,10 @@ export default function ExportTeacherPlanButton({
   studentNames,
   viewerTeacherId,
 }: Props) {
+  const [exporting, setExporting] = useState(false);
+
   async function exportPlan() {
+    setExporting(true);
     try {
       const { sheets, fileName } = buildPerspectiveWorkbook({
         planName,
@@ -78,6 +82,8 @@ export default function ExportTeacherPlanButton({
       await writeXlsxFile(descriptors).toFile(fileName);
     } catch {
       toast.error("Export failed — try again.");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -91,7 +97,7 @@ export default function ExportTeacherPlanButton({
         className="size-8"
         title="Export teacher plan"
         aria-label="Export teacher plan"
-        disabled={items.length === 0}
+        disabled={exporting || items.length === 0}
         onClick={() => {
           void exportPlan();
         }}

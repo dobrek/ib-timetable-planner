@@ -477,7 +477,11 @@ view and the holding container are author-only, like the rest of the editor.
 2. **Combined-view layout / screen-fit (FR-007).** Two cohort grids side by side
    strain a laptop screen. Compact columns, horizontal scroll, density toggle, or
    collapse-to-one-column? — Owner: author + design.
-3. **CSV export in scope?** Listed as must-preserve but not yet implemented in
-   the codebase. If in scope, it must represent the enriched model (co-teaching,
-   bi-weekly week tags, both cohorts distinguishable). If not, drop it from the
-   guardrails. — Owner: author.
+3. ~~**CSV export in scope?**~~ **Resolved 2026-07-08 — in scope, as a styled
+   XLSX workbook (supersedes "master-grid CSV").** A styled `.xlsx` represents the
+   enriched model (both cohorts distinguishable, co-teaching, bi-weekly week tags,
+   subject colors, merged headers) in one readable artifact where flat CSV cannot;
+   no CSV variant ships. Delivered client-side from the plan-detail board toolbar
+   (Combined / DP1 / DP2, active focus first), each workbook also carrying a
+   per-cohort subject roster sheet. See `context/changes/export-to-xlsx/`.
+   — Owner: author.

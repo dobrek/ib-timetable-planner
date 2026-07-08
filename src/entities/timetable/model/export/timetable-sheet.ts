@@ -45,7 +45,7 @@ export function buildTimetableSheet(input: TimetableSheetInput): TimetableSheet 
   const rows: TimetableSheetCell[][] = [dayHeaderRow(dayList, columns.length, multi)];
   if (multi) rows.push(cohortLabelRow(dayList, columns));
   for (const period of rangeFrom1(periods)) {
-    rows.push(...periodRows(period, dayList, occupantsByColumn));
+    rows.push(...periodRows(period, dayList, occupantsByColumn, columns.length));
     if (breaksAfterPeriod(period, periods)) rows.push(breakRow(totalColumns));
   }
 
@@ -60,7 +60,16 @@ export function buildTimetableSheet(input: TimetableSheetInput): TimetableSheet 
 /** A non-null cell — the builders always produce one; `null` appears only as a span placeholder. */
 type Cell = NonNullable<TimetableSheetCell>;
 
-const BOX_BORDER = { borderStyle: "thin", borderColor: SHEET_BORDER_COLOR } as const;
+const BASE_BORDER = { borderStyle: "thin", borderColor: SHEET_BORDER_COLOR } as const;
+/**
+ * Stronger separators over the thin light-gray grid: a darker medium line closes each day column and
+ * each period block; a darker thin line marks the cohort split within a day. Per-side overrides win
+ * over `BASE_BORDER`, so a strong right/bottom coexists with the thin grid on the other sides.
+ */
+const SEPARATOR_COLOR = "#4B5563";
+const DAY_RIGHT = { rightBorderStyle: "medium", rightBorderColor: SEPARATOR_COLOR } as const;
+const COHORT_RIGHT = { rightBorderStyle: "thin", rightBorderColor: SEPARATOR_COLOR } as const;
+const STRONG_BOTTOM = { bottomBorderStyle: "medium", bottomBorderColor: SEPARATOR_COLOR } as const;
 const TIME_COLUMN_WIDTH = 12;
 const COURSE_COLUMN_WIDTH = 18;
 const BREAK_ROW_HEIGHT = 6;
@@ -71,15 +80,23 @@ const rangeFrom1 = (count: number): number[] => Array.from({ length: count }, (_
 
 const rangeFrom0 = (count: number): number[] => Array.from({ length: count }, (_, i) => i);
 
-const dayHeaderRow = (dayList: number[], subColumns: number, multi: boolean): TimetableSheetCell[] => [
-  cornerCell(),
-  ...dayList.flatMap((day) => spannedHeader(dayLabel(day), multi ? subColumns : 1)),
-];
+const dayHeaderRow = (dayList: number[], subColumns: number, multi: boolean): TimetableSheetCell[] => {
+  const headerEnd = !multi; // focus: the day-header row is the last (only) header row
+  return [
+    cornerCell(headerEnd),
+    ...dayList.flatMap((day) => dayHeaderCells(dayLabel(day), multi ? subColumns : 1, headerEnd)),
+  ];
+};
 
 const cohortLabelRow = (dayList: number[], columns: TimetableSheetColumn[]): TimetableSheetCell[] => [
-  cornerCell(),
-  ...dayList.flatMap(() => columns.map((column) => headerCell(cohortLabel(column.cohort)))),
+  cornerCell(true), // combined: the cohort row is the last header row
+  ...dayList.flatMap(() =>
+    columns.map((column, index) => cohortLabelCell(cohortLabel(column.cohort), index === columns.length - 1)),
+  ),
 ];
+
+/** The right border of a content/label column: a strong day boundary, or the lighter cohort split. */
+const columnRight = (isDayEnd: boolean) => (isDayEnd ? DAY_RIGHT : COHORT_RIGHT);
 
 /**
  * One period as a block of sub-rows — as tall as the busiest cell in the period (≥ 1). Each sub-row
@@ -91,6 +108,7 @@ const periodRows = (
   period: number,
   dayList: number[],
   occupantsByColumn: Map<string, CellOccupant[]>[],
+  columnsPerDay: number,
 ): TimetableSheetCell[][] => {
   const cells = dayList.flatMap((day) =>
     occupantsByColumn.map((occupants) => occupants.get(cellKey(day, period)) ?? []),
@@ -98,7 +116,9 @@ const periodRows = (
   const height = Math.max(1, ...cells.map((occupants) => occupants.length));
   return rangeFrom0(height).map((subRow) => [
     subRow === 0 ? periodHeaderCell(period, height) : null,
-    ...cells.map((occupants) => contentCell(occupants[subRow])),
+    ...cells.map((occupants, index) =>
+      contentCell(occupants[subRow], index % columnsPerDay === columnsPerDay - 1, subRow === height - 1),
+    ),
   ]);
 };
 
@@ -108,24 +128,51 @@ const breakRow = (totalColumns: number): TimetableSheetCell[] => [
   ...Array.from({ length: totalColumns - 1 }, () => null),
 ];
 
-const cornerCell = (): Cell => ({ ...BOX_BORDER });
+/** The blank top-left cell; its right closes the frozen time-label column, its bottom the header block. */
+const cornerCell = (headerEnd: boolean): Cell => ({
+  ...BASE_BORDER,
+  ...DAY_RIGHT,
+  ...(headerEnd ? STRONG_BOTTOM : {}),
+});
 
-const headerCell = (value: string): Cell => ({ value, fontWeight: "bold", align: "center", ...BOX_BORDER });
-
-/** A header cell merged across `span` sub-columns, followed by its `span − 1` `null` placeholders. */
-const spannedHeader = (value: string, span: number): TimetableSheetCell[] => [
-  { ...headerCell(value), ...(span > 1 ? { columnSpan: span } : {}) },
+/**
+ * A day header merged across its `span` cohort sub-columns (with `null` placeholders), closed by a
+ * strong day boundary on the right; its bottom is strong only when it is the last header row (focus).
+ */
+const dayHeaderCells = (value: string, span: number, headerEnd: boolean): TimetableSheetCell[] => [
+  {
+    value,
+    fontWeight: "bold",
+    align: "center",
+    ...BASE_BORDER,
+    ...DAY_RIGHT,
+    ...(headerEnd ? STRONG_BOTTOM : {}),
+    ...(span > 1 ? { columnSpan: span } : {}),
+  },
   ...Array.from({ length: span - 1 }, () => null),
 ];
 
-/** The time-range row header, vertically centered and merged down the period's `height` sub-rows. */
+/** A cohort sub-label; strong right at a day boundary, lighter at a cohort split; strong bottom (last header row). */
+const cohortLabelCell = (value: string, isDayEnd: boolean): Cell => ({
+  value,
+  fontWeight: "bold",
+  align: "center",
+  ...BASE_BORDER,
+  ...columnRight(isDayEnd),
+  ...STRONG_BOTTOM,
+});
+
+/** The time-range row header, vertically centered and merged down the period's `height` sub-rows.
+ *  Its right closes the label column; its bottom (carried onto the merge) closes the period block. */
 const periodHeaderCell = (period: number, height: number): Cell => ({
   value: periodTimeLabel(period),
   fontWeight: "bold",
   align: "center",
   alignVertical: "center",
   ...(height > 1 ? { rowSpan: height } : {}),
-  ...BOX_BORDER,
+  ...BASE_BORDER,
+  ...DAY_RIGHT,
+  ...STRONG_BOTTOM,
 });
 
 /** Time range (`08:00–08:45`); falls back to `periodLabel` past P10, where no time is defined. */
@@ -134,13 +181,18 @@ const periodTimeLabel = (period: number): string => {
   return range ? `${range.start}–${range.end}` : periodLabel(period);
 };
 
-/** One occupant's own cell, filled by its subject color; a missing occupant is an empty filler cell. */
-const contentCell = (occupant: CellOccupant | undefined): Cell => {
-  if (!occupant) return { ...BOX_BORDER };
-  const fill = subjectFill(occupant.color);
+/**
+ * One occupant's own cell, filled by its subject color (a missing occupant is an empty filler). A
+ * strong right border closes its day column (lighter at a cohort split); a strong bottom closes the
+ * period when this is its last sub-row.
+ */
+const contentCell = (occupant: CellOccupant | undefined, dayEnd: boolean, periodEnd: boolean): Cell => {
+  const fill = occupant ? subjectFill(occupant.color) : null;
   return {
-    value: occupantLabel(occupant),
-    ...BOX_BORDER,
+    ...(occupant ? { value: occupantLabel(occupant) } : {}),
+    ...BASE_BORDER,
+    ...columnRight(dayEnd),
+    ...(periodEnd ? STRONG_BOTTOM : {}),
     ...(fill ? { backgroundColor: fill.fill, textColor: fill.text } : {}),
   };
 };

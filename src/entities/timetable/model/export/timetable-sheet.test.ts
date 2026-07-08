@@ -232,6 +232,49 @@ describe("buildTimetableSheet — break bands", () => {
   });
 });
 
+describe("buildTimetableSheet — separators (border weight)", () => {
+  it("closes each day column with a strong right border and cohort splits with a lighter one", () => {
+    const sheet = buildTimetableSheet({ days: 1, periods: 1, columns: [col("dp1", []), col("dp2", [])] });
+
+    // columns: [label, day1·dp1, day1·dp2]; the content sub-row is sheet row 2.
+    const dp1 = at(sheet, 2, 1);
+    const dp2 = at(sheet, 2, 2);
+    expect(dp2.rightBorderStyle).toBe("medium"); // day boundary — heaviest
+    expect(dp1.rightBorderStyle).toBe("thin"); // cohort split — lighter
+    expect(dp1.rightBorderColor).toBe(dp2.rightBorderColor); // both the dark separator color
+    expect(dp1.rightBorderColor).not.toBe(dp1.borderColor); // stronger than the internal grid
+  });
+
+  it("closes the frozen time-label column with a strong right border", () => {
+    const sheet = buildTimetableSheet({ days: 1, periods: 1, columns: [col("dp1", [])] });
+
+    expect(at(sheet, 1, 0).rightBorderStyle).toBe("medium");
+  });
+
+  it("closes each period block with a strong bottom on its last sub-row and time header", () => {
+    const two: Record<string, CourseDisplay> = { m: { name: "Math", color: null }, b: { name: "Bio", color: null } };
+    const sheet = buildTimetableSheet({
+      days: 1,
+      periods: 1,
+      columns: [col("dp1", [placement("m", 1, 1), placement("b", 1, 1)], two)],
+    });
+
+    // focus, one day, a 2-tall period → rows: [0] day header, [1] sub-row 0, [2] sub-row 1 (last).
+    expect(at(sheet, 1, 1).bottomBorderStyle).toBeUndefined(); // internal sub-row: thin grid
+    expect(at(sheet, 2, 1).bottomBorderStyle).toBe("medium"); // period end
+    expect(at(sheet, 1, 0).bottomBorderStyle).toBe("medium"); // time header closes the block
+  });
+
+  it("marks the bottom of the header block (day row in focus, cohort row in combined)", () => {
+    const focus = buildTimetableSheet({ days: 1, periods: 1, columns: [col("dp1", [])] });
+    expect(at(focus, 0, 1).bottomBorderStyle).toBe("medium"); // the only header row
+
+    const combined = buildTimetableSheet({ days: 1, periods: 1, columns: [col("dp1", []), col("dp2", [])] });
+    expect(at(combined, 0, 1).bottomBorderStyle).toBeUndefined(); // day header — cohort row sits below
+    expect(at(combined, 1, 1).bottomBorderStyle).toBe("medium"); // cohort label row ends the header
+  });
+});
+
 describe("buildTimetableSheet — sheet options", () => {
   it("freezes the label column plus both header rows in combined", () => {
     const sheet = buildTimetableSheet({ days: 5, periods: 1, columns: [col("dp1", []), col("dp2", [])] });

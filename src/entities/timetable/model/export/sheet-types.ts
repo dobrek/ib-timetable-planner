@@ -17,6 +17,9 @@ export const SHEET_BORDER_COLOR = "#D1D5DB";
 /** Horizontal alignment — the subset the transforms use. */
 export type TimetableSheetAlign = "left" | "center" | "right";
 
+/** Border weights the transforms use — thin for the internal grid, medium for strong separators. */
+export type TimetableSheetBorder = "thin" | "medium";
+
 /**
  * One styled cell. `null` is a spanned-cell placeholder: a cell carrying `columnSpan: n` must be
  * followed by `n − 1` `null`s in the same row, and a cell carrying `rowSpan: n` must have `null` at
@@ -41,11 +44,14 @@ export type TimetableSheetCell = {
   rowSpan?: number;
   /** Row height (points) — set on any one cell to size that row (break-band spacers). */
   height?: number;
-  /** Thin box border on all four sides. */
-  borderStyle?: "thin";
+  /** Box border on all four sides (the thin internal grid by default). */
+  borderStyle?: TimetableSheetBorder;
   borderColor?: string;
-  /** Bottom-only rule (the roster header underline). */
-  bottomBorderStyle?: "thin";
+  /** Per-side overrides — win over the all-sides border. Used for the stronger column (right) and
+   *  period/header (bottom) separators, and the roster header's bottom-only rule. */
+  rightBorderStyle?: TimetableSheetBorder;
+  rightBorderColor?: string;
+  bottomBorderStyle?: TimetableSheetBorder;
   bottomBorderColor?: string;
 } | null;
 

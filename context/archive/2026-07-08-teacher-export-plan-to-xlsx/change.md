@@ -1,10 +1,10 @@
 ---
 change_id: teacher-export-plan-to-xlsx
 title: Teacher export plan to xlsx
-status: impl_reviewed
+status: archived
 created: 2026-07-08
 updated: 2026-07-08
-archived_at: null
+archived_at: 2026-07-08T17:58:02Z
 ---
 
 ## Notes

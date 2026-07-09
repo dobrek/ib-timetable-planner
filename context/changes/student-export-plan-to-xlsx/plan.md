@@ -271,15 +271,15 @@ None. No schema or data migration. Extracting `slugify` is behavior-preserving f
 
 #### Automated
 
-- [x] 3.1 Type checking passes: `pnpm check`
-- [x] 3.2 Linting passes: `pnpm lint`
-- [x] 3.3 FSD structure passes: `pnpm steiger`
-- [x] 3.4 Full unit suite passes: `pnpm test`
-- [x] 3.5 Build stays clean: `pnpm build`
+- [x] 3.1 Type checking passes: `pnpm check` — b9e0b93
+- [x] 3.2 Linting passes: `pnpm lint` — b9e0b93
+- [x] 3.3 FSD structure passes: `pnpm steiger` — b9e0b93
+- [x] 3.4 Full unit suite passes: `pnpm test` — b9e0b93
+- [x] 3.5 Build stays clean: `pnpm build` — b9e0b93
 
 #### Manual
 
-- [x] 3.6 Export icon appears beside switcher; disabled when no placed courses
-- [x] 3.7 Click downloads `<plan-slug>-<cohort>-<student-name>.xlsx`; diacritic name yields legible slug
-- [x] 3.8 Workbook opens as single "Timetable" sheet matching the grid (clean labels, colors, breaks, frozen panes)
-- [x] 3.9 Switching students then exporting produces the newly-selected student's file
+- [x] 3.6 Export icon appears beside switcher; disabled when no placed courses — b9e0b93
+- [x] 3.7 Click downloads `<plan-slug>-<cohort>-<student-name>.xlsx`; diacritic name yields legible slug — b9e0b93
+- [x] 3.8 Workbook opens as single "Timetable" sheet matching the grid (clean labels, colors, breaks, frozen panes) — b9e0b93
+- [x] 3.9 Switching students then exporting produces the newly-selected student's file — b9e0b93

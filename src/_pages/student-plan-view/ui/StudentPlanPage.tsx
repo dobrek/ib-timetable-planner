@@ -7,6 +7,8 @@ import {
 } from "@/entities/timetable";
 import { PerspectiveCourseList, ScheduleGrid, type PerspectiveCard } from "@/widgets/timetable-board";
 import type { StudentPlanViewData } from "../api/loader";
+import { studentExportFileName } from "../lib/export-file-name";
+import ExportStudentPlanButton from "./ExportStudentPlanButton";
 import StudentSwitcher from "./StudentSwitcher";
 
 type Props = { data: StudentPlanViewData };
@@ -55,12 +57,22 @@ export default function StudentPlanPage({ data }: Props) {
           <h1 className="text-xl font-semibold">{student.fullName}</h1>
           <p className="text-muted-foreground text-sm">{planName} — student schedule</p>
         </div>
-        <StudentSwitcher
-          planId={data.planId}
-          students={data.students}
-          current={student}
-          cohortLeads={data.cohortLeads}
-        />
+        <div className="flex items-center gap-2">
+          <StudentSwitcher
+            planId={data.planId}
+            students={data.students}
+            current={student}
+            cohortLeads={data.cohortLeads}
+          />
+          <ExportStudentPlanButton
+            fileName={studentExportFileName(planName, student.cohort, student.fullName)}
+            days={data.days}
+            periods={data.periods}
+            cohort={student.cohort}
+            placements={placements}
+            courseDisplay={data.courseDisplay}
+          />
+        </div>
       </header>
 
       <ScheduleGrid

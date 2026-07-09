@@ -1,3 +1,4 @@
+import { slugify } from "@/shared/lib/slugify";
 import type { BoardSurface } from "./board-surface";
 
 /**
@@ -8,11 +9,3 @@ import type { BoardSurface } from "./board-surface";
  * `ib-2027-draft-combined.xlsx`.
  */
 export const exportFileName = (planName: string, view: BoardSurface): string => `${slugify(planName)}-${view}.xlsx`;
-
-const slugify = (value: string): string => {
-  const slug = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug || "plan";
-};

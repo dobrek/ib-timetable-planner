@@ -1,4 +1,5 @@
 import type { Cohort } from "@/shared/config";
+import { slugify } from "@/shared/lib/slugify";
 import { resolveCourseDisplay, type CourseDisplay } from "../course-display";
 import type { PerspectiveCourseItem } from "../perspective-course-list";
 import type { PlannerPlacement } from "../placement";
@@ -117,10 +118,3 @@ const compareItems = (
   const byName = courseNameOf(a, courseDisplay).localeCompare(courseNameOf(b, courseDisplay));
   return byName !== 0 ? byName : a.courseId.localeCompare(b.courseId);
 };
-
-/** Lowercase, non-alphanumerics → `-`, trimmed; empty falls back to `plan` (mirrors `export-file-name.ts`). */
-const slugify = (value: string): string =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "plan";

@@ -245,27 +245,27 @@ None. No schema or data migration. Extracting `slugify` is behavior-preserving f
 
 #### Automated
 
-- [x] 1.1 Type checking passes: `pnpm check`
-- [x] 1.2 Linting passes: `pnpm lint`
-- [x] 1.3 FSD structure passes: `pnpm steiger`
-- [x] 1.4 New `slugify` unit tests pass (diacritics, empty/symbol-only, ASCII unchanged): `pnpm test`
-- [x] 1.5 Existing filename tests still pass unchanged (ASCII byte-identical): `pnpm test`
-- [x] 1.6 Build stays clean: `pnpm build`
-- [x] 1.8 One diacritic case pins the fold at the rerouted call site (`perspective-workbook.test.ts`): `pnpm test`
+- [x] 1.1 Type checking passes: `pnpm check` — 5ff6a8b
+- [x] 1.2 Linting passes: `pnpm lint` — 5ff6a8b
+- [x] 1.3 FSD structure passes: `pnpm steiger` — 5ff6a8b
+- [x] 1.4 New `slugify` unit tests pass (diacritics, empty/symbol-only, ASCII unchanged): `pnpm test` — 5ff6a8b
+- [x] 1.5 Existing filename tests still pass unchanged (ASCII byte-identical): `pnpm test` — 5ff6a8b
+- [x] 1.6 Build stays clean: `pnpm build` — 5ff6a8b
+- [x] 1.8 One diacritic case pins the fold at the rerouted call site (`perspective-workbook.test.ts`): `pnpm test` — 5ff6a8b
 
 #### Manual
 
-- [x] 1.7 No other `slugify` definition remains (`grep -rn "slugify" src/`)
+- [x] 1.7 No other `slugify` definition remains (`grep -rn "slugify" src/`) — 5ff6a8b
 
 ### Phase 2: Student filename helper + export button
 
 #### Automated
 
-- [ ] 2.1 Type checking passes: `pnpm check`
-- [ ] 2.2 Linting passes: `pnpm lint`
-- [ ] 2.3 FSD structure passes: `pnpm steiger`
-- [ ] 2.4 `studentExportFileName` + `ExportStudentPlanButton` unit tests pass: `pnpm test`
-- [ ] 2.5 Build stays clean: `pnpm build`
+- [x] 2.1 Type checking passes: `pnpm check`
+- [x] 2.2 Linting passes: `pnpm lint`
+- [x] 2.3 FSD structure passes: `pnpm steiger`
+- [x] 2.4 `studentExportFileName` + `ExportStudentPlanButton` unit tests pass: `pnpm test`
+- [x] 2.5 Build stays clean: `pnpm build`
 
 ### Phase 3: Wire into the student page header
 

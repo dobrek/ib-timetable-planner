@@ -245,17 +245,17 @@ None. No schema or data migration. Extracting `slugify` is behavior-preserving f
 
 #### Automated
 
-- [ ] 1.1 Type checking passes: `pnpm check`
-- [ ] 1.2 Linting passes: `pnpm lint`
-- [ ] 1.3 FSD structure passes: `pnpm steiger`
-- [ ] 1.4 New `slugify` unit tests pass (diacritics, empty/symbol-only, ASCII unchanged): `pnpm test`
-- [ ] 1.5 Existing filename tests still pass unchanged (ASCII byte-identical): `pnpm test`
-- [ ] 1.6 Build stays clean: `pnpm build`
-- [ ] 1.8 One diacritic case pins the fold at the rerouted call site (`perspective-workbook.test.ts`): `pnpm test`
+- [x] 1.1 Type checking passes: `pnpm check`
+- [x] 1.2 Linting passes: `pnpm lint`
+- [x] 1.3 FSD structure passes: `pnpm steiger`
+- [x] 1.4 New `slugify` unit tests pass (diacritics, empty/symbol-only, ASCII unchanged): `pnpm test`
+- [x] 1.5 Existing filename tests still pass unchanged (ASCII byte-identical): `pnpm test`
+- [x] 1.6 Build stays clean: `pnpm build`
+- [x] 1.8 One diacritic case pins the fold at the rerouted call site (`perspective-workbook.test.ts`): `pnpm test`
 
 #### Manual
 
-- [ ] 1.7 No other `slugify` definition remains (`grep -rn "slugify" src/`)
+- [x] 1.7 No other `slugify` definition remains (`grep -rn "slugify" src/`)
 
 ### Phase 2: Student filename helper + export button
 

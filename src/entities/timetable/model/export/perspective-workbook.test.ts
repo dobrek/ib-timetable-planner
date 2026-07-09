@@ -128,6 +128,11 @@ describe("buildPerspectiveWorkbook — filename", () => {
     expect(fileName).toBe("ib-2027-draft-kk.xlsx");
   });
 
+  it("folds diacritics in the plan name (shared slugify — intended behavior change vs. the old ASCII-only copy)", () => {
+    const { fileName } = buildPerspectiveWorkbook(baseInput({ planName: "Wrocław 2027", fileCode: "KK" }));
+    expect(fileName).toBe("wroclaw-2027-kk.xlsx");
+  });
+
   it("falls back to `plan` when the plan name has no alphanumerics", () => {
     const { fileName } = buildPerspectiveWorkbook(baseInput({ planName: "!!!", fileCode: "kk" }));
     expect(fileName).toBe("plan-kk.xlsx");

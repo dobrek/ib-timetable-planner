@@ -13,7 +13,11 @@ export const slugify = (value: string): string => {
 
 /**
  * Fold accented Latin letters onto ASCII. NFD splits precomposed letters into base + combining
- * marks which are then stripped; stroke letters like `ł` (U+0142) are atomic — they do not
- * decompose — so they need an explicit map. Input is already lowercased by {@link slugify}.
+ * marks (U+0300–U+036F) which are then stripped; stroke letters like `ł` (U+0142) are atomic —
+ * they do not decompose — so they need an explicit map. Input is already lowercased by {@link slugify}.
  */
-const foldDiacritics = (value: string): string => value.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l");
+const foldDiacritics = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ł/g, "l");

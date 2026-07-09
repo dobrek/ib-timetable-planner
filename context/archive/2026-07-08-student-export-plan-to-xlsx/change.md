@@ -1,10 +1,10 @@
 ---
 change_id: student-export-plan-to-xlsx
 title: Student export plan to xlsx
-status: implemented
+status: archived
 created: 2026-07-08
 updated: 2026-07-09
-archived_at: null
+archived_at: 2026-07-09T10:18:52Z
 ---
 
 ## Notes

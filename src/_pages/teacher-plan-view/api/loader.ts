@@ -4,11 +4,13 @@ import {
   loadCohortCourses,
   loadCourseMerges,
   loadPlacements,
+  loadPlanTeachers,
   loadStudentNames,
   loadTeacherAvailability,
   loadTeacherNames,
   unwrapMany,
   type CourseMerge,
+  type PlanTeacher,
   type SupabaseClient,
 } from "@/shared/api";
 import type { CourseDisplay, GroupingCourse } from "@/shared/lib/catalog-hash";
@@ -21,7 +23,8 @@ import type { CourseInfo } from "@/widgets/timetable-board";
 /** Expected absences: missing plan / teacher not in the plan vs. a misconfigured environment. */
 export type TeacherViewError = { kind: "not-found" } | { kind: "unavailable"; message: string };
 
-export type TeacherSummary = { id: string; code: string; fullName: string | null };
+/** The plan's teacher record — the shared `PlanTeacher`, re-aliased so slice consumers keep one import home. */
+export type TeacherSummary = PlanTeacher;
 
 // The course list's `CourseInfo` prop shape lives with the widget; re-exported so the
 // route and slice barrel keep one import home for the loader's data types.
@@ -76,7 +79,7 @@ export const loadTeacherPlanView = async (
   if (planError) throw new Error(`Plan lookup failed: ${planError.message}`);
   if (!plan) return err({ kind: "not-found" });
 
-  const teachers = await fetchPlanTeachers(supabase, planId);
+  const teachers = await loadPlanTeachers(supabase, planId);
   const teacher = teachers.find((row) => row.id === teacherId);
   if (!teacher) return err({ kind: "not-found" });
 
@@ -132,20 +135,6 @@ export const loadTeacherPlanView = async (
       studentNames: dp2StudentNames,
     },
   });
-};
-
-const fetchPlanTeachers = async (supabase: SupabaseClient, planId: string): Promise<TeacherSummary[]> => {
-  const rows = unwrapMany(
-    await supabase
-      .from("teachers")
-      .select("id, code, full_name")
-      .eq("plan_id", planId)
-      .order("full_name", { nullsFirst: false })
-      .order("code")
-      .limit(500),
-    "Failed to load the plan's teachers",
-  );
-  return rows.map((row) => ({ id: row.id, code: row.code, fullName: row.full_name }));
 };
 
 const fetchCourseInfo = async (supabase: SupabaseClient, planId: string): Promise<Record<string, CourseInfo>> => {

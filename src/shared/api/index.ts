@@ -9,6 +9,7 @@ export { loadTeacherAvailability } from "./load-teacher-availability";
 export { loadTeacherNames } from "./load-teacher-names";
 export { loadStudentNames } from "./load-student-names";
 export { loadCourseMerges, type CourseMerge } from "./load-course-merges";
+export { loadPlanTeachers, type PlanTeacher } from "./load-plan-teachers";
 export {
   UNIQUE_VIOLATION,
   NOT_FOUND_ROW,

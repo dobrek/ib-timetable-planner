@@ -96,6 +96,29 @@ afterAll(async () => {
     expect(nameless.length).toBeGreaterThan(0); // the factory seeds teachers with code only
     for (const teacher of nameless) expect(teacherNames[teacher.id]).toBe(teacher.code);
   });
+
+  it("ships batch-export sources: teachers with codes, merges, and course levels", async () => {
+    const result = await loadCombinedPlannerData(supabase, planId);
+    if (!result.ok) throw new Error(`loadCombinedPlannerData failed: ${JSON.stringify(result.error)}`);
+    const { batchExport, dp1, dp2 } = result.value;
+
+    // Teachers carry codes (the filename slug component the board's name map doesn't expose).
+    expect(batchExport.teachers.length).toBeGreaterThan(0);
+    for (const teacher of batchExport.teachers) expect(teacher.code).toBeTruthy();
+
+    // Merges materialize (the seed's CSV fixtures include composites) with parent/child ids.
+    // A merge child may legitimately sit outside the grouping catalog (no direct choices), so this
+    // asserts the mapping shape, not catalog membership.
+    expect(batchExport.merges.length).toBeGreaterThan(0);
+    for (const merge of batchExport.merges) {
+      expect(merge.parentId).toBeTruthy();
+      expect(merge.childId).toBeTruthy();
+    }
+
+    // Every catalog course has a level entry (a structural string) for the per-course sheet headers.
+    const courseIds = new Set([...dp1.catalog, ...dp2.catalog].map((course) => course.id));
+    for (const id of courseIds) expect(typeof batchExport.courseLevels[id]).toBe("string");
+  });
 });
 
 // Self-contained (factory plan + one teacher + one availability cell) — proves the

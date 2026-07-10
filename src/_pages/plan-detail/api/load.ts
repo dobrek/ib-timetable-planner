@@ -2,10 +2,13 @@ import {
   assertNoQueryErrors,
   isUuid,
   loadCohortCourses,
+  loadCourseMerges,
   loadPlacements,
+  loadPlanTeachers,
   loadStudentNames,
   loadTeacherAvailability,
   loadTeacherNames,
+  unwrapMany,
   type SupabaseClient,
 } from "@/shared/api";
 import { type Cohort } from "@/shared/config";
@@ -14,6 +17,7 @@ import { unique } from "@/shared/lib/collections";
 import { err, ok, type Result } from "@/shared/lib/result";
 import { toPlannerPlacement, type BoardAvailabilityCell, type PlannerPlacement } from "@/entities/timetable";
 import { assembleCombinedProps, type CombinedCohortInputs } from "../model/cross-cohort/assemble-combined-props";
+import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
 import type { GroupingCourse, PlannerGrouping } from "../model/grouping/grouping";
 import type { ParkedBundle } from "../model/placement/parked";
@@ -27,6 +31,8 @@ export type CombinedPlannerData = {
   shared: SharedBoardProps;
   dp1: PlannerBoardProps;
   dp2: PlannerBoardProps;
+  /** Extra sources the board's batch xlsx export needs (teachers with codes, merges, course levels). */
+  batchExport: BatchExportSources;
 };
 
 export type CombinedPlannerPageResult = Result<CombinedPlannerData, PlannerPageError>;
@@ -68,6 +74,9 @@ export const loadCombinedPlannerData = async (
     dp2Shelf,
     dp2Catalog,
     availabilityResult,
+    planTeachers,
+    courseMerges,
+    courseLevels,
   ] = await Promise.all([
     fetchGroupings(supabase, id, "dp1"),
     loadPlacements(supabase, id, "dp1"),
@@ -79,6 +88,12 @@ export const loadCombinedPlannerData = async (
     loadCohortCourses(supabase, id, "dp2"),
     // Availability is cohort-independent — fetched once and shared by both columns.
     loadTeacherAvailability(supabase, id),
+    // Batch-export sources (unused by the board itself, threaded to `ExportMenu`): teachers with codes,
+    // merges (composite→children resolution), and course levels. All `unwrapMany`-based (throw on error),
+    // so they sit outside `assertNoQueryErrors` — same as the catalogs.
+    loadPlanTeachers(supabase, id),
+    loadCourseMerges(supabase, id),
+    fetchCourseLevels(supabase, id),
   ]);
   assertNoQueryErrors("Combined planner board", [
     dp1Groupings,
@@ -138,7 +153,19 @@ export const loadCombinedPlannerData = async (
     teacherNames,
   };
 
-  return ok({ planName: plan.name, shared, dp1, dp2 });
+  const batchExport: BatchExportSources = { teachers: planTeachers, merges: courseMerges, courseLevels };
+
+  return ok({ planName: plan.name, shared, dp1, dp2, batchExport });
+};
+
+// Slim `id, level` projection of the teacher view's `fetchCourseInfo` — the per-course sheet headers in
+// the batch's perspective workbooks need `courseId → level`, nothing else. `.limit(2000)` matches it.
+const fetchCourseLevels = async (supabase: SupabaseClient, planId: string): Promise<Record<string, string>> => {
+  const rows = unwrapMany(
+    await supabase.from("courses").select("id, level").eq("plan_id", planId).limit(2000),
+    "Failed to load course levels",
+  );
+  return Object.fromEntries(rows.map((row) => [row.id, row.level] as const));
 };
 
 const fetchGroupings = (supabase: SupabaseClient, planId: string, cohort: Cohort) =>

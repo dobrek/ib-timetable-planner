@@ -292,13 +292,13 @@ None — purely additive; no schema changes, no data migration.
 
 #### Automated
 
-- [x] 3.1 Unit suite passes: `pnpm test`
-- [x] 3.2 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger`
-- [x] 3.3 Production build clean: `pnpm build`
+- [x] 3.1 Unit suite passes: `pnpm test` — 999971a
+- [x] 3.2 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger` — 999971a
+- [x] 3.3 Production build clean: `pnpm build` — 999971a
 
 #### Manual
 
-- [x] 3.4 Zip downloads with combined + per-teacher files, all opening cleanly
-- [x] 3.5 Zero-course teacher absent from the archive
-- [x] 3.6 Unsaved optimistic edit appears in exported grids
-- [x] 3.7 Existing single-view exports unchanged
+- [x] 3.4 Zip downloads with combined + per-teacher files, all opening cleanly — 999971a
+- [x] 3.5 Zero-course teacher absent from the archive — 999971a
+- [x] 3.6 Unsaved optimistic edit appears in exported grids — 999971a
+- [x] 3.7 Existing single-view exports unchanged — 999971a

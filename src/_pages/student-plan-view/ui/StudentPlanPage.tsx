@@ -5,6 +5,7 @@ import {
   perspectivePlacements,
   studentCourses,
 } from "@/entities/timetable";
+import { PrintButton } from "@/shared/ui";
 import { PerspectiveCourseList, ScheduleGrid, type PerspectiveCard } from "@/widgets/timetable-board";
 import type { StudentPlanViewData } from "../api/loader";
 import { studentExportFileName } from "../lib/export-file-name";
@@ -57,7 +58,7 @@ export default function StudentPlanPage({ data }: Props) {
           <h1 className="text-xl font-semibold">{student.fullName}</h1>
           <p className="text-muted-foreground text-sm">{planName} — student schedule</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
           <StudentSwitcher
             planId={data.planId}
             students={data.students}
@@ -72,6 +73,7 @@ export default function StudentPlanPage({ data }: Props) {
             placements={placements}
             courseDisplay={data.courseDisplay}
           />
+          <PrintButton />
         </div>
       </header>
 

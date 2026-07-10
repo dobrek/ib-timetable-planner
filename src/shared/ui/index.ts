@@ -69,6 +69,7 @@ export {
   PopoverTitle,
   PopoverTrigger,
 } from "./popover";
+export { PrintButton } from "./print-button";
 export {
   Select,
   SelectContent,

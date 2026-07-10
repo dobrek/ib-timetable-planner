@@ -271,10 +271,10 @@ None — purely additive; no schema changes, no data migration.
 
 #### Automated
 
-- [x] 1.1 Unit suite passes: `pnpm test`
-- [x] 1.2 Integration suite passes: `pnpm test:integration`
-- [x] 1.3 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger`
-- [x] 1.4 Production build clean: `pnpm build`
+- [x] 1.1 Unit suite passes: `pnpm test` — ec6b183
+- [x] 1.2 Integration suite passes: `pnpm test:integration` — ec6b183
+- [x] 1.3 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger` — ec6b183
+- [x] 1.4 Production build clean: `pnpm build` — ec6b183
 
 #### Manual
 
@@ -284,9 +284,9 @@ None — purely additive; no schema changes, no data migration.
 
 #### Automated
 
-- [ ] 2.1 New suite + full unit suite pass: `pnpm test`
-- [ ] 2.2 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger`
-- [ ] 2.3 Production build clean: `pnpm build`
+- [x] 2.1 New suite + full unit suite pass: `pnpm test`
+- [x] 2.2 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger`
+- [x] 2.3 Production build clean: `pnpm build`
 
 ### Phase 3: Zip Glue + Menu Item
 

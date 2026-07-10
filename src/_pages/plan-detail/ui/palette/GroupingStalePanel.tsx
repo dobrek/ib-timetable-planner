@@ -18,8 +18,9 @@ type Props = {
  * live catalog, never the stored groupings, so they remain correct and editable. Recompute is the
  * single action — it calls the existing compute Action, then re-runs the loader (the returning
  * palette is the success signal). On failure an inline `role="alert"` surfaces and the panel stays
- * put for a retry: the plan-detail board mounts no `<Toaster>`, so a toast would render nowhere —
- * this mirrors the sibling `ComputeGroupingsEmptyState`'s inline-error idiom (no `sonner` here).
+ * put for a retry: the error stays co-located with its Recompute action rather than firing a
+ * detached toast — this mirrors the sibling `ComputeGroupingsEmptyState`'s inline-error idiom (no
+ * `sonner` here).
  *
  * Rendered as the `stale` body of the shared `CollapsibleEdgePanel` (both boards), so it is just the
  * recompute card — the shell owns the surrounding aside/width/header.

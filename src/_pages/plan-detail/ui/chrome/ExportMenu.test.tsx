@@ -164,6 +164,11 @@ describe("ExportMenu", () => {
     const [entries, opts] = (zipSyncMock.mock.lastCall ?? []) as [Record<string, Uint8Array>, { level: number }];
     expect(Object.keys(entries)).toEqual(["ib-2027-combined.xlsx", "ib-2027-t1.xlsx"]);
     expect(opts).toEqual({ level: 0 });
+    // Cleanup is deferred (a macrotask past the click) so the browser reads the blob first — assert
+    // the object URL is eventually revoked, guarding against a leak regression.
+    await waitFor(() => {
+      expect(revokeObjectURLMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("aborts the batch with a toast and no download when a workbook fails to serialize", async () => {

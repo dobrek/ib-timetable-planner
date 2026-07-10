@@ -128,6 +128,12 @@ const downloadBlob = (blob: Blob, fileName: string): void => {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  // Defer cleanup so the browser reads the blob before the object URL is revoked —
+  // Firefox/Safari cancel the download if it's revoked in the same synchronous tick.
+  setTimeout(() => {
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, 0);
 };

@@ -220,3 +220,99 @@
     @apply font-sans;
   }
 }
+
+/* ── Print ────────────────────────────────────────────────────────────────────
+   Browser-native print support (owned by the `printable-version` change). Chrome
+   hiding and viewport unclipping are colocated as inline `print:` utilities on the
+   layout divs; the concerns that can't be utilities live here. Do NOT add a
+   `@custom-variant print` — Tailwind v4 ships `print:` as a core media variant. */
+@media print {
+  /* Dark-mode neutralization: a `.dark` session must print ink-on-white. CSS custom
+     properties have no "reset to parent", so re-declare the FULL light (`:root`) token
+     set on `.dark` under print — a single missed token would print white-on-dark. This
+     is a mechanical mirror of the `:root` block above; keep the two in sync. */
+  .dark {
+    --radius: 2px;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0 0);
+    --warning: oklch(0.72 0.16 70);
+    --warning-foreground: oklch(0.205 0 0);
+    --valid: oklch(0.62 0.14 150);
+    --overlay: oklch(0 0 0 / 50%);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.922 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+    --subject-rose: var(--color-rose-100);
+    --subject-rose-foreground: var(--color-rose-900);
+    --subject-amber: var(--color-amber-100);
+    --subject-amber-foreground: var(--color-amber-900);
+    --subject-emerald: var(--color-emerald-100);
+    --subject-emerald-foreground: var(--color-emerald-900);
+    --subject-sky: var(--color-sky-100);
+    --subject-sky-foreground: var(--color-sky-900);
+    --subject-violet: var(--color-violet-100);
+    --subject-violet-foreground: var(--color-violet-900);
+    --subject-teal: var(--color-teal-100);
+    --subject-teal-foreground: var(--color-teal-900);
+    --subject-orange: var(--color-orange-100);
+    --subject-orange-foreground: var(--color-orange-900);
+    --subject-indigo: var(--color-indigo-100);
+    --subject-indigo-foreground: var(--color-indigo-900);
+  }
+
+  /* Browsers strip background colors on print unless told to keep them. Without this the
+     subject chips, availability shading, and the break-band hatch print blank. Save-as-PDF
+     honors it; physical B&W printers still need "background graphics" enabled. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Portalled overlays live at the <body> root, so a page-local `print:hidden` can't reach
+     them: Radix dialogs/poppers (the teacher collision dialog, dropdown menus) and the
+     sonner toaster (export toasts). Hide them uniformly — one rule, no per-page work. */
+  [role="dialog"],
+  [data-radix-popper-content-wrapper],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  /* Reduce mid-row/mid-card page splits in the schedule grids and course rosters. */
+  [role="row"],
+  [role="gridcell"],
+  section[aria-label="Courses"] article {
+    break-inside: avoid;
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+}

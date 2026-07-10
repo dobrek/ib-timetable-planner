@@ -1,6 +1,7 @@
 ---
 import PlannerBoard from "./PlannerBoard";
 import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
+import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { BoardSurface } from "../lib/board-surface";
 import type { Cohort } from "@/shared/config";
 
@@ -10,11 +11,12 @@ type Props = {
   shared: SharedBoardProps;
   dp1: PlannerBoardProps;
   dp2: PlannerBoardProps;
+  batchExport: BatchExportSources;
   paletteCollapsed: boolean;
   initialPaletteCohort: Cohort;
 };
 
-const { planName, focus, shared, dp1, dp2, paletteCollapsed, initialPaletteCohort } = Astro.props;
+const { planName, focus, shared, dp1, dp2, batchExport, paletteCollapsed, initialPaletteCohort } = Astro.props;
 ---
 
 <div class="flex h-full min-h-0 flex-1 flex-col">
@@ -24,6 +26,7 @@ const { planName, focus, shared, dp1, dp2, paletteCollapsed, initialPaletteCohor
     shared={shared}
     dp1={dp1}
     dp2={dp2}
+    batchExport={batchExport}
     paletteCollapsed={paletteCollapsed}
     initialPaletteCohort={initialPaletteCohort}
     client:load

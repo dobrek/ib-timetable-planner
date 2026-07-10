@@ -32,6 +32,7 @@ import type { DragData, DropTargetData, PlannerBoardProps, SharedBoardProps } fr
 import { resolvePaletteView } from "../model/grouping/palette-view";
 import { placementErrorMessage } from "../model/placement/placement-transitions";
 import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohort-board-state";
+import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { BoardSurface } from "../lib/board-surface";
 import type { ExportCohortData } from "../lib/export-workbook";
 
@@ -42,6 +43,8 @@ type Props = {
   shared: SharedBoardProps;
   dp1: PlannerBoardProps;
   dp2: PlannerBoardProps;
+  /** Batch-export sources (teachers/merges/levels) — threaded to `ExportMenu`, off the drag hot path. */
+  batchExport: BatchExportSources;
   paletteCollapsed: boolean;
   /** SSR seed (from cookie) for the combined-mode palette cohort, so a recompute refresh keeps it. */
   initialPaletteCohort: Cohort;

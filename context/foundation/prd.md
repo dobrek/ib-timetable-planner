@@ -465,7 +465,12 @@ view and the holding container are author-only, like the rest of the editor.
 - Student- and teacher-facing self-entry flows.
 - Multi-school / cross-school tenancy.
 - Mobile-optimized UX (laptop is the target form factor).
-- Printable / PDF export.
+- **PDF-generation pipeline / batch export** — a server- or library-side PDF
+  service (e.g. Cloudflare Browser Rendering, `@react-pdf/renderer`) and "all
+  teachers in one file" batch export stay out of scope. _Override (2026-07-09):
+  per-page **print-friendliness** via `@media print` + the browser's Save-as-PDF
+  **is** now in scope — shipped by the `printable-version` change. The styled XLSX
+  workbook remains the sanctioned high-fidelity / batch artifact._
 - Teacher soft preferences and hours-per-week caps.
 
 ## Open Questions

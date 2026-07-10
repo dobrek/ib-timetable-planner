@@ -214,7 +214,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **Student- and teacher-facing self-entry flows** — Why parked: PRD §Non-Goals (carried forward).
 - **Multi-school / cross-school tenancy** — Why parked: PRD §Non-Goals (carried forward).
 - **Mobile-optimized UX** — Why parked: PRD §Non-Goals (carried forward); laptop is the target form factor.
-- **Printable / PDF export** — Why parked: PRD §Non-Goals (carried forward); the shipped export artifact is the styled XLSX workbook (see PRD Open Q #3), not print/PDF.
+- **PDF-generation pipeline / batch export** — Why parked: PRD §Non-Goals (carried forward); a server/library PDF service and batch ("all teachers in one file") export stay parked, with the styled XLSX workbook (see PRD Open Q #3) as the sanctioned high-fidelity artifact. _Per-page print-friendliness_ (`@media print` + browser Save-as-PDF) ships in the `printable-version` change — it is no longer parked.
 - **Teacher soft preferences and hours-per-week caps** — Why parked: PRD §Non-Goals (carried forward); hard exclusions only.
 
 ## Done

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { Cohort } from "@/shared/config";
+import { cohortLabel, type Cohort } from "@/shared/config";
+import { PrintButton } from "@/shared/ui";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import {
   BoardHeader,
@@ -283,6 +284,7 @@ export default function PlannerBoard({
                   dp2={exportCohort("dp2")}
                 />
                 <BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode} />
+                <PrintButton />
               </>
             }
           />
@@ -312,13 +314,22 @@ export default function PlannerBoard({
       }
       center={
         <div className="flex min-h-0 flex-col gap-3">
+          {/* Print-only plan-name title: the top bar (which carries the on-screen title) is
+              print:hidden, so re-add a heading that appears only on paper — parity with the
+              student/teacher printouts. Inert on screen (`hidden`), token-styled only. */}
+          <div className="hidden print:block">
+            <h1 className="text-foreground text-base font-semibold">{planName}</h1>
+            <p className="text-muted-foreground text-sm">
+              Timetable — {focus === "combined" ? "DP1 & DP2" : cohortLabel(focus)}
+            </p>
+          </div>
           {dp1.error && (
             <ErrorBanner message={placementErrorMessage(dp1.error, dp1.courseDisplay)} onDismiss={dp1.clearError} />
           )}
           {dp2.error && (
             <ErrorBanner message={placementErrorMessage(dp2.error, dp2.courseDisplay)} onDismiss={dp2.clearError} />
           )}
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="min-h-0 flex-1 overflow-auto print:overflow-visible">
             <PlannerGrid
               days={days}
               periods={periods}

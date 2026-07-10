@@ -311,6 +311,27 @@
     break-inside: avoid;
   }
 
+  /* ── Board (best-effort) ──────────────────────────────────────────────────
+     The editing grid is print-hostile in ways inline `print:` utilities can't
+     reach: an inline `style={{ zoom }}` (inline styles beat stylesheet rules, so
+     the reset needs !important), a `w-max` intrinsic width, and sticky pinned
+     headers. Reset zoom to 100%, drop the intrinsic width, and un-stick the
+     headers so the real placed-chip grid flows onto paper. */
+  [data-slot="planner-grid"] {
+    zoom: 1 !important;
+    width: 100% !important;
+  }
+  [data-slot="planner-grid"] .sticky {
+    position: static !important;
+  }
+  /* Drop the grid's interactive affordances (duplicate/group/trash strip, chip
+     "⋯" menu, week toggle, collision badge) while keeping each chip's body + tone.
+     The chips are <div>s; every affordance is a <button>/[role=button]. */
+  [data-slot="planner-grid"] button,
+  [data-slot="planner-grid"] [role="button"] {
+    display: none !important;
+  }
+
   @page {
     size: A4 landscape;
     margin: 12mm;

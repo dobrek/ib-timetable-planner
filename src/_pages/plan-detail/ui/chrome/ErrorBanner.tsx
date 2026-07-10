@@ -7,7 +7,7 @@ export default function ErrorBanner({ message, onDismiss }: ErrorBannerProps) {
   return (
     <div
       role="alert"
-      className="border-destructive/50 bg-destructive/10 text-destructive flex shrink-0 items-center justify-between rounded-md border px-3 py-2 text-sm"
+      className="border-destructive/50 bg-destructive/10 text-destructive flex shrink-0 items-center justify-between rounded-md border px-3 py-2 text-sm print:hidden"
     >
       <span>{message}</span>
       <Button

@@ -64,7 +64,7 @@ export default function ShelfDrawer({
       dataSlot="shelf-drawer"
       ariaLabel="Shelf"
       containerRef={ref}
-      className={cn("bg-background rounded-lg border", isDropTarget && "ring-ring ring-2")}
+      className={cn("bg-background rounded-lg border print:hidden", isDropTarget && "ring-ring ring-2")}
       bodyClassName="gap-3 p-3"
       collapseDisabled={pinned}
       collapseTitle={pinned ? "Unpin to collapse" : "Collapse shelf"}

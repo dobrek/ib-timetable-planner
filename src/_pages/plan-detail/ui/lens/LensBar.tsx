@@ -35,7 +35,10 @@ export default function LensBar({ criteria, counts, options, onRemove, onClearAl
     ),
   );
   return (
-    <div data-slot="lens-bar" className="bg-background flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5">
+    <div
+      data-slot="lens-bar"
+      className="bg-background flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 print:hidden"
+    >
       {criteria.map((criterion) => {
         const id = criterionId(criterion);
         const display = displayById.get(id);

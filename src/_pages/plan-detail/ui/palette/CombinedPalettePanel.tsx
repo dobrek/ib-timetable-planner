@@ -67,6 +67,7 @@ export default function CombinedPalettePanel({
       onCollapsedChange={onCollapsedChange}
       openWidthClass="w-64"
       dataSlot="planner-palette"
+      className="print:hidden"
       railClassName="bg-background hover:bg-accent rounded-lg border"
       bodyClassName="gap-3"
       toolbar={

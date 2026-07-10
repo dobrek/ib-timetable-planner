@@ -33,6 +33,7 @@ const cohortData = (cohort: Cohort, over: Partial<ExportCohortData> = {}): Expor
   courseDisplay: {},
   catalog: [],
   studentNames: {},
+  hours: new Map(),
   ...over,
 });
 

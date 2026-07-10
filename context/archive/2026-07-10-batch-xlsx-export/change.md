@@ -1,10 +1,10 @@
 ---
 change_id: batch-xlsx-export
 title: Batch xlsx export
-status: implemented
+status: archived
 created: 2026-07-10
 updated: 2026-07-10
-archived_at: null
+archived_at: 2026-07-10T12:54:09Z
 ---
 
 ## Notes

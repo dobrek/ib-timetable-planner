@@ -592,10 +592,10 @@ rollback fully reverts the feature; the PRD/roadmap wording reverts with it.
 
 #### Manual
 
-- [x] 2.3 Catalog lists + dashboard print-preview: no shell chrome, full table flows across pages
-- [x] 2.4 Dark mode prints ink-on-white
-- [x] 2.5 Subject-colored content shows backgrounds in preview (background graphics on)
-- [x] 2.6 Multi-row content paginates without first-page clipping
+- [x] 2.3 Catalog lists + dashboard print-preview: no shell chrome, full table flows across pages — 7cd2773
+- [x] 2.4 Dark mode prints ink-on-white — 7cd2773
+- [x] 2.5 Subject-colored content shows backgrounds in preview (background graphics on) — 7cd2773
+- [x] 2.6 Multi-row content paginates without first-page clipping — 7cd2773
 
 ### Phase 3: Perspective pages — Print button + student & teacher
 
@@ -608,9 +608,9 @@ rollback fully reverts the feature; the PRD/roadmap wording reverts with it.
 
 #### Manual
 
-- [x] 3.5 Student: Print button beside export, triggers dialog; controls hidden, content kept in preview
-- [x] 3.6 Teacher: same; collision badges static (no button/dialog), shading + tone preserved
-- [x] 3.7 Both: colors correct + dark-mode-safe; grid + roster paginate cleanly
+- [x] 3.5 Student: Print button beside export, triggers dialog; controls hidden, content kept in preview — 7cd2773
+- [x] 3.6 Teacher: same; collision badges static (no button/dialog), shading + tone preserved — 7cd2773
+- [x] 3.7 Both: colors correct + dark-mode-safe; grid + roster paginate cleanly — 7cd2773
 
 ### Phase 4: Board best-effort print CSS + Print button
 
@@ -623,21 +623,21 @@ rollback fully reverts the feature; the PRD/roadmap wording reverts with it.
 
 #### Manual
 
-- [x] 4.5 Board preview: editing chrome hidden, dp1|dp2 grid with chips visible
-- [x] 4.6 Board printout carries a plan-name title (print-only heading, change #4)
-- [x] 4.7 Grid un-zoomed, headers not floating, no post-page-1 clipping
-- [x] 4.8 Pagination decision recorded (landscape fit OR fixed print-scale fallback validated)
-- [x] 4.9 Colors correct + dark-mode-safe; Print button triggers dialog, absent from output
+- [x] 4.5 Board preview: editing chrome hidden, dp1|dp2 grid with chips visible — 7cd2773
+- [x] 4.6 Board printout carries a plan-name title (print-only heading, change #4) — 7cd2773
+- [x] 4.7 Grid un-zoomed, headers not floating, no post-page-1 clipping — 7cd2773
+- [x] 4.8 Pagination decision recorded (landscape fit OR fixed print-scale fallback validated) — 7cd2773
+- [x] 4.9 Colors correct + dark-mode-safe; Print button triggers dialog, absent from output — 7cd2773
 
 ### Phase 5: Playwright print-emulation e2e
 
 #### Automated
 
-- [x] 5.1 New print specs pass (incl. the dark-neutralization assertion): `pnpm test:e2e`
-- [x] 5.2 Full e2e suite still green: `pnpm test:e2e`
-- [x] 5.3 Build + type-check + lint + structure clean: `pnpm build` && `pnpm check` && `pnpm lint` && `pnpm steiger`
+- [x] 5.1 New print specs pass (incl. the dark-neutralization assertion): `pnpm test:e2e` — 7cd2773
+- [x] 5.2 Full e2e suite still green: `pnpm test:e2e` — 7cd2773
+- [x] 5.3 Build + type-check + lint + structure clean: `pnpm build` && `pnpm check` && `pnpm lint` && `pnpm steiger` — 7cd2773
 
 #### Manual
 
-- [x] 5.4 Spec fails if a `print:hidden` is removed (confirms it's a real gate)
-- [x] 5.5 Dark-neutralization assertion fails if a token is dropped from the `.dark` print re-declaration
+- [x] 5.4 Spec fails if a `print:hidden` is removed (confirms it's a real gate) — 7cd2773
+- [x] 5.5 Dark-neutralization assertion fails if a token is dropped from the `.dark` print re-declaration — 7cd2773

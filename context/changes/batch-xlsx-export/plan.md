@@ -278,27 +278,27 @@ None — purely additive; no schema changes, no data migration.
 
 #### Manual
 
-- [ ] 1.5 Plan board renders and drags exactly as before
+- [x] 1.5 Plan board renders and drags exactly as before
 
 ### Phase 2: Pure Batch Assembly
 
 #### Automated
 
-- [x] 2.1 New suite + full unit suite pass: `pnpm test`
-- [x] 2.2 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger`
-- [x] 2.3 Production build clean: `pnpm build`
+- [x] 2.1 New suite + full unit suite pass: `pnpm test` — 334b53a
+- [x] 2.2 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger` — 334b53a
+- [x] 2.3 Production build clean: `pnpm build` — 334b53a
 
 ### Phase 3: Zip Glue + Menu Item
 
 #### Automated
 
-- [ ] 3.1 Unit suite passes: `pnpm test`
-- [ ] 3.2 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger`
-- [ ] 3.3 Production build clean: `pnpm build`
+- [x] 3.1 Unit suite passes: `pnpm test`
+- [x] 3.2 Lint + FSD boundaries clean: `pnpm lint` && `pnpm steiger`
+- [x] 3.3 Production build clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.4 Zip downloads with combined + per-teacher files, all opening cleanly
-- [ ] 3.5 Zero-course teacher absent from the archive
-- [ ] 3.6 Unsaved optimistic edit appears in exported grids
-- [ ] 3.7 Existing single-view exports unchanged
+- [x] 3.4 Zip downloads with combined + per-teacher files, all opening cleanly
+- [x] 3.5 Zero-course teacher absent from the archive
+- [x] 3.6 Unsaved optimistic edit appears in exported grids
+- [x] 3.7 Existing single-view exports unchanged

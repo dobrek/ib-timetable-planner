@@ -4,6 +4,7 @@ import {
   buildRosterSheet,
   buildTimetableSheet,
   type CourseDisplay,
+  type HoursStat,
   type LocalPlacement,
   type TimetableSheet,
   type TimetableSheetColumn,
@@ -11,13 +12,18 @@ import {
 import type { BoardSurface } from "./board-surface";
 import { exportFileName } from "./export-file-name";
 
-/** One cohort's live board + catalog slice — the pieces needed to build its grid column and roster sheet. */
+/**
+ * One cohort's live board + catalog slice — the pieces needed to build its grid column and roster sheet.
+ * `hours` (live `state.hours`) is inert for the view exports here but carried so this one coherent live
+ * slice also feeds the batch export's per-teacher perspective workbooks (`buildBatchExportWorkbooks`).
+ */
 export type ExportCohortData = {
   cohort: Cohort;
   placements: LocalPlacement[];
   courseDisplay: Record<string, CourseDisplay>;
   catalog: GroupingCourse[];
   studentNames: Record<string, string>;
+  hours: Map<string, HoursStat>;
 };
 
 export type ExportWorkbookInput = {

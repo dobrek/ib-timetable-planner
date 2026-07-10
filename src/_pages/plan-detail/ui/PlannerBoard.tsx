@@ -65,6 +65,7 @@ export default function PlannerBoard({
   shared,
   dp1: dp1Props,
   dp2: dp2Props,
+  batchExport,
   paletteCollapsed,
   initialPaletteCohort,
 }: Props) {
@@ -172,6 +173,9 @@ export default function PlannerBoard({
       courseDisplay: state.courseDisplay,
       catalog: cohortProps.catalog,
       studentNames: cohortProps.studentNames,
+      // Live hours (same optimistic semantics as placements) — inert for the view exports, consumed by
+      // the batch export's per-teacher perspective workbooks.
+      hours: state.hours,
     };
   }
 
@@ -285,6 +289,7 @@ export default function PlannerBoard({
                   teacherNames={shared.teacherNames}
                   dp1={exportCohort("dp1")}
                   dp2={exportCohort("dp2")}
+                  batchExport={batchExport}
                 />
                 <BoardSettingsMenu zoom={zoom} setZoom={setZoom} hintMode={hintMode} setHintMode={setHintMode} />
                 <PrintButton />

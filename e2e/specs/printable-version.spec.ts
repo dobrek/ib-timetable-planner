@@ -74,6 +74,7 @@ test.describe("printable version", () => {
     await print();
     await expect(sidebar).toBeHidden();
     await expect(page.getByRole("button", { name: "Switch teacher" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Export teacher plan" })).toBeHidden();
     await expect(page.getByRole("button", { name: "Print" })).toBeHidden();
     await expect(teacherGrid).toBeVisible();
     await expect(page.getByRole("region", { name: "Courses" })).toBeVisible();
@@ -85,10 +86,14 @@ test.describe("printable version", () => {
     await expect(boardGrid).toBeVisible();
 
     await print();
-    // Editing chrome gone: sidebar, palette, shelf, and the top-bar controls (Print lives there).
+    // Editing chrome gone: sidebar, palette, shelf, and the top-bar controls. Assert the trailing
+    // menus individually, not just Print — they share one `print:hidden` container (BoardHeader),
+    // so a regression that relocated a control out of it must still trip this gate.
     await expect(sidebar).toBeHidden();
     await expect(page.locator('[data-slot="planner-palette"]')).toBeHidden();
     await expect(page.getByRole("complementary", { name: "Shelf" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Export plan" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Board settings" })).toBeHidden();
     await expect(page.getByRole("button", { name: "Print" })).toBeHidden();
     // Grid with its placed chip stays; the print-only plan-name title appears (parity with the
     // perspective pages — the on-screen top-bar title is print-hidden, so only this heading is left).

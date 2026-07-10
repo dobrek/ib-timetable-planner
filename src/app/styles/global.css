@@ -315,10 +315,16 @@
      The editing grid is print-hostile in ways inline `print:` utilities can't
      reach: an inline `style={{ zoom }}` (inline styles beat stylesheet rules, so
      the reset needs !important), a `w-max` intrinsic width, and sticky pinned
-     headers. Reset zoom to 100%, drop the intrinsic width, and un-stick the
-     headers so the real placed-chip grid flows onto paper. */
+     headers. Drop the intrinsic width, un-stick the headers (below), and apply a
+     fixed fit-to-landscape print zoom.
+
+     Fit-to-landscape fallback (validated empirically in Phase 4): at 100% the
+     combined dp1|dp2 × 5-day grid measures ~1232px — wider than the ~1032px
+     A4-landscape printable width (297−24mm @96dpi) — so it clips at the page edge.
+     A fixed print zoom scales the whole grid subtree to fit one page width; the
+     `!important` also overrides the inline `style={{ zoom }}` user preference. */
   [data-slot="planner-grid"] {
-    zoom: 1 !important;
+    zoom: 0.8 !important;
     width: 100% !important;
   }
   [data-slot="planner-grid"] .sticky {
@@ -326,9 +332,10 @@
   }
   /* Drop the grid's interactive affordances (duplicate/group/trash strip, chip
      "⋯" menu, week toggle, collision badge) while keeping each chip's body + tone.
-     The chips are <div>s; every affordance is a <button>/[role=button]. */
-  [data-slot="planner-grid"] button,
-  [data-slot="planner-grid"] [role="button"] {
+     Every affordance is a real <button>; the chip/cell bodies are <div>s that
+     dnd-kit tags with role="button", so hide the `button` TAG only — a
+     `[role=button]` selector would also hide the placed chips. */
+  [data-slot="planner-grid"] button {
     display: none !important;
   }
 

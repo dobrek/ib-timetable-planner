@@ -575,20 +575,20 @@ rollback fully reverts the feature; the PRD/roadmap wording reverts with it.
 
 #### Automated
 
-- [x] 1.1 Build stays clean (docs-only): `pnpm build`
+- [x] 1.1 Build stays clean (docs-only): `pnpm build` — 2da2393
 
 #### Manual
 
-- [x] 1.2 `prd.md:468` reads as a scoped override (print-friendly in scope; PDF pipeline out)
-- [x] 1.3 `roadmap.md:217` mirrors the PRD wording and references `printable-version`
-- [x] 1.4 `change.md` frontmatter shows `status: planned`
+- [x] 1.2 `prd.md:468` reads as a scoped override (print-friendly in scope; PDF pipeline out) — 2da2393
+- [x] 1.3 `roadmap.md:217` mirrors the PRD wording and references `printable-version` — 2da2393
+- [x] 1.4 `change.md` frontmatter shows `status: planned` — 2da2393
 
 ### Phase 2: Global print foundation (shell + theming)
 
 #### Automated
 
-- [ ] 2.1 Build clean: `pnpm build`
-- [ ] 2.2 Lint + structure: `pnpm lint` && `pnpm steiger`
+- [x] 2.1 Build clean: `pnpm build`
+- [x] 2.2 Lint + structure: `pnpm lint` && `pnpm steiger`
 
 #### Manual
 

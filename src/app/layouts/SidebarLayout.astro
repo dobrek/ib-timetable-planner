@@ -50,10 +50,10 @@ const iconButtonClass =
       document.documentElement.classList.add("sidebar-collapsed");
     }
   </script>
-  <div class="bg-background text-foreground flex h-screen">
+  <div class="bg-background text-foreground flex h-screen print:block print:h-auto print:overflow-visible">
     <aside
       id="app-sidebar"
-      class="border-sidebar-border bg-sidebar text-sidebar-foreground collapsed:w-16 flex w-60 shrink-0 flex-col overflow-hidden border-r transition-[width] duration-200 motion-reduce:transition-none"
+      class="border-sidebar-border bg-sidebar text-sidebar-foreground collapsed:w-16 flex w-60 shrink-0 flex-col overflow-hidden border-r transition-[width] duration-200 motion-reduce:transition-none print:hidden"
     >
       <div
         class="border-sidebar-border collapsed:justify-center collapsed:px-0 flex min-h-[53px] items-center justify-between gap-2 border-b px-5 py-2"
@@ -124,14 +124,17 @@ const iconButtonClass =
 
     {
       fullWidth ? (
-        <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <main class="flex min-w-0 flex-1 flex-col overflow-hidden print:h-auto print:overflow-visible">
           <slot />
         </main>
       ) : (
-        <main class="flex-1 overflow-y-auto">
+        <main class="flex-1 overflow-y-auto print:overflow-visible">
           <div class="mx-auto max-w-7xl px-8 py-10">
             {plan && (
-              <nav class="text-muted-foreground mb-6 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb">
+              <nav
+                class="text-muted-foreground mb-6 flex items-center gap-1.5 text-sm print:hidden"
+                aria-label="Breadcrumb"
+              >
                 <a href="/plans" class="hover:text-foreground transition-colors">
                   Plans
                 </a>

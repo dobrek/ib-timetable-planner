@@ -21,6 +21,7 @@ import {
   type HoursStat,
   type PlannerPlacement,
 } from "@/entities/timetable";
+import { PrintButton } from "@/shared/ui";
 import {
   PerspectiveCourseList,
   ScheduleGrid,
@@ -114,7 +115,7 @@ export default function TeacherPlanPage({ data }: Props) {
           <h1 className="text-xl font-semibold">{teacherTitle}</h1>
           <p className="text-muted-foreground text-sm">{planName} — teacher schedule</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
           <TeacherSwitcher planId={data.planId} teachers={data.teachers} current={teacher} />
           <ExportTeacherPlanButton
             planName={planName}
@@ -138,6 +139,7 @@ export default function TeacherPlanPage({ data }: Props) {
             studentNames={studentNames}
             viewerTeacherId={teacher.id}
           />
+          <PrintButton />
         </div>
       </header>
 

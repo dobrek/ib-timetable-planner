@@ -189,7 +189,7 @@ function Chip({
           variant={blocking ? "destructive" : "warning"}
           asChild
           data-slot={unavailable ? "unavailable-badge" : "collision-badge"}
-          className="ml-auto cursor-pointer gap-0.5 px-1 py-0"
+          className="ml-auto cursor-pointer gap-0.5 px-1 py-0 print:hidden"
         >
           <button
             type="button"

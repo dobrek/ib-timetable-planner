@@ -1,10 +1,10 @@
 ---
 change_id: printable-version
 title: Printable version
-status: implemented
+status: archived
 created: 2026-07-09
 updated: 2026-07-10
-archived_at: null
+archived_at: 2026-07-10T09:08:56Z
 ---
 
 ## Notes

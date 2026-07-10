@@ -12,7 +12,7 @@ type BoardHeaderProps = { planName: string; planId: string; active: BoardSurface
  */
 export default function BoardHeader({ planName, planId, active, children }: BoardHeaderProps) {
   return (
-    <div className="flex shrink-0 items-center gap-3 border-b px-3 py-2">
+    <div className="flex shrink-0 items-center gap-3 border-b px-3 py-2 print:hidden">
       <h1 className="text-foreground text-base font-semibold">{planName}</h1>
       <CohortSwitcher planId={planId} active={active} />
       {children}

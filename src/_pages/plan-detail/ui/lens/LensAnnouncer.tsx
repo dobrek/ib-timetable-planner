@@ -18,7 +18,7 @@ type Props = {
 export default function LensAnnouncer({ criteria, total }: Props) {
   const message = useLensAnnouncement(criteria, total);
   return (
-    <div role="status" aria-live="polite" data-slot="lens-status" className="sr-only">
+    <div role="status" aria-live="polite" data-slot="lens-status" className="sr-only print:hidden">
       {message}
     </div>
   );

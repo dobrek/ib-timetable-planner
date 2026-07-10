@@ -601,10 +601,10 @@ rollback fully reverts the feature; the PRD/roadmap wording reverts with it.
 
 #### Automated
 
-- [x] 3.1 Build clean: `pnpm build`
-- [x] 3.2 Type-check clean (after `astro sync`): `pnpm check`
-- [x] 3.3 Lint + structure: `pnpm lint` && `pnpm steiger`
-- [x] 3.4 Unit suite unaffected: `pnpm test`
+- [x] 3.1 Build clean: `pnpm build` — 7557bca
+- [x] 3.2 Type-check clean (after `astro sync`): `pnpm check` — 7557bca
+- [x] 3.3 Lint + structure: `pnpm lint` && `pnpm steiger` — 7557bca
+- [x] 3.4 Unit suite unaffected: `pnpm test` — 7557bca
 
 #### Manual
 
@@ -616,10 +616,10 @@ rollback fully reverts the feature; the PRD/roadmap wording reverts with it.
 
 #### Automated
 
-- [ ] 4.1 Build clean: `pnpm build`
-- [ ] 4.2 Type-check clean (after `astro sync`): `pnpm check`
-- [ ] 4.3 Lint + structure: `pnpm lint` && `pnpm steiger`
-- [ ] 4.4 Unit suite unaffected: `pnpm test`
+- [x] 4.1 Build clean: `pnpm build`
+- [x] 4.2 Type-check clean (after `astro sync`): `pnpm check`
+- [x] 4.3 Lint + structure: `pnpm lint` && `pnpm steiger`
+- [x] 4.4 Unit suite unaffected: `pnpm test`
 
 #### Manual
 

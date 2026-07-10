@@ -61,7 +61,7 @@ describe("buildTimetableSheet — header structure", () => {
     expect(at(sheet, 0, 1).columnSpan).toBeUndefined();
     expect(sheet.rows[0][2]).not.toBeNull();
     // Row 1 is already the first period row — no cohort label row.
-    expect(at(sheet, 1, 0).value).toBe("08:00–08:45");
+    expect(at(sheet, 1, 0).value).toBe("08:15–09:00");
   });
 });
 
@@ -70,8 +70,8 @@ describe("buildTimetableSheet — period row headers", () => {
     const sheet = buildTimetableSheet({ days: 1, periods: 11, columns: [col("dp1", [])] });
     const rowHeaders = sheet.rows.map((row) => row[0]?.value);
 
-    expect(rowHeaders).toContain("08:00–08:45"); // P1
-    expect(rowHeaders).toContain("16:10–16:55"); // P10
+    expect(rowHeaders).toContain("08:15–09:00"); // P1
+    expect(rowHeaders).toContain("16:25–17:10"); // P10
     expect(rowHeaders).toContain("P11"); // fallback — no time defined
   });
 });
@@ -163,7 +163,7 @@ describe("buildTimetableSheet — bundles stack as per-occupant sub-rows", () =>
       columns: [col("dp1", [placement("alpha", 1, 1), placement("beta", 1, 1)], display)],
     });
 
-    expect(at(sheet, 1, 0)).toMatchObject({ value: "08:00–08:45", rowSpan: 2, alignVertical: "center" });
+    expect(at(sheet, 1, 0)).toMatchObject({ value: "08:15–09:00", rowSpan: 2, alignVertical: "center" });
     expect(sheet.rows[2][0]).toBeNull(); // the merge placeholder under the time header
   });
 

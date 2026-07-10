@@ -189,7 +189,7 @@ const periodHeaderCell = (period: number, height: number): Cell => ({
   ...STRONG_BOTTOM,
 });
 
-/** Time range (`08:00–08:45`); falls back to `periodLabel` past P10, where no time is defined. */
+/** Time range (`08:15–09:00`); falls back to `periodLabel` past P10, where no time is defined. */
 const periodTimeLabel = (period: number): string => {
   const range = periodTimeRange(period);
   return range ? `${range.start}–${range.end}` : periodLabel(period);

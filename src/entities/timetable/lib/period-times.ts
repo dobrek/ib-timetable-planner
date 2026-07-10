@@ -13,14 +13,14 @@ export type PeriodTimeRange = { start: string; end: string };
 export const periodTimeRange = (period: number): PeriodTimeRange | null => PERIOD_TIMES.get(period) ?? null;
 
 const PERIOD_TIMES: ReadonlyMap<number, PeriodTimeRange> = new Map([
-  [1, { start: "08:00", end: "08:45" }],
-  [2, { start: "08:50", end: "09:35" }],
-  [3, { start: "09:55", end: "10:40" }],
-  [4, { start: "10:45", end: "11:30" }],
-  [5, { start: "11:35", end: "12:20" }],
-  [6, { start: "12:50", end: "13:35" }],
-  [7, { start: "13:40", end: "14:25" }],
-  [8, { start: "14:30", end: "15:15" }],
-  [9, { start: "15:20", end: "16:05" }],
-  [10, { start: "16:10", end: "16:55" }],
+  [1, { start: "08:15", end: "09:00" }],
+  [2, { start: "09:05", end: "09:50" }],
+  [3, { start: "10:10", end: "10:55" }],
+  [4, { start: "11:00", end: "11:45" }],
+  [5, { start: "11:50", end: "12:35" }],
+  [6, { start: "13:10", end: "13:55" }],
+  [7, { start: "14:00", end: "14:45" }],
+  [8, { start: "14:50", end: "15:35" }],
+  [9, { start: "15:40", end: "16:25" }],
+  [10, { start: "16:25", end: "17:10" }],
 ]);

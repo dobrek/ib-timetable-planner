@@ -4,11 +4,11 @@ import { periodTimeRange, type PeriodTimeRange } from "./period-times";
 
 describe("periodTimeRange", () => {
   it("maps the first period to the schedule start", () => {
-    expect(periodTimeRange(1)).toEqual({ start: "08:00", end: "08:45" });
+    expect(periodTimeRange(1)).toEqual({ start: "08:15", end: "09:00" });
   });
 
   it("maps the last period of the placeholder schedule", () => {
-    expect(periodTimeRange(10)).toEqual({ start: "16:10", end: "16:55" });
+    expect(periodTimeRange(10)).toEqual({ start: "16:25", end: "17:10" });
   });
 
   it("covers every period of the largest grid preset with 45-minute ranges", () => {

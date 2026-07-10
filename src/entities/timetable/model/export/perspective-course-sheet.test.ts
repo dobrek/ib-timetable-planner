@@ -45,7 +45,7 @@ describe("buildPerspectiveCourseSheet — header block", () => {
       "DP1 · HL",
       "Placed 3 / Required 4",
       "Co-teachers: Jane Doe",
-      "Occurrences: Mon P1 (08:00–08:45), Wed P3 (09:55–10:40)",
+      "Occurrences: Mon P1 (08:15–09:00), Wed P3 (10:10–10:55)",
       undefined, // blank spacer row
       "Students",
       "No students assigned.",

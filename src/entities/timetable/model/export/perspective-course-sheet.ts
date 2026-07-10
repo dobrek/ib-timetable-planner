@@ -61,7 +61,7 @@ const coTeacherNames = (
     .map((key) => teacherNames[key] ?? key)
     .sort((a, b) => a.localeCompare(b));
 
-/** `Mon P1 (08:00–08:45)`; drops the time range past P10, where none is defined. */
+/** `Mon P1 (08:15–09:00)`; drops the time range past P10, where none is defined. */
 const occurrenceLabel = (placement: PlannerPlacement): string => {
   const range = periodTimeRange(placement.period);
   const time = range ? ` (${range.start}–${range.end})` : "";

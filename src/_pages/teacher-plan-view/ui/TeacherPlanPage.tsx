@@ -200,7 +200,10 @@ const deriveCohortView = (
   const catalogById = new Map(own.courses.map((course) => [course.id, course]));
   const siblingTeacherKeys = new Map(sibling.courses.map((course) => [course.id, course.teacherKeys]));
   const crossIndex = buildCrossCohortIndex(projectFromPlacements(sibling.placements, siblingTeacherKeys));
-  const violations = deriveCellViolations(own.placements, catalogById, availabilityIndex, crossIndex);
+  // Deliver the flag set so the read-only perspective flags the early-finish edge rule identically
+  // to the editing board (per-cohort ids are enough — the derivation only reads own.placements).
+  const finishesEarly = new Set(own.finishesEarlyCourseIds);
+  const violations = deriveCellViolations(own.placements, catalogById, availabilityIndex, crossIndex, finishesEarly);
 
   const courseIds = new Set(teacherCourses(own.courses, teacherKey).map((course) => course.id));
   const collisions = narrowViolationsToTeacher(violations, teacherKey, courseIds);

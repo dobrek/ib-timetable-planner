@@ -1,8 +1,10 @@
 import {
   type AvailabilityIndex,
   bucketByCell,
+  buildDayOccupancyIndex,
   cellKey,
   type CrossCohortIndex,
+  type DayOccupancyIndex,
   EMPTY_AVAILABILITY_INDEX,
   EMPTY_CROSS_COHORT_INDEX,
   type PlannerPlacement,
@@ -10,6 +12,9 @@ import {
 } from "@/entities/timetable";
 import type { CellData, DragData } from "./drag";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
+
+/** No course flagged — the single-cohort / pre-delivery default for the edge-rule drag axis. */
+const EMPTY_FLAGGED = new Set<string>();
 
 /**
  * Per-cell drag affordance. The map is **sparse**: a cell absent from the map (while
@@ -98,13 +103,18 @@ export const deriveDropHints = (
   catalogById: Map<string, GroupingCourse>,
   availability: AvailabilityIndex = EMPTY_AVAILABILITY_INDEX,
   occupiedByTeacher: CrossCohortIndex = EMPTY_CROSS_COHORT_INDEX,
+  finishesEarlyByCourseId: Set<string> = EMPTY_FLAGGED,
+  grid?: { periods: number },
 ): Map<string, DropHint> | null => {
   if (!context) return null;
 
   // A placement/bundle move lifts the dragged chip(s) off the board for the what-if, so every
-  // cell — including the origin — is judged against the courses that would *remain*.
+  // cell — including the origin — is judged against the courses that would *remain*. The day
+  // index is built from the SAME `occupied` set, so a move's origin placement is excluded from
+  // the edge/stacking what-if too (the origin-exclusion the two day-scoped rules require).
   const excluded = new Set(context.excludePlacementIds);
   const occupied = excluded.size > 0 ? placements.filter((placement) => !excluded.has(placement.id)) : placements;
+  const dayOccupancy = buildDayOccupancyIndex(occupied, catalogById);
 
   // Candidate cells = occupied cells PLUS empty cells where a dragged member's teacher is
   // unavailable OR occupied in the sibling cohort. Those aren't seen by `classifyCell`'s
@@ -121,10 +131,23 @@ export const deriveDropHints = (
       if (occupiedCells) for (const key of occupiedCells.keys()) if (!candidates.has(key)) candidates.set(key, []);
     }
   }
+  // Day-scoped rules can offend EMPTY cells the loop above never adds (they carry no teacher
+  // availability / cross-cohort mark): an empty cell interior to an enrolled student's day (edge
+  // rule) and an empty cell that would be a course's 3rd same-day period (stacking). Seed them so
+  // `classifyCell` can render them non-free instead of leaving them free.
+  seedDayScopedCells(candidates, context.members, dayOccupancy, finishesEarlyByCourseId, grid);
 
   const hints = new Map<string, DropHint>();
   for (const [key, occupants] of candidates) {
-    const hint = classifyCell(context.members, occupants, key, availability, occupiedByTeacher);
+    const hint = classifyCell(
+      context.members,
+      occupants,
+      key,
+      availability,
+      occupiedByTeacher,
+      dayOccupancy,
+      finishesEarlyByCourseId,
+    );
     if (hint) hints.set(key, hint);
   }
 
@@ -133,6 +156,48 @@ export const deriveDropHints = (
   if (context.origin) hints.set(cellKey(context.origin.day, context.origin.period), "blocked");
 
   return hints;
+};
+
+/**
+ * Seed the empty cells the day-scoped rules can offend (see `deriveDropHints`). The edge rule's
+ * interior cells are bounded by the student's own occupied periods (no grid needed); the stacking
+ * rule can offend any empty period on a day the dragged course already fills ≥2× in a concrete
+ * week, so it needs the grid's `periods` to enumerate them — omit `grid` and stacking seeds only
+ * the cells already present (a graceful degrade for the perf/parity harnesses).
+ */
+const seedDayScopedCells = (
+  candidates: Map<string, GroupingCourse[]>,
+  members: GroupingCourse[],
+  index: DayOccupancyIndex,
+  flagged: Set<string>,
+  grid: { periods: number } | undefined,
+): void => {
+  const seed = (day: number, period: number): void => {
+    const key = cellKey(day, period);
+    if (!candidates.has(key)) candidates.set(key, []);
+  };
+  for (const member of members) {
+    // Edge rule: the cells strictly between the earliest and latest OTHER period each enrolled
+    // student occupies (week-agnostic — the drop week is chosen after the drop).
+    if (flagged.has(member.id)) {
+      for (const studentKey of member.studentKeys) {
+        for (const [day, entries] of index.byStudentDay.get(studentKey) ?? []) {
+          const others = entries.filter((entry) => entry.courseId !== member.id).map((entry) => entry.period);
+          if (others.length === 0) continue;
+          const min = Math.min(...others);
+          const max = Math.max(...others);
+          for (let period = min + 1; period < max; period++) seed(day, period);
+        }
+      }
+    }
+    // Stacking rule: any empty period of a day the member already fills ≥2× in a concrete week.
+    if (grid) {
+      for (const [day] of index.byCourseDay.get(member.id) ?? []) {
+        if (wouldStackOnDay(index, member.id, day))
+          for (let period = 1; period <= grid.periods; period++) seed(day, period);
+      }
+    }
+  }
 };
 
 const resolveMembers = (
@@ -154,9 +219,10 @@ const resolveMembers = (
  * soft-fits → `"opposite-week"`; else all hard-fit → `"warn"` if any teacher is soft-unavailable
  * there, else free (omit).
  *
- * Collision fit is decided by `violatesAny` over the constraint registry. Availability is a
- * board-only constraint (no `test`), so it is NOT inherited by `violatesAny` — both severities
- * are checked explicitly here, the one place a board-only rule must be wired into hints.
+ * Collision fit is decided by `violatesAny` over the constraint registry. Availability, cross-cohort,
+ * and the day-scoped rules are all board-only (no `test`), so they are NOT inherited by `violatesAny`
+ * — each is checked explicitly here, the one place a board-only rule is wired into hints. The
+ * early-finish edge rule joins the hard axes (blocks like a collision); same-day stacking is a warn.
  */
 const classifyCell = (
   members: GroupingCourse[],
@@ -164,18 +230,26 @@ const classifyCell = (
   key: string,
   availability: AvailabilityIndex,
   occupiedByTeacher: CrossCohortIndex,
+  dayOccupancy: DayOccupancyIndex,
+  flagged: Set<string>,
 ): DropHint | null => {
+  const { day, period } = parseCellKey(key);
   let hardFits = 0;
   let softFits = 0;
   let hardConflicts = 0;
   let soft = false;
+  let stack = false;
   for (const member of members) {
     if (isSoftUnavailable(member, key, availability)) soft = true;
-    // Worst-of the collision verdict and the cross-cohort verdict: a hard conflict from either
-    // axis blocks; an opposite-week escape survives only if NEITHER axis hard-conflicts.
-    const fit = worstFit(
+    // Stacking is a warn overlay (per-day, cell-position-independent): dropping the member here
+    // would make ≥3 of its same-day periods in some concrete week.
+    if (wouldStackOnDay(dayOccupancy, member.id, day)) stack = true;
+    // Worst-of the collision, cross-cohort, and early-finish-edge verdicts: a hard conflict from any
+    // axis blocks; an opposite-week escape survives only if NO axis hard-conflicts.
+    const fit = worstOf(
       memberCollisionFit(member, occupants, key, availability),
       crossCohortFit(member, key, occupiedByTeacher),
+      edgeFit(member, day, period, dayOccupancy, flagged),
     );
     if (fit === "fit") hardFits += 1;
     else if (fit === "soft") softFits += 1;
@@ -183,7 +257,44 @@ const classifyCell = (
   }
   if (hardConflicts > 0) return hardFits + softFits === 0 ? "blocked" : "partial";
   if (softFits > 0) return "opposite-week";
-  return soft ? "warn" : null;
+  return soft || stack ? "warn" : null;
+};
+
+/** Parse a `cellKey` (`${day}:${period}`) back to its coordinates for the day-scoped axes. */
+const parseCellKey = (key: string): { day: number; period: number } => {
+  const [day, period] = key.split(":").map(Number);
+  return { day, period };
+};
+
+/**
+ * Early-finish edge verdict for one dragged member at a cell. `hard` when the member is flagged and
+ * dropping it here would sit strictly interior to some enrolled student's day; else `fit`. The drop
+ * week is unknown at drag time, so this is week-agnostic (counts every other-course period that day)
+ * — a conservative preview that blocks any interior cell.
+ */
+const edgeFit = (
+  member: GroupingCourse,
+  day: number,
+  period: number,
+  index: DayOccupancyIndex,
+  flagged: Set<string>,
+): MemberFit => {
+  if (!flagged.has(member.id)) return "fit";
+  const interior = member.studentKeys.some((studentKey) => {
+    const others = (index.byStudentDay.get(studentKey)?.get(day) ?? [])
+      .filter((entry) => entry.courseId !== member.id)
+      .map((entry) => entry.period);
+    return others.length > 0 && period > Math.min(...others) && period < Math.max(...others);
+  });
+  return interior ? "hard" : "fit";
+};
+
+/** True when the course already fills ≥2 of some concrete week on the day, so one more drop stacks
+ *  to ≥3. Drop week is agnostic (`both`), so it counts toward both weeks. */
+const wouldStackOnDay = (index: DayOccupancyIndex, courseId: string, day: number): boolean => {
+  const entries = index.byCourseDay.get(courseId)?.get(day) ?? [];
+  const runs = (concrete: "a" | "b") => entries.filter((e) => e.week === concrete || e.week === "both").length;
+  return runs("a") >= 2 || runs("b") >= 2;
 };
 
 /** A per-member fit verdict on one axis: a clean fit, an opposite-week (soft) escape, or a hard conflict. */
@@ -191,7 +302,9 @@ type MemberFit = "fit" | "soft" | "hard";
 
 const FIT_RANK: Record<MemberFit, number> = { fit: 0, soft: 1, hard: 2 };
 
-const worstFit = (a: MemberFit, b: MemberFit): MemberFit => (FIT_RANK[a] >= FIT_RANK[b] ? a : b);
+/** The worst (highest-rank) verdict across the hard axes. */
+const worstOf = (...fits: MemberFit[]): MemberFit =>
+  fits.reduce((worst, fit) => (FIT_RANK[fit] > FIT_RANK[worst] ? fit : worst), "fit");
 
 /** Collision-registry + strong-availability verdict (the pre-cross-cohort classification). */
 const memberCollisionFit = (

@@ -94,8 +94,11 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
     }),
   );
   const warnings = collectWarnings(courses, mergeChildIds);
+  // The flagged ids among the projected courses (a merge parent's flag comes from its own row).
+  // A side-set delivered to the board's constraint core; never enters `GroupingCourse` or the hash.
+  const finishesEarlyCourseIds = courses.filter((course) => courseById.get(course.id)?.finishes_early).map((c) => c.id);
 
-  return { courses, courseDisplay, warnings };
+  return { courses, courseDisplay, finishesEarlyCourseIds, warnings };
 };
 
 type CourseRow = {
@@ -107,13 +110,15 @@ type CourseRow = {
   week_mode: WeekMode;
   /** Optional subject color (palette enum key or null); consumed only into the display side map. */
   color: string | null;
+  /** Early-finish flag; consumed only into the `finishesEarlyCourseIds` side-set (never GroupingCourse). */
+  finishes_early: boolean;
 };
 
 const fetchCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CourseRow[]> =>
   unwrapMany(
     await supabase
       .from("courses")
-      .select("id, name, level, group_index, hours_per_week, week_mode, color")
+      .select("id, name, level, group_index, hours_per_week, week_mode, color, finishes_early")
       .eq("plan_id", planId)
       .eq("cohort", cohort)
       .order("id"),

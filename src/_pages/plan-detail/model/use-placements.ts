@@ -23,6 +23,8 @@ export type UsePlacementsArgs = {
   catalogById: Map<string, GroupingCourse>;
   availabilityIndex: AvailabilityIndex;
   crossCohortIndex: CrossCohortIndex;
+  /** Flagged-id set so the auto-duplicate search honors the early-finish edge rule. */
+  finishesEarlyByCourseId: Set<string>;
   days: number;
   periods: number;
   /** Server-durable parked bundles for this cohort, seeding the shelf store. */
@@ -95,6 +97,7 @@ export function usePlacements(
     catalogById,
     availabilityIndex,
     crossCohortIndex,
+    finishesEarlyByCourseId,
     days,
     periods,
     initialParked = [],
@@ -154,6 +157,7 @@ export function usePlacements(
     catalogById,
     availabilityIndex,
     crossCohortIndex,
+    finishesEarlyByCourseId,
     days,
     periods,
     weekModeOf,

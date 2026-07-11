@@ -256,6 +256,28 @@ working from an existing plan:
   > sharing is exactly the capacity gain users asked for; clutter is a display
   > concern, and correctness is held by the guardrail (no false-positive valid).
 
+### Domain model: day-scoped placement rules
+
+- FR-014: Author can mark a course as **finishes-early** (a new `finishes_early`
+  course attribute); the placement validator then requires every placement of a
+  flagged course to sit at the first or last period an enrolled student occupies
+  that day (week-aware, per enrolled student). An interior placement is flagged as
+  a **blocking** violation, validated the same way as a collision. Priority:
+  must-have. Change: new
+  > Socrates: Counter-argument considered: "model early-finish as a soft
+  > scheduling objective rather than a hard rule." Resolution: stands — author
+  > decision (2026-07-11) is that an early-finishing course leaving a mid-day hole
+  > when it stops running mid-year is unacceptable, so it blocks like a collision;
+  > it is edge-of-the-*student's*-day, not edge of the grid.
+- FR-015: The validator caps a single course at **two periods per day**: a third
+  same-day period of one course in any given fortnightly week raises a **warn**
+  (amber, non-blocking) violation; two periods per day stay silent. Priority:
+  must-have. Change: new
+  > Socrates: Counter-argument considered: "make the daily-spread cap a hard block
+  > like the early-finish rule." Resolution: stands — a legal double is common and
+  > desirable, so only a third same-day period warns; the flat hard cap of 2/day is
+  > reserved for the (separate) plan generator, warn-level in manual editing.
+
 ### Cohort naming
 
 - FR-004: Cohorts are presented as "DP1" and "DP2" throughout the UI, replacing

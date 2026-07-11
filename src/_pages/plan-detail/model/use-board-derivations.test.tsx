@@ -21,6 +21,9 @@ import { useCatalogById, useCollisions, useDragHints, useDuplicateHighlight, use
 // Two same-teacher courses → a teacher conflict whenever both share a cell+week.
 const CATALOG = [course("c1", "t1"), course("c2", "t1"), course("c3", "t2")];
 const CATALOG_BY_ID = buildCatalog(...CATALOG);
+// Stable empty flag set so the referential-stability tests exercise real memo caching (a fresh
+// `new Set()` per render would invalidate the memo dep and defeat the stability guarantee).
+const NO_FLAGGED = new Set<string>();
 
 describe("useCatalogById", () => {
   it("keys the catalog by course id", () => {
@@ -42,14 +45,14 @@ describe("useCollisions", () => {
 
   it("flags the shared-teacher conflict at the occupied cell", () => {
     const { result } = renderHook(() =>
-      useCollisions(placements, CATALOG_BY_ID, EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX),
+      useCollisions(placements, CATALOG_BY_ID, EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX, NO_FLAGGED),
     );
     expect(result.current.has(cellKey(1, 1))).toBe(true);
   });
 
   it("is referentially stable across a re-render with the same inputs", () => {
     const { result, rerender } = renderHook(() =>
-      useCollisions(placements, CATALOG_BY_ID, EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX),
+      useCollisions(placements, CATALOG_BY_ID, EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX, NO_FLAGGED),
     );
     const first = result.current;
     rerender();
@@ -86,7 +89,7 @@ describe("useDragHints", () => {
 
   it("yields no hint map while idle, then a sparse map once a drag starts", () => {
     const { result } = renderHook(() =>
-      useDragHints(CATALOG_BY_ID, placements, [], EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX),
+      useDragHints(CATALOG_BY_ID, placements, [], EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX, NO_FLAGGED, 10),
     );
     expect(result.current.dropHints).toBeNull();
 
@@ -105,7 +108,7 @@ describe("useDragHints", () => {
 
   it("keeps the idle hint map referentially stable across a re-render", () => {
     const { result, rerender } = renderHook(() =>
-      useDragHints(CATALOG_BY_ID, placements, [], EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX),
+      useDragHints(CATALOG_BY_ID, placements, [], EMPTY_AVAILABILITY_INDEX, EMPTY_CROSS_COHORT_INDEX, NO_FLAGGED, 10),
     );
     const first = result.current.dropHints;
     rerender();

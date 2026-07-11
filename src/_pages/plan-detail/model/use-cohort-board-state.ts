@@ -17,6 +17,7 @@ import {
   useCollisions,
   useDragHints,
   useDuplicateHighlight,
+  useFinishesEarlySet,
   useHours,
   useLensMatches,
   useOptionalTally,
@@ -172,6 +173,9 @@ function useCohortPlacements(
   );
   const catalogById = useCatalogById(catalog);
   const availabilityIndex = useAvailabilityIndex(availability);
+  // Plan-scoped flagged-id Set (both cohorts) — drives the edge rule at the committed board, the
+  // drag what-if, and the auto-duplicate search. Each is a subset lookup against this cohort's ids.
+  const finishesEarlySet = useFinishesEarlySet(shared.finishesEarlyByCourseId);
   const api = usePlacements(props.placements, {
     planId,
     cohort,
@@ -179,12 +183,13 @@ function useCohortPlacements(
     catalogById,
     availabilityIndex,
     crossCohortIndex: laggedIndex,
+    finishesEarlyByCourseId: finishesEarlySet,
     days,
     periods,
     initialParked: props.parkedBundles,
     onRecord,
   });
-  return { api, catalogById, availabilityIndex, weekModeByCourseId, teacherKeysByCourseId };
+  return { api, catalogById, availabilityIndex, finishesEarlySet, periods, weekModeByCourseId, teacherKeysByCourseId };
 }
 
 // The pure derivations over one cohort's placements, fed the FRESH cross-index so cross-cohort
@@ -196,7 +201,13 @@ function useCohortDerivations(
   lensCriteria: LensCriterion[] = NO_LENS_CRITERIA,
 ) {
   const placements = base.api.placements;
-  const collisions = useCollisions(placements, base.catalogById, base.availabilityIndex, freshIndex);
+  const collisions = useCollisions(
+    placements,
+    base.catalogById,
+    base.availabilityIndex,
+    freshIndex,
+    base.finishesEarlySet,
+  );
   const { hours, unplaced, overplaced, hoursLeft, hoursOver } = useHours(placements, props.catalog);
   const { optionalByCourse, optionalCount } = useOptionalTally(placements);
   const { dropHints, startDragHints, clearDragHints } = useDragHints(
@@ -205,6 +216,8 @@ function useCohortDerivations(
     props.groupings,
     base.availabilityIndex,
     freshIndex,
+    base.finishesEarlySet,
+    base.periods,
   );
   const { isExploded, toggleExploded } = useExplodedCells();
   const justDuplicated = useDuplicateHighlight(base.api.lastDuplicated);

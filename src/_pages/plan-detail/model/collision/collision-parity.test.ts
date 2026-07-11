@@ -470,3 +470,52 @@ const S06_CASES: ParityCase[] = [
 describe("combined two-cohort (S-06) parity", () => {
   it.each(S06_CASES)("$name", assertParity);
 });
+
+// Day-scoped rules (early-finish edge + daily-spread cap): asserted through BOTH boundaries like
+// the enriched classes above — the committed `deriveCellViolations` verdict and the `deriveDropHints`
+// what-if. The edge rule needs the flag set (5th arg); the stacking rule is unconditional.
+describe("day-scoped rules parity", () => {
+  const flagged = course("F", "tf", ["s"]);
+  const x = course("X", "tx", ["s"]);
+  const y = course("Y", "ty", ["s"]);
+  const FLAG = new Set(["F"]);
+
+  it("blocks a flagged interior placement through the committed verdict", () => {
+    const placements = [placement("pf", "F", 1, 3), placement("px", "X", 1, 1), placement("py", "Y", 1, 5)];
+    const cell = deriveCellViolations(placements, catalog(flagged, x, y), undefined, undefined, FLAG).get(
+      cellKey(1, 3),
+    );
+    expect(cell?.blockingIds).toEqual(new Set(["F"]));
+    expect(cell?.violations).toEqual([{ kind: "early-finish-edge", courseIds: ["F"], studentKeys: ["s"] }]);
+  });
+
+  it("blocks the flagged interior cell through the drag what-if (dragging F back)", () => {
+    const remaining = [placement("px", "X", 1, 1), placement("py", "Y", 1, 5)];
+    const hints = deriveDropHints(
+      { members: [flagged] },
+      remaining,
+      catalog(flagged, x, y),
+      undefined,
+      undefined,
+      FLAG,
+      {
+        periods: 6,
+      },
+    );
+    expect(hints?.get(cellKey(1, 3))).toBe("blocked");
+  });
+
+  it("warns a 3-stack through BOTH boundaries", () => {
+    const c = course("C", "tc", ["s"]);
+    const stacked = [placement("c1", "C", 1, 1), placement("c2", "C", 1, 2), placement("c3", "C", 1, 3)];
+    const committed = deriveCellViolations(stacked, catalog(c)).get(cellKey(1, 1));
+    expect(committed?.warningIds).toEqual(new Set(["C"]));
+    expect(committed?.blockingIds).toEqual(new Set());
+    // Drag what-if: with two C already on the day, an empty same-day cell would be the 3rd → warn.
+    const twoOnDay = [placement("c1", "C", 1, 1), placement("c2", "C", 1, 2)];
+    const hints = deriveDropHints({ members: [c] }, twoOnDay, catalog(c), undefined, undefined, new Set(), {
+      periods: 6,
+    });
+    expect(hints?.get(cellKey(1, 4))).toBe("warn");
+  });
+});

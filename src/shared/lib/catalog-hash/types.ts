@@ -37,5 +37,8 @@ export type CohortCatalog = {
   courses: GroupingCourse[];
   /** course.id → display data (composite name + optional color), resolved at the render edge. */
   courseDisplay: Map<string, CourseDisplay>;
+  /** Ids of this cohort's courses flagged `finishes_early`. Delivered as a side-set (never a
+   *  `GroupingCourse` field), so the catalog hash — and thus grouping staleness — is unaffected. */
+  finishesEarlyCourseIds: string[];
   warnings: ComputeWarning[];
 };

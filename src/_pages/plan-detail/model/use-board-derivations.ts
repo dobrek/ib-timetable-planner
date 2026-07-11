@@ -36,15 +36,22 @@ export function useAvailabilityIndex(availability: SharedBoardProps["availabilit
   return useMemo(() => buildAvailabilityIndex(availability), [availability]);
 }
 
+// Index the serializable flagged-id array into the Set the edge rule reads — built once and shared
+// by the collision and drag-hint derivations, mirroring `useAvailabilityIndex`.
+export function useFinishesEarlySet(ids: SharedBoardProps["finishesEarlyByCourseId"]) {
+  return useMemo(() => new Set(ids), [ids]);
+}
+
 export function useCollisions(
   placements: LocalPlacement[],
   catalogById: Map<string, GroupingCourse>,
   availability: AvailabilityIndex,
   occupiedByTeacher: CrossCohortIndex,
+  finishesEarlyByCourseId: Set<string>,
 ) {
   return useMemo(
-    () => deriveCellViolations(placements, catalogById, availability, occupiedByTeacher),
-    [placements, catalogById, availability, occupiedByTeacher],
+    () => deriveCellViolations(placements, catalogById, availability, occupiedByTeacher, finishesEarlyByCourseId),
+    [placements, catalogById, availability, occupiedByTeacher, finishesEarlyByCourseId],
   );
 }
 
@@ -57,11 +64,16 @@ export function useDragHints(
   groupings: PlannerGrouping[],
   availability: AvailabilityIndex,
   occupiedByTeacher: CrossCohortIndex,
+  finishesEarlyByCourseId: Set<string>,
+  periods: number,
 ) {
   const [context, setContext] = useState<DragHintContext | null>(null);
   const dropHints = useMemo(
-    () => deriveDropHints(context, placements, catalogById, availability, occupiedByTeacher),
-    [context, placements, catalogById, availability, occupiedByTeacher],
+    () =>
+      deriveDropHints(context, placements, catalogById, availability, occupiedByTeacher, finishesEarlyByCourseId, {
+        periods,
+      }),
+    [context, placements, catalogById, availability, occupiedByTeacher, finishesEarlyByCourseId, periods],
   );
   return {
     dropHints,

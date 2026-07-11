@@ -59,14 +59,22 @@ describe("two-cohort derivation perf (informational)", () => {
     const dp2Index = buildCrossCohortIndex(projectFromPlacements(dp1.placements, teacherKeysByCourseId(dp1.catalog)));
     const draggedDp1 = [...dp1.catalog.values()][0];
     const draggedDp2 = [...dp2.catalog.values()][0];
+    // A non-empty flag set (every 5th course) so the measurement includes the edge-rule cost and the
+    // day-occupancy index build, and the drag what-if seeds day-scoped cells over the real grid.
+    const flaggedDp1 = new Set([...dp1.catalog.keys()].filter((_, i) => i % 5 === 0));
+    const flaggedDp2 = new Set([...dp2.catalog.keys()].filter((_, i) => i % 5 === 0));
 
     const start = performance.now();
     // The per-edit work the combined shell does on a mutation: re-derive BOTH columns' committed
     // collisions and run a drag what-if in each (the cross-index is rebuilt once per mutation upstream).
-    deriveCellViolations(dp1.placements, dp1.catalog, undefined, dp1Index);
-    deriveCellViolations(dp2.placements, dp2.catalog, undefined, dp2Index);
-    deriveDropHints({ members: [draggedDp1] }, dp1.placements, dp1.catalog, undefined, dp1Index);
-    deriveDropHints({ members: [draggedDp2] }, dp2.placements, dp2.catalog, undefined, dp2Index);
+    deriveCellViolations(dp1.placements, dp1.catalog, undefined, dp1Index, flaggedDp1);
+    deriveCellViolations(dp2.placements, dp2.catalog, undefined, dp2Index, flaggedDp2);
+    deriveDropHints({ members: [draggedDp1] }, dp1.placements, dp1.catalog, undefined, dp1Index, flaggedDp1, {
+      periods: PERIODS,
+    });
+    deriveDropHints({ members: [draggedDp2] }, dp2.placements, dp2.catalog, undefined, dp2Index, flaggedDp2, {
+      periods: PERIODS,
+    });
     const elapsed = performance.now() - start;
 
     // eslint-disable-next-line no-console

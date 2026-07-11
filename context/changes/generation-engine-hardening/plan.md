@@ -419,10 +419,10 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Automated
 
-- [x] 4.1 Type gate passes: `pnpm check`
-- [x] 4.2 Unit suite green incl. clique/LNS/stagnation tests: `pnpm test`
-- [x] 4.3 Lint passes: `pnpm lint`
-- [x] 4.4 Production build stays clean: `pnpm build`
+- [x] 4.1 Type gate passes: `pnpm check` — 5086593
+- [x] 4.2 Unit suite green incl. clique/LNS/stagnation tests: `pnpm test` — 5086593
+- [x] 4.3 Lint passes: `pnpm lint` — 5086593
+- [x] 4.4 Production build stays clean: `pnpm build` — 5086593
 
 #### Manual
 
@@ -433,11 +433,11 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Automated
 
-- [ ] 5.1 Type gate passes: `pnpm check`
-- [ ] 5.2 Fuzz suite green within the unit run: `pnpm test`
-- [ ] 5.3 Lint + FSD structure pass: `pnpm lint` and `pnpm steiger`
-- [ ] 5.4 Full local CI gate passes: `/verify`
+- [x] 5.1 Type gate passes: `pnpm check`
+- [x] 5.2 Fuzz suite green within the unit run: `pnpm test`
+- [x] 5.3 Lint + FSD structure pass: `pnpm lint` and `pnpm steiger`
+- [x] 5.4 Full local CI gate passes: `/verify`
 
 #### Manual
 
-- [ ] 5.5 Guard-revert experiment proves the fuzz oracle catches the boxing class
+- [x] 5.5 Guard-revert experiment proves the fuzz oracle catches the boxing class

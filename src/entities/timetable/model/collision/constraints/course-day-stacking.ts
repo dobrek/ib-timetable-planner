@@ -1,6 +1,6 @@
 import type { PlacementWeek } from "@/shared/config";
-import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import type { DayOccupancyIndex } from "../../day-occupancy-index";
+import { distinctById } from "./distinct-by-id";
 import type { CellConstraint, CollisionViolation } from "./types";
 
 /**
@@ -18,18 +18,16 @@ import type { CellConstraint, CollisionViolation } from "./types";
  */
 export const courseDayStacking: CellConstraint = {
   id: "course-day-stacking",
-  explain: (occupants, ctx) => {
+  explain: (occupants, ctx): CollisionViolation[] => {
     const index = ctx.dayOccupancy;
     if (!index) return [];
     const { day } = ctx.cell;
     const weekOf = (courseId: string): PlacementWeek => ctx.weekByCourseId?.get(courseId) ?? "both";
 
-    const violations: CollisionViolation[] = [];
-    for (const course of distinctById(occupants)) {
+    return distinctById(occupants).flatMap((course): CollisionViolation[] => {
       const count = stackedCount(index, course.id, day, weekOf(course.id));
-      if (count !== null) violations.push({ kind: "course-day-stacking", courseIds: [course.id], count });
-    }
-    return violations;
+      return count !== null ? [{ kind: "course-day-stacking", courseIds: [course.id], count }] : [];
+    });
   },
 };
 
@@ -48,9 +46,3 @@ const concreteWeeks = (week: PlacementWeek): ("a" | "b")[] => (week === "both" ?
 
 /** A placement runs concrete week `k` iff it is that week or agnostic (`both`). */
 const runsWeek = (week: PlacementWeek, concrete: "a" | "b"): boolean => week === concrete || week === "both";
-
-/** First occurrence of each course id — a cell can hold a same-course duplicate. */
-const distinctById = (occupants: GroupingCourse[]): GroupingCourse[] => {
-  const seen = new Set<string>();
-  return occupants.filter((course) => !seen.has(course.id) && Boolean(seen.add(course.id)));
-};

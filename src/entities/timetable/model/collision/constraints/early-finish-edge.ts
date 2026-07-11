@@ -1,7 +1,7 @@
 import type { PlacementWeek } from "@/shared/config";
-import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { weeksDisjoint } from "../../week";
 import type { DayOccupancyIndex } from "../../day-occupancy-index";
+import { distinctById } from "./distinct-by-id";
 import type { CellConstraint, CollisionViolation } from "./types";
 
 /**
@@ -21,23 +21,22 @@ import type { CellConstraint, CollisionViolation } from "./types";
  */
 export const earlyFinishEdge: CellConstraint = {
   id: "early-finish-edge",
-  explain: (occupants, ctx) => {
+  explain: (occupants, ctx): CollisionViolation[] => {
     const flagged = ctx.finishesEarlyByCourseId;
     const index = ctx.dayOccupancy;
     if (!flagged || !index) return [];
     const { day, period } = ctx.cell;
     const weekOf = (courseId: string): PlacementWeek => ctx.weekByCourseId?.get(courseId) ?? "both";
 
-    const violations: CollisionViolation[] = [];
-    for (const course of distinctById(occupants)) {
-      if (!flagged.has(course.id)) continue;
-      const week = weekOf(course.id);
-      const studentKeys = course.studentKeys.filter((studentKey) =>
-        isInterior(index, studentKey, day, period, week, course.id),
-      );
-      if (studentKeys.length > 0) violations.push({ kind: "early-finish-edge", courseIds: [course.id], studentKeys });
-    }
-    return violations;
+    return distinctById(occupants)
+      .filter((course) => flagged.has(course.id))
+      .flatMap((course): CollisionViolation[] => {
+        const week = weekOf(course.id);
+        const studentKeys = course.studentKeys.filter((studentKey) =>
+          isInterior(index, studentKey, day, period, week, course.id),
+        );
+        return studentKeys.length > 0 ? [{ kind: "early-finish-edge", courseIds: [course.id], studentKeys }] : [];
+      });
   },
 };
 
@@ -56,10 +55,4 @@ const isInterior = (
     .map((entry) => entry.period);
   if (others.length === 0) return false;
   return period > Math.min(...others) && period < Math.max(...others);
-};
-
-/** First occurrence of each course id — a cell can hold a same-course duplicate. */
-const distinctById = (occupants: GroupingCourse[]): GroupingCourse[] => {
-  const seen = new Set<string>();
-  return occupants.filter((course) => !seen.has(course.id) && Boolean(seen.add(course.id)));
 };

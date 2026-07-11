@@ -600,3 +600,18 @@ gating.
 - [x] 3.9 Drag preview blocks interior cells for flagged courses; drag stays instant — 173b0a3
 - [x] 3.10 Teacher perspective shows identical flags — 173b0a3
 - [x] 3.11 Real manual plan renders accurate, non-spurious flags — 173b0a3
+
+## Post-implementation notes
+
+- **Delivery route (Phase 3 · 2).** The flag set is delivered as a single **plan-scoped
+  union** on `SharedBoardProps.finishesEarlyByCourseId` (`api/load.ts`), indexed once by
+  `useFinishesEarlySet` (`model/use-board-derivations.ts`) and fed to both `useCollisions`
+  and `useDragHints` — rather than a per-cohort set threaded through
+  `assemble-combined-props.ts` (left untouched). This is functionally equivalent because
+  course ids are DB primary keys (globally unique across cohorts), so each cohort's
+  derivation only ever matches its own ids; the plan named the `SharedBoardProps` seam, so
+  this is a simpler route on the same seam, not a scope change.
+- **Drag preview week-awareness (impl-review fix).** `edgeFit` in `model/drop-hints.ts` was
+  made week-aware: a flagged **bi-weekly** course interior on only one concrete week now
+  previews as `opposite-week` (soft) rather than a hard block, mirroring `crossCohortFit`.
+  An agnostic flagged course still hard-blocks any interior cell.

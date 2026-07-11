@@ -219,6 +219,41 @@ describe("generatePlanGreedy", () => {
     expect(ticks.length).toBeGreaterThan(0);
   });
 
+  it("aborts mid-solve and resolves promptly with a verify-clean best-so-far", async () => {
+    // A large budget the engine would otherwise spin on; the abort fires ~100 ms in and must be
+    // observed at a time-sliced yield within the descent — resolving well under a generous ceiling.
+    const controller = new AbortController();
+    const snapshot = syntheticGeneratorSnapshot();
+    setTimeout(() => {
+      controller.abort();
+    }, 100);
+    const startedAt = Date.now();
+
+    const result = await generatePlanGreedy(snapshot, { budgetMs: 60_000 }, { signal: controller.signal });
+
+    expect(Date.now() - startedAt).toBeLessThan(2_000);
+    expect(result.diagnostics.partial).toBe(true);
+    expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);
+  });
+
+  it("emits progress from early in the solve, not only at the end", async () => {
+    const ticks: number[] = [];
+
+    await generatePlanGreedy(
+      syntheticGeneratorSnapshot(),
+      { budgetMs: 400 },
+      {
+        onProgress: ({ elapsedMs }) => {
+          ticks.push(elapsedMs);
+        },
+      },
+    );
+
+    expect(ticks.length).toBeGreaterThan(0);
+    // a tick arrived within the first half of the budget — progress flows during the solve
+    expect(Math.min(...ticks)).toBeLessThan(200);
+  });
+
   it("never returns a board with interior holes on the synthetic catalog (attempt never regresses)", async () => {
     // Intra-attempt best tracking: descent/migration can trade a slot for a new interior hole,
     // but scoring construction and descent and keeping the winner means the returned board is

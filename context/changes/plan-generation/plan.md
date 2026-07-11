@@ -714,20 +714,20 @@ preview are the guard against auth/embed regressions.
 
 #### Automated
 
-- [x] 1.1 Type gate passes (`pnpm check`)
-- [x] 1.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [x] 1.3 New unit tests + full suite pass (`pnpm test`)
-- [x] 1.4 Production build stays clean (`pnpm build`)
+- [x] 1.1 Type gate passes (`pnpm check`) — 1149966
+- [x] 1.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`) — 1149966
+- [x] 1.3 New unit tests + full suite pass (`pnpm test`) — 1149966
+- [x] 1.4 Production build stays clean (`pnpm build`) — 1149966
 
 ### Phase 2: Engine spike & decision checkpoint
 
 #### Automated
 
-- [ ] 2.1 Type gate passes (`pnpm check`)
-- [ ] 2.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [ ] 2.3 Unit suite incl. CI smoke passes (`pnpm test`)
-- [ ] 2.4 Benchmark passes for the chosen engine (`pnpm bench:generation`)
-- [ ] 2.5 Production build stays clean (`pnpm build`)
+- [x] 2.1 Type gate passes (`pnpm check`)
+- [x] 2.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
+- [x] 2.3 Unit suite incl. CI smoke passes (`pnpm test`)
+- [x] 2.4 Benchmark passes for the chosen engine (`pnpm bench:generation`)
+- [x] 2.5 Production build stays clean (`pnpm build`)
 
 #### Manual
 

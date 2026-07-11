@@ -8,6 +8,8 @@ import {
   BoardShell,
   ErrorBanner,
   ExportMenu,
+  GenerateButton,
+  GenerationSummaryPanel,
   PlanSummaryBar,
   buildCoursesLeftSummary,
   inspectedViolations,
@@ -73,7 +75,13 @@ export default function PlannerBoard({
   // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
   // per-cohort lens derivation. The universe (both cohorts, plan-wide) prunes the rehydrated lens.
   const lens = useLens(planId, buildLensUniverse([toLensSource(dp1Props), toLensSource(dp2Props)]));
-  const { dp1, dp2, history } = useCombinedBoardState(shared, dp1Props, dp2Props, focus, lens.effectiveCriteria);
+  const { dp1, dp2, history, generation } = useCombinedBoardState(
+    shared,
+    dp1Props,
+    dp2Props,
+    focus,
+    lens.effectiveCriteria,
+  );
   const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
   const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
 
@@ -106,6 +114,10 @@ export default function PlannerBoard({
     () => ({ ...dp1.courseDisplay, ...dp2.courseDisplay }),
     [dp1.courseDisplay, dp2.courseDisplay],
   );
+
+  // Plan-scoped `finishes_early` id Set for the chip/row badges (board + palette) — indexed once
+  // here from the serializable prop, mirroring `useFinishesEarlySet` inside the board state.
+  const finishesEarlySet = useMemo(() => new Set(shared.finishesEarlyByCourseId), [shared.finishesEarlyByCourseId]);
 
   const shelfCohortById = useMemo(() => {
     if (combined) {
@@ -157,6 +169,7 @@ export default function PlannerBoard({
       groupings: state.groupings,
       courseDisplay: state.courseDisplay,
       hours: state.hours,
+      finishesEarly: finishesEarlySet,
       stale: state.stale,
     };
   }
@@ -185,6 +198,7 @@ export default function PlannerBoard({
       placements: state.placements,
       courseDisplay: state.courseDisplay,
       collisions: state.collisions,
+      finishesEarlyByCourseId: finishesEarlySet,
       wiring: {
         dropHints: state.dropHints,
         hintMode,
@@ -272,6 +286,7 @@ export default function PlannerBoard({
             undoRedo={history}
             trailing={
               <>
+                <GenerateButton generation={generation} />
                 <LensPicker
                   open={lens.open}
                   setOpen={lens.setOpen}
@@ -296,6 +311,13 @@ export default function PlannerBoard({
               </>
             }
           />
+          {generation.summary && (
+            <GenerationSummaryPanel
+              summary={generation.summary}
+              courseDisplay={overlayCourseDisplay}
+              onDismiss={generation.dismissSummary}
+            />
+          )}
           {lens.criteria.length > 0 && (
             <LensBar
               criteria={lens.criteria}

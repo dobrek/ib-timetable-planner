@@ -1,34 +1,18 @@
 /// <reference lib="webworker" />
 import {
   generatePlanGreedy,
-  type GenerationResult,
-  type GenerationVerdict,
   type GeneratorConfig,
   type GeneratorSnapshot,
   verifyGeneration,
 } from "@/entities/timetable";
+import { type GenerateWorkerRequest, type GenerateWorkerResponse, PROGRESS_THROTTLE_MS } from "./worker-protocol";
 
 /**
- * Worker seat for plan generation (spiked in Phase 2, hardened in Phase 4). The engine and
- * the trust-but-verify judge both run OFF the main thread; the main thread receives a
- * verified result or an error — it never re-runs the engine. Protocol:
- *   main → worker: `start { snapshot, config }` | `cancel`
- *   worker → main: `progress { elapsedMs, budgetMs }` (throttled) |
- *                  `done { result, verdict }` | `error { message }`
- * Cancel aborts the engine's signal; the engine resolves with its best-so-far
- * (`diagnostics.partial: true`) and the normal `done` path delivers it.
+ * Worker seat for plan generation (spiked in Phase 2, hardened in Phase 4 — the protocol
+ * lives in `worker-protocol.ts`). The engine and the trust-but-verify judge both run OFF the
+ * main thread; the main thread receives a verified result or an error — it never re-runs the
+ * engine. One solve per worker instance; the owner terminates it after done/error.
  */
-
-export type GenerateWorkerRequest =
-  | { kind: "start"; snapshot: GeneratorSnapshot; config: GeneratorConfig }
-  | { kind: "cancel" };
-
-export type GenerateWorkerResponse =
-  | { kind: "progress"; elapsedMs: number; budgetMs: number }
-  | { kind: "done"; result: GenerationResult; verdict: GenerationVerdict }
-  | { kind: "error"; message: string };
-
-const PROGRESS_THROTTLE_MS = 250;
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 let controller: AbortController | null = null;

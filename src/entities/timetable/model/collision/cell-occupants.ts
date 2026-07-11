@@ -20,6 +20,8 @@ export type CellOccupant = {
   blocking: boolean;
   warning: boolean;
   unavailable: boolean;
+  /** Course flagged `finishes_early` — drives the chip's day-edge cue badge. */
+  finishesEarly: boolean;
 };
 
 /**
@@ -32,22 +34,29 @@ export const groupCellOccupants = (
   placements: LocalPlacement[],
   courseDisplay: Record<string, CourseDisplay>,
   collisions: Map<string, CellCollisions>,
+  finishesEarlyByCourseId: Set<string> = EMPTY_FLAG_SET,
 ): Map<string, CellOccupant[]> => {
   const byCell = groupBy(placements, (placement) => cellKey(placement.day, placement.period));
   const result = new Map<string, CellOccupant[]>();
   for (const [key, cellPlacements] of byCell) {
     const cellCollisions = collisions.get(key);
-    const occupants = cellPlacements.map((placement) => toOccupant(placement, courseDisplay, cellCollisions));
+    const occupants = cellPlacements.map((placement) =>
+      toOccupant(placement, courseDisplay, cellCollisions, finishesEarlyByCourseId),
+    );
     occupants.sort(compareByName);
     result.set(key, occupants);
   }
   return result;
 };
 
+/** Stable default so callers without the flag set don't churn the memoized grouping. */
+const EMPTY_FLAG_SET = new Set<string>();
+
 const toOccupant = (
   placement: LocalPlacement,
   courseDisplay: Record<string, CourseDisplay>,
   collisions: CellCollisions | undefined,
+  finishesEarlyByCourseId: Set<string>,
 ): CellOccupant => {
   const display = resolveCourseDisplay(courseDisplay, placement.courseId);
   return {
@@ -57,6 +66,7 @@ const toOccupant = (
     blocking: collisions?.blockingIds.has(placement.courseId) ?? false,
     warning: collisions?.warningIds.has(placement.courseId) ?? false,
     unavailable: collisions?.unavailableIds.has(placement.courseId) ?? false,
+    finishesEarly: finishesEarlyByCourseId.has(placement.courseId),
   };
 };
 

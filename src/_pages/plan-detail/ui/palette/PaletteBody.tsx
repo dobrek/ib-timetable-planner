@@ -16,6 +16,8 @@ type Props = {
   groupings: PlannerGrouping[];
   courseDisplay: Record<string, CourseDisplay>;
   hours: Map<string, HoursStat>;
+  /** Plan-scoped `finishes_early` ids — flagged palette chips/rows carry the day-edge cue badge. */
+  finishesEarly: Set<string>;
 };
 
 /**
@@ -28,7 +30,7 @@ type Props = {
  * state lives here (`usePaletteFilter`), while the membership predicates and cascading options are
  * pure `model/` functions (`filterGroupings`, `companionCourseOptions`, `reconcileCompanion`).
  */
-export default function PaletteBody({ groupings, courseDisplay, hours }: Props) {
+export default function PaletteBody({ groupings, courseDisplay, hours, finishesEarly }: Props) {
   const sortedGroupings = useMemo(() => sortGroupingsForPalette(groupings), [groupings]);
   const {
     leadingCourseId,
@@ -54,10 +56,21 @@ export default function PaletteBody({ groupings, courseDisplay, hours }: Props) 
       </div>
       <div className="flex min-h-0 flex-1 scrollbar-none flex-col gap-2 overflow-y-auto">
         {leadingCourseId !== null && (
-          <PromotedCourseChip courseId={leadingCourseId} courseDisplay={courseDisplay} hours={hours} />
+          <PromotedCourseChip
+            courseId={leadingCourseId}
+            courseDisplay={courseDisplay}
+            hours={hours}
+            finishesEarly={finishesEarly}
+          />
         )}
         {visibleGroupings.map((grouping) => (
-          <GroupingBox key={grouping.id} grouping={grouping} courseDisplay={courseDisplay} hours={hours} />
+          <GroupingBox
+            key={grouping.id}
+            grouping={grouping}
+            courseDisplay={courseDisplay}
+            hours={hours}
+            finishesEarly={finishesEarly}
+          />
         ))}
       </div>
     </div>
@@ -74,10 +87,12 @@ function PromotedCourseChip({
   courseId,
   courseDisplay,
   hours,
+  finishesEarly,
 }: {
   courseId: string;
   courseDisplay: Record<string, CourseDisplay>;
   hours: Map<string, HoursStat>;
+  finishesEarly: Set<string>;
 }) {
   const { ref, isDragging } = useDraggable<CourseDrag>({
     id: `single:${courseId}`,
@@ -90,6 +105,7 @@ function PromotedCourseChip({
       name={display.name}
       color={display.color}
       hours={hours.get(courseId)}
+      finishesEarly={finishesEarly.has(courseId)}
       isDragging={isDragging}
     />
   );

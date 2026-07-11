@@ -6,8 +6,11 @@ import {
   type LocalPlacement,
   projectFromPlacements,
 } from "@/entities/timetable";
+import { deriveGenerationDeficits, type CellCollisions } from "@/entities/timetable";
 import { applyGeneratedPlacements } from "../api/placement-client";
 import { buildGeneratedSegments, buildRegionPayload, generationHistoryEntry } from "./generation/apply-generated";
+import { assembleGeneratorSnapshot } from "./generation/assemble-snapshot";
+import { useGeneratePlan, type GeneratePlanControls } from "./generation/use-generate-plan";
 import { type LensCriterion } from "./lens";
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
@@ -128,13 +131,69 @@ export function useCombinedBoardState(
     }
   }
 
+  // The Generate orchestration (Phase 4): snapshot assembly captures the LIVE combined state at
+  // click time; the disabled inputs derive from the existing collision severities and the Phase 1
+  // deficits — no new derivation passes (warns never block, per the block-until-clean decision).
+  const combinedBusy = dp1Base.api.busy || dp2Base.api.busy;
+  const dp1Deficits = useMemo(
+    () =>
+      deriveGenerationDeficits(dp1Base.api.placements, dp1Props.catalog, parkedCourseIds(dp1Base.api.parkedBundles)),
+    [dp1Base.api.placements, dp1Props.catalog, dp1Base.api.parkedBundles],
+  );
+  const dp2Deficits = useMemo(
+    () =>
+      deriveGenerationDeficits(dp2Base.api.placements, dp2Props.catalog, parkedCourseIds(dp2Base.api.parkedBundles)),
+    [dp2Base.api.placements, dp2Props.catalog, dp2Base.api.parkedBundles],
+  );
+  const disabledReason: GenerationDisabledReason =
+    hasBlocking(dp1Deriv.collisions) || hasBlocking(dp2Deriv.collisions)
+      ? "violations"
+      : dp1Deficits.length === 0 && dp2Deficits.length === 0
+        ? "complete"
+        : null;
+  const generateControls = useGeneratePlan({
+    assemble: () =>
+      assembleGeneratorSnapshot(shared, {
+        dp1: {
+          catalog: dp1Props.catalog,
+          placements: dp1Base.api.placements,
+          parkedBundles: dp1Base.api.parkedBundles,
+        },
+        dp2: {
+          catalog: dp2Props.catalog,
+          placements: dp2Base.api.placements,
+          parkedBundles: dp2Base.api.parkedBundles,
+        },
+      }),
+    applyGenerated,
+    busy: combinedBusy,
+    dp1Placements: dp1Base.api.placements,
+    dp2Placements: dp2Base.api.placements,
+  });
+
   return {
     dp1: toCohortState(dp1Props, dp1Base, dp1Deriv),
     dp2: toCohortState(dp2Props, dp2Base, dp2Deriv),
     history,
     applyGenerated,
+    generation: { ...generateControls, disabledReason, busy: combinedBusy },
   };
 }
+
+/** Why Generate is disabled: blocking violations on either cohort, or nothing left to place. */
+export type GenerationDisabledReason = "violations" | "complete" | null;
+
+export type GenerationControls = GeneratePlanControls & {
+  disabledReason: GenerationDisabledReason;
+  /** True while other board writes are unsettled — the button also disables then. */
+  busy: boolean;
+};
+
+const hasBlocking = (collisions: Map<string, CellCollisions>): boolean =>
+  [...collisions.values()].some((cell) => cell.blockingIds.size > 0);
+
+const parkedCourseIds = (bundles: { members: { courseId: string }[] }[]): string[] =>
+  bundles.flatMap((bundle) => bundle.members.map((member) => member.courseId));
 
 export type CombinedBoardState = ReturnType<typeof useCombinedBoardState>;
 export type CohortBoardState = CombinedBoardState["dp1"];

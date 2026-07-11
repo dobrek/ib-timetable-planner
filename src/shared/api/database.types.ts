@@ -649,7 +649,11 @@ export type Database = {
     }
     Functions: {
       clone_plan: {
-        Args: { p_name: string; p_source_plan_id: string }
+        Args: {
+          p_include_board?: boolean
+          p_name: string
+          p_source_plan_id: string
+        }
         Returns: string
       }
       delete_shelf_bundle: {

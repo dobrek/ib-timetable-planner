@@ -41,6 +41,28 @@ const PLAN_TABLES = [
   "course_grouping_members",
 ] as const;
 
+// The catalog travels with a catalog-only clone; the board resets to empty. Together
+// they cover every plan-scoped table the clone_plan RPC touches (superset of PLAN_TABLES).
+const CATALOG_TABLES = [
+  "teachers",
+  "teacher_availability",
+  "courses",
+  "course_teachers",
+  "students",
+  "student_choices",
+  "course_overlaps",
+  "course_merges",
+] as const;
+
+const BOARD_TABLES = [
+  "bundles",
+  "placements",
+  "course_groupings",
+  "course_grouping_members",
+  "shelf_bundles",
+  "shelf_bundle_courses",
+] as const;
+
 (hasEnv ? describe : describe.skip)("clone_plan RPC (local Supabase)", () => {
   let supabase: SupabaseClient<Database>;
   let sourcePlanId: string;
@@ -65,7 +87,10 @@ const PLAN_TABLES = [
     await teardown(supabase);
   });
 
-  const countRows = async (table: (typeof PLAN_TABLES)[number], planId: string): Promise<number> => {
+  const countRows = async (
+    table: (typeof CATALOG_TABLES)[number] | (typeof BOARD_TABLES)[number],
+    planId: string,
+  ): Promise<number> => {
     const { count, error } = await supabase
       .from(table)
       .select("*", { count: "exact", head: true })
@@ -74,8 +99,12 @@ const PLAN_TABLES = [
     return count ?? 0;
   };
 
-  const clonePlan = async (source: string, name: string): Promise<string> => {
-    const { data, error } = await supabase.rpc("clone_plan", { p_source_plan_id: source, p_name: name });
+  const clonePlan = async (source: string, name: string, includeBoard = true): Promise<string> => {
+    const { data, error } = await supabase.rpc("clone_plan", {
+      p_source_plan_id: source,
+      p_name: name,
+      p_include_board: includeBoard,
+    });
     if (error) throw error;
     registerPlan(data);
     return data;
@@ -129,6 +158,35 @@ const PLAN_TABLES = [
       return (data ?? []).map((t) => t.code).sort();
     };
     expect(await codes(cloneId)).toEqual(await codes(sourcePlanId));
+  });
+
+  it("catalog-only clone (include_board=false): copies the catalog, leaves every board table empty", async () => {
+    // The source carries a warm board (dp2 placement + groupings from beforeAll), so the
+    // "clone board is empty" assertions below have real contrast rather than 0 === 0.
+    expect(await countRows("placements", sourcePlanId)).toBeGreaterThan(0);
+    expect(await countRows("course_groupings", sourcePlanId)).toBeGreaterThan(0);
+
+    const cloneId = await clonePlan(sourcePlanId, "Catalog Only Clone", false);
+    expect(cloneId).not.toBe(sourcePlanId);
+
+    // (a) Catalog parity: every catalog table matches the source row-for-row.
+    for (const table of CATALOG_TABLES) {
+      expect(await countRows(table, cloneId), table).toBe(await countRows(table, sourcePlanId));
+    }
+
+    // (b) Board reset: every board table is empty on the clone — the standing guard against a
+    // future board-table copy being added outside the `if p_include_board` block.
+    for (const table of BOARD_TABLES) {
+      expect(await countRows(table, cloneId), table).toBe(0);
+    }
+
+    // (c) Catalog root ids are freshly minted — nothing leaks from the source.
+    for (const table of ["teachers", "courses", "students"] as const) {
+      const sourceIds = await idsOf(table, sourcePlanId);
+      const cloneIds = await idsOf(table, cloneId);
+      expect(cloneIds.size, table).toBe(sourceIds.size);
+      for (const id of cloneIds) expect(sourceIds.has(id), `${table} id leaked from source`).toBe(false);
+    }
   });
 
   it("isolates the clone: mutating its catalog leaves the source untouched", async () => {

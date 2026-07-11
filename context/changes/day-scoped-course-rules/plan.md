@@ -560,27 +560,27 @@ gating.
 
 #### Automated
 
-- [x] 1.1 Migration applies cleanly (`pnpm exec supabase db reset`)
-- [x] 1.2 Type gate passes after types regen (`pnpm check`)
-- [x] 1.3 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [x] 1.4 Unit suite passes (`pnpm test`)
-- [x] 1.5 Integration suite passes incl. flag round-trip (`pnpm test:integration`)
-- [x] 1.6 Production build stays clean (`pnpm build`)
+- [x] 1.1 Migration applies cleanly (`pnpm exec supabase db reset`) — 5eefb2f
+- [x] 1.2 Type gate passes after types regen (`pnpm check`) — 5eefb2f
+- [x] 1.3 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`) — 5eefb2f
+- [x] 1.4 Unit suite passes (`pnpm test`) — 5eefb2f
+- [x] 1.5 Integration suite passes incl. flag round-trip (`pnpm test:integration`) — 5eefb2f
+- [x] 1.6 Production build stays clean (`pnpm build`) — 5eefb2f
 
 #### Manual
 
-- [x] 1.7 Form field toggles + persists across reload
-- [x] 1.8 Courses table badge shows only for flagged courses
+- [x] 1.7 Form field toggles + persists across reload — 5eefb2f
+- [x] 1.8 Courses table badge shows only for flagged courses — 5eefb2f
 
 ### Phase 2: Day-scoped rules in the constraint core
 
 #### Automated
 
-- [ ] 2.1 Type gate passes with new kinds (`pnpm check`)
-- [ ] 2.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [ ] 2.3 New constraint/index tests + full unit suite pass (`pnpm test`)
-- [ ] 2.4 Perf test remains under threshold (`pnpm test` — collisions.perf)
-- [ ] 2.5 Production build stays clean (`pnpm build`)
+- [x] 2.1 Type gate passes with new kinds (`pnpm check`)
+- [x] 2.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
+- [x] 2.3 New constraint/index tests + full unit suite pass (`pnpm test`)
+- [x] 2.4 Perf test remains under threshold (`pnpm test` — collisions.perf)
+- [x] 2.5 Production build stays clean (`pnpm build`)
 
 ### Phase 3: Board delivery, drag hints, PRD registration
 

@@ -1,16 +1,25 @@
 import type { PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { DayOccupancyIndex } from "../../day-occupancy-index";
 
 /**
  * Structured collision explanation. Ids stay opaque (uuids) — display names are
  * resolved at the render edge via the island's name records, never baked in here.
+ *
+ * The two day-scoped kinds both carry `courseIds` (never a bare `courseId`), so the three
+ * generic consumers that walk `violation.courseIds` for every non-`duplicate-course` kind
+ * (`collectIdsBySeverity`, teacher-perspective `citedCourseIds`, the exhaustive dialog
+ * `groupByKind`) handle them without change. `early-finish-edge` puts the single flagged id in
+ * a one-tuple and carries the affected `studentKeys` for the dialog.
  */
 export type CollisionViolation =
   | { kind: "duplicate-course"; courseId: string }
   | { kind: "teacher"; teacherKey: string; courseIds: string[] }
   | { kind: "student"; studentKeys: string[]; courseIds: [string, string] }
   | { kind: "teacher-unavailable"; teacherKey: string; courseIds: string[]; severity: "block" | "warn" }
-  | { kind: "cross-cohort-teacher"; teacherKey: string; courseIds: string[] };
+  | { kind: "cross-cohort-teacher"; teacherKey: string; courseIds: string[] }
+  | { kind: "early-finish-edge"; courseIds: [string]; studentKeys: string[] }
+  | { kind: "course-day-stacking"; courseIds: string[]; count: number };
 
 /**
  * Inputs beyond the cell's occupants. Deliberately minimal — board-only constraints
@@ -32,6 +41,13 @@ export type BoardContext = {
    *  in the *other* cohort. Drives the board-only week-aware `cross-cohort-teacher` rule;
    *  absent ⇒ single-cohort regression path (no cross-cohort flagging). */
   occupiedByTeacher?: Map<string, Map<string, Set<PlacementWeek>>>;
+  /** Course ids flagged `finishes_early` — the edge rule fires only for these. Delivered as a
+   *  side-set (never a `GroupingCourse` field, to keep the catalog hash stable); absent/empty ⇒
+   *  the edge rule stays dormant. */
+  finishesEarlyByCourseId?: Set<string>;
+  /** Week-aware per-day board view (per-student and per-course), built once per derivation.
+   *  Both day-scoped constraints read it; absent ⇒ their regression path (return `[]`). */
+  dayOccupancy?: DayOccupancyIndex;
 };
 
 /** A self-contained cell constraint: one file per rule, registered in `index.ts`. */

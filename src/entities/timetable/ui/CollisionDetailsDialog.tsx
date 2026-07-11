@@ -155,6 +155,26 @@ function DetailsBody({
           </section>
         )}
 
+        {grouped["early-finish-edge"].length > 0 && (
+          <section data-slot="collision-section-early-finish" className="space-y-1">
+            <h3 className="text-foreground text-sm font-semibold">Must be first or last lesson</h3>
+            <ul className="space-y-2">
+              {grouped["early-finish-edge"].map((violation) => (
+                <li key={violation.courseIds[0]}>
+                  <CourseName
+                    id={violation.courseIds[0]}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />{" "}
+                  finishes early — it must be the first or last lesson for {violation.studentKeys.length} student
+                  {violation.studentKeys.length === 1 ? "" : "s"}:
+                  <p>{violation.studentKeys.map((key) => studentNames[key] ?? key).join(", ")}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {unavailableWarn.length > 0 && (
           <section
             data-slot="collision-section-soft"
@@ -170,6 +190,27 @@ function DetailsBody({
                     courseDisplay={courseDisplay}
                     emphasizedId={target.courseId}
                   />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {grouped["course-day-stacking"].length > 0 && (
+          <section
+            data-slot="collision-section-stacking"
+            className="border-warning/50 bg-warning/10 text-warning space-y-1 rounded-md border px-3 py-2"
+          >
+            <h3 className="text-warning text-sm font-semibold">Same-day stacking</h3>
+            <ul className="space-y-1">
+              {grouped["course-day-stacking"].map((violation) => (
+                <li key={violation.courseIds[0]}>
+                  <CourseName
+                    id={violation.courseIds[0]}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />{" "}
+                  runs {violation.count} periods this day — keep a course to at most 2 per day.
                 </li>
               ))}
             </ul>
@@ -292,6 +333,8 @@ const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
     "duplicate-course": [],
     "teacher-unavailable": [],
     "cross-cohort-teacher": [],
+    "early-finish-edge": [],
+    "course-day-stacking": [],
   };
   for (const violation of violations) {
     switch (violation.kind) {
@@ -309,6 +352,12 @@ const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
         break;
       case "cross-cohort-teacher":
         groups["cross-cohort-teacher"].push(violation);
+        break;
+      case "early-finish-edge":
+        groups["early-finish-edge"].push(violation);
+        break;
+      case "course-day-stacking":
+        groups["course-day-stacking"].push(violation);
         break;
     }
   }

@@ -2,10 +2,14 @@ import type { PlacementWeek } from "@/shared/config";
 import { type AvailabilityIndex, EMPTY_AVAILABILITY_INDEX } from "../availability-index";
 import { cellKey } from "./cell-key";
 import { type CrossCohortIndex, EMPTY_CROSS_COHORT_INDEX } from "../cross-cohort-index";
+import { buildDayOccupancyIndex } from "../day-occupancy-index";
 import type { CollisionViolation } from "./constraints";
 import { explainCell } from "./constraints";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import type { PlannerPlacement } from "../placement";
+
+/** Empty flag set for the finishes-early edge rule — the single-cohort / pre-delivery default. */
+const EMPTY_FINISHES_EARLY = new Set<string>();
 
 export type CellCollisions = {
   /** Course ids in BLOCKING violations (collisions + strong-NO) — drives the destructive
@@ -35,8 +39,13 @@ export const deriveCellViolations = (
   catalogById: Map<string, GroupingCourse>,
   availability: AvailabilityIndex = EMPTY_AVAILABILITY_INDEX,
   occupiedByTeacher: CrossCohortIndex = EMPTY_CROSS_COHORT_INDEX,
+  finishesEarlyByCourseId: Set<string> = EMPTY_FINISHES_EARLY,
 ): Map<string, CellCollisions> => {
   const cells = bucketByCell(placements, catalogById);
+  // Built once per derivation from the same inputs; both call sites (board + teacher
+  // perspective) inherit the day-scoped rules for free. The stacking rule is always live;
+  // the edge rule stays dormant until `finishesEarlyByCourseId` is non-empty (Phase 3 delivery).
+  const dayOccupancy = buildDayOccupancyIndex(placements, catalogById);
 
   const collisions = new Map<string, CellCollisions>();
   for (const [key, { cell, occupants, weekByCourseId }] of cells) {
@@ -49,6 +58,8 @@ export const deriveCellViolations = (
       softUnavailableByTeacher: availability.softUnavailableByTeacher,
       weekByCourseId,
       occupiedByTeacher,
+      finishesEarlyByCourseId,
+      dayOccupancy,
     });
     if (violations.length > 0) {
       collisions.set(key, buildCellCollisions(violations));
@@ -119,8 +130,12 @@ const collectIdsBySeverity = (violations: CollisionViolation[], severity: "block
   return ids;
 };
 
-const violationSeverity = (violation: CollisionViolation): "block" | "warn" =>
-  violation.kind === "teacher-unavailable" ? violation.severity : "block";
+const violationSeverity = (violation: CollisionViolation): "block" | "warn" => {
+  if (violation.kind === "teacher-unavailable") return violation.severity;
+  // The daily-spread cap is advisory; the early-finish edge rule blocks like a collision.
+  if (violation.kind === "course-day-stacking") return "warn";
+  return "block";
+};
 
 const collectUnavailableIds = (violations: CollisionViolation[]): Set<string> => {
   const ids = new Set<string>();

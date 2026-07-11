@@ -1,6 +1,8 @@
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import { courseDayStacking } from "./course-day-stacking";
 import { crossCohortTeacher } from "./cross-cohort-teacher";
 import { duplicateCourse } from "./duplicate-course";
+import { earlyFinishEdge } from "./early-finish-edge";
 import { studentConflict } from "./student-conflict";
 import { teacherAvailability } from "./teacher-availability";
 import { teacherConflict } from "./teacher-conflict";
@@ -13,6 +15,8 @@ export const CELL_CONSTRAINTS: CellConstraint[] = [
   studentConflict,
   teacherAvailability,
   crossCohortTeacher,
+  earlyFinishEdge,
+  courseDayStacking,
 ];
 
 /** Enumerates every violation in a cell across all registered constraints. */

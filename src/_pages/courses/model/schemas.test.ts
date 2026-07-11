@@ -14,6 +14,7 @@ const validCourse = {
   cohort: "dp1" as const,
   weekMode: "agnostic" as const,
   color: null,
+  finishesEarly: false,
   teacherIds: [UUID_B],
 };
 
@@ -42,6 +43,15 @@ describe("courseInput", () => {
   it("defaults color to null when omitted", () => {
     const { color: _omitted, ...withoutColor } = validCourse;
     expect(courseInput.parse(withoutColor).color).toBeNull();
+  });
+
+  it("defaults finishesEarly to false when omitted", () => {
+    const { finishesEarly: _omitted, ...withoutFlag } = validCourse;
+    expect(courseInput.parse(withoutFlag).finishesEarly).toBe(false);
+  });
+
+  it("accepts a finishes-early course", () => {
+    expect(courseInput.parse({ ...validCourse, finishesEarly: true }).finishesEarly).toBe(true);
   });
 
   it("trims the name", () => {

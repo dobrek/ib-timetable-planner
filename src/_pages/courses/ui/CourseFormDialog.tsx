@@ -13,6 +13,7 @@ import {
   DialogTitle,
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -25,6 +26,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
   ToggleGroup,
   ToggleGroupItem,
 } from "@/shared/ui";
@@ -237,6 +239,30 @@ export default function CourseFormDialog({ open, onClose, planId, teachers, cour
 
             <FormField
               control={form.control}
+              name="finishesEarly"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <FormLabel>Finishes early</FormLabel>
+                    <FormDescription>
+                      Course ends before year-end; placed at the edges of students&apos; days.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value ?? false}
+                      onCheckedChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="teacherIds"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
@@ -317,6 +343,7 @@ const courseFormValues = (planId: string, course: CourseRow): DefaultValues<Cour
   cohort: course.cohort,
   weekMode: course.weekMode,
   color: course.color,
+  finishesEarly: course.finishesEarly,
 });
 
 const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<CourseFormValues> => ({
@@ -329,6 +356,7 @@ const emptyCourseFormValues = (planId: string, cohort: Cohort): DefaultValues<Co
   cohort,
   weekMode: "agnostic",
   color: null,
+  finishesEarly: false,
 });
 
 /** The two week-eligibility states, in display order. */

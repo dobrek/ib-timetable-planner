@@ -560,17 +560,17 @@ gating.
 
 #### Automated
 
-- [ ] 1.1 Migration applies cleanly (`pnpm exec supabase db reset`)
-- [ ] 1.2 Type gate passes after types regen (`pnpm check`)
-- [ ] 1.3 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [ ] 1.4 Unit suite passes (`pnpm test`)
-- [ ] 1.5 Integration suite passes incl. flag round-trip (`pnpm test:integration`)
-- [ ] 1.6 Production build stays clean (`pnpm build`)
+- [x] 1.1 Migration applies cleanly (`pnpm exec supabase db reset`)
+- [x] 1.2 Type gate passes after types regen (`pnpm check`)
+- [x] 1.3 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
+- [x] 1.4 Unit suite passes (`pnpm test`)
+- [x] 1.5 Integration suite passes incl. flag round-trip (`pnpm test:integration`)
+- [x] 1.6 Production build stays clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 1.7 Form field toggles + persists across reload
-- [ ] 1.8 Courses table badge shows only for flagged courses
+- [x] 1.7 Form field toggles + persists across reload
+- [x] 1.8 Courses table badge shows only for flagged courses
 
 ### Phase 2: Day-scoped rules in the constraint core
 

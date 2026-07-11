@@ -54,6 +54,7 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
                   {row.name}
                   {row.isMerged && <Badge variant="secondary">Merged</Badge>}
                   {row.weekMode === "biweekly" && <Badge variant="outline">Bi-weekly</Badge>}
+                  {row.finishesEarly && <Badge variant="outline">Finishes early</Badge>}
                   <OverlapBadge row={row} coursesById={coursesById} onManageOverlaps={onManageOverlaps} />
                 </span>
               </TableCell>

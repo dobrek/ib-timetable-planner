@@ -25,6 +25,7 @@ const input = {
   cohort: "dp1" as const,
   weekMode: "agnostic" as const,
   color: "rose" as const,
+  finishesEarly: false,
   teacherIds: ["teacher-1"],
 };
 

@@ -11,6 +11,7 @@ const baseInput: CourseInput = {
   cohort: "dp1",
   weekMode: "agnostic",
   color: null,
+  finishesEarly: false,
   teacherIds: ["22222222-2222-4222-8222-222222222222"],
 };
 
@@ -25,10 +26,15 @@ describe("toCourseRecord", () => {
       hours_per_week: 4,
       week_mode: "agnostic",
       color: "rose",
+      finishes_early: false,
     });
   });
 
   it("emits color: null when no color is set", () => {
     expect(toCourseRecord(baseInput).color).toBeNull();
+  });
+
+  it("maps the finishes_early flag when set", () => {
+    expect(toCourseRecord({ ...baseInput, finishesEarly: true }).finishes_early).toBe(true);
   });
 });

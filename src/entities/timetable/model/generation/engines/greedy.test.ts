@@ -4,7 +4,7 @@ import { course, placement } from "../../__fixtures__/builders";
 import { SYNTHETIC_FLAGGED_COURSE_ID, syntheticGeneratorSnapshot } from "../__fixtures__/synthetic-catalog";
 import type { GeneratorSnapshot } from "../types";
 import { verifyGeneration } from "../verify";
-import { compareObjectives, generatePlanGreedy, type Objective } from "./greedy";
+import { compareObjectives, generatePlanGreedy, maxWeightCliqueWeight, type Objective } from "./greedy";
 
 const BUDGET = { budgetMs: 2_000 };
 
@@ -267,6 +267,63 @@ describe("generatePlanGreedy", () => {
       expect(interiorHoles(rows)).toBe(0);
     }
     expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);
+  });
+});
+
+describe("search upgrades (LNS, stagnation, clique bound)", () => {
+  it("reports a per-cohort lower bound in (0, occupiedSlotsAfter]", async () => {
+    const snapshot = syntheticGeneratorSnapshot();
+
+    const result = await generatePlanGreedy(snapshot, BUDGET);
+
+    for (const cohort of ["dp1", "dp2"] as const) {
+      const { lowerBound, occupiedSlotsAfter } = result.diagnostics.cohorts[cohort];
+      expect(lowerBound).toBeGreaterThan(0);
+      expect(lowerBound).toBeLessThanOrEqual(occupiedSlotsAfter);
+    }
+  });
+
+  it("stops early with stopReason 'stagnation' on the easily-solved synthetic catalog", async () => {
+    const snapshot = syntheticGeneratorSnapshot();
+    const startedAt = Date.now();
+
+    const result = await generatePlanGreedy(snapshot, { budgetMs: 8_000 });
+
+    const elapsed = Date.now() - startedAt;
+    expect(result.diagnostics.stopReason).toBe("stagnation");
+    expect(elapsed).toBeLessThan(8_000);
+    expect(result.diagnostics.cohorts.dp1.unplaced).toEqual([]);
+    expect(result.diagnostics.cohorts.dp2.unplaced).toEqual([]);
+    expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);
+  });
+});
+
+describe("maxWeightCliqueWeight", () => {
+  const hc = (id: string, teacher: string, students: string[], hours: number): GroupingCourse => ({
+    ...course(id, teacher, students),
+    hours,
+  });
+
+  it("returns the exact max-weight clique on a crafted conflict graph", () => {
+    // A(3)–B(2) share teacher t1; A(3)–C(2) share student s1; B–C are independent.
+    // Cliques: {A,B}=5, {A,C}=5 (B–C is not an edge, so {A,B,C} is not a clique) → max = 5.
+    const courses = [hc("A", "t1", ["s1"], 3), hc("B", "t1", ["s2"], 2), hc("C", "t2", ["s1"], 2)];
+    expect(maxWeightCliqueWeight(courses, new Set())).toBe(5);
+  });
+
+  it("sums all hours when every course mutually conflicts (complete graph)", () => {
+    const courses = [hc("A", "t", ["s1"], 3), hc("B", "t", ["s2"], 2), hc("C", "t", ["s3"], 2)];
+    expect(maxWeightCliqueWeight(courses, new Set())).toBe(7);
+  });
+
+  it("falls to the single largest node when courses are independent", () => {
+    const courses = [hc("A", "t1", ["s1"], 3), hc("B", "t2", ["s2"], 2)];
+    expect(maxWeightCliqueWeight(courses, new Set())).toBe(3);
+  });
+
+  it("excludes flagged courses from the bound", () => {
+    const courses = [hc("A", "t", ["s1"], 3), hc("flag", "t", ["s2"], 5)];
+    expect(maxWeightCliqueWeight(courses, new Set(["flag"]))).toBe(3);
   });
 });
 

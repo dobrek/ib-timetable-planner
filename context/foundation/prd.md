@@ -278,6 +278,36 @@ working from an existing plan:
   > desirable, so only a third same-day period warns; the flat hard cap of 2/day is
   > reserved for the (separate) plan generator, warn-level in manual editing.
 
+### Automatic plan generation
+
+- FR-016: Author can generate the remaining plan with one zero-config toolbar
+  **Generate** action: a client-side engine (Web Worker, ~20 s budget, live
+  progress, and a **"Stop & keep"** cancel that keeps the best solution so far)
+  fills every deficit on both cohort boards with placements honoring the full
+  hard-rule set — the five core cell constraints plus a **generator-hard 2/day
+  cap** (FR-015's warn is hard for generated output) and the **finishes-early
+  edge rule** (FR-014; a flagged course that cannot sit at a student's day edge
+  stays unplaced rather than placed mid-day). Objective priority: completeness >
+  day-edge qualities (free slots at day edges, student day compactness) >
+  per-cohort occupied-slot count > teacher compactness / balanced daily load;
+  the success bar is manual parity — neither cohort exceeds the manual plan's
+  occupied-slot count. Existing placements are always pins (fill-the-gaps only)
+  and parked-covered deficits are skipped. The result lands as ordinary
+  optimistic placements persisted by **one atomic RPC** and reverts with **one
+  undo press** (both cohorts); a dismissible summary panel reports slots per
+  cohort, unplaced courses (by name), and budget used. Generate is disabled
+  while any **blocking** violation exists on either cohort (block-until-clean;
+  warns don't block) and when there are no deficits. Priority: must-have.
+  Change: new
+  > Socrates: Counter-argument considered: "auto-placement is the NP-hard
+  > scheduling problem the product deliberately excluded at inception."
+  > Resolution: reversed — the asymptotic argument does not survive this
+  > instance's scale (~40 courses / 50 slots per cohort; full-board validation
+  > ~0.3 ms; solver territory measured in seconds), the author's leading pain is
+  > combinatorial search-and-backtracking time, and every generated board is
+  > re-judged by the interactive validator before it can land (see
+  > `context/changes/plan-generation/research.md`).
+
 ### Cohort naming
 
 - FR-004: Cohorts are presented as "DP1" and "DP2" throughout the UI, replacing
@@ -482,7 +512,12 @@ view and the holding container are author-only, like the rest of the editor.
 **Carried forward from the product's existing non-goals (still out of scope):**
 
 - Room / location validation.
-- End-to-end automatic timetable optimization / auto-placement.
+- ~~End-to-end automatic timetable optimization / auto-placement.~~ _Reversed
+  (2026-07-11): fill-the-gaps plan generation **is** now in scope — shipped by the
+  `plan-generation` change as FR-016. The original NP-hardness premise was
+  falsified at this catalog's instance scale (~40 courses / 50 slots per cohort —
+  seconds territory for modern solvers); see
+  `context/changes/plan-generation/research.md`._
 - Custom slot-grid editor (presets only).
 - Student- and teacher-facing self-entry flows.
 - Multi-school / cross-school tenancy.

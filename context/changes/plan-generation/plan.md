@@ -750,12 +750,12 @@ preview are the guard against auth/embed regressions.
 
 #### Automated
 
-- [x] 4.1 Type gate passes (`pnpm check`)
-- [x] 4.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [x] 4.3 Unit + dom suites pass (`pnpm test`)
-- [x] 4.4 Integration suite passes (`pnpm test:integration`)
-- [x] 4.5 Production build stays clean (`pnpm build`)
-- [x] 4.6 Benchmark still passes post-wiring (`pnpm bench:generation`)
+- [x] 4.1 Type gate passes (`pnpm check`) — 857788f
+- [x] 4.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`) — 857788f
+- [x] 4.3 Unit + dom suites pass (`pnpm test`) — 857788f
+- [x] 4.4 Integration suite passes (`pnpm test:integration`) — 857788f
+- [x] 4.5 Production build stays clean (`pnpm build`) — 857788f
+- [x] 4.6 Benchmark still passes post-wiring (`pnpm bench:generation`) — 857788f
 
 #### Manual
 
@@ -770,7 +770,7 @@ preview are the guard against auth/embed regressions.
 
 #### Automated
 
-- [ ] 5.1 Full local gate stays green (`pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm test` && `pnpm build`)
+- [x] 5.1 Full local gate stays green (`pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm test` && `pnpm build`)
 
 #### Manual
 

@@ -209,7 +209,7 @@ What's already in place in the codebase as of 2026-06-18 (auto-researched + auth
 - **Configurable cohort names** — Why parked: PRD §Non-Goals. DP1/DP2 is a fixed relabel (S-01); cohort names are not user-editable. Possible future extension.
 - **Cross-cohort rooms or students** — Why parked: PRD §Non-Goals. The symmetric cross-cohort constraint covers teacher occupancy only — rooms are out of product scope, students are single-cohort by definition.
 - **Room / location validation** — Why parked: PRD §Non-Goals (carried forward).
-- **End-to-end automatic timetable optimization / auto-placement** — Why parked: PRD §Non-Goals (carried forward).
+- ~~**End-to-end automatic timetable optimization / auto-placement**~~ — **Un-parked 2026-07-11**: shipped by the `plan-generation` change as a zero-config, fill-the-gaps board generator (PRD FR-016). The PRD non-goal is reversed — its NP-hardness premise was falsified at this catalog's instance scale (see `context/changes/plan-generation/research.md`).
 - **Custom slot-grid editor (presets only)** — Why parked: PRD §Non-Goals (carried forward).
 - **Student- and teacher-facing self-entry flows** — Why parked: PRD §Non-Goals (carried forward).
 - **Multi-school / cross-school tenancy** — Why parked: PRD §Non-Goals (carried forward).

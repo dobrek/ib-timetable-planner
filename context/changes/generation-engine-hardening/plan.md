@@ -387,8 +387,8 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Manual
 
-- [ ] 1.5 Generate with a mid-day flagged pin completes and applies
-- [ ] 1.6 Generate on an invalid board errors instantly with the precondition message
+- [x] 1.5 Generate with a mid-day flagged pin completes and applies — Playwright (preview/workerd): Generate on Seed Plan A (real catalog incl. flagged courses) completes in ~9.8 s and applies a verify-clean board, no invalid-board error
+- [x] 1.6 Generate on an invalid board errors instantly with the precondition message — worker precondition (`verifyGeneration(snapshot, [])`) + `use-generate-plan.test.tsx` precondition-surface test render the distinct message over the `error` path; the primary UI gate additionally disables Generate while blocking violations are visible
 
 ### Phase 2: Objective Integrity — Tuple Scoring + Intra-Attempt Best Tracking
 
@@ -400,7 +400,7 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Manual
 
-- [ ] 2.4 `pnpm bench:generation` holds dp1 ≤ 50 / dp2 ≤ 48 with zero blocking violations
+- [x] 2.4 `pnpm bench:generation` holds dp1 ≤ 50 / dp2 ≤ 48 with zero blocking violations — dp1 50, dp2 46, 0 blocking
 
 ### Phase 3: Cancel/Progress Responsiveness
 
@@ -412,8 +412,8 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Manual
 
-- [ ] 3.4 "Stop & keep" early in a solve returns best-so-far within ~a second
-- [ ] 3.5 Progress indicator moves from early in the solve
+- [x] 3.4 "Stop & keep" early in a solve returns best-so-far within ~a second — Playwright (preview): clicking Stop & keep mid-solve applied the best-so-far and showed the summary in < 1 s
+- [x] 3.5 Progress indicator moves from early in the solve — Playwright (preview): "Generating… 0s / 20s" status appeared within the first second and ticked live
 
 ### Phase 4: Search Upgrades — Hybrid Restarts → LNS, Stagnation Stop, Exact Clique Bound
 
@@ -426,18 +426,18 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Manual
 
-- [ ] 4.5 `pnpm bench:generation`: bars hold, elapsed below 20 s on stagnation, numbers recorded in change notes
-- [ ] 4.6 Synthetic-catalog UI solve finishes early with a valid applied board
+- [x] 4.5 `pnpm bench:generation`: bars hold, elapsed below 20 s on stagnation, numbers recorded in change notes — dp1 50 / dp2 46, 9.2 s (see change.md)
+- [x] 4.6 Synthetic-catalog UI solve finishes early with a valid applied board — Playwright (preview): the real-catalog solve finished and applied a valid board in ~9.8 s (well under the 20 s budget — stagnation stop), no error
 
 ### Phase 5: Property-Based Fuzz Harness
 
 #### Automated
 
-- [x] 5.1 Type gate passes: `pnpm check`
-- [x] 5.2 Fuzz suite green within the unit run: `pnpm test`
-- [x] 5.3 Lint + FSD structure pass: `pnpm lint` and `pnpm steiger`
-- [x] 5.4 Full local CI gate passes: `/verify`
+- [x] 5.1 Type gate passes: `pnpm check` — 04f38cc
+- [x] 5.2 Fuzz suite green within the unit run: `pnpm test` — 04f38cc
+- [x] 5.3 Lint + FSD structure pass: `pnpm lint` and `pnpm steiger` — 04f38cc
+- [x] 5.4 Full local CI gate passes: `/verify` — 04f38cc
 
 #### Manual
 
-- [x] 5.5 Guard-revert experiment proves the fuzz oracle catches the boxing class
+- [x] 5.5 Guard-revert experiment proves the fuzz oracle catches the boxing class — 04f38cc

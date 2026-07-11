@@ -380,10 +380,10 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Automated
 
-- [x] 1.1 Type gate passes: `pnpm check`
-- [x] 1.2 Unit suite green incl. new regression tests: `pnpm test`
-- [x] 1.3 Lint passes: `pnpm lint`
-- [x] 1.4 Production build stays clean (worker bundling): `pnpm build`
+- [x] 1.1 Type gate passes: `pnpm check` — 05d9654
+- [x] 1.2 Unit suite green incl. new regression tests: `pnpm test` — 05d9654
+- [x] 1.3 Lint passes: `pnpm lint` — 05d9654
+- [x] 1.4 Production build stays clean (worker bundling): `pnpm build` — 05d9654
 
 #### Manual
 
@@ -394,9 +394,9 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Automated
 
-- [ ] 2.1 Type gate passes: `pnpm check`
-- [ ] 2.2 Unit suite green incl. comparator/tier tests: `pnpm test`
-- [ ] 2.3 Lint passes: `pnpm lint`
+- [x] 2.1 Type gate passes: `pnpm check`
+- [x] 2.2 Unit suite green incl. comparator/tier tests: `pnpm test`
+- [x] 2.3 Lint passes: `pnpm lint`
 
 #### Manual
 

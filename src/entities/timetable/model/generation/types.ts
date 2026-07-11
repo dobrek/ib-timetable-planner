@@ -61,6 +61,9 @@ export type GenerationCohortDiagnostics = {
   occupiedSlotsAfter: number;
   /** Deficits the engine could not place — the review panel's unplaced list. */
   unplaced: CourseDeficit[];
+  /** Provable lower bound on this cohort's occupied slots (max-weight conflict clique, in hours).
+   *  Additive/optional: consumers that predate it ignore it. `occupiedSlotsAfter ≥ lowerBound`. */
+  lowerBound?: number;
 };
 
 export type GenerationDiagnostics = {
@@ -71,6 +74,9 @@ export type GenerationDiagnostics = {
   partial: boolean;
   /** Set only by engines that prove optimality (CP-SAT); absent means unknown. */
   provenOptimal?: boolean;
+  /** Why the solve ended: `budget` (full budget spent), `stagnation` (complete zero-hole board,
+   *  no improvement window), or `cancelled` (Stop & keep). Additive/optional; UI may ignore it. */
+  stopReason?: "budget" | "stagnation" | "cancelled";
   cohorts: Record<Cohort, GenerationCohortDiagnostics>;
 };
 

@@ -7,6 +7,7 @@ import type {
   CourseDeficit,
   GeneratePlan,
   GeneratedPlacement,
+  GenerationDiagnostics,
   GenerationProgress,
   GenerationResult,
   GeneratorSnapshot,
@@ -27,6 +28,15 @@ import type {
  * the generator-hard 2/day cap and the flagged edge rule — are enforced per candidate cell;
  * pins are never moved. The caller re-judges the result via `verifyGeneration` regardless.
  */
+/** Constructive attempts for diversification before LNS takes over the polish (attempt 1 + 2 noisy). */
+const DIVERSIFY_ATTEMPTS = 3;
+/** Attempt descent share — reduced from the pre-LNS 0.4 since destroy-and-repair now owns the polish. */
+const ATTEMPT_DESCENT_SHARE = 0.1;
+/** Stop early once the incumbent is complete + hole-free and no LNS round has improved it for this long. */
+const STAGNATION_MS = 2_500;
+/** Fixed seed for the LNS operator PRNG — one stream across all rounds keeps the loop deterministic. */
+const LNS_SEED = 9973;
+
 export const generatePlanGreedy: GeneratePlan = async (snapshot, config, hooks = {}) => {
   const startedAt = Date.now();
   const deadline = startedAt + config.budgetMs;
@@ -37,29 +47,63 @@ export const generatePlanGreedy: GeneratePlan = async (snapshot, config, hooks =
   // last yield — per-iteration awaits would drown the descent budget in timer-clamp overhead.
   const maybeYield = createYielder(startedAt, config.budgetMs, hooks.onProgress);
 
-  // Attempt 1 is deterministic (no noise) and gets a generous descent share.
-  let best = await runAttempt(problem, 1, 0, descentDeadline(deadline, startedAt, 0.4), stopped, maybeYield);
-  let seed = 1;
-  while (!stopped()) {
+  // Phase A — diversification: attempt 1 is deterministic; 2..K are seeded noisy restarts that
+  // escape a bad backbone. Each keeps only a small descent share; LNS does the real polishing.
+  let best = await runAttempt(problem, {
+    seed: 1,
+    noise: 0,
+    descentUntil: descentDeadline(deadline, startedAt, ATTEMPT_DESCENT_SHARE),
+    stopped,
+    maybeYield,
+  });
+  for (let seed = 2; seed <= DIVERSIFY_ATTEMPTS && !stopped(); seed++) {
     await maybeYield();
     if (stopped()) break;
-    seed += 1;
-    const candidate = await runAttempt(
-      problem,
+    const candidate = await runAttempt(problem, {
       seed,
-      1,
-      descentDeadline(deadline, Date.now(), 0.1),
+      noise: 1,
+      descentUntil: descentDeadline(deadline, Date.now(), ATTEMPT_DESCENT_SHARE),
       stopped,
       maybeYield,
-    );
+    });
     if (compareObjectives(candidate.objective, best.objective) < 0) best = candidate;
   }
+
+  // Phase B — LNS: destroy a slice of the incumbent and repair it, accepting only tuple
+  // improvements; alternate the destroy operator each round. Stop early once the board is complete
+  // and hole-free and no round has improved it for the stagnation window (easy instances finish fast).
+  const lnsRng = mulberry32(LNS_SEED);
+  let lastImproveAt = Date.now();
+  for (let round = 1; !stopped(); round++) {
+    await maybeYield();
+    if (stopped()) break;
+    if (isConverged(best) && Date.now() - lastImproveAt >= STAGNATION_MS) break;
+    const candidate = await runAttempt(problem, {
+      seed: 0,
+      noise: 1,
+      descentUntil: Date.now(), // no spin — one productive descent pass per LNS round
+      stopped,
+      maybeYield,
+      lns: { incumbent: best, destroy: round % 2 === 0 ? "day" : "random", rng: lnsRng },
+    });
+    if (compareObjectives(candidate.objective, best.objective) < 0) {
+      best = candidate;
+      lastImproveAt = Date.now();
+    }
+  }
+
+  const stopReason: GenerationDiagnostics["stopReason"] =
+    hooks.signal?.aborted === true ? "cancelled" : Date.now() >= deadline ? "budget" : "stagnation";
 
   return toResult(problem, best, {
     elapsedMs: Date.now() - startedAt,
     partial: hooks.signal?.aborted === true,
+    stopReason,
   });
 };
+
+/** A board LNS can stop polishing: complete (nothing unplaced) and free of interior holes. */
+const isConverged = (candidate: Candidate): boolean => candidate.objective[0] === 0 && candidate.objective[1] === 0;
 
 // ---------------------------------------------------------------------------------------
 // Problem projection (static per generate call)
@@ -81,6 +125,8 @@ type Problem = {
   deficits: Record<Cohort, CourseDeficit[]>;
   /** Per cohort: occupied slots before generation (pins only). */
   slotsBefore: Record<Cohort, number>;
+  /** Per cohort: provable lower bound on occupied slots (exact max-weight conflict clique). */
+  lowerBound: Record<Cohort, number>;
 };
 
 const buildProblem = (snapshot: GeneratorSnapshot): Problem => {
@@ -114,6 +160,10 @@ const buildProblem = (snapshot: GeneratorSnapshot): Problem => {
       dp1: countOccupiedSlots(snapshot.cohorts.dp1.pins),
       dp2: countOccupiedSlots(snapshot.cohorts.dp2.pins),
     },
+    lowerBound: {
+      dp1: maxWeightCliqueWeight(snapshot.cohorts.dp1.courses, flagged),
+      dp2: maxWeightCliqueWeight(snapshot.cohorts.dp2.courses, flagged),
+    },
   };
 };
 
@@ -141,12 +191,7 @@ const interiorFirstCellOrder = (days: number, periods: number): { d: number; p: 
  * conflicts; flagged courses go through the edge-rule pass).
  */
 const backboneCliques = (courses: GroupingCourse[], flagged: Set<string>): Set<string>[] => {
-  const nodes = courses.filter((c) => c.hours > 0 && c.weekMode !== "biweekly" && !flagged.has(c.id));
-  const conflicts = (a: GroupingCourse, b: GroupingCourse): boolean =>
-    a.teacherKeys.some((t) => b.teacherKeys.includes(t)) || a.studentKeys.some((s) => b.studentKeys.includes(s));
-  const adjacency = new Map(
-    nodes.map((c) => [c.id, new Set(nodes.filter((o) => o.id !== c.id && conflicts(c, o)).map((o) => o.id))]),
-  );
+  const { nodes, adjacency } = conflictGraph(courses, flagged);
 
   const cliques = nodes.map((seedCourse) => {
     const clique = [seedCourse];
@@ -165,6 +210,53 @@ const backboneCliques = (courses: GroupingCourse[], flagged: Set<string>): Set<s
   return deduped.map((c) => new Set(c.ids));
 };
 
+/** The cohort's conflict graph over placeable (non-flagged, non-biweekly, positive-hour) courses:
+ *  two courses share an edge iff they share a teacher or a student, so they can never share a cell. */
+const conflictGraph = (
+  courses: GroupingCourse[],
+  flagged: Set<string>,
+): { nodes: GroupingCourse[]; adjacency: Map<string, Set<string>> } => {
+  const nodes = courses.filter((c) => c.hours > 0 && c.weekMode !== "biweekly" && !flagged.has(c.id));
+  const conflicts = (a: GroupingCourse, b: GroupingCourse): boolean =>
+    a.teacherKeys.some((t) => b.teacherKeys.includes(t)) || a.studentKeys.some((s) => b.studentKeys.includes(s));
+  const adjacency = new Map(
+    nodes.map((c) => [c.id, new Set(nodes.filter((o) => o.id !== c.id && conflicts(c, o)).map((o) => o.id))]),
+  );
+  return { nodes, adjacency };
+};
+
+/** Node-expansion cap for the exact clique B&B — a safety valve for a pathological catalog; on
+ *  overflow the best clique found so far is returned (any clique's weight is still a valid bound). */
+const CLIQUE_NODE_CAP = 100_000;
+
+/**
+ * Exact max-weight clique weight (in hours) of the cohort's conflict graph — a *provable* lower
+ * bound on occupied slots, since every course in a mutual-conflict clique needs its own cell.
+ * Branch-and-bound: candidates ordered hours-descending to tighten `best` early, pruned by an
+ * hours-sum upper bound, bounded by `CLIQUE_NODE_CAP`. Run once per generate call (n ≈ 40).
+ */
+export const maxWeightCliqueWeight = (courses: GroupingCourse[], flagged: Set<string>): number => {
+  const { nodes, adjacency } = conflictGraph(courses, flagged);
+  const ordered = [...nodes].sort((a, b) => b.hours - a.hours);
+  const sumHours = (cs: GroupingCourse[]): number => cs.reduce((sum, c) => sum + c.hours, 0);
+  let best = 0;
+  let expansions = 0;
+
+  const search = (weight: number, candidates: GroupingCourse[]): void => {
+    if (expansions >= CLIQUE_NODE_CAP) return;
+    expansions += 1;
+    if (weight > best) best = weight;
+    for (let i = 0; i < candidates.length; i++) {
+      if (weight + sumHours(candidates.slice(i)) <= best) return; // can't beat best even taking all
+      const c = candidates[i];
+      const next = candidates.slice(i + 1).filter((o) => adjacency.get(c.id)?.has(o.id));
+      search(weight + c.hours, next);
+    }
+  };
+  search(0, ordered);
+  return best;
+};
+
 // ---------------------------------------------------------------------------------------
 // One attempt: mutable board state behind pure-feasibility checks
 // ---------------------------------------------------------------------------------------
@@ -180,6 +272,8 @@ type Candidate = {
   objective: Objective;
   slots: Record<Cohort, number>;
   unplaced: Record<Cohort, CourseDeficit[]>;
+  /** Per-course hours still unplaced — with `placements`, the full state an LNS round rehydrates. */
+  remaining: Map<string, number>;
 };
 
 /**
@@ -195,27 +289,41 @@ export const compareObjectives = (a: Objective, b: Objective): number => {
   return 0;
 };
 
-const runAttempt = async (
-  problem: Problem,
-  seed: number,
-  noise: number,
-  descentUntil: number,
-  stopped: () => boolean,
-  maybeYield: () => Promise<void>,
-): Promise<Candidate> => {
+/** One LNS round's inputs: the incumbent to repair, which destroy operator to apply, and the
+ *  shared operator PRNG (so successive rounds diverge deterministically). */
+type LnsRound = { incumbent: Candidate; destroy: "day" | "random"; rng: () => number };
+
+type AttemptOptions = {
+  /** Attempt seed (1 = deterministic first board); ignored in LNS mode. */
+  seed: number;
+  /** Rank noise: 0 for the deterministic first attempt, 1 for restarts and LNS repair. */
+  noise: number;
+  descentUntil: number;
+  stopped: () => boolean;
+  maybeYield: () => Promise<void>;
+  /** When set, rebuild-and-repair this incumbent instead of constructing from scratch (skips the backbone). */
+  lns?: LnsRound;
+};
+
+const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candidate> => {
+  const { seed, noise, descentUntil, stopped, maybeYield, lns } = opts;
   const { snapshot, courseById, flagged, strongNo, cellOrder, backbones } = problem;
   const { days, periods } = snapshot;
-  const rng = mulberry32(seed);
+  const rng = lns ? lns.rng : mulberry32(seed);
   const backbone: Record<Cohort, Set<string>> = {
     dp1: pickFrom(backbones.dp1, rng),
     dp2: pickFrom(backbones.dp2, rng),
   };
   // Two randomized restarts in three (rng < 0.67) reserve a day-edge cell per cohort up front, so
-  // the constructive pass targets a smaller board instead of relying on descent alone.
+  // the constructive pass targets a smaller board instead of relying on descent alone. LNS repairs
+  // an existing board, so it never reserves.
   const reserved: Record<Cohort, Set<string>> = {
-    dp1: seed > 1 && rng() < 0.67 ? sampleEdgeCell(days, periods, rng) : new Set(),
-    dp2: seed > 1 && rng() < 0.67 ? sampleEdgeCell(days, periods, rng) : new Set(),
+    dp1: !lns && seed > 1 && rng() < 0.67 ? sampleEdgeCell(days, periods, rng) : new Set(),
+    dp2: !lns && seed > 1 && rng() < 0.67 ? sampleEdgeCell(days, periods, rng) : new Set(),
   };
+  // Attempt 1 keeps the deterministic dp1-first order; every other attempt and all LNS rounds
+  // randomize which cohort is packed first (a cheap diversification the old loop lacked).
+  const cohortOrder: Cohort[] = !lns && seed === 1 ? [...COHORT_ORDER] : shuffled(COHORT_ORDER, rng);
 
   // --- mutable indexes -------------------------------------------------------------
   const remaining = new Map<string, number>();
@@ -277,6 +385,23 @@ const runAttempt = async (
   for (const cohort of COHORT_ORDER) {
     for (const deficit of problem.deficits[cohort]) remaining.set(deficit.courseId, deficit.missing);
     for (const pin of snapshot.cohorts[cohort].pins) index(cohort, pin.courseId, pin.day, pin.period, pin.week, true);
+  }
+
+  // LNS rebuild: re-index the incumbent's generated rows (pins are already indexed above), adopt its
+  // `remaining`, then destroy a slice — the removed hours flow back into `remaining` for the repair
+  // stages (2–5) to re-place. The whole round runs on this working copy; a reject just discards it.
+  if (lns) {
+    remaining.clear();
+    for (const [courseId, missing] of lns.incumbent.remaining) remaining.set(courseId, missing);
+    for (const row of lns.incumbent.placements) {
+      generated.push({ ...row });
+      index(row.cohort, row.courseId, row.day, row.period, row.week, false);
+    }
+    for (const row of destroyTargets(lns.destroy, generated, rng)) {
+      unindex(row.cohort, row.courseId, row.day, row.period, row.week);
+      removeWhere(generated, (x) => x === row, `lns destroy row ${row.courseId}`);
+      remaining.set(row.courseId, (remaining.get(row.courseId) ?? 0) + 1);
+    }
   }
 
   // --- feasibility -----------------------------------------------------------------
@@ -361,16 +486,18 @@ const runAttempt = async (
       return ck !== excludeKey && (cellRows.get(`${cohort}|${ck}`)?.length ?? 0) > 0;
     });
 
-  // --- stage 1: backbone — one clique-course hour per cell ---------------------------
-  for (const cohort of COHORT_ORDER) {
-    for (const { d, p } of cellOrder) {
-      if (reserved[cohort].has(cellKey(d, p))) continue;
-      const clique = candidatesFor(cohort, false).filter((c) => backbone[cohort].has(c.id));
-      for (const course of clique) {
-        const week = fitsAt(cohort, course, d, p);
-        if (week) {
-          placeDeficit(cohort, course.id, d, p, week);
-          break;
+  // --- stage 1: backbone — one clique-course hour per cell (construction only, not LNS) -----
+  if (!lns) {
+    for (const cohort of cohortOrder) {
+      for (const { d, p } of cellOrder) {
+        if (reserved[cohort].has(cellKey(d, p))) continue;
+        const clique = candidatesFor(cohort, false).filter((c) => backbone[cohort].has(c.id));
+        for (const course of clique) {
+          const week = fitsAt(cohort, course, d, p);
+          if (week) {
+            placeDeficit(cohort, course.id, d, p, week);
+            break;
+          }
         }
       }
     }
@@ -378,7 +505,7 @@ const runAttempt = async (
 
   // --- stage 2: pack the remainder into already-used cells --------------------------
   for (const { d, p } of cellOrder) {
-    for (const cohort of COHORT_ORDER) {
+    for (const cohort of cohortOrder) {
       if ((cellRows.get(`${cohort}|${cellKey(d, p)}`)?.length ?? 0) === 0) continue;
       for (const course of candidatesFor(cohort, false)) {
         const week = fitsAt(cohort, course, d, p);
@@ -437,7 +564,7 @@ const runAttempt = async (
     return false;
   };
 
-  for (const cohort of COHORT_ORDER) {
+  for (const cohort of cohortOrder) {
     for (const course of candidatesFor(cohort, false)) {
       let guard = 0;
       while ((remaining.get(course.id) ?? 0) > 0 && guard < 30) {
@@ -449,7 +576,7 @@ const runAttempt = async (
   }
 
   // --- stage 4: flagged courses — edge of every enrolled student's day, or unplaced ---
-  for (const cohort of COHORT_ORDER) {
+  for (const cohort of cohortOrder) {
     for (const course of candidatesFor(cohort, true).filter((c) => flagged.has(c.id))) {
       while ((remaining.get(course.id) ?? 0) > 0) {
         const spot = [...usedCells(cohort), ...cellOrder].find(({ d, p }) => fitsAt(cohort, course, d, p) !== null);
@@ -464,7 +591,7 @@ const runAttempt = async (
   // --- stage 5: spill — completeness beats the reservation ---------------------------
   for (const pass of [false, true]) {
     for (const { d, p } of cellOrder) {
-      for (const cohort of COHORT_ORDER) {
+      for (const cohort of cohortOrder) {
         if (!pass && reserved[cohort].has(cellKey(d, p))) continue;
         for (const course of candidatesFor(cohort, false)) {
           const week = fitsAt(cohort, course, d, p);
@@ -480,7 +607,7 @@ const runAttempt = async (
   const constructed = scoreCandidate(problem, generated.slice(), remaining);
 
   // --- stage 6: slot-count descent — empty cells via ejection chains ------------------
-  for (const cohort of COHORT_ORDER) {
+  for (const cohort of cohortOrder) {
     let emptied = true;
     while ((emptied || Date.now() < descentUntil) && !stopped()) {
       await maybeYield(); // once per descent outer iteration — the cancel/progress observation point
@@ -488,7 +615,11 @@ const runAttempt = async (
       if (!emptied && Date.now() >= descentUntil) break;
       emptied = false;
       const candidates = usedCells(cohort)
-        .filter(({ d, p }) => (cellRows.get(`${cohort}|${cellKey(d, p)}`) ?? []).every((r) => !r.pinned))
+        // A cell with a pinned OR flagged (immovable-in-descent) row can never be fully emptied —
+        // its first such member breaks the inner loop — so admitting it just wastes a 15-cap slot.
+        .filter(({ d, p }) =>
+          (cellRows.get(`${cohort}|${cellKey(d, p)}`) ?? []).every((r) => !r.pinned && !flagged.has(r.courseId)),
+        )
         .sort(
           (a, b) =>
             (cellRows.get(`${cohort}|${cellKey(a.d, a.p)}`)?.length ?? 0) -
@@ -525,7 +656,7 @@ const runAttempt = async (
   }
 
   // --- stage 7: migrate interior free cells to day edges (whole-cell, same-day) -------
-  for (const cohort of COHORT_ORDER) {
+  for (const cohort of cohortOrder) {
     migrateHolesToEdges(cohort);
   }
 
@@ -546,45 +677,49 @@ const runAttempt = async (
         const freeInterior = [];
         for (let q = lo + 1; q < hi; q++) if (!used.includes(q)) freeInterior.push(q);
         if (freeInterior.length === 0) break;
-        const freeP = freeInterior[0];
-        for (const edgeP of [lo, hi]) {
-          const members = [...(cellRows.get(`${cohort}|${cellKey(d, edgeP)}`) ?? [])];
-          if (members.length === 0 || members.some((r) => r.pinned)) continue;
-          const relocated: Row[] = [];
-          let ok = true;
-          for (const member of members) {
-            const course = courseById.get(member.courseId);
-            unindex(cohort, member.courseId, d, edgeP, member.week);
-            if (!course || fitsAt(cohort, course, d, freeP) === null) {
-              // a member cannot make the move (infeasible OR would box a flagged row) — roll back
-              index(cohort, member.courseId, d, edgeP, member.week, false);
-              ok = false;
+        // Try every interior free period as a migration target (not only the first) so a day with
+        // several holes keeps collapsing instead of stalling on the first unfillable one.
+        for (const freeP of freeInterior) {
+          for (const edgeP of [lo, hi]) {
+            const members = [...(cellRows.get(`${cohort}|${cellKey(d, edgeP)}`) ?? [])];
+            if (members.length === 0 || members.some((r) => r.pinned)) continue;
+            const relocated: Row[] = [];
+            let ok = true;
+            for (const member of members) {
+              const course = courseById.get(member.courseId);
+              unindex(cohort, member.courseId, d, edgeP, member.week);
+              if (!course || fitsAt(cohort, course, d, freeP) === null) {
+                // a member cannot make the move (infeasible OR would box a flagged row) — roll back
+                index(cohort, member.courseId, d, edgeP, member.week, false);
+                ok = false;
+                break;
+              }
+              removeWhere(
+                generated,
+                (x) => x.cohort === cohort && x.courseId === member.courseId && x.day === d && x.period === edgeP,
+                `generated row ${member.courseId} @ ${cellKey(d, edgeP)}`,
+              );
+              generated.push({ cohort, courseId: member.courseId, day: d, period: freeP, week: member.week });
+              index(cohort, member.courseId, d, freeP, member.week, false);
+              relocated.push(member);
+            }
+            if (ok) {
+              moved = true;
               break;
             }
-            removeWhere(
-              generated,
-              (x) => x.cohort === cohort && x.courseId === member.courseId && x.day === d && x.period === edgeP,
-              `generated row ${member.courseId} @ ${cellKey(d, edgeP)}`,
-            );
-            generated.push({ cohort, courseId: member.courseId, day: d, period: freeP, week: member.week });
-            index(cohort, member.courseId, d, freeP, member.week, false);
-            relocated.push(member);
-          }
-          if (ok) {
-            moved = true;
-            break;
-          }
-          for (const member of relocated) {
-            const at = generated.findIndex(
-              (x) => x.cohort === cohort && x.courseId === member.courseId && x.day === d && x.period === freeP,
-            );
-            if (at !== -1) {
-              unindex(cohort, member.courseId, d, freeP, member.week);
-              generated.splice(at, 1);
+            for (const member of relocated) {
+              const at = generated.findIndex(
+                (x) => x.cohort === cohort && x.courseId === member.courseId && x.day === d && x.period === freeP,
+              );
+              if (at !== -1) {
+                unindex(cohort, member.courseId, d, freeP, member.week);
+                generated.splice(at, 1);
+              }
+              index(cohort, member.courseId, d, edgeP, member.week, false);
+              generated.push({ cohort, courseId: member.courseId, day: d, period: edgeP, week: member.week });
             }
-            index(cohort, member.courseId, d, edgeP, member.week, false);
-            generated.push({ cohort, courseId: member.courseId, day: d, period: edgeP, week: member.week });
           }
+          if (moved) break;
         }
         if (!moved) break;
       }
@@ -627,7 +762,7 @@ const scoreCandidate = (
   );
   const totalSlots = COHORT_ORDER.reduce((sum, cohort) => sum + slots[cohort], 0);
   const objective: Objective = [unplacedTotal, holes, totalSlots, studentHoles];
-  return { placements: generated, objective, slots, unplaced };
+  return { placements: generated, objective, slots, unplaced, remaining: new Map(remaining) };
 };
 
 /** Week-aware per-student day holes: (span − occupied) summed over student-day-week lanes. */
@@ -659,23 +794,26 @@ const countStudentHoles = (
 const toResult = (
   problem: Problem,
   best: Candidate,
-  meta: { elapsedMs: number; partial: boolean },
+  meta: { elapsedMs: number; partial: boolean; stopReason: GenerationDiagnostics["stopReason"] },
 ): GenerationResult => ({
   placements: best.placements,
   diagnostics: {
     engine: "greedy",
     elapsedMs: meta.elapsedMs,
     partial: meta.partial,
+    stopReason: meta.stopReason,
     cohorts: {
       dp1: {
         occupiedSlotsBefore: problem.slotsBefore.dp1,
         occupiedSlotsAfter: best.slots.dp1,
         unplaced: best.unplaced.dp1,
+        lowerBound: problem.lowerBound.dp1,
       },
       dp2: {
         occupiedSlotsBefore: problem.slotsBefore.dp2,
         occupiedSlotsAfter: best.slots.dp2,
         unplaced: best.unplaced.dp2,
+        lowerBound: problem.lowerBound.dp2,
       },
     },
   },
@@ -732,6 +870,27 @@ const sampleEdgeCell = (days: number, periods: number, rng: () => number): Set<s
   const edges: string[] = [];
   for (let d = 1; d <= days; d++) edges.push(cellKey(d, 1), cellKey(d, periods));
   return new Set([pickFrom(edges, rng)]);
+};
+
+/**
+ * The generated rows an LNS destroy operator removes (references into `generated`): a whole random
+ * `(cohort, day)` for `"day"`, or a random ~15% slice for `"random"`. Pins are never generated
+ * rows, so they are inherently untouched. Alternating the two operators mixes coarse and fine moves.
+ */
+const destroyTargets = (
+  destroy: "day" | "random",
+  generated: GeneratedPlacement[],
+  rng: () => number,
+): GeneratedPlacement[] => {
+  if (destroy === "day") {
+    const cohort = pickFrom(COHORT_ORDER, rng);
+    const days = [...new Set(generated.filter((row) => row.cohort === cohort).map((row) => row.day))];
+    if (days.length === 0) return [];
+    const day = pickFrom(days, rng);
+    return generated.filter((row) => row.cohort === cohort && row.day === day);
+  }
+  const count = Math.max(1, Math.round(generated.length * 0.15));
+  return shuffled(generated, rng).slice(0, count);
 };
 
 const descentDeadline = (deadline: number, from: number, share: number): number =>

@@ -3,7 +3,7 @@ import type { PlacementWeek } from "@/shared/config";
 import type { ParkedMember } from "../placement/parked";
 import type { PlannerPlacement } from "@/entities/timetable";
 import type { ReconcilePlan } from "./history-entry";
-import { executeReconcilePlan, type ReconcileDeps } from "./reconcile-exec";
+import { executeReconcilePlan, type ReconcileDeps, type ReconcileRegion } from "./reconcile-exec";
 
 const key = (courseId: string, day: number, period: number, week: PlacementWeek = "both", isOptional = false) => ({
   courseId,
@@ -198,5 +198,70 @@ describe("executeReconcilePlan — decomposed fallback", () => {
   it("a discard (card-delete only) decomposes to delete_shelf_bundle via resolveCardId", async () => {
     await executeReconcilePlan(plan({ cardsToDelete: [[member("A")]] }), deps);
     expect(deps.deleteCard).toHaveBeenCalledWith("resolved-card-id");
+  });
+});
+
+describe("executeReconcilePlan — batch region recognizer (apply_generated_placements)", () => {
+  const withRegion = (): { deps: ReconcileDeps; region: ReconcileRegion } => ({
+    deps: {
+      ...deps,
+      applyGeneratedRegion: vi.fn<NonNullable<ReconcileDeps["applyGeneratedRegion"]>>((_cells, placements) => {
+        calls.push("region");
+        return Promise.resolve(placements.map((spec) => row(spec.courseId, spec.day, spec.period, spec.week)));
+      }),
+    },
+    region: {
+      cells: [
+        { day: 1, period: 1 },
+        { day: 2, period: 3 },
+      ],
+      placements: [key("pin", 1, 1), key("gen", 2, 3)],
+    },
+  });
+
+  it("a multi-cell board-only plan dispatches to ONE region replace (undo of a generated batch)", async () => {
+    const { deps: batchDeps, region } = withRegion();
+    const result = await executeReconcilePlan(
+      plan({ toRemove: [key("gen-1", 1, 1), key("gen-2", 2, 3)] }),
+      batchDeps,
+      region,
+    );
+    expect(batchDeps.applyGeneratedRegion).toHaveBeenCalledExactlyOnceWith(region.cells, region.placements);
+    expect(batchDeps.removeMembers).not.toHaveBeenCalled();
+    expect(batchDeps.place).not.toHaveBeenCalled();
+    expect(result.placed).toHaveLength(2);
+  });
+
+  it("a single-cell plan keeps its existing path even with a region supplied", async () => {
+    const { deps: batchDeps } = withRegion();
+    await executeReconcilePlan(plan({ toRemove: [key("gen-1", 1, 1), key("gen-2", 1, 1)] }), batchDeps, {
+      cells: [{ day: 1, period: 1 }],
+      placements: [],
+    });
+    expect(batchDeps.applyGeneratedRegion).not.toHaveBeenCalled();
+    expect(batchDeps.removeMembers).toHaveBeenCalledExactlyOnceWith({ day: 1, period: 1 }, ["gen-1", "gen-2"]);
+  });
+
+  it("a plan with card ops never takes the batch path", async () => {
+    const { deps: batchDeps, region } = withRegion();
+    await executeReconcilePlan(
+      plan({ toRemove: [key("gen-1", 1, 1), key("gen-2", 2, 3)], cardsToCreate: [[member("gen-1")]] }),
+      batchDeps,
+      region,
+    );
+    expect(batchDeps.applyGeneratedRegion).not.toHaveBeenCalled();
+    expect(batchDeps.removeMembers).toHaveBeenCalledTimes(2);
+  });
+
+  it("without a region the multi-cell plan still decomposes (existing injectors unchanged)", async () => {
+    await executeReconcilePlan(plan({ toRemove: [key("gen-1", 1, 1), key("gen-2", 2, 3)] }), deps);
+    expect(deps.removeMembers).toHaveBeenCalledTimes(2);
+  });
+
+  it("the atomic relocation recognizer wins over the batch path", async () => {
+    const { deps: batchDeps, region } = withRegion();
+    await executeReconcilePlan(plan({ toRemove: [key("A", 2, 2)], toPlace: [key("A", 1, 1)] }), batchDeps, region);
+    expect(batchDeps.moveMembers).toHaveBeenCalledOnce();
+    expect(batchDeps.applyGeneratedRegion).not.toHaveBeenCalled();
   });
 });

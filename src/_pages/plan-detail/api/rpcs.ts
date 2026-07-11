@@ -1,6 +1,7 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { ParkedMember } from "../model/placement/parked";
 import {
+  applyGeneratedPlacements,
   moveBundleMembers,
   placeCourse,
   removeBundleMembers,
@@ -36,6 +37,18 @@ export function makeRpcs(planId: string, cohort: Cohort) {
       unshelveBundle({ planId, cohort, ...args }),
     deleteShelfBundle: (args: { shelfBundleId: string }) => deleteShelfBundle({ planId, ...args }),
     shelveCourses: (args: { members: ParkedMember[] }) => shelveCourses({ planId, cohort, ...args }),
+    // Single-cohort region replace for the undo/redo reconcile of a generated batch: tags every
+    // cell/row with this binding's cohort and unwraps that cohort's settled rows. The two-cohort
+    // forward apply calls the plan-scoped client directly (combined orchestrator, not per-cohort).
+    applyGeneratedRegion: (args: {
+      cells: { day: number; period: number }[];
+      placements: { courseId: string; day: number; period: number; week: PlacementWeek; isOptional: boolean }[];
+    }) =>
+      applyGeneratedPlacements({
+        planId,
+        cells: args.cells.map((cell) => ({ cohort, ...cell })),
+        placements: args.placements.map((row) => ({ cohort, ...row })),
+      }).then((result) => result[cohort]),
   };
 }
 

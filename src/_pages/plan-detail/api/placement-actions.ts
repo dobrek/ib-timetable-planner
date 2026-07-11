@@ -1,5 +1,7 @@
 import { defineDomainAction } from "@/shared/lib/actions";
 import {
+  applyGeneratedPlacements,
+  applyGeneratedPlacementsInput,
   moveBundleMembers,
   moveBundleMembersInput,
   placeCourse,
@@ -14,6 +16,7 @@ import {
 
 export const placementActions = {
   placeCourse: defineDomainAction({ input: placeCourseInput, run: placeCourse }),
+  applyGeneratedPlacements: defineDomainAction({ input: applyGeneratedPlacementsInput, run: applyGeneratedPlacements }),
   moveBundleMembers: defineDomainAction({ input: moveBundleMembersInput, run: moveBundleMembers }),
   removeBundleMembers: defineDomainAction({ input: removeBundleMembersInput, run: removeBundleMembers }),
   updatePlacementWeek: defineDomainAction({ input: updatePlacementWeekInput, run: updatePlacementWeek }),

@@ -25,7 +25,15 @@ export type ReconcileDeps = {
   deleteCard: (shelfBundleId: string) => Promise<void>;
   resolveCardId: (members: ParkedMember[]) => string | undefined;
   resolvePlacementId: (key: PlacementKey) => string | undefined;
+  /** Optional atomic multi-cell region replace (`apply_generated_placements`) — the batch path.
+   *  Absent ⇒ multi-cell plans keep the decomposed fallback (existing injectors unchanged). */
+  applyGeneratedRegion?: (cells: CellData[], placements: PlacementSpec[]) => Promise<PlannerPlacement[]>;
 };
+
+/** The full affected region behind a reconcile — scope cells + the complete target row set.
+ *  The batch recognizer needs it because a `ReconcilePlan` is a DIFF: replacing a region with
+ *  only the diff's `toPlace` would delete the region's untouched pre-existing rows. */
+export type ReconcileRegion = { cells: CellData[]; placements: PlacementSpec[] };
 
 export type ReconcileResult = {
   /** Server rows for placed/relocated courses, for client id-remap by business key. */
@@ -40,10 +48,17 @@ export type ReconcileResult = {
  * (board-removes + one card-create) → one `shelve_bundle`; a place-back (one card-delete +
  * board-places) → one `unshelve_bundle`; a pure optional-flip (same cells, only flags differ) →
  * in-place `update_placement_optional` per member. Only a diff no single RPC covers (notably
- * merge-*undo*, which re-places at two cells) falls back to the decomposed sequence
- * (card-deletes → board-removes → board-places → card-creates) — the lone non-atomic path.
+ * merge-*undo*, which re-places at two cells) falls back further: a **multi-cell board-only
+ * plan** dispatches to the atomic `apply_generated_placements` region replace when the caller
+ * supplies the `region` (undo/redo of a generated batch — and merge-undo inherits the atomic
+ * path for free); only a plan with card ops no single RPC covers still runs the decomposed
+ * sequence (card-deletes → board-removes → board-places → card-creates).
  */
-export async function executeReconcilePlan(plan: ReconcilePlan, deps: ReconcileDeps): Promise<ReconcileResult> {
+export async function executeReconcilePlan(
+  plan: ReconcilePlan,
+  deps: ReconcileDeps,
+  region?: ReconcileRegion,
+): Promise<ReconcileResult> {
   const relocation = asPureRelocation(plan);
   if (relocation) {
     const placed = await deps.moveMembers(relocation.source, relocation.target, relocation.courseIds);
@@ -68,7 +83,20 @@ export async function executeReconcilePlan(plan: ReconcilePlan, deps: ReconcileD
     return { placed, createdCards: [] };
   }
 
+  if (deps.applyGeneratedRegion && region && isMultiCellBoardPlan(plan)) {
+    const placed = await deps.applyGeneratedRegion(region.cells, region.placements);
+    return { placed, createdCards: [] };
+  }
+
   return executeDecomposed(plan, deps);
+}
+
+/** Board-only (no card ops) and spanning more than one cell — the batch-region shape.
+ *  Single-cell plans keep their existing recognizers/decomposed path untouched. */
+function isMultiCellBoardPlan(plan: ReconcilePlan): boolean {
+  if (plan.cardsToDelete.length > 0 || plan.cardsToCreate.length > 0) return false;
+  const cells = new Set([...plan.toRemove, ...plan.toPlace].map((row) => `${row.day}:${row.period}`));
+  return cells.size > 1;
 }
 
 // --- The decomposed fallback: ordered so a re-place never collides with a row still pending delete ---

@@ -38,18 +38,20 @@ export function reconcileCardsOptimistic(
   return [...kept, ...added];
 }
 
-/** Settle placed temps to their server rows by course id (drop any the RPC did not return). */
+/** Settle placed temps to their server rows by business key (drop any the RPC did not return).
+ *  Keyed on the full `placementBusinessKey`, not course id alone: a generated batch places one
+ *  course at several cells, so per-course matching would settle every temp to the same row. */
 export function settleReconcilePlacements(
   prev: LocalPlacement[],
   placeEntries: PlaceEntry[],
   placed: ReconcileResult["placed"],
 ): LocalPlacement[] {
-  const serverByCourse = new Map(placed.map((row) => [row.courseId, row]));
+  const serverByKey = new Map(placed.map((row) => [placementBusinessKey(row), row]));
   const tempBySpec = new Map(placeEntries.map(({ tempId, spec }) => [tempId, spec]));
   return prev.flatMap((row) => {
     const spec = tempBySpec.get(row.id);
     if (!spec) return [row];
-    const server = serverByCourse.get(spec.courseId);
+    const server = serverByKey.get(placementBusinessKey(spec));
     return server ? [server] : [];
   });
 }

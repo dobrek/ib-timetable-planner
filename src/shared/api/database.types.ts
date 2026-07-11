@@ -648,6 +648,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_generated_placements: {
+        Args: { p_cells: Json; p_placements: Json; p_plan_id: string }
+        Returns: {
+          bundle_id: string
+          cohort: Database["public"]["Enums"]["cohort"]
+          course_id: string
+          created_at: string
+          day: number
+          id: string
+          is_optional: boolean
+          period: number
+          plan_id: string
+          week: Database["public"]["Enums"]["placement_week"]
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "placements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       clone_plan: {
         Args: {
           p_include_board?: boolean

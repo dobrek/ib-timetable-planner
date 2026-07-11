@@ -64,6 +64,7 @@ function makeHarness(opts: { placements?: LocalPlacement[]; parked?: LocalParked
     unshelveBundle: vi.fn(),
     deleteShelfBundle: vi.fn(),
     shelveCourses: vi.fn(),
+    applyGeneratedRegion: vi.fn(),
   };
 
   const ctx: WriteContext = {

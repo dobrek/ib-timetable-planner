@@ -47,3 +47,19 @@ export function updatePlacementWeek(id: string, week: PlacementWeek): Promise<Pl
 export function updatePlacementOptional(id: string, isOptional: boolean): Promise<PlannerPlacement> {
   return callActionData(actions.updatePlacementOptional, { id, isOptional });
 }
+
+/** Atomic region replace for plan generation (one call may carry both cohorts; see `placements.ts`). */
+export function applyGeneratedPlacements(args: {
+  planId: string;
+  cells: { cohort: Cohort; day: number; period: number }[];
+  placements: {
+    cohort: Cohort;
+    courseId: string;
+    day: number;
+    period: number;
+    week: PlacementWeek;
+    isOptional: boolean;
+  }[];
+}): Promise<{ dp1: PlannerPlacement[]; dp2: PlannerPlacement[] }> {
+  return callActionData(actions.applyGeneratedPlacements, args);
+}

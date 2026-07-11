@@ -229,6 +229,99 @@ describe("before-only snapshot", () => {
   });
 });
 
+describe("two-cohort entry (plan generation)", () => {
+  function setupWithStore(apis: Record<Cohort, CohortHistoryApi>) {
+    return renderHook(() => {
+      const recorder = useHistoryRecorder();
+      const controls = useHistoryControls(recorder.store, apis);
+      return { store: recorder.store, ...controls };
+    });
+  }
+
+  function pushGeneration(
+    result: { current: { store: ReturnType<typeof useHistoryRecorder>["store"] } },
+    board: Record<Cohort, AffectedSlice>,
+    next: { dp1: AffectedSlice; dp2: AffectedSlice },
+  ) {
+    act(() => {
+      const before = { dp1: board.dp1, dp2: board.dp2 };
+      board.dp1 = next.dp1;
+      board.dp2 = next.dp2;
+      result.current.store.push({
+        cohort: "dp1",
+        scope: SCOPE,
+        target: before.dp1,
+        label: "Generate plan",
+        sibling: { cohort: "dp2", scope: SCOPE, target: before.dp2 },
+      });
+    });
+  }
+
+  it("one undo press reverts BOTH cohorts; one redo re-applies both", async () => {
+    const { apis, board } = makeApis();
+    const { result } = setupWithStore(apis);
+    const next = { dp1: sliceOf("gen-1"), dp2: sliceOf("gen-2") };
+    pushGeneration(result, board, next);
+    expect(result.current.undoLabel).toBe("Generate plan");
+
+    act(() => {
+      result.current.undo();
+    });
+    await waitFor(() => {
+      expect(board.dp1).toEqual(emptySlice());
+    });
+    await waitFor(() => {
+      expect(board.dp2).toEqual(emptySlice());
+    });
+    await waitFor(() => {
+      expect(result.current.canRedo).toBe(true);
+    });
+    expect(result.current.canUndo).toBe(false);
+
+    act(() => {
+      result.current.redo();
+    });
+    await waitFor(() => {
+      expect(board.dp1).toEqual(next.dp1);
+    });
+    await waitFor(() => {
+      expect(board.dp2).toEqual(next.dp2);
+    });
+    expect(result.current.canRedo).toBe(false);
+  });
+
+  it("a sibling failure returns the entry to its stack; a retry converges", async () => {
+    const { apis, board, failOnce } = makeApis();
+    const { result } = setupWithStore(apis);
+    pushGeneration(result, board, { dp1: sliceOf("gen-1"), dp2: sliceOf("gen-2") });
+
+    failOnce.dp2 = true;
+    act(() => {
+      result.current.undo();
+    });
+    await waitFor(() => {
+      expect(apis.dp2.applyReconcile).toHaveBeenCalledTimes(1);
+    });
+    // dp1 reconciled, dp2 failed → the entry is back on the undo stack, redo stays empty
+    await waitFor(() => {
+      expect(result.current.canUndo).toBe(true);
+    });
+    expect(result.current.canRedo).toBe(false);
+    expect(board.dp2).toEqual(sliceOf("gen-2"));
+
+    act(() => {
+      result.current.undo(); // retry: dp1 re-reconciles to the same target (no-op), dp2 succeeds
+    });
+    await waitFor(() => {
+      expect(board.dp2).toEqual(emptySlice());
+    });
+    expect(board.dp1).toEqual(emptySlice());
+    await waitFor(() => {
+      expect(result.current.canRedo).toBe(true);
+    });
+  });
+});
+
 describe("in-flight guard", () => {
   it("undo/redo are no-ops and canUndo/canRedo are false while busy", () => {
     const { apis, board } = makeApis(true);

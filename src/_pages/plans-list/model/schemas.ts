@@ -14,6 +14,8 @@ export const createPlanInput = z.object({
 export const clonePlanInput = z.object({
   sourcePlanId: z.uuid(),
   name: z.string().trim().min(1, "Name is required"),
+  /** When false, clone the catalog alone and leave the board empty (compute-groupings cold start). */
+  includeBoard: z.boolean().default(true),
 });
 
 export const renamePlanInput = z.object({

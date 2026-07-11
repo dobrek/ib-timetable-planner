@@ -35,7 +35,7 @@ export const generatePlanGreedy: GeneratePlan = async (snapshot, config, hooks =
     if (stopped()) break;
     seed += 1;
     const candidate = runAttempt(problem, seed, 1, descentDeadline(deadline, Date.now(), 0.1), stopped);
-    if (candidate.score < best.score) best = candidate;
+    if (compareObjectives(candidate.objective, best.objective) < 0) best = candidate;
   }
 
   return toResult(problem, best, {
@@ -154,11 +154,28 @@ const backboneCliques = (courses: GroupingCourse[], flagged: Set<string>): Set<s
 
 type Row = { courseId: string; week: PlacementWeek; pinned: boolean };
 
+/** The lexicographic objective tuple: `[unplacedTotal, holes, totalSlots, studentHoles]` —
+ *  completeness > interior holes > slot count > student compactness, compared tier-by-tier. */
+export type Objective = [unplacedTotal: number, holes: number, totalSlots: number, studentHoles: number];
+
 type Candidate = {
   placements: GeneratedPlacement[];
-  score: number;
+  objective: Objective;
   slots: Record<Cohort, number>;
   unplaced: Record<Cohort, CourseDeficit[]>;
+};
+
+/**
+ * Lexicographic comparison of two objective tuples — the priority tiers hold at ANY magnitude
+ * (the weighted scalar it replaces let a studentHoles term in the hundreds outvote a whole slot).
+ * Negative ⇒ `a` is the better board (smaller-is-better on every tier); shared by cross-attempt
+ * selection and Phase 4's LNS acceptance so the two never disagree.
+ */
+export const compareObjectives = (a: Objective, b: Objective): number => {
+  for (let tier = 0; tier < a.length; tier++) {
+    if (a[tier] !== b[tier]) return a[tier] - b[tier];
+  }
+  return 0;
 };
 
 const runAttempt = (
@@ -175,11 +192,11 @@ const runAttempt = (
     dp1: pickFrom(backbones.dp1, rng),
     dp2: pickFrom(backbones.dp2, rng),
   };
-  // One randomized restart in three reserves a day-edge cell per cohort up front, so the
-  // constructive pass targets a smaller board instead of relying on descent alone.
+  // Two randomized restarts in three (rng < 0.67) reserve a day-edge cell per cohort up front, so
+  // the constructive pass targets a smaller board instead of relying on descent alone.
   const reserved: Record<Cohort, Set<string>> = {
-    dp1: seed > 1 && rng() < 0.67 ? sampleEdgeCells(days, periods, rng) : new Set(),
-    dp2: seed > 1 && rng() < 0.67 ? sampleEdgeCells(days, periods, rng) : new Set(),
+    dp1: seed > 1 && rng() < 0.67 ? sampleEdgeCell(days, periods, rng) : new Set(),
+    dp2: seed > 1 && rng() < 0.67 ? sampleEdgeCell(days, periods, rng) : new Set(),
   };
 
   // --- mutable indexes -------------------------------------------------------------
@@ -236,11 +253,7 @@ const runAttempt = (
       dayCount.set(dk, (dayCount.get(dk) ?? 0) - 1);
     }
     const rows = cellRows.get(`${cohort}|${ck}`);
-    if (rows)
-      rows.splice(
-        rows.findIndex((r) => r.courseId === courseId),
-        1,
-      );
+    if (rows) removeWhere(rows, (r) => r.courseId === courseId, `cell row ${cohort} ${courseId} @ ${ck}`);
   };
 
   for (const cohort of COHORT_ORDER) {
@@ -381,11 +394,11 @@ const runAttempt = (
         const memberCourse = courseById.get(member.courseId);
         if (!memberCourse) continue;
         unindex(cohort, member.courseId, d, p, member.week);
-        const evictedAt = generated.findIndex(
+        const evictedRow = removeWhere(
+          generated,
           (x) => x.cohort === cohort && x.courseId === member.courseId && x.day === d && x.period === p,
+          `generated row ${member.courseId} @ ${cellKey(d, p)}`,
         );
-        const evictedRow = generated[evictedAt];
-        generated.splice(evictedAt, 1);
         if (fitsAt(cohort, course, d, p)) {
           visited.add(member.courseId);
           if (chainFit(cohort, memberCourse, excludeKey, depth - 1, visited)) {
@@ -443,6 +456,11 @@ const runAttempt = (
     }
   }
 
+  // --- checkpoint: construction (stages 1–5) is complete and valid; descent must beat or tie
+  // it, never regress. Score against a COPY (stages 6–7 mutate `generated` in place; `remaining`
+  // is untouched by them) so the pre-descent board survives for the final comparison.
+  const constructed = scoreCandidate(problem, generated.slice(), remaining);
+
   // --- stage 6: slot-count descent — empty cells via ejection chains ------------------
   for (const cohort of COHORT_ORDER) {
     let emptied = true;
@@ -466,11 +484,11 @@ const runAttempt = (
           const memberCourse = courseById.get(member.courseId);
           if (!memberCourse || member.pinned || flagged.has(member.courseId)) break;
           unindex(cohort, member.courseId, d, p, member.week);
-          const at = generated.findIndex(
+          const row = removeWhere(
+            generated,
             (x) => x.cohort === cohort && x.courseId === member.courseId && x.day === d && x.period === p,
+            `generated row ${member.courseId} @ ${ck}`,
           );
-          const row = generated[at];
-          generated.splice(at, 1);
           if (!chainFit(cohort, memberCourse, ck, 3, new Set([member.courseId]))) {
             index(cohort, member.courseId, d, p, member.week, false);
             generated.push(row);
@@ -523,10 +541,11 @@ const runAttempt = (
               ok = false;
               break;
             }
-            const at = generated.findIndex(
+            removeWhere(
+              generated,
               (x) => x.cohort === cohort && x.courseId === member.courseId && x.day === d && x.period === edgeP,
+              `generated row ${member.courseId} @ ${cellKey(d, edgeP)}`,
             );
-            generated.splice(at, 1);
             generated.push({ cohort, courseId: member.courseId, day: d, period: freeP, week: member.week });
             index(cohort, member.courseId, d, freeP, member.week, false);
             relocated.push(member);
@@ -552,8 +571,11 @@ const runAttempt = (
     }
   }
 
-  // --- score ---------------------------------------------------------------------------
-  return scoreCandidate(problem, generated, remaining);
+  // --- score: return the better of construction vs. descent+migration ------------------
+  // Descent trades slots for a possible new interior hole and migration can fail; scoring both
+  // and keeping the winner makes an attempt improve-or-neutral by construction (never worse).
+  const descended = scoreCandidate(problem, generated, remaining);
+  return compareObjectives(descended.objective, constructed.objective) <= 0 ? descended : constructed;
 };
 
 const scoreCandidate = (
@@ -584,8 +606,8 @@ const scoreCandidate = (
     0,
   );
   const totalSlots = COHORT_ORDER.reduce((sum, cohort) => sum + slots[cohort], 0);
-  const score = unplacedTotal * 1_000_000 + holes * 10_000 + totalSlots * 100 + studentHoles;
-  return { placements: generated, score, slots, unplaced };
+  const objective: Objective = [unplacedTotal, holes, totalSlots, studentHoles];
+  return { placements: generated, objective, slots, unplaced };
 };
 
 /** Week-aware per-student day holes: (span − occupied) summed over student-day-week lanes. */
@@ -651,6 +673,18 @@ const othersOf = (occupants: [number, string][], courseId: string): number[] =>
 const strictlyInterior = (period: number, others: number[]): boolean =>
   others.length > 0 && period > Math.min(...others) && period < Math.max(...others);
 
+/**
+ * Remove and return the first element matching `match`, throwing on not-found — the eviction
+ * sites rely on the row existing (an invariant that spans a stale shuffled copy plus a `visited`
+ * set), and a silent `splice(findIndex → -1)` drops the LAST element instead, corrupting the
+ * board. The worker's catch turns the throw into a clean failure rather than corrupt output.
+ */
+const removeWhere = <T>(items: T[], match: (item: T) => boolean, label: string): T => {
+  const at = items.findIndex(match);
+  if (at === -1) throw new Error(`generation invariant violated: ${label} not found for removal`);
+  return items.splice(at, 1)[0];
+};
+
 /** Deterministic PRNG so a given (snapshot, seed) always replays the same search. */
 const mulberry32 = (seed: number): (() => number) => {
   let a = seed >>> 0;
@@ -673,7 +707,8 @@ const shuffled = <T>(items: readonly T[], rng: () => number): T[] => {
 
 const pickFrom = <T>(items: T[], rng: () => number): T => items[Math.floor(rng() * items.length)];
 
-const sampleEdgeCells = (days: number, periods: number, rng: () => number): Set<string> => {
+/** One randomly chosen day-edge cell (period 1 or last of some day), as a singleton set. */
+const sampleEdgeCell = (days: number, periods: number, rng: () => number): Set<string> => {
   const edges: string[] = [];
   for (let d = 1; d <= days; d++) edges.push(cellKey(d, 1), cellKey(d, periods));
   return new Set([pickFrom(edges, rng)]);

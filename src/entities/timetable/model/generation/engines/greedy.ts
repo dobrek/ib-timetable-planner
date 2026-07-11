@@ -269,15 +269,37 @@ const runAttempt = (
     return null;
   };
 
-  /** The core's edge rule: strictly interior among *other* courses' periods offends. */
-  const edgeOk = (cohort: Cohort, course: GroupingCourse, d: number, p: number, week: PlacementWeek): boolean => {
+  /**
+   * The flagged-edge invariant at a single placement site, delta-aware — the one predicate that
+   * closes the boxing bug across every stage (pins included). Placing `course` at (d, p, week)
+   * must not push a flagged row that shares a student — the candidate itself, a pin, or a
+   * generated row — from a day edge into the strict interior. Per enrolled student's day-week lane:
+   *   1. if the candidate is flagged, it must land at an edge among the lane's *other* courses
+   *      (the core's `early-finish-edge` rule for the placed row);
+   *   2. every flagged occupant already in the lane that was at an edge must stay at an edge once
+   *      the candidate joins at period `p`.
+   * A flagged row already interior *before* the placement (a dirty board that slipped past the
+   * worker precondition) is left untouched rather than poisoning every placement for that
+   * student-day (Critical Implementation Details: delta semantics — reject only newly-boxed rows).
+   */
+  const flaggedEdgeOk = (
+    cohort: Cohort,
+    course: GroupingCourse,
+    d: number,
+    p: number,
+    week: PlacementWeek,
+  ): boolean => {
     for (const w of weeksOf(week)) {
       for (const s of course.studentKeys) {
-        const byPeriod = studentAt.get(studentKeyOf(cohort, s, d, w));
-        if (!byPeriod) continue;
-        const others = [...byPeriod].filter(([, owner]) => owner !== course.id).map(([q]) => q);
-        if (others.length === 0) continue;
-        if (p > Math.min(...others) && p < Math.max(...others)) return false;
+        const lane = studentAt.get(studentKeyOf(cohort, s, d, w));
+        if (!lane) continue;
+        const occupants = [...lane]; // [period, courseId] — single owner per period
+        if (flagged.has(course.id) && strictlyInterior(p, othersOf(occupants, course.id))) return false;
+        for (const [q, owner] of occupants) {
+          if (owner === course.id || !flagged.has(owner)) continue;
+          const others = othersOf(occupants, owner);
+          if (!strictlyInterior(q, others) && strictlyInterior(q, [...others, p])) return false;
+        }
       }
     }
     return true;
@@ -286,7 +308,7 @@ const runAttempt = (
   const fitsAt = (cohort: Cohort, course: GroupingCourse, d: number, p: number): PlacementWeek | null => {
     const week = feasibleWeek(cohort, course, d, p);
     if (!week) return null;
-    return !flagged.has(course.id) || edgeOk(cohort, course, d, p, week) ? week : null;
+    return flaggedEdgeOk(cohort, course, d, p, week) ? week : null;
   };
 
   const placeDeficit = (cohort: Cohort, courseId: string, d: number, p: number, week: PlacementWeek): void => {
@@ -314,7 +336,7 @@ const runAttempt = (
       if (reserved[cohort].has(cellKey(d, p))) continue;
       const clique = candidatesFor(cohort, false).filter((c) => backbone[cohort].has(c.id));
       for (const course of clique) {
-        const week = feasibleWeek(cohort, course, d, p);
+        const week = fitsAt(cohort, course, d, p);
         if (week) {
           placeDeficit(cohort, course.id, d, p, week);
           break;
@@ -328,7 +350,7 @@ const runAttempt = (
     for (const cohort of COHORT_ORDER) {
       if ((cellRows.get(`${cohort}|${cellKey(d, p)}`)?.length ?? 0) === 0) continue;
       for (const course of candidatesFor(cohort, false)) {
-        const week = feasibleWeek(cohort, course, d, p);
+        const week = fitsAt(cohort, course, d, p);
         if (week) placeDeficit(cohort, course.id, d, p, week);
       }
     }
@@ -414,7 +436,7 @@ const runAttempt = (
       for (const cohort of COHORT_ORDER) {
         if (!pass && reserved[cohort].has(cellKey(d, p))) continue;
         for (const course of candidatesFor(cohort, false)) {
-          const week = feasibleWeek(cohort, course, d, p);
+          const week = fitsAt(cohort, course, d, p);
           if (week) placeDeficit(cohort, course.id, d, p, week);
         }
       }
@@ -495,8 +517,8 @@ const runAttempt = (
           for (const member of members) {
             const course = courseById.get(member.courseId);
             unindex(cohort, member.courseId, d, edgeP, member.week);
-            if (!course || feasibleWeek(cohort, course, d, freeP) === null) {
-              // a member cannot make the move — roll everything back
+            if (!course || fitsAt(cohort, course, d, freeP) === null) {
+              // a member cannot make the move (infeasible OR would box a flagged row) — roll back
               index(cohort, member.courseId, d, edgeP, member.week, false);
               ok = false;
               break;
@@ -509,7 +531,6 @@ const runAttempt = (
             index(cohort, member.courseId, d, freeP, member.week, false);
             relocated.push(member);
           }
-          if (ok && !flaggedEdgesHold(cohort)) ok = false;
           if (ok) {
             moved = true;
             break;
@@ -529,14 +550,6 @@ const runAttempt = (
         if (!moved) break;
       }
     }
-  }
-
-  function flaggedEdgesHold(cohort: Cohort): boolean {
-    return generated.every((x) => {
-      if (x.cohort !== cohort || !flagged.has(x.courseId)) return true;
-      const course = courseById.get(x.courseId);
-      return !course || edgeOk(cohort, course, x.day, x.period, x.week);
-    });
   }
 
   // --- score ---------------------------------------------------------------------------
@@ -629,6 +642,14 @@ const toResult = (
 // ---------------------------------------------------------------------------------------
 // Small utilities
 // ---------------------------------------------------------------------------------------
+
+/** Periods a student's day-week lane holds via courses *other than* `courseId` (≤2/day each). */
+const othersOf = (occupants: [number, string][], courseId: string): number[] =>
+  occupants.filter(([, owner]) => owner !== courseId).map(([period]) => period);
+
+/** True when `period` sits strictly between the min and max of `others` (empty ⇒ not interior). */
+const strictlyInterior = (period: number, others: number[]): boolean =>
+  others.length > 0 && period > Math.min(...others) && period < Math.max(...others);
 
 /** Deterministic PRNG so a given (snapshot, seed) always replays the same search. */
 const mulberry32 = (seed: number): (() => number) => {

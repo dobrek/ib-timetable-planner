@@ -29,6 +29,16 @@ scope.onmessage = (event: MessageEvent<GenerateWorkerRequest>) => {
 };
 
 async function run(snapshot: GeneratorSnapshot, config: GeneratorConfig, signal: AbortSignal): Promise<void> {
+  // Fail-fast precondition: pins alone already carry blocking violations, so no engine result
+  // can ever pass verify (pins are never moved) — reject in milliseconds instead of burning the
+  // full budget on a guaranteed dead-end. `verifyGeneration(snapshot, [])` judges the pins-only
+  // board; the hook renders the message over the existing `error` path (no protocol change).
+  const precondition = verifyGeneration(snapshot, []);
+  if (!precondition.ok) {
+    post({ kind: "error", message: "the board already has blocking violations — resolve them before generating" });
+    return;
+  }
+
   let lastProgressAt = 0;
   try {
     const result = await generatePlanGreedy(snapshot, config, {

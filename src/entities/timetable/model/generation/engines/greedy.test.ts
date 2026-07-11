@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { placement } from "../../__fixtures__/builders";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import { course, placement } from "../../__fixtures__/builders";
 import { SYNTHETIC_FLAGGED_COURSE_ID, syntheticGeneratorSnapshot } from "../__fixtures__/synthetic-catalog";
 import type { GeneratorSnapshot } from "../types";
 import { verifyGeneration } from "../verify";
 import { generatePlanGreedy } from "./greedy";
 
 const BUDGET = { budgetMs: 2_000 };
+
+/** A single-hour course over one shared student — the minimal unit for the boxing regressions. */
+const hourCourse = (id: string, teacher: string, studentKeys: string[]): GroupingCourse => ({
+  ...course(id, teacher, studentKeys),
+  hours: 1,
+});
 
 const totalDeficit = (snapshot: GeneratorSnapshot): number =>
   ["dp1", "dp2"].reduce(
@@ -74,6 +81,98 @@ describe("generatePlanGreedy", () => {
     const result = await generatePlanGreedy(snapshot, BUDGET);
 
     expect(result.placements.filter((row) => row.courseId === "dp2-chemistry")).toHaveLength(0);
+  });
+
+  describe("flagged-edge placement guard", () => {
+    it("does not box a mid-day flagged pin — completes and verify accepts (regression)", async () => {
+      // Review repro: flagged pin at (1,2) on a 1×4 grid, two single-hour same-student courses.
+      // The pre-fix engine packed periods 3 and 1, boxing the pin → verify rejected the board.
+      const snapshot: GeneratorSnapshot = {
+        days: 1,
+        periods: 4,
+        availability: [],
+        finishesEarlyByCourseId: ["flag"],
+        cohorts: {
+          dp1: {
+            courses: [
+              hourCourse("flag", "t-flag", ["s1"]),
+              hourCourse("a", "t-a", ["s1"]),
+              hourCourse("b", "t-b", ["s1"]),
+            ],
+            pins: [placement("pin-flag", "flag", 1, 2)],
+            parkedCourseIds: [],
+          },
+          dp2: { courses: [], pins: [], parkedCourseIds: [] },
+        },
+      };
+
+      const result = await generatePlanGreedy(snapshot, BUDGET);
+
+      expect(result.diagnostics.cohorts.dp1.unplaced).toEqual([]);
+      expect(result.placements.filter((row) => row.courseId === "a" || row.courseId === "b")).toHaveLength(2);
+      expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);
+    });
+
+    it("places a generated flagged course at a day edge under spill pressure", async () => {
+      // flag + two fillers all share s1 on a 1×3 grid; the only complete valid board keeps the
+      // flagged course at an edge (period 1 or 3), never boxed at the interior period 2.
+      const snapshot: GeneratorSnapshot = {
+        days: 1,
+        periods: 3,
+        availability: [],
+        finishesEarlyByCourseId: ["flag"],
+        cohorts: {
+          dp1: {
+            courses: [
+              hourCourse("flag", "t-flag", ["s1"]),
+              hourCourse("a", "t-a", ["s1"]),
+              hourCourse("b", "t-b", ["s1"]),
+            ],
+            pins: [],
+            parkedCourseIds: [],
+          },
+          dp2: { courses: [], pins: [], parkedCourseIds: [] },
+        },
+      };
+
+      const result = await generatePlanGreedy(snapshot, BUDGET);
+
+      expect(result.diagnostics.cohorts.dp1.unplaced).toEqual([]);
+      const flagRow = result.placements.find((row) => row.courseId === "flag");
+      expect(flagRow?.period === 1 || flagRow?.period === 3).toBe(true);
+      expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);
+    });
+
+    it("skips a would-box placement rather than emit an invalid board", async () => {
+      // flag pinned at (1,2) on a 1×3 grid; the two fillers share s1 and only periods 1 and 3 are
+      // free — placing both boxes the pin, so the guard leaves one filler unplaced (skip, not box).
+      const snapshot: GeneratorSnapshot = {
+        days: 1,
+        periods: 3,
+        availability: [],
+        finishesEarlyByCourseId: ["flag"],
+        cohorts: {
+          dp1: {
+            courses: [
+              hourCourse("flag", "t-flag", ["s1"]),
+              hourCourse("a", "t-a", ["s1"]),
+              hourCourse("b", "t-b", ["s1"]),
+            ],
+            pins: [placement("pin-flag", "flag", 1, 2)],
+            parkedCourseIds: [],
+          },
+          dp2: { courses: [], pins: [], parkedCourseIds: [] },
+        },
+      };
+
+      const result = await generatePlanGreedy(snapshot, BUDGET);
+
+      // exactly one filler fits (period 1 or 3, keeping the pin at an edge); the other is skipped
+      expect(result.placements).toHaveLength(1);
+      const unplacedTotal = result.diagnostics.cohorts.dp1.unplaced.reduce((sum, deficit) => sum + deficit.missing, 0);
+      expect(unplacedTotal).toBe(1);
+      expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);
+    });
   });
 
   it("resolves best-so-far with a partial marker when cancelled", async () => {

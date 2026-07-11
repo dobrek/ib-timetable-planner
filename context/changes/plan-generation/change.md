@@ -1,7 +1,7 @@
 ---
 change_id: plan-generation
 title: Plan generation
-status: preparing
+status: implementing
 created: 2026-07-11
 updated: 2026-07-11
 archived_at: null

@@ -1,10 +1,10 @@
 ---
 change_id: day-scoped-course-rules
 title: Day-scoped course rules — early-finish edge placement + daily spread cap
-status: impl_reviewed
+status: archived
 created: 2026-07-11
 updated: 2026-07-11
-archived_at: null
+archived_at: 2026-07-11T16:52:01Z
 ---
 
 ## Notes

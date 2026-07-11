@@ -111,6 +111,27 @@ describe("useGeneratePlan", () => {
     expect(hook.current.run).toEqual({ status: "idle" });
   });
 
+  it("surfaces the fail-fast precondition error inline and returns to idle", async () => {
+    const { worker, applyGenerated, result: hook } = setup();
+    act(() => {
+      hook.current.generate();
+    });
+
+    act(() => {
+      worker.emit({
+        kind: "error",
+        message: "the board already has blocking violations — resolve them before generating",
+      });
+    });
+
+    await waitFor(() => {
+      expect(hook.current.error).toMatch(/blocking violations/);
+    });
+    expect(applyGenerated).not.toHaveBeenCalled();
+    expect(hook.current.run).toEqual({ status: "idle" });
+    expect(worker.terminated).toBe(true);
+  });
+
   it("surfaces worker errors inline and returns to idle", async () => {
     const { worker, result: hook } = setup();
     act(() => {

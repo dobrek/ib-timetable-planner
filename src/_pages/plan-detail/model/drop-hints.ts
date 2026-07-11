@@ -7,8 +7,10 @@ import {
   type DayOccupancyIndex,
   EMPTY_AVAILABILITY_INDEX,
   EMPTY_CROSS_COHORT_INDEX,
+  type PlacementWeek,
   type PlannerPlacement,
   violatesAny,
+  weeksDisjoint,
 } from "@/entities/timetable";
 import type { CellData, DragData } from "./drag";
 import type { GroupingCourse, PlannerGrouping } from "./grouping/grouping";
@@ -222,7 +224,8 @@ const resolveMembers = (
  * Collision fit is decided by `violatesAny` over the constraint registry. Availability, cross-cohort,
  * and the day-scoped rules are all board-only (no `test`), so they are NOT inherited by `violatesAny`
  * — each is checked explicitly here, the one place a board-only rule is wired into hints. The
- * early-finish edge rule joins the hard axes (blocks like a collision); same-day stacking is a warn.
+ * early-finish edge rule joins the hard axes (blocks like a collision, with the same bi-weekly
+ * opposite-week escape as cross-cohort); same-day stacking is a warn.
  */
 const classifyCell = (
   members: GroupingCourse[],
@@ -267,10 +270,12 @@ const parseCellKey = (key: string): { day: number; period: number } => {
 };
 
 /**
- * Early-finish edge verdict for one dragged member at a cell. `hard` when the member is flagged and
- * dropping it here would sit strictly interior to some enrolled student's day; else `fit`. The drop
- * week is unknown at drag time, so this is week-agnostic (counts every other-course period that day)
- * — a conservative preview that blocks any interior cell.
+ * Early-finish edge verdict for one dragged member at a cell. Mirrors `crossCohortFit`'s week
+ * handling: a flagged member sitting strictly interior to some enrolled student's day is a `hard`
+ * block, EXCEPT a bi-weekly member — whose drop week is chosen after the drop — dodges a
+ * single-week interior by taking the other week, so it is `soft` (opposite-week) when interior on
+ * exactly one concrete week and `hard` only when interior on both. An agnostic member runs every
+ * week and cannot dodge. Non-flagged members always fit.
  */
 const edgeFit = (
   member: GroupingCourse,
@@ -280,13 +285,32 @@ const edgeFit = (
   flagged: Set<string>,
 ): MemberFit => {
   if (!flagged.has(member.id)) return "fit";
-  const interior = member.studentKeys.some((studentKey) => {
-    const others = (index.byStudentDay.get(studentKey)?.get(day) ?? [])
-      .filter((entry) => entry.courseId !== member.id)
-      .map((entry) => entry.period);
-    return others.length > 0 && period > Math.min(...others) && period < Math.max(...others);
-  });
-  return interior ? "hard" : "fit";
+  const interiorOn = (week: PlacementWeek): boolean =>
+    member.studentKeys.some((studentKey) => isInterior(index, studentKey, member.id, day, period, week));
+  if (member.weekMode !== "biweekly") return interiorOn("both") ? "hard" : "fit";
+  const onA = interiorOn("a");
+  const onB = interiorOn("b");
+  if (onA && onB) return "hard";
+  return onA || onB ? "soft" : "fit";
+};
+
+/**
+ * `period` sits strictly between the earliest and latest OTHER period the student occupies this day,
+ * among neighbors whose week overlaps `week` (the flagged member's candidate week). Empty ⇒ not
+ * interior. Same shape as the committed `isInterior` in `early-finish-edge.ts`.
+ */
+const isInterior = (
+  index: DayOccupancyIndex,
+  studentKey: string,
+  memberId: string,
+  day: number,
+  period: number,
+  week: PlacementWeek,
+): boolean => {
+  const others = (index.byStudentDay.get(studentKey)?.get(day) ?? [])
+    .filter((entry) => entry.courseId !== memberId && !weeksDisjoint(entry.week, week))
+    .map((entry) => entry.period);
+  return others.length > 0 && period > Math.min(...others) && period < Math.max(...others);
 };
 
 /** True when the course already fills ≥2 of some concrete week on the day, so one more drop stacks

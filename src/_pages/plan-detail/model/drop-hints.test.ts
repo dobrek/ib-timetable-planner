@@ -330,6 +330,34 @@ describe("deriveDropHints — day-scoped rules", () => {
     });
   });
 
+  describe("early-finish edge — week-aware bi-weekly escape", () => {
+    // A week-A placement of X/Y at the day edges: a bi-weekly flagged course can dodge by taking
+    // week B (the drop week is chosen after the drop), so the interior cell is a legal opposite-week
+    // drop, not a hard block — mirroring `crossCohortFit`.
+    const fBi = course("F", "tf", ["s"], "biweekly");
+    const weekA = (id: string, courseId: string, period: number): PlannerPlacement => ({
+      id,
+      courseId,
+      day: 1,
+      period,
+      week: "a",
+      isOptional: false,
+    });
+    const edgesWeekA = [weekA("px", "X", 1), weekA("py", "Y", 5)];
+
+    it("marks an interior cell opposite-week (not blocked) when a flagged bi-weekly course is interior on only one week", () => {
+      const result = deriveDropHints({ members: [fBi] }, edgesWeekA, catalog(fBi, x, y), undefined, undefined, FLAGGED);
+      // Interior on week A only → F on week B dodges → opposite-week, not blocked.
+      expect(result?.get(cellKey(1, 3))).toBe("opposite-week");
+    });
+
+    it("still blocks a flagged bi-weekly course interior on BOTH weeks (agnostic neighbors run every week)", () => {
+      // dayEdges' X/Y are agnostic (`both`), so neither week dodges them → hard block stands.
+      const result = deriveDropHints({ members: [fBi] }, dayEdges, catalog(fBi, x, y), undefined, undefined, FLAGGED);
+      expect(result?.get(cellKey(1, 3))).toBe("blocked");
+    });
+  });
+
   describe("same-day stacking", () => {
     const c = course("C", "tc", ["s"]);
     const twoOnDay1 = [placement("p1", "C", 1, 1), placement("p2", "C", 1, 2)];

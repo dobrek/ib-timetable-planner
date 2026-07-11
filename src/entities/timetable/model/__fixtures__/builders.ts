@@ -15,6 +15,7 @@ import type { AvailabilityIndex } from "../availability-index";
 import type { CellCollisions } from "../collision/collisions";
 import type { BoardContext } from "../collision/constraints";
 import type { CrossCohortIndex } from "../cross-cohort-index";
+import { buildDayOccupancyIndex } from "../day-occupancy-index";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import type { PlannerPlacement } from "../placement";
 
@@ -69,6 +70,29 @@ export const weekCtx = (weeks?: Record<string, PlacementWeek>, ...courses: Group
   ...cellCtx(...courses),
   ...(weeks ? { weekByCourseId: new Map(Object.entries(weeks)) } : {}),
 });
+
+/**
+ * Board context for the day-scoped rules: the inspected `cell`, the cell occupants' placement
+ * weeks, the `flagged` (finishes-early) id set, and a `dayOccupancy` index built from the full
+ * `placements` set (so a rule sees the student's/course's WHOLE day, not just this cell). `courses`
+ * is the validation catalog the index projects placements through.
+ */
+export const dayCtx = (opts: {
+  cell?: { day: number; period: number };
+  weeks?: Record<string, PlacementWeek>;
+  flagged?: string[];
+  placements: PlannerPlacement[];
+  courses: GroupingCourse[];
+}): BoardContext => {
+  const catalogById = catalog(...opts.courses);
+  return {
+    cell: opts.cell ?? { day: 1, period: 1 },
+    catalogById,
+    ...(opts.weeks ? { weekByCourseId: new Map(Object.entries(opts.weeks)) } : {}),
+    ...(opts.flagged ? { finishesEarlyByCourseId: new Set(opts.flagged) } : {}),
+    dayOccupancy: buildDayOccupancyIndex(opts.placements, catalogById),
+  };
+};
 
 /**
  * Board context carrying teacher-availability data (already as `Map`s). `cell` defaults

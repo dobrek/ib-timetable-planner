@@ -43,6 +43,10 @@ export const courseInput = z.object({
   cohort: cohortSchema,
   // Fortnightly eligibility: `agnostic` (meets every week) | `biweekly` (week A or B only).
   weekMode: weekModeSchema.default("agnostic"),
+  // Early-finish flag: the course must sit at the edge of each enrolled student's day
+  // (validated like a blocking collision). Delivered to the constraint core as a side-set,
+  // never as a GroupingCourse field — it does not affect slot compatibility.
+  finishesEarly: z.boolean().default(false),
   // Optional, visual-only subject color (a palette enum key). "None" = null.
   color: subjectColorSchema.nullable().default(null),
   // A course is co-taught by a set of one-or-more equal teachers (app-enforced ≥1).

@@ -13,4 +13,5 @@ export const toCourseRecord = (input: CourseInput) => ({
   hours_per_week: input.hoursPerWeek,
   week_mode: input.weekMode,
   color: input.color,
+  finishes_early: input.finishesEarly,
 });

@@ -275,6 +275,7 @@ export type Database = {
           cohort: Database["public"]["Enums"]["cohort"]
           color: string | null
           created_at: string
+          finishes_early: boolean
           group_index: number
           hours_per_week: number
           id: string
@@ -288,6 +289,7 @@ export type Database = {
           cohort: Database["public"]["Enums"]["cohort"]
           color?: string | null
           created_at?: string
+          finishes_early?: boolean
           group_index?: number
           hours_per_week: number
           id?: string
@@ -301,6 +303,7 @@ export type Database = {
           cohort?: Database["public"]["Enums"]["cohort"]
           color?: string | null
           created_at?: string
+          finishes_early?: boolean
           group_index?: number
           hours_per_week?: number
           id?: string

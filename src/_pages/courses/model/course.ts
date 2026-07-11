@@ -22,6 +22,8 @@ export type CourseRow = {
   weekMode: WeekMode;
   /** Optional, visual-only subject color (palette enum key); null when uncolored. */
   color: SubjectColor | null;
+  /** Early-finish flag — the course must sit at the edge of each enrolled student's day. */
+  finishesEarly: boolean;
   /** The course's co-teacher ids (set; ≥1 for app-authored courses). */
   teacherIds: string[];
   /** Display labels for `teacherIds`, resolved at load (parallel array, same order). */

@@ -36,6 +36,9 @@ export type TeacherViewCohortData = {
   courseDisplay: Record<string, CourseDisplay>;
   placements: PlannerPlacement[];
   studentNames: Record<string, string>;
+  /** Ids of this cohort's `finishes_early` courses, so the read-only perspective flags the
+   *  edge rule identically to the editing board. */
+  finishesEarlyCourseIds: string[];
 };
 
 export type TeacherPlanViewData = {
@@ -127,12 +130,14 @@ export const loadTeacherPlanView = async (
       courseDisplay: Object.fromEntries(dp1Catalog.courseDisplay),
       placements: (dp1Placements.data ?? []).map(toPlannerPlacement),
       studentNames: dp1StudentNames,
+      finishesEarlyCourseIds: dp1Catalog.finishesEarlyCourseIds,
     },
     dp2: {
       courses: dp2Catalog.courses,
       courseDisplay: Object.fromEntries(dp2Catalog.courseDisplay),
       placements: (dp2Placements.data ?? []).map(toPlannerPlacement),
       studentNames: dp2StudentNames,
+      finishesEarlyCourseIds: dp2Catalog.finishesEarlyCourseIds,
     },
   });
 };

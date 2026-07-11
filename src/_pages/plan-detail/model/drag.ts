@@ -46,6 +46,10 @@ export type SharedBoardProps = {
   availability: BoardAvailabilityCell[];
   /** teacherKey → display name (`full_name ?? code`), resolved from the union of both catalogs. */
   teacherNames: Record<string, string>;
+  /** Ids of every course flagged `finishes_early` across BOTH cohorts (course ids are globally
+   *  unique, so a plan-scoped union is correct — each cohort's derivation only ever looks up its
+   *  own placements' ids). The island indexes this into a Set for the edge rule. */
+  finishesEarlyByCourseId: string[];
 };
 
 /** Per-cohort props assembled server-side in `plans/[id]/index.astro` and handed to the island. */

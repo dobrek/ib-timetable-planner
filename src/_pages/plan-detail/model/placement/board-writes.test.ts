@@ -87,6 +87,7 @@ function makeHarness(
     catalogById: new Map((opts.catalog ?? []).map((c) => [c.id, c])),
     availabilityIndex: EMPTY_AVAILABILITY_INDEX,
     crossCohortIndex: EMPTY_CROSS_COHORT_INDEX,
+    finishesEarlyByCourseId: new Set<string>(),
     days: opts.days ?? 5,
     periods: opts.periods ?? 10,
     weekModeOf: (courseId) => weekModeByCourseId.get(courseId) ?? "agnostic",

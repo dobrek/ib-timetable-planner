@@ -9,6 +9,7 @@ export * from "./model/course-display";
 export * from "./model/hours";
 export * from "./model/availability-index";
 export * from "./model/cross-cohort-index";
+export * from "./model/day-occupancy-index";
 export * from "./model/collision/cell-key";
 export * from "./model/collision/collisions";
 export * from "./model/collision/cell-occupants";

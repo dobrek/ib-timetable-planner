@@ -94,6 +94,38 @@ describe("narrowViolationsToTeacher", () => {
     expect(cell.unavailableIds).toEqual(new Set(["c1"]));
   });
 
+  it("keeps an early-finish-edge violation for the flagged course's teacher (courseIds narrowing)", () => {
+    const flagged = course("F", "T1", ["s1"]);
+    const x = course("X", "T2", ["s1"]);
+    const y = course("Y", "T3", ["s1"]);
+    const violations = deriveCellViolations(
+      [placement("pf", "F", 1, 3), placement("px", "X", 1, 1), placement("py", "Y", 1, 5)],
+      catalog(flagged, x, y),
+      undefined,
+      undefined,
+      new Set(["F"]),
+    );
+
+    const narrowed = narrowViolationsToTeacher(violations, "T1", new Set(["F"]));
+    const cell = getCell(narrowed, cellKey(1, 3));
+    expect(cell.violations).toEqual([{ kind: "early-finish-edge", courseIds: ["F"], studentKeys: ["s1"] }]);
+    expect(cell.blockingIds).toEqual(new Set(["F"]));
+  });
+
+  it("keeps a course-day-stacking warn for the stacked course's teacher", () => {
+    const c = course("C", "T1", ["s1"]);
+    const violations = deriveCellViolations(
+      [placement("p1", "C", 1, 1), placement("p2", "C", 1, 2), placement("p3", "C", 1, 3)],
+      catalog(c),
+    );
+
+    const narrowed = narrowViolationsToTeacher(violations, "T1", new Set(["C"]));
+    const cell = getCell(narrowed, cellKey(1, 1));
+    expect(cell.violations).toEqual([{ kind: "course-day-stacking", courseIds: ["C"], count: 3 }]);
+    expect(cell.warningIds).toEqual(new Set(["C"]));
+    expect(cell.blockingIds).toEqual(new Set());
+  });
+
   it("rebuilds warn semantics for soft teacher-unavailable violations", () => {
     const mine = course("c1", "T1");
     const violations = deriveCellViolations(

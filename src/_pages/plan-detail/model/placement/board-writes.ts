@@ -52,6 +52,8 @@ export type BoardDeps = {
   catalogById: Map<string, GroupingCourse>;
   availabilityIndex: AvailabilityIndex;
   crossCohortIndex: CrossCohortIndex;
+  /** Flagged-id set so the auto-duplicate search skips cells the early-finish edge rule blocks. */
+  finishesEarlyByCourseId: Set<string>;
   days: number;
   periods: number;
   weekModeOf: (courseId: string) => WeekMode;
@@ -84,7 +86,16 @@ export type BoardWrites = {
  */
 export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): BoardWrites {
   const { placementsRef, setPlacements, setError, rpcs, recordEdit, snapshot } = ctx;
-  const { catalogById, availabilityIndex, crossCohortIndex, days, periods, weekModeOf, setLastDuplicated } = boardDeps;
+  const {
+    catalogById,
+    availabilityIndex,
+    crossCohortIndex,
+    finishesEarlyByCourseId,
+    days,
+    periods,
+    weekModeOf,
+    setLastDuplicated,
+  } = boardDeps;
 
   function movePlacement(placementId: string, cell: CellData) {
     const result = moveIntent(placementsRef.current, placementId, cell);
@@ -124,6 +135,7 @@ export function createBoardWrites(ctx: WriteContext, boardDeps: BoardDeps): Boar
       catalogById,
       availability: availabilityIndex,
       occupiedByTeacher: crossCohortIndex,
+      finishesEarlyByCourseId,
       days,
       periods,
     });

@@ -576,27 +576,27 @@ gating.
 
 #### Automated
 
-- [x] 2.1 Type gate passes with new kinds (`pnpm check`)
-- [x] 2.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [x] 2.3 New constraint/index tests + full unit suite pass (`pnpm test`)
-- [x] 2.4 Perf test remains under threshold (`pnpm test` — collisions.perf)
-- [x] 2.5 Production build stays clean (`pnpm build`)
+- [x] 2.1 Type gate passes with new kinds (`pnpm check`) — 4bfbc47
+- [x] 2.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`) — 4bfbc47
+- [x] 2.3 New constraint/index tests + full unit suite pass (`pnpm test`) — 4bfbc47
+- [x] 2.4 Perf test remains under threshold (`pnpm test` — collisions.perf) — 4bfbc47
+- [x] 2.5 Production build stays clean (`pnpm build`) — 4bfbc47
 
 ### Phase 3: Board delivery, drag hints, PRD registration
 
 #### Automated
 
-- [ ] 3.1 Type gate passes (`pnpm check`)
-- [ ] 3.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [ ] 3.3 Unit suite incl. parity + perf passes (`pnpm test`)
-- [ ] 3.4 Integration suite passes (`pnpm test:integration`)
-- [ ] 3.5 Production build stays clean (`pnpm build`)
+- [x] 3.1 Type gate passes (`pnpm check`)
+- [x] 3.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
+- [x] 3.3 Unit suite incl. parity + perf passes (`pnpm test`)
+- [x] 3.4 Integration suite passes (`pnpm test:integration`)
+- [x] 3.5 Production build stays clean (`pnpm build`)
 
 #### Manual
 
-- [ ] 3.6 Interior flagged placement blocks (red ring + dialog names the students)
-- [ ] 3.7 Moving that placement to the day edge clears the flag
-- [ ] 3.8 3-stack warns; 2/day stays silent
-- [ ] 3.9 Drag preview blocks interior cells for flagged courses; drag stays instant
-- [ ] 3.10 Teacher perspective shows identical flags
-- [ ] 3.11 Real manual plan renders accurate, non-spurious flags
+- [x] 3.6 Interior flagged placement blocks (red ring + dialog names the students)
+- [x] 3.7 Moving that placement to the day edge clears the flag
+- [x] 3.8 3-stack warns; 2/day stays silent
+- [x] 3.9 Drag preview blocks interior cells for flagged courses; drag stays instant
+- [x] 3.10 Teacher perspective shows identical flags
+- [x] 3.11 Real manual plan renders accurate, non-spurious flags

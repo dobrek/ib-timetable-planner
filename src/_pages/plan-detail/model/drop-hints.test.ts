@@ -291,3 +291,66 @@ describe("deriveDropHints — opposite-week (soft edge)", () => {
     expect(result?.has(cellKey(1, 1))).toBe(false);
   });
 });
+
+describe("deriveDropHints — day-scoped rules", () => {
+  // A flagged course F (student s) plus that student's other courses at the day's edges (periods 1
+  // and 5). Distinct teachers so only the day-scoped axis, not a teacher clash, drives the verdict.
+  const f = course("F", "tf", ["s"]);
+  const x = course("X", "tx", ["s"]);
+  const y = course("Y", "ty", ["s"]);
+  const dayEdges = [placement("px", "X", 1, 1), placement("py", "Y", 1, 5)];
+  const FLAGGED = new Set(["F"]);
+
+  describe("early-finish edge", () => {
+    it("blocks an empty interior cell while dragging a flagged course", () => {
+      const result = deriveDropHints({ members: [f] }, dayEdges, catalog(f, x, y), undefined, undefined, FLAGGED);
+      // (1,3) is empty and strictly between the student's edges (1 and 5) → blocked.
+      expect(result?.get(cellKey(1, 3))).toBe("blocked");
+    });
+
+    it("leaves an edge / off-day cell free while dragging a flagged course", () => {
+      const result = deriveDropHints({ members: [f] }, dayEdges, catalog(f, x, y), undefined, undefined, FLAGGED);
+      expect(result?.get(cellKey(1, 6))).toBeUndefined(); // period 6 > max edge (5) → not interior
+      expect(result?.get(cellKey(2, 3))).toBeUndefined(); // day 2 — student has no periods there
+    });
+
+    it("does not block interior cells for an UNflagged dragged course", () => {
+      const result = deriveDropHints({ members: [x] }, dayEdges, catalog(f, x, y), undefined, undefined, new Set());
+      expect(result?.get(cellKey(1, 3))).toBeUndefined();
+    });
+
+    it("excludes the drag origin from the what-if on a move", () => {
+      // F sits interior at (1,3); moving it should still see the student's edges (1,5) as OTHER
+      // periods, so a different interior cell stays blocked and the origin is forced blocked.
+      const placements = [...dayEdges, placement("pf", "F", 1, 3)];
+      const context = { members: [f], excludePlacementIds: ["pf"], origin: { day: 1, period: 3 } };
+      const result = deriveDropHints(context, placements, catalog(f, x, y), undefined, undefined, FLAGGED);
+      expect(result?.get(cellKey(1, 2))).toBe("blocked"); // still interior
+      expect(result?.get(cellKey(1, 3))).toBe("blocked"); // origin no-op
+    });
+  });
+
+  describe("same-day stacking", () => {
+    const c = course("C", "tc", ["s"]);
+    const twoOnDay1 = [placement("p1", "C", 1, 1), placement("p2", "C", 1, 2)];
+
+    it("warns an empty same-day cell that would be the course's 3rd period (grid supplied)", () => {
+      const result = deriveDropHints({ members: [c] }, twoOnDay1, catalog(c), undefined, undefined, new Set(), {
+        periods: 6,
+      });
+      expect(result?.get(cellKey(1, 4))).toBe("warn");
+    });
+
+    it("does not seed empty stacking cells without the grid (perf/parity degrade)", () => {
+      const result = deriveDropHints({ members: [c] }, twoOnDay1, catalog(c));
+      expect(result?.get(cellKey(1, 4))).toBeUndefined();
+    });
+
+    it("stays silent when only a legal double would result (origin excluded on move)", () => {
+      // Moving one of the two C placements within the day yields 2 total, not 3 → no warn.
+      const context = { members: [c], excludePlacementIds: ["p2"], origin: { day: 1, period: 2 } };
+      const result = deriveDropHints(context, twoOnDay1, catalog(c), undefined, undefined, new Set(), { periods: 6 });
+      expect(result?.get(cellKey(1, 4))).toBeUndefined();
+    });
+  });
+});

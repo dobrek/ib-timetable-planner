@@ -18,6 +18,9 @@ export type FindDuplicateTargetArgs = {
   catalogById: Map<string, GroupingCourse>;
   availability?: AvailabilityIndex;
   occupiedByTeacher?: CrossCohortIndex;
+  /** Flagged-id set so the search skips cells the early-finish edge rule blocks (inherited via
+   *  `deriveDropHints`). Omitted ⇒ empty ⇒ the edge rule contributes no blocks. */
+  finishesEarlyByCourseId?: Set<string>;
   days: number;
   periods: number;
 };
@@ -41,10 +44,19 @@ export function findDuplicateTarget({
   catalogById,
   availability,
   occupiedByTeacher,
+  finishesEarlyByCourseId,
   days,
   periods,
 }: FindDuplicateTargetArgs): CellData | undefined {
-  const hints = deriveDropHints({ members }, placements, catalogById, availability, occupiedByTeacher);
+  const hints = deriveDropHints(
+    { members },
+    placements,
+    catalogById,
+    availability,
+    occupiedByTeacher,
+    finishesEarlyByCourseId,
+    { periods },
+  );
   const occupied = bucketByCell(placements, catalogById);
 
   const emptyCells = rotatedColumnMajor(days, periods, source).filter(

@@ -75,6 +75,7 @@ const shared: SharedBoardProps = {
   periods: 6,
   availability: [],
   teacherNames: {},
+  finishesEarlyByCourseId: [],
 };
 
 const props = (cohort: "dp1" | "dp2", placements: LocalPlacement[], courseId: string): PlannerBoardProps => ({

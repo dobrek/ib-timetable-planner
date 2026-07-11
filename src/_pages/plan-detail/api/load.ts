@@ -151,6 +151,8 @@ export const loadCombinedPlannerData = async (
     periods,
     availability,
     teacherNames,
+    // Plan-scoped union of both cohorts' flagged ids — course ids are globally unique.
+    finishesEarlyByCourseId: unique([...dp1Catalog.finishesEarlyCourseIds, ...dp2Catalog.finishesEarlyCourseIds]),
   };
 
   const batchExport: BatchExportSources = { teachers: planTeachers, merges: courseMerges, courseLevels };

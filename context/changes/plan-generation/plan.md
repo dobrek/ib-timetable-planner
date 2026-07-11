@@ -731,9 +731,9 @@ preview are the guard against auth/embed regressions.
 
 #### Manual
 
-- [ ] 2.6 Spike measurements + engine verdict recorded in change.md
-- [ ] 2.7 Auth + plan-detail load verified in dev and preview (headers on, if CP-SAT)
-- [ ] 2.8 Author confirms the engine decision (checkpoint)
+- [x] 2.6 Spike measurements + engine verdict recorded in change.md — 8b46dec
+- [x] 2.7 Auth + plan-detail load verified in dev and preview (headers on, if CP-SAT) — 8b46dec
+- [x] 2.8 Author confirms the engine decision (checkpoint) — 8b46dec
 
 ### Phase 3: Atomic apply + one undo entry
 
@@ -759,19 +759,19 @@ preview are the guard against auth/embed regressions.
 
 #### Manual
 
-- [ ] 4.7 Cloned real plan generates to parity (slots + day edges, zero red flags)
-- [ ] 4.8 One undo reverts both cohorts; redo reapplies; reload agrees
-- [ ] 4.9 Cancel keeps a marked partial board; undo discards
-- [ ] 4.10 Disabled states behave (dirty board / plan complete tooltips)
-- [ ] 4.11 Badges show on flagged course chips (board + palette)
-- [ ] 4.12 Progress + Stop & keep render; board stays responsive during solve
+- [x] 4.7 Cloned real plan generates to parity (slots + day edges, zero red flags) — 857788f
+- [x] 4.8 One undo reverts both cohorts; redo reapplies; reload agrees — 857788f
+- [x] 4.9 Cancel keeps a marked partial board; undo discards — 857788f
+- [x] 4.10 Disabled states behave (dirty board / plan complete tooltips) — 857788f
+- [x] 4.11 Badges show on flagged course chips (board + palette) — 857788f
+- [x] 4.12 Progress + Stop & keep render; board stays responsive during solve — 857788f
 
 ### Phase 5: PRD & roadmap amendment
 
 #### Automated
 
-- [x] 5.1 Full local gate stays green (`pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm test` && `pnpm build`)
+- [x] 5.1 Full local gate stays green (`pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm test` && `pnpm build`) — 6295f60
 
 #### Manual
 
-- [ ] 5.2 No auto-placement non-goal reference remains in `context/foundation/`
+- [x] 5.2 No auto-placement non-goal reference remains in `context/foundation/` — 6295f60

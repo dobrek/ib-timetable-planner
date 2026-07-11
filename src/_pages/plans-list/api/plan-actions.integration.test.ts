@@ -74,7 +74,11 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   });
 
   it("delete cascades the full scenario and leaves the source untouched", async () => {
-    const clone = await clonePlan(supabase, { sourcePlanId: basePlanId, name: "Plan Actions Cascade" });
+    const clone = await clonePlan(supabase, {
+      sourcePlanId: basePlanId,
+      name: "Plan Actions Cascade",
+      includeBoard: true,
+    });
     registerPlan(clone.id);
 
     const baseCounts = {
@@ -113,7 +117,11 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     });
     if (rpcError) throw rpcError;
 
-    const clone = await clonePlan(supabase, { sourcePlanId: basePlanId, name: "Plan Actions Warm Clone" });
+    const clone = await clonePlan(supabase, {
+      sourcePlanId: basePlanId,
+      name: "Plan Actions Warm Clone",
+      includeBoard: true,
+    });
     registerPlan(clone.id);
 
     const { courses } = await loadCohortCourses(supabase, clone.id, "dp1");

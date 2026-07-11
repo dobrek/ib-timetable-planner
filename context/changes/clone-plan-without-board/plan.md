@@ -214,31 +214,31 @@ Additive and non-breaking. The 3-arg `clone_plan` defaults `p_include_board` to 
 
 #### Automated
 
-- [x] 1.1 Migration applies cleanly from scratch: `pnpm exec supabase db reset`
-- [x] 1.2 Types regenerate with no hand edits and typecheck passes: `pnpm lint`
-- [x] 1.3 Existing full-clone integration tests still pass: `pnpm test:integration`
-- [x] 1.4 New catalog-only integration test passes: `pnpm test:integration`
-- [x] 1.5 Build stays clean: `pnpm build`
+- [x] 1.1 Migration applies cleanly from scratch: `pnpm exec supabase db reset` — 2346be5
+- [x] 1.2 Types regenerate with no hand edits and typecheck passes: `pnpm lint` — 2346be5
+- [x] 1.3 Existing full-clone integration tests still pass: `pnpm test:integration` — 2346be5
+- [x] 1.4 New catalog-only integration test passes: `pnpm test:integration` — 2346be5
+- [x] 1.5 Build stays clean: `pnpm build` — 2346be5
 
 #### Manual
 
-- [x] 1.6 `pnpm exec supabase db diff` reports clean after reset
-- [x] 1.7 `clone_plan(<src>, 'x', false)` in Studio yields a full catalog and zero board rows
-- [x] 1.8 Named-param RPC call is unambiguous (no "function is not unique" error)
+- [x] 1.6 `pnpm exec supabase db diff` reports clean after reset — 2346be5
+- [x] 1.7 `clone_plan(<src>, 'x', false)` in Studio yields a full catalog and zero board rows — 2346be5
+- [x] 1.8 Named-param RPC call is unambiguous (no "function is not unique" error) — 2346be5
 
 ### Phase 2: App layer — thread the flag to the dialog
 
 #### Automated
 
-- [ ] 2.1 Type checking + lint pass: `pnpm lint`
-- [ ] 2.2 FSD boundaries intact: `pnpm steiger`
-- [ ] 2.3 Unit suite passes: `pnpm test`
-- [ ] 2.4 Build stays clean: `pnpm build`
+- [x] 2.1 Type checking + lint pass: `pnpm lint`
+- [x] 2.2 FSD boundaries intact: `pnpm steiger`
+- [x] 2.3 Unit suite passes: `pnpm test`
+- [x] 2.4 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.5 Clone dialog shows the "Include board" toggle, default on
-- [ ] 2.6 Toggle on → cloned plan opens on a warm board (unchanged)
-- [ ] 2.7 Toggle off → cloned plan opens on `ComputeGroupingsEmptyState`; compute per cohort enumerates cleanly
-- [ ] 2.8 Catalog fully present in the catalog-only clone (courses/colors/rules, teachers + availability, students + choices)
-- [ ] 2.9 Dialog description accurately reflects what's omitted when the toggle is off
+- [x] 2.5 Clone dialog shows the "Include board" toggle, default on
+- [x] 2.6 Toggle on → cloned plan opens on a warm board (unchanged)
+- [x] 2.7 Toggle off → cloned plan opens on `ComputeGroupingsEmptyState`; compute per cohort enumerates cleanly
+- [x] 2.8 Catalog fully present in the catalog-only clone (courses/colors/rules, teachers + availability, students + choices)
+- [x] 2.9 Dialog description accurately reflects what's omitted when the toggle is off

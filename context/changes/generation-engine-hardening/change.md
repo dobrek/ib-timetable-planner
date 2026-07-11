@@ -1,7 +1,7 @@
 ---
 change_id: generation-engine-hardening
 title: Generation engine hardening & search upgrades
-status: implementing
+status: implemented
 created: 2026-07-12
 updated: 2026-07-12
 archived_at: null
@@ -39,3 +39,15 @@ phases; hard placement-time edge guard (matches the `plan-generation` decision t
 blocking violations; hybrid search loop (few seeded restarts, then LNS destroy-and-repair);
 stagnation-based early stop; property-based fuzz harness with verify-as-oracle. Benchmark
 bars stay at dp1 ≤ 50 / dp2 ≤ 48 (no tightening in this change).
+
+## Benchmark results (post-implementation, local Supabase, 2026-07-12)
+
+`pnpm bench:generation` on "Seed Plan A" after all five phases, 20 s budget:
+
+- **dp1**: 116 rows placed, **50 slots** (bar ≤ 50), 0 unplaced, 0 day-edge holes.
+- **dp2**: 134 rows placed, **46 slots** (bar ≤ 48), 0 unplaced, 0 day-edge holes.
+- **elapsed 9.2 s** (stagnation stop — well below the 20 s budget), 0 soft availability warns, 0 blocking violations.
+
+Bars hold with margin on dp2 (46 vs 48); dp1 sits exactly on its bar (50). Elapsed dropping to
+~9 s confirms the LNS + stagnation early-exit. These numbers are the reference for future
+bar-tightening (roadmap checkpoint 2.8), still deferred per this change's scope.

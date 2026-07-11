@@ -1,10 +1,10 @@
 ---
 change_id: clone-plan-without-board
 title: Clone plan without board
-status: impl_reviewed
+status: archived
 created: 2026-07-11
 updated: 2026-07-11
-archived_at: null
+archived_at: 2026-07-11T18:25:11Z
 ---
 
 ## Notes

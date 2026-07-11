@@ -20,6 +20,8 @@ export type PaletteCohortData = {
   groupings: PlannerGrouping[];
   courseDisplay: Record<string, CourseDisplay>;
   hours: Map<string, HoursStat>;
+  /** Plan-scoped `finishes_early` ids — flagged palette chips/rows carry the day-edge cue badge. */
+  finishesEarly: Set<string>;
   stale: boolean;
 };
 
@@ -100,6 +102,7 @@ export default function CombinedPalettePanel({
           groupings={active.groupings}
           courseDisplay={active.courseDisplay}
           hours={active.hours}
+          finishesEarly={active.finishesEarly}
         />
       ) : view === "stale" ? (
         <GroupingStalePanel planId={active.planId} cohort={active.cohort} />

@@ -57,6 +57,8 @@ export type PairedColumn = {
   placements: LocalPlacement[];
   courseDisplay: Record<string, CourseDisplay>;
   collisions: Map<string, CellCollisions>;
+  /** Plan-scoped `finishes_early` ids — resolved into each occupant's day-edge cue badge. */
+  finishesEarlyByCourseId: Set<string>;
   wiring: CellWiring;
 };
 
@@ -91,7 +93,7 @@ export default function PlannerGrid({ days, periods, gridLabel, columns, activeD
   const multi = columns.length > 1;
   // Resolve each column's occupants once (name + collision flags), exactly as before per column.
   const byCell = columns.map((column) =>
-    groupCellOccupants(column.placements, column.courseDisplay, column.collisions),
+    groupCellOccupants(column.placements, column.courseDisplay, column.collisions, column.finishesEarlyByCourseId),
   );
   const subColumns = columns.map(() => "minmax(7rem, 1fr)").join(" ");
 

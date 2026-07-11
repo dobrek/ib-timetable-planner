@@ -13,6 +13,7 @@ import { cn } from "@/shared/lib/class-names";
 import { type CellOccupant, type CollisionInspectionTarget, isBiweekly } from "@/entities/timetable";
 import type { PlacementDrag } from "../../../model/drag";
 import { stopDrag } from "../../../lib/drag-inert";
+import FinishesEarlyBadge from "../../FinishesEarlyBadge";
 import { ChipMenu } from "./ChipMenu";
 import { WeekToggle } from "./WeekToggle";
 
@@ -95,6 +96,7 @@ export function PlacedChip({
       <span className="truncate">{name}</span>
       {/* The "not quite real" cue (ghost grammar, see WeekLane's dashed placeholder). */}
       {placement.isOptional && <OptionalTag />}
+      {occupant.finishesEarly && <FinishesEarlyBadge />}
       {(blocking || warning) && (
         <Badge
           variant={blocking ? "destructive" : "warning"}

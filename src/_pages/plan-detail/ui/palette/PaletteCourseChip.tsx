@@ -4,6 +4,7 @@ import { subjectChipClass, type SubjectColor } from "@/shared/config";
 import HoursCounter from "./HoursCounter";
 import type { HoursStat } from "@/entities/timetable";
 import { cn } from "@/shared/lib/class-names";
+import FinishesEarlyBadge from "../FinishesEarlyBadge";
 
 type Props = {
   name: string;
@@ -11,6 +12,8 @@ type Props = {
   hours?: HoursStat;
   /** Optional subject color; when set its bg/text pair replaces the chip's `bg-background`. */
   color?: SubjectColor | null;
+  /** Course flagged `finishes_early` — shows the day-edge cue badge. */
+  finishesEarly?: boolean;
   isDragging: boolean;
   ref?: Ref<HTMLDivElement>;
 };
@@ -24,7 +27,7 @@ type Props = {
  * `isDragging` opacity is the in-place "in use" treatment while the drag clone
  * follows the pointer.
  */
-export default function PaletteCourseChip({ name, hours, color, isDragging, ref }: Props) {
+export default function PaletteCourseChip({ name, hours, color, finishesEarly, isDragging, ref }: Props) {
   return (
     <div
       ref={ref}
@@ -40,6 +43,7 @@ export default function PaletteCourseChip({ name, hours, color, isDragging, ref 
     >
       <GripVertical className="text-muted-foreground size-4" />
       <span className="truncate">{name}</span>
+      {finishesEarly && <FinishesEarlyBadge />}
       <HoursCounter hours={hours} />
     </div>
   );

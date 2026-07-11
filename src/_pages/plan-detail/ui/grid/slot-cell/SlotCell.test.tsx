@@ -19,6 +19,7 @@ const occupant = (courseId: string, name: string, week: PlacementWeek = "both"):
   blocking: false,
   warning: false,
   unavailable: false,
+  finishesEarly: false,
 });
 
 type CellProps = ComponentProps<typeof SlotCell>;

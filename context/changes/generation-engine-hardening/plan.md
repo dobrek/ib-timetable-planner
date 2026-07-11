@@ -394,9 +394,9 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Automated
 
-- [x] 2.1 Type gate passes: `pnpm check`
-- [x] 2.2 Unit suite green incl. comparator/tier tests: `pnpm test`
-- [x] 2.3 Lint passes: `pnpm lint`
+- [x] 2.1 Type gate passes: `pnpm check` — 25bf57e
+- [x] 2.2 Unit suite green incl. comparator/tier tests: `pnpm test` — 25bf57e
+- [x] 2.3 Lint passes: `pnpm lint` — 25bf57e
 
 #### Manual
 
@@ -406,9 +406,9 @@ No schema, API, or protocol migrations. `GenerationCohortDiagnostics.lowerBound`
 
 #### Automated
 
-- [ ] 3.1 Type gate passes: `pnpm check`
-- [ ] 3.2 Unit suite green incl. abort-latency test: `pnpm test`
-- [ ] 3.3 Lint passes: `pnpm lint`
+- [x] 3.1 Type gate passes: `pnpm check`
+- [x] 3.2 Unit suite green incl. abort-latency test: `pnpm test`
+- [x] 3.3 Lint passes: `pnpm lint`
 
 #### Manual
 

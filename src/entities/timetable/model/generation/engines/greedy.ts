@@ -3,7 +3,14 @@ import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { cellKey } from "../../collision/cell-key";
 import { deriveGenerationDeficits } from "../deficits";
 import { countOccupiedSlots } from "../occupied-slots";
-import type { CourseDeficit, GeneratePlan, GeneratedPlacement, GenerationResult, GeneratorSnapshot } from "../types";
+import type {
+  CourseDeficit,
+  GeneratePlan,
+  GeneratedPlacement,
+  GenerationProgress,
+  GenerationResult,
+  GeneratorSnapshot,
+} from "../types";
 
 /**
  * The shipped engine (Phase 2 verdict — see change.md): GRASP over a clique backbone.
@@ -25,16 +32,26 @@ export const generatePlanGreedy: GeneratePlan = async (snapshot, config, hooks =
   const deadline = startedAt + config.budgetMs;
   const problem = buildProblem(snapshot);
   const stopped = (): boolean => hooks.signal?.aborted === true || Date.now() >= deadline;
+  // Shared time-sliced yield: hands control back to the event loop (so the worker's cancel
+  // message can be observed and progress ticks can flow) only when a slice has elapsed since the
+  // last yield — per-iteration awaits would drown the descent budget in timer-clamp overhead.
+  const maybeYield = createYielder(startedAt, config.budgetMs, hooks.onProgress);
 
   // Attempt 1 is deterministic (no noise) and gets a generous descent share.
-  let best = runAttempt(problem, 1, 0, descentDeadline(deadline, startedAt, 0.4), stopped);
+  let best = await runAttempt(problem, 1, 0, descentDeadline(deadline, startedAt, 0.4), stopped, maybeYield);
   let seed = 1;
   while (!stopped()) {
-    await yieldToEventLoop();
-    hooks.onProgress?.({ elapsedMs: Date.now() - startedAt, budgetMs: config.budgetMs });
+    await maybeYield();
     if (stopped()) break;
     seed += 1;
-    const candidate = runAttempt(problem, seed, 1, descentDeadline(deadline, Date.now(), 0.1), stopped);
+    const candidate = await runAttempt(
+      problem,
+      seed,
+      1,
+      descentDeadline(deadline, Date.now(), 0.1),
+      stopped,
+      maybeYield,
+    );
     if (compareObjectives(candidate.objective, best.objective) < 0) best = candidate;
   }
 
@@ -178,13 +195,14 @@ export const compareObjectives = (a: Objective, b: Objective): number => {
   return 0;
 };
 
-const runAttempt = (
+const runAttempt = async (
   problem: Problem,
   seed: number,
   noise: number,
   descentUntil: number,
   stopped: () => boolean,
-): Candidate => {
+  maybeYield: () => Promise<void>,
+): Promise<Candidate> => {
   const { snapshot, courseById, flagged, strongNo, cellOrder, backbones } = problem;
   const { days, periods } = snapshot;
   const rng = mulberry32(seed);
@@ -465,6 +483,8 @@ const runAttempt = (
   for (const cohort of COHORT_ORDER) {
     let emptied = true;
     while ((emptied || Date.now() < descentUntil) && !stopped()) {
+      await maybeYield(); // once per descent outer iteration — the cancel/progress observation point
+      if (stopped()) break;
       if (!emptied && Date.now() >= descentUntil) break;
       emptied = false;
       const candidates = usedCells(cohort)
@@ -716,5 +736,30 @@ const sampleEdgeCell = (days: number, periods: number, rng: () => number): Set<s
 
 const descentDeadline = (deadline: number, from: number, share: number): number =>
   Math.min(deadline, from + Math.max(0, (deadline - from) * share));
+
+/** Timer-clamp overhead (~1–4 ms per turn) means yielding per iteration would evaporate the
+ *  descent budget; a 25 ms slice keeps cancel latency ≲ 100 ms while costing well under 1%. */
+const YIELD_SLICE_MS = 25;
+
+/**
+ * A shared, time-sliced yield point: hands control back to the event loop (so a pending cancel
+ * message is observed and a throttled progress tick fires) only when a slice has elapsed since
+ * the previous yield. Created once per generate call and threaded through every attempt so the
+ * cadence is global, not per-attempt.
+ */
+const createYielder = (
+  startedAt: number,
+  budgetMs: number,
+  onProgress?: (progress: GenerationProgress) => void,
+): (() => Promise<void>) => {
+  let lastYieldAt = startedAt;
+  return async (): Promise<void> => {
+    const now = Date.now();
+    if (now - lastYieldAt < YIELD_SLICE_MS) return;
+    lastYieldAt = now;
+    onProgress?.({ elapsedMs: now - startedAt, budgetMs });
+    await yieldToEventLoop();
+  };
+};
 
 const yieldToEventLoop = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));

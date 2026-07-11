@@ -1,7 +1,7 @@
 ---
 change_id: clone-plan-without-board
 title: Clone plan without board
-status: implementing
+status: implemented
 created: 2026-07-11
 updated: 2026-07-11
 archived_at: null

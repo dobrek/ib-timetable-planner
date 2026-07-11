@@ -230,15 +230,15 @@ Additive and non-breaking. The 3-arg `clone_plan` defaults `p_include_board` to 
 
 #### Automated
 
-- [x] 2.1 Type checking + lint pass: `pnpm lint`
-- [x] 2.2 FSD boundaries intact: `pnpm steiger`
-- [x] 2.3 Unit suite passes: `pnpm test`
-- [x] 2.4 Build stays clean: `pnpm build`
+- [x] 2.1 Type checking + lint pass: `pnpm lint` — 7fb0420
+- [x] 2.2 FSD boundaries intact: `pnpm steiger` — 7fb0420
+- [x] 2.3 Unit suite passes: `pnpm test` — 7fb0420
+- [x] 2.4 Build stays clean: `pnpm build` — 7fb0420
 
 #### Manual
 
-- [x] 2.5 Clone dialog shows the "Include board" toggle, default on
-- [x] 2.6 Toggle on → cloned plan opens on a warm board (unchanged)
-- [x] 2.7 Toggle off → cloned plan opens on `ComputeGroupingsEmptyState`; compute per cohort enumerates cleanly
-- [x] 2.8 Catalog fully present in the catalog-only clone (courses/colors/rules, teachers + availability, students + choices)
-- [x] 2.9 Dialog description accurately reflects what's omitted when the toggle is off
+- [x] 2.5 Clone dialog shows the "Include board" toggle, default on — 7fb0420
+- [x] 2.6 Toggle on → cloned plan opens on a warm board (unchanged) — 7fb0420
+- [x] 2.7 Toggle off → cloned plan opens on `ComputeGroupingsEmptyState`; compute per cohort enumerates cleanly — 7fb0420
+- [x] 2.8 Catalog fully present in the catalog-only clone (courses/colors/rules, teachers + availability, students + choices) — 7fb0420
+- [x] 2.9 Dialog description accurately reflects what's omitted when the toggle is off — 7fb0420

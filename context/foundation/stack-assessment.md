@@ -5,7 +5,7 @@ agent_readiness: ready
 context_type: brownfield
 stack_components:
   language: TypeScript
-  framework: Astro 6 + React 19 (islands)
+  framework: Astro 7 + React 19 (islands)
   build_tool: Astro/Vite
   test_runner: Vitest (unit/integration) + Playwright (E2E)
   package_manager: pnpm
@@ -50,7 +50,7 @@ gates_failed: 0
 | Component                         | Typed | Convention | Training Data | Documented | Verdict |
 |-----------------------------------|-------|------------|---------------|------------|---------|
 | Language (TypeScript)             | ✓     | —          | —             | —          | pass    |
-| Framework (Astro 6 + React 19)    | —     | ✓          | ✓             | ✓          | pass    |
+| Framework (Astro 7 + React 19)    | —     | ✓          | ✓             | ✓          | pass    |
 | Build tool (Astro/Vite)           | —     | ✓          | ✓             | ✓          | pass    |
 | Test runner (Vitest + Playwright) | —     | —          | ✓             | ✓          | pass    |
 

@@ -4,7 +4,7 @@ Interactive timetable planner for IB (International Baccalaureate) programmes. A
 
 ## Tech Stack
 
-- [Astro](https://astro.build/) v6 — server-first framework with React islands
+- [Astro](https://astro.build/) v7 — server-first framework with React islands
 - [React](https://react.dev/) v19 — interactive UI components (drag-and-drop grid, validation feedback)
 - [TypeScript](https://www.typescriptlang.org/) v6 — strict types across the codebase
 - [Tailwind CSS](https://tailwindcss.com/) v4 — utility-first styling

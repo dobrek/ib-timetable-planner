@@ -7,7 +7,7 @@ import { errorOf, type PlacementError } from "../placement/placement-transitions
 import { memberSetKey, placementBusinessKey } from "./affected-slice";
 import type { AffectedScope, AffectedSlice } from "./history-entry";
 import { diffReconcile } from "./reconcile";
-import { executeReconcilePlan, type ReconcileDeps } from "./reconcile-exec";
+import { executeReconcilePlan, type ReconcileDeps, type ReconcileRegion } from "./reconcile-exec";
 import {
   reconcileCardsOptimistic,
   reconcilePlacementsOptimistic,
@@ -114,10 +114,25 @@ export function useReconcileExecutor({
       // place, and the plan carries business keys, never ids — hence the resolver.
       resolveCardId: (members) => cardIdByMemberSet.get(memberSetKey(members)),
       resolvePlacementId: (key) => placementIdByKey.get(placementBusinessKey(key)),
+      applyGeneratedRegion: (cells, placements) => rpcs.applyGeneratedRegion({ cells, placements }),
+    };
+
+    // The full region behind the diff, for the atomic multi-cell batch path: the scope's cells
+    // plus the COMPLETE target row set (the plan alone is a diff — replacing a region with only
+    // `toPlace` would delete the region's untouched pre-existing rows).
+    const region: ReconcileRegion = {
+      cells: scope.cells.map(parseCellKey),
+      placements: target.placements.map(({ courseId, day, period, week, isOptional }) => ({
+        courseId,
+        day,
+        period,
+        week,
+        isOptional,
+      })),
     };
 
     try {
-      const result = await executeReconcilePlan(plan, deps);
+      const result = await executeReconcilePlan(plan, deps, region);
       setPlacements((prev) => settleReconcilePlacements(prev, placeEntries, result.placed));
       setParkedBundles((prev) => settleReconcileCards(prev, cardEntries, result.createdCards));
       setError(null); // a fully-successful reconcile dismisses any stale banner, like the forward persist* paths
@@ -133,6 +148,12 @@ export function useReconcileExecutor({
   }
 
   return { applyReconcile, reconciling };
+}
+
+/** Parse a `cellKey` string (`"day:period"`) back into coordinates for the region payload. */
+function parseCellKey(key: string): { day: number; period: number } {
+  const [day, period] = key.split(":").map(Number);
+  return { day, period };
 }
 
 /** The live cards matching a list of member-sets (multiset) — kept whole so rollback restores their ids. */

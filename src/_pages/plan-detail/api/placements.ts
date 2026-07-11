@@ -42,6 +42,27 @@ export const removeBundleMembersInput = z.object({
   courseIds: z.array(z.uuid()).min(1),
 });
 
+/**
+ * Atomic region replace for plan generation: make `cells` contain exactly `placements`.
+ * Cohort-tagged per row (plan-scoped), so one call carries both cohorts on forward apply and
+ * a single-cohort subset on undo/redo. Rows carry `week`/`isOptional` explicitly — the RPC
+ * converges retained rows to them (an undo target is authoritative for the region's state).
+ */
+export const applyGeneratedPlacementsInput = z.object({
+  planId: z.uuid(),
+  cells: z.array(z.object({ cohort: cohortSchema, day: dayField, period: periodField })).min(1),
+  placements: z.array(
+    z.object({
+      cohort: cohortSchema,
+      courseId: z.uuid(),
+      day: dayField,
+      period: periodField,
+      week: placementWeekSchema,
+      isOptional: z.boolean(),
+    }),
+  ),
+});
+
 export const updatePlacementWeekInput = z.object({
   id: z.uuid(),
   week: placementWeekSchema,
@@ -53,6 +74,9 @@ export const updatePlacementOptionalInput = z.object({
 });
 
 export type PlaceCourseInput = z.infer<typeof placeCourseInput>;
+export type ApplyGeneratedPlacementsInput = z.infer<typeof applyGeneratedPlacementsInput>;
+/** The region's final rows, partitioned per cohort for the two optimistic stores' settlement. */
+export type ApplyGeneratedPlacementsResult = { dp1: PlannerPlacement[]; dp2: PlannerPlacement[] };
 export type MoveBundleMembersInput = z.infer<typeof moveBundleMembersInput>;
 export type RemoveBundleMembersInput = z.infer<typeof removeBundleMembersInput>;
 export type UpdatePlacementWeekInput = z.infer<typeof updatePlacementWeekInput>;
@@ -76,6 +100,36 @@ export const placeCourse = async (supabase: Supabase, input: PlaceCourseInput): 
   });
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to place course: ${error.message}`);
   return toPlannerPlacement(data);
+};
+
+/**
+ * Region replace via the `apply_generated_placements` RPC — one atomic transaction that makes
+ * the listed cells contain exactly the listed placements (see the migration rationale: rows
+ * absent from the target are deleted, retained rows converge `week`/`is_optional` keeping
+ * their ids, missing rows insert under find-or-created bundles, emptied bundles drop).
+ * Returns the region's final rows partitioned per cohort for client settlement.
+ */
+export const applyGeneratedPlacements = async (
+  supabase: Supabase,
+  input: ApplyGeneratedPlacementsInput,
+): Promise<ApplyGeneratedPlacementsResult> => {
+  const { data, error } = await supabase.rpc("apply_generated_placements", {
+    p_plan_id: input.planId,
+    p_cells: input.cells,
+    p_placements: input.placements.map((row) => ({
+      cohort: row.cohort,
+      course_id: row.courseId,
+      day: row.day,
+      period: row.period,
+      week: row.week,
+      is_optional: row.isOptional,
+    })),
+  });
+  if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to apply generated placements: ${error.message}`);
+  return {
+    dp1: data.filter((row) => row.cohort === "dp1").map(toPlannerPlacement),
+    dp2: data.filter((row) => row.cohort === "dp2").map(toPlannerPlacement),
+  };
 };
 
 /**

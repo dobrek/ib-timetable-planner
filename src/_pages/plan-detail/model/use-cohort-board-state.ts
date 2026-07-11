@@ -2,9 +2,12 @@ import { useMemo } from "react";
 import {
   buildCrossCohortIndex,
   type CrossCohortIndex,
+  type GeneratedPlacement,
   type LocalPlacement,
   projectFromPlacements,
 } from "@/entities/timetable";
+import { applyGeneratedPlacements } from "../api/placement-client";
+import { buildGeneratedSegments, buildRegionPayload, generationHistoryEntry } from "./generation/apply-generated";
 import { type LensCriterion } from "./lens";
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
@@ -97,10 +100,39 @@ export function useCombinedBoardState(
   // only exist now that both bases have run (the downstream half of the ordering cycle).
   const history = useHistoryControls(store, { dp1: dp1Base.api, dp2: dp2Base.api });
 
+  // The generation apply verb (Phase 3 machinery; Phase 4's hook drives it): stage both cohorts
+  // optimistically, ONE plan-scoped atomic RPC carrying both cohorts' regions, settle from the
+  // returned rows, and record ONE two-cohort history entry (single undo press reverts both).
+  // Records via `store.push` directly (the forward path records on settled success — the
+  // recorder-bypass invariant concerns `applyReconcile`, which this never calls). Staged rows are
+  // `pending`, so both cohorts' `busy` gate undo/redo and drag writes while the RPC is in flight.
+  const bases = { dp1: dp1Base, dp2: dp2Base };
+  async function applyGenerated(generated: GeneratedPlacement[]): Promise<{ ok: boolean }> {
+    const segments = buildGeneratedSegments(
+      generated,
+      (cohort, scope) => bases[cohort].api.snapshot(scope),
+      () => crypto.randomUUID(),
+    );
+    if (segments.length === 0) return { ok: true };
+    for (const segment of segments) bases[segment.cohort].api.stageGenerated(segment.entries);
+    try {
+      const result = await applyGeneratedPlacements({ planId: shared.planId, ...buildRegionPayload(segments) });
+      for (const segment of segments)
+        bases[segment.cohort].api.settleGenerated(segment.entries, result[segment.cohort]);
+      const entry = generationHistoryEntry(segments);
+      if (entry) store.push(entry);
+      return { ok: true };
+    } catch (err: unknown) {
+      for (const segment of segments) bases[segment.cohort].api.failGenerated(segment.entries, err);
+      return { ok: false };
+    }
+  }
+
   return {
     dp1: toCohortState(dp1Props, dp1Base, dp1Deriv),
     dp2: toCohortState(dp2Props, dp2Base, dp2Deriv),
     history,
+    applyGenerated,
   };
 }
 

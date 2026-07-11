@@ -92,14 +92,27 @@ export function useHistoryControls(store: HistoryStore, cohortApis: Record<Cohor
     inFlightRef.current = true;
     const api = cohortApis[entry.cohort];
     const forward = api.snapshot(entry.scope); // the opposite-direction target, captured live before the reconcile
+    // A two-cohort entry (plan generation) reconciles its main segment, then the sibling's — both
+    // forwards captured up front. Each segment's reconcile is atomic per cohort; on a sibling
+    // failure the entry returns to its stack, and a retry converges (the already-reconciled main
+    // segment diffs to an empty plan, so only the failed sibling re-runs).
+    const siblingForward = entry.sibling ? cohortApis[entry.sibling.cohort].snapshot(entry.sibling.scope) : null;
     void api
       .applyReconcile(entry.target, entry.scope)
-      .then(({ ok }) => {
-        if (!ok) {
+      .then(async ({ ok }) => {
+        const sibling = entry.sibling;
+        const siblingOk =
+          ok && sibling ? (await cohortApis[sibling.cohort].applyReconcile(sibling.target, sibling.scope)).ok : ok;
+        if (!siblingOk) {
           restore(entry); // executor rolled the client back + surfaced the error; return the entry to its stack
           return;
         }
-        commit({ ...entry, target: forward }); // commit-on-success: move the exact popped entry to the opposite stack
+        // commit-on-success: move the exact popped entry to the opposite stack, targets flipped forward
+        commit({
+          ...entry,
+          target: forward,
+          ...(entry.sibling && siblingForward ? { sibling: { ...entry.sibling, target: siblingForward } } : {}),
+        });
       })
       .finally(() => {
         inFlightRef.current = false;

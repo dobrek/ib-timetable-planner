@@ -31,12 +31,21 @@ export type AffectedSlice = {
  * One step of history. `target` is the slice to reconcile *to*: an undo entry holds the `before`
  * slice (the pre-edit state); once undone it becomes a redo entry holding the captured-forward
  * slice (the post-edit state). `cohort` routes the reconcile to the right cohort's write path.
+ *
+ * `sibling` carries an optional second-cohort segment so one entry can revert BOTH cohorts in a
+ * single press — plan generation records exactly one such entry per Generate. The controls
+ * reconcile the main segment first, then the sibling; each runs its own cohort's (atomic)
+ * reconcile path. Ordinary per-cohort edits never set it.
  */
-export type HistoryEntry = {
+export type HistorySegment = {
   cohort: Cohort;
   scope: AffectedScope;
   target: AffectedSlice;
+};
+
+export type HistoryEntry = HistorySegment & {
   label: string;
+  sibling?: HistorySegment;
 };
 
 /** A placement identified by its business key — never by id (identity is not preserved across replay). */

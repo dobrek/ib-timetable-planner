@@ -4,12 +4,18 @@ import { makeRpcs } from "../api/rpcs";
 import type { AvailabilityIndex, CrossCohortIndex, LocalPlacement, PlannerPlacement } from "@/entities/timetable";
 import type { CellData } from "./drag";
 import type { GroupingCourse } from "./grouping/grouping";
-import type { PlacementError } from "./placement/placement-transitions";
+import { errorOf, type PlacementError } from "./placement/placement-transitions";
 import type { LocalParkedBundle, ParkedBundle, ParkedMember } from "./placement/parked";
 import { createBoardWrites, type DuplicateOutcome } from "./placement/board-writes";
 import { createShelfWrites } from "./placement/shelf-writes";
 import type { WriteContext } from "./placement/write-context";
 import { sliceAt } from "./history/affected-slice";
+import {
+  reconcilePlacementsOptimistic,
+  rollbackReconcilePlacements,
+  settleReconcilePlacements,
+  type PlaceEntry,
+} from "./history/reconcile-apply";
 import { useReconcileExecutor } from "./history/use-reconcile-executor";
 import { describeEdit, type EditKind } from "./history/history-label";
 import type { AffectedScope, AffectedSlice, HistoryEntry } from "./history/history-entry";
@@ -69,6 +75,13 @@ type UsePlacements = {
   snapshot: (scope: AffectedScope) => AffectedSlice;
   /** Drive both stores to a target slice over the existing RPCs, NON-recording (undo/redo executor). */
   applyReconcile: (target: AffectedSlice, scope: AffectedScope) => Promise<{ ok: boolean }>;
+  /** Stage a verified generated batch optimistically (multi-cell, pending temps). The combined
+   *  orchestrator owns the flow — one plan-scoped RPC, then settle/fail — and records the entry. */
+  stageGenerated: (entries: PlaceEntry[]) => void;
+  /** Swap staged temps for their server rows (business-key match) and clear any stale banner. */
+  settleGenerated: (entries: PlaceEntry[], rows: PlannerPlacement[]) => void;
+  /** Drop the staged temps and surface the failure through the existing error banner. */
+  failGenerated: (entries: PlaceEntry[], err: unknown) => void;
   /** True while any optimistic edit or reconcile is in flight — gates undo/redo against the ref-lag window. */
   busy: boolean;
   clearError: () => void;
@@ -184,6 +197,20 @@ export function usePlacements(
     ...shelf,
     snapshot,
     applyReconcile,
+    // The generated-batch staging primitives, built on the reconcile-apply transitions so the
+    // multi-cell optimistic pass, settle, and rollback each land in ONE state update (no-flicker).
+    // Staged rows are `pending`, so `busy` gates undo/redo and drag writes for free mid-apply.
+    stageGenerated: (entries) => {
+      setPlacements((prev) => reconcilePlacementsOptimistic(prev, [], entries));
+    },
+    settleGenerated: (entries, rows) => {
+      setPlacements((prev) => settleReconcilePlacements(prev, entries, rows));
+      setError(null);
+    },
+    failGenerated: (entries, err) => {
+      setPlacements((prev) => rollbackReconcilePlacements(prev, entries, []));
+      setError(errorOf(err));
+    },
     busy,
     clearError: () => {
       setError(null);

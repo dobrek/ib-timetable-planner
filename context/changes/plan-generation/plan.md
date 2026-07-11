@@ -723,11 +723,11 @@ preview are the guard against auth/embed regressions.
 
 #### Automated
 
-- [x] 2.1 Type gate passes (`pnpm check`)
-- [x] 2.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [x] 2.3 Unit suite incl. CI smoke passes (`pnpm test`)
-- [x] 2.4 Benchmark passes for the chosen engine (`pnpm bench:generation`)
-- [x] 2.5 Production build stays clean (`pnpm build`)
+- [x] 2.1 Type gate passes (`pnpm check`) — 8b46dec
+- [x] 2.2 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`) — 8b46dec
+- [x] 2.3 Unit suite incl. CI smoke passes (`pnpm test`) — 8b46dec
+- [x] 2.4 Benchmark passes for the chosen engine (`pnpm bench:generation`) — 8b46dec
+- [x] 2.5 Production build stays clean (`pnpm build`) — 8b46dec
 
 #### Manual
 
@@ -739,12 +739,12 @@ preview are the guard against auth/embed regressions.
 
 #### Automated
 
-- [ ] 3.1 Migration applies cleanly (`pnpm exec supabase db reset`)
-- [ ] 3.2 Type gate passes after types regen (`pnpm check`)
-- [ ] 3.3 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
-- [ ] 3.4 Unit suite passes (`pnpm test`)
-- [ ] 3.5 Integration suite passes (`pnpm test:integration`)
-- [ ] 3.6 Production build stays clean (`pnpm build`)
+- [x] 3.1 Migration applies cleanly (`pnpm exec supabase db reset`)
+- [x] 3.2 Type gate passes after types regen (`pnpm check`)
+- [x] 3.3 Lint + FSD structure pass (`pnpm lint` && `pnpm steiger`)
+- [x] 3.4 Unit suite passes (`pnpm test`)
+- [x] 3.5 Integration suite passes (`pnpm test:integration`)
+- [x] 3.6 Production build stays clean (`pnpm build`)
 
 ### Phase 4: Worker seat + Generate UX
 

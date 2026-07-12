@@ -506,7 +506,7 @@ of courses occupying one slot, treated as a unit with identity.
 **Carried forward from the product's existing non-goals (still out of scope):**
 
 - Room / location validation.
-- End-to-end automatic timetable optimization / auto-placement.
+- ~~End-to-end automatic timetable optimization / auto-placement.~~ _Reversed by the `plan-generation` change (2026-07-11) — shipped as zero-config fill-the-gaps generation; see PRD FR-016 and `roadmap.md`._
 - Custom slot-grid editor (presets only).
 - Student- and teacher-facing self-entry flows.
 - Multi-school / cross-school tenancy.

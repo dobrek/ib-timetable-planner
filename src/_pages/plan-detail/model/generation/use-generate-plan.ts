@@ -22,11 +22,18 @@ export type GenerationSummary = {
   softWarnCount: number;
 };
 
+/**
+ * The combined apply outcome. `reason: "stale"` means the apply-time re-verify rejected the result
+ * because the board changed under the solve — nothing was applied and the message is the hook's to
+ * surface. A plain `{ ok: false }` is an RPC failure the cohort error banners already surfaced.
+ */
+export type ApplyGeneratedResult = { ok: true } | { ok: false; reason?: "stale" };
+
 export type UseGeneratePlanDeps = {
   /** Assemble the live combined board state into the engine's snapshot (pure, captured at click). */
   assemble: () => GeneratorSnapshot;
-  /** The Phase 3 combined apply: one atomic RPC, one two-cohort history entry. */
-  applyGenerated: (placements: GeneratedPlacement[]) => Promise<{ ok: boolean }>;
+  /** The Phase 3 combined apply: apply-time re-verify, one atomic RPC, one two-cohort history entry. */
+  applyGenerated: (placements: GeneratedPlacement[]) => Promise<ApplyGeneratedResult>;
   /** True while other board writes are unsettled — Generate participates in the same gating. */
   busy: boolean;
   /** Identity of each cohort's live placements — a change while a summary shows dismisses it. */
@@ -123,9 +130,14 @@ export function useGeneratePlan({
         return;
       }
       setRun({ status: "applying" });
-      void applyGenerated(message.result.placements).then(({ ok }) => {
-        // On failure the apply already rolled back and surfaced the cohort error banners.
-        if (ok) setSummary({ diagnostics: message.result.diagnostics, softWarnCount: message.verdict.softWarnCount });
+      void applyGenerated(message.result.placements).then((outcome) => {
+        if (outcome.ok) {
+          setSummary({ diagnostics: message.result.diagnostics, softWarnCount: message.verdict.softWarnCount });
+        } else if (outcome.reason === "stale") {
+          // The board changed under the solve — the apply-time re-verify rejected it; nothing applied.
+          setError("The board changed while generating — nothing was applied. Generate again.");
+        }
+        // else: an RPC failure the apply already rolled back and surfaced via the cohort error banners.
         setRun({ status: "idle" });
       });
     };

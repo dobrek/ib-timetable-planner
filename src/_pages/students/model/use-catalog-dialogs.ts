@@ -11,6 +11,10 @@ export type StudentDialogState = {
   deleteTarget: StudentRow | null;
   openDelete: (student: StudentRow) => void;
   closeDelete: () => void;
+
+  bulkOpen: boolean;
+  openBulk: () => void;
+  closeBulk: () => void;
 };
 
 /**
@@ -20,6 +24,7 @@ export function useCatalogDialogs(): StudentDialogState {
   const [formOpen, setFormOpen] = useState(false);
   const [formStudent, setFormStudent] = useState<StudentRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudentRow | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const openCreate = () => {
     setFormStudent(null);
@@ -43,6 +48,14 @@ export function useCatalogDialogs(): StudentDialogState {
     setDeleteTarget(null);
   };
 
+  const openBulk = () => {
+    setBulkOpen(true);
+  };
+
+  const closeBulk = () => {
+    setBulkOpen(false);
+  };
+
   return {
     formOpen,
     formStudent,
@@ -52,5 +65,8 @@ export function useCatalogDialogs(): StudentDialogState {
     deleteTarget,
     openDelete,
     closeDelete,
+    bulkOpen,
+    openBulk,
+    closeBulk,
   };
 }

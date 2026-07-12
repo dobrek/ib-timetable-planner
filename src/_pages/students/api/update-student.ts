@@ -12,8 +12,10 @@ import { CHOICES_CONFLICT_MESSAGE } from "./constants";
  * silently-lost choices. A cohort change is weaker: the row's new cohort commits first, so a
  * failure during reconciliation can leave old-cohort choices attached until the author
  * re-saves — visible in the table, but consumers (S-06 grouping) must not assume choice
- * cohorts match the student row. Closing this window needs a transaction, which the project
- * rules out (no client transactions, no new Postgres functions).
+ * cohorts match the student row. Keeping this path non-atomic is a per-change tradeoff, not
+ * a project rule: atomic set-writes go through a plpgsql RPC (replace_course_teachers, and
+ * bulk_edit_student_choices for the bulk path); the single-student diff simply hasn't needed
+ * one yet.
  */
 export const updateStudent = async (supabase: SupabaseClient, input: UpdateStudentInput) => {
   await assertChoicesInCohort(supabase, input.planId, input.cohort, input.choiceCourseIds);

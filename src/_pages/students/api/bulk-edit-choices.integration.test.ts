@@ -1,7 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
+import { DomainError } from "@/shared/lib/errors";
 import { addStudentWithChoices, createPlan, seedPlanCatalog, teardown } from "@/test/factories";
+import { bulkEditChoices } from "./bulk-edit-choices";
 
 // Bulk course-choice editing, driven against a factory-owned plan seeded with the
 // real CSV catalog, using the service_role/secret client (bypasses RLS for setup +
@@ -18,6 +20,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   let supabase: SupabaseClient<Database>;
   let planId: string;
   let coursesDp1: string[] = [];
+  let coursesDp2: string[] = [];
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
@@ -29,7 +32,10 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     const { data: merges } = await supabase.from("course_merges").select("parent_course_id").eq("plan_id", planId);
     const parentIds = new Set((merges ?? []).map((m) => m.parent_course_id));
     const { data: courses } = await supabase.from("courses").select("id, cohort").eq("plan_id", planId).order("name");
-    coursesDp1 = (courses ?? []).filter((c) => c.cohort === "dp1" && !parentIds.has(c.id)).map((c) => c.id);
+    const realInCohort = (cohort: "dp1" | "dp2") =>
+      (courses ?? []).filter((c) => c.cohort === cohort && !parentIds.has(c.id)).map((c) => c.id);
+    coursesDp1 = realInCohort("dp1");
+    coursesDp2 = realInCohort("dp2");
   });
 
   afterAll(async () => {
@@ -139,5 +145,96 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(error).not.toBeNull();
     // The whole call aborted — the valid student did NOT gain `a`.
     expect(await readChoices(valid)).toEqual([]);
+  });
+
+  // The bulkEditChoices domain fn adds the TS cohort gates on top of the raw RPC.
+  describe("bulkEditChoices domain fn", () => {
+    it("adds and removes across several students in one atomic call", async () => {
+      const [a, b, c] = coursesDp1;
+      const mk = (name: string, courseIds: string[]) =>
+        addStudentWithChoices(supabase, { planId, cohort: "dp1", fullName: name, courseIds });
+      const { studentId: s1 } = await mk("Bulk Fn S1", [a]);
+      const { studentId: s2 } = await mk("Bulk Fn S2", [a, b]);
+      const { studentId: s3 } = await mk("Bulk Fn S3", [b]);
+
+      // Add c to all three, remove b from all three — the literal story's fan-out.
+      await bulkEditChoices(supabase, {
+        planId,
+        cohort: "dp1",
+        studentIds: [s1, s2, s3],
+        addCourseIds: [c],
+        removeCourseIds: [b],
+      });
+      expect(await readChoices(s1)).toEqual([a, c].sort());
+      expect(await readChoices(s2)).toEqual([a, c].sort());
+      expect(await readChoices(s3)).toEqual([c]);
+    });
+
+    it("rejects an add-course from another cohort and leaves prior state untouched", async () => {
+      if (coursesDp2.length < 1) throw new Error("factory catalog is missing dp2 courses");
+      const [a] = coursesDp1;
+      const [dp2Course] = coursesDp2;
+      const { studentId: s1 } = await addStudentWithChoices(supabase, {
+        planId,
+        cohort: "dp1",
+        fullName: "Bulk Fn CrossCohort Course",
+        courseIds: [a],
+      });
+
+      await expect(
+        bulkEditChoices(supabase, {
+          planId,
+          cohort: "dp1",
+          studentIds: [s1],
+          addCourseIds: [dp2Course],
+          removeCourseIds: [],
+        }),
+      ).rejects.toBeInstanceOf(DomainError);
+      // Gate ran before the RPC — the student's choices are unchanged.
+      expect(await readChoices(s1)).toEqual([a]);
+    });
+
+    it("rejects a student from another cohort", async () => {
+      const [a] = coursesDp1;
+      const { studentId: dp2Student } = await addStudentWithChoices(supabase, {
+        planId,
+        cohort: "dp2",
+        fullName: "Bulk Fn CrossCohort Student",
+        courseIds: [],
+      });
+
+      await expect(
+        bulkEditChoices(supabase, {
+          planId,
+          cohort: "dp1",
+          studentIds: [dp2Student],
+          addCourseIds: [a],
+          removeCourseIds: [],
+        }),
+      ).rejects.toBeInstanceOf(DomainError);
+      expect(await readChoices(dp2Student)).toEqual([]);
+    });
+
+    it("rejects a student from another plan", async () => {
+      const [a] = coursesDp1;
+      const otherPlan = await createPlan(supabase);
+      const { studentId: crossPlan } = await addStudentWithChoices(supabase, {
+        planId: otherPlan,
+        cohort: "dp1",
+        fullName: "Bulk Fn CrossPlan Student",
+        courseIds: [],
+      });
+
+      await expect(
+        bulkEditChoices(supabase, {
+          planId,
+          cohort: "dp1",
+          studentIds: [crossPlan],
+          addCourseIds: [a],
+          removeCourseIds: [],
+        }),
+      ).rejects.toBeInstanceOf(DomainError);
+      expect(await readChoices(crossPlan)).toEqual([]);
+    });
   });
 });

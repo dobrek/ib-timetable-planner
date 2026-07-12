@@ -129,3 +129,23 @@ pure moves, both recorded here:
    A no-op on any valid descended board (so default-tuned output is unchanged and the bench
    envelope holds), it upholds the engine's hard invariant — never emit a board the oracle
    rejects. Confirmed: fuzz green 3/3 consecutive runs.
+
+### Phase 4 (2026-07-12)
+
+`generation/run.ts` adds `runVerifiedGeneration(engine, snapshot, config, hooks)` =
+precondition → engine → verdict, exported through the entity barrel; the worker becomes a
+thin transport that maps the outcome to protocol messages (precondition-failure keeps the
+exact prior error string) and keeps only progress throttling. `run.test.ts` covers the
+precondition-rejection path (dirty-pins snapshot → `ok: false, reason: "precondition"`, the
+injected fake engine never invoked) and the happy path (fake engine output → verdict from the
+real `verifyGeneration`).
+
+**Manual verification.** 4.3 Final bench: one `pnpm bench:generation` run → dp1 = 49 (≤ 50),
+dp2 = 46 — envelope unchanged by the refactor + validity gate. 4.4 App smoke (workerd
+`pnpm preview` + Playwright): signed in as the e2e author, opened a plan with an empty board
+(250 hours to place), clicked **Generate** — the runner seam ran end-to-end (progress
+"Generating… /20s", precondition passed) and applied: board → "All course hours placed",
+summary "DP1 slots 0 → 49, DP2 slots 0 → 46, 20.0s used" (matches the bench). The
+precondition-FAILURE branch (dirty board → error string) is covered by `run.test.ts` + the
+byte-identical worker error string rather than by hand-driving a drag-created blocking state
+(avoided the browser rabbit hole per the run directive). Preview port 4321 released.

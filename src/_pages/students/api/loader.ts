@@ -15,7 +15,12 @@ export type StudentCatalogResult = LoaderResult<StudentCatalogData>;
 export const loadStudentCatalog = (supabase: SupabaseClient | null, planId: string): Promise<StudentCatalogResult> =>
   withSupabase(supabase, (client) => fetchStudentCatalog(client, planId));
 
-const CHOICES_LIMIT = 2000;
+// The effective ceiling is PostgREST's `max_rows = 1000` (supabase/config.toml): every
+// response is capped there, so a guard set higher than 1000 can never fire and truncation
+// past 1000 choices would pass silently. Pinned to the real cap so the read fails loudly
+// instead. (Raising the cap / pagination — and the same unguarded ceiling on
+// load-cohort-courses.ts — are out of scope; explicit follow-up.)
+const CHOICES_LIMIT = 1000;
 
 const fetchStudentCatalog = async (client: SupabaseClient, planId: string): Promise<StudentCatalogData> => {
   const [studentsRes, choicesRes, coursesRes, mergesRes] = await Promise.all([

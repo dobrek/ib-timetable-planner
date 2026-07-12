@@ -335,25 +335,25 @@ Purely additive migration (one new function, no table changes) — safe for CI's
 
 #### Automated
 
-- [x] 1.1 Migration applies cleanly: `pnpm exec supabase db reset`
-- [x] 1.2 Type-check clean over regenerated types: `pnpm check`
-- [x] 1.3 Build passes: `pnpm build`
-- [x] 1.4 Integration tests pass: `pnpm test:integration`
-- [x] 1.5 Lint passes: `pnpm lint`
+- [x] 1.1 Migration applies cleanly: `pnpm exec supabase db reset` — 31d91f9
+- [x] 1.2 Type-check clean over regenerated types: `pnpm check` — 31d91f9
+- [x] 1.3 Build passes: `pnpm build` — 31d91f9
+- [x] 1.4 Integration tests pass: `pnpm test:integration` — 31d91f9
+- [x] 1.5 Lint passes: `pnpm lint` — 31d91f9
 
 #### Manual
 
-- [x] 1.6 Function callable in local Studio; hand-run call behaves idempotently
+- [x] 1.6 Function callable in local Studio; hand-run call behaves idempotently — 31d91f9
 
 ### Phase 2: Server Action + Client Wrapper
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass (schema refinements, summary helper): `pnpm test`
-- [ ] 2.2 Integration tests pass (domain-fn gates + happy path): `pnpm test:integration`
-- [ ] 2.3 Type-check clean: `pnpm check`
-- [ ] 2.4 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 2.5 Build passes: `pnpm build`
+- [x] 2.1 Unit tests pass (schema refinements, summary helper): `pnpm test`
+- [x] 2.2 Integration tests pass (domain-fn gates + happy path): `pnpm test:integration`
+- [x] 2.3 Type-check clean: `pnpm check`
+- [x] 2.4 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 2.5 Build passes: `pnpm build`
 
 ### Phase 3: Catalog Selection UI + Bulk Dialog
 

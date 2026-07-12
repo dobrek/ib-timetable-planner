@@ -1,7 +1,7 @@
 ---
 change_id: generation-engine-refactor
 title: Generation engine refactor — CI quality bar, decomposition, runner seam
-status: planned
+status: implementing
 created: 2026-07-12
 updated: 2026-07-12
 archived_at: null
@@ -68,3 +68,37 @@ slots); `studentHoles`-targeting move operator; week-aware hole metrics.
 
 Verification: `/verify` per phase; one `pnpm bench:generation` at the end to confirm
 the 50/46 envelope is unchanged.
+
+## Implementation Notes
+
+### Phase 1 (2026-07-12)
+
+**Descent fixture — constructive-vs-optimum (criterion 1.8).** The synthetic and small
+random instances are solved to the clique optimum by construction alone (this engine's
+stage 2 packing + stage 3 ejection chains are strong), so a small crown/bipartite graph
+does NOT force descent. The descent-required fixture (`__fixtures__/descent-catalog.ts`)
+was found by searching dense random catalogs for one where the full engine reaches the
+max-weight clique lower bound while construction-only overshoots it, then frozen as
+explicit literals: a 12-course / 28-hour / 5×6 instance whose clique floor (and proven
+optimum) is **14** slots. Measured: **construction alone lands at 15 slots; descent reaches
+14** (20/20 runs each at the fast test tuning). Because 14 is the clique floor, the
+`=== 14` assertion is machine-speed independent (the engine can never go below it and
+reliably reaches it). Mutation check (criterion 1.5): temporarily disabling stage 6 + LNS
+turns the bar red at 15; reverted.
+
+**Suite wall time (criterion 1.4).** Generation suite dropped from ~24 s to ~7 s by giving
+the solve-quality tests a fast-tuned engine (`createGreedyEngine({ stagnationMs: 150 })`);
+the cancel/progress/timing tests keep the default engine to assert real-time behaviour.
+
+**Bench dp2 = 46 pin (criterion 1.7).** `bench/generation.bench.ts` now builds
+`createGreedyEngine({ stagnationMs: 10_000 })` with `BUDGET_MS = 60_000`, `CEILING_MS =
+90_000`, `SLOT_BARS = { dp1: 50, dp2: 46 }`. Local validation: 5 consecutive
+`pnpm bench:generation` runs all landed **dp1 = 49, dp2 = 46** (each ran the full 60 s
+budget — stagnation does not fire on the real catalog). No fallback needed.
+
+**Bench CI job probation (criterion 1.9).** A non-blocking `bench` job was added to
+`ci.yml` (mirrors the integration job: checkout → setup → supabase-stack →
+`pnpm bench:generation`) plus `workflow_dispatch:` on the workflow. It is intentionally NOT
+in `deploy.needs` (confirmed unchanged: `[verify, integration, e2e]`). Promotion protocol
+recorded as a comment on the job: ~5 `workflow_dispatch` runs landing dp2 = 46 → promote to
+a required gate in a follow-up; if runners land 47 → hold CI bar at ≤ 47, keep local strict.

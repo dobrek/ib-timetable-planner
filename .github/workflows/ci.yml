@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual trigger for the bench-job probation runs (Critical Implementation Details): kick off a
+  # handful of `bench` runs to validate the dp2 = 46 pin's stability on GitHub runners before it is
+  # ever promoted to a deploy gate.
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref to save runner minutes/queue time, but never
 # cancel an in-flight `main` run mid-deploy (the guard evaluates false on main).
@@ -76,6 +80,24 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  bench:
+    name: "Generation benchmark (non-blocking)"
+    runs-on: ubuntu-latest
+    # NON-BLOCKING BY DESIGN — intentionally NOT in `deploy.needs`. The dp2 = 46 pin is validated on
+    # the dev machine; GitHub runners are slower and the pin's stability here is unproven. Promotion
+    # protocol (Critical Implementation Details): let this run for ~a week (or ~5 `workflow_dispatch`
+    # runs); if all land dp2 = 46, promote it to a required gate by adding `bench` to `deploy.needs`
+    # in a follow-up change; if runners land 47, hold the CI-side bar at ≤ 47 (bench file) while the
+    # local bench keeps the strict 46. Do NOT add this job to `deploy.needs` in this change.
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/supabase-stack
+
+      # The bench reads SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY from the env the composite action
+      # exported to $GITHUB_ENV; its describe.skip guard means a missing stack skips rather than fails.
+      - run: pnpm bench:generation
 
   deploy:
     name: "Deploy"

@@ -1,7 +1,7 @@
 ---
 change_id: generation-engine-hardening
 title: Generation engine hardening & search upgrades
-status: implemented
+status: impl_reviewed
 created: 2026-07-12
 updated: 2026-07-12
 archived_at: null
@@ -51,3 +51,22 @@ bars stay at dp1 ≤ 50 / dp2 ≤ 48 (no tightening in this change).
 Bars hold with margin on dp2 (46 vs 48); dp1 sits exactly on its bar (50). Elapsed dropping to
 ~9 s confirms the LNS + stagnation early-exit. These numbers are the reference for future
 bar-tightening (roadmap checkpoint 2.8), still deferred per this change's scope.
+
+## Implementation review (2026-07-12)
+
+Full-plan `/10x-impl-review` (report: `reviews/impl-review.md`). Verdict **APPROVED** — all five
+phases match their contracts (no missing items, no scope creep); the plan's flagged high-risk items
+(checkpoint-copy aliasing, LNS incumbent immutability, flagged-edge delta semantics, loop
+termination, seeded-PRNG fuzz, Workers-safety) all verified correct. 1 warning + 3 observations;
+three fixed during triage, one skipped:
+
+- **F1 (fixed)** — the fail-fast precondition ran outside the worker `try/catch`; a synchronous
+  `verifyGeneration` throw would drop as an unhandled rejection and hang the hook. Moved inside `try`.
+- **F2 (fixed)** — `GenerationCohortDiagnostics.lowerBound` doc overclaimed `occupiedSlotsAfter ≥
+  lowerBound`; softened to the `unplaced == 0` precondition (latent — no consumer yet).
+- **F4 (fixed)** — the migration-rollback path used a raw guarded `splice` instead of the throwing
+  `removeWhere`; routed through the helper for consistency.
+- **F3 (skipped)** — clique B&B + construction stages 2–5 have no interior yield; cancel latency is
+  bounded by one construction pass, immaterial at n≈40. Revisit only if the catalog grows large.
+
+Post-fix gate green: `pnpm check` 0/0/0, `pnpm lint` clean, `pnpm test` 1218 passed.

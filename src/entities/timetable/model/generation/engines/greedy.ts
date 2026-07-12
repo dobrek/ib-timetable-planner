@@ -708,13 +708,15 @@ const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candi
               break;
             }
             for (const member of relocated) {
-              const at = generated.findIndex(
+              // Exact inverse of the relocation above (each `relocated` member was pushed at freeP
+              // and indexed) — route through the throwing helper so a broken invariant surfaces
+              // loudly instead of silently dropping the last row like a raw `splice(-1)` would.
+              unindex(cohort, member.courseId, d, freeP, member.week);
+              removeWhere(
+                generated,
                 (x) => x.cohort === cohort && x.courseId === member.courseId && x.day === d && x.period === freeP,
+                `generated row ${member.courseId} @ ${cellKey(d, freeP)} (migration rollback)`,
               );
-              if (at !== -1) {
-                unindex(cohort, member.courseId, d, freeP, member.week);
-                generated.splice(at, 1);
-              }
               index(cohort, member.courseId, d, edgeP, member.week, false);
               generated.push({ cohort, courseId: member.courseId, day: d, period: edgeP, week: member.week });
             }

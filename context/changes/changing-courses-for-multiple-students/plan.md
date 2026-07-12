@@ -359,16 +359,16 @@ Purely additive migration (one new function, no table changes) — safe for CI's
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `pnpm test`
-- [x] 3.2 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 3.3 Build passes: `pnpm build`
-- [x] 3.4 E2E suite passes incl. `bulk-edit-choices.spec.ts`: `pnpm test:e2e`
-- [x] 3.5 Full local CI gate green: `/verify`
+- [x] 3.1 Unit tests pass: `pnpm test` — f579a9e
+- [x] 3.2 Lint + FSD structure pass: `pnpm lint && pnpm steiger` — f579a9e
+- [x] 3.3 Build passes: `pnpm build` — f579a9e
+- [x] 3.4 E2E suite passes incl. `bulk-edit-choices.spec.ts`: `pnpm test:e2e` — f579a9e
+- [x] 3.5 Full local CI gate green: `/verify` — f579a9e
 
 #### Manual
 
-- [x] 3.6 Add-only / remove-only work; empty-both blocked inline
-- [x] 3.7 Confirmation counts correct incl. zero-count assurance case
-- [x] 3.8 Cohort switch clears selection; indeterminate select-all on partial selection
-- [x] 3.9 Board live validation reflects new choices after a bulk edit
-- [x] 3.10 Accessibility pass (labeled checkboxes, dialog focus)
+- [x] 3.6 Add-only / remove-only work; empty-both blocked inline — f579a9e
+- [x] 3.7 Confirmation counts correct incl. zero-count assurance case — f579a9e
+- [x] 3.8 Cohort switch clears selection; indeterminate select-all on partial selection — f579a9e
+- [x] 3.9 Board live validation reflects new choices after a bulk edit — f579a9e
+- [x] 3.10 Accessibility pass (labeled checkboxes, dialog focus) — f579a9e

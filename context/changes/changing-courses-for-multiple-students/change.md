@@ -1,7 +1,7 @@
 ---
 change_id: changing-courses-for-multiple-students
 title: Changing courses for multiple students
-status: implementing
+status: implemented
 created: 2026-07-12
 updated: 2026-07-12
 archived_at: null

@@ -335,15 +335,15 @@ Purely additive migration (one new function, no table changes) — safe for CI's
 
 #### Automated
 
-- [ ] 1.1 Migration applies cleanly: `pnpm exec supabase db reset`
-- [ ] 1.2 Type-check clean over regenerated types: `pnpm check`
-- [ ] 1.3 Build passes: `pnpm build`
-- [ ] 1.4 Integration tests pass: `pnpm test:integration`
-- [ ] 1.5 Lint passes: `pnpm lint`
+- [x] 1.1 Migration applies cleanly: `pnpm exec supabase db reset`
+- [x] 1.2 Type-check clean over regenerated types: `pnpm check`
+- [x] 1.3 Build passes: `pnpm build`
+- [x] 1.4 Integration tests pass: `pnpm test:integration`
+- [x] 1.5 Lint passes: `pnpm lint`
 
 #### Manual
 
-- [ ] 1.6 Function callable in local Studio; hand-run call behaves idempotently
+- [x] 1.6 Function callable in local Studio; hand-run call behaves idempotently
 
 ### Phase 2: Server Action + Client Wrapper
 

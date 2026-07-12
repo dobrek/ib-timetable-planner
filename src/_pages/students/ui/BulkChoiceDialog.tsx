@@ -120,18 +120,24 @@ export default function BulkChoiceDialog({ open, onClose, planId, cohort, studen
             {step === "confirm" && <ConfirmationSummary summary={summary} labelById={labelById} />}
 
             <DialogFooter>
+              {/* Distinct keys per step: without them React reuses the second button's DOM node
+                  across the edit→confirm swap, mutating the clicked type="button" "Review…" into a
+                  type="submit" "Apply changes" in place — and because goToConfirm is async, the type
+                  flips before the click's default action resolves, firing a phantom submit that
+                  applies the edit and skips confirmation. Distinct keys force fresh nodes instead. */}
               {step === "edit" ? (
                 <>
-                  <Button type="button" variant="outline" onClick={onClose}>
+                  <Button key="cancel" type="button" variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={goToConfirm}>
+                  <Button key="review" type="button" onClick={goToConfirm}>
                     Review…
                   </Button>
                 </>
               ) : (
                 <>
                   <Button
+                    key="back"
                     type="button"
                     variant="outline"
                     onClick={() => {
@@ -140,7 +146,7 @@ export default function BulkChoiceDialog({ open, onClose, planId, cohort, studen
                   >
                     Back
                   </Button>
-                  <Button type="submit" disabled={form.formState.isSubmitting}>
+                  <Button key="apply" type="submit" disabled={form.formState.isSubmitting}>
                     Apply changes
                   </Button>
                 </>

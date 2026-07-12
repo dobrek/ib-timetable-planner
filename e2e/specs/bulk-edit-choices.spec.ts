@@ -52,6 +52,11 @@ test.describe("bulk edit course choices", () => {
       await expect(dialog.getByText("2 of 2 students will gain it")).toBeVisible();
       await expect(dialog.getByText("1 students will lose it")).toBeVisible();
       await expect(dialog.getByText(/review them afterwards/i)).toBeVisible();
+      // Review must only PREVIEW — regression guard against the phantom-submit bug where the reused
+      // footer button node turned "Review…" into a type="submit" in place, applying the edit and
+      // closing the dialog on the first click. On confirm we must still be here, Review gone.
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Review…" })).toHaveCount(0);
 
       // force: the button disables itself on submit (form.isSubmitting) and stays disabled
       // while the slower bulk mutation runs + refreshPage navigates, so a normal click's

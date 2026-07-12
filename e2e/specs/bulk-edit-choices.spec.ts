@@ -50,7 +50,7 @@ test.describe("bulk edit course choices", () => {
 
       // Confirmation step: gain/loss counts and the drift hint.
       await expect(dialog.getByText("2 of 2 students will gain it")).toBeVisible();
-      await expect(dialog.getByText("1 students will lose it")).toBeVisible();
+      await expect(dialog.getByText("1 of 2 students will lose it")).toBeVisible();
       await expect(dialog.getByText(/review them afterwards/i)).toBeVisible();
       // Review must only PREVIEW — regression guard against the phantom-submit bug where the reused
       // footer button node turned "Review…" into a type="submit" in place, applying the edit and

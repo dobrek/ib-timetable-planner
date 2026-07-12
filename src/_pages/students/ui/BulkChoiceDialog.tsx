@@ -215,8 +215,8 @@ function ConfirmationSummary({
         ))}
         {summary.removes.map((remove) => (
           <li key={`remove-${remove.courseId}`}>
-            <span className="font-medium">Remove {label(remove.courseId)}</span> — {remove.losses} students will lose it
-            ({summary.studentCount - remove.losses} don&apos;t have it)
+            <span className="font-medium">Remove {label(remove.courseId)}</span> — {remove.losses} of{" "}
+            {summary.studentCount} students will lose it
           </li>
         ))}
       </ul>

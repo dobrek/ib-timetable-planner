@@ -2,17 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { course, placement } from "../../__fixtures__/builders";
 import { SYNTHETIC_FLAGGED_COURSE_ID, syntheticGeneratorSnapshot } from "../__fixtures__/synthetic-catalog";
+import { countInteriorHoles } from "../objective";
 import type { GeneratorSnapshot } from "../types";
 import { verifyGeneration } from "../verify";
-import {
-  compareObjectives,
-  createGreedyEngine,
-  generatePlanGreedy,
-  maxWeightCliqueWeight,
-  type Objective,
-} from "./greedy";
+import { createGreedyEngine, generatePlanGreedy, maxWeightCliqueWeight } from "./greedy";
 
-// Fast-tuned instance for the solve-quality tests: a 250 ms stagnation window lets easily-solved
+// Fast-tuned instance for the solve-quality tests: a 150 ms stagnation window lets easily-solved
 // instances stop in ≲300 ms instead of burning a full multi-second budget, without stubbing
 // `Date.now`. The cancel/progress/timing tests below keep the default `generatePlanGreedy` because
 // they assert the shipped engine's real-time behaviour (abort latency, progress cadence).
@@ -24,17 +19,6 @@ const hourCourse = (id: string, teacher: string, studentKeys: string[]): Groupin
   ...course(id, teacher, studentKeys),
   hours: 1,
 });
-
-/** Interior free slots per day across a cohort's rows — the objective's second tier (holes). */
-const interiorHoles = (rows: { day: number; period: number }[]): number => {
-  let holes = 0;
-  const days = new Set(rows.map((row) => row.day));
-  for (const day of days) {
-    const used = new Set(rows.filter((row) => row.day === day).map((row) => row.period));
-    for (let p = Math.min(...used) + 1; p < Math.max(...used); p++) if (!used.has(p)) holes += 1;
-  }
-  return holes;
-};
 
 const totalDeficit = (snapshot: GeneratorSnapshot): number =>
   ["dp1", "dp2"].reduce(
@@ -275,7 +259,7 @@ describe("generatePlanGreedy", () => {
 
     for (const cohort of ["dp1", "dp2"] as const) {
       const rows = [...snapshot.cohorts[cohort].pins, ...result.placements.filter((row) => row.cohort === cohort)];
-      expect(interiorHoles(rows)).toBe(0);
+      expect(countInteriorHoles(rows, snapshot.days)).toBe(0);
     }
     expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);
   });
@@ -337,32 +321,5 @@ describe("maxWeightCliqueWeight", () => {
   it("excludes flagged courses from the bound", () => {
     const courses = [hc("A", "t", ["s1"], 3), hc("flag", "t", ["s2"], 5)];
     expect(maxWeightCliqueWeight(courses, new Set(["flag"]))).toBe(3);
-  });
-});
-
-describe("compareObjectives", () => {
-  const obj = (unplaced: number, holes: number, slots: number, studentHoles: number): Objective => [
-    unplaced,
-    holes,
-    slots,
-    studentHoles,
-  ];
-
-  it("lets one fewer slot win despite a large studentHoles disadvantage (the scalar's bug)", () => {
-    // Scalar score: 49*100 + 500 = 5400 vs 50*100 + 0 = 5000 — the scalar wrongly preferred the
-    // 50-slot board. The tuple compares the slot tier before compactness, so 49 slots wins.
-    expect(compareObjectives(obj(0, 0, 49, 500), obj(0, 0, 50, 0))).toBeLessThan(0);
-  });
-
-  it("ranks completeness above every other tier", () => {
-    expect(compareObjectives(obj(1, 0, 0, 0), obj(0, 99, 99, 99))).toBeGreaterThan(0);
-  });
-
-  it("ranks interior holes above slot count", () => {
-    expect(compareObjectives(obj(0, 1, 10, 0), obj(0, 2, 5, 0))).toBeLessThan(0);
-  });
-
-  it("returns 0 for identical tuples", () => {
-    expect(compareObjectives(obj(0, 1, 2, 3), obj(0, 1, 2, 3))).toBe(0);
   });
 });

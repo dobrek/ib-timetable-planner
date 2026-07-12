@@ -13,7 +13,7 @@ import { verifyGeneration } from "./verify";
  * plausible snapshots, on BOTH the empty board and a partially-pinned re-solve (pinning a subset of
  * a verified board reproduces the exact flagged-boxing class Phase 1 fixed). Completeness is NOT
  * asserted: random instances may be infeasible, so unplaced residue is legal — an invalid board is
- * never legal. Fixed seeds + a local `mulberry32` (no `Math.random`) keep every run reproducible;
+ * never legal. Fixed seeds + the shared `mulberry32` (no `Math.random`) keep every run reproducible;
  * to isolate a failing seed, change its `it(` to `it.only(` — the seed is printed in the message.
  */
 

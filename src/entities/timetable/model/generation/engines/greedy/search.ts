@@ -59,6 +59,11 @@ export type GreedyTuning = {
 /**
  * Build a `GeneratePlan` engine over the shipped GRASP/LNS search, with the two search windows
  * bound at construction. The returned closure is a plain port — no consumer sees the tuning.
+ *
+ * Precondition: the engine assumes a pins-only, conflict-free snapshot — index integrity and the
+ * "constructed board is always valid" fallback floor both depend on it, and the engine does NOT
+ * re-check it. Call through `runVerifiedGeneration` (which owns precondition → engine → verdict) or
+ * run the same precondition first; a raw engine call on a dirty snapshot can return an invalid board.
  */
 export const createGreedyEngine = (tuning: GreedyTuning = {}): GeneratePlan => {
   const stagnationMs = tuning.stagnationMs ?? DEFAULT_STAGNATION_MS;

@@ -397,10 +397,10 @@ None — no schema, API, or persisted-data changes. Import-path moves are intern
 
 #### Automated
 
-- [x] 4.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
-- [x] 4.2 `/verify` full gate green
+- [x] 4.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green — 31576ac
+- [x] 4.2 `/verify` full gate green — 31576ac
 
 #### Manual
 
-- [x] 4.3 Final bench run: dp1 ≤ 50, dp2 = 46
-- [x] 4.4 App smoke: clean-board Generate applies; dirty-board Generate shows precondition error
+- [x] 4.3 Final bench run: dp1 ≤ 50, dp2 = 46 — 31576ac
+- [x] 4.4 App smoke: clean-board Generate applies; dirty-board Generate shows precondition error — 31576ac

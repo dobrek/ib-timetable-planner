@@ -73,6 +73,9 @@ type UsePlacements = {
   removeParked: (shelfBundleId: string) => void;
   /** Read the live affected slice at a scope — the orchestrator's forward (redo) target capture. */
   snapshot: (scope: AffectedScope) => AffectedSlice;
+  /** Read the live full board + shelf state (both refs). The generation apply-time re-verify reads
+   *  this so a concurrent edit during the ~20 s solve can't commit a board the oracle never judged. */
+  liveState: () => { placements: LocalPlacement[]; parkedBundles: LocalParkedBundle[] };
   /** Drive both stores to a target slice over the existing RPCs, NON-recording (undo/redo executor). */
   applyReconcile: (target: AffectedSlice, scope: AffectedScope) => Promise<{ ok: boolean }>;
   /** Stage a verified generated batch optimistically (multi-cell, pending temps). The combined
@@ -188,6 +191,12 @@ export function usePlacements(
     return sliceAt(placementsRef.current, parkedBundlesRef.current, scope);
   }
 
+  // Read the live full board + shelf state (both refs) for the generation apply-time re-verify —
+  // same ref-read contract as `snapshot`: called only from the async apply path, never during render.
+  function liveState(): { placements: LocalPlacement[]; parkedBundles: LocalParkedBundle[] } {
+    return { placements: placementsRef.current, parkedBundles: parkedBundlesRef.current };
+  }
+
   return {
     placements,
     error,
@@ -196,6 +205,7 @@ export function usePlacements(
     parkedBundles,
     ...shelf,
     snapshot,
+    liveState,
     applyReconcile,
     // The generated-batch staging primitives, built on the reconcile-apply transitions so the
     // multi-cell optimistic pass, settle, and rollback each land in ONE state update (no-flicker).

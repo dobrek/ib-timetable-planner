@@ -111,6 +111,25 @@ describe("useGeneratePlan", () => {
     expect(hook.current.run).toEqual({ status: "idle" });
   });
 
+  it("surfaces the apply-time re-verify rejection (board changed under the solve) and sets no summary", async () => {
+    const applyGenerated = vi.fn().mockResolvedValue({ ok: false, reason: "stale" });
+    const { worker, result: hook } = setup({ applyGenerated });
+    act(() => {
+      hook.current.generate();
+    });
+
+    act(() => {
+      worker.emit({ kind: "done", result, verdict: okVerdict });
+    });
+
+    expect(applyGenerated).toHaveBeenCalledExactlyOnceWith(result.placements);
+    await waitFor(() => {
+      expect(hook.current.error).toMatch(/board changed while generating/i);
+    });
+    expect(hook.current.summary).toBeNull();
+    expect(hook.current.run).toEqual({ status: "idle" });
+  });
+
   it("surfaces the fail-fast precondition error inline and returns to idle", async () => {
     const { worker, applyGenerated, result: hook } = setup();
     act(() => {

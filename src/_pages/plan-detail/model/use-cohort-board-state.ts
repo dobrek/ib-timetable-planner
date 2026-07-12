@@ -6,11 +6,11 @@ import {
   type LocalPlacement,
   projectFromPlacements,
 } from "@/entities/timetable";
-import { deriveGenerationDeficits, type CellCollisions } from "@/entities/timetable";
+import { deriveGenerationDeficits, verifyGeneration, type CellCollisions } from "@/entities/timetable";
 import { applyGeneratedPlacements } from "../api/placement-client";
 import { buildGeneratedSegments, buildRegionPayload, generationHistoryEntry } from "./generation/apply-generated";
 import { assembleGeneratorSnapshot } from "./generation/assemble-snapshot";
-import { useGeneratePlan, type GeneratePlanControls } from "./generation/use-generate-plan";
+import { useGeneratePlan, type ApplyGeneratedResult, type GeneratePlanControls } from "./generation/use-generate-plan";
 import { type LensCriterion } from "./lens";
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
@@ -110,13 +110,24 @@ export function useCombinedBoardState(
   // recorder-bypass invariant concerns `applyReconcile`, which this never calls). Staged rows are
   // `pending`, so both cohorts' `busy` gate undo/redo and drag writes while the RPC is in flight.
   const bases = { dp1: dp1Base, dp2: dp2Base };
-  async function applyGenerated(generated: GeneratedPlacement[]): Promise<{ ok: boolean }> {
+  async function applyGenerated(generated: GeneratedPlacement[]): Promise<ApplyGeneratedResult> {
     const segments = buildGeneratedSegments(
       generated,
       (cohort, scope) => bases[cohort].api.snapshot(scope),
       () => crypto.randomUUID(),
     );
     if (segments.length === 0) return { ok: true };
+    // Apply-time re-verify: the engine judged its result against the CLICK-time snapshot, but the
+    // board stays editable through the ~20 s solve. Re-judge the generated rows against the LIVE
+    // board (read via refs, not the click-time closure) so a concurrent edit can't commit a board
+    // the oracle never saw — the same clean-board guarantee the block-until-clean gate enforces at
+    // click. `liveState()` and each segment's `snapshot(scope)` read the same refs in this one
+    // synchronous pass, so the captured `before` slices and this judgment agree.
+    const liveSnapshot = assembleGeneratorSnapshot(shared, {
+      dp1: { catalog: dp1Props.catalog, ...dp1Base.api.liveState() },
+      dp2: { catalog: dp2Props.catalog, ...dp2Base.api.liveState() },
+    });
+    if (!verifyGeneration(liveSnapshot, generated).ok) return { ok: false, reason: "stale" };
     for (const segment of segments) bases[segment.cohort].api.stageGenerated(segment.entries);
     try {
       const result = await applyGeneratedPlacements({ planId: shared.planId, ...buildRegionPayload(segments) });

@@ -158,6 +158,38 @@ type Row = ApplyGeneratedPlacementsInput["placements"][number];
     expect(await bundlesAt(cell)).toHaveLength(0);
   });
 
+  it("merge-undo shape: a multi-cell board-only region relocates a pre-existing row atomically, dropping the emptied source", async () => {
+    // The reconcile executor now routes ANY multi-cell board-only plan (notably merge-undo, which
+    // re-places across cells) through this RPC. This pins that inherited path end-to-end: a region
+    // over {source, target} whose target keeps the row only at `target` empties `source` in one call.
+    const source: Cell = { cohort: "dp1", day: 5, period: 2 };
+    const target: Cell = { cohort: "dp1", day: 5, period: 3 };
+    const course = dp1Courses[dp1Courses.length - 1];
+    await placeCourse(supabase, {
+      planId,
+      cohort: "dp1",
+      courseId: course,
+      day: 5,
+      period: 2,
+      week: "both",
+      isOptional: false,
+    });
+    expect(await rowsAt(source)).toHaveLength(1);
+
+    const result = await applyGeneratedPlacements(supabase, {
+      planId,
+      cells: [source, target],
+      placements: [gen("dp1", course, 5, 3)],
+    });
+
+    expect(result.dp1).toHaveLength(1);
+    expect(await rowsAt(source)).toHaveLength(0); // source emptied
+    expect(await bundlesAt(source)).toHaveLength(0); // its bundle dropped
+    const moved = await rowsAt(target);
+    expect(moved).toHaveLength(1);
+    expect(moved[0].course_id).toBe(course);
+  });
+
   it("replays idempotently — same payload, same rows, same ids", async () => {
     const cell: Cell = { cohort: "dp1", day: 5, period: 1 };
     const payload: ApplyGeneratedPlacementsInput = {

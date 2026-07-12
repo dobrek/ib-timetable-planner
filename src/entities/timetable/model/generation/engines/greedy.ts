@@ -28,79 +28,105 @@ import type {
  * the generator-hard 2/day cap and the flagged edge rule — are enforced per candidate cell;
  * pins are never moved. The caller re-judges the result via `verifyGeneration` regardless.
  */
-/** Constructive attempts for diversification before LNS takes over the polish (attempt 1 + 2 noisy). */
-const DIVERSIFY_ATTEMPTS = 3;
 /** Attempt descent share — reduced from the pre-LNS 0.4 since destroy-and-repair now owns the polish. */
 const ATTEMPT_DESCENT_SHARE = 0.1;
-/** Stop early once the incumbent is complete + hole-free and no LNS round has improved it for this long. */
-const STAGNATION_MS = 2_500;
 /** Fixed seed for the LNS operator PRNG — one stream across all rounds keeps the loop deterministic. */
 const LNS_SEED = 9973;
 
-export const generatePlanGreedy: GeneratePlan = async (snapshot, config, hooks = {}) => {
-  const startedAt = Date.now();
-  const deadline = startedAt + config.budgetMs;
-  const problem = buildProblem(snapshot);
-  const stopped = (): boolean => hooks.signal?.aborted === true || Date.now() >= deadline;
-  // Shared time-sliced yield: hands control back to the event loop (so the worker's cancel
-  // message can be observed and progress ticks can flow) only when a slice has elapsed since the
-  // last yield — per-iteration awaits would drown the descent budget in timer-clamp overhead.
-  const maybeYield = createYielder(startedAt, config.budgetMs, hooks.onProgress);
+/** Default constructive attempts for diversification before LNS takes over the polish (attempt 1 + 2 noisy). */
+const DEFAULT_DIVERSIFY_ATTEMPTS = 3;
+/** Default stagnation window: stop early once complete + hole-free and no LNS round improved for this long. */
+const DEFAULT_STAGNATION_MS = 2_500;
 
-  // Phase A — diversification: attempt 1 is deterministic; 2..K are seeded noisy restarts that
-  // escape a bad backbone. Each keeps only a small descent share; LNS does the real polishing.
-  let best = await runAttempt(problem, {
-    seed: 1,
-    noise: 0,
-    descentUntil: descentDeadline(deadline, startedAt, ATTEMPT_DESCENT_SHARE),
-    stopped,
-    maybeYield,
-  });
-  for (let seed = 2; seed <= DIVERSIFY_ATTEMPTS && !stopped(); seed++) {
-    await maybeYield();
-    if (stopped()) break;
-    const candidate = await runAttempt(problem, {
-      seed,
-      noise: 1,
-      descentUntil: descentDeadline(deadline, Date.now(), ATTEMPT_DESCENT_SHARE),
-      stopped,
-      maybeYield,
-    });
-    if (compareObjectives(candidate.objective, best.objective) < 0) best = candidate;
-  }
-
-  // Phase B — LNS: destroy a slice of the incumbent and repair it, accepting only tuple
-  // improvements; alternate the destroy operator each round. Stop early once the board is complete
-  // and hole-free and no round has improved it for the stagnation window (easy instances finish fast).
-  const lnsRng = mulberry32(LNS_SEED);
-  let lastImproveAt = Date.now();
-  for (let round = 1; !stopped(); round++) {
-    await maybeYield();
-    if (stopped()) break;
-    if (isConverged(best) && Date.now() - lastImproveAt >= STAGNATION_MS) break;
-    const candidate = await runAttempt(problem, {
-      seed: 0,
-      noise: 1,
-      descentUntil: Date.now(), // no spin — one productive descent pass per LNS round
-      stopped,
-      maybeYield,
-      lns: { incumbent: best, destroy: round % 2 === 0 ? "day" : "random", rng: lnsRng },
-    });
-    if (compareObjectives(candidate.objective, best.objective) < 0) {
-      best = candidate;
-      lastImproveAt = Date.now();
-    }
-  }
-
-  const stopReason: GenerationDiagnostics["stopReason"] =
-    hooks.signal?.aborted === true ? "cancelled" : Date.now() >= deadline ? "budget" : "stagnation";
-
-  return toResult(problem, best, {
-    elapsedMs: Date.now() - startedAt,
-    partial: hooks.signal?.aborted === true,
-    stopReason,
-  });
+/**
+ * The two wall-clock search knobs, injectable so tests and the bench can shrink (or extend) the
+ * solve windows without stubbing `Date.now` — the engine keeps time with the real clock throughout,
+ * so tuning the windows is the only lever. Omitting a field restores the shipped default, and
+ * `createGreedyEngine()` with no argument is bit-identical to the pre-factory engine.
+ */
+export type GreedyTuning = {
+  /** Stop window once complete + hole-free (default 2_500 ms). */
+  stagnationMs?: number;
+  /** Constructive attempts in Phase A (default 3). */
+  diversifyAttempts?: number;
 };
+
+/**
+ * Build a `GeneratePlan` engine over the shipped GRASP/LNS search, with the two search windows
+ * bound at construction. The returned closure is a plain port — no consumer sees the tuning.
+ */
+export const createGreedyEngine = (tuning: GreedyTuning = {}): GeneratePlan => {
+  const stagnationMs = tuning.stagnationMs ?? DEFAULT_STAGNATION_MS;
+  const diversifyAttempts = tuning.diversifyAttempts ?? DEFAULT_DIVERSIFY_ATTEMPTS;
+
+  return async (snapshot, config, hooks = {}) => {
+    const startedAt = Date.now();
+    const deadline = startedAt + config.budgetMs;
+    const problem = buildProblem(snapshot);
+    const stopped = (): boolean => hooks.signal?.aborted === true || Date.now() >= deadline;
+    // Shared time-sliced yield: hands control back to the event loop (so the worker's cancel
+    // message can be observed and progress ticks can flow) only when a slice has elapsed since the
+    // last yield — per-iteration awaits would drown the descent budget in timer-clamp overhead.
+    const maybeYield = createYielder(startedAt, config.budgetMs, hooks.onProgress);
+
+    // Phase A — diversification: attempt 1 is deterministic; 2..K are seeded noisy restarts that
+    // escape a bad backbone. Each keeps only a small descent share; LNS does the real polishing.
+    let best = await runAttempt(problem, {
+      seed: 1,
+      noise: 0,
+      descentUntil: descentDeadline(deadline, startedAt, ATTEMPT_DESCENT_SHARE),
+      stopped,
+      maybeYield,
+    });
+    for (let seed = 2; seed <= diversifyAttempts && !stopped(); seed++) {
+      await maybeYield();
+      if (stopped()) break;
+      const candidate = await runAttempt(problem, {
+        seed,
+        noise: 1,
+        descentUntil: descentDeadline(deadline, Date.now(), ATTEMPT_DESCENT_SHARE),
+        stopped,
+        maybeYield,
+      });
+      if (compareObjectives(candidate.objective, best.objective) < 0) best = candidate;
+    }
+
+    // Phase B — LNS: destroy a slice of the incumbent and repair it, accepting only tuple
+    // improvements; alternate the destroy operator each round. Stop early once the board is complete
+    // and hole-free and no round has improved it for the stagnation window (easy instances finish fast).
+    const lnsRng = mulberry32(LNS_SEED);
+    let lastImproveAt = Date.now();
+    for (let round = 1; !stopped(); round++) {
+      await maybeYield();
+      if (stopped()) break;
+      if (isConverged(best) && Date.now() - lastImproveAt >= stagnationMs) break;
+      const candidate = await runAttempt(problem, {
+        seed: 0,
+        noise: 1,
+        descentUntil: Date.now(), // no spin — one productive descent pass per LNS round
+        stopped,
+        maybeYield,
+        lns: { incumbent: best, destroy: round % 2 === 0 ? "day" : "random", rng: lnsRng },
+      });
+      if (compareObjectives(candidate.objective, best.objective) < 0) {
+        best = candidate;
+        lastImproveAt = Date.now();
+      }
+    }
+
+    const stopReason: GenerationDiagnostics["stopReason"] =
+      hooks.signal?.aborted === true ? "cancelled" : Date.now() >= deadline ? "budget" : "stagnation";
+
+    return toResult(problem, best, {
+      elapsedMs: Date.now() - startedAt,
+      partial: hooks.signal?.aborted === true,
+      stopReason,
+    });
+  };
+};
+
+/** The shipped default-tuned engine — the instance every app consumer uses. */
+export const generatePlanGreedy: GeneratePlan = createGreedyEngine();
 
 /** A board LNS can stop polishing: complete (nothing unplaced) and free of interior holes. */
 const isConverged = (candidate: Candidate): boolean => candidate.objective[0] === 0 && candidate.objective[1] === 0;

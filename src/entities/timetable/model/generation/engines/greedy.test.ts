@@ -4,9 +4,20 @@ import { course, placement } from "../../__fixtures__/builders";
 import { SYNTHETIC_FLAGGED_COURSE_ID, syntheticGeneratorSnapshot } from "../__fixtures__/synthetic-catalog";
 import type { GeneratorSnapshot } from "../types";
 import { verifyGeneration } from "../verify";
-import { compareObjectives, generatePlanGreedy, maxWeightCliqueWeight, type Objective } from "./greedy";
+import {
+  compareObjectives,
+  createGreedyEngine,
+  generatePlanGreedy,
+  maxWeightCliqueWeight,
+  type Objective,
+} from "./greedy";
 
-const BUDGET = { budgetMs: 2_000 };
+// Fast-tuned instance for the solve-quality tests: a 250 ms stagnation window lets easily-solved
+// instances stop in ≲300 ms instead of burning a full multi-second budget, without stubbing
+// `Date.now`. The cancel/progress/timing tests below keep the default `generatePlanGreedy` because
+// they assert the shipped engine's real-time behaviour (abort latency, progress cadence).
+const engine = createGreedyEngine({ stagnationMs: 150 });
+const BUDGET = { budgetMs: 1_000 };
 
 /** A single-hour course over one shared student — the minimal unit for the boxing regressions. */
 const hourCourse = (id: string, teacher: string, studentKeys: string[]): GroupingCourse => ({
@@ -36,7 +47,7 @@ describe("generatePlanGreedy", () => {
   it("solves the synthetic catalog completely and the verify judge accepts it", async () => {
     const snapshot = syntheticGeneratorSnapshot();
 
-    const result = await generatePlanGreedy(snapshot, BUDGET);
+    const result = await engine(snapshot, BUDGET);
 
     expect(result.placements).toHaveLength(totalDeficit(snapshot));
     expect(result.diagnostics.cohorts.dp1.unplaced).toEqual([]);
@@ -49,7 +60,7 @@ describe("generatePlanGreedy", () => {
   it("honours the hard-rule matrix on its output (2/day cap, weeks, flagged edges)", async () => {
     const snapshot = syntheticGeneratorSnapshot();
 
-    const { placements } = await generatePlanGreedy(snapshot, BUDGET);
+    const { placements } = await engine(snapshot, BUDGET);
 
     // 2/day cap per concrete week
     const dayCounts = new Map<string, number>();
@@ -77,7 +88,7 @@ describe("generatePlanGreedy", () => {
     const snapshot = syntheticGeneratorSnapshot();
     snapshot.cohorts.dp1.pins = [placement("pin-1", "dp1-math", 1, 2)];
 
-    const result = await generatePlanGreedy(snapshot, BUDGET);
+    const result = await engine(snapshot, BUDGET);
 
     const mathRows = result.placements.filter((row) => row.courseId === "dp1-math");
     expect(mathRows).toHaveLength(2); // 3 required − 1 pinned
@@ -89,7 +100,7 @@ describe("generatePlanGreedy", () => {
     const snapshot = syntheticGeneratorSnapshot();
     snapshot.cohorts.dp2.parkedCourseIds = ["dp2-chemistry", "dp2-chemistry"];
 
-    const result = await generatePlanGreedy(snapshot, BUDGET);
+    const result = await engine(snapshot, BUDGET);
 
     expect(result.placements.filter((row) => row.courseId === "dp2-chemistry")).toHaveLength(0);
   });
@@ -117,7 +128,7 @@ describe("generatePlanGreedy", () => {
         },
       };
 
-      const result = await generatePlanGreedy(snapshot, BUDGET);
+      const result = await engine(snapshot, BUDGET);
 
       expect(result.diagnostics.cohorts.dp1.unplaced).toEqual([]);
       expect(result.placements.filter((row) => row.courseId === "a" || row.courseId === "b")).toHaveLength(2);
@@ -146,7 +157,7 @@ describe("generatePlanGreedy", () => {
         },
       };
 
-      const result = await generatePlanGreedy(snapshot, BUDGET);
+      const result = await engine(snapshot, BUDGET);
 
       expect(result.diagnostics.cohorts.dp1.unplaced).toEqual([]);
       const flagRow = result.placements.find((row) => row.courseId === "flag");
@@ -176,7 +187,7 @@ describe("generatePlanGreedy", () => {
         },
       };
 
-      const result = await generatePlanGreedy(snapshot, BUDGET);
+      const result = await engine(snapshot, BUDGET);
 
       // exactly one filler fits (period 1 or 3, keeping the pin at an edge); the other is skipped
       expect(result.placements).toHaveLength(1);
@@ -260,7 +271,7 @@ describe("generatePlanGreedy", () => {
     // never worse than the (hole-free) constructive checkpoint the tiers already reward.
     const snapshot = syntheticGeneratorSnapshot();
 
-    const result = await generatePlanGreedy(snapshot, BUDGET);
+    const result = await engine(snapshot, BUDGET);
 
     for (const cohort of ["dp1", "dp2"] as const) {
       const rows = [...snapshot.cohorts[cohort].pins, ...result.placements.filter((row) => row.cohort === cohort)];
@@ -274,7 +285,7 @@ describe("search upgrades (LNS, stagnation, clique bound)", () => {
   it("reports a per-cohort lower bound in (0, occupiedSlotsAfter]", async () => {
     const snapshot = syntheticGeneratorSnapshot();
 
-    const result = await generatePlanGreedy(snapshot, BUDGET);
+    const result = await engine(snapshot, BUDGET);
 
     for (const cohort of ["dp1", "dp2"] as const) {
       const { lowerBound, occupiedSlotsAfter } = result.diagnostics.cohorts[cohort];
@@ -287,11 +298,13 @@ describe("search upgrades (LNS, stagnation, clique bound)", () => {
     const snapshot = syntheticGeneratorSnapshot();
     const startedAt = Date.now();
 
-    const result = await generatePlanGreedy(snapshot, { budgetMs: 8_000 });
+    // Tuned windows, not a long budget: the 250 ms stagnation stop fires well before the 2 s budget,
+    // so the assertion meaning ("stopped because it stagnated, not because time ran out") is unchanged.
+    const result = await engine(snapshot, { budgetMs: 2_000 });
 
     const elapsed = Date.now() - startedAt;
     expect(result.diagnostics.stopReason).toBe("stagnation");
-    expect(elapsed).toBeLessThan(8_000);
+    expect(elapsed).toBeLessThan(2_000);
     expect(result.diagnostics.cohorts.dp1.unplaced).toEqual([]);
     expect(result.diagnostics.cohorts.dp2.unplaced).toEqual([]);
     expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);

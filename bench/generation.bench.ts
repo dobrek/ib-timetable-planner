@@ -2,24 +2,33 @@ import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { loadCohortCourses } from "@/shared/api";
-import { generatePlanGreedy, type GeneratorSnapshot, verifyGeneration } from "@/entities/timetable";
+import { createGreedyEngine, type GeneratorSnapshot, verifyGeneration } from "@/entities/timetable";
 
 /**
- * The executable Phase 2 success bar (`pnpm bench:generation`, excluded from CI): the real
- * dp1+dp2 catalog snapshot through the shipped engine at full budget, asserting a complete,
- * zero-blocking-violation board within the 30 s ceiling, per-cohort occupied slots within
- * the recorded bars, and reporting the soft metrics (day-edge holes, elapsed).
+ * The executable real-catalog success bar (`pnpm bench:generation`, and the non-blocking `bench`
+ * CI job): the real dp1+dp2 catalog snapshot through the shipped engine at an extended budget,
+ * asserting a complete, zero-blocking-violation board within the ceiling, per-cohort occupied slots
+ * within the recorded bars, and reporting the soft metrics (day-edge holes, elapsed).
  *
- * Slot bars: the frame records the author's best manual board as "48 of 50" slots, but the
- * per-cohort manual counts are NOT recoverable from the local seed (no manual board is
- * seeded). Spike analysis (change.md, Phase 2 verdict) shows dp1's conflict-clique lower
- * bound is exactly 48 and neither engine reaches a complete dp1 board under 50 slots within
- * budget (CP-SAT, warm-started, 90 s: 49 in isolation). The bars below pin the shipped
- * engine's measured envelope; tightening them to the real manual counts is checkpoint 2.8.
+ * Slot bars — two different kinds:
+ *   • dp1 ≤ 50 is a *deferred parity bar*: the frame records the author's best manual board as
+ *     "48 of 50" but the per-cohort manual counts are not recoverable from the local seed, and
+ *     spike analysis (change.md) shows dp1's clique lower bound is 48 while neither engine reaches
+ *     a complete dp1 board under 50 within budget (CP-SAT, warm-started, 90 s: 49). Tightening it to
+ *     the real manual count is checkpoint 2.8.
+ *   • dp2 = 46 is a *regression envelope*: the shipped engine reliably reaches 46 here, so the bar
+ *     guards against a search regression that loses those slots. It is NOT a claim about the manual
+ *     optimum.
+ *
+ * Machine-speed independence: stagnation is wall-clock (`Date.now() - lastImproveAt`), so a faster
+ * machine runs more rounds per window. The engine is built with a 10 s stagnation window and a 60 s
+ * budget under a 90 s elapsed ceiling so the dp2 = 46 pin holds regardless of runner speed; pinning
+ * it under the old short windows would flake. Fallback (Critical Implementation Details): if a local
+ * run lands on 47, ship `≤ 47` here and record the observation in change.md.
  */
-const SLOT_BARS = { dp1: 50, dp2: 48 };
-const BUDGET_MS = 20_000;
-const CEILING_MS = 30_000;
+const SLOT_BARS = { dp1: 50, dp2: 46 };
+const BUDGET_MS = 60_000;
+const CEILING_MS = 90_000;
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -29,7 +38,9 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const snapshot = await loadSeedPlanSnapshot();
     const startedAt = Date.now();
 
-    const result = await generatePlanGreedy(snapshot, { budgetMs: BUDGET_MS });
+    // Extended stagnation window (see the bars comment) so the dp2 = 46 pin is machine-independent.
+    const engine = createGreedyEngine({ stagnationMs: 10_000 });
+    const result = await engine(snapshot, { budgetMs: BUDGET_MS });
     const elapsed = Date.now() - startedAt;
     const verdict = verifyGeneration(snapshot, result.placements);
 

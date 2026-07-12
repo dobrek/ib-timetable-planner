@@ -121,12 +121,15 @@ export const spill = (board: Board, problem: Problem, ctx: AttemptContext): void
 
 /** Stage 6 — slot-count descent: empty the least-occupied cells via ejection chains. */
 export const descendSlots = async (board: Board, problem: Problem, ctx: AttemptContext): Promise<void> => {
+  // Descent keeps spinning while a pass still empties a cell; once a pass empties nothing it runs only
+  // until the wall-clock budget is spent. The two budget checks are irreducible, not a triplicate: the
+  // loop guard, and a re-check after `maybeYield` (which awaits, so time can pass mid-iteration).
+  const outOfTime = (): boolean => Date.now() >= ctx.descentUntil;
   for (const cohort of ctx.cohortOrder) {
     let emptied = true;
-    while ((emptied || Date.now() < ctx.descentUntil) && !ctx.stopped()) {
+    while ((emptied || !outOfTime()) && !ctx.stopped()) {
       await ctx.maybeYield(); // once per descent outer iteration — the cancel/progress observation point
-      if (ctx.stopped()) break;
-      if (!emptied && Date.now() >= ctx.descentUntil) break;
+      if (ctx.stopped() || (!emptied && outOfTime())) break; // the yield may have consumed the budget
       emptied = false;
       const candidates = board
         .usedCells(cohort)
@@ -165,7 +168,6 @@ export const descendSlots = async (board: Board, problem: Problem, ctx: AttemptC
           break;
         }
       }
-      if (!emptied && Date.now() >= ctx.descentUntil) break;
     }
   }
 };

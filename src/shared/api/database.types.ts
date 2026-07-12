@@ -669,6 +669,15 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      bulk_edit_student_choices: {
+        Args: {
+          p_add_course_ids: Json
+          p_plan_id: string
+          p_remove_course_ids: Json
+          p_student_ids: Json
+        }
+        Returns: undefined
+      }
       clone_plan: {
         Args: {
           p_include_board?: boolean

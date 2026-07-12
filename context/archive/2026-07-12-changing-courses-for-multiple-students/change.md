@@ -1,10 +1,10 @@
 ---
 change_id: changing-courses-for-multiple-students
 title: Changing courses for multiple students
-status: impl_reviewed
+status: archived
 created: 2026-07-12
 updated: 2026-07-12
-archived_at: null
+archived_at: 2026-07-12T20:00:00Z
 ---
 
 ## Notes

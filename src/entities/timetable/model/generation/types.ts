@@ -62,7 +62,9 @@ export type GenerationCohortDiagnostics = {
   /** Deficits the engine could not place — the review panel's unplaced list. */
   unplaced: CourseDeficit[];
   /** Provable lower bound on this cohort's occupied slots (max-weight conflict clique, in hours).
-   *  Additive/optional: consumers that predate it ignore it. `occupiedSlotsAfter ≥ lowerBound`. */
+   *  Additive/optional: consumers that predate it ignore it. `occupiedSlotsAfter ≥ lowerBound`
+   *  holds only when the cohort is fully placed (`unplaced` empty); on an infeasible instance the
+   *  engine may seat fewer hours than the clique bound, so a consumer must clamp before rendering. */
   lowerBound?: number;
 };
 

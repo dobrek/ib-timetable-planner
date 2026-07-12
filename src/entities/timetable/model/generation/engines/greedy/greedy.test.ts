@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
-import { course, placement } from "../../__fixtures__/builders";
-import { SYNTHETIC_FLAGGED_COURSE_ID, syntheticGeneratorSnapshot } from "../__fixtures__/synthetic-catalog";
-import { countInteriorHoles } from "../objective";
-import type { GeneratorSnapshot } from "../types";
-import { verifyGeneration } from "../verify";
-import { createGreedyEngine, generatePlanGreedy, maxWeightCliqueWeight } from "./greedy";
+import { course, placement } from "../../../__fixtures__/builders";
+import { SYNTHETIC_FLAGGED_COURSE_ID, syntheticGeneratorSnapshot } from "../../__fixtures__/synthetic-catalog";
+import { countInteriorHoles } from "../../objective";
+import type { GeneratorSnapshot } from "../../types";
+import { verifyGeneration } from "../../verify";
+import { createGreedyEngine, generatePlanGreedy } from "./search";
 
 // Fast-tuned instance for the solve-quality tests: a 150 ms stagnation window lets easily-solved
 // instances stop in ≲300 ms instead of burning a full multi-second budget, without stubbing
@@ -282,7 +282,7 @@ describe("search upgrades (LNS, stagnation, clique bound)", () => {
     const snapshot = syntheticGeneratorSnapshot();
     const startedAt = Date.now();
 
-    // Tuned windows, not a long budget: the 250 ms stagnation stop fires well before the 2 s budget,
+    // Tuned windows, not a long budget: the 150 ms stagnation stop fires well before the 2 s budget,
     // so the assertion meaning ("stopped because it stagnated, not because time ran out") is unchanged.
     const result = await engine(snapshot, { budgetMs: 2_000 });
 
@@ -292,34 +292,5 @@ describe("search upgrades (LNS, stagnation, clique bound)", () => {
     expect(result.diagnostics.cohorts.dp1.unplaced).toEqual([]);
     expect(result.diagnostics.cohorts.dp2.unplaced).toEqual([]);
     expect(verifyGeneration(snapshot, result.placements).ok).toBe(true);
-  });
-});
-
-describe("maxWeightCliqueWeight", () => {
-  const hc = (id: string, teacher: string, students: string[], hours: number): GroupingCourse => ({
-    ...course(id, teacher, students),
-    hours,
-  });
-
-  it("returns the exact max-weight clique on a crafted conflict graph", () => {
-    // A(3)–B(2) share teacher t1; A(3)–C(2) share student s1; B–C are independent.
-    // Cliques: {A,B}=5, {A,C}=5 (B–C is not an edge, so {A,B,C} is not a clique) → max = 5.
-    const courses = [hc("A", "t1", ["s1"], 3), hc("B", "t1", ["s2"], 2), hc("C", "t2", ["s1"], 2)];
-    expect(maxWeightCliqueWeight(courses, new Set())).toBe(5);
-  });
-
-  it("sums all hours when every course mutually conflicts (complete graph)", () => {
-    const courses = [hc("A", "t", ["s1"], 3), hc("B", "t", ["s2"], 2), hc("C", "t", ["s3"], 2)];
-    expect(maxWeightCliqueWeight(courses, new Set())).toBe(7);
-  });
-
-  it("falls to the single largest node when courses are independent", () => {
-    const courses = [hc("A", "t1", ["s1"], 3), hc("B", "t2", ["s2"], 2)];
-    expect(maxWeightCliqueWeight(courses, new Set())).toBe(3);
-  });
-
-  it("excludes flagged courses from the bound", () => {
-    const courses = [hc("A", "t", ["s1"], 3), hc("flag", "t", ["s2"], 5)];
-    expect(maxWeightCliqueWeight(courses, new Set(["flag"]))).toBe(3);
   });
 });

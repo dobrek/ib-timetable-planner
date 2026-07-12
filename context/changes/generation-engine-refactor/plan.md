@@ -378,20 +378,20 @@ None — no schema, API, or persisted-data changes. Import-path moves are intern
 
 #### Automated
 
-- [x] 2.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
-- [x] 2.2 `objective.test.ts` covers countStudentHoles week expansion + lane math
+- [x] 2.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green — 1247e04
+- [x] 2.2 `objective.test.ts` covers countStudentHoles week expansion + lane math — 1247e04
 
 ### Phase 3: Decompose the Greedy Engine
 
 #### Automated
 
-- [ ] 3.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
-- [ ] 3.2 Quality-bar + fuzz tests pass unmodified (import paths aside)
-- [ ] 3.3 No file in `engines/greedy/` exceeds ~300 lines
+- [x] 3.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
+- [x] 3.2 Quality-bar + fuzz tests pass unmodified (import paths aside)
+- [x] 3.3 No file in `engines/greedy/` exceeds ~300 lines
 
 #### Manual
 
-- [ ] 3.4 Diff spot-check: mechanical moves only
+- [x] 3.4 Diff spot-check: mechanical moves only
 
 ### Phase 4: Runner Seam
 

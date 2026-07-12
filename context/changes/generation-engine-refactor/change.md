@@ -102,3 +102,30 @@ budget — stagnation does not fire on the real catalog). No fallback needed.
 in `deploy.needs` (confirmed unchanged: `[verify, integration, e2e]`). Promotion protocol
 recorded as a comment on the job: ~5 `workflow_dispatch` runs landing dp2 = 46 → promote to
 a required gate in a follow-up; if runners land 47 → hold CI bar at ≤ 47, keep local strict.
+
+### Phase 3 (2026-07-12) — two deviations from "mechanical moves only"
+
+`greedy.ts` split into `engines/greedy/{index,search,problem,board,stages}.ts`. The
+decomposition is behavior-preserving: instrumenting the pre-split engine and the new folder
+proved attempt-2 construction is byte-identical, rng-at-descent-entry is identical (284), and
+the descent place/evict op sequence is identical (73 = 73). Two intentional edits beyond
+pure moves, both recorded here:
+
+1. **`Board` is a `type`, not an `interface`.** The plan called for `interface Board` (the
+   one legitimate behavioral contract), but the flat ESLint config enforces
+   `@typescript-eslint/consistent-type-definitions: "type"`, and `pnpm lint` is a CI gate.
+   Expressed as a `type` with method members — same contract, lint-clean.
+
+2. **Validity gate on descended acceptance (`search.ts`).** The board abstraction adds a
+   little per-op overhead, which shifts how many iterations descent's wall-clock time-spin
+   (`while (emptied || Date.now() < descentUntil)`) runs — a source of nondeterminism that
+   exists in the shipped engine too. A different iteration count surfaced a *pre-existing
+   latent bug*: descent's ejection-chain rollback (`board.place(member, …)`) is not
+   re-validated, so a chain that fails after relocating a slice can leave a flagged course
+   boxed. The old engine avoided it for the fuzz seeds by timing luck (0/80 invalid across
+   varied budgets); the new engine hit it deterministically for fuzz seed 13. Fix:
+   `runAttempt` now accepts the descended board only if it beats construction AND
+   `verifyGeneration` passes, falling back to the always-valid constructed board otherwise.
+   A no-op on any valid descended board (so default-tuned output is unchanged and the bench
+   envelope holds), it upholds the engine's hard invariant — never emit a board the oracle
+   rejects. Confirmed: fuzz green 3/3 consecutive runs.

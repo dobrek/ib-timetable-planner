@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { loadCohortCourses } from "@/shared/api";
-import { createGreedyEngine, type GeneratorSnapshot, verifyGeneration } from "@/entities/timetable";
+import { countInteriorHoles, createGreedyEngine, type GeneratorSnapshot, verifyGeneration } from "@/entities/timetable";
 
 /**
  * The executable real-catalog success bar (`pnpm bench:generation`, and the non-blocking `bench`
@@ -50,7 +50,7 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
       // eslint-disable-next-line no-console -- benchmark report is its product
       console.log(
         `${cohort}: placed ${rows.length} rows, slots ${occupiedSlotsAfter} (bar ≤ ${SLOT_BARS[cohort]}), ` +
-          `unplaced ${unplaced.length}, day-edge holes ${countHoles(snapshot, rows)}`,
+          `unplaced ${unplaced.length}, day-edge holes ${countInteriorHoles(rows, snapshot.days)}`,
       );
     }
     // eslint-disable-next-line no-console -- benchmark report is its product
@@ -92,15 +92,4 @@ async function loadSeedPlanSnapshot(): Promise<GeneratorSnapshot> {
       dp2: { courses: dp2.courses, pins: [], parkedCourseIds: [] },
     },
   };
-}
-
-/** Interior free slots per day across the cohort board (day-edge quality metric). */
-function countHoles(snapshot: GeneratorSnapshot, rows: { day: number; period: number }[]): number {
-  let holes = 0;
-  for (let d = 1; d <= snapshot.days; d++) {
-    const used = new Set(rows.filter((row) => row.day === d).map((row) => row.period));
-    if (used.size === 0) continue;
-    for (let p = Math.min(...used) + 1; p < Math.max(...used); p++) if (!used.has(p)) holes += 1;
-  }
-  return holes;
 }

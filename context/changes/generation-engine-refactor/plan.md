@@ -361,25 +361,25 @@ None — no schema, API, or persisted-data changes. Import-path moves are intern
 
 #### Automated
 
-- [x] 1.1 `pnpm check` passes
-- [x] 1.2 `pnpm lint && pnpm steiger` pass
-- [x] 1.3 `pnpm test` green
-- [x] 1.4 Generation suite wall time ≤ 8 s
-- [x] 1.5 Quality-bar test proven red under disabled descent (mutation check, reverted)
-- [x] 1.6 `bench` CI job green on this change's own run
+- [x] 1.1 `pnpm check` passes — 432ab06
+- [x] 1.2 `pnpm lint && pnpm steiger` pass — 432ab06
+- [x] 1.3 `pnpm test` green — 432ab06
+- [x] 1.4 Generation suite wall time ≤ 8 s — 432ab06
+- [x] 1.5 Quality-bar test proven red under disabled descent (mutation check, reverted) — 432ab06
+- [x] 1.6 `bench` CI job green on this change's own run — 432ab06
 
 #### Manual
 
-- [x] 1.7 ~5 bench runs validate dp2 = 46 (or fallback recorded in change.md)
-- [x] 1.8 Constructive-vs-optimum measurement recorded in fixture comment
-- [x] 1.9 Probation/promotion protocol recorded; deploy.needs unchanged
+- [x] 1.7 ~5 bench runs validate dp2 = 46 (or fallback recorded in change.md) — 432ab06
+- [x] 1.8 Constructive-vs-optimum measurement recorded in fixture comment — 432ab06
+- [x] 1.9 Probation/promotion protocol recorded; deploy.needs unchanged — 432ab06
 
 ### Phase 2: Extract Engine-Agnostic Pieces
 
 #### Automated
 
-- [ ] 2.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
-- [ ] 2.2 `objective.test.ts` covers countStudentHoles week expansion + lane math
+- [x] 2.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
+- [x] 2.2 `objective.test.ts` covers countStudentHoles week expansion + lane math
 
 ### Phase 3: Decompose the Greedy Engine
 

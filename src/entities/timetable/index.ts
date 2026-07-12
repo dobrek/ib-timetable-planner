@@ -19,7 +19,10 @@ export * from "./model/generation/types";
 export * from "./model/generation/deficits";
 export * from "./model/generation/verify";
 export * from "./model/generation/occupied-slots";
-export * from "./model/generation/engines/greedy";
+export * from "./model/generation/objective";
+// Only the engine's public surface — not test-only internals (maxWeightCliqueWeight,
+// backboneCliques, …), which the slice's own tests import relatively.
+export { createGreedyEngine, generatePlanGreedy, type GreedyTuning } from "./model/generation/engines/greedy";
 export * from "./model/perspective";
 export * from "./model/perspective-course-list";
 export * from "./model/export/sheet-types";

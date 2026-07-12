@@ -2,7 +2,9 @@ import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { cellKey } from "../../collision/cell-key";
 import { deriveGenerationDeficits } from "../deficits";
+import { type Candidate, compareObjectives, scoreCandidate } from "../objective";
 import { countOccupiedSlots } from "../occupied-slots";
+import { mulberry32, pickFrom, shuffled } from "../rng";
 import type {
   CourseDeficit,
   GeneratePlan,
@@ -288,32 +290,6 @@ export const maxWeightCliqueWeight = (courses: GroupingCourse[], flagged: Set<st
 // ---------------------------------------------------------------------------------------
 
 type Row = { courseId: string; week: PlacementWeek; pinned: boolean };
-
-/** The lexicographic objective tuple: `[unplacedTotal, holes, totalSlots, studentHoles]` —
- *  completeness > interior holes > slot count > student compactness, compared tier-by-tier. */
-export type Objective = [unplacedTotal: number, holes: number, totalSlots: number, studentHoles: number];
-
-type Candidate = {
-  placements: GeneratedPlacement[];
-  objective: Objective;
-  slots: Record<Cohort, number>;
-  unplaced: Record<Cohort, CourseDeficit[]>;
-  /** Per-course hours still unplaced — with `placements`, the full state an LNS round rehydrates. */
-  remaining: Map<string, number>;
-};
-
-/**
- * Lexicographic comparison of two objective tuples — the priority tiers hold at ANY magnitude
- * (the weighted scalar it replaces let a studentHoles term in the hundreds outvote a whole slot).
- * Negative ⇒ `a` is the better board (smaller-is-better on every tier); shared by cross-attempt
- * selection and Phase 4's LNS acceptance so the two never disagree.
- */
-export const compareObjectives = (a: Objective, b: Objective): number => {
-  for (let tier = 0; tier < a.length; tier++) {
-    if (a[tier] !== b[tier]) return a[tier] - b[tier];
-  }
-  return 0;
-};
 
 /** One LNS round's inputs: the incumbent to repair, which destroy operator to apply, and the
  *  shared operator PRNG (so successive rounds diverge deterministically). */
@@ -630,7 +606,7 @@ const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candi
   // --- checkpoint: construction (stages 1–5) is complete and valid; descent must beat or tie
   // it, never regress. Score against a COPY (stages 6–7 mutate `generated` in place; `remaining`
   // is untouched by them) so the pre-descent board survives for the final comparison.
-  const constructed = scoreCandidate(problem, generated.slice(), remaining);
+  const constructed = scoreCandidate(problem.snapshot, generated.slice(), remaining);
 
   // --- stage 6: slot-count descent — empty cells via ejection chains ------------------
   for (const cohort of cohortOrder) {
@@ -757,66 +733,8 @@ const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candi
   // --- score: return the better of construction vs. descent+migration ------------------
   // Descent trades slots for a possible new interior hole and migration can fail; scoring both
   // and keeping the winner makes an attempt improve-or-neutral by construction (never worse).
-  const descended = scoreCandidate(problem, generated, remaining);
+  const descended = scoreCandidate(problem.snapshot, generated, remaining);
   return compareObjectives(descended.objective, constructed.objective) <= 0 ? descended : constructed;
-};
-
-const scoreCandidate = (
-  problem: Problem,
-  generated: GeneratedPlacement[],
-  remaining: Map<string, number>,
-): Candidate => {
-  const { snapshot } = problem;
-  const slots = {} as Record<Cohort, number>;
-  const unplaced = {} as Record<Cohort, CourseDeficit[]>;
-  let holes = 0;
-  let studentHoles = 0;
-  for (const cohort of COHORT_ORDER) {
-    const rows = [...snapshot.cohorts[cohort].pins, ...generated.filter((x) => x.cohort === cohort)];
-    slots[cohort] = countOccupiedSlots(rows);
-    unplaced[cohort] = snapshot.cohorts[cohort].courses
-      .filter((c) => (remaining.get(c.id) ?? 0) > 0)
-      .map((c) => ({ courseId: c.id, missing: remaining.get(c.id) ?? 0 }));
-    for (let d = 1; d <= snapshot.days; d++) {
-      const used = new Set(rows.filter((x) => x.day === d).map((x) => x.period));
-      if (used.size === 0) continue;
-      for (let p = Math.min(...used) + 1; p < Math.max(...used); p++) if (!used.has(p)) holes += 1;
-    }
-    studentHoles += countStudentHoles(snapshot.cohorts[cohort].courses, rows);
-  }
-  const unplacedTotal = COHORT_ORDER.reduce(
-    (sum, cohort) => sum + unplaced[cohort].reduce((s, d) => s + d.missing, 0),
-    0,
-  );
-  const totalSlots = COHORT_ORDER.reduce((sum, cohort) => sum + slots[cohort], 0);
-  const objective: Objective = [unplacedTotal, holes, totalSlots, studentHoles];
-  return { placements: generated, objective, slots, unplaced, remaining: new Map(remaining) };
-};
-
-/** Week-aware per-student day holes: (span − occupied) summed over student-day-week lanes. */
-const countStudentHoles = (
-  courses: GroupingCourse[],
-  rows: { courseId: string; day: number; period: number; week: PlacementWeek }[],
-): number => {
-  const byStudentDay = new Map<string, Set<number>>();
-  const studentsOf = new Map(courses.map((c) => [c.id, c.studentKeys]));
-  for (const row of rows) {
-    const weeks = row.week === "both" ? ["a", "b"] : [row.week];
-    for (const s of studentsOf.get(row.courseId) ?? []) {
-      for (const w of weeks) {
-        const k = `${s}|${row.day}|${w}`;
-        const set = byStudentDay.get(k) ?? new Set<number>();
-        if (!byStudentDay.has(k)) byStudentDay.set(k, set);
-        set.add(row.period);
-      }
-    }
-  }
-  let total = 0;
-  for (const periods of byStudentDay.values()) {
-    if (periods.size === 0) continue;
-    total += Math.max(...periods) - Math.min(...periods) + 1 - periods.size;
-  }
-  return total;
 };
 
 const toResult = (
@@ -870,28 +788,6 @@ const removeWhere = <T>(items: T[], match: (item: T) => boolean, label: string):
   if (at === -1) throw new Error(`generation invariant violated: ${label} not found for removal`);
   return items.splice(at, 1)[0];
 };
-
-/** Deterministic PRNG so a given (snapshot, seed) always replays the same search. */
-const mulberry32 = (seed: number): (() => number) => {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
-const shuffled = <T>(items: readonly T[], rng: () => number): T[] => {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-};
-
-const pickFrom = <T>(items: T[], rng: () => number): T => items[Math.floor(rng() * items.length)];
 
 /** One randomly chosen day-edge cell (period 1 or last of some day), as a singleton set. */
 const sampleEdgeCell = (days: number, periods: number, rng: () => number): Set<string> => {

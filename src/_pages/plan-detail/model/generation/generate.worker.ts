@@ -3,7 +3,7 @@ import {
   generatePlanGreedy,
   type GeneratorConfig,
   type GeneratorSnapshot,
-  verifyGeneration,
+  runVerifiedGeneration,
 } from "@/entities/timetable";
 import { type GenerateWorkerRequest, type GenerateWorkerResponse, PROGRESS_THROTTLE_MS } from "./worker-protocol";
 
@@ -31,19 +31,11 @@ scope.onmessage = (event: MessageEvent<GenerateWorkerRequest>) => {
 async function run(snapshot: GeneratorSnapshot, config: GeneratorConfig, signal: AbortSignal): Promise<void> {
   let lastProgressAt = 0;
   try {
-    // Fail-fast precondition: pins alone already carry blocking violations, so no engine result
-    // can ever pass verify (pins are never moved) — reject in milliseconds instead of burning the
-    // full budget on a guaranteed dead-end. `verifyGeneration(snapshot, [])` judges the pins-only
-    // board; the hook renders the message over the existing `error` path (no protocol change).
-    // Kept inside the try so a malformed-snapshot throw surfaces as a posted `error` rather than a
-    // dropped rejection that would hang the hook in the running state.
-    const precondition = verifyGeneration(snapshot, []);
-    if (!precondition.ok) {
-      post({ kind: "error", message: "the board already has blocking violations — resolve them before generating" });
-      return;
-    }
-
-    const result = await generatePlanGreedy(snapshot, config, {
+    // The runner seam owns precondition → engine → verdict; the worker only maps the outcome to
+    // protocol messages and throttles progress (transport concerns). Kept inside the try so a
+    // malformed-snapshot throw surfaces as a posted `error` rather than a dropped rejection that
+    // would hang the hook in the running state.
+    const outcome = await runVerifiedGeneration(generatePlanGreedy, snapshot, config, {
       signal,
       onProgress: ({ elapsedMs, budgetMs }) => {
         const at = Date.now();
@@ -52,8 +44,11 @@ async function run(snapshot: GeneratorSnapshot, config: GeneratorConfig, signal:
         post({ kind: "progress", elapsedMs, budgetMs });
       },
     });
-    const verdict = verifyGeneration(snapshot, result.placements);
-    post({ kind: "done", result, verdict });
+    if (!outcome.ok) {
+      post({ kind: "error", message: "the board already has blocking violations — resolve them before generating" });
+      return;
+    }
+    post({ kind: "done", result: outcome.result, verdict: outcome.verdict });
   } catch (error) {
     post({ kind: "error", message: error instanceof Error ? error.message : String(error) });
   }

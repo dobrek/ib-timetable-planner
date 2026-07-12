@@ -385,22 +385,22 @@ None — no schema, API, or persisted-data changes. Import-path moves are intern
 
 #### Automated
 
-- [x] 3.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
-- [x] 3.2 Quality-bar + fuzz tests pass unmodified (import paths aside)
-- [x] 3.3 No file in `engines/greedy/` exceeds ~300 lines
+- [x] 3.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green — 5e9cc81
+- [x] 3.2 Quality-bar + fuzz tests pass unmodified (import paths aside) — 5e9cc81
+- [x] 3.3 No file in `engines/greedy/` exceeds ~300 lines — 5e9cc81
 
 #### Manual
 
-- [x] 3.4 Diff spot-check: mechanical moves only
+- [x] 3.4 Diff spot-check: mechanical moves only — 5e9cc81
 
 ### Phase 4: Runner Seam
 
 #### Automated
 
-- [ ] 4.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
-- [ ] 4.2 `/verify` full gate green
+- [x] 4.1 `pnpm check && pnpm lint && pnpm steiger && pnpm test` green
+- [x] 4.2 `/verify` full gate green
 
 #### Manual
 
-- [ ] 4.3 Final bench run: dp1 ≤ 50, dp2 = 46
-- [ ] 4.4 App smoke: clean-board Generate applies; dirty-board Generate shows precondition error
+- [x] 4.3 Final bench run: dp1 ≤ 50, dp2 = 46
+- [x] 4.4 App smoke: clean-board Generate applies; dirty-board Generate shows precondition error

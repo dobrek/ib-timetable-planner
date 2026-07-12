@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   Badge,
   Button,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -21,6 +22,9 @@ type Props = {
   rows: StudentRow[];
   totalCount: number;
   coursesById: Map<string, CourseOption>;
+  selectedIds: ReadonlySet<string>;
+  onToggleRow: (id: string) => void;
+  onToggleAll: () => void;
   onEdit: (student: StudentRow) => void;
   onDelete: (student: StudentRow) => void;
   onCreateFirst: () => void;
@@ -31,6 +35,9 @@ export default function StudentTable({
   rows,
   totalCount,
   coursesById,
+  selectedIds,
+  onToggleRow,
+  onToggleAll,
   onEdit,
   onDelete,
   onCreateFirst,
@@ -51,11 +58,18 @@ export default function StudentTable({
     return <p className="text-muted-foreground py-8 text-center text-sm">No students match the current filter.</p>;
   }
 
+  const allSelected = rows.every((row) => selectedIds.has(row.id));
+  const someSelected = rows.some((row) => selectedIds.has(row.id));
+  const headerState: boolean | "indeterminate" = allSelected ? true : someSelected ? "indeterminate" : false;
+
   return (
     <div className="border-border overflow-hidden rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-10">
+              <Checkbox checked={headerState} onCheckedChange={onToggleAll} aria-label="Select all students" />
+            </TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Choices</TableHead>
             <TableHead className="text-right">#</TableHead>
@@ -63,22 +77,34 @@ export default function StudentTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>
-                <StudentViewLink planId={planId} row={row}>
-                  {row.fullName}
-                </StudentViewLink>
-              </TableCell>
-              <TableCell>
-                <ChoiceBadges choiceCourseIds={row.choiceCourseIds} coursesById={coursesById} />
-              </TableCell>
-              <TableCell className="text-right">{row.choiceCourseIds.length}</TableCell>
-              <TableCell className="text-right">
-                <StudentRowActions planId={planId} row={row} onEdit={onEdit} onDelete={onDelete} />
-              </TableCell>
-            </TableRow>
-          ))}
+          {rows.map((row) => {
+            const selected = selectedIds.has(row.id);
+            return (
+              <TableRow key={row.id} data-state={selected ? "selected" : undefined}>
+                <TableCell>
+                  <Checkbox
+                    checked={selected}
+                    onCheckedChange={() => {
+                      onToggleRow(row.id);
+                    }}
+                    aria-label={`Select ${row.fullName}`}
+                  />
+                </TableCell>
+                <TableCell>
+                  <StudentViewLink planId={planId} row={row}>
+                    {row.fullName}
+                  </StudentViewLink>
+                </TableCell>
+                <TableCell>
+                  <ChoiceBadges choiceCourseIds={row.choiceCourseIds} coursesById={coursesById} />
+                </TableCell>
+                <TableCell className="text-right">{row.choiceCourseIds.length}</TableCell>
+                <TableCell className="text-right">
+                  <StudentRowActions planId={planId} row={row} onEdit={onEdit} onDelete={onDelete} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

@@ -5,7 +5,10 @@ import { Button, Input, Tabs, TabsContent, TabsList, TabsTrigger, Toaster } from
 import { filterStudents } from "../model/filter-students";
 import { useCatalogDialogs } from "../model/use-catalog-dialogs";
 import { useCatalogFilters } from "../model/use-catalog-filters";
+import { useCatalogSelection } from "../model/use-catalog-selection";
 import type { CourseOption, StudentRow } from "../model/student";
+import BulkActionBar from "./BulkActionBar";
+import BulkChoiceDialog from "./BulkChoiceDialog";
 import CourseFilter from "./CourseFilter";
 import DeleteStudentDialog from "./DeleteStudentDialog";
 import StudentFormDialog from "./StudentFormDialog";
@@ -25,11 +28,20 @@ type Props = {
 export default function StudentCatalog({ planId, students, courses }: Props) {
   const filters = useCatalogFilters(courses);
   const dialogs = useCatalogDialogs();
+  // WYSIWYG selection: any change to cohort/query/course-filter discards the selection.
+  const filterSignature = `${filters.activeCohort}|${filters.query}|${[...filters.selectedCourseIds].sort().join(",")}`;
+  const selection = useCatalogSelection(filterSignature);
   const coursesById = useMemo(() => new Map(courses.map((course) => [course.id, course])), [courses]);
-  // The course filter offers only the active cohort's real (non-merge-parent) courses.
+  // The course filter and both bulk pickers offer only the active cohort's real (non-merge-parent) courses.
   const filterCourses = useMemo(
     () => courses.filter((course) => course.cohort === filters.activeCohort && !course.isMergeParent),
     [courses, filters.activeCohort],
+  );
+  // The selected students in the active cohort — feeds the bulk dialog's summary and submit values.
+  const selectedStudents = useMemo(
+    () =>
+      students.filter((student) => student.cohort === filters.activeCohort && selection.selectedIds.has(student.id)),
+    [students, filters.activeCohort, selection.selectedIds],
   );
 
   return (
@@ -63,6 +75,8 @@ export default function StudentCatalog({ planId, students, courses }: Props) {
         />
       </div>
 
+      <BulkActionBar count={selectedStudents.length} onEdit={dialogs.openBulk} onClear={selection.clear} />
+
       <Tabs
         value={filters.activeCohort}
         onValueChange={(value) => {
@@ -87,6 +101,11 @@ export default function StudentCatalog({ planId, students, courses }: Props) {
                 rows={rows}
                 totalCount={cohortTotal}
                 coursesById={coursesById}
+                selectedIds={selection.selectedIds}
+                onToggleRow={selection.toggle}
+                onToggleAll={() => {
+                  selection.toggleAll(rows.map((row) => row.id));
+                }}
                 onEdit={dialogs.openEdit}
                 onDelete={dialogs.openDelete}
                 onCreateFirst={dialogs.openCreate}
@@ -105,6 +124,14 @@ export default function StudentCatalog({ planId, students, courses }: Props) {
         defaultCohort={filters.activeCohort}
       />
       <DeleteStudentDialog planId={planId} student={dialogs.deleteTarget} onClose={dialogs.closeDelete} />
+      <BulkChoiceDialog
+        open={dialogs.bulkOpen}
+        onClose={dialogs.closeBulk}
+        planId={planId}
+        cohort={filters.activeCohort}
+        students={selectedStudents}
+        courses={filterCourses}
+      />
       <Toaster />
     </div>
   );

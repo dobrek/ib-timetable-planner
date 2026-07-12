@@ -349,26 +349,26 @@ Purely additive migration (one new function, no table changes) — safe for CI's
 
 #### Automated
 
-- [x] 2.1 Unit tests pass (schema refinements, summary helper): `pnpm test`
-- [x] 2.2 Integration tests pass (domain-fn gates + happy path): `pnpm test:integration`
-- [x] 2.3 Type-check clean: `pnpm check`
-- [x] 2.4 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 2.5 Build passes: `pnpm build`
+- [x] 2.1 Unit tests pass (schema refinements, summary helper): `pnpm test` — 6f2dff5
+- [x] 2.2 Integration tests pass (domain-fn gates + happy path): `pnpm test:integration` — 6f2dff5
+- [x] 2.3 Type-check clean: `pnpm check` — 6f2dff5
+- [x] 2.4 Lint + FSD structure pass: `pnpm lint && pnpm steiger` — 6f2dff5
+- [x] 2.5 Build passes: `pnpm build` — 6f2dff5
 
 ### Phase 3: Catalog Selection UI + Bulk Dialog
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `pnpm test`
-- [ ] 3.2 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 3.3 Build passes: `pnpm build`
-- [ ] 3.4 E2E suite passes incl. `bulk-edit-choices.spec.ts`: `pnpm test:e2e`
-- [ ] 3.5 Full local CI gate green: `/verify`
+- [x] 3.1 Unit tests pass: `pnpm test`
+- [x] 3.2 Lint + FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 3.3 Build passes: `pnpm build`
+- [x] 3.4 E2E suite passes incl. `bulk-edit-choices.spec.ts`: `pnpm test:e2e`
+- [x] 3.5 Full local CI gate green: `/verify`
 
 #### Manual
 
-- [ ] 3.6 Add-only / remove-only work; empty-both blocked inline
-- [ ] 3.7 Confirmation counts correct incl. zero-count assurance case
-- [ ] 3.8 Cohort switch clears selection; indeterminate select-all on partial selection
-- [ ] 3.9 Board live validation reflects new choices after a bulk edit
-- [ ] 3.10 Accessibility pass (labeled checkboxes, dialog focus)
+- [x] 3.6 Add-only / remove-only work; empty-both blocked inline
+- [x] 3.7 Confirmation counts correct incl. zero-count assurance case
+- [x] 3.8 Cohort switch clears selection; indeterminate select-all on partial selection
+- [x] 3.9 Board live validation reflects new choices after a bulk edit
+- [x] 3.10 Accessibility pass (labeled checkboxes, dialog focus)

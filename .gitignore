@@ -70,6 +70,9 @@ lefthook-local.yml
 # pii scrub artifacts (contain real names — never commit)
 /pii-scrub/
 
+# gold-plan snapshots dumped from production (real names + real timetable — never commit)
+/data/golden-plan*.sql
+
 # playwright
 .playwright-mcp
 .playwright-cli

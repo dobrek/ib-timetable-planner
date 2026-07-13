@@ -345,10 +345,10 @@ No schema changes. Nothing in this change touches prod. The golden snapshot (`da
 
 #### Automated
 
-- [ ] 1.1 Unit tests for lanes, board, course, completeness metrics pass: `pnpm test`
-- [ ] 1.2 Type check passes: `pnpm check`
-- [ ] 1.3 Lint + FSD structure pass: `pnpm lint` && `pnpm steiger`
-- [ ] 1.4 Build stays clean (Workers-safety): `pnpm build`
+- [x] 1.1 Unit tests for lanes, board, course, completeness metrics pass: `pnpm test`
+- [x] 1.2 Type check passes: `pnpm check`
+- [x] 1.3 Lint + FSD structure pass: `pnpm lint` && `pnpm steiger`
+- [x] 1.4 Build stays clean (Workers-safety): `pnpm build`
 
 ### Phase 2: Entity Lenses + Cross-Cohort Family
 

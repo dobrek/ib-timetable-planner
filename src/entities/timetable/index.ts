@@ -24,6 +24,9 @@ export * from "./model/generation/run";
 // Only the engine's public surface — not test-only internals (maxWeightCliqueWeight,
 // backboneCliques, …), which the slice's own tests import relatively.
 export { createGreedyEngine, generatePlanGreedy, type GreedyTuning } from "./model/generation/engines/greedy";
+// The read-only plan-quality extractor (feature vector, never a score) — consumed by the
+// `analyze:plans` runner today and by any future in-app comparison surface unchanged.
+export * from "./model/analysis";
 export * from "./model/perspective";
 export * from "./model/perspective-course-list";
 export * from "./model/export/sheet-types";

@@ -31,6 +31,15 @@ describe("analyzePlan", () => {
     expect(features.cohorts.dp2.slotCensus.cohortStudents).toBe(1);
   });
 
+  it("reads teachers, the cohort weave and subjects board-wide, not per cohort", () => {
+    const features = analyzePlan(input());
+
+    // t1 teaches Math in dp1 and Biology in dp2 — one teacher, one staffing system.
+    expect(features.teachers).toMatchObject({ teachers: 1 });
+    expect(features.crossCohort).toMatchObject({ teachers: 1, teachersInBothCohorts: 1 });
+    expect(features.subjects.map((subject) => subject.subject)).toEqual(["Math", "Biology"]);
+  });
+
   it("never lets one cohort's rows leak into the other's features", () => {
     const features = analyzePlan({ ...input(), rows: block("dp1", "dp1-math", 1, 1, 2) });
 

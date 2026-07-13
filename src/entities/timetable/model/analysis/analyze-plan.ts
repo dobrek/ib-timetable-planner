@@ -3,10 +3,14 @@ import { deriveBoardShape } from "./board-shape";
 import { deriveCompleteness } from "./completeness";
 import { deriveCourseAdjacency } from "./course-adjacency";
 import { deriveCourseSpread } from "./course-spread";
+import { deriveCrossCohort } from "./cross-cohort";
 import { deriveDailyLoad } from "./daily-load";
 import { deriveSlotCensus } from "./slot-census";
+import { deriveStudentLens } from "./student-lens";
+import { deriveSubjectRollup } from "./subject-rollup";
+import { deriveTeacherLens } from "./teacher-lens";
 import { deriveWeekSymmetry } from "./week-symmetry";
-import type { AnalyzerRow, CohortFeatures, PlanAnalysisInput, PlanQualityFeatures } from "./types";
+import type { AnalyzerCourse, AnalyzerRow, CohortFeatures, PlanAnalysisInput, PlanQualityFeatures } from "./types";
 
 /**
  * The plan-quality extractor: any board (expert-authored or engine-generated) in, a feature vector
@@ -18,14 +22,22 @@ import type { AnalyzerRow, CohortFeatures, PlanAnalysisInput, PlanQualityFeature
  * collapsing these numbers into one figure of merit hides exactly the dimensions the comparison
  * exists to expose. `analyzePlan` reports; the reader — and later, an evidence-led objective — judges.
  */
-export const analyzePlan = (input: PlanAnalysisInput): PlanQualityFeatures => ({
-  days: input.days,
-  periods: input.periods,
-  cohorts: {
-    dp1: cohortFeatures(input, "dp1"),
-    dp2: cohortFeatures(input, "dp2"),
-  },
-});
+export const analyzePlan = (input: PlanAnalysisInput): PlanQualityFeatures => {
+  // Teachers, subjects and the cohort weave are board-wide lenses: staff work both cohorts and a
+  // subject has an edition in each, so they read the merged catalog rather than a per-cohort slice.
+  const allCourses = allCoursesOf(input);
+  return {
+    days: input.days,
+    periods: input.periods,
+    cohorts: {
+      dp1: cohortFeatures(input, "dp1"),
+      dp2: cohortFeatures(input, "dp2"),
+    },
+    teachers: deriveTeacherLens(allCourses, input.rows, input.availability),
+    crossCohort: deriveCrossCohort(input.courses, input.rows),
+    subjects: deriveSubjectRollup(allCourses, input.rows),
+  };
+};
 
 /** The cohorts in display order — the iteration order every renderer and roll-up follows. */
 export const ANALYZED_COHORTS: readonly Cohort[] = COHORT_VALUES;
@@ -41,8 +53,12 @@ const cohortFeatures = (input: PlanAnalysisInput, cohort: Cohort): CohortFeature
     weekSymmetry: deriveWeekSymmetry(rows),
     adjacency: deriveCourseAdjacency(rows),
     spread: deriveCourseSpread(rows),
+    students: deriveStudentLens(courses, rows, input.periods),
   };
 };
 
 const rowsOf = (input: PlanAnalysisInput, cohort: Cohort): AnalyzerRow[] =>
   input.rows.filter((row) => row.cohort === cohort);
+
+const allCoursesOf = (input: PlanAnalysisInput): AnalyzerCourse[] =>
+  COHORT_VALUES.flatMap((cohort) => input.courses[cohort]);

@@ -367,13 +367,16 @@ function buildChoices(studentRows, studentIds, courseIds, choiceResolution, cata
 
 // Builds every catalog row for one plan, keyed (directly or denormalized) to the plan's
 // content-addressed UUID. Returns the raw row collections + per-cohort stats.
-export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
-  // Every id is derived from the plan name + cohort + the row's natural key, so regenerating an
-  // unchanged catalog reproduces this file exactly — including `Seed Plan A`'s plan id, which
-  // `bench:generation` looks up by id in CI (where the seed is regenerated, not read from git).
-  const planId = seedId(planName, "plan");
-  const idOf1 = (...parts) => seedId(planName, COHORT_DP1, ...parts);
-  const idOf2 = (...parts) => seedId(planName, COHORT_DP2, ...parts);
+//
+// `idScope` namespaces every generated id and defaults to the plan name — which is what the seed
+// wants: `Seed Plan A` must mint the SAME ids on every regeneration, or the bench's by-id lookup
+// breaks in CI. Callers that materialize the catalog MORE THAN ONCE inside a single database (the
+// test factories) must pass a scope unique to each instance — otherwise two catalogs collide on
+// `teachers_pkey`, since identical inputs deliberately produce identical ids.
+export function buildPlanRows(planName, dp1Data, dp2Data, fixtures, idScope = planName) {
+  const planId = seedId(idScope, "plan");
+  const idOf1 = (...parts) => seedId(idScope, COHORT_DP1, ...parts);
+  const idOf2 = (...parts) => seedId(idScope, COHORT_DP2, ...parts);
 
   // Deduplicate teachers across both cohorts by code (within this plan). Drawn from each
   // course's full teacher SET, so a teacher who only ever co-teaches is still registered.
@@ -382,7 +385,7 @@ export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
   for (const cohortData of [dp1Data, dp2Data]) {
     for (const [, c] of cohortData.catalog) {
       for (const code of c.teacher_codes) {
-        if (!teacherMap.has(code)) teacherMap.set(code, seedId(planName, "teacher", code));
+        if (!teacherMap.has(code)) teacherMap.set(code, seedId(idScope, "teacher", code));
       }
     }
   }

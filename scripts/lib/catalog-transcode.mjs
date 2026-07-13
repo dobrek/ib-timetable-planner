@@ -15,12 +15,12 @@
 // so the no-Node-APIs rule is not engaged.
 //
 // The functions return RAW values (uuids, strings, numbers, nulls) — SQL quoting
-// lives in gen-seed.mjs. randomUUID() call order is preserved exactly so the
-// generated seed.sql stays structurally byte-identical (see plan §Critical Details).
+// lives in gen-seed.mjs. Row ids are content-addressed via seedId() (see seed-id.mjs),
+// so the same catalog always regenerates the same seed.sql — byte-identical, ids and all.
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
+import { seedId } from "./seed-id.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const dp1 = (...p) => resolve(ROOT, "data", "dp1", ...p);
@@ -272,11 +272,11 @@ export function loadCohortFixtures() {
 
 // ---------------------------------------------------------------------------
 // Per-plan row building — fresh UUIDs every pass, composite FKs remapped.
-// Returns RAW rows (no SQL quoting). randomUUID() call order matches the legacy
-// emitPlan exactly: plan → teachers → courses dp1/dp2 → students dp1/dp2 →
-// overlaps → merges → choices — so serialized output stays byte-identical.
+// Returns RAW rows (no SQL quoting). Each builder takes an `idOf` factory already scoped to its
+// plan + cohort, and derives every row id from that row's natural key — so ids depend on CONTENT,
+// never on emission order (see seed-id.mjs).
 // ---------------------------------------------------------------------------
-function buildOverlaps(overlapRows, courseIds, catalog, planId) {
+function buildOverlaps(overlapRows, courseIds, catalog, planId, idOf) {
   const rows = [];
   const seen = new Set();
   for (const cols of overlapRows) {
@@ -294,7 +294,7 @@ function buildOverlaps(overlapRows, courseIds, catalog, planId) {
     if (seen.has(pairKey)) continue;
     seen.add(pairKey);
     rows.push({
-      id: randomUUID(),
+      id: idOf("overlap", pairKey),
       plan_id: planId,
       base_course_id: courseIds.get(baseKey),
       dependent_course_id: courseIds.get(depKey),
@@ -303,7 +303,7 @@ function buildOverlaps(overlapRows, courseIds, catalog, planId) {
   return rows;
 }
 
-function buildMerges(mergeRows, courseIds, catalog, planId) {
+function buildMerges(mergeRows, courseIds, catalog, planId, idOf) {
   const rows = [];
   const seen = new Set();
   for (const cols of mergeRows) {
@@ -319,7 +319,7 @@ function buildMerges(mergeRows, courseIds, catalog, planId) {
     if (seen.has(pairKey)) continue;
     seen.add(pairKey);
     rows.push({
-      id: randomUUID(),
+      id: idOf("merge", pairKey),
       plan_id: planId,
       parent_course_id: courseIds.get(parentKey),
       child_course_id: courseIds.get(childKey),
@@ -331,20 +331,20 @@ function buildMerges(mergeRows, courseIds, catalog, planId) {
 // One course_teachers junction row per (course, co-teacher). Mirrors buildMerges/buildOverlaps;
 // reads each course's accumulated teacher_codes SET (so co-taught courses emit ≥2 rows). A
 // teacher_code with no remapped teacher is a data inconsistency — fail loud, like the others.
-function buildCourseTeachers(catalog, courseIds, teacherMap, planId) {
+function buildCourseTeachers(catalog, courseIds, teacherMap, planId, idOf) {
   const rows = [];
   for (const [k, c] of catalog) {
     const courseId = courseIds.get(k);
     for (const code of c.teacher_codes) {
       const teacherId = teacherMap.get(code);
       if (!teacherId) throw new Error(`Course teacher not found: ${code} for course ${k}`);
-      rows.push({ id: randomUUID(), plan_id: planId, course_id: courseId, teacher_id: teacherId });
+      rows.push({ id: idOf("course_teacher", k, code), plan_id: planId, course_id: courseId, teacher_id: teacherId });
     }
   }
   return rows;
 }
 
-function buildChoices(studentRows, studentIds, courseIds, choiceResolution, catalog, planId) {
+function buildChoices(studentRows, studentIds, courseIds, choiceResolution, catalog, planId, idOf) {
   const rows = [];
   const seen = new Set();
   for (const cols of studentRows) {
@@ -360,23 +360,29 @@ function buildChoices(studentRows, studentIds, courseIds, choiceResolution, cata
     const pairKey = `${studentId}||${courseId}`;
     if (seen.has(pairKey)) continue;
     seen.add(pairKey);
-    rows.push({ id: randomUUID(), plan_id: planId, student_id: studentId, course_id: courseId });
+    rows.push({ id: idOf("choice", pairKey), plan_id: planId, student_id: studentId, course_id: courseId });
   }
   return rows;
 }
 
-// Builds every catalog row for one plan, keyed (directly or denormalized) to a
-// fresh plan UUID. Returns the raw row collections + per-cohort stats.
+// Builds every catalog row for one plan, keyed (directly or denormalized) to the plan's
+// content-addressed UUID. Returns the raw row collections + per-cohort stats.
 export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
-  const planId = randomUUID();
+  // Every id is derived from the plan name + cohort + the row's natural key, so regenerating an
+  // unchanged catalog reproduces this file exactly — including `Seed Plan A`'s plan id, which
+  // `bench:generation` looks up by id in CI (where the seed is regenerated, not read from git).
+  const planId = seedId(planName, "plan");
+  const idOf1 = (...parts) => seedId(planName, COHORT_DP1, ...parts);
+  const idOf2 = (...parts) => seedId(planName, COHORT_DP2, ...parts);
 
   // Deduplicate teachers across both cohorts by code (within this plan). Drawn from each
   // course's full teacher SET, so a teacher who only ever co-teaches is still registered.
+  // Plan-scoped, NOT cohort-scoped — one teacher row serves both cohorts.
   const teacherMap = new Map(); // code → uuid
   for (const cohortData of [dp1Data, dp2Data]) {
     for (const [, c] of cohortData.catalog) {
       for (const code of c.teacher_codes) {
-        if (!teacherMap.has(code)) teacherMap.set(code, randomUUID());
+        if (!teacherMap.has(code)) teacherMap.set(code, seedId(planName, "teacher", code));
       }
     }
   }
@@ -384,19 +390,19 @@ export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
   // Course IDs per cohort
   const courseId1 = new Map(); // ckey → uuid (Year 1)
   const courseId2 = new Map(); // ckey → uuid (Year 2)
-  for (const [k] of dp1Data.catalog) courseId1.set(k, randomUUID());
-  for (const [k] of dp2Data.catalog) courseId2.set(k, randomUUID());
+  for (const [k] of dp1Data.catalog) courseId1.set(k, idOf1("course", k));
+  for (const [k] of dp2Data.catalog) courseId2.set(k, idOf2("course", k));
 
   // Student IDs per cohort
   const studentId1 = new Map(); // name → uuid
   const studentId2 = new Map();
   for (const cols of dp1Data.studentRows) {
     const name = cols[0];
-    if (!studentId1.has(name)) studentId1.set(name, randomUUID());
+    if (!studentId1.has(name)) studentId1.set(name, idOf1("student", name));
   }
   for (const cols of dp2Data.studentRows) {
     const name = cols[0];
-    if (!studentId2.has(name)) studentId2.set(name, randomUUID());
+    if (!studentId2.has(name)) studentId2.set(name, idOf2("student", name));
   }
 
   const plans = [{ id: planId, name: planName, slot_grid_preset: "5x10" }];
@@ -429,16 +435,16 @@ export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
     ...buildCourses(dp2Data.catalog, courseId2, COHORT_DP2),
   ];
 
-  const overlapRows1 = buildOverlaps(fixtures.dp1Overlaps, courseId1, dp1Data.catalog, planId);
-  const overlapRows2 = buildOverlaps(fixtures.dp2Overlaps, courseId2, dp2Data.catalog, planId);
+  const overlapRows1 = buildOverlaps(fixtures.dp1Overlaps, courseId1, dp1Data.catalog, planId, idOf1);
+  const overlapRows2 = buildOverlaps(fixtures.dp2Overlaps, courseId2, dp2Data.catalog, planId, idOf2);
   const course_overlaps = [...overlapRows1, ...overlapRows2];
 
-  const mergeRows1 = buildMerges(fixtures.dp1Merges, courseId1, dp1Data.catalog, planId);
-  const mergeRows2 = buildMerges(fixtures.dp2Merges, courseId2, dp2Data.catalog, planId);
+  const mergeRows1 = buildMerges(fixtures.dp1Merges, courseId1, dp1Data.catalog, planId, idOf1);
+  const mergeRows2 = buildMerges(fixtures.dp2Merges, courseId2, dp2Data.catalog, planId, idOf2);
   const course_merges = [...mergeRows1, ...mergeRows2];
 
-  const courseTeacherRows1 = buildCourseTeachers(dp1Data.catalog, courseId1, teacherMap, planId);
-  const courseTeacherRows2 = buildCourseTeachers(dp2Data.catalog, courseId2, teacherMap, planId);
+  const courseTeacherRows1 = buildCourseTeachers(dp1Data.catalog, courseId1, teacherMap, planId, idOf1);
+  const courseTeacherRows2 = buildCourseTeachers(dp2Data.catalog, courseId2, teacherMap, planId, idOf2);
   const course_teachers = [...courseTeacherRows1, ...courseTeacherRows2];
 
   const students = [
@@ -453,6 +459,7 @@ export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
     dp1Data.choiceResolution,
     dp1Data.catalog,
     planId,
+    idOf1,
   );
   const choices2 = buildChoices(
     dp2Data.studentRows,
@@ -461,6 +468,7 @@ export function buildPlanRows(planName, dp1Data, dp2Data, fixtures) {
     dp2Data.choiceResolution,
     dp2Data.catalog,
     planId,
+    idOf2,
   );
   const student_choices = [...choices1, ...choices2];
 

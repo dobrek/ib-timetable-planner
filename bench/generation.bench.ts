@@ -30,10 +30,13 @@ const SLOT_BARS = { dp1: 50, dp2: 46 };
 const BUDGET_MS = 60_000;
 const CEILING_MS = 90_000;
 
-/** Seed Plan A's deterministic seed id. Plans are addressed **by id, never by name**: the previous
- *  name lookup ("Seed Plan A") broke the moment a differently-named plan was imported over the same
- *  seed data. Override to point the bench at any other catalog. */
-const PLAN_ID = process.env.BENCH_PLAN_ID ?? "fefd03e5-fc72-4706-8a12-524811c9cf3f";
+/** Seed Plan A's deterministic seed id — content-addressed by `scripts/lib/seed-id.mjs`, so it is
+ *  the same in a fresh `db reset` and in CI (which REGENERATES the seed before booting the stack).
+ *  Plans are addressed **by id, never by name**: the previous name lookup ("Seed Plan A") broke the
+ *  moment a differently-named plan was imported over the same seed data. Override to point the bench
+ *  at any other catalog. If this id ever 404s, the seed's namespace or Seed Plan A's name changed —
+ *  re-read it from `supabase/seed.sql`. */
+const PLAN_ID = process.env.BENCH_PLAN_ID ?? "c43c5f07-9448-5ab2-ad54-358f59403585";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;

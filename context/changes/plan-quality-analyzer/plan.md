@@ -354,20 +354,20 @@ No schema changes. Nothing in this change touches prod. The golden snapshot (`da
 
 #### Automated
 
-- [x] 2.1 Unit tests pass incl. `countStudentHoles` parity pin and mirrored-cell fixture-detector case: `pnpm test`
-- [x] 2.2 `pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm build` stay green
+- [x] 2.1 Unit tests pass incl. `countStudentHoles` parity pin and mirrored-cell fixture-detector case: `pnpm test` — 6b932d0
+- [x] 2.2 `pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm build` stay green — 6b932d0
 
 ### Phase 3: Dev Runner + Ride-Alongs
 
 #### Automated
 
-- [ ] 3.1 `pnpm test` unaffected; `pnpm check` && `pnpm lint` && `pnpm build` green
-- [ ] 3.2 `pnpm analyze:plans` without env/ids skips gracefully with a usage message
+- [x] 3.1 `pnpm test` unaffected; `pnpm check` && `pnpm lint` && `pnpm build` green
+- [x] 3.2 `pnpm analyze:plans` without env/ids skips gracefully with a usage message
 
 #### Manual
 
-- [ ] 3.3 Single-plan run against the Golden Plan renders verdict + feature tables
-- [ ] 3.4 `pnpm bench:generation` passes against seed state with id-based lookup
+- [x] 3.3 Single-plan run against the Golden Plan renders verdict + feature tables
+- [x] 3.4 `pnpm bench:generation` passes against seed state with id-based lookup
 
 ### Phase 4: First Real Run Recorded
 

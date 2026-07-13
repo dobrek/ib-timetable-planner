@@ -13,6 +13,9 @@ export default defineConfig({
     include: ["bench/**/*.bench.ts"],
     setupFiles: ["./src/test/load-test-env.ts"],
     testTimeout: 120_000,
+    // The printed slot/holes/elapsed report is this bench's product, and Vitest 4's default reporter
+    // swallows `console.log` from passing tests — without this the run reports nothing but "1 passed".
+    reporters: ["verbose"],
     alias: {
       "astro:env/server": fileURLToPath(new URL("./test/stubs/astro-env-server.ts", import.meta.url)),
       "astro:actions": fileURLToPath(new URL("./test/stubs/astro-actions.ts", import.meta.url)),

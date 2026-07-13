@@ -1,6 +1,7 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import type { CourseDeficit } from "../generation/types";
+import type { CourseHours } from "../hours";
 import type { BoardAvailabilityCell } from "../availability-index";
 
 /**
@@ -41,11 +42,23 @@ export type PlanAnalysisInput = {
   parkedCourseIds: Record<Cohort, string[]>;
 };
 
-/** Per-cohort unplaced hours — always rendered beside a slot count, because an incomplete
- *  board trivially uses fewer slots (the stale-bench trap). */
+/** Per-cohort hour accounting — always rendered beside a slot count, because an incomplete board
+ *  trivially uses fewer slots (the stale-bench trap).
+ *
+ *  The two totals stay **separate, never netted**: a course carrying more hours than the catalog
+ *  asks for does not cancel another course's shortfall. That is not pedantry here — it is the whole
+ *  finding. In the gold plan dp1's Chemistry runs as an overlap pair (a 2-hour HL dependent over a
+ *  4-hour, zero-direct-enrolment SL base that the catalog projection drops), and the expert's six
+ *  placed hours therefore read as +4 over-placed while the engine's two read as complete. Netting
+ *  would have erased the very gap the comparison exists to expose. */
 export type CompletenessFeatures = {
   unplacedHours: number;
   unplaced: CourseDeficit[];
+  overplacedHours: number;
+  overplaced: CourseHours[];
+  /** Placed rows whose course is absent from the catalog projection — a row nobody can account for
+   *  (a dropped overlap base, a stale course row). Zero on a healthy plan; a loud number otherwise. */
+  uncataloguedRows: number;
 };
 
 /** Free/occupied profile of one day's used span (week-agnostic cells). */

@@ -30,6 +30,11 @@ const SLOT_BARS = { dp1: 50, dp2: 46 };
 const BUDGET_MS = 60_000;
 const CEILING_MS = 90_000;
 
+/** Seed Plan A's deterministic seed id. Plans are addressed **by id, never by name**: the previous
+ *  name lookup ("Seed Plan A") broke the moment a differently-named plan was imported over the same
+ *  seed data. Override to point the bench at any other catalog. */
+const PLAN_ID = process.env.BENCH_PLAN_ID ?? "fefd03e5-fc72-4706-8a12-524811c9cf3f";
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -66,12 +71,15 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   });
 });
 
-/** The seeded local catalog ("Seed Plan A") as an empty-board GeneratorSnapshot. */
+/** The seeded local catalog (plan {@link PLAN_ID}) as an empty-board GeneratorSnapshot. */
 async function loadSeedPlanSnapshot(): Promise<GeneratorSnapshot> {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("Supabase env missing — see .env.test.local");
   const supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
-  const { data: plan, error } = await supabase.from("plans").select("id").eq("name", "Seed Plan A").single();
-  if (error) throw new Error(`Seed Plan A not found — run \`pnpm exec supabase db reset\` (${error.message})`);
+  const { data: plan, error } = await supabase.from("plans").select("id").eq("id", PLAN_ID).single();
+  if (error)
+    throw new Error(
+      `Plan ${PLAN_ID} not found — run \`pnpm exec supabase db reset\`, or set BENCH_PLAN_ID to another plan (${error.message})`,
+    );
   const [dp1, dp2, availability] = await Promise.all([
     loadCohortCourses(supabase, plan.id, "dp1"),
     loadCohortCourses(supabase, plan.id, "dp2"),

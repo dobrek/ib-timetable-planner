@@ -92,4 +92,11 @@ export function buildPlanRows(
   dp1Data: CohortData,
   dp2Data: CohortData,
   fixtures: Fixtures,
+  /**
+   * Namespaces every generated row id (content-addressed UUIDv5). Defaults to `planName`, which is
+   * what the seed needs — identical input must mint identical ids so `bench:generation` can resolve
+   * its plan by id in CI. Callers that materialize this catalog more than once in one database MUST
+   * pass a per-instance scope, or the second copy collides on `teachers_pkey`.
+   */
+  idScope?: string,
 ): { rows: PlanCatalogRows; stats: PlanStats };

@@ -20,7 +20,12 @@ const getFixtures = (): ReturnType<typeof loadCohortFixtures> => (cachedFixtures
  */
 export async function seedPlanCatalog(supabase: SupabaseClient, planId: string): Promise<SeededCatalog> {
   const { dp1Data, dp2Data, fixtures } = getFixtures();
-  const { rows } = buildPlanRows("(factory)", dp1Data, dp2Data, fixtures);
+  // Scope the generated ids by the OWNED plan id, not by the plan name. Row ids are content-addressed
+  // (seed-id.mjs), so identical inputs mint identical ids by design — every factory plan would
+  // otherwise reuse one set of teacher/course/student ids and the second one to be seeded inside the
+  // same database would collide on `teachers_pkey`. `planId` is unique per plan, so scoping by it
+  // keeps ids unique across plans while staying deterministic within one.
+  const { rows } = buildPlanRows("(factory)", dp1Data, dp2Data, fixtures, planId);
 
   const rebind = <T extends { plan_id: string }>(arr: readonly T[]): T[] => arr.map((r) => ({ ...r, plan_id: planId }));
 

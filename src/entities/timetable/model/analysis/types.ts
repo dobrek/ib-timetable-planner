@@ -81,6 +81,12 @@ export type BoardShapeFeatures = {
   interiorHoles: number;
   freeSlotsAtDayStart: number;
   freeSlotsAtDayEnd: number;
+  /**
+   * Days with no lesson at all. An empty day has no span, so all of its periods count as
+   * "before the first lesson" and land in `freeSlotsAtDayStart` — read the two together or an empty
+   * Friday reads as a whole column of free mornings, which is the opposite of what that metric means.
+   */
+  emptyDays: number;
   days: DayEdgeProfile[];
 };
 

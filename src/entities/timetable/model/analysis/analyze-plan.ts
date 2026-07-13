@@ -39,9 +39,6 @@ export const analyzePlan = (input: PlanAnalysisInput): PlanQualityFeatures => {
   };
 };
 
-/** The cohorts in display order — the iteration order every renderer and roll-up follows. */
-export const ANALYZED_COHORTS: readonly Cohort[] = COHORT_VALUES;
-
 const cohortFeatures = (input: PlanAnalysisInput, cohort: Cohort): CohortFeatures => {
   const courses = input.courses[cohort];
   const rows = rowsOf(input, cohort);

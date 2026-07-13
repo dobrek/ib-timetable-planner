@@ -1,4 +1,4 @@
-export { analyzePlan, ANALYZED_COHORTS } from "./analyze-plan";
+export { analyzePlan } from "./analyze-plan";
 export { expandLanes, laneStats, lanesOf, type Lane, type LaneStats, type WeekLane } from "./lanes";
 export { distribution, worstOf } from "./stats";
 export { deriveCompleteness } from "./completeness";

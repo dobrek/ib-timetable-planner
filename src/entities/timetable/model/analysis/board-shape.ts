@@ -19,6 +19,7 @@ export const deriveBoardShape = (rows: AnalyzerRow[], days: number, periods: num
     interiorHoles: countInteriorHoles(rows, days),
     freeSlotsAtDayStart: sumOf(profiles, (profile) => profile.freeAtStart),
     freeSlotsAtDayEnd: sumOf(profiles, (profile) => profile.freeAtEnd),
+    emptyDays: profiles.filter((profile) => profile.occupied === 0).length,
     days: profiles,
   };
 };

@@ -1,7 +1,7 @@
 ---
 change_id: plan-quality-analyzer
 title: Plan quality analyzer
-status: implemented
+status: impl_reviewed
 created: 2026-07-12
 updated: 2026-07-13
 archived_at: null
@@ -19,7 +19,7 @@ archived_at: null
 - TODO: commit the `.gitignore` rule (`/data/golden-plan*.sql`) when wrapping up — the rule itself carries no data.
 - **Comparison rig verified end-to-end (2026-07-12)**: reset → snapshot restore → catalog-only clone. Current local state: Golden Plan `4bc9fe99-…` (reference, 48/47) + **Golden Catalog Clone `e67d3b63-d32c-4332-8f78-bd991b93ecd3`** (identical catalog + availability; author generated onto it 2026-07-12). Details in research.md Follow-up 3.
 - **Latent human-plan patterns (2026-07-12, research.md Follow-up 5)**: teacher gaps 74 vs 345 (**4.7×** — tuple has NO teacher term); student holes −35% (tier 4 = real human edge, no operator hunts it); **school fixtures discovered** — Advisory @ d3 P7 both cohorts, SSSTS strictly P1–P2 with cross-cohort a/b week-alternation, CAS(a)+EE(b) paired cells → candidates for **pre-pinning before generation** (may fix part of completeness); free capacity banked at Friday tail; thin slots are deliberate edge doubles (density is NOT an objective); fixed-period consistency + is_optional refuted as metrics.
-- **Cross-cohort patterns (2026-07-13, research.md Follow-up 7 + report addendum)**: 16/17 teachers teach both cohorts; expert halves cohort switches (86 vs 180, 63% seamless), 49% vs 28% cohort-pure teacher days; all 10 mirrored cells = school skeleton incl. **NEW Polish A Monday-morning fixture** (parallel staffing); mirrored-cell census = automatic fixture detector for the analyzer.
+- **Cross-cohort patterns (2026-07-13, research.md Follow-up 7 + report addendum)**: 16/17 teachers teach both cohorts; expert halves cohort switches (86 vs 180, 63% seamless), 49% vs 28% cohort-pure teacher days; all **9** mirrored cells (corrected from 10 by analyzer run #1) = school skeleton incl. **NEW Polish A Monday-morning fixture** (parallel staffing); mirrored-cell census = automatic fixture detector for the analyzer.
 - **Engine-capability assessment (2026-07-13, research.md Follow-up 6)**: enriched greedy can close the representational gaps but likely not full parity (completeness/48-slot frontier = search-power wall); CP-SAT's archived rejection is stale for the new rule-rich, satisfy-shaped model; recommended hybrid = CP-SAT as an exact **residual-repair operator** inside the LNS (freeze ~95% of board, solve the failed remainder exactly). Rules first, engines second.
 - **First real diff measured (2026-07-12, research.md Follow-up 4)**: expert 226 same-course adjacent pairs / **0 same-day splits** / **0 soft-availability hits** / days always start P1; engine 26 pairs / **67 splits** / 3 soft hits / **5 unplaced hours** (Chemistry HL 4/6 + EE 0/1 — tier-1 failure invisible to the stale bench; expert solves Chemistry as 3 doubles against a 20%-blocked teacher). Ranked missing terms: (1) same-course adjacency/no-splits (likely HARD), (2) completeness under real availability (search failure), (3) soft-unavailability treated as inviolable, (4) day-start-never-free. Slot counts must never print without completeness beside them.
 - **📈 Analyzer run #1 recorded (2026-07-13)**: [analysis-run-1.md](analysis-run-1.md) — `pnpm analyze:plans` against Golden Plan vs the generated clone. Three outcomes:

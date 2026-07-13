@@ -168,9 +168,14 @@ weaves them deliberately:
 | Cohort switches (teacher, within-day) | **86** | 180 |
 | — of which back-to-back (seamless) | **63%** | 45% |
 | Same-day cross-cohort subject editions (shared days) | 37 | 54 |
-| Mirrored cells (same course, same cell, both cohorts) | **10 — all deliberate** | 1 (accidental) |
+| Mirrored cells (same course, same cell, both cohorts) | **9 — all deliberate** | 1 (accidental) |
 
-The 10 mirrored cells are the **school's synchronized weekly skeleton**: Polish A SL Monday
+> **Corrected 2026-07-13 by analyzer run #1** ([analysis-run-1.md](analysis-run-1.md)): mirrored
+> cells are **9, not 10** — the ad-hoc SQL over-counted by one. The analyzer enumerates all nine
+> by name, a fresh SQL probe agrees under both candidate keys (`name` and `name+level`), and the
+> prose below always described nine. The fixture family is unchanged.
+
+The 9 mirrored cells are the **school's synchronized weekly skeleton**: Polish A SL Monday
 P1–P2 (simultaneous, parallel staffing KK/MD — a fixture missed by earlier probes), Advisory
 d3 P7, SSSTS d3 P1–P2 (one teacher, cross-cohort week alternation), CAS/EE at d3 P8 + d5 P7
 (coordinators swap cohorts weekly: dp1 CAS(a)+EE(b) while dp2 EE(a)+CAS(b)). This extends the

@@ -71,9 +71,26 @@ type Report = { plan: LoadedPlan; verdict: GenerationVerdict; features: PlanQual
 
 const loadPlans = async (): Promise<LoadedPlan[]> => {
   if (!SUPABASE_URL || !SERVICE_KEY || !PLAN_A) throw new Error(USAGE);
+  assertLocalStack(SUPABASE_URL);
   const supabase = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
   const ids = PLAN_B ? [PLAN_A, PLAN_B] : [PLAN_A];
   return Promise.all(ids.map((id) => loadPlanAnalysis(supabase, id)));
+};
+
+const LOCAL_HOSTS = ["127.0.0.1", "localhost", "[::1]"];
+
+/**
+ * The runner reads with the service-role key (RLS bypassed) and prints real course, student and
+ * teacher identifiers to stdout. A `.env.test.local` left pointing at the hosted project would dump
+ * production timetable data into a terminal — so the local stack is asserted, not assumed.
+ */
+const assertLocalStack = (url: string): void => {
+  const { hostname } = new URL(url);
+  if (LOCAL_HOSTS.includes(hostname) || process.env.ANALYZE_ALLOW_REMOTE === "1") return;
+  throw new Error(
+    `Refusing to analyze a non-local Supabase (${hostname}): this runner prints real names and ids ` +
+      `to stdout. Run 'pnpm env:local' first, or set ANALYZE_ALLOW_REMOTE=1 to override deliberately.`,
+  );
 };
 
 /** The tier-0 question: is this board even legal under the engine's own oracle? */
@@ -82,6 +99,15 @@ const printVerdict = (plan: LoadedPlan, verdict: GenerationVerdict): void => {
   console.log(`oracle-valid: ${verdict.ok ? "YES" : "NO"} · soft-availability warns: ${verdict.softWarnCount}`);
   for (const reason of verdict.reasons) console.log(`  ✗ ${reason}`);
   if (verdict.reasons.length === 0) console.log("  (no blocking violations, no generated-row stacking)");
+  printCatalogWarnings(plan);
+};
+
+/** Catalog anomalies distort every number downstream of them, so they are named next to the verdict
+ *  rather than left in the loader — an unflagged `zero-hours` course reads as a complete one. */
+const printCatalogWarnings = (plan: LoadedPlan): void => {
+  if (plan.warnings.length === 0) return;
+  console.log(`catalog warnings: ${plan.warnings.length} — these rows distort the metrics below`);
+  for (const warning of plan.warnings) console.log(`  ! [${warning.cohort}] ${warning.kind}: ${warning.message}`);
 };
 
 const printCohortScoreboard = (reports: Report[]): void => {
@@ -96,8 +122,12 @@ const printCohortScoreboard = (reports: Report[]): void => {
     ["Occupied slots", (report, cohort) => `${report.features.cohorts[cohort].board.occupiedSlots}`],
     ["Placement rows", (report, cohort) => `${report.features.cohorts[cohort].board.placementRows}`],
     ["Interior holes", (report, cohort) => `${report.features.cohorts[cohort].board.interiorHoles}`],
+    // Empty days sit beside the edge counts for the same reason unplaced hours sit beside the slot
+    // count: a wholly empty day pours all its periods into "free at day START" and would otherwise
+    // read as packed-morning failure rather than as a day nobody scheduled.
     ["Free at day START", (report, cohort) => `${report.features.cohorts[cohort].board.freeSlotsAtDayStart}`],
     ["Free at day END", (report, cohort) => `${report.features.cohorts[cohort].board.freeSlotsAtDayEnd}`],
+    ["— of which EMPTY days", (report, cohort) => `${report.features.cohorts[cohort].board.emptyDays}`],
     ["Same-course adjacent pairs", (report, cohort) => `${report.features.cohorts[cohort].adjacency.adjacentPairs}`],
     ["Same-course same-day SPLITS", (report, cohort) => `${report.features.cohorts[cohort].adjacency.sameDaySplits}`],
     [

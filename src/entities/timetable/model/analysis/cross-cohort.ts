@@ -124,7 +124,7 @@ const sharedSubjectEditionDays = (rows: AnalyzerRow[], catalog: CatalogIndex): n
     const subject = catalog.subjectOf.get(row.courseId);
     if (!subject) continue;
     for (const teacher of catalog.teachersOf.get(row.courseId) ?? []) {
-      const key = `${teacher}|${subject.name}|${row.day}`;
+      const key = groupKey(teacher, subject.name, row.day);
       const cohorts = cohortsByEditionDay.get(key) ?? new Set<Cohort>();
       cohorts.add(row.cohort);
       cohortsByEditionDay.set(key, cohorts);
@@ -136,24 +136,28 @@ const sharedSubjectEditionDays = (rows: AnalyzerRow[], catalog: CatalogIndex): n
 /** The fixture detector: same subject (name + level), same cell, both cohorts. Week-agnostic on
  *  purpose — the SSSTS and CAS/EE fixtures mirror ACROSS the week lanes (dp1 week A, dp2 week B). */
 const mirroredCells = (rows: AnalyzerRow[], catalog: CatalogIndex): MirroredCell[] => {
-  const byCell = new Map<string, Map<Cohort, string>>();
+  type Cell = { name: string; level: string; day: number; period: number; byCohort: Map<Cohort, string> };
+  const byCell = new Map<string, Cell>();
   for (const row of rows) {
     const subject = catalog.subjectOf.get(row.courseId);
     if (!subject) continue;
-    const key = `${subject.name}|${subject.level}|${row.day}|${row.period}`;
-    const byCohort = byCell.get(key) ?? new Map<Cohort, string>();
-    byCohort.set(row.cohort, row.courseId);
-    byCell.set(key, byCohort);
+    const key = groupKey(subject.name, subject.level, row.day, row.period);
+    const cell = byCell.get(key) ?? { ...subject, day: row.day, period: row.period, byCohort: new Map() };
+    cell.byCohort.set(row.cohort, row.courseId);
+    byCell.set(key, cell);
   }
-  return [...byCell]
-    .flatMap(([key, byCohort]) => {
+  return [...byCell.values()]
+    .flatMap(({ byCohort, ...cell }) => {
       const dp1 = byCohort.get("dp1");
       const dp2 = byCohort.get("dp2");
       if (dp1 === undefined || dp2 === undefined) return [];
-      const [name, level, day, period] = key.split("|");
-      return [{ name, level, day: Number(day), period: Number(period), courseIds: { dp1, dp2 } }];
+      return [{ ...cell, courseIds: { dp1, dp2 } }];
     })
     .sort((a, b) => a.day - b.day || a.period - b.period || a.name.localeCompare(b.name));
 };
+
+/** Course `name`/`level` are free text, so a `|`-joined key could collide (or mis-parse) — the parts
+ *  are JSON-encoded instead, and identity is carried in the map VALUE rather than parsed back out. */
+const groupKey = (...parts: (string | number)[]): string => JSON.stringify(parts);
 
 const share = (part: number, whole: number): number => (whole === 0 ? 0 : part / whole);

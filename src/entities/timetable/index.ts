@@ -25,8 +25,17 @@ export * from "./model/generation/run";
 // backboneCliques, …), which the slice's own tests import relatively.
 export { createGreedyEngine, generatePlanGreedy, type GreedyTuning } from "./model/generation/engines/greedy";
 // The read-only plan-quality extractor (feature vector, never a score) — consumed by the
-// `analyze:plans` runner today and by any future in-app comparison surface unchanged.
-export * from "./model/analysis";
+// `analyze:plans` runner today and by any future in-app comparison surface unchanged. Only the
+// entry point and its input/output shapes; the per-lens derivations and the lane primitive are
+// module internals, imported relatively by the module's own tests.
+export {
+  analyzePlan,
+  type AnalyzerCourse,
+  type AnalyzerRow,
+  type Distribution,
+  type PlanAnalysisInput,
+  type PlanQualityFeatures,
+} from "./model/analysis";
 export * from "./model/perspective";
 export * from "./model/perspective-course-list";
 export * from "./model/export/sheet-types";

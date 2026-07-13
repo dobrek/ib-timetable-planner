@@ -337,6 +337,47 @@ No schema changes. Nothing in this change touches prod. The golden snapshot (`da
 - Runner precedent: `bench/generation.bench.ts` + `vitest.bench.config.ts`
 - Loaders: `src/shared/api/load-cohort-courses.ts`, `src/shared/api/load-placements.ts`
 
+## Addendum — implemented beyond contract (recorded 2026-07-13, impl-review)
+
+These landed during implementation and were not in the phase contracts. All are kept; recorded here
+so the plan stays the source of truth for the next reader.
+
+- **`completeness.ts` is not a thin wrapper.** Beyond `deriveGenerationDeficits` it adds
+  `overplacedHours` / `overplaced` (hours placed *above* a course's requirement) and
+  `uncataloguedRows` (board rows whose course the catalog projection dropped). Never netted against
+  the shortfall — the two are reported side by side. **This is the metric that found the change's
+  most valuable result**: dp1 Chemistry's overlap base carries zero direct enrolments, so
+  `loadCohortCourses` drops it *with its 4 required hours*, and the engine reads "complete" while
+  4 hours are simply invisible to the objective. A thin wrapper would have shown nothing.
+- **`stats.ts`** — shared `distribution()` / `worstOf()`. Implied by the Phase-1 types contract
+  ("distribution-shaped values report `{min, p10, median, max, variance}`-style stats"), not a new
+  metric family.
+- **`TeacherFeatures.strongAvailabilityHits`** — the blocking counterpart to the planned soft-hit
+  localization; free from the same index pass.
+- **`load-plan-analysis-input.ts` returns `snapshot` + `board`** beyond the stated
+  `PlanAnalysisInput` — required by Phase 4's verify-gold experiment, so it is a Phase-3/Phase-4
+  contract seam rather than new scope.
+- **`vitest.bench.config.ts` gains `reporters: ["verbose"]`** — Vitest 4's default reporter swallows
+  `console.log` from passing tests, so the bench's printed report (its entire product) was invisible.
+  A genuine bug fix, ride-along with the Phase-3 bench work.
+- **Catalog warnings surfaced** (impl-review F4): `loadCohortCourses`'s `no-students` / `zero-hours`
+  warnings are carried on `LoadedPlan` and printed beside each plan's verdict instead of being
+  dropped — a `zero-hours` course otherwise reads as "complete" and silently distorts the numbers.
+  **Both real catalogs currently raise zero warnings**, and this channel does *not* catch the
+  Chemistry case above: `collectWarnings` (`load-cohort-courses.ts:188`) only walks the courses that
+  *survived* the projection, so a course dropped for having no direct enrolments can never raise a
+  `no-students` warning about itself. The detector for that class is `uncataloguedRows` /
+  `overplacedHours` in `completeness.ts` — a course-shaped hole is only visible from the board side.
+  → reinforces the open follow-up: should a zero-direct-choice overlap base stay in the projection?
+- **`BoardShapeFeatures.emptyDays`** (impl-review F8): a wholly empty day has no span, so all of its
+  periods count as "before the first lesson" and land in `freeSlotsAtDayStart`. `emptyDays` is
+  printed beside the edge counts for the same reason unplaced hours sit beside the slot count —
+  otherwise an unscheduled Friday reads as a column of free mornings, inverting the metric's meaning.
+  (Both current boards report 0, so the caveat is inert today.)
+- **Runner asserts the local stack** (impl-review F2): the service-role read is refused against a
+  non-local Supabase host unless `ANALYZE_ALLOW_REMOTE=1`, enforcing the plan's "no prod access"
+  guardrail in code rather than by convention.
+
 ## Progress
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles.

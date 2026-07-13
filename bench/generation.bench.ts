@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
-import { loadCohortCourses } from "@/shared/api";
+import { loadCohortCourses, loadTeacherAvailability, unwrapMany } from "@/shared/api";
 import { countInteriorHoles, createGreedyEngine, type GeneratorSnapshot, verifyGeneration } from "@/entities/timetable";
 
 /**
@@ -83,12 +83,14 @@ async function loadSeedPlanSnapshot(): Promise<GeneratorSnapshot> {
   const [dp1, dp2, availability] = await Promise.all([
     loadCohortCourses(supabase, plan.id, "dp1"),
     loadCohortCourses(supabase, plan.id, "dp2"),
-    supabase.from("teacher_availability").select("teacher_id, day, period, severity").eq("plan_id", plan.id),
+    loadTeacherAvailability(supabase, plan.id),
   ]);
   return {
     days: 5,
     periods: 10,
-    availability: (availability.data ?? []).map((row) => ({
+    // Unwrapped, not defaulted: a failed availability read would otherwise degrade the bench to an
+    // unconstrained catalog and still pass — a green bar proving nothing.
+    availability: unwrapMany(availability, `Failed to load teacher availability for plan ${PLAN_ID}`).map((row) => ({
       teacherKey: row.teacher_id,
       day: row.day,
       period: row.period,

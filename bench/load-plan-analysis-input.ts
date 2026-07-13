@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@/shared/api";
 import { loadCohortCourses, loadPlacements, loadTeacherAvailability, unwrapMany } from "@/shared/api";
 import { COHORT_VALUES, type Cohort } from "@/shared/config";
 import { parseGridPreset } from "@/shared/lib/grid";
+import type { ComputeWarning } from "@/shared/lib/catalog-hash";
 import type { AnalyzerCourse, AnalyzerRow, GeneratorSnapshot, PlanAnalysisInput } from "@/entities/timetable";
 
 /**
@@ -24,7 +25,16 @@ export type LoadedPlan = {
   snapshot: GeneratorSnapshot;
   /** The plan's whole board, shaped as engine output so the oracle can judge it. */
   board: AnalyzerRow[];
+  /**
+   * Catalog anomalies `loadCohortCourses` flags (`no-students`, `zero-hours`). Surfaced rather than
+   * dropped: these are precisely the rows that quietly distort the numbers — a zero-hours course
+   * reads as "complete", a no-students course contributes nothing to the slot census — and for a
+   * tool whose whole product is trustworthy figures, a silent catalog anomaly is a wrong answer.
+   */
+  warnings: PlanWarning[];
 };
+
+export type PlanWarning = ComputeWarning & { cohort: Cohort };
 
 export const loadPlanAnalysis = async (supabase: SupabaseClient, planId: string): Promise<LoadedPlan> => {
   const plan = await fetchPlan(supabase, planId);
@@ -60,6 +70,7 @@ export const loadPlanAnalysis = async (supabase: SupabaseClient, planId: string)
       },
     },
     board,
+    warnings: [...dp1.warnings, ...dp2.warnings],
   };
 };
 
@@ -85,7 +96,12 @@ const loadCohortAnalysis = async (
   supabase: SupabaseClient,
   planId: string,
   cohort: Cohort,
-): Promise<{ courses: AnalyzerCourse[]; rows: AnalyzerRow[]; finishesEarlyCourseIds: string[] }> => {
+): Promise<{
+  courses: AnalyzerCourse[];
+  rows: AnalyzerRow[];
+  finishesEarlyCourseIds: string[];
+  warnings: PlanWarning[];
+}> => {
   const [catalog, subjects, placements] = await Promise.all([
     loadCohortCourses(supabase, planId, cohort),
     supabase.from("courses").select("id, name, level, group_index").eq("plan_id", planId).eq("cohort", cohort),
@@ -113,6 +129,7 @@ const loadCohortAnalysis = async (
       week: row.week,
     })),
     finishesEarlyCourseIds: catalog.finishesEarlyCourseIds,
+    warnings: catalog.warnings.map((warning) => ({ ...warning, cohort })),
   };
 };
 

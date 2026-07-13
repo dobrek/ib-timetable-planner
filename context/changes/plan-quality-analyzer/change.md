@@ -1,7 +1,7 @@
 ---
 change_id: plan-quality-analyzer
 title: Plan quality analyzer
-status: implementing
+status: implemented
 created: 2026-07-12
 updated: 2026-07-13
 archived_at: null

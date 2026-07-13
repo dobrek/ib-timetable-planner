@@ -373,11 +373,11 @@ No schema changes. Nothing in this change touches prod. The golden snapshot (`da
 
 #### Automated
 
-- [x] 4.1 Full local gate green before closing: `pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm test` && `pnpm build`
+- [x] 4.1 Full local gate green before closing: `pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm test` && `pnpm build` — c7ce666
 
 #### Manual
 
-- [x] 4.2 `analysis-run-1.md` recorded with full output, both verdicts, plan ids, date
-- [x] 4.3 Verify-gold verdict recorded (world a or b, with reasons if b)
-- [x] 4.4 Golden-side parity confirmed against `comparison-report.md` (two-grade tolerance)
-- [x] 4.5 change.md notes updated with the outcome
+- [x] 4.2 `analysis-run-1.md` recorded with full output, both verdicts, plan ids, date — c7ce666
+- [x] 4.3 Verify-gold verdict recorded (world a or b, with reasons if b) — c7ce666
+- [x] 4.4 Golden-side parity confirmed against `comparison-report.md` (two-grade tolerance) — c7ce666
+- [x] 4.5 change.md notes updated with the outcome — c7ce666

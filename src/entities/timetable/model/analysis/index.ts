@@ -8,6 +8,10 @@ export { deriveSlotCensus, THIN_SLOT_SHARE } from "./slot-census";
 export { deriveWeekSymmetry } from "./week-symmetry";
 export { deriveCourseAdjacency } from "./course-adjacency";
 export { deriveCourseSpread } from "./course-spread";
+export { deriveStudentLens } from "./student-lens";
+export { deriveTeacherLens } from "./teacher-lens";
+export { deriveCrossCohort } from "./cross-cohort";
+export { deriveSubjectRollup, subjectByName } from "./subject-rollup";
 export type {
   AnalyzerCourse,
   AnalyzerRow,
@@ -17,14 +21,20 @@ export type {
   CourseAdjacencyFeatures,
   CourseSpreadFeatures,
   CourseTimeOfDay,
+  CrossCohortFeatures,
   DailyLoadFeatures,
   DayEdgeProfile,
   Distribution,
   Extreme,
+  MirroredCell,
   PlanAnalysisInput,
   PlanQualityFeatures,
   SlotCensusFeatures,
   SlotPosition,
+  StudentFeatures,
+  SubjectRollup,
+  TeacherDaySequence,
+  TeacherFeatures,
   ThinSlot,
   WeekSymmetryFeatures,
 } from "./types";

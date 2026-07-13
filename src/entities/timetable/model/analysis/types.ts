@@ -130,6 +130,84 @@ export type CourseSpreadFeatures = {
   meanPeriodByCourse: CourseTimeOfDay[];
 };
 
+/** The tier-4 lens: distributions and worst cases, because fairness is never a question about the mean. */
+export type StudentFeatures = {
+  students: number;
+  /** Lane-expanded span − occupancy, summed — the same number `countStudentHoles` returns. */
+  gapSlots: number;
+  gapsPerStudent: Distribution;
+  worstStudentGaps: Extreme | null;
+  hoursPerStudentDay: Distribution;
+  /** hours ÷ span per student-day-week; 1.0 is a fully compact day. */
+  spanEfficiency: Distribution;
+  maxConsecutiveHours: Distribution;
+  /** Student-day-weeks holding exactly one lesson — the classic real-world irritant. */
+  singleLessonDays: number;
+  earlyStarts: Distribution;
+  lateFinishes: Distribution;
+  daysOnCampus: Distribution;
+};
+
+/** The lens the objective is entirely missing: teacher compactness across BOTH cohorts. */
+export type TeacherFeatures = {
+  teachers: number;
+  gapSlots: number;
+  gapsPerTeacher: Distribution;
+  worstTeacherGaps: Extreme | null;
+  teachingDays: Distribution;
+  hoursPerTeachingDay: Distribution;
+  daySpan: Distribution;
+  maxConsecutiveTeaching: Distribution;
+  /** Placements on a teacher's soft-`no` cells — the localization of verify's `softWarnCount`. */
+  softAvailabilityHits: number;
+  strongAvailabilityHits: number;
+  softHitsByTeacher: Extreme[];
+};
+
+/** One teacher's hours on one day of one week, in period order and cohort-tagged — the sequence
+ *  the switch metrics read. */
+export type TeacherDaySequence = {
+  teacher: string;
+  day: number;
+  weekLane: "a" | "b";
+  hours: { period: number; cohort: Cohort }[];
+};
+
+/** A cell running the same subject in both cohorts — a school fixture, until proven otherwise. */
+export type MirroredCell = {
+  name: string;
+  level: string;
+  day: number;
+  period: number;
+  courseIds: Record<Cohort, string>;
+};
+
+/** How the two cohorts are woven together — one staffing system, not two grids. */
+export type CrossCohortFeatures = {
+  teachers: number;
+  teachersInBothCohorts: number;
+  teacherDays: number;
+  cohortPureTeacherDays: number;
+  cohortPureShare: number;
+  cohortSwitches: number;
+  /** Switches taken back-to-back (adjacent periods) rather than across an idle gap. */
+  seamlessSwitches: number;
+  seamlessShare: number;
+  sharedSubjectEditionDays: number;
+  /** The automatic fixture detector's output. */
+  mirroredCells: MirroredCell[];
+};
+
+/** Course-grain numbers rolled up to a subject — chiefly the expert's time-of-day gradient. */
+export type SubjectRollup = {
+  subject: string;
+  courses: number;
+  placedHours: number;
+  meanPeriod: number;
+  adjacentPairs: number;
+  sameDaySplits: number;
+};
+
 /** Everything measured within one cohort's grid. */
 export type CohortFeatures = {
   completeness: CompletenessFeatures;
@@ -139,14 +217,19 @@ export type CohortFeatures = {
   weekSymmetry: WeekSymmetryFeatures;
   adjacency: CourseAdjacencyFeatures;
   spread: CourseSpreadFeatures;
+  students: StudentFeatures;
 };
 
 /** The v1 feature vector — never scalarized into a score (the weighted-scalar tier-bleed lesson):
- *  the analyzer reports, the human (and later the objective) judges. */
+ *  the analyzer reports, the human (and later the objective) judges. Teachers, cross-cohort structure
+ *  and subject roll-ups are board-wide: staff and subjects span both cohorts. */
 export type PlanQualityFeatures = {
   days: number;
   periods: number;
   cohorts: Record<Cohort, CohortFeatures>;
+  teachers: TeacherFeatures;
+  crossCohort: CrossCohortFeatures;
+  subjects: SubjectRollup[];
 };
 
 /** Summary of a value set — the shape every "report the distribution, not the total" metric returns. */

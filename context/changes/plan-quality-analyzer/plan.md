@@ -361,23 +361,23 @@ No schema changes. Nothing in this change touches prod. The golden snapshot (`da
 
 #### Automated
 
-- [x] 3.1 `pnpm test` unaffected; `pnpm check` && `pnpm lint` && `pnpm build` green
-- [x] 3.2 `pnpm analyze:plans` without env/ids skips gracefully with a usage message
+- [x] 3.1 `pnpm test` unaffected; `pnpm check` && `pnpm lint` && `pnpm build` green — 2122c93
+- [x] 3.2 `pnpm analyze:plans` without env/ids skips gracefully with a usage message — 2122c93
 
 #### Manual
 
-- [x] 3.3 Single-plan run against the Golden Plan renders verdict + feature tables
-- [x] 3.4 `pnpm bench:generation` passes against seed state with id-based lookup
+- [x] 3.3 Single-plan run against the Golden Plan renders verdict + feature tables — 2122c93
+- [x] 3.4 `pnpm bench:generation` passes against seed state with id-based lookup — 2122c93
 
 ### Phase 4: First Real Run Recorded
 
 #### Automated
 
-- [ ] 4.1 Full local gate green before closing: `pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm test` && `pnpm build`
+- [x] 4.1 Full local gate green before closing: `pnpm check` && `pnpm lint` && `pnpm steiger` && `pnpm test` && `pnpm build`
 
 #### Manual
 
-- [ ] 4.2 `analysis-run-1.md` recorded with full output, both verdicts, plan ids, date
-- [ ] 4.3 Verify-gold verdict recorded (world a or b, with reasons if b)
-- [ ] 4.4 Golden-side parity confirmed against `comparison-report.md` (two-grade tolerance)
-- [ ] 4.5 change.md notes updated with the outcome
+- [x] 4.2 `analysis-run-1.md` recorded with full output, both verdicts, plan ids, date
+- [x] 4.3 Verify-gold verdict recorded (world a or b, with reasons if b)
+- [x] 4.4 Golden-side parity confirmed against `comparison-report.md` (two-grade tolerance)
+- [x] 4.5 change.md notes updated with the outcome

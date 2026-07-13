@@ -1,10 +1,10 @@
 ---
 change_id: plan-quality-analyzer
 title: Plan quality analyzer
-status: impl_reviewed
+status: archived
 created: 2026-07-12
 updated: 2026-07-13
-archived_at: null
+archived_at: 2026-07-13T12:17:06Z
 ---
 
 ## Notes

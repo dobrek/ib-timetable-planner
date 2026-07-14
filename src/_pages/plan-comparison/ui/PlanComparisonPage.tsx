@@ -1,6 +1,5 @@
 import type { PlanComparisonData, PlanDetail } from "../api/load-comparison";
 import { DriftBanner } from "./DriftBanner";
-import { PlanPicker } from "./PlanPicker";
 import { ScoreboardTable } from "./ScoreboardTable";
 import { VerdictBlock } from "./VerdictBlock";
 
@@ -8,30 +7,36 @@ import { VerdictBlock } from "./VerdictBlock";
  * The presenter. Takes one plain-serializable `data` prop — no `Map`s cross the island boundary (the
  * read-only plan-view precedent).
  *
- * Order matters: picker → what-went-wrong (missing plans, fallback baseline) → drift banner → rule
- * verdict → the scoreboard. Everything that could make the numbers *lie* is stated before the numbers
- * are shown.
+ * **This page has no plan picker, deliberately.** The selection is made on the plans hub and arrives in
+ * the URL, so every number below is SSR'd from exactly the plans named in the heading. An in-page picker
+ * was client state driving server-rendered numbers: change it and the columns kept their old values, so
+ * the page could quietly show one selection and one set of measurements that disagreed with it. Changing
+ * the selection means going back to the hub — one round trip, and the numbers can never lie about which
+ * plans they came from.
+ *
+ * Order matters: what-went-wrong (missing plans) → drift banner → rule verdict → the scoreboard.
+ * Everything that could make the numbers *lie* is stated before the numbers are shown.
  */
-export default function PlanComparisonPage({ data, allPlans }: Props) {
+export default function PlanComparisonPage({ data }: Props) {
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-foreground text-2xl font-semibold tracking-tight">Compare plans</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          A feature vector per plan, never a score — the numbers are the evidence, the judgement is yours. Deltas are
-          measured against the baseline.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-foreground text-2xl font-semibold tracking-tight">Compare plans</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {data === null
+              ? "A feature vector per plan, never a score."
+              : `${data.plans.map((plan) => plan.name).join(" · ")} — a feature vector per plan, never a score. The numbers are the evidence; the judgement is yours.`}
+          </p>
+        </div>
+        <a href="/plans" className="text-primary text-sm font-medium underline-offset-4 hover:underline">
+          Change selection
+        </a>
       </header>
-
-      <PlanPicker
-        plans={allPlans}
-        selectedIds={data?.plans.map((plan) => plan.id) ?? []}
-        baselineId={data?.baselineId ?? null}
-      />
 
       {data === null ? (
         <p className="text-muted-foreground text-sm">
-          Pick two or more plans to compare their feature vectors side by side.
+          Nothing to compare. Tick two or more plans on the plans list, then press Compare.
         </p>
       ) : (
         <Comparison data={data} />
@@ -41,10 +46,8 @@ export default function PlanComparisonPage({ data, allPlans }: Props) {
 }
 
 type Props = {
-  /** `null` when no plans are selected — the picker's empty state, not an error. */
+  /** `null` when the URL named no loadable plan — an empty state, not an error. */
   data: PlanComparisonData | null;
-  /** Every plan the author can pick from. */
-  allPlans: { id: string; name: string }[];
 };
 
 function Comparison({ data }: { data: PlanComparisonData }) {
@@ -59,13 +62,6 @@ function Comparison({ data }: { data: PlanComparisonData }) {
             : `${String(data.missingPlanIds.length)} plans could not be loaded`}
           {" — "}
           {data.missingPlanIds.join(", ")}. It may have been deleted.
-        </div>
-      ) : null}
-
-      {data.baselineFellBack ? (
-        <div role="status" className="rounded-md border p-3 text-sm">
-          The requested baseline could not be loaded. Every delta below is measured against{" "}
-          <strong>{planName(data, data.baselineId)}</strong> instead.
         </div>
       ) : null}
 
@@ -162,6 +158,3 @@ function PlanDetailCard({ plan }: { plan: PlanDetail }) {
 }
 
 const nameAndValue = (entry: { name: string; value: number }): string => `${entry.name}: ${String(entry.value)}`;
-
-const planName = (data: PlanComparisonData, planId: string): string =>
-  data.plans.find((plan) => plan.id === planId)?.name ?? planId;

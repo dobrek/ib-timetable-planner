@@ -178,7 +178,7 @@ const GHOST = "00000000-0000-0000-0000-000000000000";
   it("renders the plans that loaded and NAMES the one that did not", async () => {
     const { planId } = await buildScenario();
 
-    const result = await loadComparison(supabase, [planId, GHOST], planId);
+    const result = await loadComparison(supabase, [planId, GHOST]);
 
     expect(result.data).not.toBeNull();
     expect(result.data?.plans.map((plan) => plan.id)).toEqual([planId]);
@@ -188,22 +188,28 @@ const GHOST = "00000000-0000-0000-0000-000000000000";
   });
 
   it("returns no data when NOT ONE plan resolves — the route's only 404", async () => {
-    const result = await loadComparison(supabase, [GHOST], GHOST);
+    const result = await loadComparison(supabase, [GHOST]);
 
     expect(result.data).toBeNull();
     expect(result.missingPlanIds).toEqual([GHOST]);
   });
 
-  it("falls back to a loaded plan when the designated BASELINE is the missing one, and says so", async () => {
+  /**
+   * A missing FIRST plan is unremarkable, and that is the point. No column is measured against another,
+   * so losing the plan the URL happened to name first costs exactly that plan's columns — nothing else
+   * shifts meaning. Under a baseline-relative design this same case would have silently re-based every
+   * delta on the page.
+   */
+  it("survives losing the FIRST-named plan — no column depended on it", async () => {
     const { planId } = await buildScenario();
 
-    // Deltas are baseline-relative, so a silently-missing baseline would render a whole scoreboard of
-    // meaningless numbers.
-    const result = await loadComparison(supabase, [GHOST, planId], GHOST);
+    const result = await loadComparison(supabase, [GHOST, planId]);
 
-    expect(result.data?.baselineId).toBe(planId);
-    expect(result.data?.baselineFellBack).toBe(true);
+    expect(result.data?.plans.map((plan) => plan.id)).toEqual([planId]);
     expect(result.missingPlanIds).toEqual([GHOST]);
+    // One plan left, so there is no second catalog to describe it against.
+    expect(result.data?.drift).toEqual([]);
+    expect(result.data?.sections.length).toBeGreaterThan(0);
   });
 });
 

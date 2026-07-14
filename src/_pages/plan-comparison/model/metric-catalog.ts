@@ -10,54 +10,46 @@ import { extreme, num, pct, pooledMean, sumCohorts, worstStudent } from "./forma
  * labels — validated against the expert board in analyzer run #1. Port the catalogs; leave the
  * printing behind.
  *
- * A row is a typed `MetricRow`, not a tuple, because it must carry a **`kind`**: numeric rows get a
- * baseline-relative delta, text rows must not (`extreme` yields `"Kowalski: 42"`, and several
- * cross-cohort rows are ratios like `"12 / 17"` — subtracting those is meaningless).
+ * A row is a typed `MetricRow`, not a tuple, so it carries a stable `id` and reads its own value —
+ * every row formats to a **string**, exactly as the bench prints it. Several are not numbers at all
+ * (`extreme` yields `"Kowalski: 42"`; the cross-cohort rows are ratios like `"12 / 17"`), which is one
+ * more reason there is no arithmetic layered on top of them.
  *
- * It reports; it never judges. No pass/fail bar, no ranking, no composite score — that would smuggle
- * back the scalar the analyzer exists to avoid (the weighted-scalar tier-bleed bug).
+ * It reports; it never judges. No pass/fail bar, no ranking, no composite score, no baseline-relative
+ * delta — each would smuggle back the scalar the analyzer exists to avoid (the weighted-scalar
+ * tier-bleed bug).
  */
 
 /** A row read per (plan, cohort) — the cohort-grain sections. */
 export type CohortMetricRow = {
-  /** Stable identity, so a delta can be attached to a row without matching on its label. */
+  /** Stable identity, so a row can be addressed without matching on its label. */
   id: string;
   label: string;
-  kind: MetricKind;
   read: (features: PlanQualityFeatures, cohort: Cohort) => string;
-  /** The numeric value a delta is computed from. Absent on text rows. */
-  value?: (features: PlanQualityFeatures, cohort: Cohort) => number;
 };
 
 /** A row read per plan — the board-wide sections. */
 export type PlanMetricRow = {
   id: string;
   label: string;
-  kind: MetricKind;
   read: (features: PlanQualityFeatures) => string;
-  value?: (features: PlanQualityFeatures) => number;
 };
-
-/** `number` rows get a signed delta vs the baseline; `text` rows never do. */
-export type MetricKind = "number" | "text";
 
 const cohortOf = (features: PlanQualityFeatures, cohort: Cohort) => features.cohorts[cohort];
 
 const goldenOf = (features: PlanQualityFeatures, cohort: Cohort) => cohortOf(features, cohort).slotCensus.goldenCensus;
 
-/** A numeric cohort row — the common case: render with `num`, delta off the same number. */
+/** A numeric cohort row — the common case: read the number, render it the way the bench does. */
 const cohortNumber = (
   id: string,
   label: string,
   value: (features: PlanQualityFeatures, cohort: Cohort) => number,
-): CohortMetricRow => ({ id, label, kind: "number", read: (f, c) => num(value(f, c)), value });
+): CohortMetricRow => ({ id, label, read: (f, c) => num(value(f, c)) });
 
 const planNumber = (id: string, label: string, value: (features: PlanQualityFeatures) => number): PlanMetricRow => ({
   id,
   label,
-  kind: "number",
   read: (f) => num(value(f)),
-  value,
 });
 
 /**
@@ -93,11 +85,13 @@ export const COHORT_SCOREBOARD: CohortMetricRow[] = [
  * Golden slots — 6 rows, `bench/plan-report.ts:133-146`.
  *
  * Two labels are **dynamic**: the mid-day band (`P{first}–P{last}`) and the near-golden threshold
- * (`≤{pct(missShare)} missing`) are read off the baseline's own census, so they are functions of the
- * baseline rather than constants.
+ * (`≤{pct(missShare)} missing`) are read off a census rather than hardcoded. Both are analyzer
+ * *settings* echoed back by every plan, not per-plan findings — so any plan's census can name them,
+ * and taking the first one privileges nothing. (The bench reads them off `reports[0]` for the same
+ * reason.)
  */
-export const goldenCensusRows = (baseline: PlanQualityFeatures, firstCohort: Cohort): CohortMetricRow[] => {
-  const { band, missShare } = baseline.cohorts[firstCohort].slotCensus.goldenCensus;
+export const goldenCensusRows = (sample: PlanQualityFeatures, cohort: Cohort): CohortMetricRow[] => {
+  const { band, missShare } = sample.cohorts[cohort].slotCensus.goldenCensus;
   return [
     cohortNumber("goldenCells", "Golden cells", (f, c) => goldenOf(f, c).golden.length),
     cohortNumber("goldenComposites", "— of which composite (3+ courses)", (f, c) => goldenOf(f, c).composites),
@@ -110,16 +104,13 @@ export const goldenCensusRows = (baseline: PlanQualityFeatures, firstCohort: Coh
     {
       id: "goldenInBand",
       label: `Golden inside the mid-day band (P${String(band.first)}–P${String(band.last)})`,
-      // A ratio — `12 / 17`. Subtracting two ratios is meaningless, so no delta.
-      kind: "text",
+
       read: (f, c) => `${String(goldenOf(f, c).goldenInBand)} / ${String(goldenOf(f, c).golden.length)}`,
     },
     {
       id: "goldenBandShare",
       label: "— band share",
-      kind: "number",
       read: (f, c) => pct(goldenOf(f, c).bandShare),
-      value: (f, c) => goldenOf(f, c).bandShare,
     },
   ];
 };
@@ -130,7 +121,6 @@ export const BOARD_WIDE: PlanMetricRow[] = [
   {
     id: "worstTeacher",
     label: "Worst teacher (gaps)",
-    kind: "text",
     read: (f) => extreme(f.teachers.worstTeacherGaps),
   },
   planNumber("teachingDays", "Avg teaching days / teacher", (f) => f.teachers.teachingDays.mean),
@@ -139,7 +129,7 @@ export const BOARD_WIDE: PlanMetricRow[] = [
   planNumber("softAvailabilityHits", "Soft-availability hits", (f) => f.teachers.softAvailabilityHits),
   planNumber("strongAvailabilityHits", "Strong-availability hits", (f) => f.teachers.strongAvailabilityHits),
   planNumber("studentGapSlotsTotal", "Student gap-slots", (f) => sumCohorts(f, (cohort) => cohort.students.gapSlots)),
-  { id: "worstStudent", label: "Worst student (gaps)", kind: "text", read: worstStudent },
+  { id: "worstStudent", label: "Worst student (gaps)", read: worstStudent },
   planNumber("hoursPerStudentDay", "Avg hours / student-day", (f) =>
     pooledMean(f, (cohort) => cohort.students.hoursPerStudentDay),
   ),
@@ -151,19 +141,17 @@ export const BOARD_WIDE: PlanMetricRow[] = [
   ),
 ];
 
-/** Cross-cohort weave — 6 rows, `bench/plan-report.ts:200-217`. Three are ratio strings, so only
- *  three carry a delta. */
+/** Cross-cohort weave — 6 rows, `bench/plan-report.ts:200-217`. Three are ratio strings — one more
+ *  reason nothing here is subtracted. */
 export const CROSS_COHORT: PlanMetricRow[] = [
   {
     id: "teachersBoth",
     label: "Teachers (both cohorts / all)",
-    kind: "text",
     read: (f) => `${String(f.crossCohort.teachersInBothCohorts)} / ${String(f.crossCohort.teachers)}`,
   },
   {
     id: "cohortPureTeacherDays",
     label: "Cohort-pure teacher-days",
-    kind: "text",
     read: (f) =>
       `${String(f.crossCohort.cohortPureTeacherDays)} / ${String(f.crossCohort.teacherDays)} (${pct(f.crossCohort.cohortPureShare)})`,
   },
@@ -171,7 +159,6 @@ export const CROSS_COHORT: PlanMetricRow[] = [
   {
     id: "seamlessSwitches",
     label: "— of which seamless",
-    kind: "text",
     read: (f) => `${String(f.crossCohort.seamlessSwitches)} (${pct(f.crossCohort.seamlessShare)})`,
   },
   planNumber("sharedSubjectEditionDays", "Shared subject-edition days", (f) => f.crossCohort.sharedSubjectEditionDays),

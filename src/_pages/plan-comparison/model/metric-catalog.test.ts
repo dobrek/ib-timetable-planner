@@ -90,7 +90,9 @@ describe("metric catalog", () => {
     expect(labels[end + 1]).toBe("— of which EMPTY days");
   });
 
-  it("has six golden-census rows, with the band and near-golden labels read off the BASELINE", () => {
+  // The band and the near-golden threshold are analyzer SETTINGS echoed back by every plan's census,
+  // not per-plan findings — so any plan can name them and no plan is privileged by being asked.
+  it("has six golden-census rows, with the band and near-golden labels read off a sample census", () => {
     const rows = goldenCensusRows(features, "dp1");
 
     expect(rows).toHaveLength(6);
@@ -112,21 +114,24 @@ describe("metric catalog", () => {
     }
   });
 
-  it("marks ratio and extreme rows as `text`, so no delta is ever subtracted from them", () => {
-    // "12 / 17" and "Kowalski: 42" are not numbers; a delta over them would be nonsense.
-    expect(BOARD_WIDE.find((row) => row.id === "worstTeacher")?.kind).toBe("text");
-    expect(BOARD_WIDE.find((row) => row.id === "worstStudent")?.kind).toBe("text");
-    expect(CROSS_COHORT.find((row) => row.id === "teachersBoth")?.kind).toBe("text");
-    expect(CROSS_COHORT.find((row) => row.id === "seamlessSwitches")?.kind).toBe("text");
-    expect(goldenCensusRows(features, "dp1").find((row) => row.id === "goldenInBand")?.kind).toBe("text");
-  });
-
-  it("gives every `number` row a value reader, and every `text` row none", () => {
+  /**
+   * A row formats to a string and stops there. It exposes no numeric reader, so nothing downstream
+   * *can* subtract one row from another — the no-delta rule is enforced by the shape of the type, not
+   * by everyone remembering it. Several rows aren't numbers anyway ("12 / 17", "Kowalski: 42").
+   */
+  it("exposes formatted strings only — no row offers a number to subtract", () => {
     const all = [...COHORT_SCOREBOARD, ...BOARD_WIDE, ...CROSS_COHORT, ...goldenCensusRows(features, "dp1")];
 
     for (const row of all) {
-      if (row.kind === "number") expect(row.value, `${row.id} is numeric but has no value reader`).toBeDefined();
-      else expect(row.value, `${row.id} is text but carries a value reader`).toBeUndefined();
+      expect(Object.keys(row).sort()).toEqual(["id", "label", "read"]);
     }
+  });
+
+  it("gives every row a unique id, so a row can be addressed without matching on its label", () => {
+    const ids = [...COHORT_SCOREBOARD, ...BOARD_WIDE, ...CROSS_COHORT, ...goldenCensusRows(features, "dp1")].map(
+      (row) => row.id,
+    );
+
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

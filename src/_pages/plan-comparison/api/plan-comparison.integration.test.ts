@@ -16,6 +16,7 @@ import {
 import { diffCatalogs } from "../model/catalog-diff";
 import { computeCatalogFingerprint } from "../model/catalog-fingerprint";
 import { driftTier } from "../model/drift-tier";
+import { loadComparison } from "./load-comparison";
 import { loadPlanAnalysis } from "./load-plan-analysis";
 
 /**
@@ -163,6 +164,49 @@ afterAll(async () => {
  * import, which steiger forbids. The RPC is the mechanism under test here anyway — it is what re-mints
  * every UUID, and that re-minting is the precise reason this fingerprint exists.
  */
+/**
+ * Per-plan error isolation, against the real stack.
+ *
+ * `loadPlanAnalysis` THROWS on a missing plan (its signature is pinned so `bench/` keeps working), an
+ * uncaught throw in Astro frontmatter is a 500, and `Promise.all` is all-or-nothing — so one deleted
+ * plan id would take down the whole page *including the plans that loaded fine*. This URL is built to
+ * be shared and bookmarked and plans are deletable, so a stale link is the ordinary case.
+ */
+const GHOST = "00000000-0000-0000-0000-000000000000";
+
+(hasEnv ? describe : describe.skip)("loadComparison — per-plan error isolation", () => {
+  it("renders the plans that loaded and NAMES the one that did not", async () => {
+    const { planId } = await buildScenario();
+
+    const result = await loadComparison(supabase, [planId, GHOST], planId);
+
+    expect(result.data).not.toBeNull();
+    expect(result.data?.plans.map((plan) => plan.id)).toEqual([planId]);
+    expect(result.missingPlanIds).toEqual([GHOST]);
+    // The page still has something to show — it must not 404.
+    expect(result.data?.sections.length).toBeGreaterThan(0);
+  });
+
+  it("returns no data when NOT ONE plan resolves — the route's only 404", async () => {
+    const result = await loadComparison(supabase, [GHOST], GHOST);
+
+    expect(result.data).toBeNull();
+    expect(result.missingPlanIds).toEqual([GHOST]);
+  });
+
+  it("falls back to a loaded plan when the designated BASELINE is the missing one, and says so", async () => {
+    const { planId } = await buildScenario();
+
+    // Deltas are baseline-relative, so a silently-missing baseline would render a whole scoreboard of
+    // meaningless numbers.
+    const result = await loadComparison(supabase, [GHOST, planId], GHOST);
+
+    expect(result.data?.baselineId).toBe(planId);
+    expect(result.data?.baselineFellBack).toBe(true);
+    expect(result.missingPlanIds).toEqual([GHOST]);
+  });
+});
+
 const cloneViaRpc = async (sourcePlanId: string, name: string): Promise<string> => {
   const { data, error } = await supabase.rpc("clone_plan", {
     p_source_plan_id: sourcePlanId,

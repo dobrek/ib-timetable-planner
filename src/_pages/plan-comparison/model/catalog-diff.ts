@@ -61,6 +61,22 @@ export type GridShape = { days: number; periods: number };
 export const isCleanDiff = (diff: CatalogDiff): boolean =>
   diff.grid.equal && CATEGORIES.every((category) => isEmpty(diff[category]));
 
+/**
+ * The zero diff, for the fingerprint's fast path: equal digests mean equal catalogs, so there is
+ * nothing to diff and the fold is skipped entirely. The grid shapes are still carried, because the
+ * banner renders them even when they agree.
+ */
+export const cleanDiff = (baseline: LoadedPlan, other: LoadedPlan): CatalogDiff => ({
+  courses: NOTHING_MOVED,
+  teachers: NOTHING_MOVED,
+  students: NOTHING_MOVED,
+  choices: NOTHING_MOVED,
+  availability: NOTHING_MOVED,
+  grid: diffGrid(baseline, other),
+});
+
+const NOTHING_MOVED: SetDiff = { added: 0, removed: 0, changed: 0 };
+
 export const CATEGORIES = ["courses", "teachers", "students", "choices", "availability"] as const;
 
 export type DiffCategory = (typeof CATEGORIES)[number];

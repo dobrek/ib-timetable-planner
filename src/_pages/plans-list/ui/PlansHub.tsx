@@ -1,4 +1,4 @@
-import { Copy, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, MoreHorizontal, Pencil, Plus, Scale, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
   Button,
@@ -25,8 +25,11 @@ type Props = {
 
 /**
  * The application hub: every plan is a complete scenario (catalog + board), listed
- * with create-blank, clone (the primary creation path), rename, and delete. No
- * derived comparison metrics — deferred.
+ * with create-blank, clone (the primary creation path), rename, and delete.
+ *
+ * Still no derived metrics *per row* — a plan is not scored in isolation. Comparison lives one level
+ * up, behind the header's **Compare** button (`/plans/compare`): it is inherently multi-plan, so it
+ * belongs to the hub, not to any single row's dropdown.
  */
 export default function PlansHub({ plans }: Props) {
   const [formOpen, setFormOpen] = useState(false);
@@ -55,10 +58,18 @@ export default function PlansHub({ plans }: Props) {
             Each plan is a complete scenario — catalog and timetable. Clone one to explore a what-if.
           </p>
         </div>
-        <Button className="gap-2" onClick={openCreate}>
-          <Plus aria-hidden="true" />
-          New plan
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" className="gap-2" asChild>
+            <a href="/plans/compare">
+              <Scale aria-hidden="true" />
+              Compare
+            </a>
+          </Button>
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus aria-hidden="true" />
+            New plan
+          </Button>
+        </div>
       </header>
 
       {plans.length === 0 ? (

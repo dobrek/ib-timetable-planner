@@ -2,44 +2,39 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { ScoreboardSection } from "../model/scoreboard";
 
 /**
- * One frozen-pane section table: sticky header row, sticky metric-label column, bounded height.
+ * One section table. The longest is 18 rows, which fits a desktop viewport, so the table simply grows
+ * to its full height and the page scrolls — no bounded container, no sticky header row.
  *
- * **The sticky header does not work without a bounded container, and it fails SILENTLY.** The DS
- * `Table` wraps itself in `div[data-slot=table-container]` with `overflow-x-auto`; per the CSS overflow
- * spec a non-`visible` value on one axis computes the other to `auto`, so that div is *already* a
- * scroll container on both axes — it simply has no height constraint and therefore never scrolls
- * vertically. A naive `sticky top-0` on `<TableHead>` resolves against THAT div, not the viewport, and
- * quietly does nothing: it looks perfect in a short table and breaks in exactly the long one this page
- * is built to render.
+ * **If a vertical freeze is ever wanted back, it needs an explicit `max-h` on the container and it
+ * fails SILENTLY without one.** The DS `Table` wraps itself in `div[data-slot=table-container]` with
+ * `overflow-x-auto`; per the CSS overflow spec a non-`visible` value on one axis computes the other to
+ * `auto`, so that div is *already* a scroll container on both axes — it just has no height constraint
+ * and therefore never scrolls vertically. A `sticky top-0` on `<TableHead>` resolves against THAT div,
+ * not the viewport, and quietly does nothing.
  *
- * The height is applied through the `data-slot` selector because `Table` spreads `className` onto the
- * inner `<table>`, not onto the div it owns — selecting it is the only way to bound it from outside.
- * The class is written out in full, never interpolated: Tailwind scans source statically, so a
- * template-built class name emits no CSS and would reintroduce the very failure above.
- *
- * One cap serves every section. A section shorter than the cap simply never scrolls, so the 6-row
- * golden and cross-cohort tables show no scrollbar while the 18-row cohort scoreboard does.
- *
- * Sticky cells need an explicit background and z-index, or rows scroll *through* them. The corner cell
- * outranks both (z-30): it is sticky on both axes at once.
+ * The metric-label column stays frozen, and that is a *horizontal* concern, unrelated to row count: a
+ * cohort section is 2N columns wide, so at three or four plans it scrolls sideways and the row label
+ * would slide out of view — leaving a column of numbers naming nothing. It works against the container's
+ * own `overflow-x-auto`, so it needs no height bound. Sticky cells need an explicit background, or rows
+ * scroll *through* them.
  */
 export function ScoreboardTable({ section }: Props) {
   return (
     // Named, so the section is a landmark a screen reader can jump between — the page has five.
     <section aria-label={section.title} className="space-y-2">
       <h2 className="text-base font-semibold">{section.title}</h2>
-      <div className="rounded-md border [&_[data-slot=table-container]]:max-h-[34rem] [&_[data-slot=table-container]]:overflow-auto">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead scope="col" className="bg-background sticky top-0 left-0 z-30 border-r align-bottom">
+              <TableHead scope="col" className="bg-background sticky left-0 z-10 border-r align-bottom">
                 Metric
               </TableHead>
               {section.columns.map((column) => (
                 <TableHead
                   key={`${column.planId}-${column.cohort ?? "plan"}`}
                   scope="col"
-                  className="bg-background sticky top-0 z-20 text-right align-bottom"
+                  className="text-right align-bottom"
                 >
                   <span className="block font-medium">{column.planName}</span>
                   {column.cohort ? (
@@ -53,7 +48,7 @@ export function ScoreboardTable({ section }: Props) {
             {section.rows.map((row) => (
               <TableRow key={row.id}>
                 {/* The row label is a header cell, not data — and with 2N columns, losing it to
-                    horizontal scroll is as bad as losing the plan name to vertical scroll. */}
+                    horizontal scroll leaves a column of numbers naming nothing. */}
                 <TableHead scope="row" className="bg-background sticky left-0 z-10 border-r">
                   {row.label}
                 </TableHead>

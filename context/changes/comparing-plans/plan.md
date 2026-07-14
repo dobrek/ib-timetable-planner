@@ -870,34 +870,34 @@ it is behind deny-by-default auth. This is a deliberate yes, not an accident.
 
 #### Automated
 
-- [x] 4.1 Formatter unit tests pass, incl. `pooledMean` pooling samples not means
-- [x] 4.2 Metric-catalog tests pass (row count + order match the bench per section)
-- [x] 4.3 Delta tests pass (numeric rows only; no ranking produced)
-- [x] 4.4 Invariant test: incomplete cohort always yields a completeness annotation
-- [x] 4.5 Extremes resolve to names, not UUIDs
-- [x] 4.6 Type check (`pnpm check`) + lint + steiger + build clean
+- [x] 4.1 Formatter unit tests pass, incl. `pooledMean` pooling samples not means — 43b77f6
+- [x] 4.2 Metric-catalog tests pass (row count + order match the bench per section) — 43b77f6
+- [x] 4.3 Delta tests pass (numeric rows only; no ranking produced) — 43b77f6
+- [x] 4.4 Invariant test: incomplete cohort always yields a completeness annotation — 43b77f6
+- [x] 4.5 Extremes resolve to names, not UUIDs — 43b77f6
+- [x] 4.6 Type check (`pnpm check`) + lint + steiger + build clean — 43b77f6
 
 ### Phase 5: UI
 
 #### Automated
 
-- [ ] 5.1 Params-codec unit tests pass
-- [ ] 5.2 Component tests render the scoreboard from fixture data
-- [ ] 5.3 Per-plan error isolation: 1 valid + 1 missing id renders the valid plan and names the missing one; 0 valid → 404; a missing baseline falls back and says so
-- [ ] 5.4 Type check (`pnpm check`) + lint + steiger + build clean
-- [ ] 5.5 No new steiger override needed (or: scoped, with a removal-phase comment)
+- [x] 5.1 Params-codec unit tests pass
+- [x] 5.2 Component tests render the scoreboard from fixture data
+- [x] 5.3 Per-plan error isolation: 1 valid + 1 missing id renders the valid plan and names the missing one; 0 valid → 404; a missing baseline falls back and says so
+- [x] 5.4 Type check (`pnpm check`) + lint + steiger + build clean
+- [x] 5.5 No new steiger override needed (or: scoped, with a removal-phase comment)
 
 #### Manual
 
-- [ ] 5.6 `/plans/compare` renders all five sections for two picked plans
-- [ ] 5.7 A deleted/garbage plan id alongside a real one still renders the real plan and names the missing one
-- [ ] 5.8 Vertical scroll keeps the header row pinned; horizontal scroll keeps the label column pinned
-- [ ] 5.9 Short sections show no scrollbar
-- [ ] 5.10 Worst teacher / worst student render as names
-- [ ] 5.11 Incomplete cohort shows its completeness annotation beneath the slot counts
-- [ ] 5.12 Plan vs its own clone → no drift banner
-- [ ] 5.13 Two unrelated plans → banner names the drift
-- [ ] 5.14 Compare button reachable from the Plans hub
+- [x] 5.6 `/plans/compare` renders all five sections for two picked plans
+- [x] 5.7 A deleted/garbage plan id alongside a real one still renders the real plan and names the missing one
+- [x] 5.8 Vertical scroll keeps the header row pinned; horizontal scroll keeps the label column pinned
+- [x] 5.9 Short sections show no scrollbar
+- [x] 5.10 Worst teacher / worst student render as names
+- [x] 5.11 Incomplete cohort shows its completeness annotation beneath the slot counts
+- [x] 5.12 Plan vs its own clone → no drift banner
+- [x] 5.13 Two unrelated plans → banner names the drift
+- [x] 5.14 Compare button reachable from the Plans hub
 
 ### Phase 6: Verify
 

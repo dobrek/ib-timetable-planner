@@ -133,3 +133,105 @@ archived_at: null
   load: 46 was a property of the runs that measured it, not of the engine. The bar is now a one-slot
   envelope (a 48 still fails), and completeness stays pinned hard. Every 46-vs-47 comparison in this
   change was therefore reading noise; the reproducible regressions (dp1's unplaced hour, 3/3) were not.
+
+## Follow-up recommendations (deferred)
+
+Written 2026-07-14, at the close of this change. Ranked. The first two are the same target from two
+directions; **do not start the third or fourth before the first is answered** — they all compete for
+the same search budget, and the residue is what rations it.
+
+### 1. Close the unplaced residue — it rations every tier below it
+
+The board leaves **5–8 hours unplaced** on the real catalog at the app's 20 s budget, and that single
+fact explains both acceptance misses (teacher gaps 217 vs the ≤ 148 bar; dp1's Friday not its shortest
+day). The objective is lexicographic and the search honours it: while tier 1 (`unplacedTotal`) is
+non-zero, the LNS spends its budget there and the tiers below inherit only leftovers. **Tuning tier
+weights cannot fix this** — it would only trade a tier the expert ranks higher for one she ranks lower.
+Closing the residue hands the freed budget to teacher compactness, doubles, and day shape *for free*.
+
+Two routes, cheapest first:
+
+- **Stronger repair inside the greedy** (no architecture change): the `deficit` destroy operator added
+  in Phase 5 already cut the residue 10 h → 6–8 h by aiming a destroy at what blocks an unplaced course
+  out of *one* cell. It is deliberately shallow. A deeper ruin-and-recreate around the unplaced course
+  (evict its whole conflict neighbourhood across a day, re-seat everything) is the obvious next step.
+- **CP-SAT residual repair** (see §2): encode *only* the unplaced hours plus a small neighbourhood of
+  movable rows, everything else fixed as constants — a few hundred booleans, not 25 k.
+
+Either way, an unplaced hour is currently **ambiguous**: we cannot tell a search failure from a
+genuinely infeasible instance (pins + availability + hard rules may simply admit no complete board).
+Resolving that ambiguity is worth as much as closing the residue.
+
+### 2. CP-SAT as a backend service — re-open the question the WASM spike closed
+
+**The 2026-07-11 spike verdict does not settle this, and should not be cited as if it did.** That spike
+(`context/archive/2026-07-11-plan-generation/change.md` §Phase 2) measured `or-tools-wasm@0.9.1`:
+single-threaded, unhinted, naive joint encoding. It found **no feasible solution in 60 s** on the real
+catalog — while our greedy finds a complete board in about a second. That is a *configuration* failure,
+not a hardness result, and in hindsight it says almost nothing about native CP-SAT.
+
+What is different if it runs as a **backend service** (container; native OR-Tools; 8–16 workers,
+including CP-SAT's own LNS workers; solution hinting; minutes rather than a 20 s UI budget):
+
+- **Completeness / validity — expect success, with high confidence.** ~8–25 k booleans is small for
+  native CP-SAT. Every current hard rule encodes naturally: the 2/day cap and no-split become "≤ 2 per
+  course-day, adjacent if 2"; teacher span ≤ 8 and streak ≤ 6 are min/max over a teacher-day plus
+  forbidden 7-in-a-row windows; `early-finish-edge` is the reified "flagged period ≤ min(other) OR
+  ≥ max(other)" per enrolled student-day (the original research already sketched this); strong
+  availability just fixes variables to zero. Warm-start from the greedy board and the solver *starts*
+  with a near-complete incumbent. It either closes the residue or **proves it cannot be closed** and
+  names the minimal conflict set — which is the ambiguity in §1, answered.
+- **Slot count — expect improvement, not a proof.** The one warm-started measurement we have (dp1
+  alone, 90 s) reached 49 slots against a proven bound of 46, and dp1's conflict-clique lower bound is
+  48. Take best-found; do not promise optimality.
+- **The 10-tier lexicographic objective needs staged solves** (optimize tier 1, fix, optimize tier 2,
+  …) — fine in a backend with minutes, impossible in a 20 s UI budget.
+- **Costs, honestly**: it cannot run in workerd (no threads / SharedArrayBuffer), so this is an
+  architecture decision — a container service, an async job with polling, and the TS engine kept as the
+  offline/fallback path. `verifyGeneration` stays the oracle for whatever any engine returns.
+
+**Kill the unknown with a standalone spike, not an integration**: export a real snapshot to JSON, encode
+the model in Python OR-Tools, warm-start from the greedy board, and measure (a) does it complete, (b)
+what happens to teacher gaps, (c) how long a staged lexicographic solve takes. One day's work, no app
+changes. That either justifies the service or ends the conversation with data instead of vibes.
+
+### 3. The model still misses course-day *spread* — and this is the strongest argument for a solver
+
+Multi-day courses: **31 / 33** against the expert's **19 / 22** — untouched by this change. The doubles
+tier pairs hours *within* a day the course already uses, but nothing pulls a course's days together, so
+a 4-hour course still spreads over four days and can only pair by luck. That one gap explains most of
+the remaining adjacency shortfall (106 pairs vs gold's 226).
+
+The asymmetry is the point. In the greedy engine, **a tier is inert unless some destroy operator
+reaches its improving moves** — the lesson this change paid for three times (teacher gaps did not move
+until a teacher operator existed; completeness broke until a deficit operator existed; doubles had to
+be bought in the placement heuristic rather than the objective). Adding a days-per-course term there
+means designing a fourth operator and re-tuning a cadence that is already load-bearing. In CP-SAT it is
+one term over a "course uses day d" indicator. **Weigh that when deciding §2.**
+
+### 4. Bench bars are wall-clock-noisy — decide whether that is acceptable
+
+`pnpm bench:generation` is stagnation- and budget-driven by `Date.now()`, so the same code on the same
+input walks a different plateau under different machine load. Re-measuring the *pre-tuning* engine gave
+dp2 = 47 on one run and 46 on the next, and one seed left an hour unplaced — which is how the "reliable"
+dp2 = 46 bar turned out to be a property of its measuring runs. The bar is now a one-slot envelope, and
+every soft metric in this change is reported as a range for the same reason (teacher gaps 217–269,
+doubles 66–114, golden cells 8–12).
+
+If we want bars tight enough to catch a *one-slot* regression, the engine needs a deterministic mode —
+round-count-bounded rather than wall-clock-bounded — used by the bench only. Until then: **compare
+distributions, never single runs**, and treat any cross-phase difference smaller than these bands as
+noise.
+
+### 5. Smaller, carried forward
+
+- **Teacher compactness remains the engine's weakest modeled tier** — 217 gap-slots against the
+  expert's 74 (≈ 3×). Downstream of §1; do not attack it directly first.
+- **Golden-slot *count*** — 11–12 cells against gold's 15. Structural: gold's dp2 composites are built
+  on the biweekly CAS/EE cells this change left to the pinned fixtures rather than to detection.
+  A count-rewarding tier would be the wrong fix (it would buy golden cells with slots, which outrank
+  them six tiers up); biweekly-pair completion in `deriveGoldenSets` would be the right one.
+- **The Advisory "all teachers free" convention is not enforced** — a *manual* edit into the Advisory
+  hour only warns. Pre-pinning makes it moot for generation (see the runbook); it is a real gap for
+  hand-editing.
+- **The expert's 9.2 live walkthrough** was never held — the only elicitation item still open.

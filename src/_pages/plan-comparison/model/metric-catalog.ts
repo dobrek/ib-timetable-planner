@@ -111,6 +111,15 @@ export const COHORT_SCOREBOARD: CohortMetricRow[] = [
  * *settings* echoed back by every plan, not per-plan findings — so any plan's census can name them,
  * and taking the first one privileges nothing. (The bench reads them off `reports[0]` for the same
  * reason.)
+ *
+ * **Why this section carries no hour accounting, though it is full of cell counts.** The rule elsewhere
+ * is that a slot count never renders without its cohort's unplaced hours beside it — because an
+ * incomplete board *uses fewer slots* and so reads as the better one (the engine's 5 abandoned hours
+ * once passed for a better slot count). Here the arithmetic runs the other way: incompleteness can only
+ * *reduce* golden coverage, so an incomplete board reads as **worse**, never flattered. The invariant
+ * guards against flattery, and there is none to guard against — which is also why the bench leaves
+ * `printGoldenCensus` unannotated. Add hours here only if a row ever appears whose value a *missing*
+ * lesson could improve.
  */
 export const goldenCensusRows = (sample: PlanQualityFeatures, cohort: Cohort): CohortMetricRow[] => {
   const { band, missShare } = sample.cohorts[cohort].slotCensus.goldenCensus;

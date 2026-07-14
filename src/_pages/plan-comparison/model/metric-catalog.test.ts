@@ -134,21 +134,38 @@ describe("metric catalog", () => {
   /**
    * A row formats to a finished cell and stops there. It exposes no numeric reader, so nothing
    * downstream *can* subtract one row from another — the no-delta rule is enforced by the shape of the
-   * type, not by everyone remembering it. Several rows aren\'t numbers anyway ("12 / 17", "Ada: 42").
+   * type, not by everyone remembering it. Several rows aren't numbers anyway ("12 / 17", "Ada: 42").
    */
   it("exposes formatted cells only — no row offers a number to subtract", () => {
-    const all = [...COHORT_SCOREBOARD, ...BOARD_WIDE, ...CROSS_COHORT, ...goldenCensusRows(features, "dp1")];
+    const allowed = new Set(["id", "label", "read", "help"]);
 
-    for (const row of all) {
-      expect(Object.keys(row).sort()).toEqual(["id", "label", "read"]);
+    for (const row of allRows()) {
+      expect(
+        Object.keys(row).filter((key) => !allowed.has(key)),
+        `${row.id} exposes more than a formatted cell`,
+      ).toEqual([]);
+    }
+  });
+
+  /**
+   * Every cross-cohort row is explained, because not one of those labels explains itself — "cohort-pure
+   * teacher-days" is not a phrase a reader has met before, and a figure nobody can interpret is
+   * indistinguishable from one nobody should trust. Serializable prose, because the section is built
+   * server-side and crosses the island boundary.
+   */
+  it("explains every cross-cohort row, in serializable prose", () => {
+    for (const row of CROSS_COHORT) {
+      expect(row.help, `${row.id} has no explanation`).toBeDefined();
+      expect(row.help?.length).toBeGreaterThan(0);
+      expect(JSON.parse(JSON.stringify(row.help))).toEqual(row.help);
     }
   });
 
   it("gives every row a unique id, so a row can be addressed without matching on its label", () => {
-    const ids = [...COHORT_SCOREBOARD, ...BOARD_WIDE, ...CROSS_COHORT, ...goldenCensusRows(features, "dp1")].map(
-      (row) => row.id,
-    );
+    const ids = allRows().map((row) => row.id);
 
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+const allRows = () => [...COHORT_SCOREBOARD, ...BOARD_WIDE, ...CROSS_COHORT, ...goldenCensusRows(features, "dp1")];

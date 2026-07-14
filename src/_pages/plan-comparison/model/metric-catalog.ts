@@ -27,7 +27,18 @@ export type CohortMetricRow = {
   id: string;
   label: string;
   read: (features: PlanQualityFeatures, cohort: Cohort) => MetricCell;
+  help?: MetricHelpText;
 };
+
+/**
+ * A row's explanation, as **plain paragraphs rather than markup**: it is built server-side and crosses
+ * the island boundary as part of the section data, so it has to serialize. That constraint is also why
+ * this module stays `.ts` — no JSX in a metric catalog.
+ *
+ * Present only on rows whose label does not explain itself. "Occupied slots" needs no help; "Cohort-pure
+ * teacher-days" is not a phrase anyone has met before.
+ */
+export type MetricHelpText = string[];
 
 /**
  * A row read per plan — the board-wide sections.
@@ -40,6 +51,7 @@ export type PlanMetricRow = {
   id: string;
   label: string;
   read: (features: PlanQualityFeatures, plan: PlanContext) => MetricCell;
+  help?: MetricHelpText;
 };
 
 /** A finished value with nowhere to go — the shape of all but two rows. */
@@ -148,13 +160,25 @@ export const BOARD_WIDE: PlanMetricRow[] = [
   ),
 ];
 
-/** Cross-cohort weave — 6 rows, `bench/plan-report.ts:200-217`. Three are ratio strings — one more
- *  reason nothing here is subtracted. */
+/**
+ * Cross-cohort weave — 6 rows, `bench/plan-report.ts:200-217`. Three are ratio strings — one more
+ * reason nothing here is subtracted.
+ *
+ * **Every row carries help, because not one of these labels explains itself.** This section measures the
+ * thing that is in neither the objective nor the catalog: DP1 and DP2 are one staffing system (in the
+ * gold plan, 16 of 17 teachers work both), and the expert weaves them deliberately. A reader meeting
+ * "cohort-pure teacher-days" cold cannot act on the number, and the copy is written from
+ * `entities/timetable/model/analysis/cross-cohort.ts` so it states what is actually counted.
+ */
 export const CROSS_COHORT: PlanMetricRow[] = [
   {
     id: "teachersBoth",
     label: "Teachers (both cohorts / all)",
     read: (f) => text(`${String(f.crossCohort.teachersInBothCohorts)} / ${String(f.crossCohort.teachers)}`),
+    help: [
+      "How many teachers hold lessons in BOTH cohorts, out of all teachers on the board.",
+      "This is why the section exists: when nearly every teacher works both years, DP1 and DP2 are not two timetables that happen to share a building — they are one staffing system, and a change on one board lands on the other's teachers.",
+    ],
   },
   {
     id: "cohortPureTeacherDays",
@@ -163,13 +187,46 @@ export const CROSS_COHORT: PlanMetricRow[] = [
       text(
         `${String(f.crossCohort.cohortPureTeacherDays)} / ${String(f.crossCohort.teacherDays)} (${pct(f.crossCohort.cohortPureShare)})`,
       ),
+    help: [
+      "A teacher-day is one teacher on one day. It is cohort-pure when every lesson they teach that day serves the SAME cohort — a day spent entirely in DP1, or entirely in DP2.",
+      "The ratio is pure days out of all teacher-days worked. A pure day asks a teacher to hold one year group's context in their head; a mixed day asks them to switch.",
+      "Counted week-agnostically — a day is a day, whether it falls in week A or week B.",
+    ],
   },
-  planNumber("cohortSwitches", "Cohort switches (within a day)", (f) => f.crossCohort.cohortSwitches),
+  {
+    ...planNumber("cohortSwitches", "Cohort switches (within a day)", (f) => f.crossCohort.cohortSwitches),
+    help: [
+      "A step between two consecutive lessons in a teacher's day where the cohort changes — DP1 then DP2, or the reverse. A teacher with DP1, DP1, DP2 has one switch, not two.",
+      "Read per teacher-day-week lane, which matters for the alternating-week fixtures: a teacher who sits in DP1 in week A and DP2 in week B, in the same cell, has NOT switched — they were never in both on the same day.",
+    ],
+  },
   {
     id: "seamlessSwitches",
     label: "— of which seamless",
     read: (f) => text(`${String(f.crossCohort.seamlessSwitches)} (${pct(f.crossCohort.seamlessShare)})`),
+    help: [
+      "Of the switches above, the ones that happen in ADJACENT periods — P3 into P4 — rather than across an idle gap.",
+      "A seamless switch is a hand-off: the teacher walks from one year group to the other and keeps teaching. A non-seamless one strands them in a free period between the two.",
+      "So the switch count says how often a teacher changes cohort; this says how much that cost them.",
+    ],
   },
-  planNumber("sharedSubjectEditionDays", "Shared subject-edition days", (f) => f.crossCohort.sharedSubjectEditionDays),
-  planNumber("mirroredCells", "Mirrored cells (fixtures)", (f) => f.crossCohort.mirroredCells.length),
+  {
+    ...planNumber(
+      "sharedSubjectEditionDays",
+      "Shared subject-edition days",
+      (f) => f.crossCohort.sharedSubjectEditionDays,
+    ),
+    help: [
+      "Counts (teacher, subject, day) triples where one teacher runs BOTH cohorts' editions of the same subject on the same day — DP1 Maths HL and DP2 Maths HL, both on Tuesday.",
+      "Batching a subject like this is a real choice with a case on either side: one preparation covers both lessons, but the teacher repeats the same material twice in a day to two different year groups. The page counts it; whether you want more or fewer is your call, not the analyzer's.",
+    ],
+  },
+  {
+    ...planNumber("mirroredCells", "Mirrored cells (fixtures)", (f) => f.crossCohort.mirroredCells.length),
+    help: [
+      "Cells where the same subject and level runs in BOTH cohorts at the same day and period. The individual cells are listed per plan in the Distributions section below.",
+      "In practice these are the school-wide fixtures — the synchronized assembly, Advisory, the paired CAS/EE blocks — so this doubles as a fixture detector: it names the pins a generator should have been handed, rather than left to discover.",
+      "Matched week-agnostically, so a fixture still counts when DP1 runs it in week A and DP2 in week B.",
+    ],
+  },
 ];

@@ -1,5 +1,7 @@
 import { COHORT_VALUES, type Cohort } from "@/shared/config";
 import type { PlanQualityFeatures } from "@/entities/timetable";
+import type { PlanNaturalKeys } from "../api/load-plan-analysis";
+import type { MetricCell } from "./extremes";
 import type { CohortMetricRow, PlanMetricRow } from "./metric-catalog";
 
 /**
@@ -32,14 +34,17 @@ export type ScoreboardSection = {
 export type ScoreboardRow = {
   id: string;
   label: string;
-  /** One formatted value per column, index-aligned. Exactly what the bench would print. */
-  cells: string[];
+  /** One formatted cell per column, index-aligned. Exactly what the bench would print — plus, on the
+   *  two rows that name a person, a link to that person's timetable. */
+  cells: MetricCell[];
 };
 
 export type AnalyzedPlan = {
   id: string;
   name: string;
   features: PlanQualityFeatures;
+  /** The analyzer speaks in ids; these turn a worst-case key into a name and a link. */
+  naturalKeys: PlanNaturalKeys;
 };
 
 /** Cohort-grain section: N plans × 2 cohorts = 2N columns. */
@@ -68,6 +73,6 @@ export const buildPlanSection = (title: string, rows: PlanMetricRow[], plans: An
   rows: rows.map((row) => ({
     id: row.id,
     label: row.label,
-    cells: plans.map((plan) => row.read(plan.features)),
+    cells: plans.map((plan) => row.read(plan.features, { planId: plan.id, naturalKeys: plan.naturalKeys })),
   })),
 });

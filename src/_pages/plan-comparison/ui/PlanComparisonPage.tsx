@@ -69,14 +69,15 @@ function Comparison({ data }: { data: PlanComparisonData }) {
 
       <VerdictBlock plans={data.perPlan} />
 
+      {/* THE invariant — a slot count never renders without its cohort's hour accounting beside it — is
+          carried by the scoreboard itself: UNPLACED HOURS and OVER-PLACED HOURS are its first two rows,
+          above every slot count, per plan per cohort. (An incomplete board trivially uses fewer slots,
+          which is how the engine's five abandoned hours once read as a "better" slot count than the
+          expert's complete board.) The prose restatement of those same numbers is gone; the numbers are
+          not. If a slot count ever moves into a section that carries no hour accounting, this invariant
+          has to come back with it. */}
       {data.sections.map((section) => (
-        <div key={section.title} className="space-y-2">
-          <ScoreboardTable section={section} />
-          {/* THE invariant: a slot count never renders without its cohort's hour accounting beside it.
-              An incomplete board trivially uses fewer slots — which is exactly how the engine's five
-              abandoned hours once read as a "better" slot count than the expert's complete board. */}
-          {section.title === "Cohort scoreboard" ? <CompletenessNotes data={data} /> : null}
-        </div>
+        <ScoreboardTable key={section.title} section={section} />
       ))}
 
       <section className="space-y-3">
@@ -91,24 +92,6 @@ function Comparison({ data }: { data: PlanComparisonData }) {
   );
 }
 
-function CompletenessNotes({ data }: { data: PlanComparisonData }) {
-  if (data.annotations.length === 0) return null;
-
-  return (
-    <ul className="space-y-1 text-sm">
-      {data.annotations.map((annotation) => (
-        <li
-          key={`${annotation.planId}-${annotation.cohort}-${annotation.kind}`}
-          className={annotation.kind === "incomplete" ? "text-destructive" : "text-muted-foreground"}
-        >
-          {annotation.kind === "incomplete" ? "! " : "~ "}
-          {annotation.message}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function PlanDetailCard({ plan }: { plan: PlanDetail }) {
   return (
     <article className="space-y-3 rounded-md border p-3 text-sm">
@@ -120,15 +103,8 @@ function PlanDetailCard({ plan }: { plan: PlanDetail }) {
         ))}
       </ul>
 
-      <div className="space-y-1">
-        <p className="font-medium">Worst cases</p>
-        <p className="text-muted-foreground">
-          Teacher (gaps): {plan.extremes.worstTeacherGaps ? nameAndValue(plan.extremes.worstTeacherGaps) : "—"}
-        </p>
-        <p className="text-muted-foreground">
-          Student (gaps): {plan.extremes.worstStudentGaps ? nameAndValue(plan.extremes.worstStudentGaps) : "—"}
-        </p>
-      </div>
+      {/* No "worst cases" block here: the worst teacher and worst student are scoreboard rows, where
+          they are named and linked. Restating them was the same fact twice. */}
 
       <div className="space-y-1">
         <p className="font-medium">Mirrored cells ({plan.mirroredCells.length})</p>
@@ -156,5 +132,3 @@ function PlanDetailCard({ plan }: { plan: PlanDetail }) {
     </article>
   );
 }
-
-const nameAndValue = (entry: { name: string; value: number }): string => `${entry.name}: ${String(entry.value)}`;

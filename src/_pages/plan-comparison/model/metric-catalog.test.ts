@@ -1,19 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { analyzePlan, type PlanQualityFeatures } from "@/entities/timetable";
 import { BOARD_WIDE, COHORT_SCOREBOARD, CROSS_COHORT, goldenCensusRows } from "./metric-catalog";
+import type { PlanContext } from "./extremes";
 import { buildLoadedPlan, SAMPLE } from "./__fixtures__/loaded-plan";
 
-const features: PlanQualityFeatures = analyzePlan(
-  buildLoadedPlan({
-    ...SAMPLE,
-    rows: [
-      { cohort: "dp1", courseId: "p1-c-0", day: 1, period: 1, week: "both" },
-      { cohort: "dp1", courseId: "p1-c-0", day: 1, period: 2, week: "both" },
-      { cohort: "dp1", courseId: "p1-c-1", day: 2, period: 3, week: "both" },
-      { cohort: "dp2", courseId: "p1-c-2", day: 3, period: 4, week: "both" },
-    ],
-  }).input,
-);
+const plan = buildLoadedPlan({
+  ...SAMPLE,
+  rows: [
+    { cohort: "dp1", courseId: "p1-c-0", day: 1, period: 1, week: "both" },
+    { cohort: "dp1", courseId: "p1-c-0", day: 1, period: 2, week: "both" },
+    { cohort: "dp1", courseId: "p1-c-1", day: 2, period: 3, week: "both" },
+    { cohort: "dp2", courseId: "p1-c-2", day: 3, period: 4, week: "both" },
+  ],
+});
+
+const features: PlanQualityFeatures = analyzePlan(plan.input);
+const context: PlanContext = { planId: plan.id, naturalKeys: plan.naturalKeys };
 
 /**
  * The row labels, in order, exactly as `bench/plan-report.ts` declares them. Transcribed rather than
@@ -103,23 +105,38 @@ describe("metric catalog", () => {
 
   it("resolves every row against a real feature vector without throwing", () => {
     for (const row of COHORT_SCOREBOARD) {
-      expect(typeof row.read(features, "dp1")).toBe("string");
-      expect(typeof row.read(features, "dp2")).toBe("string");
+      expect(typeof row.read(features, "dp1").text).toBe("string");
+      expect(typeof row.read(features, "dp2").text).toBe("string");
     }
     for (const row of [...BOARD_WIDE, ...CROSS_COHORT]) {
-      expect(typeof row.read(features)).toBe("string");
+      expect(typeof row.read(features, context).text).toBe("string");
     }
     for (const row of goldenCensusRows(features, "dp1")) {
-      expect(typeof row.read(features, "dp1")).toBe("string");
+      expect(typeof row.read(features, "dp1").text).toBe("string");
     }
   });
 
   /**
-   * A row formats to a string and stops there. It exposes no numeric reader, so nothing downstream
-   * *can* subtract one row from another — the no-delta rule is enforced by the shape of the type, not
-   * by everyone remembering it. Several rows aren't numbers anyway ("12 / 17", "Kowalski: 42").
+   * Exactly two rows link, and they are the two that name a person. Everything else is a bare number
+   * with nowhere to go — a link on a slot count would imply a drill-down that does not exist.
    */
-  it("exposes formatted strings only — no row offers a number to subtract", () => {
+  it("links only the worst-teacher and worst-student rows, and only into that plan", () => {
+    const linked = BOARD_WIDE.filter((row) => row.read(features, context).href !== undefined).map((row) => row.id);
+
+    expect(linked).toEqual(["worstTeacher", "worstStudent"]);
+    for (const row of CROSS_COHORT) expect(row.read(features, context).href).toBeUndefined();
+    for (const row of COHORT_SCOREBOARD) expect(row.read(features, "dp1").href).toBeUndefined();
+
+    const worstTeacher = BOARD_WIDE.find((row) => row.id === "worstTeacher");
+    expect(worstTeacher?.read(features, context).href).toContain(`/plans/${plan.id}/teachers/`);
+  });
+
+  /**
+   * A row formats to a finished cell and stops there. It exposes no numeric reader, so nothing
+   * downstream *can* subtract one row from another — the no-delta rule is enforced by the shape of the
+   * type, not by everyone remembering it. Several rows aren\'t numbers anyway ("12 / 17", "Ada: 42").
+   */
+  it("exposes formatted cells only — no row offers a number to subtract", () => {
     const all = [...COHORT_SCOREBOARD, ...BOARD_WIDE, ...CROSS_COHORT, ...goldenCensusRows(features, "dp1")];
 
     for (const row of all) {

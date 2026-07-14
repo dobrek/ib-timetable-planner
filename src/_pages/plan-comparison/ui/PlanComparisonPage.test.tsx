@@ -97,20 +97,29 @@ describe("PlanComparisonPage", () => {
     expect(screen.queryByText(/Not comparable/)).toBeNull();
   });
 
-  it("NAMES the drift, and the plan it is described relative to, when the catalogs differ", async () => {
+  /**
+   * The banner reports that the catalogs are not one-to-one and WHICH METRIC FAMILIES that invalidates.
+   * It does not enumerate what moved: per-category counts ("61 students added, 652 choices added") are a
+   * wall of numbers that still cannot say *which* student, and a count nobody can act on is noise.
+   */
+  it("says the catalogs are not identical — and which metrics that spoils — without enumerating the changes", async () => {
     const drifted = await build({
       ...cloneSpec,
       students: [...(SAMPLE.students ?? []), { name: "Katherine Johnson" }],
     });
 
     render(<PlanComparisonPage data={drifted} />);
-
-    expect(screen.getByText(/Catalog drift/)).toBeTruthy();
-    expect(screen.getByText(/1 student added/)).toBeTruthy();
-    // Directional wording, not a verdict: "differs from Expert" is an ordering, not a claim that Expert
-    // is the correct one.
     const notice = screen.getByRole("status");
-    expect(notice.textContent).toMatch(/Catalog differs from\s*Expert/);
+
+    expect(notice.dataset.tier).toBe("catalog-drift");
+    expect(notice.textContent).toMatch(/not identical/);
+    // Named relative to the first-listed plan — an ordering, not a claim that Expert is the correct one.
+    expect(notice.textContent).toMatch(/Expert/);
+    // The actionable half: which numbers stopped meaning what they say, and which still hold.
+    expect(notice.textContent).toMatch(/Catalog-dependent metrics/);
+    expect(notice.textContent).toMatch(/board shape, daily load, week symmetry, adjacency and spread still compare/);
+    // No enumeration, in any direction.
+    expect(notice.textContent).not.toMatch(/\d+ (students?|courses?|teachers?|choices?) (added|removed|changed)/);
   });
 
   it("uses the louder `incomparable` tier — and says so plainly — when the grid differs", async () => {

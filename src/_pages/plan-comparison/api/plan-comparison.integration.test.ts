@@ -13,11 +13,10 @@ import {
   registerPlan,
   teardown,
 } from "@/test/factories";
-import { diffCatalogs } from "../model/catalog-diff";
 import { computeCatalogFingerprint } from "../model/catalog-fingerprint";
-import { driftTier } from "../model/drift-tier";
+import { driftTier, gridOf, sameGrid } from "../model/drift-tier";
 import { loadComparison } from "./load-comparison";
-import { loadPlanAnalysis } from "./load-plan-analysis";
+import { loadPlanAnalysis, type LoadedPlan } from "./load-plan-analysis";
 
 /**
  * The loader is the only part of the comparison feature with real failure modes — ~15 round trips
@@ -129,10 +128,10 @@ afterAll(async () => {
 
     // …the natural-key fingerprint can.
     expect(await computeCatalogFingerprint(clone)).toBe(await computeCatalogFingerprint(source));
-    expect(driftTier(diffCatalogs(source, clone))).toBe("clean");
+    expect(await tierOf(source, clone)).toBe("clean");
   });
 
-  it("names the drift when a student is added to one side", async () => {
+  it("reports drift when a student is added to one side", async () => {
     const scenario = await buildScenario();
     const clonedId = await cloneViaRpc(scenario.planId, "Comparison Drifting Clone");
 
@@ -149,14 +148,27 @@ afterAll(async () => {
       loadPlanAnalysis(supabase, scenario.planId),
       loadPlanAnalysis(supabase, clonedId),
     ]);
-    const diff = diffCatalogs(source, clone);
 
+    // One enrolled student is the SMALLEST catalog change the product has — if the fingerprint misses
+    // it, the banner stays silent and the reader compares two different student bodies as if they were
+    // one. The banner no longer enumerates what moved, so this digest IS the whole detector.
     expect(await computeCatalogFingerprint(clone)).not.toBe(await computeCatalogFingerprint(source));
-    expect(diff.students).toEqual({ added: 1, removed: 0, changed: 0 });
-    expect(diff.choices).toEqual({ added: 1, removed: 0, changed: 0 });
-    expect(driftTier(diff)).toBe("catalog-drift");
+    expect(await tierOf(source, clone)).toBe("catalog-drift");
   });
 });
+
+/** The tier as the loader computes it: fingerprint for the catalog, shapes for the grid. */
+const tierOf = async (reference: LoadedPlan, other: LoadedPlan) => {
+  const [referenceDigest, otherDigest] = await Promise.all([
+    computeCatalogFingerprint(reference),
+    computeCatalogFingerprint(other),
+  ]);
+
+  return driftTier({
+    gridEqual: sameGrid(gridOf(reference), gridOf(other)),
+    catalogEqual: referenceDigest === otherDigest,
+  });
+};
 
 /**
  * Drives the `clone_plan` RPC directly, the way `clone-plan.integration.test.ts` does. Deliberately

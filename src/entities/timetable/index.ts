@@ -27,16 +27,31 @@ export * from "./model/generation/run";
 // backboneCliques, …), which the slice's own tests import relatively.
 export { createGreedyEngine, generatePlanGreedy, type GreedyTuning } from "./model/generation/engines/greedy";
 // The read-only plan-quality extractor (feature vector, never a score) — consumed by the
-// `analyze:plans` runner today and by any future in-app comparison surface unchanged. Only the
-// entry point and its input/output shapes; the per-lens derivations and the lane primitive are
-// module internals, imported relatively by the module's own tests.
+// `analyze:plans` runner and by the in-app comparison surface (`_pages/plan-comparison`) unchanged.
+// Only the entry point and its input/output shapes; the per-lens derivations and the lane primitive
+// are module internals, imported relatively by the module's own tests.
+//
+// The feature *sub*-shapes below are exported deliberately, widening the narrowing F7 applied during
+// `plan-quality-analyzer` (which had a single terminal consumer and needed no sub-shape in a
+// signature). The comparison scoreboard types its props as `CohortFeatures`, `TeacherFeatures`, … —
+// naming them here is what keeps `_pages` off deep imports into the entity's internals.
 export {
   analyzePlan,
   type AnalyzerCourse,
   type AnalyzerRow,
+  type CohortFeatures,
+  type CrossCohortFeatures,
+  type DayEdgeProfile,
   type Distribution,
+  type Extreme,
+  type GoldenCell,
+  type GoldenCensusFeatures,
+  type MirroredCell,
   type PlanAnalysisInput,
   type PlanQualityFeatures,
+  type SubjectRollup,
+  type TeacherFeatures,
+  type ThinSlot,
 } from "./model/analysis";
 export * from "./model/perspective";
 export * from "./model/perspective-course-list";

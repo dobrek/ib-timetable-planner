@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@/shared/api";
 import type { Cohort } from "@/shared/config/cohorts";
 import { toSubjectColor, type WeekMode } from "@/shared/config";
 import { groupByInto, unique } from "@/shared/lib/collections";
-import type { CohortCatalog, ComputeWarning, GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { CohortCatalog, ComputeWarning, CourseNaturalKey, GroupingCourse } from "@/shared/lib/catalog-hash";
 import { DomainError } from "@/shared/lib/errors";
 import { unwrapMany } from "./postgrest";
 
@@ -107,12 +107,17 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
       return [course.id, { name: compositeName(row), color: toSubjectColor(row?.color ?? null) }];
     }),
   );
+  // Identity side map: the same three columns `compositeName` folds into one token, kept raw. Keyed
+  // over the *projected* courses (not `courseRows`), because that is the set the analyzer and the
+  // cross-plan fingerprint consume — a merge child with no direct choices is deliberately absent from
+  // both. Never enters `GroupingCourse` or the hash.
+  const courseIdentity = new Map(courses.map((course) => [course.id, naturalKeyOf(courseById, course.id)]));
   const warnings = collectWarnings(courses, mergeChildIds);
   // The flagged ids among the projected courses (a merge parent's flag comes from its own row).
   // A side-set delivered to the board's constraint core; never enters `GroupingCourse` or the hash.
   const finishesEarlyCourseIds = courses.filter((course) => courseById.get(course.id)?.finishes_early).map((c) => c.id);
 
-  return { courses, courseDisplay, finishesEarlyCourseIds, warnings };
+  return { courses, courseDisplay, courseIdentity, finishesEarlyCourseIds, warnings };
 };
 
 type CourseRow = {
@@ -184,6 +189,19 @@ const fetchMerges = async (
     await supabase.from("course_merges").select("parent_course_id, child_course_id").in("parent_course_id", courseIds),
     "Failed to load course merges",
   );
+};
+
+/**
+ * The raw `(name, level, group_index)` of a projected course. Every projected id — regular or virtual
+ * merge parent — has a row in `courseById` (the virtual fold above throws otherwise), so a miss is a
+ * bug, not data: fail loudly rather than fingerprint an empty name, which would read as "same catalog"
+ * across two plans that share nothing.
+ */
+const naturalKeyOf = (courseById: Map<string, CourseRow>, courseId: string): CourseNaturalKey => {
+  const row = courseById.get(courseId);
+  if (!row)
+    throw new DomainError("INTERNAL_SERVER_ERROR", `Course ${courseId} missing from the plan-cohort course rows`);
+  return { name: row.name, level: row.level, groupIndex: row.group_index };
 };
 
 /**

@@ -831,16 +831,16 @@ it is behind deny-by-default auth. This is a deliberate yes, not an accident.
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass
-- [ ] 1.2 `adapter-parity.integration.test.ts` still passes (composite-name key untouched)
-- [ ] 1.3 Catalog-hash golden digest test still passes (GroupingCourse + hash unchanged)
-- [ ] 1.4 Type check (`pnpm check`) + lint pass
-- [ ] 1.5 FSD structure clean with no new steiger override
-- [ ] 1.6 Build clean
+- [x] 1.1 Unit tests pass
+- [x] 1.2 `adapter-parity.integration.test.ts` still passes (composite-name key untouched)
+- [x] 1.3 Catalog-hash golden digest test still passes (GroupingCourse + hash unchanged)
+- [x] 1.4 Type check (`pnpm check`) + lint pass
+- [x] 1.5 FSD structure clean with no new steiger override
+- [x] 1.6 Build clean
 
 #### Manual
 
-- [ ] 1.7 None required — the phase is purely additive (two barrels widened, one new `CohortCatalog` field); confirm no existing render path changed
+- [x] 1.7 None required — the phase is purely additive (two barrels widened, one new `CohortCatalog` field); confirm no existing render path changed
 
 ### Phase 2: Loader
 

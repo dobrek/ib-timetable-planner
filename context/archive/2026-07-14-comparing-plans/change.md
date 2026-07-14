@@ -1,10 +1,10 @@
 ---
 change_id: comparing-plans
 title: Comparing plans
-status: impl_reviewed
+status: archived
 created: 2026-07-14
 updated: 2026-07-14
-archived_at: null
+archived_at: 2026-07-14T21:32:04Z
 ---
 
 ## Notes

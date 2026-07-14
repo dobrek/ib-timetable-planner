@@ -23,13 +23,13 @@ import {
  * It folds over exactly the projections the fingerprint hashes, so the two can never disagree about
  * what "the catalog" is.
  */
-export const diffCatalogs = (baseline: LoadedPlan, other: LoadedPlan): CatalogDiff => ({
-  courses: diffEntries(courseEntries(baseline), courseEntries(other)),
-  teachers: diffEntries(identityEntries(teacherCodes(baseline)), identityEntries(teacherCodes(other))),
-  students: diffEntries(identityEntries(studentNames(baseline)), identityEntries(studentNames(other))),
-  choices: diffEntries(identityEntries(projectChoices(baseline)), identityEntries(projectChoices(other))),
-  availability: diffEntries(availabilityEntries(baseline), availabilityEntries(other)),
-  grid: diffGrid(baseline, other),
+export const diffCatalogs = (reference: LoadedPlan, other: LoadedPlan): CatalogDiff => ({
+  courses: diffEntries(courseEntries(reference), courseEntries(other)),
+  teachers: diffEntries(identityEntries(teacherCodes(reference)), identityEntries(teacherCodes(other))),
+  students: diffEntries(identityEntries(studentNames(reference)), identityEntries(studentNames(other))),
+  choices: diffEntries(identityEntries(projectChoices(reference)), identityEntries(projectChoices(other))),
+  availability: diffEntries(availabilityEntries(reference), availabilityEntries(other)),
+  grid: diffGrid(reference, other),
 });
 
 export type CatalogDiff = {
@@ -51,7 +51,7 @@ export type SetDiff = { added: number; removed: number; changed: number };
 
 export type GridDiff = {
   equal: boolean;
-  baseline: GridShape;
+  reference: GridShape;
   other: GridShape;
 };
 
@@ -66,13 +66,13 @@ export const isCleanDiff = (diff: CatalogDiff): boolean =>
  * nothing to diff and the fold is skipped entirely. The grid shapes are still carried, because the
  * banner renders them even when they agree.
  */
-export const cleanDiff = (baseline: LoadedPlan, other: LoadedPlan): CatalogDiff => ({
+export const cleanDiff = (reference: LoadedPlan, other: LoadedPlan): CatalogDiff => ({
   courses: NOTHING_MOVED,
   teachers: NOTHING_MOVED,
   students: NOTHING_MOVED,
   choices: NOTHING_MOVED,
   availability: NOTHING_MOVED,
-  grid: diffGrid(baseline, other),
+  grid: diffGrid(reference, other),
 });
 
 const NOTHING_MOVED: SetDiff = { added: 0, removed: 0, changed: 0 };
@@ -92,8 +92,8 @@ type Entry = { key: string; value: string };
  * occurrences per key keeps duplicates honest, and it matches the fingerprint, which hashes sorted
  * multisets rather than sets.
  */
-const diffEntries = (baseline: Entry[], other: Entry[]): SetDiff => {
-  const left = groupValues(baseline);
+const diffEntries = (reference: Entry[], other: Entry[]): SetDiff => {
+  const left = groupValues(reference);
   const right = groupValues(other);
   const keys = new Set([...left.keys(), ...right.keys()]);
 
@@ -136,10 +136,10 @@ const availabilityEntries = (plan: LoadedPlan): Entry[] =>
 /** Categories with no value dimension — presence is the whole story, so `changed` is always 0. */
 const identityEntries = (tokens: string[]): Entry[] => tokens.map((token) => ({ key: token, value: "" }));
 
-const diffGrid = (baseline: LoadedPlan, other: LoadedPlan): GridDiff => {
-  const left = gridOf(baseline);
+const diffGrid = (reference: LoadedPlan, other: LoadedPlan): GridDiff => {
+  const left = gridOf(reference);
   const right = gridOf(other);
-  return { equal: left.days === right.days && left.periods === right.periods, baseline: left, other: right };
+  return { equal: left.days === right.days && left.periods === right.periods, reference: left, other: right };
 };
 
 const gridOf = (plan: LoadedPlan): GridShape => ({ days: plan.input.days, periods: plan.input.periods });

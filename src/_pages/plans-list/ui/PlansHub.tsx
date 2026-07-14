@@ -1,7 +1,8 @@
-import { Copy, MoreHorizontal, Pencil, Plus, Scale, Trash2 } from "lucide-react";
+import { Copy, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
   Button,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -15,7 +16,9 @@ import {
   Toaster,
 } from "@/shared/ui";
 import type { PlanRow } from "../api/loader";
+import { canCompare, compareHref, EMPTY_SELECTION, toggleAllSelection, toggleId } from "../model/plan-selection";
 import ClonePlanDialog from "./ClonePlanDialog";
+import ComparePlansBar from "./ComparePlansBar";
 import DeletePlanDialog from "./DeletePlanDialog";
 import PlanFormDialog from "./PlanFormDialog";
 
@@ -27,15 +30,26 @@ type Props = {
  * The application hub: every plan is a complete scenario (catalog + board), listed
  * with create-blank, clone (the primary creation path), rename, and delete.
  *
- * Still no derived metrics *per row* — a plan is not scored in isolation. Comparison lives one level
- * up, behind the header's **Compare** button (`/plans/compare`): it is inherently multi-plan, so it
- * belongs to the hub, not to any single row's dropdown.
+ * Still no derived metrics *per row* — a plan is not scored in isolation. Comparison is inherently
+ * multi-plan, so it is driven by **ticking rows here** and pressing Compare, not by a picker on the
+ * comparison page: that page renders strictly what its URL names, and a picker over on it would be
+ * client state quietly disagreeing with SSR'd numbers.
  */
 export default function PlansHub({ plans }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<PlanRow | null>(null);
   const [cloneSource, setCloneSource] = useState<PlanRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PlanRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(EMPTY_SELECTION);
+
+  const planIds = plans.map((plan) => plan.id);
+  const allSelected = planIds.length > 0 && planIds.every((id) => selectedIds.has(id));
+  const someSelected = planIds.some((id) => selectedIds.has(id));
+  const headerState: boolean | "indeterminate" = allSelected ? true : someSelected ? "indeterminate" : false;
+
+  const clearSelection = () => {
+    setSelectedIds(EMPTY_SELECTION);
+  };
 
   const openCreate = () => {
     setRenameTarget(null);
@@ -58,19 +72,18 @@ export default function PlansHub({ plans }: Props) {
             Each plan is a complete scenario — catalog and timetable. Clone one to explore a what-if.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" className="gap-2" asChild>
-            <a href="/plans/compare">
-              <Scale aria-hidden="true" />
-              Compare
-            </a>
-          </Button>
-          <Button className="gap-2" onClick={openCreate}>
-            <Plus aria-hidden="true" />
-            New plan
-          </Button>
-        </div>
+        <Button className="gap-2" onClick={openCreate}>
+          <Plus aria-hidden="true" />
+          New plan
+        </Button>
       </header>
+
+      <ComparePlansBar
+        count={selectedIds.size}
+        href={compareHref(plans, selectedIds)}
+        canCompare={canCompare(selectedIds)}
+        onClear={clearSelection}
+      />
 
       {plans.length === 0 ? (
         <div className="py-12 text-center">
@@ -85,6 +98,15 @@ export default function PlansHub({ plans }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={headerState}
+                    onCheckedChange={() => {
+                      setSelectedIds((current) => toggleAllSelection(current, planIds));
+                    }}
+                    aria-label="Select all plans"
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Grid</TableHead>
                 <TableHead>Last updated</TableHead>
@@ -92,25 +114,37 @@ export default function PlansHub({ plans }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {plans.map((plan) => (
-                <TableRow key={plan.id}>
-                  <TableCell>
-                    <a href={`/plans/${plan.id}`} className="text-foreground font-medium hover:underline">
-                      {plan.name}
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{plan.slotGridPreset}</TableCell>
-                  <TableCell className="text-muted-foreground">{plan.updatedAt.slice(0, 10)}</TableCell>
-                  <TableCell className="text-right">
-                    <PlanRowActions
-                      plan={plan}
-                      onClone={setCloneSource}
-                      onRename={openRename}
-                      onDelete={setDeleteTarget}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {plans.map((plan) => {
+                const selected = selectedIds.has(plan.id);
+                return (
+                  <TableRow key={plan.id} data-state={selected ? "selected" : undefined}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selected}
+                        onCheckedChange={() => {
+                          setSelectedIds((current) => toggleId(current, plan.id));
+                        }}
+                        aria-label={`Select ${plan.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <a href={`/plans/${plan.id}`} className="text-foreground font-medium hover:underline">
+                        {plan.name}
+                      </a>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{plan.slotGridPreset}</TableCell>
+                    <TableCell className="text-muted-foreground">{plan.updatedAt.slice(0, 10)}</TableCell>
+                    <TableCell className="text-right">
+                      <PlanRowActions
+                        plan={plan}
+                        onClone={setCloneSource}
+                        onRename={openRename}
+                        onDelete={setDeleteTarget}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

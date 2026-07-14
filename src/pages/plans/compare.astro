@@ -4,27 +4,23 @@ import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
 import PlanComparisonPage from "@/_pages/plan-comparison/ui/PlanComparisonPage";
 // By direct path, not through the `api` barrel: that barrel is `bench/`'s contract and is kept
 // React-free, while this module reaches `analyzePlan` through the entity barrel (which re-exports a
-// React component). Same Astro FSD exception the island import below uses.
-import { loadComparison, loadPlanOptions } from "@/_pages/plan-comparison/api/load-comparison";
+// React component). Same Astro FSD exception the component import above uses.
+import { loadComparison } from "@/_pages/plan-comparison/api/load-comparison";
 import { readCompareParams } from "@/_pages/plan-comparison/lib/compare-params";
 import { createClient } from "@/shared/api";
 
 // The selection lives in the URL and is read SERVER-side: it selects the SSR dataset, so it must be
 // parsed before the loader runs. (The `plans/[id]/index.astro` precedent, not the client-side
-// `useUrlSyncedFilters` one.) Middleware auto-gates this route — deny-by-default, no allowlist change.
+// `useUrlSyncedFilters` one.) The author picks the plans on the hub; this page only reports on the ones
+// the URL names. Middleware auto-gates this route — deny-by-default, no allowlist change.
 const supabase = createClient(Astro.request.headers, Astro.cookies);
-const { planIds, baselineId } = readCompareParams(Astro.url.search);
+const { planIds } = readCompareParams(Astro.url.search);
 
-const [options, comparison] = supabase
-  ? await Promise.all([
-      loadPlanOptions(supabase),
-      planIds.length > 0 ? loadComparison(supabase, planIds, baselineId) : null,
-    ])
-  : [null, null];
+const comparison = supabase && planIds.length > 0 ? await loadComparison(supabase, planIds) : null;
 
-// No plans picked is the picker's empty state, not an error — only a selection where NOT ONE plan
-// resolved is a 404. One survivor still has something to show, so the page renders it and names the
-// rest rather than 404-ing a page that has content.
+// An empty selection is an empty state, not an error — only a selection where NOT ONE plan resolved is a
+// 404. One survivor still has something to show, so the page renders it and names the rest rather than
+// 404-ing a page that has content.
 if (!supabase) Astro.response.status = 503;
 else if (comparison !== null && comparison.data === null) Astro.response.status = 404;
 
@@ -34,12 +30,20 @@ const notFound = comparison !== null && comparison.data === null;
 
 <AppShellLayout title="Compare plans">
   {
-    !supabase || options === null ? (
+    /*
+     * No `client:` directive, deliberately. Nothing on this page is interactive: the selection is made
+     * on the hub and arrives in the URL, so the whole comparison is a pure function of the SSR load.
+     * Rendering it server-only ships zero JS and makes the guarantee structural — there is no client
+     * state that could drift out of step with the numbers.
+     */
+  }
+  {
+    !supabase ? (
       <p class="text-muted-foreground text-sm">Plan comparison is unavailable — Supabase is not configured.</p>
     ) : notFound ? (
       <PlanScopedError />
     ) : (
-      <PlanComparisonPage data={data} allPlans={options} client:load />
+      <PlanComparisonPage data={data} />
     )
   }
 </AppShellLayout>

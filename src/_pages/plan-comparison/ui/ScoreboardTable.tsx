@@ -1,5 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
-import type { ScoreboardSection } from "../model/deltas";
+import type { ScoreboardSection } from "../model/scoreboard";
 
 /**
  * One frozen-pane section table: sticky header row, sticky metric-label column, bounded height.
@@ -45,9 +45,6 @@ export function ScoreboardTable({ section }: Props) {
                   {column.cohort ? (
                     <span className="text-muted-foreground block text-xs font-normal">{column.cohort}</span>
                   ) : null}
-                  {column.isBaseline ? (
-                    <span className="text-muted-foreground block text-xs font-normal">baseline</span>
-                  ) : null}
                 </TableHead>
               ))}
             </TableRow>
@@ -60,15 +57,12 @@ export function ScoreboardTable({ section }: Props) {
                 <TableHead scope="row" className="bg-background sticky left-0 z-10 border-r">
                   {row.label}
                 </TableHead>
+                {/* The value, and nothing more. No delta, no colour, no arrow, no better/worse — fewer
+                    teacher gaps is better and more golden cells is better, but this page does not say
+                    so. It reports; the expert judges. */}
                 {row.cells.map((cell, index) => (
                   <TableCell key={`${row.id}-${String(index)}`} className="text-right tabular-nums">
-                    <span>{cell.text}</span>
-                    {/* A signed delta, and nothing more. No colour, no arrow, no better/worse: fewer
-                        teacher gaps is better and more golden cells is better, but this page does not
-                        say so — direction is the expert's call. */}
-                    {cell.deltaText === null ? null : (
-                      <span className="text-muted-foreground ml-2 text-xs">{cell.deltaText}</span>
-                    )}
+                    {cell}
                   </TableCell>
                 ))}
               </TableRow>

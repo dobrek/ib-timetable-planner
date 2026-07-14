@@ -3,8 +3,8 @@ import { diffCatalogs } from "./catalog-diff";
 import { driftTier } from "./drift-tier";
 import { buildLoadedPlan, SAMPLE, type PlanSpec } from "./__fixtures__/loaded-plan";
 
-const tierOf = (baseline: PlanSpec, other: PlanSpec) =>
-  driftTier(diffCatalogs(buildLoadedPlan(baseline), buildLoadedPlan(other)));
+const tierOf = (reference: PlanSpec, other: PlanSpec) =>
+  driftTier(diffCatalogs(buildLoadedPlan(reference), buildLoadedPlan(other)));
 
 describe("driftTier", () => {
   it("is `clean` for a plan and its clone — the flow the analyzer was validated on", () => {

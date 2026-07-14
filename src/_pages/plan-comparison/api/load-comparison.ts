@@ -1,16 +1,10 @@
-import { unwrapMany, type SupabaseClient } from "@/shared/api";
+import type { SupabaseClient } from "@/shared/api";
 import { COHORT_VALUES, type Cohort } from "@/shared/config";
 import { analyzePlan, verifyGeneration, type Distribution, type MirroredCell } from "@/entities/timetable";
 import { cleanDiff, diffCatalogs, type CatalogDiff } from "../model/catalog-diff";
 import { computeCatalogFingerprint } from "../model/catalog-fingerprint";
 import { driftTier, type DriftTier } from "../model/drift-tier";
-import {
-  buildCohortSection,
-  buildPlanSection,
-  baselineOf,
-  type AnalyzedPlan,
-  type ScoreboardSection,
-} from "../model/deltas";
+import { buildCohortSection, buildPlanSection, type AnalyzedPlan, type ScoreboardSection } from "../model/scoreboard";
 import { BOARD_WIDE, COHORT_SCOREBOARD, CROSS_COHORT, goldenCensusRows } from "../model/metric-catalog";
 import {
   completenessAnnotations,
@@ -32,11 +26,7 @@ import { loadPlanAnalysis, type LoadedPlan, type PlanWarning } from "./load-plan
  * to be shared and bookmarked, and plans are deletable, so a stale link is the ordinary case, not an
  * edge case. Each load is therefore settled independently and the failures are *named* in the UI.
  */
-export const loadComparison = async (
-  supabase: SupabaseClient,
-  planIds: string[],
-  requestedBaselineId: string | null,
-): Promise<ComparisonLoad> => {
+export const loadComparison = async (supabase: SupabaseClient, planIds: string[]): Promise<ComparisonLoad> => {
   const settled = await Promise.allSettled(planIds.map((id) => loadPlanAnalysis(supabase, id)));
 
   const plans = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
@@ -44,7 +34,7 @@ export const loadComparison = async (
 
   if (plans.length === 0) return { data: null, missingPlanIds };
 
-  return { data: await buildComparisonData(plans, requestedBaselineId, missingPlanIds), missingPlanIds };
+  return { data: await buildComparisonData(plans, missingPlanIds), missingPlanIds };
 };
 
 export type ComparisonLoad = {
@@ -53,22 +43,9 @@ export type ComparisonLoad = {
   missingPlanIds: string[];
 };
 
-/**
- * Every plan the picker can offer. No ownership filter: no `author_id` column exists and every policy
- * on `plans` is `for all to authenticated using (true)`, so every authenticated author reads every plan.
- *
- * A slice-local query rather than a reach into `plans-list/api` — that would be a same-layer cross-slice
- * `_pages` import, which steiger forbids.
- */
-export const loadPlanOptions = async (supabase: SupabaseClient): Promise<PlanOption[]> =>
-  unwrapMany(await supabase.from("plans").select("id, name").order("name").limit(200), "Failed to load the plan list");
-
-export type PlanOption = { id: string; name: string };
-
 /** Pure assembly, exported so tests can drive it from fixture plans without a database. */
 export const buildComparisonData = async (
   plans: LoadedPlan[],
-  requestedBaselineId: string | null,
   missingPlanIds: string[] = [],
 ): Promise<PlanComparisonData> => {
   const analyzed: AnalyzedPlan[] = plans.map((plan) => ({
@@ -76,27 +53,24 @@ export const buildComparisonData = async (
     name: plan.name,
     features: analyzePlan(plan.input),
   }));
-  const baseline = baselineOf(analyzed, requestedBaselineId ?? "");
-  // Deltas are baseline-relative, so a silently-missing baseline would render a whole scoreboard of
-  // meaningless numbers. Fall back to a plan that loaded — and say so.
-  const baselineFellBack = requestedBaselineId !== null && requestedBaselineId !== baseline.id;
   const byId = new Map(plans.map((plan) => [plan.id, plan]));
+  // The first plan is a *reference for wording only* — "what differs from what" needs an order, and the
+  // golden labels need a census to read the analyzer's own band settings off. It is not a baseline: no
+  // number below is measured against it.
+  const [reference, ...comparands] = analyzed;
 
   return {
     plans: analyzed.map((plan) => ({ id: plan.id, name: plan.name })),
-    baselineId: baseline.id,
-    baselineFellBack,
     missingPlanIds,
     sections: [
-      buildCohortSection("Cohort scoreboard", COHORT_SCOREBOARD, analyzed, baseline.id),
+      buildCohortSection("Cohort scoreboard", COHORT_SCOREBOARD, analyzed),
       buildCohortSection(
         "Golden slots (whole-cohort coverage)",
-        goldenCensusRows(baseline.features, COHORT_VALUES[0]),
+        goldenCensusRows(reference.features, COHORT_VALUES[0]),
         analyzed,
-        baseline.id,
       ),
-      buildPlanSection("Board-wide (both cohorts)", BOARD_WIDE, analyzed, baseline.id),
-      buildPlanSection("Cross-cohort weave", CROSS_COHORT, analyzed, baseline.id),
+      buildPlanSection("Board-wide (both cohorts)", BOARD_WIDE, analyzed),
+      buildPlanSection("Cross-cohort weave", CROSS_COHORT, analyzed),
     ],
     annotations: analyzed.flatMap((plan) => {
       const loadedPlan = byId.get(plan.id);
@@ -104,24 +78,20 @@ export const buildComparisonData = async (
     }),
     perPlan: analyzed.map((plan) => toPlanDetail(byId.get(plan.id), plan)),
     drift: await Promise.all(
-      analyzed
-        .filter((plan) => plan.id !== baseline.id)
-        .map((plan) => toDriftReport(byId.get(baseline.id), byId.get(plan.id), plan.name)),
+      comparands.map((plan) => toDriftReport(byId.get(reference.id), byId.get(plan.id), plan.name, reference.name)),
     ),
   };
 };
 
 export type PlanComparisonData = {
+  /** The compared plans, in the order the URL named them. None is privileged. */
   plans: { id: string; name: string }[];
-  baselineId: string;
-  /** True when the requested baseline could not be loaded and a survivor took its place. */
-  baselineFellBack: boolean;
   missingPlanIds: string[];
   sections: ScoreboardSection[];
   /** The invariant annotations — a slot count is never readable without these beside it. */
   annotations: CompletenessAnnotation[];
   perPlan: PlanDetail[];
-  /** One entry per non-baseline plan. Empty when only the baseline loaded. */
+  /** One entry per plan after the first. Empty when only one plan loaded — nothing to compare it to. */
   drift: DriftReport[];
 };
 
@@ -142,9 +112,12 @@ export type PlanDetail = {
 
 export type MirroredCellLine = { day: number; period: number; label: string };
 
+/** One comparand's catalog, set against the first-listed plan's — an ordering, not a judgement. */
 export type DriftReport = {
   planId: string;
   planName: string;
+  /** The plan this one is described *relative to* (the first in the selection). */
+  referenceName: string;
   tier: DriftTier;
   diff: CatalogDiff;
 };
@@ -195,24 +168,25 @@ const toMirroredLine = (cell: MirroredCell): MirroredCellLine => ({
  * Only when they differ do we pay for the structured diff that lets the banner NAME the drift.
  */
 const toDriftReport = async (
-  baseline: LoadedPlan | undefined,
+  reference: LoadedPlan | undefined,
   other: LoadedPlan | undefined,
   planName: string,
+  referenceName: string,
 ): Promise<DriftReport> => {
-  if (!baseline || !other) throw new Error("Drift report needs both a baseline and a comparand");
+  if (!reference || !other) throw new Error("Drift report needs both a reference and a comparand");
 
-  const [baselineDigest, otherDigest] = await Promise.all([
-    computeCatalogFingerprint(baseline),
+  const [referenceDigest, otherDigest] = await Promise.all([
+    computeCatalogFingerprint(reference),
     computeCatalogFingerprint(other),
   ]);
 
   // Equal digests mean equal catalogs, so there is nothing for the diff to find — skip the fold.
-  if (baselineDigest === otherDigest) {
-    return { planId: other.id, planName, tier: "clean", diff: cleanDiff(baseline, other) };
+  if (referenceDigest === otherDigest) {
+    return { planId: other.id, planName, referenceName, tier: "clean", diff: cleanDiff(reference, other) };
   }
 
-  const diff = diffCatalogs(baseline, other);
-  return { planId: other.id, planName, tier: driftTier(diff), diff };
+  const diff = diffCatalogs(reference, other);
+  return { planId: other.id, planName, referenceName, tier: driftTier(diff), diff };
 };
 
 /** Re-exported so the island can name the distribution shape without importing the entity barrel. */

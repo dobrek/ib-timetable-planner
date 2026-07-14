@@ -6,11 +6,15 @@ import type { DriftReport } from "../api/load-comparison";
 /**
  * The **sole** guard against misreading a drifted or grid-mismatched comparison. Not decorative.
  *
- * v1 renders every row and lets the expert judge, so this banner is the only thing standing between a
- * reader and an apples-to-oranges number. That is why it NAMES the drift ("3 courses added, 1 teacher
- * removed, availability differs") rather than merely announcing it: a boolean tells you something is
- * wrong but not whether it's one renamed course — harmless — or a different student body, which
- * invalidates half the scoreboard.
+ * The page renders every row and lets the expert judge, so this banner is the only thing standing
+ * between a reader and an apples-to-oranges number. That is why it NAMES the drift ("3 courses added,
+ * 1 teacher removed") rather than merely announcing it: a boolean tells you something is wrong but not
+ * whether it's one renamed course — harmless — or a different student body, which invalidates half the
+ * scoreboard.
+ *
+ * The wording is directional but not judgemental: differences are described *relative to the
+ * first-listed plan* because a diff needs an order, not because that plan is the correct one. Neither
+ * plan is a baseline; nothing here is measured against anything.
  *
  * Slice-local rather than `shared/ui`: there is no React `Alert` component (only `AlertDialog`, a
  * modal, and `Banner.astro`, which cannot mount inside a React island), and this has one consumer.
@@ -52,22 +56,22 @@ function DriftNotice({ report }: { report: DriftReport }) {
 
       {incomparable ? (
         <p className="mt-2">
-          The board shape differs from the baseline ({gridLabel(report.diff, "baseline")} vs{" "}
+          The board shape differs from <strong>{report.referenceName}</strong> ({gridLabel(report.diff, "reference")} vs{" "}
           {gridLabel(report.diff, "other")}). Board-shape, day-edge, slot-census and week-symmetry metrics are{" "}
           <strong>not comparable</strong> between these plans.
         </p>
       ) : (
         <p className="mt-2">
-          Catalog differs from baseline: {describe(report.diff)}. Catalog-dependent metrics (completeness, students,
-          slot census, teachers, subjects) are apples-to-oranges; board shape, daily load, week symmetry, adjacency and
-          spread still compare — they fold over placements and the grid alone.
+          Catalog differs from <strong>{report.referenceName}</strong>: {describe(report.diff)}. Catalog-dependent
+          metrics (completeness, students, slot census, teachers, subjects) are apples-to-oranges; board shape, daily
+          load, week symmetry, adjacency and spread still compare — they fold over placements and the grid alone.
         </p>
       )}
     </div>
   );
 }
 
-const gridLabel = (diff: CatalogDiff, side: "baseline" | "other"): string => {
+const gridLabel = (diff: CatalogDiff, side: "reference" | "other"): string => {
   const { days, periods } = diff.grid[side];
   return `${String(days)}×${String(periods)}`;
 };

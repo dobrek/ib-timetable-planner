@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { diffCatalogs, isCleanDiff } from "./catalog-diff";
 import { buildLoadedPlan, SAMPLE, type CourseSpec, type PlanSpec } from "./__fixtures__/loaded-plan";
 
-const diff = (baseline: PlanSpec, other: PlanSpec) => diffCatalogs(buildLoadedPlan(baseline), buildLoadedPlan(other));
+const diff = (reference: PlanSpec, other: PlanSpec) => diffCatalogs(buildLoadedPlan(reference), buildLoadedPlan(other));
 
 const NONE = { added: 0, removed: 0, changed: 0 };
 
@@ -86,7 +86,7 @@ describe("diffCatalogs", () => {
 
     expect(result.grid).toEqual({
       equal: false,
-      baseline: { days: 5, periods: 10 },
+      reference: { days: 5, periods: 10 },
       other: { days: 5, periods: 8 },
     });
   });

@@ -12,10 +12,19 @@ type Supabase = SupabaseClient;
  * Loads one plan-cohort's catalog from Supabase and assembles the same `GroupingCourse[]`
  * projection the fixture adapter emits — keyed by `course.id` / `student.id` rather
  * than composite name tokens. Mirrors the legacy `subjects.ts` assembly:
- *   - regular courses (those with direct student choices) take their own choices
- *     unioned with their overlap-dependents' choices (base receives dependent's
- *     students, per the `course_overlaps` schema comment);
+ *   - regular courses (those with direct student choices, OR an overlap base whose dependents
+ *     carry them) take their own choices unioned with their overlap-dependents' choices (base
+ *     receives dependent's students, per the `course_overlaps` schema comment);
  *   - virtual merge-parent courses take the union of their children's choices.
+ *
+ * A **live overlap base with zero direct enrolments survives**: overlap rows mean the base and its
+ * dependents are taught as ONE combined session (this year dp1's Chemistry SL base — 4 h, nobody
+ * picks it directly — is taught together with the 2 h Chemistry HL dependent its 9 students pick),
+ * so the base's own `hours_per_week` are real teaching hours the plan must seat. Dropping it (the
+ * pre-2026-07-14 filter) hid 4 of the 6 hours the expert schedules, and the engine read as
+ * "complete" while being 4 hours short of the school's reality. The fold below already unions the
+ * dependents' students onto the base, so a kept base projects with the right roster. Generalizes by
+ * construction: a year that splits the group has no overlap rows and no behavior change.
  */
 export const loadCohortCourses = async (supabase: Supabase, planId: string, cohort: Cohort): Promise<CohortCatalog> => {
   const courseRows = await fetchCourses(supabase, planId, cohort);
@@ -54,11 +63,16 @@ export const loadCohortCourses = async (supabase: Supabase, planId: string, coho
   const mergeParentIds = new Set(childrenOf.keys());
 
   const studentsOf = (courseId: string): string[] => directStudents.get(courseId) ?? [];
+  /** An overlap base whose combined session is actually taught: some dependent has enrolments. */
+  const hasEnrolledDependent = (courseId: string): boolean =>
+    (dependentsOf.get(courseId) ?? []).some((dependentId) => directStudents.has(dependentId));
 
   // A merge parent is represented once, as a virtual course — exclude it here even if it
   // also carries direct choices, so the same id can't enter both buckets (bug #5).
   const regularCourses: GroupingCourse[] = courseRows
-    .filter((course) => directStudents.has(course.id) && !mergeParentIds.has(course.id))
+    .filter(
+      (course) => (directStudents.has(course.id) || hasEnrolledDependent(course.id)) && !mergeParentIds.has(course.id),
+    )
     .map((course) => ({
       id: course.id,
       teacherKeys: teachersOf.get(course.id) ?? [],

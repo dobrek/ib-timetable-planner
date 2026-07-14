@@ -860,22 +860,22 @@ it is behind deny-by-default auth. This is a deliberate yes, not an accident.
 
 #### Automated
 
-- [x] 3.1 Fingerprint unit tests pass (order-insensitivity, golden digest, per-category sensitivity)
-- [x] 3.2 Clone-vs-source: equal natural-key fingerprint, different `computeCatalogHash`
-- [x] 3.3 Diff unit tests pass (every category)
-- [x] 3.4 Tier unit tests pass (grid mismatch outranks catalog drift)
-- [x] 3.5 Type check (`pnpm check`) + lint + steiger + build clean
+- [x] 3.1 Fingerprint unit tests pass (order-insensitivity, golden digest, per-category sensitivity) — 29c599a
+- [x] 3.2 Clone-vs-source: equal natural-key fingerprint, different `computeCatalogHash` — 29c599a
+- [x] 3.3 Diff unit tests pass (every category) — 29c599a
+- [x] 3.4 Tier unit tests pass (grid mismatch outranks catalog drift) — 29c599a
+- [x] 3.5 Type check (`pnpm check`) + lint + steiger + build clean — 29c599a
 
 ### Phase 4: Scoreboard model
 
 #### Automated
 
-- [ ] 4.1 Formatter unit tests pass, incl. `pooledMean` pooling samples not means
-- [ ] 4.2 Metric-catalog tests pass (row count + order match the bench per section)
-- [ ] 4.3 Delta tests pass (numeric rows only; no ranking produced)
-- [ ] 4.4 Invariant test: incomplete cohort always yields a completeness annotation
-- [ ] 4.5 Extremes resolve to names, not UUIDs
-- [ ] 4.6 Type check (`pnpm check`) + lint + steiger + build clean
+- [x] 4.1 Formatter unit tests pass, incl. `pooledMean` pooling samples not means
+- [x] 4.2 Metric-catalog tests pass (row count + order match the bench per section)
+- [x] 4.3 Delta tests pass (numeric rows only; no ranking produced)
+- [x] 4.4 Invariant test: incomplete cohort always yields a completeness annotation
+- [x] 4.5 Extremes resolve to names, not UUIDs
+- [x] 4.6 Type check (`pnpm check`) + lint + steiger + build clean
 
 ### Phase 5: UI
 

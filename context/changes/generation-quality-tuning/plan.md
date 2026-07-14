@@ -770,26 +770,26 @@ after Phase 2 — documented, expected, local-only.
 
 #### Automated
 
-- [x] 4.1 `pnpm test` passes with 6-tuple fixtures
-- [x] 4.2 `pnpm bench:generation` shows no material throughput regression
-- [x] 4.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 4.1 `pnpm test` passes with 6-tuple fixtures — bbdc382
+- [x] 4.2 `pnpm bench:generation` shows no material throughput regression — bbdc382
+- [x] 4.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean — bbdc382
 
 #### Manual
 
-- [x] 4.4 Harness run: teacher gaps → ≤ 148, softHits = 0, totalSlots not worse
-- [x] 4.5 studentHoles stays within the expert's revealed band
+- [x] 4.4 Harness run: teacher gaps → ≤ 148, softHits = 0, totalSlots not worse — bbdc382
+- [x] 4.5 studentHoles stays within the expert's revealed band — bbdc382
 
 ### Phase 5: Shape Tiers — doublesDeficit + lateStarts + fridayTail
 
 #### Automated
 
-- [ ] 5.1 `pnpm test` passes with 9-tuple fixtures
-- [ ] 5.2 `pnpm bench:generation` still acceptable
-- [ ] 5.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 5.1 `pnpm test` passes with 9-tuple fixtures
+- [x] 5.2 `pnpm bench:generation` still acceptable
+- [x] 5.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
 
 #### Manual
 
-- [ ] 5.4 Harness run: lateStarts = 0, Friday earliest-ending, adjacency/multi-day move toward
+- [x] 5.4 Harness run: lateStarts = 0, Friday earliest-ending, adjacency/multi-day move toward
       gold, tiers 1–6 hold
 
 ### Phase 6: Golden Slots — Census, Detection, Band Anchor, Bottom Tier

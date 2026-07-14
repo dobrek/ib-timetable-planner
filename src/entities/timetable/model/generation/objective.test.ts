@@ -3,14 +3,18 @@ import type { PlacementWeek } from "@/shared/config";
 import { course } from "../__fixtures__/builders";
 import {
   compareObjectives,
+  countDoublesDeficit,
+  countFridayTail,
   countInteriorHoles,
+  countLateStarts,
   countSoftHits,
   countStudentHoles,
   countTeacherHoles,
   type Objective,
+  SEARCH_TIERS,
 } from "./objective";
 
-/** The 6-tuple, with every tier below `slots` defaulting to 0 so a case names only what it tests. */
+/** The 9-tuple, with every tier below `slots` defaulting to 0 so a case names only what it tests. */
 const obj = (
   unplaced: number,
   holes: number,
@@ -18,7 +22,10 @@ const obj = (
   teacherHoles = 0,
   softHits = 0,
   studentHoles = 0,
-): Objective => [unplaced, holes, slots, teacherHoles, softHits, studentHoles];
+  doublesDeficit = 0,
+  lateStarts = 0,
+  fridayTail = 0,
+): Objective => [unplaced, holes, slots, teacherHoles, softHits, studentHoles, doublesDeficit, lateStarts, fridayTail];
 
 /** A placed course-hour row (the shape `countStudentHoles` scores over). */
 const row = (courseId: string, day: number, period: number, week: PlacementWeek = "both") => ({
@@ -48,6 +55,18 @@ describe("compareObjectives", () => {
     expect(compareObjectives(obj(0, 0, 49, 0, 0, 600), obj(0, 0, 49, 0, 1, 0))).toBeLessThan(0);
   });
 
+  it("ranks student gaps above the shape tiers (a window hurts more than a lone single)", () => {
+    expect(compareObjectives(obj(0, 0, 49, 0, 0, 0, 99, 99, 99), obj(0, 0, 49, 0, 0, 1))).toBeLessThan(0);
+  });
+
+  it("orders the shape tiers doubles → lateStarts → fridayTail", () => {
+    // A single avoidable single outranks any number of late starts…
+    expect(compareObjectives(obj(0, 0, 49, 0, 0, 0, 0, 9, 9), obj(0, 0, 49, 0, 0, 0, 1))).toBeLessThan(0);
+    // …and one late start outranks a Friday running to the end of the grid (3.1: earlier finish
+    // beats later start, but only once every day already starts at P1).
+    expect(compareObjectives(obj(0, 0, 49, 0, 0, 0, 0, 0, 9), obj(0, 0, 49, 0, 0, 0, 0, 1))).toBeLessThan(0);
+  });
+
   it("costs a soft hit and a teacher hole exactly one tier step each — neither can outbid a slot", () => {
     const oneSlotWorse = obj(0, 0, 50, 0, 0);
     expect(compareObjectives(obj(0, 0, 49, 999, 999), oneSlotWorse)).toBeLessThan(0);
@@ -63,6 +82,17 @@ describe("compareObjectives", () => {
 
   it("returns 0 for identical tuples", () => {
     expect(compareObjectives(obj(0, 1, 2, 3), obj(0, 1, 2, 3))).toBe(0);
+  });
+
+  it("ignores the shape tiers when truncated to SEARCH_TIERS (what the LNS walk steers by)", () => {
+    const shapelier = obj(0, 0, 49, 0, 0, 0, 40, 12, 30);
+    const shapeless = obj(0, 0, 49, 0, 0, 0, 0, 0, 0);
+    expect(compareObjectives(shapelier, shapeless, SEARCH_TIERS)).toBe(0); // a tie the walk won't chase
+    expect(compareObjectives(shapelier, shapeless)).toBeGreaterThan(0); // …but the polish still ranks it
+  });
+
+  it("never reorders a truncated comparison — a search tier still decides it", () => {
+    expect(compareObjectives(obj(0, 0, 49, 0, 0, 0, 99), obj(0, 0, 50), SEARCH_TIERS)).toBeLessThan(0);
   });
 });
 
@@ -184,5 +214,72 @@ describe("countStudentHoles (tier 6)", () => {
     const courses = [shared("s1")];
     const rows = [row("x", 1, 1, "a"), row("x", 1, 4, "a"), row("x", 2, 2, "a"), row("x", 2, 3, "a")];
     expect(countStudentHoles(courses, rows)).toBe(2);
+  });
+});
+
+describe("countDoublesDeficit (tier 7)", () => {
+  it("charges nothing for a course taught as doubles", () => {
+    // 4 hours as two same-day pairs — no day-lane holds a lone hour.
+    const rows = [row("c", 1, 1, "a"), row("c", 1, 2, "a"), row("c", 3, 4, "a"), row("c", 3, 5, "a")];
+    expect(countDoublesDeficit(rows)).toBe(0);
+  });
+
+  it("charges every avoidable single of an even-hour course", () => {
+    // 4 hours scattered over 4 days → 4 singles, none of them forced (4 mod 2 = 0).
+    const rows = [row("c", 1, 1, "a"), row("c", 2, 1, "a"), row("c", 3, 1, "a"), row("c", 4, 1, "a")];
+    expect(countDoublesDeficit(rows)).toBe(4);
+  });
+
+  it("forgives exactly one single on an odd-hour course (the TOK hour is free)", () => {
+    // 3 hours = one double + one single: the single is unavoidable, so the deficit is 0…
+    expect(countDoublesDeficit([row("c", 1, 1, "a"), row("c", 1, 2, "a"), row("c", 3, 1, "a")])).toBe(0);
+    // …but 3 hours as three singles pays for the two that could have paired.
+    expect(countDoublesDeficit([row("c", 1, 1, "a"), row("c", 2, 1, "a"), row("c", 3, 1, "a")])).toBe(2);
+  });
+
+  it("charges nothing for a 1-hour biweekly lane (CAS/EE need no exception flag)", () => {
+    expect(countDoublesDeficit([row("cas", 1, 1, "a"), row("ee", 2, 1, "b")])).toBe(0);
+  });
+
+  it("counts each week lane of a `both` row separately", () => {
+    // One `both` hour fans into lanes a and b — each is a forced single (1 mod 2 = 1) → 0.
+    expect(countDoublesDeficit([row("c", 1, 1)])).toBe(0);
+    // Two `both` hours on different days: each lane holds 2 hours as 2 singles (2 mod 2 = 0, so
+    // neither is forced) → 2 per lane, 4 across the fan-out.
+    expect(countDoublesDeficit([row("c", 1, 1), row("c", 2, 1)])).toBe(4);
+  });
+});
+
+describe("countLateStarts (tier 8)", () => {
+  it("counts the free periods before the day's first lesson, per week lane", () => {
+    // Day 1 starts at P3 → 2 free periods, in week a and in week b → 4.
+    expect(countLateStarts([row("c", 1, 3)])).toBe(4);
+  });
+
+  it("scores 0 for a day starting at P1 and ignores empty days", () => {
+    expect(countLateStarts([row("c", 1, 1), row("c", 1, 4)])).toBe(0);
+    expect(countLateStarts([])).toBe(0);
+  });
+
+  it("sums independent days and scores a biweekly lane once", () => {
+    // Day 1 starts at P2 (1) and day 2 at P4 (3), both on week a only → 4.
+    expect(countLateStarts([row("c", 1, 2, "a"), row("d", 2, 4, "a")])).toBe(4);
+  });
+});
+
+describe("countFridayTail (tier 9)", () => {
+  it("counts the last occupied period of the final grid day, per week lane", () => {
+    // Friday (day 5) ends at P6, in both week lanes → 12; earlier days are free.
+    expect(countFridayTail([row("c", 5, 6), row("d", 1, 9)], 5)).toBe(12);
+  });
+
+  it("prefers the earlier Friday finish (the tier's whole purpose)", () => {
+    const early = countFridayTail([row("c", 5, 1, "a"), row("c", 5, 2, "a")], 5);
+    const late = countFridayTail([row("c", 5, 7, "a"), row("c", 5, 8, "a")], 5);
+    expect(early).toBeLessThan(late);
+  });
+
+  it("scores 0 for an empty Friday", () => {
+    expect(countFridayTail([row("c", 4, 9)], 5)).toBe(0);
   });
 });

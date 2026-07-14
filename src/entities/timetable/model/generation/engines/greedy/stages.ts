@@ -33,6 +33,19 @@ export type AttemptContext = {
 /** Candidate rank weights: remaining hours dominate, student count breaks ties, noise diversifies. */
 const REMAINING_RANK_WEIGHT = 100;
 const NOISE_RANK_WEIGHT = 400;
+/**
+ * Bonus for a course that already holds the period next door on this day — the doubles preference
+ * (objective tier 7), paid for *inside* the placement heuristic rather than out of the search budget.
+ * The alternative, letting the shape tiers steer LNS rounds, buys the same doubles by starving the
+ * teacher and student tiers the expert ranks above them (measured on the golden catalog: teacher
+ * gap-slots 231 → 278). A preference costs nothing: the round would have picked *some* fitting course
+ * for this cell anyway, so it may as well pick the one that completes a pair.
+ *
+ * Sized to outweigh two hours of deficit but not five, and to beat the noise term outright: a
+ * near-done course still yields to the course that has four hours left, and the choice stays a
+ * preference the higher tiers can overrule — never a rule.
+ */
+const ADJACENT_RANK_BONUS = 250;
 /** Per-course cap on straggler-repair attempts (stage 3) — a termination guard for a stuck chain. */
 const REPAIR_ATTEMPTS_CAP = 30;
 /** Ejection-chain depth: shallow for straggler repair, one deeper for slot-emptying descent. */
@@ -58,12 +71,12 @@ export const constructBackbone = (board: Board, problem: Problem, ctx: AttemptCo
   }
 };
 
-/** Stage 2 — pack the remainder into already-used cells. */
+/** Stage 2 — pack the remainder into already-used cells (pairing courses up where the cell allows). */
 export const packUsedCells = (board: Board, problem: Problem, ctx: AttemptContext): void => {
   for (const { d, p } of problem.cellOrder) {
     for (const cohort of ctx.cohortOrder) {
       if (board.rowsAt(cohort, d, p).length === 0) continue;
-      for (const course of candidatesFor(board, problem, cohort, false, ctx)) {
+      for (const course of candidatesFor(board, problem, cohort, false, ctx, { d, p })) {
         const week = board.fitsAt(cohort, course, d, p);
         if (week) placeDeficit(board, cohort, course.id, d, p, week);
       }
@@ -110,7 +123,7 @@ export const spill = (board: Board, problem: Problem, ctx: AttemptContext): void
     for (const { d, p } of problem.cellOrder) {
       for (const cohort of ctx.cohortOrder) {
         if (!pass && ctx.reserved[cohort].has(cellKey(d, p))) continue;
-        for (const course of candidatesFor(board, problem, cohort, false, ctx)) {
+        for (const course of candidatesFor(board, problem, cohort, false, ctx, { d, p })) {
           const week = board.fitsAt(cohort, course, d, p);
           if (week) placeDeficit(board, cohort, course.id, d, p, week);
         }
@@ -177,13 +190,18 @@ export const migrateHolesToEdges = (board: Board, problem: Problem, ctx: Attempt
   for (const cohort of ctx.cohortOrder) migrateCohortHoles(board, problem, cohort);
 };
 
-/** Rank the cohort's still-unplaced courses: most-remaining first, ties by enrollment, plus noise. */
+/**
+ * Rank the cohort's still-unplaced courses: most-remaining first, ties by enrollment, plus noise —
+ * and, when the caller names the cell it is filling, a bonus for the courses that would form a double
+ * there (see {@link ADJACENT_RANK_BONUS}).
+ */
 const candidatesFor = (
   board: Board,
   problem: Problem,
   cohort: Cohort,
   includeFlagged: boolean,
   ctx: AttemptContext,
+  at?: { d: number; p: number },
 ): (GroupingCourse & { cohort: Cohort })[] =>
   problem.snapshot.cohorts[cohort].courses
     .filter((c) => (board.remaining.get(c.id) ?? 0) > 0 && (includeFlagged || !problem.flagged.has(c.id)))
@@ -192,10 +210,15 @@ const candidatesFor = (
       rank:
         (board.remaining.get(c.id) ?? 0) * REMAINING_RANK_WEIGHT +
         c.studentKeys.length +
-        ctx.noise * ctx.rng() * NOISE_RANK_WEIGHT,
+        ctx.noise * ctx.rng() * NOISE_RANK_WEIGHT +
+        (at && wouldPair(board, cohort, c.id, at) ? ADJACENT_RANK_BONUS : 0),
     }))
     .sort((a, b) => b.rank - a.rank)
     .map(({ course }) => ({ ...course, cohort }));
+
+/** Does the course already hold the period next door on this day — i.e. would this cell pair up? */
+const wouldPair = (board: Board, cohort: Cohort, courseId: string, at: { d: number; p: number }): boolean =>
+  [at.p - 1, at.p + 1].some((p) => p >= 1 && board.rowsAt(cohort, at.d, p).some((row) => row.courseId === courseId));
 
 /** Place one in-hand hour of a course and decrement its deficit. */
 const placeDeficit = (

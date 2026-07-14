@@ -16,17 +16,21 @@ import { countInteriorHoles, createGreedyEngine, type GeneratorSnapshot, verifyG
  *     spike analysis (change.md) shows dp1's clique lower bound is 48 while neither engine reaches
  *     a complete dp1 board under 50 within budget (CP-SAT, warm-started, 90 s: 49). Tightening it to
  *     the real manual count is checkpoint 2.8.
- *   • dp2 = 46 is a *regression envelope*: the shipped engine reliably reaches 46 here, so the bar
- *     guards against a search regression that loses those slots. It is NOT a claim about the manual
- *     optimum.
+ *   • dp2 ≤ 47 is a *regression envelope*: it guards against a search regression that loses a
+ *     handful of slots. It is NOT a claim about the manual optimum, and it is deliberately one slot
+ *     looser than the engine's typical result (46).
  *
- * Machine-speed independence: stagnation is wall-clock (`Date.now() - lastImproveAt`), so a faster
- * machine runs more rounds per window. The engine is built with a 10 s stagnation window and a 60 s
- * budget under a 90 s elapsed ceiling so the dp2 = 46 pin holds regardless of runner speed; pinning
- * it under the old short windows would flake. Fallback (Critical Implementation Details): if a local
- * run lands on 47, ship `≤ 47` here and record the observation in change.md.
+ * Why 47 and not 46 (2026-07-14): the pin was measured as "46, reliably" — but re-measuring the SAME
+ * pre-tuning engine, at its shipped LNS seed, produced 47 on one run and 46 on the next, and a
+ * different seed left an hour unplaced. The search is wall-clock-driven (stagnation and budget are
+ * `Date.now()` windows), so the round count — and with it which plateau the LNS walks — moves with
+ * machine load. 46 was never a property of the engine; it was a property of the runs that measured it.
+ * A one-slot envelope keeps the bar meaningful (a 48 would still fail) without pinning noise.
+ *
+ * Completeness, by contrast, IS pinned hard below (`unplaced = []`), and the tuple agrees: an
+ * unplaced hour outranks every slot. The `deficit` destroy operator exists to keep it that way.
  */
-const SLOT_BARS = { dp1: 50, dp2: 46 };
+const SLOT_BARS = { dp1: 50, dp2: 47 };
 const BUDGET_MS = 60_000;
 const CEILING_MS = 90_000;
 

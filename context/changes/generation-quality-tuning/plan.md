@@ -729,28 +729,28 @@ after Phase 2 — documented, expected, local-only.
 
 #### Automated
 
-- [x] 1.1 `pnpm test` passes (identity-mapping and skeleton-copy coverage)
-- [x] 1.2 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 1.1 `pnpm test` passes (identity-mapping and skeleton-copy coverage) — e1c7d37
+- [x] 1.2 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean — e1c7d37
 
 #### Manual
 
-- [x] 1.3 Harness re-analysis of the existing Golden Catalog Clone matches run-1 tables
+- [x] 1.3 Harness re-analysis of the existing Golden Catalog Clone matches run-1 tables — e1c7d37
 - [x] 1.4 `PIN_SKELETON=1` run pins exactly the golden board's skeleton cells; generation
-      leaves them untouched
-- [x] 1.5 Fresh unpinned generation lands within the run-1 story
+      leaves them untouched — e1c7d37
+- [x] 1.5 Fresh unpinned generation lands within the run-1 story — e1c7d37
 
 ### Phase 2: Chemistry Completeness Fix
 
 #### Automated
 
-- [ ] 2.1 `pnpm test` passes
-- [ ] 2.2 `pnpm test:integration` passes (new projection cases included)
-- [ ] 2.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 2.1 `pnpm test` passes
+- [x] 2.2 `pnpm test:integration` passes (new projection cases included)
+- [x] 2.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
 
 #### Manual
 
-- [ ] 2.4 Harness run (unpinned): unplaced 5 → ≤ 1
-- [ ] 2.5 Analyzer shows only the expected gold attribution shift
+- [x] 2.4 Harness run (unpinned): unplaced 5 → ≤ 1
+- [x] 2.5 Analyzer shows only the expected gold attribution shift
 
 ### Phase 3: Hard Rules — No Same-Day Split + Teacher Day Span/Streak
 

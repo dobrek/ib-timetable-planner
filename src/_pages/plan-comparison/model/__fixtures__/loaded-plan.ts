@@ -50,7 +50,7 @@ export const buildLoadedPlan = (spec: PlanSpec = {}): LoadedPlan => {
   const teacherId = (code: string) => `${prefix}-t-${code}`;
   // Students are keyed by INDEX, not name — `students.full_name` carries no unique constraint, so two
   // same-named students are two rows with two ids, and a name-keyed fixture could not express the very
-  // weak-key case the diff has to get right. Choices resolve a name to its first bearer.
+  // weak-key case the fingerprint has to get right. Choices resolve a name to its first bearer.
   const idOfIndex = (index: number) => `${prefix}-s-${String(index)}`;
   const studentId = (name: string) =>
     idOfIndex(

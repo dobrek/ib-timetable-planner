@@ -1,6 +1,6 @@
 /* eslint-disable no-console -- the printed report IS this runner's product (bench precedent). */
 import { describe, expect, it } from "vitest";
-import { loadPlanAnalysis, type LoadedPlan } from "./load-plan-analysis-input";
+import { loadPlanAnalysis, type LoadedPlan } from "@/_pages/plan-comparison/api";
 import { createLocalSupabase } from "./local-supabase";
 import { buildReport, printPlanReports } from "./plan-report";
 

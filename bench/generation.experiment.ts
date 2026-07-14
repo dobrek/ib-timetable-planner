@@ -12,7 +12,7 @@ import {
   type PlannerPlacement,
 } from "@/entities/timetable";
 import { copyFixtureSkeleton, type CourseIdentity, type SkeletonRow } from "./fixture-courses";
-import { loadPlanAnalysis, type LoadedPlan } from "./load-plan-analysis-input";
+import { loadPlanAnalysis, type LoadedPlan } from "@/_pages/plan-comparison/api";
 import { createLocalSupabase } from "./local-supabase";
 import { buildReport, printPlanReports } from "./plan-report";
 

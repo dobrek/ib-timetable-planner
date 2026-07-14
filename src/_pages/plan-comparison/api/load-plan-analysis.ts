@@ -65,9 +65,16 @@ export type LoadedPlan = {
  * matches its source) and the scoreboard reports aggregates. It would only mislead a per-student
  * drill-down, which this surface deliberately does not have.
  */
+/**
+ * The value types carry `| undefined` deliberately. A bare `Record<string, T>` index is *typed* as
+ * always-present while the runtime hands back `undefined` for a missing key, which makes every honest
+ * guard read as dead code to the linter — and the alternative, indexing blind, would quietly
+ * fingerprint the literal string `"undefined"`. Saying `| undefined` forces every consumer to decide
+ * what an unresolved id means, which is the right question to have to answer.
+ */
 export type PlanNaturalKeys = {
-  teachers: Record<string, TeacherNaturalKey>;
-  students: Record<string, string>;
+  teachers: Record<string, TeacherNaturalKey | undefined>;
+  students: Record<string, string | undefined>;
 };
 
 export type TeacherNaturalKey = { code: string; fullName: string | null };

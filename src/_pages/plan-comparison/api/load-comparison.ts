@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@/shared/api";
 import { COHORT_VALUES, type Cohort } from "@/shared/config";
-import { analyzePlan, verifyGeneration, type Distribution, type MirroredCell } from "@/entities/timetable";
+import { analyzePlan, verifyGeneration, type MirroredCell } from "@/entities/timetable";
 import { computeCatalogFingerprint } from "../model/catalog-fingerprint";
 import { driftTier, gridOf, sameGrid, type DriftTier, type GridShape } from "../model/drift-tier";
 import { buildCohortSection, buildPlanSection, type AnalyzedPlan, type ScoreboardSection } from "../model/scoreboard";
@@ -53,6 +53,14 @@ export const buildComparisonData = async (
   // number below is measured against it.
   const [reference, ...comparands] = analyzed;
 
+  // ONE fingerprint per plan. Hashing inside `toDriftReport` would re-hash the reference — the same plan
+  // every time — once per comparand: 2(N−1) digests where N does. The projection is the page's most
+  // expensive pure step (it includes `choices`, which is O(students × courses)), so it is worth doing
+  // exactly once each.
+  const digests = new Map(
+    await Promise.all(plans.map(async (plan) => [plan.id, await computeCatalogFingerprint(plan)] as const)),
+  );
+
   return {
     plans: analyzed.map((plan) => ({ id: plan.id, name: plan.name })),
     missingPlanIds,
@@ -67,8 +75,8 @@ export const buildComparisonData = async (
       buildPlanSection("Cross-cohort weave", CROSS_COHORT, analyzed),
     ],
     perPlan: analyzed.map((plan) => toPlanDetail(byId.get(plan.id), plan)),
-    drift: await Promise.all(
-      comparands.map((plan) => toDriftReport(byId.get(reference.id), byId.get(plan.id), plan.name, reference.name)),
+    drift: comparands.map((plan) =>
+      toDriftReport(byId.get(reference.id), byId.get(plan.id), digests, plan.name, reference.name),
     ),
   };
 };
@@ -159,18 +167,25 @@ const toMirroredLine = (cell: MirroredCell): MirroredCellLine => ({
  * computed — an earlier cut folded a full structured diff to print per-category counts, and the counts
  * turned out to be noise the reader could not act on (see `drift-tier.ts`).
  */
-const toDriftReport = async (
+const toDriftReport = (
   reference: LoadedPlan | undefined,
   other: LoadedPlan | undefined,
+  digests: Map<string, string>,
   planName: string,
   referenceName: string,
-): Promise<DriftReport> => {
+): DriftReport => {
   if (!reference || !other) throw new Error("Drift report needs both a reference and a comparand");
 
-  const [referenceDigest, otherDigest] = await Promise.all([
-    computeCatalogFingerprint(reference),
-    computeCatalogFingerprint(other),
-  ]);
+  const referenceDigest = digests.get(reference.id);
+  const otherDigest = digests.get(other.id);
+  // Explicitly, because the failure would be SILENT and would fail *open*: two absent digests are two
+  // `undefined`s, which compare equal, which reads as `clean` — a missing fingerprint would render "the
+  // catalogs match" over two plans nobody compared. The fingerprint is the whole drift detector; it does
+  // not get to fail quietly.
+  if (referenceDigest === undefined || otherDigest === undefined) {
+    throw new Error("Drift report needs a catalog fingerprint for both plans");
+  }
+
   const grid = { reference: gridOf(reference), other: gridOf(other) };
   const tier = driftTier({
     gridEqual: sameGrid(grid.reference, grid.other),
@@ -179,6 +194,3 @@ const toDriftReport = async (
 
   return { planId: other.id, planName, referenceName, tier, grid };
 };
-
-/** Re-exported so the island can name the distribution shape without importing the entity barrel. */
-export type { Distribution };

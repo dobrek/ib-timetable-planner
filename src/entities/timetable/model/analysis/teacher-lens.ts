@@ -5,8 +5,9 @@ import { distribution, worstOf } from "./stats";
 import type { AnalyzerCourse, AnalyzerRow, Extreme, TeacherFeatures } from "./types";
 
 /**
- * The biggest unmodeled dimension of the whole diff: teacher gap-slots ran 74 (expert) vs 345
- * (engine) on identical inputs, and the `Objective` tuple has **no teacher term at all**.
+ * The biggest unmodeled dimension of the v0 diff: teacher gap-slots ran 74 (expert) vs 345 (engine)
+ * on identical inputs, against an `Objective` tuple that had no teacher term at all. It has one now
+ * (`countTeacherHoles`, tier 4) — this lens is what measures whether the tier is working.
  *
  * Teacher lanes span BOTH cohorts — 16 of 17 teachers teach dp1 and dp2, so a teacher's day is one
  * day, not two half-days (the premise the cross-cohort lens builds on). Gaps/spans/streaks are

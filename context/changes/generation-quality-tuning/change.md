@@ -73,3 +73,37 @@ archived_at: null
   **The binding constraint is the residue, not the tier order**: with tier 1 (unplacedTotal) still
   non-zero the LNS spends its whole acceptance budget on completeness and rarely reaches a tier-4
   improving move. Closing the residue (a stronger repair, or CP-SAT) is the highest-value follow-up.
+- 2026-07-14 (P5 measured): the 9-tuple landed, but **searching on it does not work** — three
+  findings, each measured, each now encoded in the engine:
+  1. **The shape tiers must not steer the walk** (`SEARCH_TIERS = 6`). Their improving moves are cheap
+     and endless (there is always one more single to pair), so they move the incumbent nearly every
+     round and the rare completeness/slot move never gets the repeated attempts from a stable board
+     that finding it takes. Searching all nine tiers dropped the seed catalog's dp1 from
+     complete-at-50-slots to **48 slots with an hour unplaced** — a board the tuple itself ranks
+     strictly worse. The engine now searches on tiers 1–6 (phase B) and polishes on all nine in the
+     budget's last 15% (phase C), where lexicographic acceptance makes a polish move incapable of
+     costing a higher tier.
+  2. **The completing move needs its own operator** (`deficit`): the shape tiers pack the board
+     tighter, and a blind repair can no longer find room for the hour the board still owes. Aiming a
+     destroy at what blocks an unplaced course out of one cell restores it — dp1 complete in every run
+     since, and the golden-catalog residue fell **10 h → 6–8 h**. It fires only under a deficit,
+     because merely lengthening the operator cycle cost dp2 a slot (the cadence is load-bearing).
+  3. **Doubles are bought in the repair, not the objective**: an adjacency bonus in the placement
+     heuristic (`ADJACENT_RANK_BONUS`) costs no search time — the round would have picked *some*
+     fitting course for the cell anyway. Buying the same doubles with search budget instead starved
+     the teacher tier (gap-slots 231 → 278).
+  Golden catalog, pinned skeleton, app budget (20 s), 3 runs: adjacent pairs **66 / 90 / 100** (was 26;
+  gold 226), residue **8 / 7 / 6 h**, splits **0**, interior holes **0**, teacher streak ≤ 6, teacher
+  gaps **226 / 263 / 242** and student gaps **923–1070** (Phase 4 measured 231 / 981 — the same noise
+  band), soft hits 1–3, slots 48–49 / 47–48 (gold 48 / 47). Day shape (SQL, per cohort-day): **9 of 10
+  days start at P1** (dp2's Friday starts at P2), and **Friday ends earliest** in both cohorts — P9
+  against P10 on every other day (gold: P8). Still adrift from gold: multi-day courses (32/32 vs gold
+  19/22) — the doubles bonus pairs hours *within* a day it already uses, but nothing pulls a course's
+  days together, so a 4-hour course still tends to spread. A candidate for the next round of tuning.
+- 2026-07-14 (bench bar re-measured, dp2 46 → ≤ 47): the dp2 = 46 pin was recorded as "the shipped
+  engine reliably reaches 46". Re-measuring the **pre-tuning** engine at its shipped LNS seed produced
+  **47** on one run and 46 on the next, and a third seed left an hour unplaced. The search is
+  wall-clock-driven, so the round count — and with it which plateau the LNS walks — moves with machine
+  load: 46 was a property of the runs that measured it, not of the engine. The bar is now a one-slot
+  envelope (a 48 still fails), and completeness stays pinned hard. Every 46-vs-47 comparison in this
+  change was therefore reading noise; the reproducible regressions (dp1's unplaced hour, 3/3) were not.

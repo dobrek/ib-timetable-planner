@@ -2,7 +2,7 @@ import { COHORT_VALUES, type Cohort } from "@/shared/config";
 import type { PlanQualityFeatures } from "@/entities/timetable";
 import type { PlanNaturalKeys } from "../api/load-plan-analysis";
 import type { MetricCell } from "./extremes";
-import type { CohortMetricRow, PlanMetricRow } from "./metric-catalog";
+import type { CohortMetricRow, MetricHelpText, PlanMetricRow } from "./metric-catalog";
 
 /**
  * The scoreboard: N plans as N (or 2N) columns of a shared metric matrix.
@@ -37,6 +37,9 @@ export type ScoreboardRow = {
   /** One formatted cell per column, index-aligned. Exactly what the bench would print — plus, on the
    *  two rows that name a person, a link to that person's timetable. */
   cells: MetricCell[];
+  /** Plain paragraphs, on the rows whose label does not explain itself. Serializable by construction —
+   *  the section is built server-side and crosses the island boundary. */
+  help?: MetricHelpText;
 };
 
 export type AnalyzedPlan = {
@@ -61,6 +64,7 @@ export const buildCohortSection = (
     rows: rows.map((row) => ({
       id: row.id,
       label: row.label,
+      help: row.help,
       cells: cells.map(({ plan, cohort }) => row.read(plan.features, cohort)),
     })),
   };
@@ -73,6 +77,7 @@ export const buildPlanSection = (title: string, rows: PlanMetricRow[], plans: An
   rows: rows.map((row) => ({
     id: row.id,
     label: row.label,
+    help: row.help,
     cells: plans.map((plan) => row.read(plan.features, { planId: plan.id, naturalKeys: plan.naturalKeys })),
   })),
 });

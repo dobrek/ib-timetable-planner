@@ -1,5 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
 import type { ScoreboardSection } from "../model/scoreboard";
+import { MetricHelp } from "./MetricHelp";
 
 /**
  * One section table. The longest is 18 rows, which fits a desktop viewport, so the table simply grows
@@ -50,7 +51,18 @@ export function ScoreboardTable({ section }: Props) {
                 {/* The row label is a header cell, not data — and with 2N columns, losing it to
                     horizontal scroll leaves a column of numbers naming nothing. */}
                 <TableHead scope="row" className="bg-background sticky left-0 z-10 border-r">
-                  {row.label}
+                  <span className="inline-flex items-center gap-1.5">
+                    {row.label}
+                    {/* Only on the rows that need it. An icon on "Occupied slots" would be noise, and a
+                        help affordance everywhere is a help affordance nowhere. */}
+                    {row.help ? (
+                      <MetricHelp title={row.label}>
+                        {row.help.map((paragraph) => (
+                          <p key={paragraph}>{paragraph}</p>
+                        ))}
+                      </MetricHelp>
+                    ) : null}
+                  </span>
                 </TableHead>
                 {/* The value, and nothing more. No delta, no colour, no arrow, no better/worse — fewer
                     teacher gaps is better and more golden cells is better, but this page does not say

@@ -198,6 +198,25 @@ describe("PlanComparisonPage", () => {
     expect(opened.some((help) => /mean period/i.test(help.textContent))).toBe(true);
   });
 
+  /**
+   * The cross-cohort section measures what is in neither the objective nor the catalog, and not one of
+   * its labels explains itself. The help has to survive the trip the data takes — built server-side,
+   * serialized into the island — so this asserts it arrives at the rendered row, not merely that the
+   * catalog declares it.
+   */
+  it("explains every cross-cohort row from an icon beside its label", async () => {
+    render(<PlanComparisonPage data={cleanPair} />);
+
+    const weave = screen.getByRole("region", { name: "Cross-cohort weave" });
+    const rowCount = within(weave).getAllByRole("rowheader").length;
+    expect(within(weave).getAllByRole("button", { name: /^What does/ })).toHaveLength(rowCount);
+
+    fireEvent.click(within(weave).getByRole("button", { name: 'What does "Cohort-pure teacher-days" mean?' }));
+
+    const help = await screen.findByRole("dialog");
+    expect(help.textContent).toMatch(/every lesson they teach that day serves the SAME cohort/);
+  });
+
   it("names a plan that could not be loaded instead of silently comparing fewer plans", async () => {
     const partial = await buildComparisonData([buildLoadedPlan(expertSpec)], ["dead-plan-id"]);
 

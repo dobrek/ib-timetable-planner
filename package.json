@@ -18,6 +18,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "bench:generation": "vitest run --config vitest.bench.config.ts",
     "analyze:plans": "vitest run --config vitest.analyze.config.ts",
+    "experiment:generation": "vitest run --config vitest.experiment.config.ts",
     "pretest:e2e": "node scripts/provision-e2e-author.mjs",
     "test:e2e": "playwright test",
     "env:local": "cp .envs/local.vars .env.local && cp .envs/local.vars .dev.vars",

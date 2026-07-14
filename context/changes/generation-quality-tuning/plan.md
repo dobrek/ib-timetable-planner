@@ -729,15 +729,15 @@ after Phase 2 — documented, expected, local-only.
 
 #### Automated
 
-- [ ] 1.1 `pnpm test` passes (identity-mapping and skeleton-copy coverage)
-- [ ] 1.2 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 1.1 `pnpm test` passes (identity-mapping and skeleton-copy coverage)
+- [x] 1.2 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
 
 #### Manual
 
-- [ ] 1.3 Harness re-analysis of the existing Golden Catalog Clone matches run-1 tables
-- [ ] 1.4 `PIN_SKELETON=1` run pins exactly the golden board's skeleton cells; generation
+- [x] 1.3 Harness re-analysis of the existing Golden Catalog Clone matches run-1 tables
+- [x] 1.4 `PIN_SKELETON=1` run pins exactly the golden board's skeleton cells; generation
       leaves them untouched
-- [ ] 1.5 Fresh unpinned generation lands within the run-1 story
+- [x] 1.5 Fresh unpinned generation lands within the run-1 story
 
 ### Phase 2: Chemistry Completeness Fix
 

@@ -1,9 +1,9 @@
 ---
 change_id: generation-quality-tuning
 title: Generation quality tuning
-status: plan_reviewed
+status: implementing
 created: 2026-07-12
-updated: 2026-07-13
+updated: 2026-07-14
 archived_at: null
 ---
 

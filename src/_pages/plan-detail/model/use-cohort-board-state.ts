@@ -1,15 +1,18 @@
 import { useMemo } from "react";
 import {
+  assembleGeneratorSnapshot,
   buildCrossCohortIndex,
+  type CohortSnapshotInput,
   type CrossCohortIndex,
   type GeneratedPlacement,
   type LocalPlacement,
   projectFromPlacements,
 } from "@/entities/timetable";
 import { deriveGenerationDeficits, verifyGeneration, type CellCollisions } from "@/entities/timetable";
+import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { LocalParkedBundle } from "./placement/parked";
 import { applyGeneratedPlacements } from "../api/placement-client";
 import { buildGeneratedSegments, buildRegionPayload, generationHistoryEntry } from "./generation/apply-generated";
-import { assembleGeneratorSnapshot } from "./generation/assemble-snapshot";
 import { useGeneratePlan, type ApplyGeneratedResult, type GeneratePlanControls } from "./generation/use-generate-plan";
 import { type LensCriterion } from "./lens";
 import type { BoardSurface } from "../lib/board-surface";
@@ -124,8 +127,8 @@ export function useCombinedBoardState(
     // click. `liveState()` and each segment's `snapshot(scope)` read the same refs in this one
     // synchronous pass, so the captured `before` slices and this judgment agree.
     const liveSnapshot = assembleGeneratorSnapshot(shared, {
-      dp1: { catalog: dp1Props.catalog, ...dp1Base.api.liveState() },
-      dp2: { catalog: dp2Props.catalog, ...dp2Base.api.liveState() },
+      dp1: toSnapshotInput(dp1Props.catalog, dp1Base.api.liveState()),
+      dp2: toSnapshotInput(dp2Props.catalog, dp2Base.api.liveState()),
     });
     if (!verifyGeneration(liveSnapshot, generated).ok) return { ok: false, reason: "stale" };
     for (const segment of segments) bases[segment.cohort].api.stageGenerated(segment.entries);
@@ -165,16 +168,8 @@ export function useCombinedBoardState(
   const generateControls = useGeneratePlan({
     assemble: () =>
       assembleGeneratorSnapshot(shared, {
-        dp1: {
-          catalog: dp1Props.catalog,
-          placements: dp1Base.api.placements,
-          parkedBundles: dp1Base.api.parkedBundles,
-        },
-        dp2: {
-          catalog: dp2Props.catalog,
-          placements: dp2Base.api.placements,
-          parkedBundles: dp2Base.api.parkedBundles,
-        },
+        dp1: toSnapshotInput(dp1Props.catalog, dp1Base.api),
+        dp2: toSnapshotInput(dp2Props.catalog, dp2Base.api),
       }),
     applyGenerated,
     busy: combinedBusy,
@@ -205,6 +200,17 @@ const hasBlocking = (collisions: Map<string, CellCollisions>): boolean =>
 
 const parkedCourseIds = (bundles: { members: { courseId: string }[] }[]): string[] =>
   bundles.flatMap((bundle) => bundle.members.map((member) => member.courseId));
+
+/** Adapt one cohort's board state to the entity-level snapshot input: placements go in verbatim
+ *  (the assembly strips their local markers), parked bundles flatten to the course-id multiset. */
+const toSnapshotInput = (
+  catalog: GroupingCourse[],
+  state: { placements: LocalPlacement[]; parkedBundles: LocalParkedBundle[] },
+): CohortSnapshotInput => ({
+  courses: catalog,
+  placements: state.placements,
+  parkedCourseIds: parkedCourseIds(state.parkedBundles),
+});
 
 export type CombinedBoardState = ReturnType<typeof useCombinedBoardState>;
 export type CohortBoardState = CombinedBoardState["dp1"];

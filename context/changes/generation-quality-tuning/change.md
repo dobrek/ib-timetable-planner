@@ -59,3 +59,17 @@ archived_at: null
   every week the student actually lives, which is what `board.fitsAt` (lane-wise) already enforced.
   The oracle now reads per week lane; the test that pinned the union reading was inverted with the
   reasoning recorded. Strictly more permissive, so the gold board is unaffected.
+- 2026-07-14 (P4 measured, gate 4.4 PARTIAL): tiers 4–5 landed (`teacherHoles`, `softHits`) plus a
+  **teacher-day LNS destroy operator** — not in the plan, but required: a lexicographic tier can only
+  *filter* the boards the neighbourhood produces, and no destroy operator moved teacher rows, so the
+  tier alone left teacher gaps at 246 (vs 345 before, i.e. the Phase-3 hard rules did the work, not
+  the tier). With the operator the search reaches teacher-compact boards. Cadence matters: a flat
+  1-in-3 teacher round cost slots AND completeness on the seed catalog (dp2 46→47/48, dp1 sometimes
+  1 h unplaced) for gains the tuple ranks *below* both — so the cycle is 4 cell-shaped rounds to 1
+  people-shaped one, which restores the bench (dp1 50→**49**, dp2 **46**, complete, stable) while
+  keeping the teacher gains. Golden-catalog result at the app's 20 s budget: teacher gaps **~231**
+  (345 → 231, −33%; the gate's ≤148 target NOT met), soft hits 0–3 (run-dependent), splits 0,
+  streak ≤ 6, student gaps 981 (from 1020). At 60 s: teacher gaps 211, residue 6 h.
+  **The binding constraint is the residue, not the tier order**: with tier 1 (unplacedTotal) still
+  non-zero the LNS spends its whole acceptance budget on completeness and rarely reaches a tier-4
+  improving move. Closing the residue (a stronger repair, or CP-SAT) is the highest-value follow-up.

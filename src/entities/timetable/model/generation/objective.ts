@@ -1,5 +1,8 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import { expandLanes, laneStats } from "../analysis/lanes";
+import { buildAvailabilityIndex } from "../availability-index";
+import { cellKey } from "../collision/cell-key";
 import { countOccupiedSlots } from "./occupied-slots";
 import type { CourseDeficit, GeneratedPlacement, GeneratorSnapshot } from "./types";
 
@@ -8,13 +11,25 @@ import type { CourseDeficit, GeneratedPlacement, GeneratorSnapshot } from "./typ
  * the candidate-scoring function every engine (and the benchmark) must agree on. Lives outside any
  * engine so a second engine and the bench score against the *same* tiers rather than a private copy.
  * Depends only on the snapshot + a placement set + the per-course remaining hours — no engine state.
+ *
+ * The tier ORDER is the expert's, elicited by forced choice, not a guess (research.md §5.x):
+ * completeness first, then interior holes, then the slot count (confirmed dominant over everything
+ * below it), then the people tiers — teachers above soft-availability hits (G4), both above
+ * students (5.4: "I'd take the student windows", and 5.6: teacher comfort is labour-law backed).
  */
 
 const COHORT_ORDER: Cohort[] = ["dp1", "dp2"];
 
-/** The lexicographic objective tuple: `[unplacedTotal, holes, totalSlots, studentHoles]` —
- *  completeness > interior holes > slot count > student compactness, compared tier-by-tier. */
-export type Objective = [unplacedTotal: number, holes: number, totalSlots: number, studentHoles: number];
+/** The lexicographic objective tuple, compared tier-by-tier (smaller is better on every tier):
+ *  `[unplacedTotal, holes, totalSlots, teacherHoles, softHits, studentHoles]`. */
+export type Objective = [
+  unplacedTotal: number,
+  holes: number,
+  totalSlots: number,
+  teacherHoles: number,
+  softHits: number,
+  studentHoles: number,
+];
 
 /** A scored board: its placements, objective tuple, per-cohort slots/unplaced, and the per-course
  *  hours still unplaced — with `placements`, the full state an LNS round rehydrates. */
@@ -42,16 +57,27 @@ export const compareObjectives = (a: Objective, b: Objective): number => {
 /**
  * Score a placement set against the snapshot into a `Candidate`. Reads only the snapshot (catalog,
  * pins, days) plus the caller's `remaining` map — no engine internals — so any engine can call it.
+ *
+ * This is the LNS hot loop (twice per round). Everything derived from the *snapshot alone* — the
+ * teacher map, the soft-availability index, each cohort's student rosters — is memoized per snapshot
+ * rather than rebuilt per call; only the row fold is per-candidate work. Rebuilding them per call
+ * cost enough LNS rounds to lose a whole occupied slot on the real dp2 catalog (bench, 2026-07-14),
+ * and a slot outranks every tier these structures feed.
  */
 export const scoreCandidate = (
   snapshot: GeneratorSnapshot,
   generated: GeneratedPlacement[],
   remaining: Map<string, number>,
 ): Candidate => {
+  const { teacherKeysOf, studentsOf, softCells } = derivationsOf(snapshot);
   const slots = {} as Record<Cohort, number>;
   const unplaced = {} as Record<Cohort, CourseDeficit[]>;
   let holes = 0;
   let studentHoles = 0;
+  /** Every row of BOTH cohorts (pins + generated) — the teacher tiers span cohorts, because a
+   *  teacher's working day does (16 of the 17 teach in both). */
+  const boardRows: BoardRow[] = [];
+
   for (const cohort of COHORT_ORDER) {
     const rows = [...snapshot.cohorts[cohort].pins, ...generated.filter((x) => x.cohort === cohort)];
     slots[cohort] = countOccupiedSlots(rows);
@@ -59,16 +85,51 @@ export const scoreCandidate = (
       .filter((c) => (remaining.get(c.id) ?? 0) > 0)
       .map((c) => ({ courseId: c.id, missing: remaining.get(c.id) ?? 0 }));
     holes += countInteriorHoles(rows, snapshot.days);
-    studentHoles += countStudentHoles(snapshot.cohorts[cohort].courses, rows);
+    studentHoles += laneHoles(rows, (row) => studentsOf.get(row.courseId) ?? []);
+    boardRows.push(...rows);
   }
+
   const unplacedTotal = COHORT_ORDER.reduce(
     (sum, cohort) => sum + unplaced[cohort].reduce((s, d) => s + d.missing, 0),
     0,
   );
   const totalSlots = COHORT_ORDER.reduce((sum, cohort) => sum + slots[cohort], 0);
-  const objective: Objective = [unplacedTotal, holes, totalSlots, studentHoles];
+  const objective: Objective = [
+    unplacedTotal,
+    holes,
+    totalSlots,
+    laneHoles(boardRows, (row) => teacherKeysOf.get(row.courseId) ?? []),
+    softHitsOf(teacherKeysOf, boardRows, softCells),
+    studentHoles,
+  ];
   return { placements: generated, objective, slots, unplaced, remaining: new Map(remaining) };
 };
+
+/** Snapshot-derived scoring structures, memoized per snapshot (the LNS loop rescores the SAME
+ *  snapshot thousands of times; a snapshot is immutable plain data, so this is a pure cache). */
+type Derivations = {
+  teacherKeysOf: Map<string, string[]>;
+  studentsOf: Map<string, string[]>;
+  softCells: Map<string, Set<string>>;
+};
+
+const derivationCache = new WeakMap<GeneratorSnapshot, Derivations>();
+
+const derivationsOf = (snapshot: GeneratorSnapshot): Derivations => {
+  const cached = derivationCache.get(snapshot);
+  if (cached) return cached;
+  const courses = COHORT_ORDER.flatMap((cohort) => snapshot.cohorts[cohort].courses);
+  const derivations: Derivations = {
+    teacherKeysOf: new Map(courses.map((course) => [course.id, course.teacherKeys])),
+    studentsOf: new Map(courses.map((course) => [course.id, course.studentKeys])),
+    softCells: buildAvailabilityIndex(snapshot.availability).softUnavailableByTeacher,
+  };
+  derivationCache.set(snapshot, derivations);
+  return derivations;
+};
+
+/** The row shape every counting function below folds over. */
+type BoardRow = { courseId: string; day: number; period: number; week: PlacementWeek };
 
 /** Interior free slots per day across `rows` (objective tier 2): for each day's used span, the
  *  count of periods strictly between the first and last used period that hold nothing. */
@@ -82,29 +143,57 @@ export const countInteriorHoles = (rows: { day: number; period: number }[], days
   return holes;
 };
 
-/** Week-aware per-student day holes (objective tier 4): (span − occupied) summed over
+/**
+ * Week-aware per-teacher day gaps (objective tier 4 — the expert's highest people term): (span −
+ * occupied) summed over teacher-day-week lanes, across BOTH cohorts' rows. This is the term that
+ * was entirely missing: the engine scored 345 teacher gap-slots to the expert's 74 on the same
+ * catalog, and the mechanism is the cohort switch taken across an idle hour rather than back to back.
+ * A `both`-week row expands to both concrete lanes (the `lanes.ts` convention).
+ */
+export const countTeacherHoles = (teacherKeysOf: Map<string, string[]>, rows: BoardRow[]): number =>
+  laneHoles(rows, (row) => teacherKeysOf.get(row.courseId) ?? []);
+
+/**
+ * Placements landing on a teacher's soft-`no` cell (objective tier 5). Soft availability is a
+ * "polite wish, often negotiated personally" — acceptable as a compensated last resort, so it is a
+ * high SOFT tier, never a hard rule (the measurement's "inviolable" reading was over-strong). Until
+ * now it was invisible to the search entirely: only `strong` rows reach the engine's feasibility
+ * index, so the objective could not even see the 3 hits the expert never takes.
+ *
+ * One hit per (row, teacher) — week-agnostic, matching the teacher-lens census: a teacher's soft
+ * preference is about the hour of the week, not about which fortnightly lane runs in it.
+ */
+export const countSoftHits = (
+  teacherKeysOf: Map<string, string[]>,
+  rows: BoardRow[],
+  availability: GeneratorSnapshot["availability"],
+): number => softHitsOf(teacherKeysOf, rows, buildAvailabilityIndex(availability).softUnavailableByTeacher);
+
+/** Week-aware per-student day holes (objective tier 6): (span − occupied) summed over
  *  student-day-week lanes. A `both`-week row expands to both concrete lanes. */
-export const countStudentHoles = (
-  courses: GroupingCourse[],
-  rows: { courseId: string; day: number; period: number; week: PlacementWeek }[],
-): number => {
-  const byStudentDay = new Map<string, Set<number>>();
+export const countStudentHoles = (courses: GroupingCourse[], rows: BoardRow[]): number => {
   const studentsOf = new Map(courses.map((c) => [c.id, c.studentKeys]));
+  return laneHoles(rows, (row) => studentsOf.get(row.courseId) ?? []);
+};
+
+/** The shared fold behind every gap tier: expand rows into `(entity, day, week-lane)` lanes and sum
+ *  each lane's `span − occupied`. One convention (`lanes.ts`), so teachers and students can never
+ *  drift apart on what a "week" is. */
+const laneHoles = (rows: BoardRow[], keyFn: (row: BoardRow) => readonly string[]): number =>
+  expandLanes(rows, keyFn).reduce((total, lane) => total + laneStats(lane.periods).holes, 0);
+
+const softHitsOf = (
+  teacherKeysOf: Map<string, string[]>,
+  rows: BoardRow[],
+  softCells: Map<string, Set<string>>,
+): number => {
+  if (softCells.size === 0) return 0;
+  let hits = 0;
   for (const row of rows) {
-    const weeks = row.week === "both" ? ["a", "b"] : [row.week];
-    for (const s of studentsOf.get(row.courseId) ?? []) {
-      for (const w of weeks) {
-        const k = `${s}|${row.day}|${w}`;
-        const set = byStudentDay.get(k) ?? new Set<number>();
-        if (!byStudentDay.has(k)) byStudentDay.set(k, set);
-        set.add(row.period);
-      }
+    const key = cellKey(row.day, row.period);
+    for (const teacherKey of teacherKeysOf.get(row.courseId) ?? []) {
+      if (softCells.get(teacherKey)?.has(key)) hits += 1;
     }
   }
-  let total = 0;
-  for (const periods of byStudentDay.values()) {
-    if (periods.size === 0) continue;
-    total += Math.max(...periods) - Math.min(...periods) + 1 - periods.size;
-  }
-  return total;
+  return hits;
 };

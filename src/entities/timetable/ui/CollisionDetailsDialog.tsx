@@ -4,7 +4,7 @@ import { cn } from "@/shared/lib/class-names";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import { resolveCourseDisplay, type CourseDisplay } from "../model/course-display";
-import type { CollisionViolation } from "../model/collision/constraints";
+import { TEACHER_DAY_SPAN_MAX, TEACHER_STREAK_MAX, type CollisionViolation } from "../model/collision/constraints";
 import { otherWeek, sharedSingleWeek, weekLabel } from "../model/week";
 
 /** The inspected cell plus the course whose badge was clicked (emphasized in the body). */
@@ -217,6 +217,51 @@ function DetailsBody({
           </section>
         )}
 
+        {grouped["course-day-split"].length > 0 && (
+          <section
+            data-slot="collision-section-split"
+            className="border-warning/50 bg-warning/10 text-warning space-y-1 rounded-md border px-3 py-2"
+          >
+            <h3 className="text-warning text-sm font-semibold">Split block</h3>
+            <ul className="space-y-1">
+              {grouped["course-day-split"].map((violation) => (
+                <li key={violation.courseIds[0]}>
+                  <CourseName
+                    id={violation.courseIds[0]}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />{" "}
+                  runs at {violation.periods.map(periodLabel).join(" and ")} this day — a course&apos;s hours must be
+                  consecutive.
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {grouped["teacher-day-shape"].length > 0 && (
+          <section
+            data-slot="collision-section-teacher-day"
+            className="border-warning/50 bg-warning/10 text-warning space-y-1 rounded-md border px-3 py-2"
+          >
+            <h3 className="text-warning text-sm font-semibold">Teacher day too long</h3>
+            <ul className="space-y-1">
+              {grouped["teacher-day-shape"].map((violation) => (
+                <li key={`${violation.teacherKey}:${violation.courseIds.join(":")}`}>
+                  {teacherNames[violation.teacherKey] ?? violation.teacherKey}&apos;s day (both cohorts) spans{" "}
+                  {violation.span} periods with {violation.maxStreak} in a row — keep it within {TEACHER_DAY_SPAN_MAX}{" "}
+                  periods and {TEACHER_STREAK_MAX} consecutive:{" "}
+                  <CourseNameList
+                    courseIds={violation.courseIds}
+                    courseDisplay={courseDisplay}
+                    emphasizedId={target.courseId}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {grouped.student.length > 0 && (
           <section data-slot="collision-section-student" className="space-y-1">
             <h3 className="text-foreground text-sm font-semibold">Students</h3>
@@ -335,6 +380,8 @@ const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
     "cross-cohort-teacher": [],
     "early-finish-edge": [],
     "course-day-stacking": [],
+    "course-day-split": [],
+    "teacher-day-shape": [],
   };
   for (const violation of violations) {
     switch (violation.kind) {
@@ -358,6 +405,12 @@ const groupByKind = (violations: CollisionViolation[]): ViolationsByKind => {
         break;
       case "course-day-stacking":
         groups["course-day-stacking"].push(violation);
+        break;
+      case "course-day-split":
+        groups["course-day-split"].push(violation);
+        break;
+      case "teacher-day-shape":
+        groups["teacher-day-shape"].push(violation);
         break;
     }
   }

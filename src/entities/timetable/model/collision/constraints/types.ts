@@ -19,7 +19,9 @@ export type CollisionViolation =
   | { kind: "teacher-unavailable"; teacherKey: string; courseIds: string[]; severity: "block" | "warn" }
   | { kind: "cross-cohort-teacher"; teacherKey: string; courseIds: string[] }
   | { kind: "early-finish-edge"; courseIds: [string]; studentKeys: string[] }
-  | { kind: "course-day-stacking"; courseIds: string[]; count: number };
+  | { kind: "course-day-stacking"; courseIds: string[]; count: number }
+  | { kind: "course-day-split"; courseIds: string[]; periods: number[] }
+  | { kind: "teacher-day-shape"; teacherKey: string; courseIds: string[]; span: number; maxStreak: number };
 
 /**
  * Inputs beyond the cell's occupants. Deliberately minimal — board-only constraints

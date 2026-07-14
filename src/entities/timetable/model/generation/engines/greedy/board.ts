@@ -1,6 +1,10 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { cellKey } from "../../../collision/cell-key";
+// The two expert-hard rules are DEFINED by the oracle (constraint files + `verifyGeneration`); the
+// guards below are greedy's fast mirror of them, so they import the predicates instead of restating
+// the bounds. A future engine encodes the same rules natively and is judged by the same verify.
+import { exceedsTeacherDayShape, hasDaySplit } from "../../../collision/constraints";
 import type { GeneratedPlacement } from "../../types";
 import type { Problem } from "./problem";
 
@@ -12,9 +16,10 @@ export type Row = { courseId: string; week: PlacementWeek; pinned: boolean };
  * The mutable working board for one attempt — six cross-referential indexes behind a small
  * behavioral contract. `place`/`evict` keep every index AND the generated-output list in lockstep,
  * collapsing the four hand-written index+push / unindex+remove call sites the closure used to
- * repeat; `fitsAt` is the single feasibility predicate (the five hard rules, the 2/day cap, and the
- * flagged-edge invariant). A behavioral contract (method members), not a data shape — but expressed
- * as a `type` because the flat ESLint config enforces `consistent-type-definitions: type`.
+ * repeat; `fitsAt` is the single feasibility predicate (the five hard rules, the 2/day cap, the
+ * no-same-day-split and teacher-day-shape rules, and the flagged-edge invariant). A behavioral
+ * contract (method members), not a data shape — but expressed as a `type` because the flat ESLint
+ * config enforces `consistent-type-definitions: type`.
  */
 export type Board = {
   /** Per-course hours still to place — mutated by the stages, read by candidate selection. */
@@ -45,8 +50,12 @@ export const createBoard = (problem: Problem): Board => {
   const studentAt = new Map<string, Map<number, string>>();
   /** cohort|cellKey → occupant rows (pins + generated). */
   const cellRows = new Map<string, Row[]>();
-  /** courseId|day|week → same-day count (the hard 2/day cap). */
-  const dayCount = new Map<string, number>();
+  /** courseId|day|week → the periods that course runs that day-lane (the 2/day cap AND the
+   *  no-same-day-split rule read it; a course is never twice in one cell, so size == count). */
+  const coursePeriods = new Map<string, Set<number>>();
+  /** teacherKey|day|week → the periods that teacher teaches that day-lane, GLOBAL across cohorts
+   *  (like `teacherAt`) — a teacher's working day is one day, not one per cohort. */
+  const teacherPeriods = new Map<string, Set<number>>();
 
   const index = (
     cohort: Cohort,
@@ -60,14 +69,17 @@ export const createBoard = (problem: Problem): Board => {
     if (!course) return; // catalog-missing pin — nothing to attribute (mirrors bucketByCell)
     const ck = cellKey(d, p);
     for (const w of weeksOf(week)) {
-      for (const t of course.teacherKeys) teacherAt.set(`${t}|${ck}|${w}`, courseId);
+      for (const t of course.teacherKeys) {
+        teacherAt.set(`${t}|${ck}|${w}`, courseId);
+        addPeriod(teacherPeriods, `${t}|${d}|${w}`, p);
+      }
       for (const s of course.studentKeys) {
         const sdKey = studentKeyOf(cohort, s, d, w);
         const byPeriod = studentAt.get(sdKey) ?? new Map<number, string>();
         if (!studentAt.has(sdKey)) studentAt.set(sdKey, byPeriod);
         byPeriod.set(p, courseId);
       }
-      dayCount.set(`${courseId}|${d}|${w}`, (dayCount.get(`${courseId}|${d}|${w}`) ?? 0) + 1);
+      addPeriod(coursePeriods, `${courseId}|${d}|${w}`, p);
     }
     const rowsKey = `${cohort}|${ck}`;
     const rows = cellRows.get(rowsKey) ?? [];
@@ -80,10 +92,12 @@ export const createBoard = (problem: Problem): Board => {
     if (!course) return;
     const ck = cellKey(d, p);
     for (const w of weeksOf(week)) {
-      for (const t of course.teacherKeys) teacherAt.delete(`${t}|${ck}|${w}`);
+      for (const t of course.teacherKeys) {
+        teacherAt.delete(`${t}|${ck}|${w}`);
+        teacherPeriods.get(`${t}|${d}|${w}`)?.delete(p);
+      }
       for (const s of course.studentKeys) studentAt.get(studentKeyOf(cohort, s, d, w))?.delete(p);
-      const dk = `${courseId}|${d}|${w}`;
-      dayCount.set(dk, (dayCount.get(dk) ?? 0) - 1);
+      coursePeriods.get(`${courseId}|${d}|${w}`)?.delete(p);
     }
     const rows = cellRows.get(`${cohort}|${ck}`);
     if (rows) removeWhere(rows, (r) => r.courseId === courseId, `cell row ${cohort} ${courseId} @ ${ck}`);
@@ -109,10 +123,19 @@ export const createBoard = (problem: Problem): Board => {
     const options: PlacementWeek[] = course.weekMode === "biweekly" ? ["a", "b"] : ["both"];
     outer: for (const week of options) {
       for (const w of weeksOf(week)) {
-        if ((dayCount.get(`${course.id}|${d}|${w}`) ?? 0) >= 2) continue outer;
+        const dayLane = periodsOf(coursePeriods, `${course.id}|${d}|${w}`);
+        if (dayLane.length >= 2) continue outer; // the hard 2/day cap
+        // R1 — no same-day split: the course's hours in one day-lane must be consecutive. With the
+        // cap above, "at most one hour is already there", so this degenerates to an adjacency test.
+        // Delta-aware by construction: it constrains only the candidate, never a pre-existing lane.
+        if (creates(hasDaySplit, dayLane, p)) continue outer;
         for (const t of course.teacherKeys) {
           if (strongNo.get(t)?.has(ck)) continue outer;
           if (teacherAt.has(`${t}|${ck}|${w}`)) continue outer;
+          // R2 — the teacher's working day (both cohorts, this lane) must stay within span 8 and
+          // 6 consecutive. Delta-aware: a lane a PIN already broke must not poison every other
+          // placement of that teacher-day (the livelock case) — only newly-created breaches lose.
+          if (creates(exceedsTeacherDayShape, periodsOf(teacherPeriods, `${t}|${d}|${w}`), p)) continue outer;
         }
         for (const s of course.studentKeys) {
           if (studentAt.get(studentKeyOf(cohort, s, d, w))?.has(p)) continue outer;
@@ -180,6 +203,23 @@ const weeksOf = (week: PlacementWeek): ("a" | "b")[] => (week === "both" ? ["a",
 
 const studentKeyOf = (cohort: Cohort, student: string, d: number, w: string): string =>
   `${cohort}|${student}|${d}|${w}`;
+
+const addPeriod = (index: Map<string, Set<number>>, key: string, period: number): void => {
+  const periods = index.get(key) ?? new Set<number>();
+  if (!index.has(key)) index.set(key, periods);
+  periods.add(period);
+};
+
+const periodsOf = (index: Map<string, Set<number>>, key: string): number[] => [...(index.get(key) ?? [])];
+
+/**
+ * Delta semantics, single-sourced: the candidate is rejected only when adding `period` *creates* a
+ * breach the lane did not already have. A board dirtied by pins (the worker's precondition can be
+ * bypassed by a mid-solve edit) must not have every one of its placements poisoned by one
+ * pre-existing violation — that is the livelock the `flaggedEdgeOk` delta reading exists to avoid.
+ */
+const creates = (breaches: (periods: number[]) => boolean, lane: number[], period: number): boolean =>
+  breaches([...lane, period]) && !breaches(lane);
 
 /** Periods a student's day-week lane holds via courses *other than* `courseId` (≤2/day each). */
 const othersOf = (occupants: [number, string][], courseId: string): number[] =>

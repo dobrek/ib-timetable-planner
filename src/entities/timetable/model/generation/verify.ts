@@ -12,9 +12,15 @@ import type { GeneratedPlacement, GeneratorSnapshot } from "./types";
  * Trust-but-verify judge: every engine result is re-judged here before it may touch the
  * board — the collision core stays the single source of truth regardless of engine. The
  * merged (pins + generated) two-cohort board must carry **zero blocking violations
- * board-wide** and **zero `course-day-stacking` warns among generated placements** (the
- * generator-hard 2/day cap); soft teacher-availability warns are permitted but counted.
- * On any failure the whole result is rejected — never partially applied.
+ * board-wide** and **zero generator-hard warns among generated placements** — the 2/day cap
+ * (`course-day-stacking`), the no-same-day-split rule (`course-day-split`) and the teacher
+ * day span/streak bounds (`teacher-day-shape`); soft teacher-availability warns are permitted
+ * but counted. On any failure the whole result is rejected — never partially applied.
+ *
+ * The three generator-hard kinds are judged with **delta semantics**: a violation fails only when a
+ * GENERATED placement participates in it. A pin-only violation (a dirty board the author handed us)
+ * stays permitted — otherwise a single pre-existing over-long teacher day would make every board
+ * unverifiable and the engine could never return anything.
  *
  * The structural pass asserts the invariants the core does NOT check: grid-preset bounds,
  * `week_mode ↔ week` consistency, catalog membership (a catalog-missing course is silently
@@ -71,6 +77,10 @@ const judgeMergedBoards = (snapshot: GeneratorSnapshot, generated: GeneratedPlac
 
   const reasons: string[] = [];
   let softWarnCount = 0;
+  // A teacher's day spans BOTH cohorts, so the teacher-day-shape delta set is board-wide: a dp1
+  // cell's violation can be created by a dp2 generated row. Built once, outside the cohort loop.
+  const generatedTeacherDays = generatedTeacherDayKeys(snapshot, generated);
+
   for (const cohort of COHORT_ORDER) {
     const sibling: Cohort = cohort === "dp1" ? "dp2" : "dp1";
     const catalogById = toCatalogById(snapshot.cohorts[cohort].courses);
@@ -81,12 +91,20 @@ const judgeMergedBoards = (snapshot: GeneratorSnapshot, generated: GeneratedPlac
     const generatedCourseDays = generatedCourseDayKeys(generated, cohort);
 
     for (const [key, cell] of collisions) {
+      const day = dayOf(key);
       for (const violation of cell.violations) {
         if (isSoftAvailability(violation)) {
           softWarnCount += 1;
-        } else if (violation.kind === "course-day-stacking") {
-          if (citesGeneratedDay(violation, dayOf(key), generatedCourseDays)) {
-            reasons.push(`${cohort} ${key}: course-day-stacking among generated placements`);
+        } else if (violation.kind === "course-day-stacking" || violation.kind === "course-day-split") {
+          if (citesGeneratedDay(violation.courseIds, day, generatedCourseDays)) {
+            reasons.push(`${cohort} ${key}: ${violation.kind} among generated placements`);
+          }
+        } else if (violation.kind === "teacher-day-shape") {
+          if (generatedTeacherDays.has(teacherDayKey(violation.teacherKey, day))) {
+            reasons.push(
+              `${cohort} ${key}: teacher-day-shape (span ${violation.span}, streak ${violation.maxStreak}) ` +
+                `among generated placements`,
+            );
           }
         } else {
           reasons.push(`${cohort} ${key}: blocking ${violation.kind}`);
@@ -116,13 +134,10 @@ const mergedPlacements = (
     })),
 ];
 
-/** A stacking warn fails verification only when a cited course has a generated placement that day —
- *  pre-existing pin-only stacks stay permitted (warns never block Generate). */
-const citesGeneratedDay = (
-  violation: Extract<CollisionViolation, { kind: "course-day-stacking" }>,
-  day: number,
-  generatedCourseDays: Set<string>,
-): boolean => violation.courseIds.some((courseId) => generatedCourseDays.has(courseDayKey(courseId, day)));
+/** A course-day warn (stacking, split) fails verification only when a cited course has a generated
+ *  placement that day — pre-existing pin-only ones stay permitted (warns never block Generate). */
+const citesGeneratedDay = (courseIds: string[], day: number, generatedCourseDays: Set<string>): boolean =>
+  courseIds.some((courseId) => generatedCourseDays.has(courseDayKey(courseId, day)));
 
 const generatedCourseDayKeys = (generated: GeneratedPlacement[], cohort: Cohort): Set<string> =>
   new Set(
@@ -130,6 +145,18 @@ const generatedCourseDayKeys = (generated: GeneratedPlacement[], cohort: Cohort)
       .filter((placement) => placement.cohort === cohort)
       .map((placement) => courseDayKey(placement.courseId, placement.day)),
   );
+
+/** `(teacher, day)` pairs a generated placement contributes to — board-wide, because a teacher's
+ *  day is one day across both cohorts. A teacher-day-shape warn fails only for these. */
+const generatedTeacherDayKeys = (snapshot: GeneratorSnapshot, generated: GeneratedPlacement[]): Set<string> => {
+  const keys = new Set<string>();
+  for (const placement of generated) {
+    const course = courseOf(snapshot, placement);
+    if (!course) continue; // catalog-missing rows are already reported by the structural pass
+    for (const teacherKey of course.teacherKeys) keys.add(teacherDayKey(teacherKey, placement.day));
+  }
+  return keys;
+};
 
 const isSoftAvailability = (violation: CollisionViolation): boolean =>
   violation.kind === "teacher-unavailable" && violation.severity === "warn";
@@ -157,6 +184,8 @@ const rowKey = (cohort: Cohort, courseId: string, day: number, period: number): 
   `${cohort}|${courseId}|${cellKey(day, period)}`;
 
 const courseDayKey = (courseId: string, day: number): string => `${courseId}|${day}`;
+
+const teacherDayKey = (teacherKey: string, day: number): string => `${teacherKey}|${day}`;
 
 const dayOf = (key: string): number => Number(key.split(":")[0]);
 

@@ -137,7 +137,13 @@ describe("earlyFinishEdge", () => {
       ]);
     });
 
-    it("a `both` flagged placement is interior between an A neighbour and a B neighbour", () => {
+    it("allows a `both` flagged placement between an A neighbour and a B neighbour (lane-wise, not union)", () => {
+      // The student never lives a day holding both X and Y: in week A the day is X@1, F@3 (F last);
+      // in week B it is F@3, Y@5 (F first). F is at an edge of every REAL day, so when it stops
+      // running mid-year no hole appears — the union of the two weeks invents a box that cannot
+      // occur. The engine's `fitsAt` guard reads lanes separately for the same reason, and an
+      // over-strict oracle here would reject boards the search legitimately constructs (a
+      // fitsAt-looser-than-verify gap with no in-loop signal — caught by the engine fuzz).
       const f = course("F", "T", ["s"]);
       const x = course("X", "T", ["s"]);
       const y = course("Y", "T", ["s"]);
@@ -149,6 +155,24 @@ describe("earlyFinishEdge", () => {
           placement("pf", "F", 1, 3, "both"),
           placement("px", "X", 1, 1, "a"),
           placement("py", "Y", 1, 5, "b"),
+        ],
+        courses: [f, x, y],
+      });
+      expect(earlyFinishEdge.explain([f], ctx)).toEqual([]);
+    });
+
+    it("blocks a `both` flagged placement boxed WITHIN one week lane", () => {
+      const f = course("F", "T", ["s"]);
+      const x = course("X", "T", ["s"]);
+      const y = course("Y", "T", ["s"]);
+      const ctx = dayCtx({
+        cell: { day: 1, period: 3 },
+        weeks: { F: "both" },
+        flagged: ["F"],
+        placements: [
+          placement("pf", "F", 1, 3, "both"),
+          placement("px", "X", 1, 1, "a"),
+          placement("py", "Y", 1, 5, "a"),
         ],
         courses: [f, x, y],
       });

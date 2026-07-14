@@ -83,6 +83,9 @@ export const dayCtx = (opts: {
   flagged?: string[];
   placements: PlannerPlacement[];
   courses: GroupingCourse[];
+  /** Sibling-cohort teacher occupancy (`occupiedBy(...)`) — the teacher-day-shape rule reads a
+   *  teacher's WHOLE day, which spans both cohorts. */
+  sibling?: CrossCohortIndex;
 }): BoardContext => {
   const catalogById = catalog(...opts.courses);
   return {
@@ -90,6 +93,7 @@ export const dayCtx = (opts: {
     catalogById,
     ...(opts.weeks ? { weekByCourseId: new Map(Object.entries(opts.weeks)) } : {}),
     ...(opts.flagged ? { finishesEarlyByCourseId: new Set(opts.flagged) } : {}),
+    ...(opts.sibling ? { occupiedByTeacher: opts.sibling } : {}),
     dayOccupancy: buildDayOccupancyIndex(opts.placements, catalogById),
   };
 };

@@ -83,9 +83,13 @@ const nodeMjsConfig = defineConfig({
 // `bench/` sits OUTSIDE the FSD graph — steiger lints `src/` only, so nothing else guards what the
 // bench may import. It reaches into exactly one page slice: `plan-comparison`'s `api` segment, home of
 // the shared `loadPlanAnalysis` (one loader, so the CLI and the in-app surface can never disagree
-// about what a plan *is*). The slice ROOT is off-limits: it is a React island's home, and dragging
-// React into `pnpm analyze:plans` — a Vitest *node* run — would break it. Everything else under
-// `_pages` is off-limits outright.
+// about what a plan *is*).
+//
+// The slice ROOT is off-limits — and the reason is a rule about the FUTURE, not a fact about today.
+// `_pages/plan-comparison/index.ts` is currently `export {}`, so importing it would pull in nothing at
+// all. But a slice root is where a React island's barrel naturally grows, and the moment one appears
+// there, a bench import of the root drags React into `pnpm analyze:plans` — a Vitest *node* run. Banning
+// it now means that day can never arrive silently. Everything else under `_pages` is off-limits outright.
 const benchBoundaryConfig = defineConfig({
   files: ["bench/**/*.ts"],
   rules: {
@@ -103,7 +107,7 @@ const benchBoundaryConfig = defineConfig({
           {
             name: "@/_pages/plan-comparison",
             message:
-              "bench/ must import @/_pages/plan-comparison/api, not the slice root — the root re-exports ui/, which would pull React into `pnpm analyze:plans` (a Vitest node run).",
+              "bench/ must import @/_pages/plan-comparison/api, not the slice root — a slice root is where a React island's barrel grows, and React in `pnpm analyze:plans` (a Vitest node run) breaks it. Keep the root out of bench/ so that can never happen silently.",
           },
         ],
         patterns: [
@@ -119,6 +123,15 @@ const benchBoundaryConfig = defineConfig({
             group: ["@/_pages/plan-comparison/*", "@/_pages/plan-comparison/**", "!@/_pages/plan-comparison/api"],
             message:
               "bench/ may import only the @/_pages/plan-comparison/api barrel — never its ui/model/lib segments, and never a deep path past the barrel.",
+          },
+          // The alias is not the only door. `bench/` is one level from the repo root, so a relative
+          // `../src/_pages/...` resolves exactly as well — and every pattern above keys on the `@/`
+          // alias, so it would sail straight through. Fence the physical path too, or the boundary is
+          // only as strong as the next author's import style.
+          {
+            group: ["**/src/_pages", "**/src/_pages/**"],
+            message:
+              "bench/ must reach src/ through the @/ alias — and into _pages only via @/_pages/plan-comparison/api. A relative path into src/_pages/ bypasses the boundary.",
           },
         ],
       },

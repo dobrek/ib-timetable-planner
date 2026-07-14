@@ -1,5 +1,6 @@
 import type { PlanComparisonData, PlanDetail } from "../api/load-comparison";
 import { DriftBanner } from "./DriftBanner";
+import { MetricHelp } from "./MetricHelp";
 import { ScoreboardTable } from "./ScoreboardTable";
 import { VerdictBlock } from "./VerdictBlock";
 
@@ -12,7 +13,8 @@ import { VerdictBlock } from "./VerdictBlock";
  * was client state driving server-rendered numbers: change it and the columns kept their old values, so
  * the page could quietly show one selection and one set of measurements that disagreed with it. Changing
  * the selection means going back to the hub — one round trip, and the numbers can never lie about which
- * plans they came from.
+ * plans they came from. The island hydrates for the metric-help popovers, which hold nothing but their
+ * own open/closed state; the rule is that no client state here may *choose what is measured*.
  *
  * Order matters: what-went-wrong (missing plans) → drift banner → rule verdict → the scoreboard.
  * Everything that could make the numbers *lie* is stated before the numbers are shown.
@@ -81,7 +83,21 @@ function Comparison({ data }: { data: PlanComparisonData }) {
       ))}
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold">Distributions — the signal totals hide</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-base font-semibold">Distributions — the signal totals hide</h2>
+          <MetricHelp title="Distributions">
+            <p>
+              A total tells you how big a problem is. A distribution tells you whether it is spread thinly across
+              everyone or concentrated on a few people — and only the second kind is fixable by moving one lesson.
+            </p>
+            <p>
+              Each line is a five-number summary: <strong>min</strong>, <strong>p10</strong> (the 10th percentile — a
+              tenth of the population sits at or below it), <strong>median</strong>, <strong>mean</strong> and{" "}
+              <strong>max</strong>. A median of 1 next to a max of 14 is one person having a terrible week, not a
+              systemic problem.
+            </p>
+          </MetricHelp>
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           {data.perPlan.map((plan) => (
             <PlanDetailCard key={plan.planId} plan={plan} />
@@ -97,17 +113,58 @@ function PlanDetailCard({ plan }: { plan: PlanDetail }) {
     <article className="space-y-3 rounded-md border p-3 text-sm">
       <h3 className="font-medium">{plan.planName}</h3>
 
-      <ul className="text-muted-foreground space-y-1 font-mono text-xs">
-        {plan.distributions.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
+      <div className="space-y-1">
+        <div className="flex items-center gap-1.5">
+          <p className="font-medium">Per-person spread</p>
+          <MetricHelp title="Per-person spread">
+            <p>
+              <strong>Gaps</strong> — free periods stranded between a person’s first and last lesson of a day, totalled
+              across their week. Time on site that buys nothing.
+            </p>
+            <p>
+              <strong>Teacher day span</strong> — periods from a teacher’s first lesson to their last on a teaching day,
+              gaps included. A span of 8 for 3 lessons is a long day for little teaching.
+            </p>
+            <p>
+              <strong>Span efficiency</strong> — a student’s lessons ÷ their span, per day. 1.0 is a fully compact day;
+              0.5 means half the time between arriving and leaving is idle.
+            </p>
+            <p>
+              <strong>Late finishes</strong> — periods left in the day <em>after</em> a student’s last lesson. Read it
+              backwards: <strong>0 means they finish in the final period</strong>; a big number means they go home
+              early.
+            </p>
+          </MetricHelp>
+        </div>
+        <ul className="text-muted-foreground space-y-1 font-mono text-xs">
+          {plan.distributions.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </div>
 
       {/* No "worst cases" block here: the worst teacher and worst student are scoreboard rows, where
           they are named and linked. Restating them was the same fact twice. */}
 
       <div className="space-y-1">
-        <p className="font-medium">Mirrored cells ({plan.mirroredCells.length})</p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-medium">Mirrored cells ({plan.mirroredCells.length})</p>
+          <MetricHelp title="Mirrored cells">
+            <p>
+              A cell where <strong>both cohorts run the same subject at the same time</strong> — same subject and level,
+              same day, same period, in DP1 and DP2 at once.
+            </p>
+            <p>
+              These are the school-wide fixtures (SSSTS, CAS/EE): the slots you deliberately synchronize across both
+              years. The count is a check that they survived, not a score — zero is correct for a plan that has no
+              fixtures, and a fixture that quietly stopped mirroring shows up here as a missing line.
+            </p>
+            <p>
+              Matched week-agnostically on purpose: a fixture still mirrors when DP1 runs it in week A and DP2 in week
+              B.
+            </p>
+          </MetricHelp>
+        </div>
         {plan.mirroredCells.length === 0 ? (
           <p className="text-muted-foreground">(none — no cross-cohort synchronization)</p>
         ) : (
@@ -122,7 +179,23 @@ function PlanDetailCard({ plan }: { plan: PlanDetail }) {
       </div>
 
       <div className="space-y-1">
-        <p className="font-medium">Time-of-day gradient</p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-medium">Time-of-day gradient</p>
+          <MetricHelp title="Time-of-day gradient">
+            <p>
+              The <strong>mean period</strong> of every hour a subject is taught — so Maths at 3.1 sits earlier in the
+              day, on average, than History at 6.4. Subjects are listed earliest first.
+            </p>
+            <p>
+              It answers “what does this board think mornings are for?”. Whether the heavy subjects <em>belong</em> in
+              the morning is a judgement the page does not make — it reports where they landed, and you decide whether
+              that is the school you want.
+            </p>
+            <p>
+              An average, so it hides spread: 3.5 is two hours at P1 and two at P6 just as readily as four at P3–P4.
+            </p>
+          </MetricHelp>
+        </div>
         <p className="text-muted-foreground">
           {plan.gradient.length === 0
             ? "(no subjects)"

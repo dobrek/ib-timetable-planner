@@ -31,10 +31,14 @@ const notFound = comparison !== null && comparison.data === null;
 <AppShellLayout title="Compare plans">
   {
     /*
-     * No `client:` directive, deliberately. Nothing on this page is interactive: the selection is made
-     * on the hub and arrives in the URL, so the whole comparison is a pure function of the SSR load.
-     * Rendering it server-only ships zero JS and makes the guarantee structural — there is no client
-     * state that could drift out of step with the numbers.
+     * Hydrated only for the metric-help popovers — the one interactive thing on the page.
+     *
+     * This does NOT reopen the picker problem. That bug was client state *selecting the data*: the
+     * in-page picker could be changed while the SSR'd columns kept their old values, so the page could
+     * show one selection and a different selection's numbers. The selection now arrives in the URL and
+     * every figure below is a pure function of the SSR load; a popover's open/closed state cannot reach
+     * them. If anything on this page ever again holds state that *chooses what is measured*, it belongs
+     * on the hub, not here.
      */
   }
   {
@@ -43,7 +47,7 @@ const notFound = comparison !== null && comparison.data === null;
     ) : notFound ? (
       <PlanScopedError />
     ) : (
-      <PlanComparisonPage data={data} />
+      <PlanComparisonPage data={data} client:load />
     )
   }
 </AppShellLayout>

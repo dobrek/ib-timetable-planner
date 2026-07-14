@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildComparisonData, type PlanComparisonData } from "../api/load-comparison";
 import { buildLoadedPlan, SAMPLE, type PlanSpec } from "../model/__fixtures__/loaded-plan";
@@ -160,6 +160,33 @@ describe("PlanComparisonPage", () => {
 
     expect(link.getAttribute("href")).toMatch(/^\/plans\/base-plan\/teachers\/base-t-/);
     expect(link.textContent).not.toMatch(/base-t-|cln-t-/);
+  });
+
+  /**
+   * The help exists because a figure nobody can interpret is indistinguishable from one nobody should
+   * trust. `lateFinishes` is the sharpest case: the analyzer computes `periods − last`, so it counts the
+   * periods left AFTER a student's last lesson — 0 means they finish in the final period. Read at face
+   * value the name says the opposite of the number, so the popover must state the inversion outright.
+   */
+  it("explains the per-person spread, including the late-finishes inversion", async () => {
+    render(<PlanComparisonPage data={cleanPair} />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: 'What does "Per-person spread" mean?' })[0]);
+
+    const help = await screen.findByRole("dialog");
+    expect(help.textContent).toMatch(/0 means they finish in the final period/);
+    expect(help.textContent).toMatch(/lessons ÷ their span/);
+  });
+
+  it("explains what a mirrored cell is, and what the time-of-day gradient averages", async () => {
+    render(<PlanComparisonPage data={cleanPair} />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: 'What does "Mirrored cells" mean?' })[0]);
+    expect((await screen.findByRole("dialog")).textContent).toMatch(/both cohorts run the same subject/i);
+
+    fireEvent.click(screen.getAllByRole("button", { name: 'What does "Time-of-day gradient" mean?' })[0]);
+    const opened = await screen.findAllByRole("dialog");
+    expect(opened.some((help) => /mean period/i.test(help.textContent))).toBe(true);
   });
 
   it("names a plan that could not be loaded instead of silently comparing fewer plans", async () => {

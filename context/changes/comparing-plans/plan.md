@@ -903,11 +903,11 @@ it is behind deny-by-default auth. This is a deliberate yes, not an accident.
 
 #### Automated
 
-- [x] 6.1 E2E passes locally and in CI
-- [x] 6.2 Full CI gate passes (`/verify` skill)
-- [x] 6.3 Integration suite passes
+- [x] 6.1 E2E passes locally and in CI — fc1d0b3
+- [x] 6.2 Full CI gate passes (`/verify` skill) — fc1d0b3
+- [x] 6.3 Integration suite passes — fc1d0b3
 
 #### Manual
 
 - [ ] 6.4 CI `e2e` job passes on the PR
-- [x] 6.5 UI numbers match the bench CLI digit-for-digit for the same plan
+- [x] 6.5 UI numbers match the bench CLI digit-for-digit for the same plan — fc1d0b3

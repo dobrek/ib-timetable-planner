@@ -796,25 +796,28 @@ after Phase 2 — documented, expected, local-only.
 
 #### Automated
 
-- [x] 6.1 `pnpm test` passes (census, detection, stage, 10-tuple fixtures)
-- [x] 6.2 `pnpm bench:generation` still acceptable
-- [x] 6.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 6.1 `pnpm test` passes (census, detection, stage, 10-tuple fixtures) — f5b1f29
+- [x] 6.2 `pnpm bench:generation` still acceptable — f5b1f29
+- [x] 6.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean — f5b1f29
 
 #### Manual
 
-- [x] 6.4 Gold census reproduces the addendum table (15 golden / mean 4.6–5.75)
+- [x] 6.4 Gold census reproduces the addendum table (15 golden / mean 4.6–5.75) — f5b1f29
 - [x] 6.5 Harness run: golden ≥ 13, mean period in P4–P7, band share ≥ ⅔, tiers 1–9 hold
       — position criteria met (mean in band, band share 67–100%, tiers hold); **count fell short at
       12**, structurally: gold's dp2 composites lean on the biweekly CAS/EE cells the plan left to
-      pins, and a count-rewarding tier would buy golden cells with slots. See change.md (P6 measured).
+      pins, and a count-rewarding tier would buy golden cells with slots. See change.md (P6 measured). — f5b1f29
 
 ### Phase 7: Acceptance Run + Fixture Workflow Runbook
 
 #### Automated
 
-- [ ] 7.1 Full `/verify` gate clean
+- [x] 7.1 Full `/verify` gate clean
 
 #### Manual
 
-- [ ] 7.2 R18 checklist green in `analysis-run-2.md` (from a `PIN_SKELETON=1` harness run)
-- [ ] 7.3 Runbook `docs/runbooks/plan-generation.md` reviewed against the expert's fixture answers
+- [x] 7.2 R18 checklist green in `analysis-run-2.md` (from a `PIN_SKELETON=1` harness run)
+      — 8 of 10 checks green and the acceptance verdict is **accept** (the ~40 h bar is cleared with
+      room); two misses recorded, not hidden: teacher gaps 217 vs the ≤ 148 bar, and dp1's Friday is
+      not its shortest day. Both are budget, not model — see §3 of the run.
+- [x] 7.3 Runbook `docs/runbooks/plan-generation.md` reviewed against the expert's fixture answers

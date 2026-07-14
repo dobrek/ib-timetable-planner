@@ -121,7 +121,7 @@ describe("narrowViolationsToTeacher", () => {
 
     const narrowed = narrowViolationsToTeacher(violations, "T1", new Set(["C"]));
     const cell = getCell(narrowed, cellKey(1, 1));
-    expect(cell.violations).toEqual([{ kind: "course-day-stacking", courseIds: ["C"], count: 3 }]);
+    expect(cell.violations).toEqual([{ kind: "course-day-stacking", courseIds: ["C"], count: 3, lanes: ["a", "b"] }]);
     expect(cell.warningIds).toEqual(new Set(["C"]));
     expect(cell.blockingIds).toEqual(new Set());
   });

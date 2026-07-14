@@ -1,6 +1,8 @@
 import type { PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { WeekLane } from "./analysis/lanes";
 import type { PlannerPlacement } from "./placement";
+import { weeksDisjoint } from "./week";
 
 /**
  * A week-aware, per-day view of the board that the two day-scoped rules read. Built once per
@@ -64,6 +66,18 @@ export const buildDayOccupancyIndex = (
     }
   }
   return { byStudentDay, byCourseDay, byTeacherDay };
+};
+
+/**
+ * Every period a course occupies on one day of one concrete week, ascending and distinct. The two
+ * day-scoped course rules (`course-day-stacking`, `course-day-split`) and `verifyGeneration`'s delta
+ * all read the board through this one lane view, so "a course's day" means the same thing to each.
+ */
+export const courseDayPeriods = (index: DayOccupancyIndex, courseId: string, day: number, lane: WeekLane): number[] => {
+  const periods = (index.byCourseDay.get(courseId)?.get(day) ?? [])
+    .filter((entry) => !weeksDisjoint(entry.week, lane))
+    .map((entry) => entry.period);
+  return [...new Set(periods)].sort((a, b) => a - b);
 };
 
 const pushByDay = <T>(index: Map<string, Map<number, T[]>>, key: string, day: number, entry: T): void => {

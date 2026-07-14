@@ -27,7 +27,7 @@ describe("courseDaySplit", () => {
 
   it("flags a gapped same-day pair, carrying the offending periods (every cell of the day agrees)", () => {
     const placements = [placement("p1", "C", 1, 2), placement("p2", "C", 1, 5)];
-    const expected = [{ kind: "course-day-split", courseIds: ["C"], periods: [2, 5] }];
+    const expected = [{ kind: "course-day-split", courseIds: ["C"], periods: [2, 5], lanes: ["a", "b"] }];
     expect(courseDaySplit.explain([c], dayCtx({ cell: { day: 1, period: 2 }, placements, courses: [c] }))).toEqual(
       expected,
     );
@@ -48,7 +48,7 @@ describe("courseDaySplit", () => {
     const placements = [placement("p1", "C", 1, 2, "both"), placement("p2", "C", 1, 5, "a")];
     const aCell = dayCtx({ cell: { day: 1, period: 5 }, weeks: { C: "a" }, placements, courses: [c] });
     expect(courseDaySplit.explain([c], aCell)).toEqual([
-      { kind: "course-day-split", courseIds: ["C"], periods: [2, 5] },
+      { kind: "course-day-split", courseIds: ["C"], periods: [2, 5], lanes: ["a"] },
     ]);
   });
 

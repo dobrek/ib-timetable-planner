@@ -1,5 +1,6 @@
 import type { PlacementWeek } from "@/shared/config";
-import type { DayOccupancyIndex } from "../../day-occupancy-index";
+import { lanesOf, type WeekLane } from "../../analysis/lanes";
+import { courseDayPeriods, type DayOccupancyIndex } from "../../day-occupancy-index";
 import { distinctById } from "./distinct-by-id";
 import type { CellConstraint, CollisionViolation } from "./types";
 
@@ -25,24 +26,32 @@ export const courseDayStacking: CellConstraint = {
     const weekOf = (courseId: string): PlacementWeek => ctx.weekByCourseId?.get(courseId) ?? "both";
 
     return distinctById(occupants).flatMap((course): CollisionViolation[] => {
-      const count = stackedCount(index, course.id, day, weekOf(course.id));
-      return count !== null ? [{ kind: "course-day-stacking", courseIds: [course.id], count }] : [];
+      const stack = stackedLanes(index, course.id, day, weekOf(course.id));
+      return stack ? [{ kind: "course-day-stacking", courseIds: [course.id], ...stack }] : [];
     });
   },
 };
 
-/** The size of the largest ≥3 stack among the concrete weeks this cell runs, or null when no
- *  concrete week the cell participates in reaches 3 placements of the course that day. */
-const stackedCount = (index: DayOccupancyIndex, courseId: string, day: number, week: PlacementWeek): number | null => {
-  const entries = index.byCourseDay.get(courseId)?.get(day) ?? [];
-  const stacks = concreteWeeks(week)
-    .map((concrete) => entries.filter((entry) => runsWeek(entry.week, concrete)).length)
-    .filter((size) => size >= 3);
-  return stacks.length > 0 ? Math.max(...stacks) : null;
+/** The rule itself: more than 2 periods of one course in ONE day-week lane. Exported so
+ *  `verifyGeneration`'s delta mirrors the oracle rather than restating the cap. */
+export const exceedsDayCap = (periods: number[]): boolean => periods.length > DAY_CAP;
+
+const DAY_CAP = 2;
+
+/**
+ * The breach, or null when no concrete week this cell runs reaches 3 periods of the course that day.
+ * `count` is the worst lane's size (what the dialog reads); `lanes` names EVERY offending one, for
+ * the same reason `course-day-split` does — `verifyGeneration` reads the delta per lane.
+ */
+const stackedLanes = (
+  index: DayOccupancyIndex,
+  courseId: string,
+  day: number,
+  week: PlacementWeek,
+): { count: number; lanes: WeekLane[] } | null => {
+  const stacks = lanesOf(week)
+    .map((lane) => ({ lane, periods: courseDayPeriods(index, courseId, day, lane) }))
+    .filter(({ periods }) => exceedsDayCap(periods));
+  if (stacks.length === 0) return null;
+  return { count: Math.max(...stacks.map(({ periods }) => periods.length)), lanes: stacks.map(({ lane }) => lane) };
 };
-
-/** The concrete fortnightly weeks a placement week participates in (`both` runs in each). */
-const concreteWeeks = (week: PlacementWeek): ("a" | "b")[] => (week === "both" ? ["a", "b"] : [week]);
-
-/** A placement runs concrete week `k` iff it is that week or agnostic (`both`). */
-const runsWeek = (week: PlacementWeek, concrete: "a" | "b"): boolean => week === concrete || week === "both";

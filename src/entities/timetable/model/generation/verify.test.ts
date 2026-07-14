@@ -185,6 +185,36 @@ describe("verifyGeneration", () => {
     expect(verifyGeneration(board, [gen("dp1", "math", 1, 2), gen("dp1", "math", 1, 3)]).ok).toBe(true);
   });
 
+  it("reads the course-day delta per week lane — a pins-only week-A split does not veto week B", () => {
+    // The author pinned a split in week A. Week B of the same day is empty, and `board.fitsAt`
+    // accepts a hour there (the lanes never meet). A lane-blind delta key rejected the whole board
+    // because "that course has a generated row on that day".
+    const board = snapshot({
+      periods: 8,
+      dp1: {
+        courses: [biweekly("bio", "t1")],
+        pins: [placement("p1", "bio", 1, 2, "a"), placement("p2", "bio", 1, 5, "a")],
+      },
+    });
+
+    expect(verifyGeneration(board, [gen("dp1", "bio", 1, 8, "b")]).ok).toBe(true);
+  });
+
+  it("still rejects a split the generator creates in week B while week A is pin-split", () => {
+    const board = snapshot({
+      periods: 8,
+      dp1: {
+        courses: [biweekly("bio", "t1")],
+        pins: [placement("p1", "bio", 1, 2, "a"), placement("p2", "bio", 1, 5, "a")],
+      },
+    });
+
+    const verdict = verifyGeneration(board, [gen("dp1", "bio", 1, 4, "b"), gen("dp1", "bio", 1, 8, "b")]);
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reasons.some((reason) => reason.includes("course-day-split"))).toBe(true);
+  });
+
   it("permits a pre-existing pins-only split (delta semantics — pins are never the engine's fault)", () => {
     const board = snapshot({
       periods: 6,
@@ -250,6 +280,62 @@ describe("verifyGeneration", () => {
 
     // The generated row is on another day — it participates in no over-long day of its own.
     expect(verifyGeneration(board, [gen("dp1", "eng", 2, 1)]).ok).toBe(true);
+  });
+
+  it("permits a generated row INSIDE a teacher day the pins already broke — the fitsAt delta, verify-side", () => {
+    // t1's pins already span 10 periods on day 1. `board.fitsAt` accepts further placements on that
+    // lane (it rejects only breaches the candidate CREATES), so verify must too — judging the day
+    // board-wide instead made one hand-placed over-long teacher day reject every generated board,
+    // after the full budget was spent and with nothing in the search loop to signal it.
+    const board = snapshot({
+      periods: 10,
+      dp1: {
+        courses: [course("math", "t1"), course("phys", "t1"), course("eng", "t1")],
+        pins: [placement("p1", "math", 1, 1), placement("p2", "phys", 1, 10)],
+      },
+    });
+
+    // Same teacher, same (already-broken) day — the generated hour creates no breach that was not
+    // there when the engine was handed the board.
+    expect(verifyGeneration(board, [gen("dp1", "eng", 1, 5)]).ok).toBe(true);
+  });
+
+  it("still rejects a breach the generator creates on a teacher day the pins left legal", () => {
+    // t1's pins span 6 — legal. The generated row at P10 stretches the day to 10.
+    const board = snapshot({
+      periods: 10,
+      dp1: {
+        courses: [course("math", "t1"), course("phys", "t1"), course("eng", "t1")],
+        pins: [placement("p1", "math", 1, 1), placement("p2", "phys", 1, 6)],
+      },
+    });
+
+    const verdict = verifyGeneration(board, [gen("dp1", "eng", 1, 10)]);
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reasons.some((reason) => reason.includes("teacher-day-shape"))).toBe(true);
+  });
+
+  it("reads the teacher-day delta per week lane — a pin-broken week A does not excuse week B", () => {
+    // Week A is already broken by pins (span 10). Week B is clean, and the generated biweekly rows
+    // break it: a lane-blind reading would tolerate this because "the day is broken anyway".
+    const board = snapshot({
+      periods: 10,
+      dp1: {
+        courses: [
+          biweekly("math-a", "t1"),
+          biweekly("phys-a", "t1"),
+          biweekly("bio-b", "t1"),
+          biweekly("chem-b", "t1"),
+        ],
+        pins: [placement("p1", "math-a", 1, 1, "a"), placement("p2", "phys-a", 1, 10, "a")],
+      },
+    });
+
+    const verdict = verifyGeneration(board, [gen("dp1", "bio-b", 1, 1, "b"), gen("dp1", "chem-b", 1, 10, "b")]);
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reasons.some((reason) => reason.includes("teacher-day-shape"))).toBe(true);
   });
 
   it("rejects an interior placement of a finishes_early course (blocking edge rule)", () => {

@@ -1,6 +1,7 @@
 import type { Cohort } from "@/shared/config";
 import type { PlanQualityFeatures } from "@/entities/timetable";
-import { extreme, num, pct, pooledMean, sumCohorts, worstStudent } from "./format";
+import { num, pct, pooledMean, sumCohorts } from "./format";
+import { worstStudentCell, worstTeacherCell, type MetricCell, type PlanContext } from "./extremes";
 
 /**
  * The five metric catalogs, ported row-for-row from `bench/plan-report.ts`.
@@ -10,10 +11,10 @@ import { extreme, num, pct, pooledMean, sumCohorts, worstStudent } from "./forma
  * labels — validated against the expert board in analyzer run #1. Port the catalogs; leave the
  * printing behind.
  *
- * A row is a typed `MetricRow`, not a tuple, so it carries a stable `id` and reads its own value —
- * every row formats to a **string**, exactly as the bench prints it. Several are not numbers at all
- * (`extreme` yields `"Kowalski: 42"`; the cross-cohort rows are ratios like `"12 / 17"`), which is one
- * more reason there is no arithmetic layered on top of them.
+ * A row is a typed `MetricRow`, not a tuple, so it carries a stable `id` and reads its own value. Every
+ * row formats to a **`MetricCell`** — a finished string, exactly as the bench prints it, plus an optional
+ * link. It exposes no number, so nothing downstream *can* subtract one row from another; and several are
+ * not numbers anyway (`"Ada Byron: 42"`, or ratios like `"12 / 17"`).
  *
  * It reports; it never judges. No pass/fail bar, no ranking, no composite score, no baseline-relative
  * delta — each would smuggle back the scalar the analyzer exists to avoid (the weighted-scalar
@@ -25,15 +26,24 @@ export type CohortMetricRow = {
   /** Stable identity, so a row can be addressed without matching on its label. */
   id: string;
   label: string;
-  read: (features: PlanQualityFeatures, cohort: Cohort) => string;
+  read: (features: PlanQualityFeatures, cohort: Cohort) => MetricCell;
 };
 
-/** A row read per plan — the board-wide sections. */
+/**
+ * A row read per plan — the board-wide sections.
+ *
+ * `plan` is passed to every row but used by only two: the worst-teacher and worst-student rows need the
+ * plan's id and names to turn the analyzer's key into a named link. Rows that ignore it simply declare
+ * fewer parameters.
+ */
 export type PlanMetricRow = {
   id: string;
   label: string;
-  read: (features: PlanQualityFeatures) => string;
+  read: (features: PlanQualityFeatures, plan: PlanContext) => MetricCell;
 };
+
+/** A finished value with nowhere to go — the shape of all but two rows. */
+const text = (value: string): MetricCell => ({ text: value });
 
 const cohortOf = (features: PlanQualityFeatures, cohort: Cohort) => features.cohorts[cohort];
 
@@ -44,12 +54,12 @@ const cohortNumber = (
   id: string,
   label: string,
   value: (features: PlanQualityFeatures, cohort: Cohort) => number,
-): CohortMetricRow => ({ id, label, read: (f, c) => num(value(f, c)) });
+): CohortMetricRow => ({ id, label, read: (f, c) => text(num(value(f, c))) });
 
 const planNumber = (id: string, label: string, value: (features: PlanQualityFeatures) => number): PlanMetricRow => ({
   id,
   label,
-  read: (f) => num(value(f)),
+  read: (f) => text(num(value(f))),
 });
 
 /**
@@ -105,12 +115,12 @@ export const goldenCensusRows = (sample: PlanQualityFeatures, cohort: Cohort): C
       id: "goldenInBand",
       label: `Golden inside the mid-day band (P${String(band.first)}–P${String(band.last)})`,
 
-      read: (f, c) => `${String(goldenOf(f, c).goldenInBand)} / ${String(goldenOf(f, c).golden.length)}`,
+      read: (f, c) => text(`${String(goldenOf(f, c).goldenInBand)} / ${String(goldenOf(f, c).golden.length)}`),
     },
     {
       id: "goldenBandShare",
       label: "— band share",
-      read: (f, c) => pct(goldenOf(f, c).bandShare),
+      read: (f, c) => text(pct(goldenOf(f, c).bandShare)),
     },
   ];
 };
@@ -118,18 +128,15 @@ export const goldenCensusRows = (sample: PlanQualityFeatures, cohort: Cohort): C
 /** Board-wide (both cohorts) — 12 rows, `bench/plan-report.ts:159-178`. */
 export const BOARD_WIDE: PlanMetricRow[] = [
   planNumber("teacherGapSlots", "TEACHER gap-slots", (f) => f.teachers.gapSlots),
-  {
-    id: "worstTeacher",
-    label: "Worst teacher (gaps)",
-    read: (f) => extreme(f.teachers.worstTeacherGaps),
-  },
+  // The two rows that name a person — and the only two that link. See `extremes.ts`.
+  { id: "worstTeacher", label: "Worst teacher (gaps)", read: worstTeacherCell },
   planNumber("teachingDays", "Avg teaching days / teacher", (f) => f.teachers.teachingDays.mean),
   planNumber("hoursPerTeachingDay", "Avg hours / teaching day", (f) => f.teachers.hoursPerTeachingDay.mean),
   planNumber("maxConsecutiveTeaching", "Max consecutive teaching", (f) => f.teachers.maxConsecutiveTeaching.max),
   planNumber("softAvailabilityHits", "Soft-availability hits", (f) => f.teachers.softAvailabilityHits),
   planNumber("strongAvailabilityHits", "Strong-availability hits", (f) => f.teachers.strongAvailabilityHits),
   planNumber("studentGapSlotsTotal", "Student gap-slots", (f) => sumCohorts(f, (cohort) => cohort.students.gapSlots)),
-  { id: "worstStudent", label: "Worst student (gaps)", read: worstStudent },
+  { id: "worstStudent", label: "Worst student (gaps)", read: worstStudentCell },
   planNumber("hoursPerStudentDay", "Avg hours / student-day", (f) =>
     pooledMean(f, (cohort) => cohort.students.hoursPerStudentDay),
   ),
@@ -147,19 +154,21 @@ export const CROSS_COHORT: PlanMetricRow[] = [
   {
     id: "teachersBoth",
     label: "Teachers (both cohorts / all)",
-    read: (f) => `${String(f.crossCohort.teachersInBothCohorts)} / ${String(f.crossCohort.teachers)}`,
+    read: (f) => text(`${String(f.crossCohort.teachersInBothCohorts)} / ${String(f.crossCohort.teachers)}`),
   },
   {
     id: "cohortPureTeacherDays",
     label: "Cohort-pure teacher-days",
     read: (f) =>
-      `${String(f.crossCohort.cohortPureTeacherDays)} / ${String(f.crossCohort.teacherDays)} (${pct(f.crossCohort.cohortPureShare)})`,
+      text(
+        `${String(f.crossCohort.cohortPureTeacherDays)} / ${String(f.crossCohort.teacherDays)} (${pct(f.crossCohort.cohortPureShare)})`,
+      ),
   },
   planNumber("cohortSwitches", "Cohort switches (within a day)", (f) => f.crossCohort.cohortSwitches),
   {
     id: "seamlessSwitches",
     label: "— of which seamless",
-    read: (f) => `${String(f.crossCohort.seamlessSwitches)} (${pct(f.crossCohort.seamlessShare)})`,
+    read: (f) => text(`${String(f.crossCohort.seamlessSwitches)} (${pct(f.crossCohort.seamlessShare)})`),
   },
   planNumber("sharedSubjectEditionDays", "Shared subject-edition days", (f) => f.crossCohort.sharedSubjectEditionDays),
   planNumber("mirroredCells", "Mirrored cells (fixtures)", (f) => f.crossCohort.mirroredCells.length),

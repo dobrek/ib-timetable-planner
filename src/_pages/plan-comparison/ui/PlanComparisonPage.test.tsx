@@ -132,31 +132,34 @@ describe("PlanComparisonPage", () => {
   /**
    * THE invariant: a slot count never renders without its cohort's hour accounting beside it. An
    * incomplete board trivially uses fewer slots — which is how the engine's abandoned hours once read
-   * as a "better" slot count.
+   * as a "better" slot count. The prose annotation that used to restate this is gone; the accounting
+   * itself is not, and it sits ABOVE every slot count in the same table.
    */
-  it("renders the completeness annotation beneath the slot counts of an incomplete cohort", () => {
+  it("puts the hour accounting above the slot counts, in the same table", () => {
     render(<PlanComparisonPage data={cleanPair} />);
 
-    // The scoreboard carries "Occupied slots"…
-    expect(screen.getByRole("rowheader", { name: "Occupied slots" })).toBeTruthy();
-    // …and the sentence that makes it readable sits beside it. The annotation is per plan-COHORT,
-    // never one summary: both plans share the catalog, and each has an incomplete dp1 (Maths) and an
-    // incomplete dp2 (History) — so all four are named.
-    const notes = screen.getAllByText(/is INCOMPLETE — its slot count is flattered/);
-    expect(notes).toHaveLength(4);
+    const scoreboard = screen.getByRole("region", { name: "Cohort scoreboard" });
+    const labels = within(scoreboard)
+      .getAllByRole("rowheader")
+      .map((header) => header.textContent);
 
-    // Named by SUBJECT, not by UUID — this is a sentence a timetabler reads.
-    const dp1Notes = notes.filter((note) => note.textContent.includes("dp1"));
-    expect(dp1Notes).toHaveLength(2);
-    for (const note of dp1Notes) expect(note.textContent).toContain("Maths HL −2h");
+    expect(labels).toContain("Occupied slots");
+    expect(labels.indexOf("UNPLACED HOURS")).toBeLessThan(labels.indexOf("Occupied slots"));
+    expect(labels.indexOf("OVER-PLACED HOURS")).toBeLessThan(labels.indexOf("Occupied slots"));
   });
 
-  it("renders the worst teacher and worst student as NAMES, never UUIDs", () => {
+  /**
+   * The worst-case rows name a person and link to that person's timetable IN THAT COLUMN'S PLAN — the
+   * number says who, the linked timetable says why. They used to print the analyzer's raw UUID.
+   */
+  it("renders the worst teacher as a NAME linking into that plan, never a UUID", () => {
     render(<PlanComparisonPage data={cleanPair} />);
 
-    const worstTeacher = screen.getAllByText(/Teacher \(gaps\):/)[0];
-    expect(worstTeacher.textContent).toContain("Ada Byron");
-    expect(worstTeacher.textContent).not.toMatch(/base-t-|cln-t-/);
+    const boardWide = screen.getByRole("region", { name: /Board-wide/ });
+    const link = within(boardWide).getAllByRole("link", { name: /^Ada Byron: / })[0];
+
+    expect(link.getAttribute("href")).toMatch(/^\/plans\/base-plan\/teachers\/base-t-/);
+    expect(link.textContent).not.toMatch(/base-t-|cln-t-/);
   });
 
   it("names a plan that could not be loaded instead of silently comparing fewer plans", async () => {

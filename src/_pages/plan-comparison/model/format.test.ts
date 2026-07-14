@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CohortFeatures, Distribution, PlanQualityFeatures } from "@/entities/timetable";
-import { distributionLine, extreme, num, pct, pooledMean, subjectLabel, sumCohorts } from "./format";
+import { distributionLine, num, pct, pooledMean, subjectLabel, sumCohorts } from "./format";
 
 const dist = (count: number, mean: number): Distribution => ({
   count,
@@ -34,14 +34,6 @@ describe("pct", () => {
     expect(pct(0.1)).toBe("10%");
     expect(pct(0.666)).toBe("67%");
     expect(pct(0)).toBe("0%");
-  });
-});
-
-describe("extreme", () => {
-  it("renders `key: value`, and an em dash when there is no worst case at all", () => {
-    expect(extreme({ key: "Kowalski", value: 42 })).toBe("Kowalski: 42");
-    // Not "0" — an absent worst case is not a worst case of zero.
-    expect(extreme(null)).toBe("—");
   });
 });
 

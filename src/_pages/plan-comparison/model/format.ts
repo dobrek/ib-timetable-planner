@@ -1,5 +1,5 @@
 import { COHORT_VALUES } from "@/shared/config";
-import type { CohortFeatures, Distribution, Extreme, PlanQualityFeatures } from "@/entities/timetable";
+import type { CohortFeatures, Distribution, PlanQualityFeatures } from "@/entities/timetable";
 
 /**
  * The bench renderer's pure formatters, lifted verbatim from `bench/plan-report.ts` (where they are
@@ -11,10 +11,6 @@ import type { CohortFeatures, Distribution, Extreme, PlanQualityFeatures } from 
 export const num = (value: number): string => (Number.isInteger(value) ? `${value}` : value.toFixed(2));
 
 export const pct = (share: number): string => `${Math.round(share * 100)}%`;
-
-/** The worst entry of a keyed metric. `null` — nobody has any — renders as an em dash, never as `0`:
- *  an absent worst case is not a worst case of zero. */
-export const extreme = (entry: Extreme | null): string => (entry === null ? "—" : `${entry.key}: ${entry.value}`);
 
 export const distributionLine = (name: string, values: Distribution): string =>
   `${name}: min ${num(values.min)} · p10 ${num(values.p10)} · median ${num(values.median)} · mean ${num(values.mean)} · max ${num(values.max)}`;
@@ -33,15 +29,6 @@ export const pooledMean = (features: PlanQualityFeatures, read: (cohort: CohortF
   const parts = COHORT_VALUES.map((cohort) => read(features.cohorts[cohort]));
   const samples = parts.reduce((sum, part) => sum + part.count, 0);
   return samples === 0 ? 0 : parts.reduce((sum, part) => sum + part.mean * part.count, 0) / samples;
-};
-
-/** The worst student across BOTH cohorts — the student lens is per-cohort, but "who eats the worst
- *  timetable in this school" is not. */
-export const worstStudent = (features: PlanQualityFeatures): string => {
-  const ranked = COHORT_VALUES.map((cohort) => features.cohorts[cohort].students.worstStudentGaps)
-    .filter((entry) => entry !== null)
-    .sort((a, b) => b.value - a.value);
-  return ranked.length === 0 ? "—" : extreme(ranked[0]);
 };
 
 /** `Chemistry HL` / `Chemistry` — level `none` is the absent sentinel and is dropped. Mirrors the

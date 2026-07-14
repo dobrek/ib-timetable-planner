@@ -59,10 +59,20 @@ export function ScoreboardTable({ section }: Props) {
                 </TableHead>
                 {/* The value, and nothing more. No delta, no colour, no arrow, no better/worse — fewer
                     teacher gaps is better and more golden cells is better, but this page does not say
-                    so. It reports; the expert judges. */}
+                    so. It reports; the expert judges.
+
+                    A link is not a judgement: the two worst-case rows name a person, and the link goes
+                    to that person's timetable in that plan — the number says who, the timetable says
+                    why. */}
                 {row.cells.map((cell, index) => (
                   <TableCell key={`${row.id}-${String(index)}`} className="text-right tabular-nums">
-                    {cell}
+                    {cell.href ? (
+                      <a href={cell.href} className="underline underline-offset-4 hover:no-underline">
+                        {cell.text}
+                      </a>
+                    ) : (
+                      cell.text
+                    )}
                   </TableCell>
                 ))}
               </TableRow>

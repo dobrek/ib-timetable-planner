@@ -6,12 +6,6 @@ import { computeCatalogFingerprint } from "../model/catalog-fingerprint";
 import { driftTier, type DriftTier } from "../model/drift-tier";
 import { buildCohortSection, buildPlanSection, type AnalyzedPlan, type ScoreboardSection } from "../model/scoreboard";
 import { BOARD_WIDE, COHORT_SCOREBOARD, CROSS_COHORT, goldenCensusRows } from "../model/metric-catalog";
-import {
-  completenessAnnotations,
-  resolveExtremes,
-  type CompletenessAnnotation,
-  type ResolvedExtremes,
-} from "../model/annotations";
 import { distributionLine, num, subjectLabel } from "../model/format";
 import { loadPlanAnalysis, type LoadedPlan, type PlanWarning } from "./load-plan-analysis";
 
@@ -52,6 +46,7 @@ export const buildComparisonData = async (
     id: plan.id,
     name: plan.name,
     features: analyzePlan(plan.input),
+    naturalKeys: plan.naturalKeys,
   }));
   const byId = new Map(plans.map((plan) => [plan.id, plan]));
   // The first plan is a *reference for wording only* — "what differs from what" needs an order, and the
@@ -72,10 +67,6 @@ export const buildComparisonData = async (
       buildPlanSection("Board-wide (both cohorts)", BOARD_WIDE, analyzed),
       buildPlanSection("Cross-cohort weave", CROSS_COHORT, analyzed),
     ],
-    annotations: analyzed.flatMap((plan) => {
-      const loadedPlan = byId.get(plan.id);
-      return loadedPlan ? completenessAnnotations(loadedPlan, plan.features) : [];
-    }),
     perPlan: analyzed.map((plan) => toPlanDetail(byId.get(plan.id), plan)),
     drift: await Promise.all(
       comparands.map((plan) => toDriftReport(byId.get(reference.id), byId.get(plan.id), plan.name, reference.name)),
@@ -88,21 +79,19 @@ export type PlanComparisonData = {
   plans: { id: string; name: string }[];
   missingPlanIds: string[];
   sections: ScoreboardSection[];
-  /** The invariant annotations — a slot count is never readable without these beside it. */
-  annotations: CompletenessAnnotation[];
   perPlan: PlanDetail[];
   /** One entry per plan after the first. Empty when only one plan loaded — nothing to compare it to. */
   drift: DriftReport[];
 };
 
-/** Everything rendered *per plan* rather than per column: the rule verdict, the catalog warnings, the
- *  resolved extremes, and the three free-form blocks the bench prints per plan. */
+/** Everything rendered *per plan* rather than per column: the rule verdict, the catalog warnings, and
+ *  the free-form blocks the bench prints per plan. The worst-case extremes are NOT here — they are
+ *  scoreboard rows, where they are named and linked, and repeating them was pure duplication. */
 export type PlanDetail = {
   planId: string;
   planName: string;
   verdict: { ok: boolean; softWarnCount: number; reasons: string[] };
   warnings: PlanWarning[];
-  extremes: ResolvedExtremes;
   /** Pre-formatted distribution lines — "the signal totals hide". */
   distributions: string[];
   mirroredCells: MirroredCellLine[];
@@ -134,7 +123,6 @@ const toPlanDetail = (loaded: LoadedPlan | undefined, analyzed: AnalyzedPlan): P
     // Catalog anomalies are part of the product, not diagnostics: an unflagged `zero-hours` course
     // reads as a complete one. They render beside the numbers.
     warnings: loaded.warnings,
-    extremes: resolveExtremes(analyzed.features, loaded.naturalKeys),
     distributions: distributionLines(analyzed),
     mirroredCells: analyzed.features.crossCohort.mirroredCells.map(toMirroredLine),
     gradient: analyzed.features.subjects.map((subject) => ({

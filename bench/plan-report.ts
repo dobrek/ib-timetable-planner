@@ -33,6 +33,7 @@ export const buildReport = (plan: LoadedPlan): Report => ({
 export const printPlanReports = (reports: Report[]): void => {
   for (const report of reports) printVerdict(report.plan, report.verdict);
   printCohortScoreboard(reports);
+  printGoldenCensus(reports);
   printBoardWide(reports);
   printCrossCohort(reports);
   for (const report of reports) printFixtures(report.plan, report.features);
@@ -113,6 +114,45 @@ const printCohortScoreboard = (reports: Report[]): void => {
     }
   }
 };
+
+/**
+ * The coverage census: cells where every student of the cohort is in class. Rendered as its own
+ * section because the headline is NOT the count — expert and engine assemble near the same number of
+ * golden cells (the English A+B and TOK unions are the only student-disjoint exhaustive families, so
+ * they arise incidentally). The signal is the last three rows: the expert centres her golden cells
+ * mid-day, the engine parks them at the day tail.
+ */
+const printGoldenCensus = (reports: Report[]): void => {
+  if (reports.length === 0) return;
+  console.log("\n=== Golden slots (whole-cohort coverage, scored per week lane) ===");
+  const { band, missShare } = reports[0].features.cohorts[COHORT_VALUES[0]].slotCensus.goldenCensus;
+  const bandLabel = `P${band.first}–P${band.last}`;
+  const columns = reports.flatMap((report) =>
+    COHORT_VALUES.map((cohort) => ({ header: `${short(report.plan)} ${cohort}`, cohort, report })),
+  );
+  const rows: [string, (report: Report, cohort: Cohort) => string][] = [
+    ["Golden cells", (report, cohort) => `${golden(report, cohort).golden.length}`],
+    ["— of which composite (3+ courses)", (report, cohort) => `${golden(report, cohort).composites}`],
+    [
+      `Near-golden cells (≤${pct(missShare)} missing)`,
+      (report, cohort) => `${golden(report, cohort).nearGolden.length}`,
+    ],
+    ["MEAN PERIOD of golden cells", (report, cohort) => num(golden(report, cohort).meanPeriod)],
+    [
+      `Golden inside the mid-day band (${bandLabel})`,
+      (report, cohort) => `${golden(report, cohort).goldenInBand} / ${golden(report, cohort).golden.length}`,
+    ],
+    ["— band share", (report, cohort) => pct(golden(report, cohort).bandShare)],
+  ];
+
+  printTable(
+    ["Metric", ...columns.map((column) => column.header)],
+    rows.map(([metric, read]) => [metric, ...columns.map((column) => read(column.report, column.cohort))]),
+  );
+};
+
+const golden = (report: Report, cohort: Cohort): PlanQualityFeatures["cohorts"][Cohort]["slotCensus"]["goldenCensus"] =>
+  report.features.cohorts[cohort].slotCensus.goldenCensus;
 
 const printBoardWide = (reports: Report[]): void => {
   console.log("\n=== Board-wide (both cohorts) ===");

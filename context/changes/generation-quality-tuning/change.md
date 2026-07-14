@@ -100,6 +100,20 @@ archived_at: null
   against P10 on every other day (gold: P8). Still adrift from gold: multi-day courses (32/32 vs gold
   19/22) — the doubles bonus pairs hours *within* a day it already uses, but nothing pulls a course's
   days together, so a 4-hour course still tends to spread. A candidate for the next round of tuning.
+- 2026-07-14 (P6 measured): golden slots landed — census (analyzer), cover-set detection, the band
+  anchor (construction stage 0) and `goldenBandDistance` (tier 10, count-neutral). **The gold census
+  reproduces the addendum exactly**: 15 golden cells (7 dp1 + 8 dp2), mean period **4.57 / 5.75**,
+  band share 5/7 + 4/8 (the addendum said 10 of 15; the one-cell difference is the band rule, not the
+  detection). Harness runs (golden catalog, pinned skeleton, 20 s, ×3): golden cells **8 / 12 / 12**,
+  band share **67–100%**, mean period **4.5–5.2 (dp1) / 5.0–6.7 (dp2)** — inside P4–P7 in every run,
+  against the pre-tuning engine's 13 cells parked at 7.5/8.0. Residue 6–8 h, teacher gaps 221–269,
+  adjacency 82–114: all inside the Phase-5 noise band, so the anchor costs the higher tiers nothing.
+  **Position was the differentiator and position is fixed; count is not** (12 vs the gate's ≥13, gold's
+  15). The gap is structural and known: gold's dp2 composites lean on the biweekly CAS/EE cells, which
+  the plan deliberately left to the pinned fixtures rather than to detection. A count-*rewarding* tier
+  would close it, and would be wrong — it would buy golden cells with slots, which outrank them six
+  tiers up. An off-anchor control run confirms the anchor is what does the work: without it the board
+  still assembles 11 golden cells, but at mean period 3.4 and 50% band share (accidental, badly placed).
 - 2026-07-14 (bench bar re-measured, dp2 46 → ≤ 47): the dp2 = 46 pin was recorded as "the shipped
   engine reliably reaches 46". Re-measuring the **pre-tuning** engine at its shipped LNS seed produced
   **47** on one run and 46 on the next, and a third seed left an hour unplaced. The search is

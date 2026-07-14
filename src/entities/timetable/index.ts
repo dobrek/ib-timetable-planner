@@ -21,6 +21,7 @@ export * from "./model/generation/deficits";
 export * from "./model/generation/verify";
 export * from "./model/generation/occupied-slots";
 export * from "./model/generation/objective";
+export * from "./model/generation/golden-sets";
 export * from "./model/generation/run";
 // Only the engine's public surface — not test-only internals (maxWeightCliqueWeight,
 // backboneCliques, …), which the slice's own tests import relatively.

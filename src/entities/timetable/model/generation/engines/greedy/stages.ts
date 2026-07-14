@@ -1,13 +1,14 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { cellKey } from "../../../collision/cell-key";
+import { GOLDEN_BAND } from "../../golden-sets";
 import { shuffled } from "../../rng";
 import type { Board, Row } from "./board";
 import type { Problem } from "./problem";
 
 /**
  * The construction and descent stages of one attempt, each a pure step over `(board, problem, ctx)`.
- * Stages 1–5 build a complete, valid board; stages 6–7 polish its slot count and day-edge shape.
+ * Stages 0–5 build a complete, valid board; stages 6–7 polish its slot count and day-edge shape.
  * The board mutation hot path stays imperative on purpose — the declarative-pipeline lesson applies
  * to pure selection helpers (`candidatesFor`), not to the eviction-chain bookkeeping below.
  */
@@ -53,6 +54,53 @@ const EJECTION_DEPTH_REPAIR = 2;
 const EJECTION_DEPTH_DESCENT = 3;
 /** Per round, descent only tries to empty this many least-occupied cells (a work bound per pass). */
 const DESCENT_CELL_CAP = 15;
+
+/**
+ * Stage 0 — golden anchors: seat each detected cover set as a whole cell inside the P4–P7 band, best
+ * coverage first (construction only, never LNS — an LNS round repairs a board that already has them).
+ *
+ * A golden cell is worth having only where the expert puts it: mid-day. Left to the general stages it
+ * lands wherever the scan order reaches it — the pre-tuning engine assembled 13 of them and parked
+ * them at periods 7.5/8.0, where a full-cohort cell buys nothing (everyone is in class, but it is the
+ * last hour anyway). Seating them first is what puts them in the band; `goldenBandDistance` (the last
+ * objective tier) is what keeps them there through the LNS.
+ *
+ * Strictly best-effort, per G2 ("golden slots are found, not manufactured"): a cell takes the set only
+ * if EVERY member still owing hours fits it, and a set that will not seat anywhere is simply dropped.
+ * It may never cost a higher tier — so it places hours the board owes anyway, into a band it would
+ * otherwise fill with the same hours in a worse order.
+ */
+export const anchorGoldenSets = (board: Board, problem: Problem, ctx: AttemptContext): void => {
+  for (const cohort of ctx.cohortOrder) {
+    for (const set of problem.goldenSets[cohort]) {
+      for (const { d, p } of bandCells(problem, ctx)) {
+        const members = [...set]
+          .map((courseId) => problem.courseById.get(courseId))
+          .filter((course) => course !== undefined)
+          .filter((course) => (board.remaining.get(course.id) ?? 0) > 0);
+        if (members.length === 0) break; // the set is fully placed — on to the next one
+        const weeks = members.map((course) => board.fitsAt(cohort, course, d, p));
+        if (weeks.some((week) => week === null)) continue; // not a cell this set can have
+        members.forEach((course, index) => {
+          const week = weeks[index];
+          if (week) placeDeficit(board, cohort, course.id, d, p, week);
+        });
+      }
+    }
+  }
+};
+
+/** The band's cells, days shuffled so the anchors do not all pile onto Monday across attempts. */
+const bandCells = (problem: Problem, ctx: AttemptContext): { d: number; p: number }[] => {
+  const { days, periods } = problem.snapshot;
+  const cells: { d: number; p: number }[] = [];
+  for (const d of shuffled(range(1, days), ctx.rng)) {
+    for (let p = GOLDEN_BAND.first; p <= Math.min(GOLDEN_BAND.last, periods); p++) cells.push({ d, p });
+  }
+  return cells;
+};
+
+const range = (from: number, to: number): number[] => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
 /** Stage 1 — backbone: lay one clique-course hour per cell (construction only, never LNS). */
 export const constructBackbone = (board: Board, problem: Problem, ctx: AttemptContext): void => {

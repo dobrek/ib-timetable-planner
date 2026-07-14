@@ -5,6 +5,7 @@ import {
   compareObjectives,
   countDoublesDeficit,
   countFridayTail,
+  countGoldenBandDistance,
   countInteriorHoles,
   countLateStarts,
   countSoftHits,
@@ -14,7 +15,7 @@ import {
   SEARCH_TIERS,
 } from "./objective";
 
-/** The 9-tuple, with every tier below `slots` defaulting to 0 so a case names only what it tests. */
+/** The 10-tuple, with every tier below `slots` defaulting to 0 so a case names only what it tests. */
 const obj = (
   unplaced: number,
   holes: number,
@@ -25,7 +26,19 @@ const obj = (
   doublesDeficit = 0,
   lateStarts = 0,
   fridayTail = 0,
-): Objective => [unplaced, holes, slots, teacherHoles, softHits, studentHoles, doublesDeficit, lateStarts, fridayTail];
+  goldenBandDistance = 0,
+): Objective => [
+  unplaced,
+  holes,
+  slots,
+  teacherHoles,
+  softHits,
+  studentHoles,
+  doublesDeficit,
+  lateStarts,
+  fridayTail,
+  goldenBandDistance,
+];
 
 /** A placed course-hour row (the shape `countStudentHoles` scores over). */
 const row = (courseId: string, day: number, period: number, week: PlacementWeek = "both") => ({
@@ -264,6 +277,49 @@ describe("countLateStarts (tier 8)", () => {
   it("sums independent days and scores a biweekly lane once", () => {
     // Day 1 starts at P2 (1) and day 2 at P4 (3), both on week a only → 4.
     expect(countLateStarts([row("c", 1, 2, "a"), row("d", 2, 4, "a")])).toBe(4);
+  });
+});
+
+describe("countGoldenBandDistance (tier 10)", () => {
+  const studentsOf = (entries: Record<string, string[]>) => new Map(Object.entries(entries));
+  /** English A + English B in one cell: together the whole 4-student cohort. */
+  const englishPair = studentsOf({ "en-a": ["s1", "s2"], "en-b": ["s3", "s4"] });
+  const cellAt = (period: number) => [row("en-a", 1, period), row("en-b", 1, period)];
+
+  it("costs nothing for a golden cell inside the P4–P7 band", () => {
+    expect(countGoldenBandDistance(englishPair, 4, cellAt(5))).toBe(0);
+  });
+
+  it("charges the distance to the band, and charges a later cell more (the day-tail failure)", () => {
+    // P8 is one period past the band, in each of the two week lanes → 2. P10 is three → 6.
+    expect(countGoldenBandDistance(englishPair, 4, cellAt(8))).toBe(2);
+    expect(countGoldenBandDistance(englishPair, 4, cellAt(10))).toBeGreaterThan(
+      countGoldenBandDistance(englishPair, 4, cellAt(8)),
+    );
+  });
+
+  it("charges an early cell too — the band is mid-day, not merely 'not the tail'", () => {
+    expect(countGoldenBandDistance(englishPair, 4, cellAt(1))).toBe(6);
+  });
+
+  it("ignores a cell that does not cover the whole cohort (near-golden is the analyzer's business)", () => {
+    // en-a alone serves 2 of the 4 students — no coverage, no opinion, wherever it sits.
+    expect(countGoldenBandDistance(englishPair, 4, [row("en-a", 1, 10)])).toBe(0);
+  });
+
+  it("is count-neutral: assembling a second golden cell in the band adds nothing to beat", () => {
+    const one = countGoldenBandDistance(englishPair, 4, cellAt(5));
+    const two = countGoldenBandDistance(englishPair, 4, [...cellAt(5), row("en-a", 2, 6), row("en-b", 2, 6)]);
+    expect(two).toBe(one); // both 0 — the tier only ever moves cells inward, never manufactures them
+  });
+
+  it("scores each week lane separately — a biweekly cell counts once", () => {
+    const rows = [row("en-a", 1, 9, "a"), row("en-b", 1, 9, "a")];
+    expect(countGoldenBandDistance(englishPair, 4, rows)).toBe(2);
+  });
+
+  it("returns 0 for an empty cohort roster", () => {
+    expect(countGoldenBandDistance(englishPair, 0, cellAt(10))).toBe(0);
   });
 });
 

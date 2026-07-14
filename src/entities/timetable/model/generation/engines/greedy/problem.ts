@@ -2,6 +2,7 @@ import type { Cohort } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { cellKey } from "../../../collision/cell-key";
 import { deriveGenerationDeficits } from "../../deficits";
+import { deriveGoldenSets } from "../../golden-sets";
 import { countOccupiedSlots } from "../../occupied-slots";
 import type { CourseDeficit, GeneratorSnapshot } from "../../types";
 
@@ -33,6 +34,8 @@ export type Problem = {
   cellOrder: { d: number; p: number }[];
   /** Per cohort: near-max-weight conflict cliques (backbone candidates, non-flagged). */
   backbones: Record<Cohort, Set<string>[]>;
+  /** Per cohort: full-cohort cover sets, best coverage first — the golden slots to seat mid-day. */
+  goldenSets: Record<Cohort, Set<string>[]>;
   /** Per cohort: deficits the attempt must place (net of pins and parked coverage). */
   deficits: Record<Cohort, CourseDeficit[]>;
   /** Per cohort: occupied slots before generation (pins only). */
@@ -63,6 +66,12 @@ export const buildProblem = (snapshot: GeneratorSnapshot): Problem => {
     backbones: {
       dp1: backboneCliques(snapshot.cohorts.dp1.courses, flagged),
       dp2: backboneCliques(snapshot.cohorts.dp2.courses, flagged),
+    },
+    // Flagged courses are filtered out here rather than inside the detector: they live under the
+    // day-edge rule, so one can never anchor a mid-day band however well it covers the cohort.
+    goldenSets: {
+      dp1: deriveGoldenSets(snapshot.cohorts.dp1.courses.filter((course) => !flagged.has(course.id))),
+      dp2: deriveGoldenSets(snapshot.cohorts.dp2.courses.filter((course) => !flagged.has(course.id))),
     },
     deficits: {
       dp1: cohortDeficits(snapshot, "dp1"),

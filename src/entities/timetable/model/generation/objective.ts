@@ -1,8 +1,9 @@
 import type { Cohort, PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
-import { expandLanes, laneStats } from "../analysis/lanes";
+import { expandLanes, laneStats, lanesOf } from "../analysis/lanes";
 import { buildAvailabilityIndex } from "../availability-index";
 import { cellKey } from "../collision/cell-key";
+import { GOLDEN_BAND } from "./golden-sets";
 import { countOccupiedSlots } from "./occupied-slots";
 import type { CourseDeficit, GeneratedPlacement, GeneratorSnapshot } from "./types";
 
@@ -22,7 +23,7 @@ const COHORT_ORDER: Cohort[] = ["dp1", "dp2"];
 
 /** The lexicographic objective tuple, compared tier-by-tier (smaller is better on every tier):
  *  `[unplacedTotal, holes, totalSlots, teacherHoles, softHits, studentHoles, doublesDeficit,
- *  lateStarts, fridayTail]`. */
+ *  lateStarts, fridayTail, goldenBandDistance]`. */
 export type Objective = [
   unplacedTotal: number,
   holes: number,
@@ -33,10 +34,16 @@ export type Objective = [
   doublesDeficit: number,
   lateStarts: number,
   fridayTail: number,
+  goldenBandDistance: number,
 ];
 
 /** A scored board: its placements, objective tuple, per-cohort slots/unplaced, and the per-course
- *  hours still unplaced — with `placements`, the full state an LNS round rehydrates. */
+ *  hours still unplaced — with `placements`, the full state an LNS round rehydrates.
+ *
+ *  `objective` is only meaningful up to the tier count it was scored with (see `scoreCandidate`'s
+ *  `tiers`): a candidate scored for a search round carries zeros below the prefix, so comparing it
+ *  against a fully-scored one on those tiers would read a board with no shape cost at all. Compare
+ *  candidates at the tier count they were scored with, or re-score. */
 export type Candidate = {
   placements: GeneratedPlacement[];
   objective: Objective;
@@ -92,14 +99,20 @@ export const scoreCandidate = (
   snapshot: GeneratorSnapshot,
   generated: GeneratedPlacement[],
   remaining: Map<string, number>,
+  tiers: number = Number.POSITIVE_INFINITY,
 ): Candidate => {
-  const { teacherKeysOf, studentsOf, softCells } = derivationsOf(snapshot);
+  const { teacherKeysOf, studentsOf, softCells, rosterOf } = derivationsOf(snapshot);
+  // The tiers below the search prefix are computed only when the caller will actually compare them
+  // (`SEARCH_TIERS`): they cost real time in the LNS hot loop — golden coverage unions a roster per
+  // cell — and a round that cannot be steered by them has no use for the number.
+  const polish = tiers > SEARCH_TIERS;
   const slots = {} as Record<Cohort, number>;
   const unplaced = {} as Record<Cohort, CourseDeficit[]>;
   let holes = 0;
   let studentHoles = 0;
   let lateStarts = 0;
   let fridayTail = 0;
+  let goldenBandDistance = 0;
   /** Every row of BOTH cohorts (pins + generated) — the teacher tiers span cohorts, because a
    *  teacher's working day does (16 of the 17 teach in both). */
   const boardRows: BoardRow[] = [];
@@ -112,8 +125,11 @@ export const scoreCandidate = (
       .map((c) => ({ courseId: c.id, missing: remaining.get(c.id) ?? 0 }));
     holes += countInteriorHoles(rows, snapshot.days);
     studentHoles += laneHoles(rows, (row) => studentsOf.get(row.courseId) ?? []);
-    lateStarts += countLateStarts(rows);
-    fridayTail += countFridayTail(rows, snapshot.days);
+    if (polish) {
+      lateStarts += countLateStarts(rows);
+      fridayTail += countFridayTail(rows, snapshot.days);
+      goldenBandDistance += countGoldenBandDistance(studentsOf, rosterOf[cohort], rows);
+    }
     boardRows.push(...rows);
   }
 
@@ -129,9 +145,10 @@ export const scoreCandidate = (
     laneHoles(boardRows, (row) => teacherKeysOf.get(row.courseId) ?? []),
     softHitsOf(teacherKeysOf, boardRows, softCells),
     studentHoles,
-    countDoublesDeficit(boardRows),
+    polish ? countDoublesDeficit(boardRows) : 0,
     lateStarts,
     fridayTail,
+    goldenBandDistance,
   ];
   return { placements: generated, objective, slots, unplaced, remaining: new Map(remaining) };
 };
@@ -142,6 +159,8 @@ type Derivations = {
   teacherKeysOf: Map<string, string[]>;
   studentsOf: Map<string, string[]>;
   softCells: Map<string, Set<string>>;
+  /** Each cohort's whole roster size — the bar a cell's coverage must reach to be golden. */
+  rosterOf: Record<Cohort, number>;
 };
 
 const derivationCache = new WeakMap<GeneratorSnapshot, Derivations>();
@@ -150,10 +169,13 @@ const derivationsOf = (snapshot: GeneratorSnapshot): Derivations => {
   const cached = derivationCache.get(snapshot);
   if (cached) return cached;
   const courses = COHORT_ORDER.flatMap((cohort) => snapshot.cohorts[cohort].courses);
+  const rosterSize = (cohort: Cohort): number =>
+    new Set(snapshot.cohorts[cohort].courses.flatMap((course) => course.studentKeys)).size;
   const derivations: Derivations = {
     teacherKeysOf: new Map(courses.map((course) => [course.id, course.teacherKeys])),
     studentsOf: new Map(courses.map((course) => [course.id, course.studentKeys])),
     softCells: buildAvailabilityIndex(snapshot.availability).softUnavailableByTeacher,
+    rosterOf: { dp1: rosterSize("dp1"), dp2: rosterSize("dp2") },
   };
   derivationCache.set(snapshot, derivations);
   return derivations;
@@ -254,6 +276,44 @@ export const countLateStarts = (rows: BoardRow[]): number =>
  */
 export const countFridayTail = (rows: BoardRow[], days: number): number =>
   cohortLanes(rows.filter((row) => row.day === days)).reduce((total, lane) => total + laneStats(lane.periods).last, 0);
+
+/**
+ * How far the cohort's golden cells sit from the mid-day band (objective tier 10, the last one). A
+ * golden cell is one whose parallel occupants cover the WHOLE roster in that week lane — nobody has a
+ * window in it. The expert assembles ~15 of them and plants them mid-day (mean period 4.6/5.75); the
+ * pre-tuning engine assembled 13 by accident and left them at the day tail (7.5/8.0), where covering
+ * the cohort buys nothing, because the hour is the last one regardless.
+ *
+ * **Count-neutral, by construction**: the tier sums the band distance of the golden cells that exist
+ * and never rewards making more of them. That is G2 — golden slots are *found* in the enrolment, not
+ * manufactured — and it is also what keeps the tier free: assembling a cell to score here would cost
+ * a slot, and a slot outranks it six tiers up. It only ever moves an existing cell inward.
+ */
+export const countGoldenBandDistance = (
+  studentsOf: Map<string, string[]>,
+  roster: number,
+  rows: BoardRow[],
+): number => {
+  if (roster === 0) return 0;
+  const coverage = new Map<string, Set<string>>();
+  for (const row of rows) {
+    for (const weekLane of lanesOf(row.week)) {
+      const key = `${row.day}|${row.period}|${weekLane}`;
+      const students = coverage.get(key) ?? new Set<string>();
+      for (const student of studentsOf.get(row.courseId) ?? []) students.add(student);
+      coverage.set(key, students);
+    }
+  }
+  let distance = 0;
+  for (const [key, students] of coverage) {
+    if (students.size < roster) continue; // not a golden cell — the tier has no opinion on it
+    distance += bandDistance(Number(key.split("|")[1]));
+  }
+  return distance;
+};
+
+/** Periods between the cell and the mid-day band — 0 anywhere inside it. */
+const bandDistance = (period: number): number => Math.max(0, GOLDEN_BAND.first - period, period - GOLDEN_BAND.last);
 
 /** The cohort's own `(day, week-lane)` lanes: one constant entity key, so `expandLanes` groups by
  *  day and week alone (the caller already scopes `rows` to one cohort). */

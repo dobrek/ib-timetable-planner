@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
 import { course } from "../__fixtures__/builders";
-import { compareObjectives, countInteriorHoles, countStudentHoles, type Objective } from "./objective";
+import {
+  compareObjectives,
+  countInteriorHoles,
+  countSoftHits,
+  countStudentHoles,
+  countTeacherHoles,
+  type Objective,
+} from "./objective";
 
-const obj = (unplaced: number, holes: number, slots: number, studentHoles: number): Objective => [
-  unplaced,
-  holes,
-  slots,
-  studentHoles,
-];
+/** The 6-tuple, with every tier below `slots` defaulting to 0 so a case names only what it tests. */
+const obj = (
+  unplaced: number,
+  holes: number,
+  slots: number,
+  teacherHoles = 0,
+  softHits = 0,
+  studentHoles = 0,
+): Objective => [unplaced, holes, slots, teacherHoles, softHits, studentHoles];
 
 /** A placed course-hour row (the shape `countStudentHoles` scores over). */
 const row = (courseId: string, day: number, period: number, week: PlacementWeek = "both") => ({
@@ -22,7 +32,25 @@ describe("compareObjectives", () => {
   it("lets one fewer slot win despite a large studentHoles disadvantage (the scalar's bug)", () => {
     // Scalar score: 49*100 + 500 = 5400 vs 50*100 + 0 = 5000 — the scalar wrongly preferred the
     // 50-slot board. The tuple compares the slot tier before compactness, so 49 slots wins.
-    expect(compareObjectives(obj(0, 0, 49, 500), obj(0, 0, 50, 0))).toBeLessThan(0);
+    expect(compareObjectives(obj(0, 0, 49, 0, 0, 500), obj(0, 0, 50, 0, 0, 0))).toBeLessThan(0);
+  });
+
+  it("keeps the slot count dominant over the people tiers (5.2 / 5.3: slots outrank both)", () => {
+    // The expert took 3 soft hits, and 50 teacher windows, rather than pay one extra slot.
+    expect(compareObjectives(obj(0, 0, 49, 50, 3), obj(0, 0, 50, 0, 0))).toBeLessThan(0);
+  });
+
+  it("ranks teacher gaps above soft-availability hits (G4)", () => {
+    expect(compareObjectives(obj(0, 0, 49, 0, 3), obj(0, 0, 49, 1, 0))).toBeLessThan(0);
+  });
+
+  it("ranks soft hits above student gaps (her 0 soft hits beside ~600 student gaps)", () => {
+    expect(compareObjectives(obj(0, 0, 49, 0, 0, 600), obj(0, 0, 49, 0, 1, 0))).toBeLessThan(0);
+  });
+
+  it("costs a soft hit and a teacher hole exactly one tier step each — neither can outbid a slot", () => {
+    const oneSlotWorse = obj(0, 0, 50, 0, 0);
+    expect(compareObjectives(obj(0, 0, 49, 999, 999), oneSlotWorse)).toBeLessThan(0);
   });
 
   it("ranks completeness above every other tier", () => {
@@ -60,7 +88,71 @@ describe("countInteriorHoles (tier 2)", () => {
   });
 });
 
-describe("countStudentHoles (tier 4)", () => {
+describe("countTeacherHoles (tier 4)", () => {
+  const teachers = (entries: Record<string, string[]>) => new Map(Object.entries(entries));
+
+  it("counts a teacher's idle period between two lessons — in BOTH week lanes for a `both` row", () => {
+    // t1 teaches p1 and p3 on day 1; the free p2 is a window in week A and in week B → 2.
+    expect(countTeacherHoles(teachers({ c1: ["t1"], c2: ["t1"] }), [row("c1", 1, 1), row("c2", 1, 3)])).toBe(2);
+  });
+
+  it("scores a biweekly (single-week) lane once", () => {
+    expect(countTeacherHoles(teachers({ c1: ["t1"], c2: ["t1"] }), [row("c1", 1, 1, "a"), row("c2", 1, 3, "a")])).toBe(
+      1,
+    );
+  });
+
+  it("counts the gap once per co-teacher of a co-taught course", () => {
+    expect(
+      countTeacherHoles(teachers({ c1: ["t1", "t2"], c2: ["t1", "t2"] }), [row("c1", 1, 1, "a"), row("c2", 1, 3, "a")]),
+    ).toBe(2);
+  });
+
+  it("returns 0 for a back-to-back day and ignores different teachers' days", () => {
+    expect(countTeacherHoles(teachers({ c1: ["t1"], c2: ["t1"] }), [row("c1", 1, 1), row("c2", 1, 2)])).toBe(0);
+    expect(countTeacherHoles(teachers({ c1: ["t1"], c2: ["t2"] }), [row("c1", 1, 1), row("c2", 1, 3)])).toBe(0);
+  });
+
+  it("spans cohorts — the rows are the merged board, so a cross-cohort gap counts", () => {
+    // c1 is a dp1 course, c2 a dp2 one; t1 teaches both and idles through p2.
+    expect(countTeacherHoles(teachers({ c1: ["t1"], c2: ["t1"] }), [row("c1", 2, 1, "a"), row("c2", 2, 3, "a")])).toBe(
+      1,
+    );
+  });
+});
+
+describe("countSoftHits (tier 5)", () => {
+  const teachers = (entries: Record<string, string[]>) => new Map(Object.entries(entries));
+  const soft = (teacherKey: string, day: number, period: number) =>
+    ({ teacherKey, day, period, severity: "soft" }) as const;
+
+  it("counts one hit per (row, teacher) landing on a soft-no cell", () => {
+    expect(countSoftHits(teachers({ c1: ["t1"] }), [row("c1", 1, 1)], [soft("t1", 1, 1)])).toBe(1);
+  });
+
+  it("counts a co-taught row once per affected teacher", () => {
+    const availability = [soft("t1", 1, 1), soft("t2", 1, 1)];
+    expect(countSoftHits(teachers({ c1: ["t1", "t2"] }), [row("c1", 1, 1)], availability)).toBe(2);
+  });
+
+  it("is week-agnostic — a biweekly row on a soft cell is one hit, not two", () => {
+    expect(countSoftHits(teachers({ c1: ["t1"] }), [row("c1", 1, 1, "a")], [soft("t1", 1, 1)])).toBe(1);
+  });
+
+  it("ignores other cells, other teachers, and strong rows (those are hard-blocked upstream)", () => {
+    expect(countSoftHits(teachers({ c1: ["t1"] }), [row("c1", 1, 2)], [soft("t1", 1, 1)])).toBe(0);
+    expect(countSoftHits(teachers({ c1: ["t2"] }), [row("c1", 1, 1)], [soft("t1", 1, 1)])).toBe(0);
+    expect(
+      countSoftHits(
+        teachers({ c1: ["t1"] }),
+        [row("c1", 1, 1)],
+        [{ teacherKey: "t1", day: 1, period: 1, severity: "strong" }],
+      ),
+    ).toBe(0);
+  });
+});
+
+describe("countStudentHoles (tier 6)", () => {
   const shared = (...students: string[]) => course("x", "t", students);
 
   it("expands a `both`-week row into both concrete lanes and counts each", () => {

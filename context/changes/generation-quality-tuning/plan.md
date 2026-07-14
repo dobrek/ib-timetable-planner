@@ -756,28 +756,28 @@ after Phase 2 — documented, expected, local-only.
 
 #### Automated
 
-- [x] 3.1 `pnpm test` passes (constraints, fitsAt deltas, verify escalation, fuzz green)
-- [x] 3.2 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 3.1 `pnpm test` passes (constraints, fitsAt deltas, verify escalation, fuzz green) — 5f1b10a
+- [x] 3.2 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean — 5f1b10a
 
 #### Manual
 
-- [x] 3.3 Harness run: sameDaySplits = 0, spans ≤ 8, streaks ≤ 6 on generated board
-- [x] 3.4 Gold board verifies clean against the new rules
-- [x] 3.5 Unplaced residue recorded (courses named if > ~2)
-- [x] 3.6 Manual-edit split shows warning, not block
+- [x] 3.3 Harness run: sameDaySplits = 0, spans ≤ 8, streaks ≤ 6 on generated board — 5f1b10a
+- [x] 3.4 Gold board verifies clean against the new rules — 5f1b10a
+- [x] 3.5 Unplaced residue recorded (courses named if > ~2) — 5f1b10a
+- [x] 3.6 Manual-edit split shows warning, not block — 5f1b10a
 
 ### Phase 4: People Tiers — teacherHoles + softHits
 
 #### Automated
 
-- [ ] 4.1 `pnpm test` passes with 6-tuple fixtures
-- [ ] 4.2 `pnpm bench:generation` shows no material throughput regression
-- [ ] 4.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 4.1 `pnpm test` passes with 6-tuple fixtures
+- [x] 4.2 `pnpm bench:generation` shows no material throughput regression
+- [x] 4.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
 
 #### Manual
 
-- [ ] 4.4 Harness run: teacher gaps → ≤ 148, softHits = 0, totalSlots not worse
-- [ ] 4.5 studentHoles stays within the expert's revealed band
+- [x] 4.4 Harness run: teacher gaps → ≤ 148, softHits = 0, totalSlots not worse
+- [x] 4.5 studentHoles stays within the expert's revealed band
 
 ### Phase 5: Shape Tiers — doublesDeficit + lateStarts + fridayTail
 

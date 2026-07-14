@@ -116,7 +116,7 @@ export const createGreedyEngine = (tuning: GreedyTuning = {}): GeneratePlan => {
         descentUntil: Date.now(), // no spin — one productive descent pass per LNS round
         stopped,
         maybeYield,
-        lns: { incumbent: best, destroy: round % 2 === 0 ? "day" : "random", rng: lnsRng },
+        lns: { incumbent: best, destroy: DESTROY_OPERATORS[round % DESTROY_OPERATORS.length], rng: lnsRng },
       });
       if (compareObjectives(candidate.objective, best.objective) < 0) {
         best = candidate;
@@ -143,7 +143,24 @@ const isConverged = (candidate: Candidate): boolean => candidate.objective[0] ==
 
 /** One LNS round's inputs: the incumbent to repair, which destroy operator to apply, and the
  *  shared operator PRNG (so successive rounds diverge deterministically). */
-type LnsRound = { incumbent: Candidate; destroy: "day" | "random"; rng: () => number };
+type LnsRound = { incumbent: Candidate; destroy: DestroyOperator; rng: () => number };
+
+/**
+ * The destroy operators, cycled round-robin. An LNS objective tier can only *filter* the boards the
+ * neighbourhood produces — so each operator exists to make some tier's improving moves reachable:
+ * `day` and `random` free whole cells (the completeness/slot tiers), `teacher` frees one teacher's
+ * day across BOTH cohorts so the repair can re-seat those hours compactly (`teacherHoles`, and with
+ * them the soft-availability hits hiding in the same rows). Without the teacher operator the teacher
+ * tier barely moved the real board (246 gap-slots): the rows it wanted relocated were never the ones
+ * destroy happened to pick.
+ *
+ * The cycle is deliberately 4 cell-shaped rounds to 1 people-shaped one, mirroring the tuple's own
+ * priorities: completeness and the slot count outrank teacher compactness, so the neighbourhood must
+ * not spend its budget on a tier that can never outbid them. A flat 1-in-3 teacher cadence measurably
+ * cost slots and completeness on the seed catalog for teacher gains the tuple ranks below both.
+ */
+const DESTROY_OPERATORS = ["random", "day", "random", "day", "teacher"] as const;
+type DestroyOperator = (typeof DESTROY_OPERATORS)[number];
 
 type AttemptOptions = {
   /** Attempt seed (1 = deterministic first board); ignored in LNS mode. */
@@ -200,7 +217,7 @@ const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candi
     board.remaining.clear();
     for (const [courseId, missing] of lns.incumbent.remaining) board.remaining.set(courseId, missing);
     for (const row of lns.incumbent.placements) board.place(row.cohort, row.courseId, row.day, row.period, row.week);
-    for (const row of destroyTargets(lns.destroy, board.placements, rng)) {
+    for (const row of destroyTargets(lns.destroy, problem, board.placements, rng)) {
       board.evict(row.cohort, row.courseId, row.day, row.period, row.week);
       board.remaining.set(row.courseId, (board.remaining.get(row.courseId) ?? 0) + 1);
     }
@@ -267,11 +284,13 @@ const sampleEdgeCell = (days: number, periods: number, rng: () => number): Set<s
 
 /**
  * The generated rows an LNS destroy operator removes (references into `generated`): a whole random
- * `(cohort, day)` for `"day"`, or a random ~15% slice for `"random"`. Pins are never generated
- * rows, so they are inherently untouched. Alternating the two operators mixes coarse and fine moves.
+ * `(cohort, day)` for `"day"`, one random teacher's whole day across BOTH cohorts for `"teacher"`,
+ * or a random ~15% slice for `"random"`. Pins are never generated rows, so they are inherently
+ * untouched. Cycling the three mixes coarse, people-shaped, and fine moves.
  */
 const destroyTargets = (
-  destroy: "day" | "random",
+  destroy: DestroyOperator,
+  problem: Problem,
   generated: GeneratedPlacement[],
   rng: () => number,
 ): GeneratedPlacement[] => {
@@ -281,6 +300,19 @@ const destroyTargets = (
     if (days.length === 0) return [];
     const day = pickFrom(days, rng);
     return generated.filter((row) => row.cohort === cohort && row.day === day);
+  }
+  if (destroy === "teacher") {
+    // A teacher's day is one day across both cohorts — destroying it per cohort would leave the
+    // sibling half pinning the very gaps the repair is trying to close.
+    const teaches = (row: GeneratedPlacement, teacherKey: string): boolean =>
+      problem.courseById.get(row.courseId)?.teacherKeys.includes(teacherKey) ?? false;
+    const teachers = [...new Set(generated.flatMap((row) => problem.courseById.get(row.courseId)?.teacherKeys ?? []))];
+    if (teachers.length === 0) return [];
+    const teacher = pickFrom(teachers, rng);
+    const days = [...new Set(generated.filter((row) => teaches(row, teacher)).map((row) => row.day))];
+    if (days.length === 0) return [];
+    const day = pickFrom(days, rng);
+    return generated.filter((row) => row.day === day && teaches(row, teacher));
   }
   const count = Math.max(1, Math.round(generated.length * 0.15));
   return shuffled(generated, rng).slice(0, count);

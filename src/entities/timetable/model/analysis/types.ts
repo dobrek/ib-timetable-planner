@@ -109,6 +109,48 @@ export type ThinSlot = {
   position: SlotPosition;
 };
 
+/** A cell whose parallel occupants together serve (almost) the whole cohort — the expert's
+ *  "Golden Slot": at that moment absolutely every student is in class.
+ *
+ *  `missing` is the cohort's **worst week lane**, not the union of the two: a cell covering everyone
+ *  in week A but half the cohort in week B is not a moment when every student is in class — it is
+ *  that only every other week. Golden ⇔ `missing === 0`. */
+export type GoldenCell = {
+  day: number;
+  period: number;
+  /** Distinct courses running in parallel there, across both lanes — `>= 3` makes it a *composite*
+   *  (the expert assembles those from "other subjects"; the engine, pre-tuning, never did). */
+  courses: number;
+  /** Students served in the worst lane — `cohortStudents − missing`. */
+  students: number;
+  missing: number;
+  /** True when the cell sits inside the mid-day band. Carried per cell so the report can localize
+   *  the day-tail failure, not just count it. */
+  inBand: boolean;
+};
+
+/** The coverage census (R21). The discriminating signal is **position, not count**: expert and engine
+ *  form near the same number of golden cells (15 vs 13 — English A+B and TOK are the only
+ *  student-disjoint exhaustive families, so they arise incidentally), but the expert centres them
+ *  mid-day where the engine parks them at the day tail (mean period 4.6/5.75 vs 7.5/8.0). */
+export type GoldenCensusFeatures = {
+  golden: GoldenCell[];
+  /** Cells short of full coverage by at most `missShare` of the cohort — 1–2 students, per the expert. */
+  nearGolden: GoldenCell[];
+  /** Golden cells assembled from 3+ parallel courses. */
+  composites: number;
+  /** Mean period of the golden cells — the headline number; `0` when there are none. */
+  meanPeriod: number;
+  goldenInBand: number;
+  /** `goldenInBand / golden.length`; `0` when there are no golden cells (an absent peak is not a
+   *  perfectly-placed one). */
+  bandShare: number;
+  /** The mid-day band the golden cells should sit in, echoed so a report renders its own label. */
+  band: { first: number; last: number };
+  /** Share of the cohort a near-golden cell may miss (0.1 = the expert's G1 answer). */
+  missShare: number;
+};
+
 /** Slot-census metrics — distinct `(day, period)` cells, counted week-agnostically. */
 export type SlotCensusFeatures = {
   cohortStudents: number;
@@ -117,6 +159,8 @@ export type SlotCensusFeatures = {
   /** Share of the cohort below which a slot counts as thin (0.25 = the report's convention). */
   thinSlotShare: number;
   thinSlots: ThinSlot[];
+  /** The other tail of the same lens: the cells serving *everyone*. */
+  goldenCensus: GoldenCensusFeatures;
 };
 
 /** A-vs-B lane comparison: how symmetric the fortnight is. */

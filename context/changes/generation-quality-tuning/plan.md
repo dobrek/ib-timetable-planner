@@ -783,27 +783,30 @@ after Phase 2 — documented, expected, local-only.
 
 #### Automated
 
-- [x] 5.1 `pnpm test` passes with 9-tuple fixtures
-- [x] 5.2 `pnpm bench:generation` still acceptable
-- [x] 5.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 5.1 `pnpm test` passes with 9-tuple fixtures — 8e8341f
+- [x] 5.2 `pnpm bench:generation` still acceptable — 8e8341f
+- [x] 5.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean — 8e8341f
 
 #### Manual
 
 - [x] 5.4 Harness run: lateStarts = 0, Friday earliest-ending, adjacency/multi-day move toward
-      gold, tiers 1–6 hold
+      gold, tiers 1–6 hold — 8e8341f
 
 ### Phase 6: Golden Slots — Census, Detection, Band Anchor, Bottom Tier
 
 #### Automated
 
-- [ ] 6.1 `pnpm test` passes (census, detection, stage, 10-tuple fixtures)
-- [ ] 6.2 `pnpm bench:generation` still acceptable
-- [ ] 6.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 6.1 `pnpm test` passes (census, detection, stage, 10-tuple fixtures)
+- [x] 6.2 `pnpm bench:generation` still acceptable
+- [x] 6.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
 
 #### Manual
 
-- [ ] 6.4 Gold census reproduces the addendum table (15 golden / mean 4.6–5.75)
-- [ ] 6.5 Harness run: golden ≥ 13, mean period in P4–P7, band share ≥ ⅔, tiers 1–9 hold
+- [x] 6.4 Gold census reproduces the addendum table (15 golden / mean 4.6–5.75)
+- [x] 6.5 Harness run: golden ≥ 13, mean period in P4–P7, band share ≥ ⅔, tiers 1–9 hold
+      — position criteria met (mean in band, band share 67–100%, tiers hold); **count fell short at
+      12**, structurally: gold's dp2 composites lean on the biweekly CAS/EE cells the plan left to
+      pins, and a count-rewarding tier would buy golden cells with slots. See change.md (P6 measured).
 
 ### Phase 7: Acceptance Run + Fixture Workflow Runbook
 

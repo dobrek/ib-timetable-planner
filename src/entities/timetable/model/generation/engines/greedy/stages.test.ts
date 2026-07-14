@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { course } from "../../../__fixtures__/builders";
+import { GOLDEN_BAND } from "../../golden-sets";
 import { mulberry32 } from "../../rng";
 import type { GeneratorSnapshot } from "../../types";
 import { verifyGeneration } from "../../verify";
 import { createBoard } from "./board";
 import { buildProblem } from "./problem";
-import { type AttemptContext, migrateHolesToEdges, repairStragglers } from "./stages";
+import { anchorGoldenSets, type AttemptContext, migrateHolesToEdges, repairStragglers } from "./stages";
 
 /**
  * Worked-example tests for the two hardest-to-read board-mutation helpers, driven through their
@@ -72,6 +73,62 @@ describe("repairStragglers → chainFit (ejection-chain repair)", () => {
     expect(board.placements.filter((r) => r.courseId === "S")).toHaveLength(1);
     // The chain preserved validity — the co-located pair shares a cell but never a teacher/student.
     expect(verifyGeneration(snapshot, board.placements).ok).toBe(true);
+  });
+});
+
+describe("anchorGoldenSets (stage 0 — the mid-day band)", () => {
+  /** English A + English B: disjoint rosters, different teachers — together the whole cohort. */
+  const englishPair = (hours: number) => [
+    { ...hourCourse("en-a", "t1", ["s1", "s2"]), hours },
+    { ...hourCourse("en-b", "t2", ["s3", "s4"]), hours },
+  ];
+
+  it("seats the cover set as one cell inside P4–P7 — never at the day tail the engine used to pick", () => {
+    const snapshot = snapshotOf(1, 10, englishPair(1));
+    const problem = buildProblem(snapshot);
+    const board = createBoard(problem);
+    for (const deficit of problem.deficits.dp1) board.remaining.set(deficit.courseId, deficit.missing);
+
+    anchorGoldenSets(board, problem, attemptCtx());
+
+    const placed = board.placements.filter((row) => row.day === 1);
+    expect(placed.map((row) => row.courseId).sort()).toEqual(["en-a", "en-b"]);
+    expect(new Set(placed.map((row) => row.period)).size).toBe(1); // one cell, both courses
+    expect(placed[0].period).toBeGreaterThanOrEqual(GOLDEN_BAND.first);
+    expect(placed[0].period).toBeLessThanOrEqual(GOLDEN_BAND.last);
+  });
+
+  it("places a set's further hours in further band cells, and stops when the set is done", () => {
+    const snapshot = snapshotOf(5, 10, englishPair(2));
+    const problem = buildProblem(snapshot);
+    const board = createBoard(problem);
+    for (const deficit of problem.deficits.dp1) board.remaining.set(deficit.courseId, deficit.missing);
+
+    anchorGoldenSets(board, problem, attemptCtx());
+
+    expect(board.remaining.get("en-a")).toBe(0);
+    expect(board.remaining.get("en-b")).toBe(0);
+    expect(board.placements).toHaveLength(4); // two hours each, and no hour it does not owe
+    for (const row of board.placements) {
+      expect(row.period).toBeGreaterThanOrEqual(GOLDEN_BAND.first);
+      expect(row.period).toBeLessThanOrEqual(GOLDEN_BAND.last);
+    }
+  });
+
+  it("drops a set it cannot seat rather than forcing it (G2: found, never manufactured)", () => {
+    // The whole band is unavailable to t1 (strong `no`), so the pair can never take a band cell.
+    const snapshot = {
+      ...snapshotOf(1, 10, englishPair(1)),
+      availability: [4, 5, 6, 7].map((period) => ({ teacherKey: "t1", day: 1, period, severity: "strong" as const })),
+    };
+    const problem = buildProblem(snapshot);
+    const board = createBoard(problem);
+    for (const deficit of problem.deficits.dp1) board.remaining.set(deficit.courseId, deficit.missing);
+
+    anchorGoldenSets(board, problem, attemptCtx());
+
+    expect(board.placements).toEqual([]); // nothing anchored — the later stages place these hours
+    expect(board.remaining.get("en-a")).toBe(1);
   });
 });
 

@@ -13,6 +13,7 @@ import { verifyGeneration } from "../../verify";
 import { createBoard } from "./board";
 import { buildProblem, COHORT_ORDER, type Problem } from "./problem";
 import {
+  anchorGoldenSets,
   type AttemptContext,
   constructBackbone,
   descendSlots,
@@ -119,6 +120,7 @@ export const createGreedyEngine = (tuning: GreedyTuning = {}): GeneratePlan => {
     const lnsRng = mulberry32(LNS_SEED);
     let lastImproveAt = Date.now();
     let polishFrom = deadline - config.budgetMs * SHAPE_POLISH_SHARE;
+    let polished = false;
     for (let round = 1; !stopped(); round++) {
       await maybeYield();
       if (stopped()) break;
@@ -127,6 +129,13 @@ export const createGreedyEngine = (tuning: GreedyTuning = {}): GeneratePlan => {
         if (polishing) break;
         polishFrom = Date.now(); // converged early — spend the rest of the budget on shape
         lastImproveAt = Date.now();
+      }
+      if (polishing && !polished) {
+        // The incumbent was scored for a phase-B comparison, so its polish tiers are zeros — the
+        // score it never needed. Re-score it in full or C would measure every candidate against an
+        // incumbent that looks perfectly shaped, and accept nothing.
+        best = scoreCandidate(problem.snapshot, best.placements, best.remaining);
+        polished = true;
       }
       const candidate = await runAttempt(problem, {
         seed: 0,
@@ -272,6 +281,7 @@ const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candi
     }
   }
 
+  if (!lns) anchorGoldenSets(board, problem, ctx); // stage 0 (construction only)
   if (!lns) constructBackbone(board, problem, ctx); // stage 1 (construction only)
   packUsedCells(board, problem, ctx); // stage 2
   repairStragglers(board, problem, ctx); // stage 3
@@ -280,7 +290,7 @@ const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candi
 
   // Checkpoint: construction (stages 1–5) is complete and valid. Score against a COPY (stages 6–7
   // mutate the placements in place; `remaining` is untouched by them) so it survives the comparison.
-  const constructed = scoreCandidate(snapshot, board.placements.slice(), board.remaining);
+  const constructed = scoreCandidate(snapshot, board.placements.slice(), board.remaining, tiers);
 
   await descendSlots(board, problem, ctx); // stage 6
   migrateHolesToEdges(board, problem, ctx); // stage 7
@@ -290,7 +300,7 @@ const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candi
   // (in rare configurations) leave a flagged course boxed; re-judging here upholds the engine's hard
   // invariant — never emit a board the oracle rejects — with construction as the always-valid floor.
   // A no-op on any valid descended board, so default-tuned output is unchanged.
-  const descended = scoreCandidate(snapshot, board.placements, board.remaining);
+  const descended = scoreCandidate(snapshot, board.placements, board.remaining, tiers);
   const preferDescended = compareObjectives(descended.objective, constructed.objective, tiers) <= 0;
   if (preferDescended && verifyGeneration(snapshot, descended.placements).ok) return descended;
   return constructed;

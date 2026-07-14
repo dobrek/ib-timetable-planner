@@ -1,4 +1,5 @@
 import type { PlanComparisonData, PlanDetail } from "../api/load-comparison";
+import { MAX_COMPARE_PLANS } from "../lib/compare-params";
 import { DriftBanner } from "./DriftBanner";
 import { MetricHelp } from "./MetricHelp";
 import { ScoreboardTable } from "./ScoreboardTable";
@@ -19,7 +20,7 @@ import { VerdictBlock } from "./VerdictBlock";
  * Order matters: what-went-wrong (missing plans) → drift banner → rule verdict → the scoreboard.
  * Everything that could make the numbers *lie* is stated before the numbers are shown.
  */
-export default function PlanComparisonPage({ data }: Props) {
+export default function PlanComparisonPage({ data, omittedForCap = 0 }: Props) {
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-2">
@@ -36,6 +37,16 @@ export default function PlanComparisonPage({ data }: Props) {
         </a>
       </header>
 
+      {/* Stated before the numbers, for the same reason the missing-plan and drift notices are: a reader
+          who asked for twelve plans and is shown eight would otherwise read a partial comparison as the
+          whole one. The cap is a reliability bound — see `MAX_COMPARE_PLANS`. */}
+      {omittedForCap > 0 ? (
+        <div role="status" className="rounded-md border p-3 text-sm">
+          Showing the first {MAX_COMPARE_PLANS} plans — {omittedForCap} more {omittedForCap === 1 ? "was" : "were"} left
+          out. Compare fewer plans at a time for a readable scoreboard.
+        </div>
+      ) : null}
+
       {data === null ? (
         <p className="text-muted-foreground text-sm">
           Nothing to compare. Tick two or more plans on the plans list, then press Compare.
@@ -50,6 +61,8 @@ export default function PlanComparisonPage({ data }: Props) {
 type Props = {
   /** `null` when the URL named no loadable plan — an empty state, not an error. */
   data: PlanComparisonData | null;
+  /** How many ids the URL named beyond `MAX_COMPARE_PLANS`. Non-zero renders a truncation notice. */
+  omittedForCap?: number;
 };
 
 function Comparison({ data }: { data: PlanComparisonData }) {

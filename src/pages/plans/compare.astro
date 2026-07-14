@@ -14,7 +14,7 @@ import { createClient } from "@/shared/api";
 // `useUrlSyncedFilters` one.) The author picks the plans on the hub; this page only reports on the ones
 // the URL names. Middleware auto-gates this route — deny-by-default, no allowlist change.
 const supabase = createClient(Astro.request.headers, Astro.cookies);
-const { planIds } = readCompareParams(Astro.url.search);
+const { planIds, omittedForCap } = readCompareParams(Astro.url.search);
 
 const comparison = supabase && planIds.length > 0 ? await loadComparison(supabase, planIds) : null;
 
@@ -47,7 +47,7 @@ const notFound = comparison !== null && comparison.data === null;
     ) : notFound ? (
       <PlanScopedError />
     ) : (
-      <PlanComparisonPage data={data} client:load />
+      <PlanComparisonPage data={data} omittedForCap={omittedForCap} client:load />
     )
   }
 </AppShellLayout>

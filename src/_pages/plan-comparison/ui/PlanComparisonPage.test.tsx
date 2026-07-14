@@ -231,4 +231,21 @@ describe("PlanComparisonPage", () => {
 
     expect(screen.getByText(/Tick two or more plans on the plans list/)).toBeTruthy();
   });
+
+  // The cap is a reliability bound, but a silently shortened comparison is a correctness problem for the
+  // READER: they asked for twelve plans, are shown eight, and nothing on the page says so. Same reason
+  // the missing-plan and drift notices exist — anything that makes the numbers less than they appear is
+  // stated before the numbers.
+  it("says so when the cap shortened the selection", () => {
+    render(<PlanComparisonPage data={cleanPair} omittedForCap={4} />);
+
+    expect(screen.getByText(/Showing the first 8 plans/)).toBeTruthy();
+    expect(screen.getByText(/4 more were left out/)).toBeTruthy();
+  });
+
+  it("stays silent when the selection fit", () => {
+    render(<PlanComparisonPage data={cleanPair} />);
+
+    expect(screen.queryByText(/left out/)).toBeNull();
+  });
 });

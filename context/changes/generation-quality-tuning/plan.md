@@ -743,28 +743,28 @@ after Phase 2 — documented, expected, local-only.
 
 #### Automated
 
-- [x] 2.1 `pnpm test` passes
-- [x] 2.2 `pnpm test:integration` passes (new projection cases included)
-- [x] 2.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 2.1 `pnpm test` passes — 246f925
+- [x] 2.2 `pnpm test:integration` passes (new projection cases included) — 246f925
+- [x] 2.3 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean — 246f925
 
 #### Manual
 
-- [x] 2.4 Harness run (unpinned): unplaced 5 → ≤ 1
-- [x] 2.5 Analyzer shows only the expected gold attribution shift
+- [x] 2.4 Harness run (unpinned): unplaced 5 → ≤ 1 — 246f925
+- [x] 2.5 Analyzer shows only the expected gold attribution shift — 246f925
 
 ### Phase 3: Hard Rules — No Same-Day Split + Teacher Day Span/Streak
 
 #### Automated
 
-- [ ] 3.1 `pnpm test` passes (constraints, fitsAt deltas, verify escalation, fuzz green)
-- [ ] 3.2 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
+- [x] 3.1 `pnpm test` passes (constraints, fitsAt deltas, verify escalation, fuzz green)
+- [x] 3.2 `pnpm check && pnpm lint && pnpm steiger && pnpm build` clean
 
 #### Manual
 
-- [ ] 3.3 Harness run: sameDaySplits = 0, spans ≤ 8, streaks ≤ 6 on generated board
-- [ ] 3.4 Gold board verifies clean against the new rules
-- [ ] 3.5 Unplaced residue recorded (courses named if > ~2)
-- [ ] 3.6 Manual-edit split shows warning, not block
+- [x] 3.3 Harness run: sameDaySplits = 0, spans ≤ 8, streaks ≤ 6 on generated board
+- [x] 3.4 Gold board verifies clean against the new rules
+- [x] 3.5 Unplaced residue recorded (courses named if > ~2)
+- [x] 3.6 Manual-edit split shows warning, not block
 
 ### Phase 4: People Tiers — teacherHoles + softHits
 

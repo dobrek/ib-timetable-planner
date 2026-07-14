@@ -130,11 +130,17 @@ const collectIdsBySeverity = (violations: CollisionViolation[], severity: "block
   return ids;
 };
 
+/** Kinds that never block a manual edit — they warn amber and let the author proceed. The two
+ *  expert-hard rules (`course-day-split`, `teacher-day-shape`) live here on purpose: they are
+ *  inviolable for the GENERATOR (escalated in `verifyGeneration`), while a human editing by hand
+ *  keeps the last word — the `course-day-stacking` precedent. Every OTHER kind blocks, so a new
+ *  kind that forgets this list blocks by default. */
+const WARN_KINDS: CollisionViolation["kind"][] = ["course-day-stacking", "course-day-split", "teacher-day-shape"];
+
 const violationSeverity = (violation: CollisionViolation): "block" | "warn" => {
+  // teacher-unavailable carries its own severity (strong NO blocks, soft NO warns).
   if (violation.kind === "teacher-unavailable") return violation.severity;
-  // The daily-spread cap is advisory; the early-finish edge rule blocks like a collision.
-  if (violation.kind === "course-day-stacking") return "warn";
-  return "block";
+  return WARN_KINDS.includes(violation.kind) ? "warn" : "block";
 };
 
 const collectUnavailableIds = (violations: CollisionViolation[]): Set<string> => {

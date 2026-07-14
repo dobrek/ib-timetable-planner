@@ -170,6 +170,88 @@ describe("verifyGeneration", () => {
     expect(verdict.reasons).toEqual([expect.stringContaining("blocking teacher-unavailable")]);
   });
 
+  it("rejects a same-day split created by generated placements (generator-hard R1)", () => {
+    const board = snapshot({ periods: 6, dp1: { courses: [course("math", "t1")] } });
+
+    const verdict = verifyGeneration(board, [gen("dp1", "math", 1, 2), gen("dp1", "math", 1, 5)]);
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reasons.some((reason) => reason.includes("course-day-split"))).toBe(true);
+  });
+
+  it("accepts a consecutive same-day double (the double the expert deliberately seeks)", () => {
+    const board = snapshot({ periods: 6, dp1: { courses: [course("math", "t1")] } });
+
+    expect(verifyGeneration(board, [gen("dp1", "math", 1, 2), gen("dp1", "math", 1, 3)]).ok).toBe(true);
+  });
+
+  it("permits a pre-existing pins-only split (delta semantics — pins are never the engine's fault)", () => {
+    const board = snapshot({
+      periods: 6,
+      dp1: {
+        courses: [course("math", "t1"), course("eng", "t2")],
+        pins: [placement("p1", "math", 1, 2), placement("p2", "math", 1, 5)],
+      },
+    });
+
+    const verdict = verifyGeneration(board, [gen("dp1", "eng", 2, 1)]);
+
+    expect(verdict.ok).toBe(true);
+  });
+
+  it("rejects an over-long teacher day a generated row creates — across BOTH cohorts", () => {
+    // The teacher's dp1 pin at P1 plus the generated dp2 row at P10 make one 10-period working day.
+    const board = snapshot({
+      periods: 10,
+      dp1: { courses: [course("math", "t1")], pins: [placement("p1", "math", 1, 1)] },
+      dp2: { courses: [course("phys", "t1")] },
+    });
+
+    const verdict = verifyGeneration(board, [gen("dp2", "phys", 1, 10)]);
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reasons.some((reason) => reason.includes("teacher-day-shape"))).toBe(true);
+  });
+
+  it("rejects a 7th consecutive teaching hour", () => {
+    const courses = Array.from({ length: 7 }, (_, index) => course(`c${index + 1}`, "t1"));
+    const board = snapshot({ periods: 10, dp1: { courses } });
+
+    const verdict = verifyGeneration(
+      board,
+      courses.map((c, index) => gen("dp1", c.id, 1, index + 1)),
+    );
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reasons.some((reason) => reason.includes("teacher-day-shape"))).toBe(true);
+  });
+
+  it("accepts a teacher day at the exact bounds (span 8, 6 in a row)", () => {
+    const periods = [1, 2, 3, 4, 5, 6, 8];
+    const courses = periods.map((period) => course(`c${period}`, "t1"));
+    const board = snapshot({ periods: 10, dp1: { courses } });
+
+    expect(
+      verifyGeneration(
+        board,
+        periods.map((period) => gen("dp1", `c${period}`, 1, period)),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it("permits a pin-only over-long teacher day (delta semantics — no livelock on a dirty board)", () => {
+    const board = snapshot({
+      periods: 10,
+      dp1: {
+        courses: [course("math", "t1"), course("phys", "t1"), course("eng", "t2")],
+        pins: [placement("p1", "math", 1, 1), placement("p2", "phys", 1, 10)],
+      },
+    });
+
+    // The generated row is on another day — it participates in no over-long day of its own.
+    expect(verifyGeneration(board, [gen("dp1", "eng", 2, 1)]).ok).toBe(true);
+  });
+
   it("rejects an interior placement of a finishes_early course (blocking edge rule)", () => {
     const board = snapshot({
       flagged: ["hist"],

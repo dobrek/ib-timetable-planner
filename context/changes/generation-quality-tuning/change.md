@@ -44,3 +44,18 @@ archived_at: null
   from the golden board by course identity → generate headless → verify → persist via
   `apply_generated_placements` → analyze vs golden). Eliminates in-app clicking and hand-pinning
   from every phase gate; skeleton cells are never hardcoded.
+- 2026-07-14 (P3 measured): hard rules landed. Pinned harness run — sameDaySplits **0/0** (was
+  24/30), teacher day span max **8** (was 10), max consecutive teaching **5** (was 7), teacher
+  gap-slots 242 (was 345) as a free side-effect; gold board still verifies clean. Price, as R17
+  predicts: unplaced residue rises from 0 to **10 h pinned** (dp1 English A SL −2; dp2 Chemistry SL,
+  Physics SL, Spanish B AB, Physics HL, Math AA HL, Chemistry HL, BM SL, Geography SL −1 each) and
+  **5 h unpinned** (dp1 BM HL, English A HL; dp2 Math AA HL, English A SL, SSSTS SL). An unplaced
+  hour beats a rule violation — the residue is the hand-finish tail, and the later tiers do not
+  trade against tier 1.
+- 2026-07-14 (P3 oracle fix, unplanned): the engine fuzz surfaced a **pre-existing**
+  fitsAt-looser-than-verify gap in `early-finish-edge` (reproduced on the pre-change code): the
+  oracle unioned weeks A and B for a `both`-week flagged course, so a course with a week-A
+  neighbour below and a week-B neighbour above read as "boxed" — while it sits at a day edge in
+  every week the student actually lives, which is what `board.fitsAt` (lane-wise) already enforced.
+  The oracle now reads per week lane; the test that pinned the union reading was inverted with the
+  reasoning recorded. Strictly more permissive, so the gold board is unaffected.

@@ -33,8 +33,8 @@ test("selects two plans on the hub, compares a plan with its clone (no drift), t
     await createStudent(page, source.id, { name: `Student ${id}`, cohort: "DP1", course });
 
     // Named to sort AFTER its source: the hub lists plans by name, the URL follows that order, and the
-    // drift wording is relative to whichever plan comes first. Direction is presentation, not precedence
-    // — but a spec asserting "1 student added" has to know which way it is pointing.
+    // banner names whichever plan comes first as the one the other differs from. Order is presentation,
+    // not precedence — but a spec asserting the wording has to know which way it points.
     const clone = await clonePlan(page, source.name, `${source.name} clone`);
 
     try {
@@ -63,9 +63,11 @@ test("selects two plans on the hub, compares a plan with its clone (no drift), t
 
       const banner = page.locator('[data-tier="catalog-drift"]');
       await expect(banner).toBeVisible();
-      // It must NAME the drift, not merely announce it: one added student, and the choice they made.
-      await expect(banner).toContainText("1 student added");
-      await expect(banner).toContainText("1 choice added");
+      // It says the catalogs are not one-to-one, names the plan that is true relative to, and — the part
+      // that makes it actionable — says which metric families stopped meaning what they say.
+      await expect(banner).toContainText("not identical");
+      await expect(banner).toContainText(source.name);
+      await expect(banner).toContainText("Catalog-dependent metrics");
     } finally {
       await deletePlan(page, clone.name);
     }

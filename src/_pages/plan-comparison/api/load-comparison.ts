@@ -1,9 +1,8 @@
 import type { SupabaseClient } from "@/shared/api";
 import { COHORT_VALUES, type Cohort } from "@/shared/config";
 import { analyzePlan, verifyGeneration, type Distribution, type MirroredCell } from "@/entities/timetable";
-import { cleanDiff, diffCatalogs, type CatalogDiff } from "../model/catalog-diff";
 import { computeCatalogFingerprint } from "../model/catalog-fingerprint";
-import { driftTier, type DriftTier } from "../model/drift-tier";
+import { driftTier, gridOf, sameGrid, type DriftTier, type GridShape } from "../model/drift-tier";
 import { buildCohortSection, buildPlanSection, type AnalyzedPlan, type ScoreboardSection } from "../model/scoreboard";
 import { BOARD_WIDE, COHORT_SCOREBOARD, CROSS_COHORT, goldenCensusRows } from "../model/metric-catalog";
 import { distributionLine, num, subjectLabel } from "../model/format";
@@ -108,7 +107,8 @@ export type DriftReport = {
   /** The plan this one is described *relative to* (the first in the selection). */
   referenceName: string;
   tier: DriftTier;
-  diff: CatalogDiff;
+  /** Both board shapes, so the `incomparable` banner can name them. Carried even when they agree. */
+  grid: { reference: GridShape; other: GridShape };
 };
 
 const toPlanDetail = (loaded: LoadedPlan | undefined, analyzed: AnalyzedPlan): PlanDetail => {
@@ -152,8 +152,12 @@ const toMirroredLine = (cell: MirroredCell): MirroredCellLine => ({
 });
 
 /**
- * The fingerprint is the fast path — equal digests mean a clean comparison and the diff never runs.
- * Only when they differ do we pay for the structured diff that lets the banner NAME the drift.
+ * The whole drift verdict, from two digests and two grid shapes.
+ *
+ * The fingerprint is the entire catalog check: equal natural-key digests mean equal catalogs, and
+ * unequal ones mean they differ. That is precisely what the banner reports, so nothing more is
+ * computed — an earlier cut folded a full structured diff to print per-category counts, and the counts
+ * turned out to be noise the reader could not act on (see `drift-tier.ts`).
  */
 const toDriftReport = async (
   reference: LoadedPlan | undefined,
@@ -167,14 +171,13 @@ const toDriftReport = async (
     computeCatalogFingerprint(reference),
     computeCatalogFingerprint(other),
   ]);
+  const grid = { reference: gridOf(reference), other: gridOf(other) };
+  const tier = driftTier({
+    gridEqual: sameGrid(grid.reference, grid.other),
+    catalogEqual: referenceDigest === otherDigest,
+  });
 
-  // Equal digests mean equal catalogs, so there is nothing for the diff to find — skip the fold.
-  if (referenceDigest === otherDigest) {
-    return { planId: other.id, planName, referenceName, tier: "clean", diff: cleanDiff(reference, other) };
-  }
-
-  const diff = diffCatalogs(reference, other);
-  return { planId: other.id, planName, referenceName, tier: driftTier(diff), diff };
+  return { planId: other.id, planName, referenceName, tier, grid };
 };
 
 /** Re-exported so the island can name the distribution shape without importing the entity barrel. */

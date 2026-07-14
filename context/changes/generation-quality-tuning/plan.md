@@ -123,6 +123,38 @@ Hard rules (never in generated output, warn for hand edits): **R1** no same-day 
 any break, per week-lane); **R2a** teacher day span ≤ 8; **R2b** teacher consecutive teaching ≤ 6
 (user-confirmed: "max 6 in a row", matching gold's revealed practice).
 
+> **Amended 2026-07-14, after implementation.** The tuple above is what the engine *judges* by. It
+> is NOT, on its own, what the greedy engine *searches* by — three mechanisms had to be added during
+> Phases 4–5 that this plan did not anticipate. They are load-bearing, each was forced by a
+> measurement (recorded in `change.md`), and a reader who takes the sections below at face value will
+> hold a false model of the engine:
+>
+> 1. **The search steers by tiers 1–6 only** (`SEARCH_TIERS = 6` in `objective.ts`). The shape tiers'
+>    improving moves are cheap and endless — there is always one more single to pair — so searching
+>    on all nine moved the incumbent nearly every round and starved the rare completeness/slot move.
+>    The engine searches on tiers 1–6 (phase B) and polishes on all ten in the budget's last 15%
+>    (phase C), where lexicographic acceptance makes a polish move incapable of costing a higher tier.
+>    **Consequence for the CP-SAT port:** the 10-tuple is greedy's *filter*, not its gradient. A
+>    second engine handed the same tuple will produce a materially different board — which is a
+>    reason to build one, not an obstacle, but it must not be assumed away.
+> 2. **A tier is inert unless a destroy operator reaches its improving moves.** Two new LNS operators
+>    were required — `teacher` (tier 4 did not move teacher gaps without it; the Phase-3 hard rules
+>    had done that work) and `deficit` (the shape tiers pack the board tighter, and a blind repair
+>    could no longer re-seat the hour the board still owed). Their **cadence is tuned and fragile**
+>    (4 cell-shaped rounds to 1 people-shaped one; deficit fires only under a deficit): flattening it
+>    cost slots *and* completeness.
+> 3. **Doubles are bought in the repair, not the objective** (`ADJACENT_RANK_BONUS` in `stages.ts`).
+>    An adjacency bonus in the placement heuristic costs no search time; buying the same doubles with
+>    search budget starved the teacher tier (gap-slots 231 → 278). This is the closest thing in the
+>    change to engine-private quality — tier 7 exists and is honoured at judgement, but greedy's
+>    doubles come from the heuristic.
+>
+> Two claims below are **wrong as written** and are corrected here rather than deleted, so the
+> reasoning stays legible: "Tuple shape changes ripple into tests, not the comparator" and
+> "`compareObjectives` and the LNS acceptance test need nothing" (Critical Implementation Details;
+> Phase 4 §2). `compareObjectives` gained a `tiers` parameter, and LNS acceptance passes
+> `polishing ? FULL_TIERS : SEARCH_TIERS`.
+
 All new counting functions follow the `lanes.ts` week conventions (a `both` row fans into both
 lanes), mirroring `countStudentHoles`.
 
@@ -163,6 +195,9 @@ in this change may narrow the `GeneratePlan` port. Three invariants keep it open
 - **Tuple shape changes ripple into tests, not the comparator.** Each tier-adding phase updates
   `objective.test.ts` / `quality-bar.test.ts` fixtures in the same commit; `compareObjectives`
   and the LNS acceptance test need nothing.
+  > **Wrong — corrected 2026-07-14.** Both changed. `compareObjectives` takes a `tiers` argument and
+  > the LNS acceptance test passes `polishing ? FULL_TIERS : SEARCH_TIERS`, because the search steers
+  > by tiers 1–6 and polishes on all ten (see the amendment in Implementation Approach).
 - **Golden-set detection must require pairwise student-disjointness AND distinct teachers** within
   a set (the expert's TOK+TOK precondition). Detection runs once per generate call in
   `buildProblem` (n≈40 courses — negligible).
@@ -460,6 +495,11 @@ exactly one tier step and never outbid a slot.
 
 **Contract**: Same-commit update; `compareObjectives` and search code need no change.
 
+> **Wrong — corrected 2026-07-14.** Search code did change, and had to: a lexicographic tier can only
+> *filter* the boards the neighbourhood produces, and no destroy operator moved teacher rows, so
+> tier 4 alone left teacher gaps where the Phase-3 hard rules had put them. This phase also added the
+> `teacher` LNS destroy operator and its cadence. See the amendment in Implementation Approach.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -506,6 +546,13 @@ encoding the expert's deliberate doubles-seeking, days-start-at-P1, and short-Fr
 **Contract**: Tuple grows to 9; all three follow `lanes.ts` week-fan conventions and count over
 pins+generated per cohort (lateStarts/fridayTail) or per course (doublesDeficit). Tests updated
 same-commit.
+
+> **Incomplete — amended 2026-07-14.** Adding the three tiers was necessary and not sufficient:
+> *searching* on them does not work. This phase also landed `SEARCH_TIERS = 6` + the phase-C polish,
+> the `deficit` destroy operator (the shape tiers pack the board tighter, and a blind repair could no
+> longer find room for the hour the board still owed), and `ADJACENT_RANK_BONUS` in the placement
+> heuristic (doubles are bought in the repair, not the objective). Each was forced by a measurement —
+> see the amendment in Implementation Approach and the P5 note in `change.md`.
 
 ### Success Criteria:
 
@@ -777,6 +824,12 @@ after Phase 2 — documented, expected, local-only.
 #### Manual
 
 - [x] 4.4 Harness run: teacher gaps → ≤ 148, softHits = 0, totalSlots not worse — bbdc382
+      — **PARTIAL**: softHits and totalSlots met; the **≤ 148 teacher-gap target was NOT met**
+      (345 → ~231 at the app's 20 s budget, −33%; 211 at 60 s). The tier order is not the binding
+      constraint — the unplaced residue is: with tier 1 still non-zero the LNS spends its acceptance
+      budget on completeness and rarely reaches a tier-4 improving move. Landing this phase also
+      required a **teacher-day LNS destroy operator** that the plan did not anticipate (a tier is
+      inert unless an operator reaches its improving moves). See change.md (P4 measured).
 - [x] 4.5 studentHoles stays within the expert's revealed band — bbdc382
 
 ### Phase 5: Shape Tiers — doublesDeficit + lateStarts + fridayTail
@@ -791,6 +844,13 @@ after Phase 2 — documented, expected, local-only.
 
 - [x] 5.4 Harness run: lateStarts = 0, Friday earliest-ending, adjacency/multi-day move toward
       gold, tiers 1–6 hold — 8e8341f
+      — **PARTIAL**: Friday ends earliest in both cohorts and adjacency rose materially (26 → 66–100
+      pairs; gold 226), tiers 1–6 hold. But **lateStarts is not 0**: 9 of 10 cohort-days start at P1,
+      dp2's Friday starts at P2. And **multi-day spread did not move** (32/32 vs gold's 19/22) — the
+      doubles tier pairs hours *within* a day a course already uses, but nothing pulls a course's days
+      together, so a 4-hour course still spreads. Landing this phase also required `SEARCH_TIERS = 6`,
+      the `deficit` destroy operator, and `ADJACENT_RANK_BONUS` — none in the plan. See change.md
+      (P5 measured).
 
 ### Phase 6: Golden Slots — Census, Detection, Band Anchor, Bottom Tier
 

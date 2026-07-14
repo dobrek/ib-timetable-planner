@@ -291,20 +291,32 @@ describe("countGoldenBandDistance (tier 10)", () => {
   });
 
   it("charges the distance to the band, and charges a later cell more (the day-tail failure)", () => {
-    // P8 is one period past the band, in each of the two week lanes → 2. P10 is three → 6.
-    expect(countGoldenBandDistance(englishPair, 4, cellAt(8))).toBe(2);
+    // P8 is one period past the band → 1. P10 is three → 3.
+    expect(countGoldenBandDistance(englishPair, 4, cellAt(8))).toBe(1);
     expect(countGoldenBandDistance(englishPair, 4, cellAt(10))).toBeGreaterThan(
       countGoldenBandDistance(englishPair, 4, cellAt(8)),
     );
   });
 
   it("charges an early cell too — the band is mid-day, not merely 'not the tail'", () => {
-    expect(countGoldenBandDistance(englishPair, 4, cellAt(1))).toBe(6);
+    expect(countGoldenBandDistance(englishPair, 4, cellAt(1))).toBe(3);
   });
 
-  it("ignores a cell that does not cover the whole cohort (near-golden is the analyzer's business)", () => {
-    // en-a alone serves 2 of the 4 students — no coverage, no opinion, wherever it sits.
+  it("ignores a cell too far below the coverage bar to be golden", () => {
+    // en-a alone serves 2 of the 4 students (50%) — under GOLDEN_COVERAGE, so no opinion, wherever
+    // it sits.
     expect(countGoldenBandDistance(englishPair, 4, [row("en-a", 1, 10)])).toBe(0);
+  });
+
+  it("protects a NEAR-golden cell too — the tier's bar is the detector's, not full coverage (G1)", () => {
+    // The anchor stage seats sets at GOLDEN_COVERAGE (missing ≤10%). A tier that scored only
+    // 100%-coverage cells would give exactly those sets no gravity, and the LNS would drag them
+    // straight back to the day tail — the failure the tier exists to prevent.
+    const roster = 10;
+    const nineOfTen = new Map([["wide", Array.from({ length: 9 }, (_, i) => `s${i}`)]]);
+
+    expect(countGoldenBandDistance(nineOfTen, roster, [row("wide", 1, 5)])).toBe(0); // in band, free
+    expect(countGoldenBandDistance(nineOfTen, roster, [row("wide", 1, 10)])).toBe(3); // tail, charged
   });
 
   it("is count-neutral: assembling a second golden cell in the band adds nothing to beat", () => {
@@ -313,9 +325,17 @@ describe("countGoldenBandDistance (tier 10)", () => {
     expect(two).toBe(one); // both 0 — the tier only ever moves cells inward, never manufactures them
   });
 
-  it("scores each week lane separately — a biweekly cell counts once", () => {
-    const rows = [row("en-a", 1, 9, "a"), row("en-b", 1, 9, "a")];
-    expect(countGoldenBandDistance(englishPair, 4, rows)).toBe(2);
+  it("takes a cell's WORST week lane — golden in week A and hollow in week B is not golden", () => {
+    // The pair runs week A only, so in week B every one of its students is free: not a moment when
+    // the cohort is whole, and not the tier's business. The same worst-lane reading `deriveGoldenSets`
+    // and the analyzer's census use — the three must agree on what "golden" means or the tier
+    // protects cells the anchor never seats.
+    const weekAOnly = [row("en-a", 1, 9, "a"), row("en-b", 1, 9, "a")];
+    expect(countGoldenBandDistance(englishPair, 4, weekAOnly)).toBe(0);
+
+    // Running in both lanes, the same cell at P9 is golden and pays the 2 periods to the band.
+    const bothLanes = [...weekAOnly, row("en-a", 1, 9, "b"), row("en-b", 1, 9, "b")];
+    expect(countGoldenBandDistance(englishPair, 4, bothLanes)).toBe(2);
   });
 
   it("returns 0 for an empty cohort roster", () => {

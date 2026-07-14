@@ -24,7 +24,9 @@ describe("courseDayStacking", () => {
   it("warns at 3 same-day periods, with the stack size as the count", () => {
     const placements = [placement("p1", "C", 1, 1), placement("p2", "C", 1, 2), placement("p3", "C", 1, 3)];
     const ctx = dayCtx({ cell: { day: 1, period: 1 }, placements, courses: [c] });
-    expect(courseDayStacking.explain([c], ctx)).toEqual([{ kind: "course-day-stacking", courseIds: ["C"], count: 3 }]);
+    expect(courseDayStacking.explain([c], ctx)).toEqual([
+      { kind: "course-day-stacking", courseIds: ["C"], count: 3, lanes: ["a", "b"] },
+    ]);
   });
 
   it("counts per concrete week — a `both`+`both`+`a` day stacks week A (all three cells warn)", () => {
@@ -36,10 +38,10 @@ describe("courseDayStacking", () => {
     const bothCell = dayCtx({ cell: { day: 1, period: 1 }, weeks: { C: "both" }, placements, courses: [c] });
     const aCell = dayCtx({ cell: { day: 1, period: 3 }, weeks: { C: "a" }, placements, courses: [c] });
     expect(courseDayStacking.explain([c], bothCell)).toEqual([
-      { kind: "course-day-stacking", courseIds: ["C"], count: 3 },
+      { kind: "course-day-stacking", courseIds: ["C"], count: 3, lanes: ["a"] },
     ]);
     expect(courseDayStacking.explain([c], aCell)).toEqual([
-      { kind: "course-day-stacking", courseIds: ["C"], count: 3 },
+      { kind: "course-day-stacking", courseIds: ["C"], count: 3, lanes: ["a"] },
     ]);
   });
 
@@ -66,7 +68,7 @@ describe("courseDayStacking", () => {
     const aCell = dayCtx({ cell: { day: 1, period: 2 }, weeks: { C: "a" }, placements, courses: [c] });
     const bCell = dayCtx({ cell: { day: 1, period: 4 }, weeks: { C: "b" }, placements, courses: [c] });
     expect(courseDayStacking.explain([c], aCell)).toEqual([
-      { kind: "course-day-stacking", courseIds: ["C"], count: 3 },
+      { kind: "course-day-stacking", courseIds: ["C"], count: 3, lanes: ["a"] },
     ]);
     expect(courseDayStacking.explain([c], bCell)).toEqual([]);
   });

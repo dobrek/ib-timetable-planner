@@ -189,10 +189,10 @@ type LnsRound = { incumbent: Candidate; destroy: DestroyOperator; rng: () => num
  * cost slots and completeness on the seed catalog for teacher gains the tuple ranks below both — and
  * so, later, did merely *lengthening* this cycle (dp2 46 → 47 slots). The cadence is load-bearing.
  */
-const DESTROY_OPERATORS = ["random", "day", "random", "day", "teacher"] as const;
+export const DESTROY_OPERATORS = ["random", "day", "random", "day", "teacher"] as const;
 
 /** Rounds between deficit-shaped destroys, while (and only while) the incumbent owes hours. */
-const DEFICIT_EVERY = 3;
+export const DEFICIT_EVERY = 3;
 
 /**
  * The round's destroy operator: the cycle above, except that every {@link DEFICIT_EVERY}-th round of
@@ -206,7 +206,7 @@ const DEFICIT_EVERY = 3;
  * load-bearing: simply making the cycle one round longer cost dp2 a slot — a tier the completing move
  * ranks above, but which a complete board never needs this operator to defend.
  */
-const destroyFor = (round: number, incumbent: Candidate): DestroyOperator =>
+export const destroyFor = (round: number, incumbent: Candidate): DestroyOperator =>
   incumbent.objective[0] > 0 && round % DEFICIT_EVERY === 0
     ? "deficit"
     : DESTROY_OPERATORS[round % DESTROY_OPERATORS.length];
@@ -298,12 +298,23 @@ const runAttempt = async (problem: Problem, opts: AttemptOptions): Promise<Candi
   // Accept the descended board only when it beats construction AND is itself valid. Descent's
   // ejection-chain rollback is not re-validated, so a chain that fails after relocating a slice can
   // (in rare configurations) leave a flagged course boxed; re-judging here upholds the engine's hard
-  // invariant — never emit a board the oracle rejects — with construction as the always-valid floor.
-  // A no-op on any valid descended board, so default-tuned output is unchanged.
+  // invariant: never emit a board the oracle rejects.
+  //
+  // Construction is NOT the unconditionally-valid floor it once was, so it is re-judged too.
+  // `chainFit`'s rollback re-places an evicted row with a bare `board.place` (stages.ts), and a
+  // nested chain that shuffled the board before failing can leave that restore breaching a rule the
+  // restore itself never checks. That was near-harmless while every hard rule was cell-local — the
+  // cell being restored into was untouched — but `course-day-split` and `teacher-day-shape` reach
+  // across the whole DAY, so a row the chain moved elsewhere on that day can now be what breaks it.
+  // Cheap: `preferDescended` ties count as preferred, so a valid descended board still costs exactly
+  // one verify per round, as before.
   const descended = scoreCandidate(snapshot, board.placements, board.remaining, tiers);
   const preferDescended = compareObjectives(descended.objective, constructed.objective, tiers) <= 0;
   if (preferDescended && verifyGeneration(snapshot, descended.placements).ok) return descended;
-  return constructed;
+  if (verifyGeneration(snapshot, constructed.placements).ok) return constructed;
+  // Both boards breach. Hand back the LNS incumbent (valid, and scores as a tie, so the round is
+  // simply discarded) rather than poisoning `best` with a board the final verdict would reject.
+  return opts.lns?.incumbent ?? constructed;
 };
 
 const toResult = (

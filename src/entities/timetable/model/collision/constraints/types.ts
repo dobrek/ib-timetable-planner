@@ -1,5 +1,6 @@
 import type { PlacementWeek } from "@/shared/config";
 import type { GroupingCourse } from "@/shared/lib/catalog-hash";
+import type { WeekLane } from "../../analysis/lanes";
 import type { DayOccupancyIndex } from "../../day-occupancy-index";
 
 /**
@@ -19,9 +20,19 @@ export type CollisionViolation =
   | { kind: "teacher-unavailable"; teacherKey: string; courseIds: string[]; severity: "block" | "warn" }
   | { kind: "cross-cohort-teacher"; teacherKey: string; courseIds: string[] }
   | { kind: "early-finish-edge"; courseIds: [string]; studentKeys: string[] }
-  | { kind: "course-day-stacking"; courseIds: string[]; count: number }
-  | { kind: "course-day-split"; courseIds: string[]; periods: number[] }
-  | { kind: "teacher-day-shape"; teacherKey: string; courseIds: string[]; span: number; maxStreak: number };
+  | { kind: "course-day-stacking"; courseIds: string[]; count: number; lanes: WeekLane[] }
+  | { kind: "course-day-split"; courseIds: string[]; periods: number[]; lanes: WeekLane[] }
+  | {
+      kind: "teacher-day-shape";
+      teacherKey: string;
+      courseIds: string[];
+      span: number;
+      maxStreak: number;
+      /** Every week lane of that teacher-day that breaches. `verifyGeneration` compares these
+       *  lane-by-lane against the pins-only board to tell a generator-created breach from one the
+       *  author pinned — a `(teacher, day)` reading cannot make that distinction. */
+      lanes: WeekLane[];
+    };
 
 /**
  * Inputs beyond the cell's occupants. Deliberately minimal — board-only constraints

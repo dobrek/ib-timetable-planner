@@ -83,7 +83,15 @@ describe("generation experiment", () => {
     }
     printSolve(outcome.result.diagnostics, elapsedMs, outcome.verdict.softWarnCount);
     if (!outcome.verdict.ok) {
-      throw new Error(`The engine's board FAILED verification — nothing persisted:\n${reasons(outcome)}`);
+      // The clone (and, under PIN_SKELETON, its skeleton) is already on disk by now — only the
+      // GENERATED rows are withheld. Say so precisely and leave the clone for inspection: the board
+      // that failed is exactly what you want to look at, and deleting it here would take the pinned
+      // skeleton with it. Orphans accumulate in the local DB; drop them by hand when they pile up.
+      throw new Error(
+        `The engine's board FAILED verification — no generated rows persisted.\n` +
+          `Clone ${clonePlanId} left in place (catalog${PIN_SKELETON ? " + pinned skeleton" : ""}) ` +
+          `for inspection at /plans/${clonePlanId}.\n${reasons(outcome)}`,
+      );
     }
 
     await persistRegion(supabase, clonePlanId, outcome.result.placements, pinRows(pins));
@@ -107,6 +115,9 @@ const clonePlanCatalogOnly = async (supabase: SupabaseClient, sourcePlanId: stri
     p_include_board: false,
   });
   if (error) throw new Error(`clone_plan failed for ${sourcePlanId}: ${error.message}`);
+  // Typed `string` by the generated client, but a `null` here would sail into `persistRegion` as the
+  // target plan id — fail loudly instead, like every other identity the harness resolves.
+  if (!data) throw new Error(`clone_plan returned no plan id for ${sourcePlanId}`);
   return data;
 };
 

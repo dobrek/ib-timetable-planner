@@ -1,7 +1,7 @@
 ---
 change_id: generation-quality-tuning
 title: Generation quality tuning
-status: implemented
+status: impl_reviewed
 created: 2026-07-12
 updated: 2026-07-14
 archived_at: null
@@ -133,6 +133,27 @@ archived_at: null
   load: 46 was a property of the runs that measured it, not of the engine. The bar is now a one-slot
   envelope (a 48 still fails), and completeness stays pinned hard. Every 46-vs-47 comparison in this
   change was therefore reading noise; the reproducible regressions (dp1's unplaced hour, 3/3) were not.
+
+- 2026-07-14 (impl review): `reviews/impl-review.md` — 10 findings, 9 fixed + 1 accepted. The one
+  **critical** was a re-run of the very trap the plan warned about (`fitsAt` must never be looser than
+  verify): verify judged the `teacher-day-shape` delta per `(teacher, day)` while `fitsAt` judged it
+  per **week lane**, so an author who hand-placed an over-long teacher day — which the UI only *warns*
+  about, by design — could not generate at all: the engine burned the full 20 s budget building boards
+  verify then rejected, with no in-loop signal and "nothing was applied" as the only diagnosis.
+  Reproduced, then fixed by giving verify the same lane-wise reading against a pins-only baseline.
+  `course-day-split`/`-stacking` carried the identical lane-blind key (biweekly courses only) and were
+  fixed with it; all three day-scoped rules now read weeks through one shared lane reader.
+  Also: tier 10 scored only 100%-coverage cells while the anchor *seats* ≥90% ones, so the near-golden
+  cells construction actually produces had **zero gravity** — the tier's bar is now the detector's, and
+  `GOLDEN_MISS_SHARE = 0.1` is the single elicited source for all three consumers. `constructed` is now
+  re-judged before return (the "always-valid floor" no longer holds once hard rules are day-scoped).
+  The destroy cadence is pinned by tests. `plan.md` was amended: its prose still described an engine
+  that no longer exists (it claimed `compareObjectives` needed no change, and never mentioned
+  `SEARCH_TIERS = 6` or the three operators/heuristics that actually delivered tiers 4–9).
+  **The golden-cell figures in `analysis-run-2.md` predate the tier-10 fix and need a re-run.**
+- 2026-07-14 (bench is not a guard): measured during the review — `pnpm bench:generation` fails on
+  **unmodified `main`** in 3 of 4 runs on this machine (dp1 one hour unplaced), and it is not in CI.
+  Follow-up §4 below is therefore not a nice-to-have: the change's only quality guard is noise.
 
 ## Follow-up recommendations (deferred)
 

@@ -3,7 +3,7 @@ import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import { expandLanes, laneStats, lanesOf } from "../analysis/lanes";
 import { buildAvailabilityIndex } from "../availability-index";
 import { cellKey } from "../collision/cell-key";
-import { GOLDEN_BAND } from "./golden-sets";
+import { GOLDEN_BAND, GOLDEN_COVERAGE } from "./golden-sets";
 import { countOccupiedSlots } from "./occupied-slots";
 import type { CourseDeficit, GeneratedPlacement, GeneratorSnapshot } from "./types";
 
@@ -295,8 +295,11 @@ export const countGoldenBandDistance = (
   rows: BoardRow[],
 ): number => {
   if (roster === 0) return 0;
+  const bar = roster * GOLDEN_COVERAGE;
   const coverage = new Map<string, Set<string>>();
+  const cells = new Set<string>();
   for (const row of rows) {
+    cells.add(`${row.day}|${row.period}`);
     for (const weekLane of lanesOf(row.week)) {
       const key = `${row.day}|${row.period}|${weekLane}`;
       const students = coverage.get(key) ?? new Set<string>();
@@ -305,12 +308,25 @@ export const countGoldenBandDistance = (
     }
   }
   let distance = 0;
-  for (const [key, students] of coverage) {
-    if (students.size < roster) continue; // not a golden cell — the tier has no opinion on it
-    distance += bandDistance(Number(key.split("|")[1]));
+  for (const cell of cells) {
+    if (!isGolden(coverage, cell, bar)) continue; // not a golden cell — the tier has no opinion on it
+    distance += bandDistance(Number(cell.split("|")[1]));
   }
   return distance;
 };
+
+/**
+ * A cell is golden when it reaches the bar in EVERY week lane — the same reading `deriveGoldenSets`
+ * and the analyzer's census use, and the same one that makes the concept mean anything: a cell that
+ * covers the cohort in week A but half of it in week B is a moment when everyone is in class only
+ * every other week, and a cell running in one lane alone leaves its students free in the other.
+ *
+ * The bar is `GOLDEN_COVERAGE`, not the full roster — the anchor seats near-golden sets (G1: missing
+ * ≤ 10% is still golden enough), so a tier that scored only 100%-coverage cells would give the sets
+ * construction actually produces no gravity at all, and the LNS would drag them back to the day tail.
+ */
+const isGolden = (coverage: Map<string, Set<string>>, cell: string, bar: number): boolean =>
+  lanesOf("both").every((lane) => (coverage.get(`${cell}|${lane}`)?.size ?? 0) >= bar);
 
 /** Periods between the cell and the mid-day band — 0 anywhere inside it. */
 const bandDistance = (period: number): number => Math.max(0, GOLDEN_BAND.first - period, period - GOLDEN_BAND.last);

@@ -33,8 +33,8 @@ export const teacherDayShape: CellConstraint = {
     const { day } = ctx.cell;
 
     return [...teachersInCell(distinctById(occupants))].flatMap(([teacherKey, courseIds]) => {
-      const worst = worstLane(index, ctx.occupiedByTeacher, teacherKey, day, cellLanes(courseIds, ctx));
-      return worst ? [{ kind: "teacher-day-shape" as const, teacherKey, courseIds, ...worst }] : [];
+      const shape = offendingLanes(index, ctx.occupiedByTeacher, teacherKey, day, cellLanes(courseIds, ctx));
+      return shape ? [{ kind: "teacher-day-shape" as const, teacherKey, courseIds, ...shape }] : [];
     });
   },
 };
@@ -85,19 +85,29 @@ const cellLanes = (courseIds: string[], ctx: BoardContext): WeekLane[] => {
   return [...new Set(lanes)];
 };
 
-/** The offending lane's shape (worst span first), or null when every lane the cell runs is legal. */
-const worstLane = (
+/**
+ * The breach, or null when every lane the cell runs is legal. `span`/`maxStreak` describe the worst
+ * lane (what the dialog shows); `lanes` names EVERY offending lane, because `verifyGeneration` reads
+ * the delta lane-by-lane against the pins-only board — reporting only the worst lane would hide a
+ * second, generator-created breach behind a pin-caused one.
+ */
+const offendingLanes = (
   index: DayOccupancyIndex,
   siblingOccupancy: CrossCohortIndex | undefined,
   teacherKey: string,
   day: number,
-  lanes: WeekLane[],
-): { span: number; maxStreak: number } | null => {
-  const offending = lanes
-    .map((lane) => laneStats(teacherDayPeriods(index, siblingOccupancy, teacherKey, day, lane)))
+  candidateLanes: WeekLane[],
+): { span: number; maxStreak: number; lanes: WeekLane[] } | null => {
+  const offending = candidateLanes
+    .map((lane) => ({ lane, ...laneStats(teacherDayPeriods(index, siblingOccupancy, teacherKey, day, lane)) }))
     .filter(({ span, maxStreak }) => span > TEACHER_DAY_SPAN_MAX || maxStreak > TEACHER_STREAK_MAX)
     .sort((a, b) => b.span - a.span || b.maxStreak - a.maxStreak);
-  return offending.length > 0 ? { span: offending[0].span, maxStreak: offending[0].maxStreak } : null;
+  if (offending.length === 0) return null;
+  return {
+    span: offending[0].span,
+    maxStreak: offending[0].maxStreak,
+    lanes: offending.map(({ lane }) => lane),
+  };
 };
 
 /** The period half of a `cellKey` (`${day}:${period}`) — the cross-cohort index is cell-keyed. */

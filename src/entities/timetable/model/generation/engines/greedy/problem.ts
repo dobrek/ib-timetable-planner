@@ -67,11 +67,12 @@ export const buildProblem = (snapshot: GeneratorSnapshot): Problem => {
       dp1: backboneCliques(snapshot.cohorts.dp1.courses, flagged),
       dp2: backboneCliques(snapshot.cohorts.dp2.courses, flagged),
     },
-    // Flagged courses are filtered out here rather than inside the detector: they live under the
-    // day-edge rule, so one can never anchor a mid-day band however well it covers the cohort.
+    // The WHOLE catalog goes in, flagged ids alongside it: the detector drops flagged courses from
+    // its candidates (they live under the day-edge rule, so one can never anchor a mid-day band) but
+    // still counts their students in the roster — the same roster the `goldenBandDistance` tier uses.
     goldenSets: {
-      dp1: deriveGoldenSets(snapshot.cohorts.dp1.courses.filter((course) => !flagged.has(course.id))),
-      dp2: deriveGoldenSets(snapshot.cohorts.dp2.courses.filter((course) => !flagged.has(course.id))),
+      dp1: deriveGoldenSets(snapshot.cohorts.dp1.courses, flagged),
+      dp2: deriveGoldenSets(snapshot.cohorts.dp2.courses, flagged),
     },
     deficits: {
       dp1: cohortDeficits(snapshot, "dp1"),

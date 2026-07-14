@@ -36,7 +36,7 @@ describe("teacherDayShape", () => {
     const { courses, placements } = spread([1, 9]);
     const ctx = dayCtx({ cell: { day: 1, period: 1 }, placements, courses });
     expect(teacherDayShape.explain([courses[0]], ctx)).toEqual([
-      { kind: "teacher-day-shape", teacherKey: "T", courseIds: ["C1"], span: 9, maxStreak: 1 },
+      { kind: "teacher-day-shape", teacherKey: "T", courseIds: ["C1"], span: 9, maxStreak: 1, lanes: ["a", "b"] },
     ]);
   });
 
@@ -44,7 +44,7 @@ describe("teacherDayShape", () => {
     const { courses, placements } = spread([1, 2, 3, 4, 5, 6, 7]);
     const ctx = dayCtx({ cell: { day: 1, period: 4 }, placements, courses });
     expect(teacherDayShape.explain([courses[3]], ctx)).toEqual([
-      { kind: "teacher-day-shape", teacherKey: "T", courseIds: ["C4"], span: 7, maxStreak: 7 },
+      { kind: "teacher-day-shape", teacherKey: "T", courseIds: ["C4"], span: 7, maxStreak: 7, lanes: ["a", "b"] },
     ]);
   });
 
@@ -58,7 +58,7 @@ describe("teacherDayShape", () => {
       sibling: occupiedBy({ T: { [cellKey(1, 9)]: ["both"] } }),
     });
     expect(teacherDayShape.explain([courses[0]], ctx)).toEqual([
-      { kind: "teacher-day-shape", teacherKey: "T", courseIds: ["C1"], span: 9, maxStreak: 1 },
+      { kind: "teacher-day-shape", teacherKey: "T", courseIds: ["C1"], span: 9, maxStreak: 1, lanes: ["a", "b"] },
     ]);
   });
 

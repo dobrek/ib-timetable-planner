@@ -16,9 +16,17 @@ import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 /** The mid-day band a golden slot belongs in (G3, verbatim: "P4–P7"). */
 export const GOLDEN_BAND = { first: 4, last: 7 };
 
-/** A cover set must reach this share of the cohort's roster. G1's near-golden tolerance is the same
- *  10%: a cell missing one or two students still leaves the day whole for everyone else. */
-export const GOLDEN_COVERAGE = 0.9;
+/**
+ * G1, verbatim: "1–2 students, max 10%" — the elicited tolerance, and the single source for all three
+ * things built on it (the detector's bar, the `goldenBandDistance` tier's, and the analyzer's
+ * near-golden census). A cell missing one or two students still leaves the day whole for everyone
+ * else. Kept as the *miss* share because that is how the expert phrased it — and because `1 - 0.1` is
+ * exactly `0.9` in IEEE-754 while `1 - 0.9` is not, so deriving in this direction cannot drift.
+ */
+export const GOLDEN_MISS_SHARE = 0.1;
+
+/** The share of the cohort's roster a cover set — or a golden cell — must reach. */
+export const GOLDEN_COVERAGE = 1 - GOLDEN_MISS_SHARE;
 
 /**
  * The cohort's golden cover sets — course-id sets that can share ONE cell (pairwise student-disjoint
@@ -30,16 +38,21 @@ export const GOLDEN_COVERAGE = 0.9;
  * answer is a *hint* to construction, not a constraint — an imperfect set costs nothing, since the
  * anchor drops any set that will not seat.
  *
- * Callers pass the courses the sets may draw on. Flagged (finishes-early) courses are excluded by the
- * caller, not here: they live under the day-edge rule and can never anchor a mid-day band.
+ * Callers pass the cohort's WHOLE catalog plus its flagged ids. The roster — the bar coverage is
+ * measured against — is every student in the cohort, so it agrees with the `goldenBandDistance` tier
+ * that later judges the cells; handing this function a pre-filtered slice would quietly lower the bar
+ * under the tier. Flagged (finishes-early) courses are dropped from the *candidates* only: they live
+ * under the day-edge rule and can never anchor a mid-day band, but their students still count.
  */
-export const deriveGoldenSets = (courses: GroupingCourse[]): Set<string>[] => {
+export const deriveGoldenSets = (courses: GroupingCourse[], flagged: ReadonlySet<string>): Set<string>[] => {
   const roster = new Set(courses.flatMap((course) => course.studentKeys));
   if (roster.size === 0) return [];
   const target = roster.size * GOLDEN_COVERAGE;
   // Biweekly courses run in one week lane only, so a set built on one could cover the cohort in week
   // A and leave half of it idle in week B — a golden cell must be golden in both lanes.
-  const candidates = courses.filter((course) => course.hours > 0 && course.weekMode !== "biweekly");
+  const candidates = courses.filter(
+    (course) => !flagged.has(course.id) && course.hours > 0 && course.weekMode !== "biweekly",
+  );
 
   const sets = candidates
     .map((seed) => growFrom(seed, candidates))

@@ -1,5 +1,5 @@
 import { cellKey } from "../collision/cell-key";
-import { GOLDEN_BAND } from "../generation/golden-sets";
+import { GOLDEN_BAND, GOLDEN_MISS_SHARE } from "../generation/golden-sets";
 import { lanesOf, type WeekLane } from "./lanes";
 import { distribution } from "./stats";
 import type {
@@ -28,10 +28,11 @@ import type {
 /** A slot serving at most this share of the cohort is "thin" — the report's convention. */
 export const THIN_SLOT_SHARE = 0.25;
 
-/** A cell missing at most this share of the cohort is "near-golden". The expert's own answer to
- *  "how close is *almost* every student?" — "1–2 students, max 10%" — so this is elicited, not
- *  guessed: it admits ≥25/27 in dp1 and ≥31/34 in dp2. */
-export const NEAR_GOLDEN_MISS_SHARE = 0.1;
+/** A cell missing at most this share of the cohort is "near-golden" — it admits ≥25/27 in dp1 and
+ *  ≥31/34 in dp2. Re-exported from `GOLDEN_MISS_SHARE` rather than restated: it is the same elicited
+ *  G1 number the detector and the `goldenBandDistance` tier are built on, and the three drifting
+ *  apart is exactly how the tier stopped protecting the cells construction seats. */
+export const NEAR_GOLDEN_MISS_SHARE = GOLDEN_MISS_SHARE;
 
 export const deriveSlotCensus = (courses: AnalyzerCourse[], rows: AnalyzerRow[]): SlotCensusFeatures => {
   const studentsOf = new Map(courses.map((course) => [course.id, course.studentKeys]));

@@ -1,7 +1,6 @@
 import type { PlacementWeek } from "@/shared/config";
-import { lanesOf, laneStats } from "../../analysis/lanes";
-import type { DayOccupancyIndex } from "../../day-occupancy-index";
-import { weeksDisjoint } from "../../week";
+import { lanesOf, laneStats, type WeekLane } from "../../analysis/lanes";
+import { courseDayPeriods, type DayOccupancyIndex } from "../../day-occupancy-index";
 import { distinctById } from "./distinct-by-id";
 import type { CellConstraint, CollisionViolation } from "./types";
 
@@ -29,31 +28,36 @@ export const courseDaySplit: CellConstraint = {
     const weekOf = (courseId: string): PlacementWeek => ctx.weekByCourseId?.get(courseId) ?? "both";
 
     return distinctById(occupants).flatMap((course): CollisionViolation[] => {
-      const split = splitPeriods(index, course.id, day, weekOf(course.id));
-      return split ? [{ kind: "course-day-split", courseIds: [course.id], periods: split }] : [];
+      const split = splitLanes(index, course.id, day, weekOf(course.id));
+      return split ? [{ kind: "course-day-split", courseIds: [course.id], ...split }] : [];
     });
   },
 };
 
 /** The rule itself: periods within ONE day-week lane that are not consecutive. Exported because
- *  the engine's `fitsAt` guard mirrors the oracle rather than restating it. */
+ *  the engine's `fitsAt` guard and `verifyGeneration`'s delta mirror the oracle rather than
+ *  restating it. */
 export const hasDaySplit = (periods: number[]): boolean => {
   const { count, span } = laneStats(periods);
   return count >= 2 && span > count;
 };
 
-/** The offending period set (ascending) of the first split among the concrete weeks this cell runs,
- *  or null when the course is consecutive in every one of them. */
-const splitPeriods = (
+/**
+ * The breach, or null when the course is consecutive in every concrete week this cell runs.
+ * `periods` shows the first offending lane (what the dialog reads); `lanes` names EVERY offending
+ * one, because `verifyGeneration` reads the delta lane-by-lane against the pins-only board — a
+ * lane-blind key cannot tell a week-B hour the generator placed from a week-A split the author
+ * pinned, and rejects the whole board for the latter.
+ */
+const splitLanes = (
   index: DayOccupancyIndex,
   courseId: string,
   day: number,
   week: PlacementWeek,
-): number[] | null => {
-  const entries = index.byCourseDay.get(courseId)?.get(day) ?? [];
+): { periods: number[]; lanes: WeekLane[] } | null => {
   const splits = lanesOf(week)
-    .map((lane) => entries.filter((entry) => !weeksDisjoint(entry.week, lane)).map((entry) => entry.period))
-    .filter(hasDaySplit)
-    .map((periods) => [...new Set(periods)].sort((a, b) => a - b));
-  return splits.length > 0 ? splits[0] : null;
+    .map((lane) => ({ lane, periods: courseDayPeriods(index, courseId, day, lane) }))
+    .filter(({ periods }) => hasDaySplit(periods));
+  if (splits.length === 0) return null;
+  return { periods: splits[0].periods, lanes: splits.map(({ lane }) => lane) };
 };

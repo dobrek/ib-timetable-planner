@@ -114,6 +114,18 @@ archived_at: null
   would close it, and would be wrong — it would buy golden cells with slots, which outrank them six
   tiers up. An off-anchor control run confirms the anchor is what does the work: without it the board
   still assembles 11 golden cells, but at mean period 3.4 and 50% band share (accidental, badly placed).
+- 2026-07-14 (P7 — acceptance: **ACCEPT**): `analysis-run-2.md` records the R18 checklist from a
+  one-command `PIN_SKELETON=1` harness run, diffable against run-1's scoreboard. Green: 0 splits,
+  teacher span 8 / streak 6, fixtures intact (9 mirrored cells vs the untuned engine's 1 accidental
+  one), 0 soft hits, golden slots 100% in the mid-day band, oracle-valid, gold board still clean, and
+  a **6 h** hand-finishable residue. Missed: teacher gaps **217** against the ≤ 148 bar (expert 74,
+  untuned engine 345), and dp1's Friday is not its shortest day. Both are the same miss, and it is
+  budget rather than model: the residue keeps tier 1 hot, so the LNS rarely reaches the tiers below it.
+  The economic bar (beat ~40 h of manual planning) is cleared with room — what is left after Generate
+  is dropping 6 hours onto the board plus a teacher-day sweep. **Closing the residue (stronger repair,
+  or the deferred CP-SAT engine) is the single highest-value follow-up**: every tier below tier 1
+  inherits the budget it frees. `docs/runbooks/plan-generation.md` carries the expert-facing workflow
+  (pin the skeleton → generate → hand-finish) and states the known gaps.
 - 2026-07-14 (bench bar re-measured, dp2 46 → ≤ 47): the dp2 = 46 pin was recorded as "the shipped
   engine reliably reaches 46". Re-measuring the **pre-tuning** engine at its shipped LNS seed produced
   **47** on one run and 46 on the next, and a third seed left an hour unplaced. The search is

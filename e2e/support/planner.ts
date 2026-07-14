@@ -73,6 +73,35 @@ export async function createTeacher(page: Page, planId: string, code: string): P
   await expect(page.getByRole("cell", { name: code, exact: true })).toBeVisible();
 }
 
+/**
+ * Clone `sourceName` under `newName` through the hub's row Actions menu, and return the clone's name.
+ *
+ * The app's own clone action is the only identical-catalog producer available to E2E: there is no DB
+ * access here (every spec builds its data through the UI), and `supabase/seed.sql` is a generated
+ * artifact CI regenerates before boot, so it cannot supply a drifted pair and hand-editing it would be
+ * overwritten. `clone_plan` deep-copies the catalog and **re-mints every UUID** — which is exactly the
+ * case the natural-key fingerprint exists to get right.
+ */
+export async function clonePlan(
+  page: Page,
+  sourceName: string,
+  newName: string,
+): Promise<{ id: string; name: string }> {
+  await gotoStable(page, "/plans");
+  await clickToReveal(page.getByRole("button", { name: `Actions for ${sourceName}` }), page.getByRole("menuitem"));
+  await page.getByRole("menuitem", { name: "Clone" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: `Clone ${sourceName}` })).toBeVisible();
+  await dialog.getByLabel("New plan name").fill(newName);
+  await dialog.getByRole("button", { name: "Clone plan" }).click();
+
+  // A successful clone navigates INTO the new plan's board (`navigate('/plans/<newId>')`), exactly as
+  // creating one does — so the clone's id comes from the URL, not from a hub row that never renders.
+  await page.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
+  return { id: new URL(page.url()).pathname.split("/")[2], name: newName };
+}
+
 /** Tear down: deleting the plan cascades to its courses, teachers, students, and placements. */
 export async function deletePlan(page: Page, planName: string): Promise<void> {
   await gotoStable(page, "/plans");

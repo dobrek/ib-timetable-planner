@@ -831,30 +831,30 @@ it is behind deny-by-default auth. This is a deliberate yes, not an accident.
 
 #### Automated
 
-- [x] 1.1 Unit tests pass
-- [x] 1.2 `adapter-parity.integration.test.ts` still passes (composite-name key untouched)
-- [x] 1.3 Catalog-hash golden digest test still passes (GroupingCourse + hash unchanged)
-- [x] 1.4 Type check (`pnpm check`) + lint pass
-- [x] 1.5 FSD structure clean with no new steiger override
-- [x] 1.6 Build clean
+- [x] 1.1 Unit tests pass — 5c1aed3
+- [x] 1.2 `adapter-parity.integration.test.ts` still passes (composite-name key untouched) — 5c1aed3
+- [x] 1.3 Catalog-hash golden digest test still passes (GroupingCourse + hash unchanged) — 5c1aed3
+- [x] 1.4 Type check (`pnpm check`) + lint pass — 5c1aed3
+- [x] 1.5 FSD structure clean with no new steiger override — 5c1aed3
+- [x] 1.6 Build clean — 5c1aed3
 
 #### Manual
 
-- [x] 1.7 None required — the phase is purely additive (two barrels widened, one new `CohortCatalog` field); confirm no existing render path changed
+- [x] 1.7 None required — the phase is purely additive (two barrels widened, one new `CohortCatalog` field); confirm no existing render path changed — 5c1aed3
 
 ### Phase 2: Loader
 
 #### Automated
 
-- [ ] 2.1 Loader integration test passes
-- [ ] 2.2 Bench analyzer still runs with unchanged output (`ANALYZE_PLAN_A=<id> pnpm analyze:plans`)
-- [ ] 2.3 `bench/load-plan-analysis-input.ts` deleted and unreferenced
-- [ ] 2.4 Bench→slice boundary holds (api-segment-only; no `ui/` in its import graph; `bench/**` ESLint rule fails a violation)
-- [ ] 2.5 Type check (`pnpm check`) + lint + steiger + build clean
+- [x] 2.1 Loader integration test passes
+- [x] 2.2 Bench analyzer still runs with unchanged output (`ANALYZE_PLAN_A=<id> pnpm analyze:plans`)
+- [x] 2.3 `bench/load-plan-analysis-input.ts` deleted and unreferenced
+- [x] 2.4 Bench→slice boundary holds (api-segment-only; no `ui/` in its import graph; `bench/**` ESLint rule fails a violation)
+- [x] 2.5 Type check (`pnpm check`) + lint + steiger + build clean
 
 #### Manual
 
-- [ ] 2.6 Bench analyzer output matches a pre-move capture digit-for-digit
+- [x] 2.6 Bench analyzer output matches a pre-move capture digit-for-digit
 
 ### Phase 3: Drift model
 

@@ -7,7 +7,7 @@ import {
   type GenerationVerdict,
   type PlanQualityFeatures,
 } from "@/entities/timetable";
-import type { LoadedPlan } from "./load-plan-analysis-input";
+import type { LoadedPlan } from "@/_pages/plan-comparison/api";
 
 /**
  * The plan-comparison renderer, shared by `pnpm analyze:plans` and `pnpm experiment:generation`.

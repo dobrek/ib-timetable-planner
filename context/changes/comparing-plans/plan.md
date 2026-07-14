@@ -846,25 +846,25 @@ it is behind deny-by-default auth. This is a deliberate yes, not an accident.
 
 #### Automated
 
-- [x] 2.1 Loader integration test passes
-- [x] 2.2 Bench analyzer still runs with unchanged output (`ANALYZE_PLAN_A=<id> pnpm analyze:plans`)
-- [x] 2.3 `bench/load-plan-analysis-input.ts` deleted and unreferenced
-- [x] 2.4 Bench→slice boundary holds (api-segment-only; no `ui/` in its import graph; `bench/**` ESLint rule fails a violation)
-- [x] 2.5 Type check (`pnpm check`) + lint + steiger + build clean
+- [x] 2.1 Loader integration test passes — 20734c1
+- [x] 2.2 Bench analyzer still runs with unchanged output (`ANALYZE_PLAN_A=<id> pnpm analyze:plans`) — 20734c1
+- [x] 2.3 `bench/load-plan-analysis-input.ts` deleted and unreferenced — 20734c1
+- [x] 2.4 Bench→slice boundary holds (api-segment-only; no `ui/` in its import graph; `bench/**` ESLint rule fails a violation) — 20734c1
+- [x] 2.5 Type check (`pnpm check`) + lint + steiger + build clean — 20734c1
 
 #### Manual
 
-- [x] 2.6 Bench analyzer output matches a pre-move capture digit-for-digit
+- [x] 2.6 Bench analyzer output matches a pre-move capture digit-for-digit — 20734c1
 
 ### Phase 3: Drift model
 
 #### Automated
 
-- [ ] 3.1 Fingerprint unit tests pass (order-insensitivity, golden digest, per-category sensitivity)
-- [ ] 3.2 Clone-vs-source: equal natural-key fingerprint, different `computeCatalogHash`
-- [ ] 3.3 Diff unit tests pass (every category)
-- [ ] 3.4 Tier unit tests pass (grid mismatch outranks catalog drift)
-- [ ] 3.5 Type check (`pnpm check`) + lint + steiger + build clean
+- [x] 3.1 Fingerprint unit tests pass (order-insensitivity, golden digest, per-category sensitivity)
+- [x] 3.2 Clone-vs-source: equal natural-key fingerprint, different `computeCatalogHash`
+- [x] 3.3 Diff unit tests pass (every category)
+- [x] 3.4 Tier unit tests pass (grid mismatch outranks catalog drift)
+- [x] 3.5 Type check (`pnpm check`) + lint + steiger + build clean
 
 ### Phase 4: Scoreboard model
 

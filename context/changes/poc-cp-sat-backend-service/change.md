@@ -41,3 +41,16 @@ fabricated seed residue in ~0.75 s). Mode A was SAT, so the conditional infeasib
 exist. CP-SAT board imported + viewable at `/plans/2f8e3054-2799-4d70-8d74-0b49f02bf871`. Full
 verdict + recommendation (hybrid: Mode A global generate path, Mode B interactive repair) in
 `results.md`.
+
+### 2026-07-15 — Objective-order frontier: the priority ladder is a product dial (results.md)
+
+Follow-on to the verdict: solved the **same** golden instance (same 16 pins, Mode A completeness) under
+three objective policies, imported all three side-by-side. On one unchanged catalog the tier order moves
+**teacher gaps 75 → 124** and **student gaps 765 → 579**, every board complete + oracle-verified. Two
+new boards force `softHits ≡ 0` (zero teacher-wish warnings): **CP-SAT clean** (teacher-first —
+`/plans/a62da12c-7fd5-403c-9134-d878850905b1`, teacher 75 / student 765 / 0 warns, **dominates the
+campaign** on every prioritised tier) and **CP-SAT student-first** (student promoted —
+`/plans/722c8840-7581-4a5a-9e49-396f1b4287e4`, student **579** — beats the expert's 612 — / teacher 124).
+Steering implications (expose tier order as config, clean mode, solve-to-target for reproducibility,
+completeness-cost reframes the acceptance bar, non-determinism across runs) written up in `results.md`
+→ "The priority order is a product dial" + recommendation #4.

@@ -1,6 +1,6 @@
 import { groupByInto } from "@/shared/lib/collections";
 import { expandLanes, laneStats, type Lane, type LaneStats } from "./lanes";
-import { distribution, worstOf } from "./stats";
+import { distribution, gapExtremes, worstOf } from "./stats";
 import type { AnalyzerCourse, AnalyzerRow, StudentFeatures } from "./types";
 
 /**
@@ -21,13 +21,13 @@ export const deriveStudentLens = (courses: AnalyzerCourse[], rows: AnalyzerRow[]
   const studentsOf = new Map(courses.map((course) => [course.id, course.studentKeys]));
   const enrolled = new Set(courses.flatMap((course) => course.studentKeys));
   const lanes = expandLanes(rows, (row) => studentsOf.get(row.courseId) ?? []).map(withStats);
-  const holesByStudent = holesByEntity(lanes, enrolled);
+  const gaps = gapExtremes(lanes, enrolled);
 
   return {
     students: enrolled.size,
     gapSlots: lanes.reduce((sum, lane) => sum + lane.stats.holes, 0),
-    gapsPerStudent: distribution([...holesByStudent.values()]),
-    worstStudentGaps: worstOf([...holesByStudent].map(([key, value]) => ({ key, value }))),
+    gapsPerStudent: distribution(gaps.map((gap) => gap.value)),
+    worstStudentGaps: worstOf(gaps),
     hoursPerStudentDay: distribution(lanes.map((lane) => lane.stats.count)),
     spanEfficiency: distribution(lanes.map((lane) => lane.stats.count / lane.stats.span)),
     maxConsecutiveHours: distribution(lanes.map((lane) => lane.stats.maxStreak)),
@@ -41,17 +41,6 @@ export const deriveStudentLens = (courses: AnalyzerCourse[], rows: AnalyzerRow[]
 type StatLane = Lane & { stats: LaneStats };
 
 const withStats = (lane: Lane): StatLane => ({ ...lane, stats: laneStats(lane.periods) });
-
-/** Gaps per student, seeded with every enrolled student — a student whose courses are all unplaced
- *  sits at 0 gaps rather than dropping out of the distribution (an incomplete board must not read
- *  as a compact one for the students it stranded). */
-const holesByEntity = (lanes: StatLane[], enrolled: Set<string>): Map<string, number> => {
-  const totals = new Map([...enrolled].map((student) => [student, 0]));
-  for (const lane of lanes) {
-    totals.set(lane.entityKey, (totals.get(lane.entityKey) ?? 0) + lane.stats.holes);
-  }
-  return totals;
-};
 
 /** Distinct days a student is on campus — week-agnostic: a day is a trip in, whichever week it runs. */
 const daysPerStudent = (courses: AnalyzerCourse[], rows: AnalyzerRow[]): number[] => {

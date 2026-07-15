@@ -26,6 +26,7 @@ export type {
   DayEdgeProfile,
   Distribution,
   Extreme,
+  GapExtreme,
   GoldenCell,
   GoldenCensusFeatures,
   MirroredCell,

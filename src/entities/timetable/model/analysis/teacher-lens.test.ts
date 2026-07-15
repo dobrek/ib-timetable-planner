@@ -18,7 +18,8 @@ describe("deriveTeacherLens", () => {
     const lens = deriveTeacherLens(courses, rows, []);
 
     expect(lens.gapSlots).toBe(4); // (span 4 − 2 occupied) × 2 week lanes
-    expect(lens.worstTeacherGaps).toEqual({ key: "T1", value: 4 });
+    // value is the fortnight total (span 4 − 2 occupied, × 2 week lanes); perWeek is one week's 2.
+    expect(lens.worstTeacherGaps).toEqual({ key: "T1", value: 4, perWeek: 2 });
     expect(lens.teachingDays.max).toBe(1);
   });
 

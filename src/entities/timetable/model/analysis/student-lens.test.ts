@@ -37,7 +37,8 @@ describe("deriveStudentLens", () => {
     const lens = deriveStudentLens(cohort, rows, PERIODS);
 
     expect(lens.gapSlots).toBe(4);
-    expect(lens.worstStudentGaps).toEqual({ key: "s1", value: 4 });
+    // value is the fortnight total (holes 2 × both week lanes); perWeek is one week's 2.
+    expect(lens.worstStudentGaps).toEqual({ key: "s1", value: 4, perWeek: 2 });
     expect(lens.gapsPerStudent).toMatchObject({ count: 2, max: 4, min: 0 });
   });
 

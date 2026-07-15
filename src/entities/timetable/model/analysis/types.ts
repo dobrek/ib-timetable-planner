@@ -199,7 +199,7 @@ export type StudentFeatures = {
   /** Lane-expanded span − occupancy, summed — the same number `countStudentHoles` returns. */
   gapSlots: number;
   gapsPerStudent: Distribution;
-  worstStudentGaps: Extreme | null;
+  worstStudentGaps: GapExtreme | null;
   hoursPerStudentDay: Distribution;
   /** hours ÷ span per student-day-week; 1.0 is a fully compact day. */
   spanEfficiency: Distribution;
@@ -216,7 +216,7 @@ export type TeacherFeatures = {
   teachers: number;
   gapSlots: number;
   gapsPerTeacher: Distribution;
-  worstTeacherGaps: Extreme | null;
+  worstTeacherGaps: GapExtreme | null;
   teachingDays: Distribution;
   hoursPerTeachingDay: Distribution;
   daySpan: Distribution;
@@ -311,3 +311,12 @@ export type Extreme = {
   key: string;
   value: number;
 };
+
+/**
+ * A worst-case gap entry carrying both time bases. `value` is the FORTNIGHT total — span − occupancy
+ * summed over BOTH week lanes, the same number the engine's objective (`countStudentHoles` /
+ * `countTeacherHoles`) minimises. `perWeek` is the busier of the two weeks: what a reader counts on one
+ * week's grid. A gap that recurs every week is lived in both weeks, so `value` runs up to 2× `perWeek`
+ * (exactly 2× when the schedule is the same both weeks).
+ */
+export type GapExtreme = Extreme & { perWeek: number };

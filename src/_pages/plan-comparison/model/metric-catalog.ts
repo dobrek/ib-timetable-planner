@@ -68,11 +68,30 @@ const cohortNumber = (
   value: (features: PlanQualityFeatures, cohort: Cohort) => number,
 ): CohortMetricRow => ({ id, label, read: (f, c) => text(num(value(f, c))) });
 
-const planNumber = (id: string, label: string, value: (features: PlanQualityFeatures) => number): PlanMetricRow => ({
-  id,
-  label,
-  read: (f) => text(num(value(f))),
-});
+const planNumber = (
+  id: string,
+  label: string,
+  value: (features: PlanQualityFeatures) => number,
+  help?: MetricHelpText,
+): PlanMetricRow => ({ id, label, read: (f) => text(num(value(f))), ...(help ? { help } : {}) });
+
+/**
+ * Why the gap rows need explaining: the timetable runs on a two-week A/B cycle, and gaps are counted
+ * over the whole fortnight — the same basis the engine's objective minimises. A lesson that runs every
+ * week is sat through in both weeks, so a gap it leaves counts once per week. A plan whose lessons nearly
+ * all run weekly therefore reads at about twice a single week, which looks like double-counting until you
+ * know the basis. It reports the gap; it never says the gap is too many.
+ */
+const worstGapHelp = (who: string): MetricHelpText => [
+  `Empty periods between this ${who}'s first and last lesson of a day, summed across the whole two-week timetable (weeks A and B).`,
+  `A lesson that runs every week is sat through in both weeks, so a gap it leaves is counted once per week — on a mostly-weekly plan the total lands near twice a single week.`,
+  `The "(N / week)" beside the number is the busier of the two weeks: what you would count reading one week of the grid.`,
+];
+
+const totalGapHelp = (who: string): MetricHelpText => [
+  `Every ${who}'s empty interior periods, added up across everyone and across the whole two-week timetable (weeks A and B).`,
+  `A gap that recurs every week is counted once per week, so a mostly-weekly plan reads at about twice a single week's total.`,
+];
 
 /**
  * Cohort scoreboard — 18 rows, `bench/plan-report.ts:65-90`.
@@ -148,16 +167,21 @@ export const goldenCensusRows = (sample: PlanQualityFeatures, cohort: Cohort): C
 
 /** Board-wide (both cohorts) — 12 rows, `bench/plan-report.ts:159-178`. */
 export const BOARD_WIDE: PlanMetricRow[] = [
-  planNumber("teacherGapSlots", "TEACHER gap-slots", (f) => f.teachers.gapSlots),
+  planNumber("teacherGapSlots", "TEACHER gap-slots", (f) => f.teachers.gapSlots, totalGapHelp("teacher")),
   // The two rows that name a person — and the only two that link. See `extremes.ts`.
-  { id: "worstTeacher", label: "Worst teacher (gaps)", read: worstTeacherCell },
+  { id: "worstTeacher", label: "Worst teacher (gaps)", read: worstTeacherCell, help: worstGapHelp("teacher") },
   planNumber("teachingDays", "Avg teaching days / teacher", (f) => f.teachers.teachingDays.mean),
   planNumber("hoursPerTeachingDay", "Avg hours / teaching day", (f) => f.teachers.hoursPerTeachingDay.mean),
   planNumber("maxConsecutiveTeaching", "Max consecutive teaching", (f) => f.teachers.maxConsecutiveTeaching.max),
   planNumber("softAvailabilityHits", "Soft-availability hits", (f) => f.teachers.softAvailabilityHits),
   planNumber("strongAvailabilityHits", "Strong-availability hits", (f) => f.teachers.strongAvailabilityHits),
-  planNumber("studentGapSlotsTotal", "Student gap-slots", (f) => sumCohorts(f, (cohort) => cohort.students.gapSlots)),
-  { id: "worstStudent", label: "Worst student (gaps)", read: worstStudentCell },
+  planNumber(
+    "studentGapSlotsTotal",
+    "Student gap-slots",
+    (f) => sumCohorts(f, (cohort) => cohort.students.gapSlots),
+    totalGapHelp("student"),
+  ),
+  { id: "worstStudent", label: "Worst student (gaps)", read: worstStudentCell, help: worstGapHelp("student") },
   planNumber("hoursPerStudentDay", "Avg hours / student-day", (f) =>
     pooledMean(f, (cohort) => cohort.students.hoursPerStudentDay),
   ),

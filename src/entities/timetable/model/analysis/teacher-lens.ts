@@ -1,7 +1,7 @@
 import { buildAvailabilityIndex, type BoardAvailabilityCell } from "../availability-index";
 import { cellKey } from "../collision/cell-key";
 import { expandLanes, laneStats } from "./lanes";
-import { distribution, worstOf } from "./stats";
+import { distribution, gapExtremes, worstOf } from "./stats";
 import type { AnalyzerCourse, AnalyzerRow, Extreme, TeacherFeatures } from "./types";
 
 /**
@@ -28,15 +28,15 @@ export const deriveTeacherLens = (
     ...lane,
     stats: laneStats(lane.periods),
   }));
-  const gapsByTeacher = totalsBy(staff, lanes, (lane) => lane.stats.holes);
+  const teacherGaps = gapExtremes(lanes, staff);
   const dayLoads = teacherDayLoads(staff, rows, teachersOf);
   const hits = availabilityHits(rows, teachersOf, availability);
 
   return {
     teachers: staff.size,
     gapSlots: lanes.reduce((sum, lane) => sum + lane.stats.holes, 0),
-    gapsPerTeacher: distribution([...gapsByTeacher.values()]),
-    worstTeacherGaps: worstOf(asExtremes(gapsByTeacher)),
+    gapsPerTeacher: distribution(teacherGaps.map((gap) => gap.value)),
+    worstTeacherGaps: worstOf(teacherGaps),
     teachingDays: distribution([...dayLoads.daysPerTeacher.values()]),
     hoursPerTeachingDay: distribution(dayLoads.hoursPerDay),
     daySpan: distribution(lanes.map((lane) => lane.stats.span)),
@@ -45,15 +45,6 @@ export const deriveTeacherLens = (
     strongAvailabilityHits: hits.strong.length,
     softHitsByTeacher: countByTeacher(hits.soft),
   };
-};
-
-type StatLane = { entityKey: string; day: number; stats: { holes: number; span: number; maxStreak: number } };
-
-/** Every teacher on staff is ranked, including one with an empty board (0 gaps, 0 days). */
-const totalsBy = (staff: Set<string>, lanes: StatLane[], pick: (lane: StatLane) => number): Map<string, number> => {
-  const totals = new Map([...staff].map((teacher) => [teacher, 0]));
-  for (const lane of lanes) totals.set(lane.entityKey, (totals.get(lane.entityKey) ?? 0) + pick(lane));
-  return totals;
 };
 
 /** Days-in per teacher (week-agnostic) and the hours each of those days carries (one row = one hour). */

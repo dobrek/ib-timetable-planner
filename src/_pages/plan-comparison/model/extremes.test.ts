@@ -28,10 +28,34 @@ describe("worst-case cells", () => {
   it("names the worst teacher and worst student — never a UUID", () => {
     const { features, context } = analyze(GAPPY);
 
-    expect(worstTeacherCell(features, context).text).toMatch(/^Ada Byron: [1-9]\d*$/);
+    expect(worstTeacherCell(features, context).text).toMatch(/^Ada Byron: \d/);
     expect(worstTeacherCell(features, context).text).not.toMatch(/p1-t-/);
     expect(worstStudentCell(features, context).text).toMatch(/^Alan Turing: /);
     expect(worstStudentCell(features, context).text).not.toMatch(/p1-s-/);
+  });
+
+  // The gap that recurs every week is lived in both weeks: the P2–P4 hole on Ada's all-`both` day is a
+  // fortnight span of 5 − 2 = 3 holes per week lane, so the total reads 6 and the single week reads 3.
+  // Showing both is the whole point — the fortnight total is what looked like a doubling bug.
+  it("shows the fortnight total and the busier single week for an all-weekly schedule", () => {
+    const { features, context } = analyze(GAPPY);
+
+    expect(worstTeacherCell(features, context).text).toBe("Ada Byron: 6 (3 / week)");
+    expect(worstStudentCell(features, context).text).toBe("Alan Turing: 6 (3 / week)");
+  });
+
+  // No fortnight/week split to show when the schedule never repeats across the cycle: a purely week-A
+  // board has empty week-B lanes, so the total IS one week and the "(N / week)" gloss would be noise.
+  it("omits the per-week gloss when the total already is one week", () => {
+    const { features, context } = analyze({
+      ...GAPPY,
+      rows: [
+        { cohort: "dp1", courseId: "p1-c-0", day: 1, period: 1, week: "a" },
+        { cohort: "dp1", courseId: "p1-c-1", day: 1, period: 5, week: "a" },
+      ],
+    });
+
+    expect(worstTeacherCell(features, context).text).toBe("Ada Byron: 3");
   });
 
   /**

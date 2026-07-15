@@ -1,5 +1,5 @@
 import { COHORT_VALUES } from "@/shared/config";
-import type { Extreme, PlanQualityFeatures } from "@/entities/timetable";
+import type { GapExtreme, PlanQualityFeatures } from "@/entities/timetable";
 import type { PlanNaturalKeys } from "../api/load-plan-analysis";
 
 /**
@@ -35,8 +35,19 @@ export const studentHref = (planId: string, studentId: string): string => `/plan
  * `null` — nobody has any gaps at all — renders as an em dash, never as `0`: an absent worst case is not
  * a worst case of zero. It carries no link either; there is no one to go and look at.
  */
-const toCell = (entry: Extreme | null, name: (key: string) => string, href: (key: string) => string): MetricCell =>
-  entry === null ? { text: "—" } : { text: `${name(entry.key)}: ${String(entry.value)}`, href: href(entry.key) };
+const toCell = (entry: GapExtreme | null, name: (key: string) => string, href: (key: string) => string): MetricCell =>
+  entry === null ? { text: "—" } : { text: gapText(name(entry.key), entry), href: href(entry.key) };
+
+/**
+ * `Ada Byron: 20 (10 / week)` — the fortnight total, then the busier single week in parentheses. The
+ * per-week gloss is shown only when it differs from the total: a schedule that never repeats across the
+ * two-week cycle has `perWeek === value`, and "(20 / week)" beside "20" would be noise. The distinction
+ * is what a reader needs, because a weekly-recurring gap is counted once per week — see the row's help.
+ */
+const gapText = (name: string, entry: GapExtreme): string =>
+  entry.perWeek < entry.value
+    ? `${name}: ${String(entry.value)} (${String(entry.perWeek)} / week)`
+    : `${name}: ${String(entry.value)}`;
 
 /** Teachers resolve to their full name, falling back to the `code` — itself a natural key a timetabler
  *  reads fluently, unlike a UUID. */
@@ -52,7 +63,7 @@ const studentName =
   (key: string): string =>
     keys.students[key] ?? key;
 
-const worstStudentAcrossCohorts = (features: PlanQualityFeatures): Extreme | null =>
+const worstStudentAcrossCohorts = (features: PlanQualityFeatures): GapExtreme | null =>
   COHORT_VALUES.map((cohort) => features.cohorts[cohort].students.worstStudentGaps)
-    .filter((entry) => entry !== null)
+    .filter((entry): entry is GapExtreme => entry !== null)
     .sort((a, b) => b.value - a.value)[0] ?? null;

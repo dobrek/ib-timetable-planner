@@ -272,8 +272,14 @@ const label = (plan: LoadedPlan): string => `${plan.name} (${plan.id})`;
 
 const short = (plan: LoadedPlan): string => plan.name;
 
-const extreme = (entry: { key: string; value: number } | null): string =>
-  entry === null ? "—" : `${entry.key}: ${entry.value}`;
+// Mirrors the in-app cell (`plan-comparison/model/extremes.ts`): the fortnight total, then the busier
+// single week in parentheses when it differs — so `pnpm analyze:plans` stays diffable against the page it
+// validates. `perWeek` is optional; a plain `Extreme` renders as before.
+const extreme = (entry: { key: string; value: number; perWeek?: number } | null): string => {
+  if (entry === null) return "—";
+  const perWeek = entry.perWeek !== undefined && entry.perWeek < entry.value ? ` (${entry.perWeek} / week)` : "";
+  return `${entry.key}: ${entry.value}${perWeek}`;
+};
 
 const num = (value: number): string => (Number.isInteger(value) ? `${value}` : value.toFixed(2));
 

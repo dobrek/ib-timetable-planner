@@ -771,12 +771,12 @@ reset` mid-campaign) — the dump records its `clonePlanId`.
 
 #### Automated
 
-- [x] 5.1 `pnpm check`, `pnpm lint`, `pnpm test` pass with the import experiment added
-- [x] 5.2 `pnpm experiment:import` verifies and persists a seed-fixture CP-SAT result
+- [x] 5.1 `pnpm check`, `pnpm lint`, `pnpm test` pass with the import experiment added — 1dcc587
+- [x] 5.2 `pnpm experiment:import` verifies and persists a seed-fixture CP-SAT result — 1dcc587
 
 #### Manual
 
-- [x] 5.3 Golden campaign executed; artifacts in `poc/cp-sat/data/`; `git status` clean
-- [x] 5.4 CP-SAT board viewable in-app; analyzer comparison recorded
-- [x] 5.5 `results.md` written: comparison + G1/G2/G3 verdicts + go/no-go
-- [x] 5.6 Conditional: infeasibility memo exists iff Mode A returned INFEASIBLE (Mode A SAT → no memo)
+- [x] 5.3 Golden campaign executed; artifacts in `poc/cp-sat/data/`; `git status` clean — 1dcc587
+- [x] 5.4 CP-SAT board viewable in-app; analyzer comparison recorded — 1dcc587
+- [x] 5.5 `results.md` written: comparison + G1/G2/G3 verdicts + go/no-go — 1dcc587
+- [x] 5.6 Conditional: infeasibility memo exists iff Mode A returned INFEASIBLE (Mode A SAT → no memo) — 1dcc587

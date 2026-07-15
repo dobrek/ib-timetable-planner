@@ -736,23 +736,23 @@ reset` mid-campaign) — the dump records its `clonePlanId`.
 
 #### Automated
 
-- [x] 2.1 `uv run pytest` green (schema + model pins)
-- [x] 2.2 `uv run ruff check .` clean
+- [x] 2.1 `uv run pytest` green (schema + model pins) — 8fcf6c8
+- [x] 2.2 `uv run ruff check .` clean — 8fcf6c8
 
 #### Manual
 
-- [x] 2.3 Model stats on the golden dump within the ~4–9 k boolean envelope, both cohorts present
+- [x] 2.3 Model stats on the golden dump within the ~4–9 k boolean envelope, both cohorts present — 8fcf6c8
 
 ### Phase 3: Objective Tiers 1–10 + Encoding-Parity Gate
 
 #### Automated
 
-- [ ] 3.1 `uv run pytest` green — including the seed-fixture parity test (10/10 exact)
-- [ ] 3.2 `uv run ruff check .` clean
+- [x] 3.1 `uv run pytest` green — including the seed-fixture parity test (10/10 exact)
+- [x] 3.2 `uv run ruff check .` clean
 
 #### Manual
 
-- [ ] 3.3 Parity on the golden dump: 10/10 tiers match the TS tuple exactly
+- [x] 3.3 Parity on the golden dump: 10/10 tiers match the TS tuple exactly
 
 ### Phase 4: Staged Lexicographic Solver + CLI (Modes A & B)
 

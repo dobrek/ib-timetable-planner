@@ -36,6 +36,10 @@ def strong(teacher: str, day: int, period: int) -> AvailabilityCell:
     return AvailabilityCell(teacher, day, period, "strong")
 
 
+def soft(teacher: str, day: int, period: int) -> AvailabilityCell:
+    return AvailabilityCell(teacher, day, period, "soft")
+
+
 def snapshot(
     dp1: CohortSnapshot | None = None,
     dp2: CohortSnapshot | None = None,

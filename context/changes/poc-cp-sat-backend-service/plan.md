@@ -747,25 +747,25 @@ reset` mid-campaign) — the dump records its `clonePlanId`.
 
 #### Automated
 
-- [x] 3.1 `uv run pytest` green — including the seed-fixture parity test (10/10 exact)
-- [x] 3.2 `uv run ruff check .` clean
+- [x] 3.1 `uv run pytest` green — including the seed-fixture parity test (10/10 exact) — 88be29f
+- [x] 3.2 `uv run ruff check .` clean — 88be29f
 
 #### Manual
 
-- [x] 3.3 Parity on the golden dump: 10/10 tiers match the TS tuple exactly
+- [x] 3.3 Parity on the golden dump: 10/10 tiers match the TS tuple exactly — 88be29f
 
 ### Phase 4: Staged Lexicographic Solver + CLI (Modes A & B)
 
 #### Automated
 
-- [ ] 4.1 `uv run pytest` green (solver smoke + Mode B extraction + result-shape tests)
-- [ ] 4.2 `uv run ruff check .` clean
-- [ ] 4.3 `uv run cpsat … --mode full` on the seed fixture exits 0, writes result + sidecar + logs
+- [x] 4.1 `uv run pytest` green (solver smoke + Mode B extraction + result-shape tests)
+- [x] 4.2 `uv run ruff check .` clean
+- [x] 4.3 `uv run cpsat … --mode full` on the seed fixture exits 0, writes result + sidecar + logs
 
 #### Manual
 
-- [ ] 4.4 Seed full-mode per-stage report plausible (tier 1 → 0, stages within budget)
-- [ ] 4.5 Repair mode on a fabricated seed residue completes in seconds
+- [x] 4.4 Seed full-mode per-stage report plausible (tier 1 → 0, stages within budget)
+- [x] 4.5 Repair mode on a fabricated seed residue completes in seconds
 
 ### Phase 5: Measurement Campaign + Verdict
 

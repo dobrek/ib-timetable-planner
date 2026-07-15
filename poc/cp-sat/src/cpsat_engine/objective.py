@@ -39,13 +39,23 @@ class Tier:
     var: cp_model.IntVar
 
 
-def build_tiers(bundle: ModelBundle) -> list[Tier]:
-    """The ordered tier tuple 1..10. Idempotent per bundle is NOT assumed — call once per model."""
+@dataclass(frozen=True)
+class ObjectiveModel:
+    """The ordered ten tiers plus the per-cohort occupied-slot vars (the tier-3 clique-cut anchor)."""
+
+    tiers: tuple[Tier, ...]
+    cohort_slots: dict[str, cp_model.IntVar]
+
+
+def build_objective(bundle: ModelBundle) -> ObjectiveModel:
+    """Build the ten tier vars once (call once per model). Also exposes the per-cohort slot vars so
+    the staged solver can inject the redundant clique cut ``cohort_slots >= lowerBound`` at tier 3."""
     occ = _Occupancy(bundle)
-    return [
+    cohort_slots = _cohort_slot_vars(bundle, occ)
+    tiers = (
         Tier("unplacedTotal", _tier_unplaced(bundle)),
         Tier("holes", _tier_holes(bundle, occ)),
-        Tier("totalSlots", _tier_total_slots(bundle, occ)),
+        Tier("totalSlots", _sum_var(bundle, list(cohort_slots.values()), "tier_total_slots")),
         Tier("teacherHoles", _lane_holes_tier(bundle, bundle.by_teacher_lane, "teacherHoles")),
         Tier("softHits", _tier_soft_hits(bundle, occ)),
         Tier("studentHoles", _lane_holes_tier(bundle, bundle.by_student_lane, "studentHoles")),
@@ -53,7 +63,13 @@ def build_tiers(bundle: ModelBundle) -> list[Tier]:
         Tier("lateStarts", _tier_late_starts(bundle, occ)),
         Tier("fridayTail", _tier_friday_tail(bundle, occ)),
         Tier("goldenBandDistance", _tier_golden(bundle, occ)),
-    ]
+    )
+    return ObjectiveModel(tiers=tiers, cohort_slots=cohort_slots)
+
+
+def build_tiers(bundle: ModelBundle) -> list[Tier]:
+    """The ordered tier list 1..10 (parity/tests read this; the solver reads :func:`build_objective`)."""
+    return list(build_objective(bundle).tiers)
 
 
 # --- occupancy views (built once, from the merged board) ------------------------------------------
@@ -118,12 +134,17 @@ def _tier_holes(bundle: ModelBundle, occ: _Occupancy) -> cp_model.IntVar:
     return _sum_var(bundle, holes, "tier_holes")
 
 
-def _tier_total_slots(bundle: ModelBundle, occ: _Occupancy) -> cp_model.IntVar:
-    used = [
-        _bool_occ(bundle, terms, f"slot_{cohort}_{day}_{period}")
-        for (cohort, day, period), terms in occ.cohort_cell.items()
-    ]
-    return _sum_var(bundle, used, "tier_total_slots")
+def _cohort_slot_vars(bundle: ModelBundle, occ: _Occupancy) -> dict[str, cp_model.IntVar]:
+    """Per-cohort distinct occupied (day, period) cells (week-agnostic). tier 3 = their sum, and the
+    clique cut hardens each individually against its greedy lower bound."""
+    used: dict[str, list[Term]] = {cohort: [] for cohort in COHORTS}
+    for (cohort, day, period), terms in occ.cohort_cell.items():
+        used[cohort].append(_bool_occ(bundle, terms, f"slot_{cohort}_{day}_{period}"))
+    cap = bundle.snapshot.days * bundle.snapshot.periods
+    return {
+        cohort: _as_var(bundle, sum(cells) if cells else 0, 0, cap, f"slots_{cohort}")
+        for cohort, cells in used.items()
+    }
 
 
 # --- tiers 4 & 6: teacher / student lane holes ----------------------------------------------------

@@ -154,7 +154,7 @@ the parity gate exists to catch exactly these divergences, and pytest toy cases 
 asymmetry individually so a parity failure localizes.
 
 **Delta semantics collapse on a clean pin set.** The three warn-kinds (stacking, split,
-teacher-day-shape) are hard per (entity, lane) *except* lanes the pins already breach; blocking
+teacher-day-shape) are hard per (entity, lane) _except_ lanes the pins already breach; blocking
 kinds have no pin tolerance at all (`verify.ts:111-121, 158-168, 210-226`). The POC encodes all of
 them as plain hard constraints and **asserts the pins-only precondition before solving** (mirror
 of `run.ts:25-26`) — otherwise infeasibility reports blame the wrong thing.
@@ -163,8 +163,8 @@ of `run.ts:25-26`) — otherwise infeasibility reports blame the wrong thing.
 `boardRows` is pins + generated of both cohorts (`objective.ts:116-133`): softHits counts pinned
 rows' co-teachers, teacher/student-hole spans include pinned periods. Same on the constraint side:
 early-finish-edge is blocking with **no** pin tolerance, so generated rows must not sandwich a
-*pinned* flagged row (golden dp2 carries 9 flagged courses; the skeleton pins
-Advisory/CAS/EE/SSSTS). Encode pins as constants *inside* tier expressions and cross-row
+_pinned_ flagged row (golden dp2 carries 9 flagged courses; the skeleton pins
+Advisory/CAS/EE/SSSTS). Encode pins as constants _inside_ tier expressions and cross-row
 constraints (day-shape span/streak, sandwich, softHits) — not merely as cell occupancy.
 
 **Phantom-course auto-parking (user decision).** At export, any course whose expanded roster is
@@ -247,11 +247,25 @@ co-located-tested helper (`bench/*.test.ts` files are collected by `pnpm test`).
 ```jsonc
 {
   "formatVersion": 1,
-  "meta": { "sourcePlanId": "…", "clonePlanId": "…", "exportedAt": "…", "pinSkeleton": true,
-            "autoParked": [{ "cohort": "dp2", "courseId": "…", "hoursParked": 4 }] },
-  "snapshot": { /* GeneratorSnapshot, verbatim, post-transformation */ },
-  "greedy": { "placements": [ /* GeneratedPlacement[] */ ], "diagnostics": { /* incl. per-cohort lowerBound */ } },
-  "objective": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  /* TS 10-tuple for the merged greedy board */
+  "meta": {
+    "sourcePlanId": "…",
+    "clonePlanId": "…",
+    "exportedAt": "…",
+    "pinSkeleton": true,
+    "autoParked": [{ "cohort": "dp2", "courseId": "…", "hoursParked": 4 }],
+  },
+  "snapshot": {
+    /* GeneratorSnapshot, verbatim, post-transformation */
+  },
+  "greedy": {
+    "placements": [
+      /* GeneratedPlacement[] */
+    ],
+    "diagnostics": {
+      /* incl. per-cohort lowerBound */
+    },
+  },
+  "objective": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] /* TS 10-tuple for the merged greedy board */,
 }
 ```
 
@@ -365,7 +379,7 @@ re-serialize → deep-equal), deficit derivation (including parked coverage), va
 the expected envelope, per-rule constraint-group counts, precondition detection (mutate a pin to
 collide → assertion fires), zero-student parking respected (no variables for parked hours).
 
-**Contract**: Plain pytest, no solver invocations (model *construction* only — fast).
+**Contract**: Plain pytest, no solver invocations (model _construction_ only — fast).
 
 ### Success Criteria:
 
@@ -657,7 +671,7 @@ concludes.
 
 ### Integration Tests:
 
-- None added to `pnpm test:integration` — the experiments *are* the integration surface
+- None added to `pnpm test:integration` — the experiments _are_ the integration surface
   (deliberately on-demand, DB-touching, excluded from CI like their `bench/` siblings). This plan
   explicitly defers CI integration tests as out of scope (POC tooling).
 
@@ -670,7 +684,7 @@ concludes.
 5. `--mode complete` (Mode A) → record outcome + per-stage report (SAT chains into the ladder);
    `--mode full` only if Mode A returned UNKNOWN; `--mode repair` → record residual timing.
 6. `pnpm experiment:import` for the chosen board → view at `/plans/<cloneId>` → `ANALYZE_PLAN_A/B
-   pnpm analyze:plans`.
+pnpm analyze:plans`.
 7. Write `results.md`; verify gates against the recorded numbers.
 
 ## Performance Considerations
@@ -707,27 +721,27 @@ reset` mid-campaign) — the dump records its `clonePlanId`.
 
 #### Automated
 
-- [x] 1.1 `pnpm check` passes (after `astro sync`)
-- [x] 1.2 `pnpm lint` and `pnpm test` pass (export helper unit test included)
-- [x] 1.3 `SOURCE_PLAN_ID=<seed-plan-a> PIN_SKELETON=1 pnpm experiment:export` produces a dump
-- [x] 1.4 `cd poc/cp-sat && uv run pytest && uv run ruff check .` green
+- [x] 1.1 `pnpm check` passes (after `astro sync`) — e327a00
+- [x] 1.2 `pnpm lint` and `pnpm test` pass (export helper unit test included) — e327a00
+- [x] 1.3 `SOURCE_PLAN_ID=<seed-plan-a> PIN_SKELETON=1 pnpm experiment:export` produces a dump — e327a00
+- [x] 1.4 `cd poc/cp-sat && uv run pytest && uv run ruff check .` green — e327a00
 
 #### Manual
 
-- [x] 1.5 Golden export lands under `poc/cp-sat/data/`; `git status` stays clean
-- [x] 1.6 Golden export log shows Chemistry SL auto-parked (4 h) with zero-student assertion
-- [x] 1.7 Dump inspected: UUID-only; `objective` tuple and per-cohort `lowerBound` present
+- [x] 1.5 Golden export lands under `poc/cp-sat/data/`; `git status` stays clean — e327a00
+- [x] 1.6 Golden export log shows Chemistry SL auto-parked (4 h) with zero-student assertion — e327a00
+- [x] 1.7 Dump inspected: UUID-only; `objective` tuple and per-cohort `lowerBound` present — e327a00
 
 ### Phase 2: Python Schema + Hard-Rule Encoding
 
 #### Automated
 
-- [ ] 2.1 `uv run pytest` green (schema + model pins)
-- [ ] 2.2 `uv run ruff check .` clean
+- [x] 2.1 `uv run pytest` green (schema + model pins)
+- [x] 2.2 `uv run ruff check .` clean
 
 #### Manual
 
-- [ ] 2.3 Model stats on the golden dump within the ~4–9 k boolean envelope, both cohorts present
+- [x] 2.3 Model stats on the golden dump within the ~4–9 k boolean envelope, both cohorts present
 
 ### Phase 3: Objective Tiers 1–10 + Encoding-Parity Gate
 

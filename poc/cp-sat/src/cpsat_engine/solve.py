@@ -472,6 +472,7 @@ def _run_solver(
     lines: list[str] = []
     if path is not None:
         solver.parameters.log_search_progress = True
+        solver.parameters.log_to_stdout = False  # tee to the file only; keep the CLI's stdout clean
         solver.log_callback = lines.append
     status = solver.solve(model)
     if path is not None:

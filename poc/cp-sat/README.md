@@ -55,9 +55,11 @@ SOURCE_PLAN_ID=c43c5f07-9448-5ab2-ad54-358f59403585 PIN_SKELETON=1 \
 SOURCE_PLAN_ID=<golden-plan-id> PIN_SKELETON=1 pnpm experiment:export
 ```
 
-The export auto-parks zero-student courses' uncovered hours (Chemistry SL, 4 h, on the golden plan)
-and logs each loudly. The dump carries `{ snapshot, greedy baseline + per-cohort lowerBound, TS
-10-tier objective tuple }`.
+The export auto-parks any zero-student course's uncovered hours (a phantom-course guard) and logs
+each loudly. On the golden plan **as currently configured this is a no-op** — Chemistry SL was
+re-attributed to its real roster during Phase 1, so no course has an empty roster and the dump
+records `meta.autoParked: []`. The dump carries `{ snapshot, greedy baseline + per-cohort
+lowerBound, TS 10-tier objective tuple }`.
 
 ### 2. Parity gate (Phase 3)
 

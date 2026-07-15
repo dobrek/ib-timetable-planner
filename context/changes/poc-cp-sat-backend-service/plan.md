@@ -758,25 +758,25 @@ reset` mid-campaign) — the dump records its `clonePlanId`.
 
 #### Automated
 
-- [x] 4.1 `uv run pytest` green (solver smoke + Mode B extraction + result-shape tests)
-- [x] 4.2 `uv run ruff check .` clean
-- [x] 4.3 `uv run cpsat … --mode full` on the seed fixture exits 0, writes result + sidecar + logs
+- [x] 4.1 `uv run pytest` green (solver smoke + Mode B extraction + result-shape tests) — 6e59e77
+- [x] 4.2 `uv run ruff check .` clean — 6e59e77
+- [x] 4.3 `uv run cpsat … --mode full` on the seed fixture exits 0, writes result + sidecar + logs — 6e59e77
 
 #### Manual
 
-- [x] 4.4 Seed full-mode per-stage report plausible (tier 1 → 0, stages within budget)
-- [x] 4.5 Repair mode on a fabricated seed residue completes in seconds
+- [x] 4.4 Seed full-mode per-stage report plausible (tier 1 → 0, stages within budget) — 6e59e77
+- [x] 4.5 Repair mode on a fabricated seed residue completes in seconds — 6e59e77
 
 ### Phase 5: Measurement Campaign + Verdict
 
 #### Automated
 
-- [ ] 5.1 `pnpm check`, `pnpm lint`, `pnpm test` pass with the import experiment added
-- [ ] 5.2 `pnpm experiment:import` verifies and persists a seed-fixture CP-SAT result
+- [x] 5.1 `pnpm check`, `pnpm lint`, `pnpm test` pass with the import experiment added
+- [x] 5.2 `pnpm experiment:import` verifies and persists a seed-fixture CP-SAT result
 
 #### Manual
 
-- [ ] 5.3 Golden campaign executed; artifacts in `poc/cp-sat/data/`; `git status` clean
-- [ ] 5.4 CP-SAT board viewable in-app; analyzer comparison recorded
-- [ ] 5.5 `results.md` written: comparison + G1/G2/G3 verdicts + go/no-go
-- [ ] 5.6 Conditional: infeasibility memo exists iff Mode A returned INFEASIBLE
+- [x] 5.3 Golden campaign executed; artifacts in `poc/cp-sat/data/`; `git status` clean
+- [x] 5.4 CP-SAT board viewable in-app; analyzer comparison recorded
+- [x] 5.5 `results.md` written: comparison + G1/G2/G3 verdicts + go/no-go
+- [x] 5.6 Conditional: infeasibility memo exists iff Mode A returned INFEASIBLE (Mode A SAT → no memo)

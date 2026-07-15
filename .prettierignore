@@ -2,3 +2,4 @@
 context/
 src/lib/database.types.ts
 supabase/seed.sql
+poc/

@@ -707,16 +707,16 @@ reset` mid-campaign) — the dump records its `clonePlanId`.
 
 #### Automated
 
-- [ ] 1.1 `pnpm check` passes (after `astro sync`)
-- [ ] 1.2 `pnpm lint` and `pnpm test` pass (export helper unit test included)
-- [ ] 1.3 `SOURCE_PLAN_ID=<seed-plan-a> PIN_SKELETON=1 pnpm experiment:export` produces a dump
-- [ ] 1.4 `cd poc/cp-sat && uv run pytest && uv run ruff check .` green
+- [x] 1.1 `pnpm check` passes (after `astro sync`)
+- [x] 1.2 `pnpm lint` and `pnpm test` pass (export helper unit test included)
+- [x] 1.3 `SOURCE_PLAN_ID=<seed-plan-a> PIN_SKELETON=1 pnpm experiment:export` produces a dump
+- [x] 1.4 `cd poc/cp-sat && uv run pytest && uv run ruff check .` green
 
 #### Manual
 
-- [ ] 1.5 Golden export lands under `poc/cp-sat/data/`; `git status` stays clean
-- [ ] 1.6 Golden export log shows Chemistry SL auto-parked (4 h) with zero-student assertion
-- [ ] 1.7 Dump inspected: UUID-only; `objective` tuple and per-cohort `lowerBound` present
+- [x] 1.5 Golden export lands under `poc/cp-sat/data/`; `git status` stays clean
+- [x] 1.6 Golden export log shows Chemistry SL auto-parked (4 h) with zero-student assertion
+- [x] 1.7 Dump inspected: UUID-only; `objective` tuple and per-cohort `lowerBound` present
 
 ### Phase 2: Python Schema + Hard-Rule Encoding
 

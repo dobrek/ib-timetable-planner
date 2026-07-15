@@ -20,6 +20,7 @@
     "analyze:plans": "vitest run --config vitest.analyze.config.ts",
     "experiment:generation": "vitest run --config vitest.experiment.config.ts",
     "experiment:export": "vitest run --config vitest.experiment.config.ts bench/export-snapshot.experiment.ts",
+    "experiment:import": "vitest run --config vitest.experiment.config.ts bench/import-generated.experiment.ts",
     "pretest:e2e": "node scripts/provision-e2e-author.mjs",
     "test:e2e": "playwright test",
     "env:local": "cp .envs/local.vars .env.local && cp .envs/local.vars .dev.vars",

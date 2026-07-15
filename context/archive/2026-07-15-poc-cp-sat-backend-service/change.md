@@ -1,10 +1,10 @@
 ---
 change_id: poc-cp-sat-backend-service
 title: Poc cp sat backend service
-status: implemented
+status: archived
 created: 2026-07-15
 updated: 2026-07-15
-archived_at: null
+archived_at: 2026-07-15T16:48:26Z
 ---
 
 ## Notes

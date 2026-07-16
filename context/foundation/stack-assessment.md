@@ -50,13 +50,13 @@ dependency-groups or `[tool.*]`; ruff's selected rules `E,F,I,UP,B,SIM` do not
 type-check).
 
 **Framework (solver).** or-tools CP-SAT (`ortools>=9.15,<9.16`) as the modeling
-core; no service framework yet — the HTTP wrapper (FastAPI per PRD FR-010) is
+core; no service framework yet — the HTTP wrapper (FastAPI per PRD FR-310) is
 net-new for this change. Package is standard src-layout (hatchling,
 `src/cpsat_engine`), pytest 8 + ruff via uv (`uv.lock`).
 
 **CI/CD.** GitHub Actions (`.github/workflows/ci.yml`): `verify` (sync → check
 → lint → steiger → audit → test → build) → `integration` → `e2e` → `deploy`
-(migrations + Worker ship on main). No Python lane yet — net-new per FR-015.
+(migrations + Worker ship on main). No Python lane yet — net-new per FR-315.
 
 **Deployment.** Cloudflare Workers (workerd) via `@astrojs/cloudflare` +
 `wrangler.jsonc`; Cloudflare Containers (GA 2026-04) planned for the solver.
@@ -142,7 +142,7 @@ patch, and most land naturally inside the migration this PRD already scopes.
 **Why it matters.** The solver is about to become a production service owning
 one side of a frozen, parity-gated wire contract. Unenforced annotations give
 an agent false confidence: the types read as guarantees but nothing checks
-them. The cheapest moment to fix this is now — FR-015 is already adding the
+them. The cheapest moment to fix this is now — FR-315 is already adding the
 path-filtered solver CI lane (ruff + pytest); a type checker is one more line
 in a lane being built anyway.
 
@@ -227,7 +227,7 @@ Paste into `CLAUDE.md` (AGENTS.md includes it automatically):
   Never write wrangler.jsonc container bindings, lifecycle config
   (sleepAfter/SIGTERM), or CF API token scopes from memory; fetch current
   Cloudflare docs first. Known platform issue: containers may sleep mid-job
-  (containers#162) — job-aware lifecycle is a correctness requirement (FR-011).
+  (containers#162) — job-aware lifecycle is a correctness requirement (FR-311).
 - React islands compile through the **React Compiler** — keep render-purity
   discipline; don't hand-add useMemo/useCallback where the compiler already
   memoizes.
@@ -244,7 +244,7 @@ lint as CI gates), mainstream well-documented stack; on its own it would keep
 the previous assessment's *ready* verdict. The compensation burden sits
 entirely on the seams this change opens: the Python solver's unenforced type
 hints (the single failed gate — one `[tool.mypy]` block plus a CI line,
-cheapest to add while FR-015 builds the lane anyway), an instruction file
+cheapest to add while FR-315 builds the lane anyway), an instruction file
 that doesn't yet know the Python half exists, and four post-cutoff platform
 surfaces (Cloudflare Containers above all) where agents must be pointed at
 live docs instead of memory.

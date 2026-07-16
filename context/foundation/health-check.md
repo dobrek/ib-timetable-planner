@@ -59,7 +59,7 @@ Summary: 0 findings — no known vulnerabilities, no adverse project statuses (1
 > and it audits the full lockfile rather than the installed environment.
 
 The solver's audit surface is currently one runtime dependency
-(`ortools>=9.15,<9.16`) — the planned FastAPI wrapper (PRD FR-010) will grow
+(`ortools>=9.15,<9.16`) — the planned FastAPI wrapper (PRD FR-310) will grow
 that tree; see Fix 3.
 
 ### Outdated Dependencies
@@ -114,7 +114,7 @@ Deploy job ships migrations + Worker on merge to main after all gates pass.
 
 **Coverage boundary:** the pipeline is JS-only. The solver's 40 tests and ruff
 lint run nowhere in CI — the path-filtered solver lane is scoped as net-new
-work in PRD FR-015. Flagged as Fix 2 so it lands with a type checker included
+work in PRD FR-315. Flagged as Fix 2 so it lands with a type checker included
 (see cross-reference below). No scheduled dependency scanning
 (Dependabot/Renovate) — audit runs only on push/PR; acceptable at this scale,
 noted in Fix 6.
@@ -154,12 +154,12 @@ Agent readiness (from stack-assess): ready-with-compensation
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | Solver typed: fail (no mypy/pyright)                                         | No Python CI lane exists at all — annotations unenforced locally AND in CI                                                      | **Reinforced**                                               |
 | Solver conventions: partial (instruction file blind to Python)               | CLAUDE.md/AGENTS.md present but the recommended solver + post-cutoff sections are not yet pasted; "Astro 6" drift still present | **Reinforced — compensation pending**                        |
-| Post-cutoff platforms: partial (Containers, Vite 8, Astro 7, React Compiler) | No operational counterpart yet (wrangler.jsonc has no container bindings); doc-first rules not yet in CLAUDE.md                 | Pending — becomes operational when FR-015/FR-011 work starts |
+| Post-cutoff platforms: partial (Containers, Vite 8, Astro 7, React Compiler) | No operational counterpart yet (wrangler.jsonc has no container bindings); doc-first rules not yet in CLAUDE.md                 | Pending — becomes operational when FR-315/FR-311 work starts |
 | CP-SAT idiom thin in training data                                           | Structural defenses verified working: 40 solver tests green, parity suite in place                                              | **Mitigated**                                                |
 
 The two reinforced rows compound into one message: the solver currently has
 **zero machine enforcement** — no type checker, no CI lane, no instruction-file
-steering. Each is individually cheap, and FR-015 is the natural vehicle for
+steering. Each is individually cheap, and FR-315 is the natural vehicle for
 all of them.
 
 ## Recommended Fixes
@@ -184,7 +184,7 @@ platform rules") from `context/foundation/stack-assessment.md` →
 "Recommended Instruction File Additions" into `CLAUDE.md`, and change
 "Astro 6" → "Astro 7" in its first paragraph.
 
-### 2. Add mypy --strict to the solver (with the FR-015 CI lane)
+### 2. Add mypy --strict to the solver (with the FR-315 CI lane)
 
 **Impact**: the solver owns one side of the frozen wire contract; today a
 shape drift in `schema.py` produces no machine signal anywhere — the stack
@@ -195,7 +195,7 @@ assessment's one failed gate, reinforced by the missing CI lane.
 
 Apply the `[tool.mypy]` block from the stack assessment to
 `poc/cp-sat/pyproject.toml`, run `uv run mypy` until clean, and include
-`uv run mypy` next to ruff + pytest when building the FR-015 path-filtered
+`uv run mypy` next to ruff + pytest when building the FR-315 path-filtered
 CI lane.
 
 ### 3. Python vulnerability scanning — ✅ applied via `uv audit`
@@ -213,7 +213,7 @@ zero added dependencies. pip-audit was trialed first and removed in its favor.
 cd poc/cp-sat && uv audit          # local; --frozen for lockfile-only in CI
 ```
 
-Remaining: add `uv audit --frozen` to the FR-015 CI lane alongside
+Remaining: add `uv audit --frozen` to the FR-315 CI lane alongside
 ruff/pytest/mypy. Caveat: the command is a **preview feature** ("may change
 without warning") — re-check its stability when wiring the CI lane, and pin
 the uv version there.
@@ -287,9 +287,9 @@ gaps are concentrated on exactly the seam the stack assessment flagged — the
 Python solver has zero machine enforcement (no mypy, no CI lane, no
 instruction-file coverage), which matters because that seam is where the
 CP-SAT migration work is about to happen. Fixes 1–3 close it for well under
-an hour, and FR-015 is the natural vehicle.
+an hour, and FR-315 is the natural vehicle.
 
 Next step: apply Fix 1 (five minutes, highest leverage) before starting agent
-work on the CP-SAT change; fold Fixes 2–3 into the FR-015 CI-lane work. Both
+work on the CP-SAT change; fold Fixes 2–3 into the FR-315 CI-lane work. Both
 brownfield artifacts (stack-assessment.md + health-check.md) are now current
 for agent onboarding.

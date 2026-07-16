@@ -42,7 +42,7 @@ pure two-cohort constraint core lives in `src/entities/timetable/`.
 **Generation today — client-side only.**
 
 - The only generation engine is a **TS greedy engine running in a browser Web
-  Worker** (20 s budget, FR-016). There is no server-side generation endpoint;
+  Worker** (20 s budget, FR-016 of the archived prior PRD). There is no server-side generation endpoint;
   the only server round-trip is the persist step.
 - The integration seams were deliberately left open for a second engine: the
   engine-agnostic `GeneratePlan` port (diagnostics pre-model `engine: "cp-sat"`,
@@ -209,7 +209,7 @@ calibration campaign, never tuned locally on the M4.
 
 > Delta-framed — each notes what was different before.
 
-### US-01: Generate a complete proposal while continuing to edit
+### US-301: Generate a complete proposal while continuing to edit
 
 - **Given** an author on an existing plan with residual unplaced hours
 - **When** they start a CP-SAT job (default clean-mode policy), keep editing
@@ -224,7 +224,7 @@ calibration campaign, never tuned locally on the M4.
 > unplaced, ran only while the tab stayed open, and overwrote nothing safely —
 > there was no proposal concept.
 
-### US-02: Stop & keep at "good enough"
+### US-302: Stop & keep at "good enough"
 
 - **Given** a running job that has completed quality tier k of the ladder
 - **When** the author stops it mid-run ("Stop & keep")
@@ -235,7 +235,7 @@ calibration campaign, never tuned locally on the M4.
 > Before: cancelling greedy kept its best-so-far only in browser memory; a
 > long solve had no notion of accrued, keepable progress.
 
-### US-03: Unchanged source is updated automatically
+### US-303: Unchanged source is updated automatically
 
 - **Given** a running job whose source plan receives no edits during the solve
 - **When** the job completes
@@ -256,7 +256,7 @@ calibration campaign, never tuned locally on the M4.
 
 ### Generation jobs
 
-- [new] FR-001: Author can start a CP-SAT generation job on a plan: the app
+- [new] FR-301: Author can start a CP-SAT generation job on a plan: the app
   settles unsaved board state, clones the plan as the proposal target,
   assembles the snapshot from the clone server-side, records a durable
   generation job, and dispatches it to the solver service. Priority: must-have.
@@ -265,7 +265,7 @@ calibration campaign, never tuned locally on the M4.
   > optimistic client state. Resolution: stands as written — settle-then-clone
   > is the smallest mechanism that makes the snapshot authoritative and the
   > drift guard meaningful.
-- [new] FR-002: Author chooses the solve policy when launching a job — **clean
+- [new] FR-302: Author chooses the solve policy when launching a job — **clean
   mode (`softHits ≡ 0`) as the shipped default**, with the canonical
   lexicographic order and the teacher/student trade-off dial as selectable
   alternatives. Priority: must-have.
@@ -274,7 +274,7 @@ calibration campaign, never tuned locally on the M4.
   > dominated the canonical campaign board). Resolution: FR updated — clean
   > mode is the shipped default; canonical order remains selectable. This
   > resolves the research's open question on the production default policy.
-- [new] FR-003: The solve runs Mode A (complete the board) then the staged
+- [new] FR-303: The solve runs Mode A (complete the board) then the staged
   quality ladder under the chosen policy, stopping stages by target
   (solve-to-target) with budget ceilings; after each completed stage the
   incumbent board + objective tuple is durably checkpointed, so an interrupted
@@ -284,7 +284,7 @@ calibration campaign, never tuned locally on the M4.
   > — calibration sets the target *values*, but target-stopping as the
   > strategy is locked (hardware-independence), and checkpoints are what make
   > a 20-minute job stoppable and SIGTERM-safe.
-- [new] FR-004: Author can observe a running job from the app — status,
+- [new] FR-304: Author can observe a running job from the app — status,
   current stage, progress — by polling the durable job record; the plans list
   shows a job badge; job state survives browser close and container sleep.
   Priority: must-have.
@@ -293,7 +293,7 @@ calibration campaign, never tuned locally on the M4.
   > that works on a durable row at this scale); push — Supabase Realtime or
   > container WebSocket forwarding — is recorded as the acknowledged upgrade
   > if polling UX disappoints. Routed to the Forward block.
-- [new] FR-005: Author can stop a running job and keep the best checkpointed
+- [new] FR-305: Author can stop a running job and keep the best checkpointed
   board ("Stop & keep"), mirroring the greedy path's existing cancel
   semantics; the affordance states exactly what will be kept — the last
   *completed* stage's board, not the in-flight stage. Priority: must-have.
@@ -301,8 +301,8 @@ calibration campaign, never tuned locally on the M4.
   > are confusing — authors may believe they kept more progress than they
   > did." Resolution: kept, with a UX obligation added — the stop affordance
   > must name the stage of the board being kept.
-- [new] FR-006: On completion the result is imported onto its plan only after
-  passing the oracle; when review is needed (the drifted case of FR-007), the
+- [new] FR-306: On completion the result is imported onto its plan only after
+  passing the oracle; when review is needed (the drifted case of FR-307), the
   author reviews the result against the source on the **existing
   plan-comparison page** (with dominance/quality information) — no new
   side-by-side surface is built. Priority: must-have.
@@ -310,7 +310,7 @@ calibration campaign, never tuned locally on the M4.
   > side-by-side review UX, reuse the comparison page the product already
   > has. Resolution: FR updated — the existing comparison page is the review
   > surface; dominance info joins it as context.
-- [new] FR-007: On job completion the app detects whether the source plan
+- [new] FR-307: On job completion the app detects whether the source plan
   changed since the solved snapshot (the catalog/board drift guard promoted to
   production). If **unchanged**, the oracle-verified result is
   **auto-applied** to the source via the atomic RPC, the working clone is
@@ -323,14 +323,14 @@ calibration campaign, never tuned locally on the M4.
   > stands as a new plan. Locked follow-up: auto-apply with clone cleanup and
   > notification; post-hoc inspection remains available via the comparison
   > page.
-- [new] FR-008: While a job runs, the source plan shows an advisory "proposal
+- [new] FR-308: While a job runs, the source plan shows an advisory "proposal
   in progress from <time> state" indicator; one job per source plan is active
   at a time; editing is never blocked. Priority: must-have.
   > Socrates: Counter-arguments considered: one-job-per-plan blocks parallel
   > policy runs; advisory-only indicator under-informs. Resolution: stands as
   > written — the single-job limit is the simplest concurrency model and can
   > be lifted later (per-job container instances make parallel runs cheap).
-- [new] FR-009: Author is notified on job completion with the result
+- [new] FR-309: Author is notified on job completion with the result
   information — in-app when the app is open, and by **email** to match the
   "kick it off and walk away" usage of a 20-minute job. Priority: nice-to-have.
   > Socrates: Counter-argument **accepted (extended)**: "in-app-only misses
@@ -341,7 +341,7 @@ calibration campaign, never tuned locally on the M4.
 
 ### Solver service
 
-- [new] FR-010: The solver service (promoted `cpsat_engine` + HTTP wrapper)
+- [new] FR-310: The solver service (promoted `cpsat_engine` + HTTP wrapper)
   accepts solve jobs over HTTP, runs with a pinned worker count, writes
   per-stage status/results to the database over HTTPS, and is tested at the
   wrapper level (the untested-CLI lesson). Priority: must-have.
@@ -349,7 +349,7 @@ calibration campaign, never tuned locally on the M4.
   > Actions, solver direct); FastAPI heavier than two endpoints need.
   > Resolution: stands as written — direct durable writes survive container
   > sleep; the framework choice is a plan-phase detail.
-- [new] FR-011: The container's lifecycle is job-aware: activity renewal
+- [new] FR-311: The container's lifecycle is job-aware: activity renewal
   prevents scale-to-zero mid-solve; the stop path persists the latest
   checkpoint and marks the job interrupted on SIGTERM. Priority: must-have.
   > Socrates: Counter-arguments considered: sleepAfter > max job length as
@@ -360,24 +360,24 @@ calibration campaign, never tuned locally on the M4.
 
 ### Preserved behaviour & migration
 
-- [preserved] FR-012: Existing interactive editing, drag-drop validation
+- [preserved] FR-312: Existing interactive editing, drag-drop validation
   (< 200 ms), and all board views keep working unchanged — generation adds no
   work to the interactive validation path. Priority: must-have.
   > Socrates: Counter-argument considered: "preserved is aspirational until
   > measured — polling and job UI land on the plan-detail island."
   > Resolution: stands as a hard guardrail; the NFRs carry the measurable
   > commitment.
-- [preserved] FR-013: Every generated board — from any engine — reaches the
+- [preserved] FR-313: Every generated board — from any engine — reaches the
   database only through oracle verification, apply-time re-verify, and the
   atomic `apply_generated_placements` RPC; the oracle runs **server-side in
   the job delivery pipeline** (the relocated `runVerifiedGeneration` seam), so
-  headless delivery (auto-apply, FR-007) is verified without a browser open.
+  headless delivery (auto-apply, FR-307) is verified without a browser open.
   Priority: must-have.
   > Socrates: Counter-argument **accepted (pinned)**: "where the oracle runs
   > is unspecified — client-only verification can't serve headless delivery."
   > Resolution: oracle execution pinned to the server-side job pipeline; the
   > trust boundary is unchanged, its location is now explicit.
-- [modified] FR-014: The greedy Web Worker path remains the working Generate
+- [modified] FR-314: The greedy Web Worker path remains the working Generate
   affordance, untouched, until the calibration gate passes and the proposal
   flow ships; then CP-SAT becomes the default generate path and the greedy
   engine + Web Worker machinery are deleted (clique-bound derivation
@@ -390,7 +390,7 @@ calibration campaign, never tuned locally on the M4.
 
 ### Dev & ops
 
-- [new] FR-015: A maintainer ships app + solver with one merge to main: a
+- [new] FR-315: A maintainer ships app + solver with one merge to main: a
   path-filtered solver verify job (ruff + pytest) joins the CI gate, and the
   deploy job builds/pushes the container image alongside the Worker. Priority:
   must-have.
@@ -398,7 +398,7 @@ calibration campaign, never tuned locally on the M4.
   > builds; deliberate narrow-token posture quietly widening. Resolution:
   > stands — one gate-then-deploy lane matches the single-author load; the
   > exact token scopes stay in Open Questions.
-- [new] FR-016: A developer runs the full stack locally at three fidelity
+- [new] FR-316: A developer runs the full stack locally at three fidelity
   tiers — native solver (uvicorn) via the env-gated `SOLVER_URL` transport,
   linux/amd64 image smoke, `wrangler dev` with the real container binding —
   orchestrated by mise (toolchain pins + cross-ecosystem tasks; pnpm scripts
@@ -420,7 +420,7 @@ calibration campaign, never tuned locally on the M4.
   the proposal clone. Additive migrations only; `generation_jobs` is a new
   table with RLS + explicit grants per the least-privilege lesson.
 - **Engine transition compatibility.** The greedy Web Worker path keeps
-  working, untouched, until the calibration gate; PRD FR-016 is amended
+  working, untouched, until the calibration gate; the archived prior PRD's FR-016 is amended
   engine-agnostically (an engine produces a verified board under a
   budget/target) so greedy's later retirement is a PRD non-event. Retirement
   preconditions: clique-bound derivation extracted out of `engines/greedy/`,
@@ -545,8 +545,8 @@ printable / PDF export; teacher soft preferences and hours-per-week caps.
    lane. — Owner: deploy-lane phase.
 
 > Resolved during shaping (recorded for traceability): default policy → clean
-> mode (FR-002); plan locking → never, proposal clones (FR-007/008); delivery
-> → drift-decided auto-apply vs new plan (FR-007); Mode-A timeout → fall back
+> mode (FR-302); plan locking → never, proposal clones (FR-307/308); delivery
+> → drift-decided auto-apply vs new plan (FR-307); Mode-A timeout → fall back
 > to the background job (Business Logic); snapshot assembly → settle, then
-> clone, then assemble server-side (FR-001); notifications → polling + in-app
-> now, email nice-to-have, push recorded as upgrade (FR-004/009).
+> clone, then assemble server-side (FR-301); notifications → polling + in-app
+> now, email nice-to-have, push recorded as upgrade (FR-304/309).

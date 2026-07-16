@@ -14,7 +14,7 @@
 ## Post-cutoff platform rules
 
 - **Astro is v7** (not v6) with Vite 8 (Rolldown). Before using Astro/Vite config APIs, verify against current docs — several v6-era idioms changed. The `ssrPrebundleDeps()` workaround in `astro.config.mjs` is deliberate; read its comment before touching dev-SSR or optimizeDeps behavior.
-- **Cloudflare Containers went GA 2026-04** — post-cutoff for most models. Never write `wrangler.jsonc` container bindings, lifecycle config (sleepAfter/SIGTERM), or CF API token scopes from memory; fetch current Cloudflare docs first. Known platform issue: containers may sleep mid-job (containers#162) — job-aware lifecycle is a correctness requirement (PRD FR-011).
+- **Cloudflare Containers went GA 2026-04** — post-cutoff for most models. Never write `wrangler.jsonc` container bindings, lifecycle config (sleepAfter/SIGTERM), or CF API token scopes from memory; fetch current Cloudflare docs first. Known platform issue: containers may sleep mid-job (containers#162) — job-aware lifecycle is a correctness requirement (PRD FR-311).
 - React islands compile through the **React Compiler** — keep render-purity discipline; don't hand-add `useMemo`/`useCallback` where the compiler already memoizes.
 
 ## Project Structure
@@ -32,7 +32,7 @@ FSD layers under `src/`: `app/` (shell, layouts, styles), `_pages/<slice>/` (pag
 ## Solver package (`poc/cp-sat/` — promoting to `services/solver/` in the CP-SAT migration)
 
 - Python ≥3.12, managed by **uv** (dedicated venv — ortools pins protobuf/numpy tightly; never share a venv). Run tooling via `uv run <cmd>` from the package dir: `uv run pytest`, `uv run ruff check`; vulnerability scan with `uv audit` (uv-native, lockfile-based — not pip-audit).
-- **All solver code stays fully type-annotated.** `mypy --strict` is the enforcement gate; it ships with the PRD FR-015 solver CI lane — if you touch solver tooling before then, wire it up rather than skipping it.
+- **All solver code stays fully type-annotated.** `mypy --strict` is the enforcement gate; it ships with the PRD FR-315 solver CI lane — if you touch solver tooling before then, wire it up rather than skipping it.
 - **The wire contract is frozen.** The types in `schema.py` mirror the TS `GeneratorSnapshot`/`GenerationResult` — never change one side alone; golden-fixture tests in BOTH suites gate every contract change, `formatVersion` gates incompatibility (a tech-neutral schema artifact lands in `contracts/` during the migration).
 - **CP-SAT changes are gated by tests, not review-reading.** Any change to modeling/objective code must keep the objective-parity suite at exact 10/10 and pass the oracle on golden fixtures. Do not trust generated or-tools code that hasn't run — CP-SAT idiom is easy to confabulate.
 - Test at the wrapper level (HTTP surface), not just the core — the untested `cli.py` was the POC's recorded lesson.

@@ -1,156 +1,184 @@
 ---
 project: ib-timetable-planner
 context_type: brownfield
-created: 2026-06-18
-updated: 2026-06-18
+created: 2026-07-16
+updated: 2026-07-16
 checkpoint:
   current_phase: 8
   phases_completed: [1, 2, 3, 4, 5, 6, 7]
   gray_areas_resolved:
     - topic: "change scope"
-      decision: "all six post-demo asks shaped as one brownfield change"
-    - topic: "must-preserve / blast radius"
-      decision: "sub-200ms validation budget, collision correctness, existing per-cohort views; variant model intentionally retired (Plan is the domain root); CSV export listed as must-preserve but not yet implemented — flagged"
+      decision: "the full migration as one change — all route-map phases including the calibration-gated greedy retirement"
+    - topic: "change category"
+      decision: "all four facets: new module (solver service), migration (engine of record), architectural improvement (monorepo/CI/deploy), significant user-facing feature (proposal flow)"
+    - topic: "insight / why now"
+      decision: "POC delivered the GO the seams were built for; Cloudflare Containers GA'd just in time on the paid plan; value function reframed — the complete full-ladder board is the deliverable"
     - topic: "persona impact"
-      decision: "same Plan Author; no new users or scale change"
+      decision: "none — same Plan Author, same scale; the change alters what generation delivers, not who uses it"
     - topic: "access control"
-      decision: "no change — email+password single Author role preserved"
-    - topic: "primary success"
-      decision: "collision-free DP1+DP2 plan assembled/reviewed in the new combined view, using co-teaching + bi-weekly + free cohort switching"
+      decision: "human auth unchanged (email+password, single Author role, deny-by-default); solver container is a new machine principal — least-privilege stance locked, concrete credential/grants design deferred to Open Questions"
     - topic: "timeline vs scope"
-      decision: "all six in one change; ~4–6 weeks after-hours committed (acknowledged 2026-06-18)"
-  frs_drafted: 13
+      decision: "full migration committed at ~6–8 weeks after-hours (acknowledged 2026-07-16); mitigation is the independently-shippable route-map phases"
+    - topic: "secondary success"
+      decision: "dedicated-policy runs (e.g. clean mode) with in-app completion notification carrying result information"
+    - topic: "guardrails"
+      decision: "editing never locked during solves; oracle/drift-guard/atomic-RPC as sole persist path; <200 ms validation budget; Generate works throughout the build; PII posture"
+    - topic: "default solve policy"
+      decision: "clean mode (softHits ≡ 0) is the shipped default (Socrates on FR-002); resolves the research's open question 2"
+    - topic: "delivery model"
+      decision: "completion-time drift detection — unchanged source is auto-applied (clone cleaned up, author notified); changed source delivered as a new plan reviewed on the existing comparison page (Socrates on FR-006/007)"
+    - topic: "Mode-A timeout"
+      decision: "locked — a slow completeness solve falls back to the background job (resolves the research's open question 4)"
+    - topic: "NFR set"
+      decision: "seven adopted: 200 ms validation, interactive fast solves, honest background ladder, job durability, target-based reproducibility, ~$7/mo peak cost, UUID-only privacy"
+    - topic: "product framing"
+      decision: "product type unchanged (web-app + attached solver appliance); scale unchanged (small); no hard deadline; after-hours work"
+    - topic: "non-goals"
+      decision: "locked: off-Cloudflare hosting, apps/ restructure, parallel jobs per plan; deliberately not ruled out: push progress, Workflows/Queues, Mode B repair UI, new rules, policy presets"
+  frs_drafted: 16
   quality_check_status: accepted
 product_type: web-app
 target_scale:
   users: small
 timeline_budget:
-  delivery_weeks: 6
+  delivery_weeks: 8
   hard_deadline: null
   after_hours_only: true
 ---
 
-# Shape Notes — IB Timetable Planner (post-demo feedback change)
+# Shape Notes — IB Timetable Planner (post-POC CP-SAT solver service)
 
-> Brownfield change shaped from end-user feedback after the first demo
-> (`docs/users-feedback/19-06-26.md`). The original greenfield shaping that
-> produced the shipped product is archived at
-> `context/foundation/archive/shape-notes-2026-06-18-1646.md`.
+> Brownfield change shaped from the GO verdict of the `poc-cp-sat-backend-service`
+> POC. Seed: `context/changes/post-poc-cp-sat-refactoring-plan/research.md`
+> (2026-07-16, incl. four follow-up rounds). Prior shape sessions archived at
+> `context/foundation/archive/`.
 
 ## Current System
 
 > Baseline this change is described against. May name real technologies — it
-> describes reality, not a stack choice. Grounded in the live codebase
-> (2026-06-18), not the archived greenfield notes (which have drifted).
+> describes reality, not a stack choice. Grounded in the live codebase and the
+> 2026-07-16 research (commit `23d0cfa`).
 
-**Purpose.** An interactive IB timetable editor: a plan author drags
-compatible course groupings onto a two-cohort slot grid with live, sub-200 ms
-constraint validation — replacing the prior "algorithm output + manual Excel"
-workflow.
+**Purpose.** An interactive IB timetable editor: a plan author drags compatible
+course groupings onto a two-cohort (DP1/DP2) slot grid with live, sub-200 ms
+constraint validation, then persists placements atomically to Supabase.
 
-**Architecture & stack.** Astro 6 + React 19 islands on Cloudflare Workers
-(workerd), Supabase (Postgres) for persistence, Tailwind v4, TypeScript v6.
-The two-cohort constraint/validation core lives in
-`src/_pages/plan-detail/model/`.
+**Architecture & stack.** Astro + React 19 islands on Cloudflare Workers
+(workerd), Supabase (Postgres, Frankfurt) for persistence, TypeScript. FSD
+layers; all app-data mutations and compute go through thin Astro Actions. The
+pure two-cohort constraint core lives in `src/entities/timetable/`.
 
-**Users.** A few plan authors at one IB-offering liceum. Email + password
-auth; single `Author` role.
+**Users.** A few Plan Authors at one IB liceum; email + password, single
+`Author` role, deny-by-default middleware.
 
-**Core functionality today.**
+**Generation today — client-side only.**
 
-- **Domain root is `Plan`.** The earlier "multiple variants per plan" concept
-  was retired — `plan_variants` was dropped (migration
-  `20260611180006_plans_as_domain_root.sql`); a Plan now owns its catalog
-  (teachers, courses, students, choices, overlaps, merges, placements,
-  groupings, availability) directly.
-- **Two cohorts, values `dp1` / `dp2`.** Display labels are currently
-  **"Year 1" / "Year 2"** (`src/shared/config/cohorts.ts`).
-- **Single-cohort board.** The planner loads one cohort at a time —
-  `BOARD_COHORT = "dp1"` is hardcoded (`src/_pages/plan-detail/api/load.ts`).
-  There is **no combined two-cohort view** and **no cross-cohort
-  teacher-occupancy constraint** — the Y1→Y2 fixed-order model described in the
-  original PRD was never actually implemented.
-- **Course → single teacher.** A course carries one nullable `teacher_id`
-  (one teacher per course).
-- **Placement = one course in one cell.** Placements are keyed
-  `(plan_id, cohort, day, period, course_id)`; a placed grouping is decomposed
-  into independent per-course placements, not stored as a unit.
-- **"Bundle" is a state flag, not an entity.** `isBundled = occupantCount ≥ 2
-  && !overridden` (`slot-bundle.ts`); a `slot_bundles` table records explicit
-  opt-outs. A whole-slot move deletes + recreates individual placements — the
-  bundle is **not** a movable, persistent object, and there is **no temporary
-  holding container**.
-- **Constraint core (within-cell).** Registered cell constraints:
-  `duplicate-course`, `teacher-conflict`, `student-conflict`,
-  `teacher-availability` (`constraints/index.ts`). Drag-drop validation
-  (`drop-hints.ts`) classifies each cell free / partial / blocked / warn under
-  the sub-200 ms budget.
-- **Slot grid = `(day, period)` only.** Each slot is a single weekly period
-  (e.g. `5×10` = Mon–Fri × 10 periods). **No week / fortnight dimension.**
-- **CSV export.** Specified in the original PRD but **not yet implemented** in
-  the codebase (no export endpoint found). CSV files under `data/dp1`,
-  `data/dp2` are inbound seed fixtures only.
+- The only generation engine is a **TS greedy engine running in a browser Web
+  Worker** (20 s budget, FR-016). There is no server-side generation endpoint;
+  the only server round-trip is the persist step.
+- The integration seams were deliberately left open for a second engine: the
+  engine-agnostic `GeneratePlan` port (diagnostics pre-model `engine: "cp-sat"`,
+  `provenOptimal`, `lowerBound`, `stopReason`), the `runVerifiedGeneration`
+  runner seam (built "for a possible HTTP/CLI runner later"), the
+  `verifyGeneration` oracle that judges every engine's output, and the atomic
+  `apply_generated_placements` RPC. Apply-time re-verify plus a catalog drift
+  guard mean a bad or stale board cannot reach the database.
+- Greedy's measured ceiling: 5–8 h left unplaced per cohort and 217 teacher
+  gaps against the ≤ 148 expert bar. Quality investment is past diminishing
+  returns (the tuning change's own conclusion).
+
+**The POC asset.** `poc/cp-sat/` — a uv-managed Python package
+(`cpsat_engine`, or-tools CP-SAT, ~1,300 LOC + ~750 LOC tests) proven by the
+POC: Mode A closes the golden residue (OPTIMAL/SAT in 0.7 s on an M4, complete
+oracle-verified board, 0 h unplaced both cohorts, 95 teacher gaps); Mode B
+repairs small residues in ~0.75 s; a 10-tier lexicographic quality ladder with
+an exact 10/10 parity gate against the TS objective. Transport-agnostic by
+design — only `cli.py` is throwaway. Verdict: **GO**.
+
+**What does NOT exist today (all net-new for this change):** any async-job /
+polling / status pattern in the app; any Cloudflare bindings (no KV/DO/Queues —
+`wrangler.jsonc` is 15 lines); any job table in the database; any CI lane for
+Python or a container; solve-to-target stopping or progress emission in the
+Python package (it is solve-to-budget, batch-only).
+
+**De-facto monorepo.** The repo already hosts the pnpm app at root plus the uv
+package at `poc/cp-sat/`, invisible to all JS gates by design;
+`pnpm-workspace.yaml` declares no packages.
 
 ## Vision & Problem Statement
 
 > Delta-framed: what's changing and why. Maps to the brownfield PRD's
 > `## Problem Statement & Motivation`.
 
-**The gap.** The product was demoed to its end users. Design and core
-functionality were well received, but the demo surfaced six places where the
-tool's model diverges from how authors actually work and how the IB domain
-actually behaves. Left unaddressed, these force authors back toward
-spreadsheet-style workarounds for the exact cases the tool exists to remove.
+**The gap.** By the product's stated value function, **the complete
+full-quality-ladder board is the valuable deliverable** — a valid-but-incomplete
+board is worth much less. The greedy engine cannot deliver it (5–8 h unplaced,
+217 teacher gaps vs the ≤ 148 bar), and further greedy investment is past
+diminishing returns. The POC proved CP-SAT delivers exactly this deliverable —
+complete, oracle-verified, quality-optimized boards — but only as a local
+file-transport experiment on an Apple Silicon M4. There is no production path:
+no server-side generation, no async-job surface, no container deploy lane.
 
-**Why now.** This is the first real-user feedback after the build. Aligning the
-tool with the authors' mental model and domain reality *before* further
-development is cheaper than layering more features on a diverging foundation.
+**The change.** Promote the POC package into a production solver service
+(Cloudflare Container attached to the existing Worker), give the app its first
+async-job muscle (durable job rows in Supabase, polling, proposal-based
+delivery), make CP-SAT the engine of record, and — gated on calibration —
+retire the greedy engine and its Web Worker path entirely.
 
-**The six asks** (full detail resolved in later phases):
+**Why now (three reinforcing insights, locked in shaping):**
 
-1. **Co-teaching** — a single course can be run by two teachers (rare but
-   real); both teachers must count as occupied for collision purposes.
-2. **Bi-weekly (fortnightly) courses** — a course runs some hours in week A,
-   nothing in week B, then resumes; two fortnightly courses of opposite weeks
-   can legitimately share one slot.
-3. **DP1 / DP2 naming** — authors call the cohorts "DP1" / "DP2", not
-   "Year 1" / "Year 2".
-4. **No fixed cohort start order + free switching** — authors want to begin
-   with either cohort and move between them freely while planning (today the
-   board is locked to one cohort).
-5. **Combined two-cohort view** — a new view showing both cohorts at once,
-   one column per cohort (DP1 | DP2), as the final assembly stage.
-6. **Bundles as first-class + a holding container** — authors perceive a
-   placed grouping as a "bundle" and operate on it as a unit (move / remove /
-   replace); they want to lift a bundle into a temporary external container to
-   free the board while preparing a new location for it.
+1. **The POC delivered the GO the seams were waiting for.** Across four prior
+   changes, the port, the runner seam, the oracle, and the atomic RPC were
+   built in anticipation of a second engine. The service is the payoff of that
+   discipline, not a retrofit.
+2. **The platform matured just in time.** Cloudflare Containers went GA
+   (2026-04) on the plan the project already pays for: standard-4 instance,
+   EEUR pinning next to Supabase Frankfurt, scale-to-zero, ≈ $7/month at peak
+   planning season.
+3. **The value function was reframed.** Greedy's output lost its product value
+   the day the POC returned GO; keeping it is operational cost, not product
+   value — which is why deletion belongs inside this migration.
 
-**Insight.** The demo confirmed authors reason in *bundles*, name cohorts
-*DP1/DP2*, occasionally *co-teach*, run *fortnightly* courses, and reject a
-forced cohort order. This change is domain-fidelity and mental-model alignment,
-not capability-for-its-own-sake.
+**Scope decision (locked):** this is **one change covering the full
+migration** — PRD amendment, package promotion + service transport,
+contract/jobs schema, app integration (proposal flow), deploy lane,
+calibration campaign on production hardware, and the calibration-gated greedy
+retirement. It is simultaneously a new module, an engine-of-record migration,
+an architectural improvement (monorepo formalization, CI path-filtering,
+container deploy lane), and a significant user-facing feature (the proposal
+flow).
 
 ## User & Persona
 
 > Maps to the brownfield PRD's `## User & Persona`.
 
 **Primary persona — Plan Author (unchanged).** A teacher/admin at one IB
-liceum responsible for producing the year's timetable; a few such authors at
-the school. No new persona and no scale change are introduced by this work.
+liceum producing the year's timetable; a few such authors. No new persona and
+no scale change.
 
-What changes for them is the *experience*: they gain a final two-cohort
-assembly stage (the combined view), bundle-centric manipulation with a holding
-area, the freedom to start from and switch between cohorts, and a domain model
-that can express co-teaching and fortnightly courses.
+What changes for them is the *generation experience*: instead of a 20-second
+local draft that leaves hours unplaced, they kick off a solve job against a
+snapshot of their plan, keep editing freely (no locking), watch quality accrue
+stage by stage, may stop early and keep the best board so far, and receive a
+complete proposal to compare against and adopt deliberately.
 
 ## Access Control
 
 > Maps to the brownfield PRD's `## Access Control Changes`.
 
-**No access control changes — current model preserved.** Authentication stays
-email + password; the single `Author` role is unchanged. Every author retains
-full create/edit/delete over the plan and its catalog. The combined two-cohort
-view and the holding container are author-only, like the rest of the editor.
+**No human-facing access control changes — current model preserved.**
+Authentication stays email + password; the single `Author` role is unchanged;
+the deny-by-default middleware is untouched. The new job surface (start / poll
+/ cancel) consists of Astro Actions behind the existing session requirement,
+like every other mutation.
+
+**One new machine principal.** The solver container authenticates to Supabase
+over HTTPS to write `generation_jobs` status/results (job state lives in the
+database, not in the container). Stance locked: **least privilege** — the
+container gets a credential scoped as narrowly as practical, and the
+`generation_jobs` table ships with RLS + explicit grants per the project's
+least-privilege lesson. The concrete credential/role/grants design is deferred
+(see Open Questions).
 
 ## Success Criteria
 
@@ -159,58 +187,69 @@ view and the holding container are author-only, like the rest of the editor.
 
 ### Primary
 
-A plan author can produce a complete, collision-free timetable across **both
-cohorts (DP1 and DP2)** using the enriched domain model, and assemble/review
-both cohorts together in a new combined view. The change has succeeded when,
-working from an existing plan:
+A plan author can obtain a **complete, oracle-verified, quality-optimized
+board** as a reviewable proposal, produced by a production CP-SAT solver
+service, without ever losing the freedom to edit. The change has succeeded
+when, working from an existing plan:
 
-1. Cohorts read as **DP1 / DP2** throughout the UI.
-2. The author can open the board on **either** cohort and **switch between DP1
-   and DP2 freely** while planning — no forced start order.
-3. A course can be **co-taught by two teachers**, and the collision checks treat
-   **both** teachers as occupied.
-4. A course can be **bi-weekly** (week A / week B): two opposite-week courses
-   may share one slot without a false collision, while same-week courses still
-   collide.
-5. The author manipulates a placed grouping as a **bundle** — move / remove /
-   replace as a unit — and can lift a bundle into a **temporary holding
-   container** to free the board, then place it elsewhere, all within cohort
-   constraints.
-6. A **combined view** shows DP1 and DP2 side by side (one column each) as the
-   final assembly stage, with placements staying collision-free across students,
-   teachers (within *and* across cohorts), and availability — inside the
-   sub-200 ms validation budget.
+1. The author starts a CP-SAT solve with a policy choice (clean mode as the
+   shipped default), and the app clones the plan as the proposal
+   target, snapshots the clone, records a durable job, and kicks the solver
+   container — **the live plan is never locked**.
+2. While the job runs, the author keeps editing freely; the source plan shows
+   an advisory "proposal in progress from <time> state" indicator.
+3. Progress accrues **stage by stage**; every completed stage checkpoints a
+   complete board strictly better-ranked than the last, and the author can
+   **Stop & keep** the best board so far (mirroring the existing cancel
+   semantics).
+4. On completion the drift check decides delivery: an **unchanged source is
+   auto-updated** with the oracle-verified result (working clone cleaned up,
+   author notified); a **changed source leaves the result as a new plan** the
+   author reviews on the existing comparison page (with dominance
+   information) and adopts deliberately.
+5. A job survives the author closing the laptop: job state is durable; on
+   return the finished proposal is there.
+6. Operationally: merge to main ships app + solver through the one pipeline; a
+   **calibration campaign on the production instance** has set budgets/targets
+   and gated the switch; CP-SAT is the default generate path; the greedy
+   engine and its Web Worker path are deleted.
 
 ### Secondary
 
-- A parked bundle in the holding container survives a browser refresh (work
-  durability extended to the staging area). Nice-to-have, not sufficient alone.
+- The author can launch a run with a **dedicated policy** (e.g. clean mode,
+  `softHits ≡ 0`) and is **notified on completion — at minimum in-app — with
+  the result information**, so "kick it off and walk away" works without
+  watching a progress bar. (Email delivery is a possible extension, per the
+  research's Phase 6 list.) Nice-to-have, not sufficient alone.
 
 ### Guardrails
 
-- **Sub-200 ms drag-drop validation budget holds** even after co-teaching and
-  bi-weekly are folded into the occupancy checks.
-- **Collision correctness (no false-positive "valid") extends to the new
-  dimensions:** a slot the app calls valid must be genuinely collision-free for
-  students, *both* teachers of a co-taught course, week-aware fortnightly
-  overlaps, and cross-cohort teacher occupancy. False positives are a
-  regression even if everything else works.
-- **Existing single-cohort editing views keep working** — the combined view is
-  additive, not a replacement.
-- **CSV export discrepancy:** export was selected as must-preserve but is not
-  yet implemented in the codebase. Either it is genuinely out of scope (drop
-  from guardrails) or it must be built *and* represent the enriched model
-  (co-teaching, bi-weekly, both cohorts). Routed to Open Questions.
+- **Editing is never blocked by generation.** No plan-level locking at any
+  point; the proposal-clone model is the mechanism that keeps this true.
+- **The oracle remains the sole trust boundary.** `verifyGeneration` +
+  apply-time re-verify + catalog drift guard gate every board from any engine;
+  `apply_generated_placements` stays the only write path. A bad or stale board
+  must never reach the database — regardless of what the container returns.
+- **The <200 ms drag-drop validation budget holds** — this change adds no work
+  to the interactive validation path.
+- **Generation keeps working throughout the build.** Greedy remains the
+  working Generate path until the calibration gate passes and the proposal
+  flow ships; deletion never precedes the replacement being deployed and
+  calibrated.
+- **PII posture preserved.** The dump is UUID-only by construction; names
+  never reach the solver.
 
 ## Timeline acknowledgment
 
-Acknowledged on 2026-06-18: a 4–6 week change (frontmatter `delivery_weeks: 6`)
-requires sustained after-hours dedication; the author accepted the cost
-explicitly with full visibility of the expensive pieces — the bi-weekly week
-dimension reworked across schema / grid / every constraint occupancy check, a
-first-class movable bundle entity plus holding container, the combined
-two-cohort view, the symmetric cross-cohort teacher constraint (built from
-scratch), and the co-teaching schema change.
+Acknowledged on 2026-07-16: the full migration (frontmatter
+`delivery_weeks: 8`, estimated 6–8 weeks after-hours) requires sustained
+dedication; the author accepted the cost explicitly with full visibility of
+the expensive pieces — solve-to-target + per-stage checkpointing (new solver
+capability), the FastAPI wrapper + container lifecycle (activity renewal,
+job-aware stop, SIGTERM checkpointing), the jobs schema + frozen wire
+contract, the proposal-flow UI, the container deploy lane + CI path-filtering,
+the calibration campaign on production hardware, and the greedy retirement
+phase. Mitigation: each route-map phase is independently shippable.
 
 ## Functional Requirements
 
@@ -219,330 +258,416 @@ scratch), and the co-teaching schema change.
 > changes), `preserved` (must keep working unchanged). `> Socrates:`
 > blockquotes captured in Phase 4.5.
 
-### Domain model: co-teaching
+### Generation jobs
 
-- FR-001: Author can assign two or more teachers to a single course
-  (co-teaching), and every assigned teacher is treated as occupied for
-  teacher-conflict and availability checks. Priority: must-have. Change: modified
-  > Socrates: Counter-argument considered: "co-teachers may split the class, so
-  > only one is in the room at a time — both-occupied is too strict." Resolution:
-  > stands — when two teachers run one course they are both committed to that
-  > slot; the split-teaching case is not what users reported.
+- FR-001: Author can start a CP-SAT generation job on a plan: the app settles
+  unsaved board state, clones the plan as the proposal target, assembles the
+  snapshot from the clone server-side, records a durable generation job, and
+  dispatches it to the solver service. Priority: must-have. Change: new
+  > Socrates: Counter-arguments considered: settle-on-start as a surprising
+  > side effect; clone-per-job plan proliferation; server-side assembly vs
+  > optimistic client state. Resolution: stands as written — settle-then-clone
+  > is the smallest mechanism that makes the snapshot authoritative and the
+  > drift guard meaningful.
+- FR-002: Author chooses the solve policy when launching a job — **clean mode
+  (`softHits ≡ 0`) as the shipped default**, with the canonical lexicographic
+  order and the teacher/student trade-off dial as selectable alternatives.
+  Priority: must-have. Change: new
+  > Socrates: Challenge **accepted (revised)**: clean mode must be the
+  > default, since it produced the most valued output (the POC's clean board
+  > dominated the canonical campaign board). Resolution: FR updated — clean
+  > mode is the shipped default; canonical order remains selectable. This
+  > resolves the research's open question on the production default policy.
+- FR-003: The solve runs Mode A (complete the board) then the staged quality
+  ladder under the chosen policy, stopping stages by target (solve-to-target)
+  with budget ceilings; after each completed stage the incumbent board +
+  objective tuple is durably checkpointed, so an interrupted or stopped job
+  still yields the best completed board. Priority: must-have. Change: new
+  > Socrates: Counter-arguments considered: target thresholds are premature
+  > before Phase 5 calibration; per-stage checkpoint churn. Resolution: stands
+  > — calibration sets the target *values*, but target-stopping as the
+  > strategy is locked (hardware-independence), and checkpoints are what make
+  > a 20-minute job stoppable and SIGTERM-safe.
+- FR-004: Author can observe a running job from the app — status, current
+  stage, progress — by polling the durable job record; the plans list shows a
+  job badge; job state survives browser close and container sleep. Priority:
+  must-have. Change: new
+  > Socrates: Counter-argument **accepted (noted, not revised)**: "polling is
+  > inferior to push." Resolution: polling ships in this change (simplest thing
+  > that works on a durable row at this scale); push — Supabase Realtime or
+  > container WebSocket forwarding — is recorded as the acknowledged upgrade
+  > if polling UX disappoints. Routed to the Forward block.
+- FR-005: Author can stop a running job and keep the best checkpointed board
+  ("Stop & keep"), mirroring the greedy path's existing cancel semantics; the
+  affordance states exactly what will be kept — the last *completed* stage's
+  board, not the in-flight stage. Priority: must-have. Change: new
+  > Socrates: Counter-argument **accepted (refined)**: "mid-stage semantics
+  > are confusing — authors may believe they kept more progress than they
+  > did." Resolution: kept, with a UX obligation added — the stop affordance
+  > must name the stage of the board being kept.
+- FR-006: On completion the result is imported onto its plan only after
+  passing the oracle; when review is needed (the drifted case of FR-007), the
+  author reviews the result against the source on the **existing
+  plan-comparison page** (with dominance/quality information) — no new
+  side-by-side surface is built. Priority: must-have. Change: new
+  > Socrates: Counter-argument **accepted (refined)**: rather than a new
+  > side-by-side review UX, reuse the comparison page the product already
+  > has. Resolution: FR updated — the existing comparison page is the review
+  > surface; dominance info joins it as context.
+- FR-007: On job completion the app detects whether the source plan changed
+  since the solved snapshot (the catalog/board drift guard promoted to
+  production). If **unchanged**, the oracle-verified result is
+  **auto-applied** to the source via the atomic RPC, the working clone is
+  cleaned up, and the author is notified. If **changed**, the result is
+  delivered as a **new plan carrying the solution**, reviewed on the
+  comparison page and adopted deliberately. Priority: must-have. Change: new
+  > Socrates: Challenge **accepted (reshaped)**: instead of a manual "Apply
+  > to source" affordance, completion-time drift detection decides delivery —
+  > unchanged source ⇒ replace (auto-apply); changed source ⇒ the solution
+  > stands as a new plan. Locked follow-up: auto-apply with clone cleanup and
+  > notification; post-hoc inspection remains available via the comparison
+  > page.
+- FR-008: While a job runs, the source plan shows an advisory "proposal in
+  progress from <time> state" indicator; one job per source plan is active at
+  a time; editing is never blocked. Priority: must-have. Change: new
+  > Socrates: Counter-arguments considered: one-job-per-plan blocks parallel
+  > policy runs; advisory-only indicator under-informs. Resolution: stands as
+  > written — the single-job limit is the simplest concurrency model and can
+  > be lifted later (per-job container instances make parallel runs cheap).
+- FR-009: Author is notified on job completion with the result information —
+  in-app when the app is open, and by **email** to match the "kick it off and
+  walk away" usage of a 20-minute job. Priority: nice-to-have. Change: new
+  > Socrates: Counter-argument **accepted (extended)**: "in-app-only misses
+  > the walk-away case — email is the notification that actually matches the
+  > workflow." Resolution: email joins the FR (was: a later extension);
+  > priority stays nice-to-have — the durable job row and auto-apply delivery
+  > carry the must-have path.
 
-### Domain model: bi-weekly (fortnightly)
+### Solver service
 
-- FR-002: Author can mark a course as bi-weekly (fortnightly) and, when placing
-  it, choose which fortnight week (A or B) the placement occupies; a weekly
-  course occupies both weeks. Priority: must-have. Change: new
-  > Socrates: Counter-argument considered: "make the whole plan a fortnight grid
-  > instead of a per-course flag." Resolution: stands — weekly and fortnightly
-  > courses coexist in one plan, so the fortnight attribute belongs on the
-  > course/placement, not the entire grid.
-- FR-003: The placement validator is week-aware — it permits two opposite-week
-  fortnightly courses to share one slot, and flags any week overlap (two
-  same-week courses, or any clash with a weekly course). Priority: must-have. Change: new
-  > Socrates: Counter-argument considered: "forbid slot-sharing entirely to
-  > avoid grid clutter and correctness risk." Resolution: stands —
-  > opposite-week sharing is exactly the capacity gain users asked for; clutter
-  > is a display concern, and correctness is held by the guardrail (no
-  > false-positive valid).
+- FR-010: The solver service (promoted `cpsat_engine` + HTTP wrapper) accepts
+  solve jobs over HTTP, runs with a pinned worker count, writes per-stage
+  status/results to the database over HTTPS, and is tested at the wrapper
+  level (the untested-CLI lesson). Priority: must-have. Change: new
+  > Socrates: Counter-arguments considered: two DB write paths (app via
+  > Actions, solver direct); FastAPI heavier than two endpoints need.
+  > Resolution: stands as written — direct durable writes survive container
+  > sleep; the framework choice is a plan-phase detail.
+- FR-011: The container's lifecycle is job-aware: activity renewal prevents
+  scale-to-zero mid-solve; the stop path persists the latest checkpoint and
+  marks the job interrupted on SIGTERM. Priority: must-have. Change: new
+  > Socrates: Counter-arguments considered: sleepAfter > max job length as
+  > the simpler dodge; SIGTERM handler redundant next to per-stage
+  > checkpoints. Resolution: stands as written — the platform's documented
+  > mid-solve sleep issue (containers#162) makes job-aware lifecycle a
+  > correctness requirement.
 
-### Cohort naming
+### Preserved behaviour & migration
 
-- FR-004: Cohorts are presented as "DP1" and "DP2" throughout the UI, replacing
-  the "Year 1" / "Year 2" display labels (the `dp1` / `dp2` data values are
-  unchanged). Priority: must-have. Change: modified
-  > Socrates: Counter-argument considered: "make cohort names author-
-  > configurable rather than a hardcoded DP1/DP2 relabel." Resolution: stands —
-  > DP1/DP2 is the standard IB term for this school; a fixed relabel suffices.
-  > Configurable names noted as a possible future extension, not this change.
-
-### Cohort navigation & cross-cohort constraint
-
-- FR-005: Author can open the board on either cohort and switch between DP1 and
-  DP2 freely at any time while planning — there is no fixed start order.
-  Priority: must-have. Change: modified
-  > Socrates: Counter-argument considered: "free switching loses the
-  > DP1-stable-before-DP2 guard and invites thrashing between half-built
-  > cohorts." Resolution: stands — authors explicitly asked to choose either
-  > cohort and switch freely; the symmetric constraint (FR-006) makes order
-  > irrelevant to correctness.
-- FR-006: Teacher **occupancy** is enforced symmetrically across both cohorts
-  and is week-aware — a teacher occupied in a given slot and week (in either
-  cohort) cannot be placed in that same slot and week of the other cohort,
-  though the same teacher may occupy one slot across opposite weeks. Teacher
-  **availability** stays week-agnostic (an unavailable slot applies to both
-  weeks) and cohort-independent. Priority: must-have. Change: new
-  > Socrates: Counter-argument **accepted (refined)**: "teacher availability is
-  > not week-aware — it's the same for week A and week B." Resolution: the rule
-  > was split. Occupancy/conflict is week-aware and symmetric across cohorts;
-  > availability is week-agnostic (unavailable = both weeks) and cohort-
-  > independent (unchanged from today). FR text updated accordingly.
-
-### Combined two-cohort view
-
-- FR-007: Author can open a combined view showing DP1 and DP2 side by side, one
-  column per cohort. Priority: must-have. Change: new
-  > Socrates: Counter-argument **accepted**: "two full grids side by side won't
-  > fit a laptop screen — readability suffers." Resolution: kept, but the
-  > combined view must use a space-efficient layout (compact/narrower columns,
-  > horizontal scroll if needed). Layout/screen-fit routed to Open Questions for
-  > design.
-- FR-008: The combined view is editable — the author can perform placement and
-  bundle operations on either cohort's column, within that cohort's
-  constraints. Priority: must-have. Change: new
-  > Socrates: Counter-argument **accepted**: "cross-column drags invite
-  > accidental cohort moves in a cramped two-grid layout." Resolution: kept
-  > editable, but cross-cohort (cross-column) moves are prevented/guarded — a
-  > bundle moves only within its own cohort column, consistent with "within
-  > cohort constraints."
-
-### Bundles & holding container
-
-- FR-009: A placed grouping is a first-class bundle the author can move, remove,
-  or replace as a single unit, within cohort constraints. Priority: must-have. Change: modified
-  > Socrates: Counter-argument considered: "'replace' is underspecified — replace
-  > with what?" Resolution: stands — replace swaps the bundle's contents for a
-  > different compatible grouping on the same slot (detailed in Business Logic);
-  > per-course control is retained via FR-010.
-- FR-010: Author can ungroup a bundle to operate on its individual courses —
-  remove a single course, or move one course to another slot. Priority:
-  must-have. Change: preserved
-  > Socrates: Counter-argument considered: "per-course ops reopen the
-  > fine-grained collision risk bundling was meant to simplify." Resolution:
-  > stands — this preserves today's ungroup / opt-out behaviour (the
-  > `slot_bundles` override); single-course moves are re-validated like any
-  > placement.
-- FR-011: Author can lift a bundle off the board into a temporary holding
-  container (a shelf that holds multiple parked bundles) and place a parked
-  bundle back onto a slot later. Priority: must-have. Change: new
-  > Socrates: Observation **accepted (new requirement)**: "this kind of bundle
-  > operation reveals a need for an undo mechanism." Resolution: kept; undo/redo
-  > captured as new FR-013 and routed to Open Questions for priority/scope, since
-  > undo could affect the 4–6 week estimate.
-
-### Preserved behaviour
-
-- FR-012: Existing single-cohort editing boards keep working unchanged, and
-  live drag-drop validation stays within the sub-200 ms budget and remains
-  collision-correct (no false-positive "valid") across all new dimensions.
+- FR-012: Existing interactive editing, drag-drop validation (< 200 ms), and
+  all board views keep working unchanged — generation adds no work to the
+  interactive validation path. Priority: must-have. Change: preserved
+  > Socrates: Counter-argument considered: "preserved is aspirational until
+  > measured — polling and job UI land on the plan-detail island."
+  > Resolution: stands as a hard guardrail; the NFRs carry the measurable
+  > commitment.
+- FR-013: Every generated board — from any engine — reaches the database only
+  through oracle verification, apply-time re-verify, and the atomic
+  `apply_generated_placements` RPC; the oracle runs **server-side in the job
+  delivery pipeline** (the relocated `runVerifiedGeneration` seam), so
+  headless delivery (auto-apply, FR-007) is verified without a browser open.
   Priority: must-have. Change: preserved
-  > Socrates: Counter-argument considered: "the 200 ms budget is the hardest
-  > guarantee to keep once co-teaching, bi-weekly, and cross-cohort checks are
-  > added — this 'preserved' FR may be aspirational." Resolution: stands —
-  > preserved as a hard guardrail; performance of the enriched constraint core
-  > is the key delivery risk and is called out in the NFRs.
+  > Socrates: Counter-argument **accepted (pinned)**: "where the oracle runs
+  > is unspecified — client-only verification can't serve headless delivery."
+  > Resolution: oracle execution pinned to the server-side job pipeline; the
+  > trust boundary is unchanged, its location is now explicit.
+- FR-014: The greedy Web Worker path remains the working Generate affordance,
+  untouched, until the calibration gate passes and the proposal flow ships;
+  then CP-SAT becomes the default generate path and the greedy engine + Web
+  Worker machinery are deleted (clique-bound derivation extracted, bench
+  re-anchored to pinned CP-SAT numbers, and hint-free Mode A measured first).
+  Priority: must-have. Change: modified
+  > Socrates: Counter-arguments re-tested: deletion is one-way vs freeze; a
+  > slipping retirement could stall the close-out. Resolution: stands — the
+  > research's 14:20 follow-up already weighed both; deletion stays inside the
+  > migration, gated only on calibration + the proposal flow shipping.
 
-### Editing safety
+### Dev & ops
 
-- FR-013: Author can undo (and redo) recent editing operations — bundle move,
-  remove, replace, ungroup, single-course move, lift-to-container, and
-  place-back. Priority: must-have _(provisional — scope/priority unresolved; see
-  Open Questions)_. Change: new
-  > Socrates: surfaced during the FR-011 challenge — the lift/park/replace
-  > workflow is error-prone enough that authors will expect to step back.
-  > Priority and depth (single-step vs multi-step history; session-only vs
-  > durable) are unresolved and may move the timeline.
+- FR-015: A maintainer ships app + solver with one merge to main: a
+  path-filtered solver verify job (ruff + pytest) joins the CI gate, and the
+  deploy job builds/pushes the container image alongside the Worker. Priority:
+  must-have. Change: new
+  > Socrates: Counter-arguments considered: app releases coupled to Docker
+  > builds; deliberate narrow-token posture quietly widening. Resolution:
+  > stands — one gate-then-deploy lane matches the single-author load; the
+  > exact token scopes stay in Open Questions.
+- FR-016: A developer runs the full stack locally at three fidelity tiers —
+  native solver (uvicorn) via the env-gated `SOLVER_URL` transport, linux/amd64
+  image smoke, `wrangler dev` with the real container binding — orchestrated by
+  mise (toolchain pins + cross-ecosystem tasks; pnpm scripts stay the JS-side
+  canon). Priority: must-have. Change: new
+  > Socrates: Counter-arguments considered: three tiers over-engineered for
+  > one developer; mise tasks duplicating pnpm scripts. Resolution: stands —
+  > the tiers document what already exists rather than adding machinery, and
+  > the grain rule keeps pnpm the JS-side canon.
 
 ## User Stories
 
 > Maps to the brownfield PRD's `## User Stories`. Delta-framed — each notes
 > what was different before.
 
-### US-01: Assemble a collision-free two-cohort plan in the combined view
+### US-01: Generate a complete proposal while continuing to edit
 
-- **Given** an author working on an existing plan whose catalog includes a
-  co-taught course and a bi-weekly course
-- **When** they open the combined view (DP1 | DP2), start on whichever cohort
-  they like, switch freely between the two columns, and drag groupings and
-  bundles onto slots
-- **Then** every placement is validated live (within the sub-200 ms budget)
-  against student, teacher (within *and* across cohorts, counting both teachers
-  of a co-taught course), week-aware fortnightly, and availability collisions —
-  and the author ends with a complete, collision-free plan across both cohorts
+- **Given** an author on an existing plan with residual unplaced hours
+- **When** they start a CP-SAT job (default clean-mode policy), keep editing
+  the source plan freely, and return after the ladder completes
+- **Then** — their edits having drifted the source — the result is delivered
+  as a new plan holding a complete, oracle-verified, quality-optimized board;
+  the source plan is intact including their edits; they compare the two on the
+  existing comparison page (with dominance information) and adopt the result
+  deliberately
 
-> Before: the board was locked to one cohort (`dp1`), cohorts read "Year 1/2",
-> a course had one teacher, there was no week dimension, and there was no
-> combined view.
+> Before: generation was a 20-second local greedy draft that left 5–8 h
+> unplaced, ran only while the tab stayed open, and overwrote nothing safely —
+> there was no proposal concept.
 
-### US-02: Park a bundle while rearranging the board
+### US-02: Stop & keep at "good enough"
 
-- **Given** an author who needs to free a slot to make room for another bundle
-- **When** they lift the occupying bundle off the board into the holding
-  container, rearrange other bundles on the board, then drag the parked bundle
-  back onto a now-suitable slot
-- **Then** the parked bundle is held intact off-board (not flagged while
-  parked), and on drop-back it is re-validated within its cohort's constraints
+- **Given** a running job that has completed quality tier k of the ladder
+- **When** the author stops it mid-run ("Stop & keep")
+- **Then** the best completed-stage board — complete and oracle-verifiable —
+  is delivered onto the proposal clone rather than discarded; the remaining
+  tiers are simply left unpolished
 
-> Before: a whole-slot move decomposed into per-course placements and there was
-> no staging area — freeing a slot meant deleting and re-creating placements.
+> Before: cancelling greedy kept its best-so-far only in browser memory; a
+> long solve had no notion of accrued, keepable progress.
 
-### US-03: Two opposite-week courses share one slot
+### US-03: Unchanged source is updated automatically
 
-- **Given** two bi-weekly courses, one on week A and one on week B, with no
-  student or teacher in common
-- **When** the author places both into the same slot
-- **Then** the validator accepts the pair (opposite weeks don't overlap), but
-  would flag a third placement that shares a week with either
+- **Given** a running job whose source plan receives no edits during the solve
+- **When** the job completes
+- **Then** the oracle-verified result is applied atomically to the source plan
+  without further ceremony, the working clone is cleaned up, and the author is
+  notified; had the source drifted, the result would instead have been
+  delivered as a new plan for comparison and deliberate adoption
 
-> Before: any two courses in one slot were tested as simultaneous — there was
-> no notion of alternating weeks.
+> Before: the drift guard existed only in the bench import experiment; there
+> was no automated delivery path at all.
 
 ## Business Logic
 
 > Maps to the brownfield PRD's `## Business Logic Changes`. States the current
 > rule, then the delta. NOT the full domain model.
 
-**Current rule.** The app continuously (a) recommends a ranked list of course
-groupings whose members can be taught simultaneously without collision, and
-(b) validates that any proposed placement stays collision-free for students,
-teachers, and teacher availability. This change **modifies the validation half**
-and **adds bundle-as-unit semantics**; the recommendation half is unchanged in
-spirit (it must, however, become co-teaching- and week-aware).
+**Current rule.** The app continuously (a) validates that any proposed
+placement stays collision-free for students, teachers (within and across
+cohorts, week-aware), and availability — live, under 200 ms; (b) recommends
+compatible course groupings; and (c) generates fill-the-gaps boards via a
+greedy best-effort engine under a 20-second budget, every generated board
+judged by the `verifyGeneration` oracle before persisting. This change
+**replaces the generation decision rule** and **adds job-delivery rules**;
+interactive validation and recommendation are untouched.
 
-**Unified collision rule (week-aware) — new.** Two placements occupying the
-same slot collide **only if** they share a resource — a student *or* a teacher —
-**and** their weeks overlap. A weekly placement occupies both weeks (overlaps
-everything); a fortnightly placement occupies week A or week B, and opposite
-weeks never overlap. So two opposite-week fortnightly courses may share one slot
-even when they share students or teachers. (Duplicate-course — the same course
-twice in one cell — remains blocked regardless of week.)
+**Generation rule — modified: complete-then-optimize.** Mode A first
+guarantees completeness — every required hour placed for both cohorts — then
+a staged lexicographic quality ladder improves the board tier by tier under
+the chosen policy. Each stage stops when it reaches its target
+(solve-to-target; budget ceilings as backstop), and every completed stage
+hardens its tier before the next begins, so quality accrues monotonically: an
+interrupted run still holds a complete board no worse than the previous
+stage. If the fast completeness solve exceeds its interactive budget, it
+falls back to the background job — locked in shaping: one product behavior,
+no special waiting UI.
 
-**Co-teaching — modified.** A course may carry a *set* of teachers (one or
-more). For teacher-conflict, every teacher in the set occupies the slot/week; a
-conflict arises if any of them is shared with another week-overlapping occupant.
-For availability, a placement is invalid if **any** of the course's teachers is
-unavailable in that slot. Availability is week-agnostic (an unavailable slot
-applies to both weeks) and cohort-independent — unchanged from today.
+**Policy is configuration — new.** Tier order and hard/soft split are
+request-level configuration, not hidden constants: **clean mode
+(`softHits ≡ 0`) is the shipped default** (locked in shaping); the canonical
+lexicographic order and the teacher/student trade-off dial are selectable.
+Boards are dominance-checked before presentation so a strictly-worse board is
+never offered as the outcome.
 
-**Symmetric cross-cohort teacher occupancy — new.** Teacher occupancy is shared
-across both cohorts and week-aware: a teacher occupied in slot S / week W in
-*either* cohort cannot be placed in slot S / week W of the other cohort, though
-the same teacher may occupy slot S across opposite weeks. This replaces the
-never-implemented one-way "Year 1 fixes Year 2" model with a symmetric one.
-Students belong to a single cohort, so student collisions stay within-cohort;
-rooms remain out of scope.
+**Delivery rule — new: drift decides.** A solve result is meaningful only
+against the exact snapshot it was produced from. The solve always runs
+against a clone — the live plan is never locked. On completion the app
+compares the source plan with the solved snapshot: **unchanged** → the
+oracle-verified result is auto-applied to the source and the working clone is
+cleaned up; **changed** → the result stands as a new plan carrying the
+solution, reviewed on the existing comparison page.
 
-**Bundle semantics — new / modified.** A placed grouping is a *bundle*: the set
-of courses occupying one slot, treated as a unit with identity.
-
-- **Move** relocates all the bundle's courses atomically to a target slot,
-  re-validated at the destination (consistent with the existing drop-hint
-  policy); a bundle moves only within its own cohort.
-- **Remove** deletes the whole bundle's placements at once.
-- **Replace** swaps the bundle's contents for a different compatible grouping on
-  the same slot.
-- **Ungroup** drops the bundle to individual courses, restoring per-course
-  move/remove (today's `slot_bundles` opt-out behaviour — FR-010).
-- A bundle lifted into the **holding container** is off-board: it holds no slot
-  and is **not validated while parked**; collisions are evaluated only on
-  drop-back. The shelf holds multiple parked bundles.
+**Job rules — new.** One active job per source plan; stage checkpoints are
+durable; "Stop & keep" adopts the last *completed* stage. The oracle remains
+the single judge of any engine's board (unchanged), now executed server-side
+in the job delivery pipeline.
 
 ## Non-Functional Requirements
 
-> Maps to the brownfield PRD's `## Success Criteria` guardrails / NFRs. Each is
-> outside-observable; mechanism is downstream.
+> Maps to the brownfield PRD's quality guardrails / NFRs. Each is
+> outside-observable; mechanism is downstream. Numbers marked *(calibration)*
+> are set by the production calibration campaign, never tuned locally on the
+> M4.
 
-- **Validation responsiveness (preserved + extended).** Drag-drop validation
-  outcome is visible within ≤ 200 ms p95 for a typical cohort — including the
-  enriched checks (teacher sets, week-aware overlap, symmetric cross-cohort
-  scan) and including the combined two-cohort view validating against both
-  cohorts at once.
-- **Collision correctness (preserved + extended).** No false-positive "valid"
-  across the new dimensions: co-teaching teacher sets, week-aware fortnightly
-  overlap, and cross-cohort teacher occupancy.
-- **Work durability (extended).** Board state and bundles parked in the holding
-  container survive an accidental browser refresh or tab close — no silent loss
-  of a parked bundle.
-- **Combined-view usability.** The two-column DP1 | DP2 view stays readable and
-  usable on a typical laptop screen.
-- **Privacy (preserved).** Student names and choices remain author-only.
+- **Validation responsiveness (preserved).** Drag-drop validation outcome
+  visible within ≤ 200 ms p95 — this change adds no work to that path.
+- **Fast solves stay interactive.** A completeness (Mode A) or small-repair
+  (Mode B) answer returns within single-digit seconds on production hardware
+  *(calibration; expected ~2–4 s)*. Exceeding the interactive budget falls
+  back to the background job.
+- **The full ladder is an honest background job.** The UI communicates a
+  realistic ceiling *(calibration; order of ~12–20 minutes for full polish)*
+  and shows stage-by-stage progress — never an indefinite spinner.
+- **Job durability.** No job or progress is lost to browser close, container
+  sleep, crash, or deploy; on interruption at most the in-flight stage is
+  lost — every completed stage is recoverable.
+- **Outcome reproducibility.** Delivered board quality is defined by targets
+  (a property of the catalog), not wall-clock (a property of hardware); two
+  runs to the same targets are comparable even when their paths differ.
+- **Cost envelope.** Solver compute ≈ $7/month at peak planning season and
+  ~cents off-season (scale-to-zero), on the already-paid plan.
+- **Privacy (preserved).** Student and teacher names never leave the app; the
+  solver receives opaque UUIDs only.
 
 ## Constraints & Preserved Behavior
 
 > Maps to the brownfield PRD's `## Constraints & Compatibility`. Makes
 > preservation explicit.
 
-- **Existing plans load and validate unchanged.** New model fields must default
-  so existing data behaves identically: a single-teacher course is the
-  one-element teacher set; a course with no fortnight flag is weekly (both
-  weeks); existing placements with no week tag are treated as weekly.
-- **Additive migrations only.** Schema changes (teacher set/junction, course
-  fortnight flag, placement week, bundle identity) are additive
-  (nullable/defaulted) per the project's migration convention — no destructive
-  drops of in-use columns.
-- **Constraint core is the protected zone.** Work touches
-  `src/_pages/plan-detail/model/` (the <200 ms two-cohort constraint core). The
-  existing collision classes (duplicate-course, teacher-conflict,
-  student-conflict, teacher-availability) keep functioning; new behaviour
-  extends them rather than replacing them.
-- **Existing per-cohort boards preserved.** The single-cohort board remains; the
-  combined view and holding container are additive surfaces.
-- **Ungroup / slot-bundle opt-out preserved** (`slot_bundles` override, FR-010).
-- **Workers runtime.** Stays within Cloudflare Workers (workerd) — no Node-only
-  APIs — for the new constraint logic and any persistence.
-- **No access control change** (email+password, single Author role).
-- **CSV export** is unresolved (see Open Questions); if built, the master-grid
-  export must distinguish cohorts and represent co-teaching + bi-weekly weeks.
+- **The wire contract is frozen and parity-gated.** The dump/result contract
+  (`GeneratorSnapshot`/`GenerationResult`) gets a committed tech-neutral
+  schema artifact (in `contracts/`), validated against golden fixtures in
+  both the TS and Python test suites; `formatVersion` gates incompatibility.
+  The exact 10/10 objective-parity discipline continues.
+- **Persistence path unchanged.** `apply_generated_placements` stays the only
+  write path for generated boards; the existing `clone_plan` is reused for
+  the proposal clone. Additive migrations only; `generation_jobs` is a new
+  table with RLS + explicit grants per the least-privilege lesson.
+- **Engine transition compatibility.** The greedy Web Worker path keeps
+  working, untouched, until the calibration gate; PRD FR-016 is amended
+  engine-agnostically (an engine produces a verified board under a
+  budget/target) so greedy's later retirement is a PRD non-event. Retirement
+  preconditions: clique-bound derivation extracted out of `engines/greedy/`,
+  bench re-anchored to pinned CP-SAT numbers, hint-free Mode A measured.
+- **Runtime split.** The workerd constraint (no Node-only APIs) continues to
+  bind all app code; the solver appliance is exempt by design. Container
+  reality: linux/amd64 images, 4 vCPU ceiling (standard-4), outbound ports
+  80/443 only — Supabase reached over HTTPS, never the Postgres wire
+  protocol; region pinned EEUR next to Supabase Frankfurt.
+- **Repo structure (locked in the research follow-ups).** `poc/cp-sat/`
+  promotes to `services/solver/`; contract artifacts land in a new
+  tech-neutral `contracts/`; the Astro app stays at the repo root — no
+  `apps/` move inside this migration; no Turborepo/Nx/pnpm-workspace
+  packages; `supabase/` stays root as shared infra. mise graduates to
+  toolchain pins + cross-ecosystem tasks (pnpm scripts remain the JS canon).
+- **Deploy posture.** The single gate-then-deploy pipeline extends
+  (path-filtered solver verify + container deploy step); container secrets
+  live in container config, not the Worker; the CF API token broadens only as
+  far as Containers deploys require (exact scopes in Open Questions).
+- **Tuning discipline.** Budgets/targets are never tuned on the M4; the
+  production calibration campaign is the only source of shipped numbers and
+  gates the default-path switch.
+- **Auth unchanged.** Deny-by-default middleware, single Author role; job
+  Actions sit behind the existing session requirement.
 
 ## Non-Goals
 
-> Maps to the brownfield PRD's `## Non-Goals`. Names existing-system aspects out
-> of scope for this change, plus new scope boundaries.
+> Maps to the brownfield PRD's `## Non-Goals`. Names what this change is
+> explicitly NOT doing, locked in shaping.
 
 **New scope boundaries locked for this change:**
 
-- **Arbitrary fortnight cycles.** Bi-weekly is a two-week A/B alternation only —
-  no every-third-week, custom rotations, or month-based patterns.
-- **Split-teaching.** Co-teaching models both teachers occupying the same slot
-  together; it does NOT model teachers splitting a class across different times
-  or rooms.
-- **Configurable cohort names.** DP1/DP2 is a fixed relabel; cohort names are
-  not user-editable.
-- **Cross-cohort rooms or students.** The symmetric cross-cohort constraint
-  covers teacher occupancy only — not rooms (out of product scope entirely) and
-  not students (single-cohort by definition).
+- **Off-Cloudflare hosting.** Cloud Run / Fly.io remain escape hatches,
+  considered only if calibration proves the 4-vCPU ceiling genuinely binding.
+  The image stays host-portable by construction, but no second platform is
+  built or operated.
+- **`apps/` repo restructure.** The Astro app stays at the repo root;
+  role-named satellites (`services/`, `contracts/`, future `tools/`) are the
+  structure. Any `apps/web` move is a dedicated, purely mechanical change
+  after this migration ships — never sharing a diff with behavior changes.
+- **Parallel jobs per plan.** One active job per source plan stands;
+  multi-policy parallel runs (per-job container instances) are a later lift.
 
-**Carried forward from the product's existing non-goals (still out of scope):**
+**Deliberately not ruled out** (available during the build without
+re-shaping, though no FR commits to them): push-based progress
+(Realtime/WebSockets), Workflows/Queues adoption, Mode B interactive repair
+in the board UI, new scheduling rules, author-configurable policy presets.
 
-- Room / location validation.
-- ~~End-to-end automatic timetable optimization / auto-placement.~~ _Reversed by the `plan-generation` change (2026-07-11) — shipped as zero-config fill-the-gaps generation; see PRD FR-016 and `roadmap.md`._
-- Custom slot-grid editor (presets only).
-- Student- and teacher-facing self-entry flows.
-- Multi-school / cross-school tenancy.
-- Mobile-optimized UX (laptop is the target form factor).
-- Printable / PDF export.
-- Teacher soft preferences and hours-per-week caps.
+**Carried forward from the product's existing non-goals (unchanged):** room /
+location validation; custom slot-grid editor (presets only); student- and
+teacher-facing self-entry flows; multi-school tenancy; mobile-optimized UX;
+printable / PDF export; teacher soft preferences and hours-per-week caps.
+
+## Forward: tech-stack
+
+> Informational — not a PRD section. Stack-shaped residuals for the
+> downstream planning steps.
+
+- Platform locked by the research: Cloudflare Containers (standard-4, EEUR,
+  `sleepAfter` + job-aware lifecycle) attached to the existing Worker — the
+  same-Worker + Container-binding shape; a separate solver-gateway Worker is
+  a later refactor only if solver iteration cadence demands it.
+- Solver: Python ≥ 3.12, uv, or-tools CP-SAT; HTTP wrapper (FastAPI or
+  lighter — a plan-phase detail); image `python:3.12-slim`, linux/amd64.
+- Upgrade paths recorded, not scoped: push progress (Supabase Realtime or
+  container WebSocket forwarding); email delivery for FR-009; Cloudflare
+  Workflows for retry durability; per-job container instances for parallel
+  solves; uv workspaces when a second Python package appears.
+- Orchestration: mise graduates to toolchain pins (node/python/uv) +
+  cross-ecosystem tasks; pnpm scripts remain the JS-side canon.
+
+## Forward: technical-roadmap
+
+> Informational — not a PRD section. The staged route map lives in the seed
+> research (`context/changes/post-poc-cp-sat-refactoring-plan/research.md`,
+> §9 plus follow-up amendments): Phase 0 PRD amendment → 1 promote package +
+> service transport (solve-to-target, per-stage checkpointing, job-aware
+> lifecycle) → 2 contract + jobs schema → 3 app integration (proposal flow)
+> → 4 deploy lane → 5 calibration campaign (gates the default switch;
+> measures hint-free Mode A) → retirement phase (delete greedy + the Web
+> Worker generate path). Each phase independently shippable; the expensive
+> unknowns are measured before UI promises are made.
 
 ## Quality cross-check
 
-Closing soft-gate cross-check, run on 2026-06-18 (brownfield, 6 elements):
+Closing soft-gate cross-check, run on 2026-07-16 (brownfield, 6 elements):
 
-- Access Control: **present** — no change; current model preserved
-- Business Logic: **present** — validation-rule delta (week-aware collisions,
-  co-teaching teacher set, symmetric cross-cohort occupancy) + bundle semantics;
-  not empty-CRUD, not infra-only
+- Access Control: **present** — human auth preserved; the new machine
+  principal (solver container) captured with a locked least-privilege stance
+- Business Logic: **present** — current rule + delta (complete-then-optimize
+  generation, policy-as-configuration with clean default, drift-decided
+  delivery, job rules); not empty-CRUD, not infra-only
 - Project artifacts: **present**
-- Timeline-cost acknowledged: **present** — 4–6 week after-hours effort, accepted
-- Non-Goals: **present** — 4 new boundaries + 8 carried forward
-- Preserved behavior: **present** — Constraints & Preserved Behavior section
+- Timeline-cost acknowledged: **present** — 6–8 week after-hours effort,
+  accepted 2026-07-16 with the expensive pieces named
+- Non-Goals: **present** — 3 locked boundaries + carried-forward product list
+- Preserved behavior: **present** — Constraints & Preserved Behavior names
+  the frozen wire contract, the unchanged persist path, engine-transition
+  compatibility, the runtime split, and the tuning discipline
 
-Status: **accepted**. No outstanding gaps. Three items are deliberately deferred
-to Open Questions (undo priority/scope, combined-view layout, CSV export).
+Status: **accepted**. No outstanding gaps. Three items deliberately remain in
+Open Questions (solver credential scoping, solve-to-target threshold values,
+CF token scopes), each with an owner and a resolution phase.
 
 ## Open Questions
 
 > Running list; `/10x-prd` routes these into the PRD's `## Open Questions`
 > verbatim. More may be added in later phases.
 
-1. **Undo/redo scope & priority (FR-013).** Surfaced during shaping as a real
-   need. Is it must-have for this change or a fast-follow? Single-step vs
-   multi-step history? Session-only vs durable across reload? — Owner: author.
-   Affects the 4–6 week estimate.
-2. **Combined-view layout / screen-fit.** Two cohort grids side by side strain a
-   laptop screen. Compact columns, horizontal scroll, density toggle, or
-   collapse-to-one-column? — Owner: author + design.
-3. **CSV export in scope?** Listed as must-preserve but not yet implemented in
-   the codebase. If in scope, it must represent the enriched model (co-teaching,
-   bi-weekly week tags, both cohorts distinguishable). If not, drop it from the
-   guardrails. — Owner: author.
+1. **Solver container credential scoping.** Which Supabase key/role does the
+   container get? A dedicated role limited to `generation_jobs` writes would be
+   cleanest; needs a grants design consistent with the least-privilege lesson.
+   — Owner: author + plan phase.
+2. **Solve-to-target thresholds.** Which quality tiers get targets and at what
+   values (e.g. `teacherHoles ≤ 148`? ≤ 100?). — Owner: calibration campaign +
+   expert input. (The *strategy* — solve-to-target with budget ceilings — is
+   locked; only the values are open.)
+3. **CF API token scopes for Containers deploys.** The deploy token is
+   deliberately narrow today (Workers Scripts: Edit); verify the exact scopes
+   Containers requires against current Cloudflare docs when wiring the deploy
+   lane. — Owner: deploy-lane phase.
+
+> Resolved during shaping (recorded for traceability): default policy → clean
+> mode (FR-002); plan locking → never, proposal clones (FR-007/008); delivery
+> → drift-decided auto-apply vs new plan (FR-007); Mode-A timeout → fall back
+> to the background job (Business Logic); snapshot assembly → settle, then
+> clone, then assemble server-side (FR-001); notifications → polling + in-app
+> now, email nice-to-have, push recorded as upgrade (FR-004/009).

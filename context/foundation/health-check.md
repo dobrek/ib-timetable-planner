@@ -1,9 +1,9 @@
 ---
 project: ib-timetable-planner
-checked_at: 2026-06-18T15:37:17Z
-health_status: needs-attention
+checked_at: 2026-07-16T19:01:27+02:00
+health_status: healthy
 context_type: brownfield
-language_family: js
+language_family: multi
 stack_assessment_available: true
 checks_run:
   - lockfile
@@ -14,202 +14,282 @@ checks_run:
   - configuration
 audit_findings:
   critical: 0
-  high: 4
-  moderate: 5
-  low: 2
+  high: 0
+  moderate: 0
+  low: 0
 test_runner_detected: true
 ci_provider: GitHub Actions
 recommended_fixes: 6
 ---
+
+# Health Check — IB Timetable Planner
+
+> Two-component check matching the stack assessment (2026-07-16): the pnpm/TS
+> app at the repo root and the uv/Python solver at `poc/cp-sat/` (promoting to
+> `services/solver/` per the CP-SAT PRD). Replaces the 2026-06-18 report
+> (needs-attention, 4 HIGH advisories) — all four advisories have since been
+> resolved; the dependency tree is now clean.
 
 ## Dependency Health
 
 ### Lockfile
 
 ```
-Status: present (pnpm-lock.yaml)
-Package manager: pnpm@11.9.0 (pinned in packageManager; Node 24.15.0 pinned in .node-version)
+Status: present — pnpm-lock.yaml (app), uv.lock (solver)
+Package manager: pnpm 11.9.0 (app, pinned in packageManager); uv (solver)
 ```
 
-Dependency state is fully pinned and reproducible. No action needed.
+Both ecosystems are fully pinned and reproducible. Node is pinned via
+`.node-version` (24.15.0); Python via `requires-python >=3.12` + `uv.lock`.
 
 ### Security Audit
 
 ```
-Tool: pnpm audit --json
-Summary: 0 CRITICAL, 4 HIGH, 5 MODERATE, 2 LOW (11 advisories; pnpm reports 12 at the path level)
-Direct vs transitive: 2 advisories hit a DIRECT production dependency (astro); the other 9 are
-                      transitive, almost all inside dev/build tooling (wrangler, vite-tsconfig-paths,
-                      @astrojs/check, steiger, eslint-plugin-react-compiler).
+Tool: pnpm audit --json (app)
+Summary: 0 CRITICAL, 0 HIGH, 0 MODERATE, 0 LOW — across 1,000 resolved packages
+Direct vs transitive: no findings to break down
+
+Tool: uv audit (solver — native, lockfile-based; preview feature in uv 0.11.11)
+Summary: 0 findings — no known vulnerabilities, no adverse project statuses (17 packages)
 ```
 
-The headline is the split: only **astro** is a direct, runtime-shipped dependency with advisories, and both are cleared by a single minor bump. Everything else lives in the dev/build chain, and three of those are **Windows-only dev-server** issues that don't apply to this team's macOS/Linux + workerd workflow — real, but low real-world exposure here.
+> Applied as Fix 3 right after this report's initial run: `uv audit` (announced
+> 2026-06, astral.sh/blog/uv-audit) replaced the report's original pip-audit
+> recommendation — zero added dependencies vs pip-audit's ~20 dev transitives,
+> and it audits the full lockfile rather than the installed environment.
 
-#### HIGH findings
-
-- **astro** 6.3.7 — GHSA (CVSS 7.5): Host header SSRF in prerendered error-page fetch. **Direct production dependency** — this is the one that matters most. Fix: update astro to 6.4.8.
-- **ws** 8.20.1 — GHSA-96hv-2xvq-fx4p / CVE-2026-48779 (CVSS 7.5): memory-exhaustion DoS from tiny fragments. Transitive via `wrangler > miniflare > ws` (dev/build only). Fix: update wrangler to 4.102.0.
-- **undici** — GHSA (CVSS 7.4): TLS certificate-validation bypass via dropped request headers. Transitive via `wrangler` (dev/build only). Fix: update wrangler to 4.102.0.
-- **vite** 7.3.3 — GHSA-fx2h-pf6j-xcff / CVE-2026-53571 (HIGH): `server.fs.deny` bypass on Windows alternate paths. Transitive via `vite-tsconfig-paths > vite`. **Windows-only**, dev server only. Fix: update vite-tsconfig-paths so it pulls vite ≥ 7.3.5.
-
-#### MODERATE findings (count: 5 — logged, not blocking)
-
-- **astro** 6.3.7 — XSS via unescaped attribute names in spread props (CVSS 4.2). **Direct** — cleared by the same astro 6.4.8 bump as the SSRF above.
-- **undici** — cross-user information disclosure via shared cache (CVSS 5.9). Transitive via wrangler; cleared by the wrangler bump.
-- **js-yaml** 4.1.1 — quadratic-complexity DoS in merge-key handling (CVSS 5.3). Transitive via `steiger > cosmiconfig > js-yaml` (dev tooling).
-- **yaml** 2.7.1 — stack-overflow on deeply nested collections (CVSS 4.3). Transitive via `@astrojs/check` (dev tooling).
-- **vite / launch-editor** — NTLMv2 hash disclosure via UNC path handling on Windows. Transitive via `vite-tsconfig-paths`; Windows-only dev server.
-
-#### LOW findings (count: 2 — logged, not blocking)
-
-- **esbuild** 0.27.x — arbitrary file read via the dev server on Windows (CVSS 2.5). Transitive via both `vite-tsconfig-paths` and `wrangler`; Windows-only.
-- **@babel/core** ≤7.29.0 — arbitrary file read via sourceMappingURL comment (CVSS 3.2). Transitive via `eslint-plugin-react-compiler` (dev tooling).
+The solver's audit surface is currently one runtime dependency
+(`ortools>=9.15,<9.16`) — the planned FastAPI wrapper (PRD FR-010) will grow
+that tree; see Fix 3.
 
 ### Outdated Dependencies
 
 ```
-Packages with major version gaps: 0
+Packages with major version gaps: 2 (both dev-only)
 ```
 
-No dependency is 2+ major versions behind — the project rides current majors throughout. Most pending updates are patch/minor bumps. Two are **security-relevant** and overlap with the audit fixes above:
+- **eslint-plugin-astro**: 1.7.0 → 3.0.0 (2 major versions behind)
+- **typescript**: 6.0.3 → 7.0.2 (1 major version behind)
 
-- **astro**: 6.3.7 → 6.4.8 (clears the direct SSRF + XSS advisories)
-- **wrangler**: 4.94.0 → 4.102.0 (clears the transitive ws + undici advisories)
-
-Other notable (non-urgent) minor bumps: `@supabase/ssr` 0.10.3 → 0.12.0, `@supabase/supabase-js` 2.106.1 → 2.108.2, `lucide-react` 1.16.0 → 1.21.0, `@dnd-kit/react` + `@dnd-kit/dom` 0.4.0 → 0.5.0 (both pinned to exact versions — bump deliberately and re-run the grid/E2E suite, since the drag-drop core depends on them).
+Everything else is patch/minor drift (16 packages — e.g. astro 7.0.6→7.0.9,
+wrangler 4.102→4.111) — routine, no action needed. Neither major gap is
+urgent; see Fix 5 for the review recommendation.
 
 ## Test Suite
 
 ```
-Test runner: Vitest 4 (unit + integration) + Playwright 1.61 (E2E)
-Tests found: 65 unit test files + 10 integration test files; Playwright E2E specs under e2e/specs/
-Test execution: collected cleanly (vitest list exit 0); CI runs the full suite as a gate
+Test runner: Vitest 4.1.9 (app) + pytest 8 (solver)
+Tests found: 1,534 (app, 175 files) + 40 (solver)
+Test execution: passing — both suites, verified this run
 ```
 
 ```
-Configuration: vitest.config.ts, vitest.integration.config.ts, playwright.config.ts
-Framework: Vitest ^4.1.8, @playwright/test ^1.61.0
+Configuration: vitest.config.ts (unit; four further configs: integration,
+bench, analyze, experiment) + playwright.config.ts (E2E, not executed here —
+needs the local Supabase stack + workerd preview)
+Framework: Vitest 4.1.9 — app suite green in 21.9 s; pytest — solver suite
+green in 8.9 s (poc/cp-sat/pyproject.toml [tool.pytest.ini_options])
 ```
 
-Strong, layered coverage — co-located unit tests, a separate integration config (Supabase-backed), and an E2E lane with an author-provisioning pretest. The agent can verify its own changes at every level. No action needed.
+This is the strongest agent-readiness signal in the project: fast, green,
+CI-gated suites on both sides of the wire contract, plus lefthook pre-commit
+hooks locally.
 
 ## CI/CD
 
 ```
 Provider: GitHub Actions
-Configuration: .github/workflows/ci.yml (+ composite actions in .github/actions/setup and .github/actions/supabase-stack)
+Configuration: .github/workflows/ci.yml
 ```
 
-| Stage      | Status | Notes                                                                 |
-|------------|--------|-----------------------------------------------------------------------|
-| Lint       | ✓      | `pnpm run lint` (ESLint flat config, type-checked) + `pnpm run steiger` (FSD gate) |
-| Test       | ✓      | `pnpm run test` (Vitest unit) + dedicated `integration` and `e2e` jobs |
-| Build      | ✓      | `pnpm run build` (astro build)                                        |
-| Type check | ✓      | `pnpm exec astro sync` + tsconfig `astro/tsconfigs/strict`; lint is type-checked |
-| Security   | ✗      | No `pnpm audit` / Dependabot / CodeQL stage configured                |
+| Stage      | Status | Notes                                               |
+| ---------- | ------ | --------------------------------------------------- |
+| Lint       | ✓      | eslint + steiger (FSD gate, --fail-on-warnings)     |
+| Test       | ✓      | vitest (verify) + integration + Playwright e2e jobs |
+| Build      | ✓      | pnpm build (astro build)                            |
+| Type check | ✓      | pnpm check (astro check) after astro sync           |
+| Security   | ✓      | pnpm audit --audit-level=high in verify job         |
 
-This is a strong pipeline: three test lanes (unit, integration, E2E), extracted composite actions, a concurrency guard that won't cancel an in-flight `main` deploy, and a `deploy` job gated on `needs: [verify, integration, e2e]` that pushes migrations then ships to Cloudflare Workers. The single gap is a **security-scan stage** — there's no automated gate that would have surfaced the astro SSRF advisory. See Category B.
+Deploy job ships migrations + Worker on merge to main after all gates pass.
+
+**Coverage boundary:** the pipeline is JS-only. The solver's 40 tests and ruff
+lint run nowhere in CI — the path-filtered solver lane is scoped as net-new
+work in PRD FR-015. Flagged as Fix 2 so it lands with a type checker included
+(see cross-reference below). No scheduled dependency scanning
+(Dependabot/Renovate) — audit runs only on push/PR; acceptable at this scale,
+noted in Fix 6.
 
 ## Configuration
 
+### High severity
+
+None.
+
+### Medium severity
+
+None. Formatter (`.prettierrc.json` + `.prettierignore`), linter
+(`eslint.config.js`, type-aware flat config), strict TS
+(`tsconfig.json` extends `astro/tsconfigs/strict`), `.gitignore` (secrets
+verified ignored and untracked: `.env*`, `.envs/`, `.dev.vars`), and env
+documentation (README's `.envs/local.vars` walkthrough serves the
+`.env.example` role) are all present.
+
 ### Low severity
 
-- **`.editorconfig`** — missing. Without it, editors may disagree on indentation/EOL for contributors not using the repo's Prettier-on-save setup. Fix: add a minimal `.editorconfig` (Prettier already enforces formatting on commit, so this is convenience, not correctness).
-
-All other expected configuration is present: `.prettierrc.json`, `eslint.config.js` (flat config), `tsconfig.json` (extends `astro/tsconfigs/strict` — strict mode on), `.gitignore`, `.env.example`, `lefthook.yml`, plus `CLAUDE.md` and `AGENTS.md` (the latter a one-line `@CLAUDE.md` pointer — a clean single-source pattern).
+- **.editorconfig** — missing; cross-editor consistency for non-Prettier
+  files (TOML, YAML, Python — Prettier doesn't format the solver). Fix: add a
+  minimal `.editorconfig` (see Fix 4).
+- **Stale Next.js remnants** — `next-env.d.ts` at the repo root and Next.js
+  sections in `.gitignore` (`/.next/`, `/out/`) from a pre-Astro past; noise
+  an agent may pattern-match on ("is this a Next app?"). Fix: delete (Fix 5).
 
 ## Stack Assessment Cross-Reference
 
 ```
-Stack assessment: context/foundation/stack-assessment.md
-Agent readiness (from stack-assess): ready (4/4 quality gates pass, no compensation required)
+Stack assessment: context/foundation/stack-assessment.md (2026-07-16)
+Agent readiness (from stack-assess): ready-with-compensation
 ```
 
-stack-assess found no gate failures, so this table tracks its **watch-items** and recommended compensation against what's actually in the repo:
+| Quality Gate Gap                                                             | Health-Check Finding                                                                                                            | Status                                                       |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Solver typed: fail (no mypy/pyright)                                         | No Python CI lane exists at all — annotations unenforced locally AND in CI                                                      | **Reinforced**                                               |
+| Solver conventions: partial (instruction file blind to Python)               | CLAUDE.md/AGENTS.md present but the recommended solver + post-cutoff sections are not yet pasted; "Astro 6" drift still present | **Reinforced — compensation pending**                        |
+| Post-cutoff platforms: partial (Containers, Vite 8, Astro 7, React Compiler) | No operational counterpart yet (wrangler.jsonc has no container bindings); doc-first rules not yet in CLAUDE.md                 | Pending — becomes operational when FR-015/FR-011 work starts |
+| CP-SAT idiom thin in training data                                           | Structural defenses verified working: 40 solver tests green, parity suite in place                                              | **Mitigated**                                                |
 
-| Stack-assess item                              | Health-check finding                                                              | Status     |
-|------------------------------------------------|-----------------------------------------------------------------------------------|------------|
-| Workers-runtime ceiling (no Node-only APIs)    | Documented in CLAUDE.md "Hard rules"; `pnpm build` is a CI gate                    | Mitigated  |
-| FSD import-direction discipline                | `steiger --fail-on-warnings` runs in CI; layer rule documented in CLAUDE.md        | Mitigated  |
-| Version skew — recommended version-pinning block in CLAUDE.md/AGENTS.md | **Not yet added** — CLAUDE.md has no "current-major / do-not-regress" section | Open (Category A #4) |
-| Security (stack-assess noted CI = lint→steiger→test→build, no security scan) | Confirmed: no security stage in CI **and** 4 live HIGH advisories exist  | Reinforced |
-
-The version-skew block is the one concrete recommendation stack-assess left open; it's quick to close and listed below. The security observation is now reinforced by real findings — the missing CI scan is why the astro advisory went uncaught.
+The two reinforced rows compound into one message: the solver currently has
+**zero machine enforcement** — no type checker, no CI lane, no instruction-file
+steering. Each is individually cheap, and FR-015 is the natural vehicle for
+all of them.
 
 ## Recommended Fixes
 
+The project sits inside the brownfield chain with CI, deployment, and agent
+instruction files already in place — so every finding is actionable now
+(Category A); nothing needs to wait for an upcoming lesson.
+
 ### Fix before agent work (Category A)
 
-### 1. Astro direct dependency — Host header SSRF (HIGH) + spread-props XSS (MODERATE)
+### 1. Paste the stack-assessment compensation into CLAUDE.md
 
-**Impact**: astro is the production framework shipped to workerd. The SSRF is the only HIGH advisory in a runtime dependency, and an agent extending routes/error pages could unknowingly build on the vulnerable surface.
+**Impact**: agents doing solver or Containers work currently get zero steering
+— the instruction file never mentions the Python half, and its "Astro 6" claim
+actively misleads. This is the highest-leverage five minutes available.
 **Severity**: high
 **Effort**: quick (< 5 min)
 **Fix**:
 
-```bash
-pnpm update astro          # 6.3.7 → 6.4.8 (clears both astro advisories)
-pnpm audit                 # confirm the astro HIGH + MODERATE are gone
-pnpm run build             # confirm the Workers build stays clean
-```
+Copy the two ready-to-paste sections ("Solver service" and "Post-cutoff
+platform rules") from `context/foundation/stack-assessment.md` →
+"Recommended Instruction File Additions" into `CLAUDE.md`, and change
+"Astro 6" → "Astro 7" in its first paragraph.
 
-### 2. wrangler transitive HIGH — ws DoS + undici TLS bypass
+### 2. Add mypy --strict to the solver (with the FR-015 CI lane)
 
-**Impact**: both live in wrangler's bundled miniflare/undici (dev + CI deploy tooling). Not shipped to production, but they sit in the toolchain the agent runs locally and in CI.
+**Impact**: the solver owns one side of the frozen wire contract; today a
+shape drift in `schema.py` produces no machine signal anywhere — the stack
+assessment's one failed gate, reinforced by the missing CI lane.
 **Severity**: high
-**Effort**: quick (< 5 min)
+**Effort**: moderate (15–30 min — strict mode may surface fixes across ~1,300 LOC)
 **Fix**:
 
-```bash
-pnpm update wrangler       # 4.94.0 → 4.102.0 (pulls patched miniflare/ws + undici)
-# Keep the CI deploy step's wranglerVersion in lockstep — bump the pin in
-# .github/workflows/ci.yml ("wranglerVersion: 4.94.0") to match the new lockfile version.
-pnpm audit
-```
+Apply the `[tool.mypy]` block from the stack assessment to
+`poc/cp-sat/pyproject.toml`, run `uv run mypy` until clean, and include
+`uv run mypy` next to ruff + pytest when building the FR-015 path-filtered
+CI lane.
 
-### 3. vite (via vite-tsconfig-paths) — fs.deny bypass (HIGH, Windows-only)
+### 3. Python vulnerability scanning — ✅ applied via `uv audit`
 
-**Impact**: dev-server-only and Windows-only, so low real-world exposure for this macOS/Linux + workerd team — but it's a HIGH and trivially patched.
-**Severity**: high (low practical exposure here)
-**Effort**: quick (< 5 min)
-**Fix**:
-
-```bash
-pnpm update vite-tsconfig-paths   # pulls vite ≥ 7.3.5; clears vite fs.deny, launch-editor, and esbuild advisories
-pnpm audit
-# If a transitive vite remains pinned below 7.3.5, add a pnpm override in package.json:
-#   "pnpm": { "overrides": { "vite": ">=7.3.5", "esbuild": ">=0.28.1" } }
-```
-
-### 4. Add the version-pinning block to CLAUDE.md (close the stack-assess recommendation)
-
-**Impact**: the stack rides newer majors than the training corpus (React 19, Astro 6, Tailwind 4, ESLint 10). Without an explicit reminder, an agent may emit React 18 effect patterns, v3 Tailwind config, or `.eslintrc` snippets. stack-assess recommended this block and it isn't in CLAUDE.md yet.
+**Impact**: the Python tree had no vulnerability scanning; trivial now (one
+runtime dep), load-bearing once the FastAPI wrapper lands.
 **Severity**: medium
 **Effort**: quick (< 5 min)
-**Fix**: paste the ready-made "Versions are current-major — do not regress to older idioms" block from `context/foundation/stack-assessment.md` (§ Recommended Instruction File Additions) into CLAUDE.md. AGENTS.md inherits it via its `@CLAUDE.md` pointer.
+**Fix** (applied 2026-07-16):
 
-### 5. Add a `.editorconfig`
+`uv audit` is the canonical scanner — native in uv (≥0.11.11), lockfile-based,
+zero added dependencies. pip-audit was trialed first and removed in its favor.
 
-**Impact**: minor consistency for contributors/agents not relying on Prettier-on-save. Prettier already gates formatting at commit, so this is convenience.
+```bash
+cd poc/cp-sat && uv audit          # local; --frozen for lockfile-only in CI
+```
+
+Remaining: add `uv audit --frozen` to the FR-015 CI lane alongside
+ruff/pytest/mypy. Caveat: the command is a **preview feature** ("may change
+without warning") — re-check its stability when wiring the CI lane, and pin
+the uv version there.
+
+### 4. Add .editorconfig
+
+**Impact**: Prettier doesn't cover the solver's Python or TOML/YAML; a minimal
+.editorconfig keeps agents' cross-ecosystem edits consistent.
 **Severity**: low
 **Effort**: quick (< 5 min)
-**Fix**: add a root `.editorconfig` with `root = true`, UTF-8, LF, 2-space indent, final newline — matching the Prettier config.
+**Fix**:
+
+```ini
+# .editorconfig
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+
+[*.py]
+indent_size = 4
+max_line_length = 110
+```
+
+### 5. Clean stale Next.js remnants; review dev-tool major gaps
+
+**Impact**: `next-env.d.ts` + Next.js `.gitignore` sections are misleading
+context for agents. Separately, `eslint-plugin-astro` is 2 majors behind
+(1.7.0 → 3.0.0) and TypeScript 7 is out — worth a deliberate review, not an
+automatic bump, mid-migration.
+**Severity**: low
+**Effort**: quick (remnants) + moderate (major-gap review, 15–30 min)
+**Fix**:
+
+```bash
+git rm next-env.d.ts   # then delete the "# next.js" block in .gitignore
+```
+
+Review `eslint-plugin-astro@3` and `typescript@7` changelogs when convenient;
+defer the bumps if they'd share a diff with CP-SAT migration work.
+
+### 6. (Optional) Scheduled dependency scanning
+
+**Impact**: `pnpm audit` runs only on push/PR — a quiet repo won't hear about
+new advisories. At single-author scale this is acceptable; Dependabot/Renovate
+would close the gap.
+**Severity**: low
+**Effort**: moderate (15–30 min)
+**Fix**: add `.github/dependabot.yml` with `package-ecosystem: npm` (weekly)
+— and `pip` once `services/solver/` exists.
 
 ### Addressed in upcoming lessons (Category B)
 
-### Security-scan stage in CI
-
-**Lesson**: [Sprint Zero z Agentem: infrastruktura, walking skeleton i pierwszy deploy (M1L5)](https://platforma.przeprogramowani.pl/external/10xdevs-3/m1-l5)
-**What you'll do there**: formalize the CI pipeline, including a dependency-audit / scanning gate (e.g. a `pnpm audit` step, Dependabot, or CodeQL) so advisories like the astro SSRF surface automatically instead of in a manual check. The pipeline itself is already strong — this is the one missing stage.
-
-> Agent instruction files (CLAUDE.md + AGENTS.md) — normally a Category B item from agent onboarding ([M1L4](https://platforma.przeprogramowani.pl/external/10xdevs-3/m1-l4)) — are **already present and substantial** here, so no action is needed beyond the version-pinning addition in Category A #4. Deployment configuration (`wrangler.jsonc`, deploy job) is also already in place.
+None — this project is past the point where Category B applies: CI/CD,
+deployment (Cloudflare Workers, automated on merge), and agent instruction
+files (CLAUDE.md/AGENTS.md) all exist already.
 
 ## Summary
 
-```
-Health status: needs-attention
-```
+Health status: **healthy**
 
-This is a strong, modern, well-instrumented project: a pinned pnpm lockfile, end-to-end strict TypeScript, three working test lanes (Vitest unit + integration, Playwright E2E), and an excellent GitHub Actions pipeline with FSD enforcement and a guarded deploy. The reason it lands at *needs-attention* rather than *healthy* is four HIGH security advisories — one of them (astro Host header SSRF) in a direct, production-shipped dependency. The good news is that nearly all of it closes with three quick version bumps (`astro`, `wrangler`, `vite-tsconfig-paths`), and the remaining transitive findings are dev/build-only, with several being Windows-only dev-server issues that don't apply to this team's macOS/Linux + workerd workflow. Two non-code items round it out: paste in the version-pinning block stack-assess recommended, and add a security-scan stage to CI (coming up in the infrastructure lesson).
+The operational foundation is unusually strong: clean audit across 1,000
+packages (all four HIGH advisories from the June report resolved), both
+lockfiles pinned, two green test suites verified this run (1,534 app tests +
+40 solver tests), and a five-stage CI pipeline with deploy automation. The
+gaps are concentrated on exactly the seam the stack assessment flagged — the
+Python solver has zero machine enforcement (no mypy, no CI lane, no
+instruction-file coverage), which matters because that seam is where the
+CP-SAT migration work is about to happen. Fixes 1–3 close it for well under
+an hour, and FR-015 is the natural vehicle.
 
-Next step: apply the three dependency bumps and re-run `pnpm audit` + `pnpm build`, add the version-pinning block to CLAUDE.md, then proceed to agent onboarding — the project is in good shape for agent-assisted work once the HIGH advisories are cleared.
+Next step: apply Fix 1 (five minutes, highest leverage) before starting agent
+work on the CP-SAT change; fold Fixes 2–3 into the FR-015 CI-lane work. Both
+brownfield artifacts (stack-assessment.md + health-check.md) are now current
+for agent onboarding.

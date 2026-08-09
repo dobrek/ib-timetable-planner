@@ -181,8 +181,8 @@ importers:
         specifier: ^0.8.0
         version: 0.8.0(prettier-plugin-astro@0.14.1)(prettier@3.8.4)
       steiger:
-        specifier: ^0.5.13
-        version: 0.5.13(typescript@6.0.3)
+        specifier: ^0.6.0
+        version: 0.6.0(typescript@6.0.3)
       supabase:
         specifier: ^2.107.0
         version: 2.107.0
@@ -924,6 +924,9 @@ packages:
 
   '@feature-sliced/steiger-plugin@0.6.0':
     resolution: {integrity: sha512-TO7DbHYcldgyasVK5iwoou+J0rJonDgH18B+IBQqXedeB2/MURpkbUw9PFPV84pysG5C3uvIDhk+lLMW2MgQ4Q==}
+
+  '@feature-sliced/steiger-plugin@0.7.0':
+    resolution: {integrity: sha512-jd90OaXYW/6sQbJ9LjRhN4HFLrrqpp436V+6vpJQGpp/CVd+hynaLDtDfsZSxMgfgj8uvcow3zwwKRCnBlLWYQ==}
 
   '@floating-ui/core@1.7.5':
     resolution: {integrity: sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ==}
@@ -3535,10 +3538,6 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
-  js-yaml@4.2.0:
-    resolution: {integrity: sha512-ePWsvanv0DWuDRsW8dnt+R4jQ31SCRCQ7hhNcPXZPsoBZiemuZNYGf7adZdqX2D86j6rvKp3RpCxVTSb8WQlOw==}
-    hasBin: true
-
   js-yaml@4.3.1:
     resolution: {integrity: sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ==}
     hasBin: true
@@ -4407,8 +4406,8 @@ packages:
   std-env@4.1.0:
     resolution: {integrity: sha512-Rq7ybcX2RuC55r9oaPVEW7/xu3tj8u4GeBYHBWCychFtzMIr86A7e3PPEBPT37sHStKX3+TiX/Fr/ACmJLVlLQ==}
 
-  steiger@0.5.13:
-    resolution: {integrity: sha512-Vbgb9tMmxo3wf1jXvn+px3hDEOELdYJdWji6DT++zFcWwVHgjY22DjxYbCjq+dtEE6BWYSyv6OhwbPZPy8ovQQ==}
+  steiger@0.6.0:
+    resolution: {integrity: sha512-XOG11zwU/m0Aq7bK9zCxH+//QemXis2P3pQJ99kYeaKhVr7YuR41cyN2bTQKrW9vTLw3Uykpai7ohfEX3nMN3Q==}
     hasBin: true
 
   stop-iteration-iterator@1.1.0:
@@ -5501,7 +5500,7 @@ snapshots:
 
   '@babel/template@7.28.6':
     dependencies:
-      '@babel/code-frame': 7.29.0
+      '@babel/code-frame': 7.29.7
       '@babel/parser': 7.29.7
       '@babel/types': 7.29.7
 
@@ -5874,6 +5873,17 @@ snapshots:
       typescript: 5.9.3
 
   '@feature-sliced/steiger-plugin@0.6.0(typescript@6.0.3)':
+    dependencies:
+      '@feature-sliced/filesystem': 3.1.0
+      fastest-levenshtein: 1.0.16
+      lodash-es: 4.18.1
+      pluralize: 8.0.0
+      tsconfck: 3.1.6(typescript@6.0.3)
+      web-tree-sitter: 0.26.9
+    transitivePeerDependencies:
+      - typescript
+
+  '@feature-sliced/steiger-plugin@0.7.0(typescript@6.0.3)':
     dependencies:
       '@feature-sliced/filesystem': 3.1.0
       fastest-levenshtein: 1.0.16
@@ -7832,7 +7842,7 @@ snapshots:
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
-      js-yaml: 4.2.0
+      js-yaml: 4.3.1
       parse-json: 5.2.0
     optionalDependencies:
       typescript: 6.0.3
@@ -8742,10 +8752,6 @@ snapshots:
 
   js-tokens@4.0.0: {}
 
-  js-yaml@4.2.0:
-    dependencies:
-      argparse: 2.0.1
-
   js-yaml@4.3.1:
     dependencies:
       argparse: 2.0.1
@@ -9143,7 +9149,7 @@ snapshots:
 
   parse-json@5.2.0:
     dependencies:
-      '@babel/code-frame': 7.29.0
+      '@babel/code-frame': 7.29.7
       error-ex: 1.3.4
       json-parse-even-better-errors: 2.3.1
       lines-and-columns: 1.2.4
@@ -9641,10 +9647,10 @@ snapshots:
 
   std-env@4.1.0: {}
 
-  steiger@0.5.13(typescript@6.0.3):
+  steiger@0.6.0(typescript@6.0.3):
     dependencies:
       '@clack/prompts': 0.9.1
-      '@feature-sliced/steiger-plugin': 0.6.0(typescript@6.0.3)
+      '@feature-sliced/steiger-plugin': 0.7.0(typescript@6.0.3)
       chokidar: 4.0.3
       cosmiconfig: 9.0.2(typescript@6.0.3)
       effector: 23.4.4

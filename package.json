@@ -27,9 +27,9 @@
     "env:prod": "cp .envs/prod.vars .env.local && cp .envs/prod.vars .dev.vars"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.9",
-    "@astrojs/cloudflare": "^14.1.1",
-    "@astrojs/react": "^6.0.1",
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/cloudflare": "^14.2.0",
+    "@astrojs/react": "^6.0.2",
     "@astrojs/sitemap": "^3.7.3",
     "@dnd-kit/dom": "0.5.0",
     "@dnd-kit/react": "0.5.0",
@@ -42,7 +42,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "astro": "^7.0.6",
+    "astro": "^7.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

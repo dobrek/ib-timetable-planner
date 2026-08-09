@@ -3,13 +3,9 @@ allowBuilds:
   lefthook: true
   sharp: true
   workerd: true
-minimumReleaseAgeExclude:
-  - "@astrojs/cloudflare@14.1.1"
-  - "@astrojs/internal-helpers@0.10.1"
-  - "@astrojs/markdown-satteri@0.3.3"
-  - "@astrojs/react@6.0.1"
-  - astro@7.0.6
 overrides:
+  "brace-expansion@>=1.0.0 <1.1.18": ^1.1.18
+  "brace-expansion@>=5.0.6 <5.0.9": ^5.0.9
   "@babel/core@>=7.0.0 <7.29.7": ^7.29.7
   "esbuild@>=0.27.0 <0.28.1": ^0.28.1
   "ws@>=8.0.0 <8.21.0": ^8.21.0

@@ -1,6 +1,5 @@
 import { fixupConfigRules } from "@eslint/compat";
-import { includeIgnoreFile } from "@eslint/config-helpers";
-import { defineConfig } from "eslint/config";
+import { includeIgnoreFile, defineConfig } from "@eslint/config-helpers";
 import eslint from "@eslint/js";
 import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 import eslintPluginAstro from "eslint-plugin-astro";

@@ -14,6 +14,7 @@ import json
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 FORMAT_VERSION = 1
 COHORTS: tuple[str, ...] = ("dp1", "dp2")
@@ -112,7 +113,7 @@ def load_dump(path: str | Path) -> Dump:
     version = raw.get("formatVersion")
     if version != FORMAT_VERSION:
         raise ValueError(f"Unsupported dump formatVersion {version!r} (understood: {FORMAT_VERSION}).")
-    snapshot = _snapshot(raw["snapshot"])
+    snapshot = parse_snapshot(raw["snapshot"])
     return Dump(
         format_version=version,
         meta=raw["meta"],
@@ -138,7 +139,13 @@ def deficits(snapshot: Snapshot) -> dict[tuple[str, str], int]:
     return result
 
 
-def _snapshot(raw: dict) -> Snapshot:
+def parse_snapshot(raw: dict[str, Any]) -> Snapshot:
+    """Parse a bare ``GeneratorSnapshot`` payload (the contract's, or a dump's ``snapshot`` key).
+
+    Public because the snapshot is a contract payload in its own right — the F-302 ``SolveRequest``
+    carries one without a dump envelope around it, and the contract round-trip test parses the
+    committed golden through exactly this path before re-emitting it via ``wire.py``.
+    """
     return Snapshot(
         days=raw["days"],
         periods=raw["periods"],
@@ -151,7 +158,7 @@ def _snapshot(raw: dict) -> Snapshot:
     )
 
 
-def _cohort(raw: dict) -> CohortSnapshot:
+def _cohort(raw: dict[str, Any]) -> CohortSnapshot:
     return CohortSnapshot(
         courses=tuple(
             Course(
@@ -168,5 +175,5 @@ def _cohort(raw: dict) -> CohortSnapshot:
     )
 
 
-def _placement(raw: dict) -> Placement:
+def _placement(raw: dict[str, Any]) -> Placement:
     return Placement(raw["cohort"], raw["courseId"], raw["day"], raw["period"], raw["week"])

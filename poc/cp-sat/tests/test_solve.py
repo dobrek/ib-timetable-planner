@@ -150,5 +150,8 @@ def test_generation_result_has_import_shape() -> None:
     assert set(diag["cohorts"]) == {"dp1", "dp2"}
     for cohort in ("dp1", "dp2"):
         entry = diag["cohorts"][cohort]
-        assert {"occupiedSlotsBefore", "occupiedSlotsAfter", "unplaced", "lowerBound"} <= set(entry)
+        assert {"occupiedSlotsBefore", "occupiedSlotsAfter", "unplaced"} <= set(entry)
+        # `lowerBound` is optional and OMITTED when absent (the frozen contract forbids nulls on the
+        # wire); this dump carries no greedy diagnostics, so there is no clique bound to report.
+        assert "lowerBound" not in entry
         assert all({"courseId", "missing"} == set(u) for u in entry["unplaced"])

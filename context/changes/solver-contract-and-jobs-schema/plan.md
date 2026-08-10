@@ -417,11 +417,11 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [x] 1.1 `pnpm test` passes with `bench/contract-parity.test.ts` collected and green
-- [x] 1.2 `pnpm check` passes
-- [x] 1.3 `pnpm lint` passes
-- [x] 1.4 `pnpm steiger` passes
-- [x] 1.5 `pnpm format && git diff --exit-code contracts/` — prettier does not touch goldens
+- [x] 1.1 `pnpm test` passes with `bench/contract-parity.test.ts` collected and green — 49e7ec4
+- [x] 1.2 `pnpm check` passes — 49e7ec4
+- [x] 1.3 `pnpm lint` passes — 49e7ec4
+- [x] 1.4 `pnpm steiger` passes — 49e7ec4
+- [x] 1.5 `pnpm format && git diff --exit-code contracts/` — prettier does not touch goldens — 49e7ec4
 
 #### Manual
 
@@ -432,8 +432,8 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [ ] 2.1 `uv run pytest` green — contract tests AND objective-parity at exact 10/10
-- [ ] 2.2 `uv run ruff check` clean on new/changed files
+- [x] 2.1 `uv run pytest` green — contract tests AND objective-parity at exact 10/10
+- [x] 2.2 `uv run ruff check` clean on new/changed files
 - [ ] 2.3 CI `solver` job green and listed in `deploy.needs`
 
 #### Manual

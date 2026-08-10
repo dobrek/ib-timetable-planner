@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from ortools.sat.python import cp_model
 
@@ -264,13 +265,17 @@ def solve_repair(dump: Dump, config: SolveConfig) -> SolveResult:
 # --- GenerationResult shaping (the TS import contract) --------------------------------------------
 
 
-def to_generation_result(dump: Dump, result: SolveResult, engine: str = "cp-sat") -> dict:
-    """Shape a solved board into the ``GenerationResult`` wire dict (``types.ts:85``) the TS import
-    experiment consumes verbatim: generated placements + per-cohort diagnostics."""
+def to_generation_result(dump: Dump, result: SolveResult, engine: str = "cp-sat") -> dict[str, Any]:
+    """Shape a solved board into the ``GenerationResult`` wire dict the TS side consumes verbatim:
+    generated placements + per-cohort diagnostics.
+
+    The shape is frozen in ``contracts/generation-wire.schema.json``. In particular an absent optional
+    is an ABSENT KEY, never ``None`` — ``"lowerBound": null`` is not assignable to the TS type and is
+    rejected by the schema, so a cohort with no clique bound simply omits it."""
     board = {(p.cohort, p.course_id, p.day, p.period, p.week): 1 for p in result.board}
     placed = _placed_by_course(board)
     defs = deficits(dump.snapshot)
-    cohorts = {}
+    cohorts: dict[str, dict[str, Any]] = {}
     for cohort in COHORTS:
         snap = dump.snapshot.cohorts[cohort]
         pins = [(pin.day, pin.period) for pin in snap.pins]
@@ -280,13 +285,14 @@ def to_generation_result(dump: Dump, result: SolveResult, engine: str = "cp-sat"
             for c in snap.courses
             if defs[(cohort, c.id)] - placed.get((cohort, c.id), 0) > 0
         ]
+        lower_bound = dump.lower_bound(cohort)
         cohorts[cohort] = {
             "occupiedSlotsBefore": len(set(pins)),
             "occupiedSlotsAfter": len(set(pins + generated)),
             "unplaced": unplaced,
-            "lowerBound": dump.lower_bound(cohort),
+            **({"lowerBound": lower_bound} if lower_bound is not None else {}),
         }
-    diagnostics = {
+    diagnostics: dict[str, Any] = {
         "engine": engine,
         "elapsedMs": round(result.elapsed_s * 1000),
         "partial": not result.proven_optimal,

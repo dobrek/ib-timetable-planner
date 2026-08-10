@@ -55,7 +55,7 @@ Five phases, each independently verifiable. Phase 1 authors the artifact and the
 
 1. **Strict + narrow pin**: `additionalProperties: false` on every object; wire pin = `{courseId, day, period, week}` only. `id`/`isOptional`/`bundleId` never cross the wire.
 2. **CP-SAT is the sole wire producer**: `engine` is `const "cp-sat"`; `provenOptimal` **required**; `stopReason` optional with enum `["budget", "cancelled"]` (no `stagnation` — greedy-only); `partial` means `not provenOptimal`. Greedy is out of contract.
-3. **Omit-when-absent, never null**: no `null` anywhere on the wire. Python's emitter drops `None` keys; the TS canonicalizer omits `null`/`undefined`-valued keys by specification (the convention is *encoded in the canonicalizer*, not just documented).
+3. **Omit-when-absent, never null**: no `null` anywhere on the wire. Python's emitter drops `None` keys; the TS canonicalizer omits `null`/`undefined`-valued keys by specification (the convention is _encoded in the canonicalizer_, not just documented).
 4. **One canonicalizer, two consumers**: a declared canonical JSON form (spec below) is implemented once per side; golden tests byte-compare it AND `snapshot_hash` digests it.
 5. **`formatVersion`**: `const 1` on the `SolveRequest` envelope def. Any breaking `$defs` change bumps it; the bump policy lives in `contracts/README.md`. Python's bench-dump `FORMAT_VERSION` gate stays as-is (bench scope).
 6. **Out of contract, stated in the README**: the bench dump envelope (`greedy.*`, `objective`, `meta`), the `.report.json` sidecar, and the greedy engine.
@@ -224,6 +224,7 @@ Ship the full forward-designed table with house RLS/grants (plus the Dxtm extras
 **Intent**: The one table every downstream slice writes into, shaped once with full context so S-303→S-310 need zero migrations.
 
 **Contract**: Columns (research §4 + resolutions):
+
 - `id uuid pk default gen_random_uuid()`
 - `plan_id uuid not null references plans(id) on delete cascade` — required for factory teardown's plan-rooted cascade
 - `proposal_plan_id uuid references plans(id) on delete set null` — **deliberate deviation** from the 41-of-43 cascade convention (S-306 deletes the clone on auto-apply; cascade would erase the job record) — call out in header
@@ -434,7 +435,7 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 - [x] 2.1 `uv run pytest` green — contract tests AND objective-parity at exact 10/10 — 9ab7a90
 - [x] 2.2 `uv run ruff check` clean on new/changed files — 9ab7a90
-- [ ] 2.3 CI `solver` job green and listed in `deploy.needs`
+- [x] 2.3 CI `solver` job green and listed in `deploy.needs` — 93f39da
 
 #### Manual
 

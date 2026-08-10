@@ -444,10 +444,10 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [x] 3.1 `pnpm exec supabase db reset` applies cleanly
-- [x] 3.2 `pnpm check` passes with regenerated `database.types.ts`
-- [x] 3.3 `pnpm test:integration` green including the posture test
-- [x] 3.4 No unindexed-FK advisor finding for `generation_jobs`
+- [x] 3.1 `pnpm exec supabase db reset` applies cleanly — 8d6a73c
+- [x] 3.2 `pnpm check` passes with regenerated `database.types.ts` — 8d6a73c
+- [x] 3.3 `pnpm test:integration` green including the posture test — 8d6a73c
+- [x] 3.4 No unindexed-FK advisor finding for `generation_jobs` — 8d6a73c
 
 #### Manual
 
@@ -457,9 +457,9 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [ ] 4.1 `pnpm exec supabase db reset` applies role + hook migrations with hook enabled
-- [ ] 4.2 `pnpm test:integration` green including the hook-misfire guard test
-- [ ] 4.3 `pnpm check` / `pnpm lint` green
+- [x] 4.1 `pnpm exec supabase db reset` applies role + hook migrations with hook enabled
+- [x] 4.2 `pnpm test:integration` green including the hook-misfire guard test
+- [x] 4.3 `pnpm check` / `pnpm lint` green
 
 #### Manual
 

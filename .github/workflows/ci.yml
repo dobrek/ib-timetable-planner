@@ -38,7 +38,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
+      # The solver-credential guard signs in as the machine user with the PUBLISHABLE key — that is
+      # its subject (what a client holding only that key and a password can reach), so it needs the
+      # stack's anon key exported. The suite throws in CI if it is missing rather than skipping.
       - uses: ./.github/actions/supabase-stack
+        with:
+          export-anon-key: "true"
 
       # Plan-rooted isolation (Phase 3) makes the lane DATA-safe under parallelism:
       # every suite owns a fresh plan and tears it down, reading no shared seed state.

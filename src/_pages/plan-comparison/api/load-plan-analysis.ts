@@ -10,6 +10,7 @@ import {
 import { COHORT_VALUES, type Cohort } from "@/shared/config";
 import { parseGridPreset } from "@/shared/lib/grid";
 import type { ComputeWarning, CourseNaturalKey } from "@/shared/lib/catalog-hash";
+import { assembleGeneratorSnapshot } from "@/entities/timetable";
 import type { AnalyzerCourse, AnalyzerRow, GeneratorSnapshot, PlanAnalysisInput } from "@/entities/timetable";
 
 /**
@@ -28,7 +29,9 @@ import type { AnalyzerCourse, AnalyzerRow, GeneratorSnapshot, PlanAnalysisInput 
  * The `snapshot` carries `pins: []` with the whole board handed over as `generated`, which is what
  * makes the verify-gold experiment free: `verifyGeneration(snapshot, board)` then answers exactly
  * "would the engine have been ALLOWED to ship this board" — including the 2/day stacking cap, which
- * only applies to generated rows.
+ * only applies to generated rows. It is built through `assembleGeneratorSnapshot` (empty placements
+ * express the `pins: []` semantics) rather than as an object literal: that function is the single
+ * assembly path every producer shares, and a second hand-built snapshot is exactly how the two drift.
  */
 export type LoadedPlan = {
   id: string;
@@ -106,16 +109,18 @@ export const loadPlanAnalysis = async (supabase: SupabaseClient, planId: string)
     id: plan.id,
     name: plan.name,
     input: { days, periods, courses, rows: board, availability: cells, parkedCourseIds: parked },
-    snapshot: {
-      days,
-      periods,
-      availability: cells,
-      finishesEarlyByCourseId: [...dp1.finishesEarlyCourseIds, ...dp2.finishesEarlyCourseIds],
-      cohorts: {
-        dp1: { courses: dp1.courses, pins: [], parkedCourseIds: parked.dp1 },
-        dp2: { courses: dp2.courses, pins: [], parkedCourseIds: parked.dp2 },
+    snapshot: assembleGeneratorSnapshot(
+      {
+        days,
+        periods,
+        availability: cells,
+        finishesEarlyByCourseId: [...dp1.finishesEarlyCourseIds, ...dp2.finishesEarlyCourseIds],
       },
-    },
+      {
+        dp1: { courses: dp1.courses, placements: [], parkedCourseIds: parked.dp1 },
+        dp2: { courses: dp2.courses, placements: [], parkedCourseIds: parked.dp2 },
+      },
+    ),
     board,
     naturalKeys: { teachers: toTeacherKeys(teachers), students },
     warnings: [...dp1.warnings, ...dp2.warnings],

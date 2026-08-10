@@ -417,11 +417,11 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [ ] 1.1 `pnpm test` passes with `bench/contract-parity.test.ts` collected and green
-- [ ] 1.2 `pnpm check` passes
-- [ ] 1.3 `pnpm lint` passes
-- [ ] 1.4 `pnpm steiger` passes
-- [ ] 1.5 `pnpm format && git diff --exit-code contracts/` — prettier does not touch goldens
+- [x] 1.1 `pnpm test` passes with `bench/contract-parity.test.ts` collected and green
+- [x] 1.2 `pnpm check` passes
+- [x] 1.3 `pnpm lint` passes
+- [x] 1.4 `pnpm steiger` passes
+- [x] 1.5 `pnpm format && git diff --exit-code contracts/` — prettier does not touch goldens
 
 #### Manual
 

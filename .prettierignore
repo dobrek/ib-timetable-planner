@@ -3,3 +3,8 @@ context/
 src/lib/database.types.ts
 supabase/seed.sql
 poc/
+# The frozen wire contract and its golden fixtures. The goldens are CANONICAL BYTES (compact, no
+# whitespace, sorted keys) and are byte-compared by both test suites — lefthook runs `prettier --write`
+# on staged `.json` with `stage_fixed: true`, which would re-indent them on every commit and break the
+# comparison with nothing in CI to catch it (`pnpm format` is not a CI step). Same reason `poc/` is here.
+contracts/

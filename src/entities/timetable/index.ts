@@ -17,6 +17,7 @@ export * from "./model/collision/intersects";
 export * from "./model/collision/constraints";
 export * from "./model/generation/types";
 export * from "./model/generation/assemble-snapshot";
+export * from "./model/generation/wire";
 export * from "./model/generation/deficits";
 export * from "./model/generation/verify";
 export * from "./model/generation/occupied-slots";

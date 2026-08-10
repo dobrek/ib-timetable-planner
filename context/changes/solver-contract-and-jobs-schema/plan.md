@@ -432,8 +432,8 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [x] 2.1 `uv run pytest` green — contract tests AND objective-parity at exact 10/10
-- [x] 2.2 `uv run ruff check` clean on new/changed files
+- [x] 2.1 `uv run pytest` green — contract tests AND objective-parity at exact 10/10 — 9ab7a90
+- [x] 2.2 `uv run ruff check` clean on new/changed files — 9ab7a90
 - [ ] 2.3 CI `solver` job green and listed in `deploy.needs`
 
 #### Manual
@@ -444,10 +444,10 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [ ] 3.1 `pnpm exec supabase db reset` applies cleanly
-- [ ] 3.2 `pnpm check` passes with regenerated `database.types.ts`
-- [ ] 3.3 `pnpm test:integration` green including the posture test
-- [ ] 3.4 No unindexed-FK advisor finding for `generation_jobs`
+- [x] 3.1 `pnpm exec supabase db reset` applies cleanly
+- [x] 3.2 `pnpm check` passes with regenerated `database.types.ts`
+- [x] 3.3 `pnpm test:integration` green including the posture test
+- [x] 3.4 No unindexed-FK advisor finding for `generation_jobs`
 
 #### Manual
 

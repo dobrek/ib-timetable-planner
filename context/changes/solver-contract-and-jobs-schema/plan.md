@@ -457,9 +457,9 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [x] 4.1 `pnpm exec supabase db reset` applies role + hook migrations with hook enabled
-- [x] 4.2 `pnpm test:integration` green including the hook-misfire guard test
-- [x] 4.3 `pnpm check` / `pnpm lint` green
+- [x] 4.1 `pnpm exec supabase db reset` applies role + hook migrations with hook enabled — 0de0f40
+- [x] 4.2 `pnpm test:integration` green including the hook-misfire guard test — 0de0f40
+- [x] 4.3 `pnpm check` / `pnpm lint` green — 0de0f40
 
 #### Manual
 
@@ -470,7 +470,7 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [ ] 5.1 `pnpm lint` and `pnpm format` clean
+- [x] 5.1 `pnpm lint` and `pnpm format` clean
 
 #### Manual
 

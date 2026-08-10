@@ -13,7 +13,8 @@ only the file-based transport (`cli`) is throwaway. Full context:
 
 ```
 poc/cp-sat/
-  pyproject.toml            uv-managed; ortools + ruff + pytest
+  pyproject.toml            uv-managed; ortools + ruff + pytest + jsonschema
+  .python-version           the interpreter CI and local dev share (see Setup)
   src/cpsat_engine/
     schema.py               dump JSON → typed model (opaque ids only)
     model.py                snapshot → CpModel (variables + hard rules; pure)
@@ -28,8 +29,15 @@ poc/cp-sat/
 
 ## Setup
 
-Requires [uv](https://docs.astral.sh/uv/) (`requires-python >= 3.12`). ortools pins protobuf/numpy
-tightly, so this project owns a dedicated venv — never a shared one.
+Requires [uv](https://docs.astral.sh/uv/). ortools pins protobuf/numpy tightly, so this project owns
+a dedicated venv — never a shared one.
+
+Two version knobs, and they say different things: `requires-python = ">=3.12"` in `pyproject.toml` is
+the compatibility floor, while `.python-version` pins the interpreter this package is actually
+developed and tested on. Without the pin, uv takes whatever Python the host offers — CI's `solver`
+job took the runner's system CPython 3.12 while local dev ran 3.13, and the two disagreed on which
+dependency-internal deprecation warnings appeared. Same code, different report is the beginning of
+"works on my machine", so the interpreter is pinned like every other dependency.
 
 ```bash
 cd poc/cp-sat

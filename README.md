@@ -224,6 +224,8 @@ pnpm exec supabase db diff             # should report clean afterward
 
 There is no self-service signup: accounts are provisioned manually. See [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md).
 
+The CP-SAT solver reaches the database as a **machine** Auth user whose token carries a narrow Postgres role (`solver_job_writer`, reaching only `generation_jobs`) via a Custom Access Token Hook — it never holds a secret key. Provisioning, rotation, hosted enablement, and the kill-switch drill are in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
+
 Route protection is deny-by-default in `src/middleware.ts` — every route requires an authenticated session except the sign-in page, the `/api/auth/` endpoints, and static assets.
 
 ## License

@@ -267,9 +267,16 @@ max_frequency = "5s"
 # uri = "pg-functions://postgres/auth/before-user-created-hook"
 
 # This hook runs before a token is issued and allows you to add additional claims based on the authentication method used.
-# [auth.hook.custom_access_token]
-# enabled = true
-# uri = "pg-functions://<database>/<schema>/<hook_name>"
+# Enabled: the solver's machine user gets `role: solver_job_writer` instead of `authenticated`, so the
+# CP-SAT container reaches exactly one table (see 20260810200934_custom_access_token_hook.sql). Every
+# other user's event passes through untouched. Repo-declared on purpose — hook config is NOT carried by
+# `db push`, so the hosted project needs a one-time `supabase config push`
+# (docs/runbooks/solver-credential.md). Disabling this is a silent escalation, not a degradation: the
+# machine user falls back to `authenticated`, which reaches the whole database. The guard test in
+# src/test/solver-credential.integration.test.ts turns that into a red build.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]

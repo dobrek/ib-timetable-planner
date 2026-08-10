@@ -470,7 +470,7 @@ Fix the two stale docs research flagged, and document `contracts/` where contrib
 
 #### Automated
 
-- [x] 5.1 `pnpm lint` and `pnpm format` clean
+- [x] 5.1 `pnpm lint` and `pnpm format` clean — 2df5a22
 
 #### Manual
 

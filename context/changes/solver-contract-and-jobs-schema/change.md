@@ -13,10 +13,17 @@ archived_at: null
 
 ### Still open at implementation close
 
-- **Progress 2.3 — the `solver` CI job's GREEN half is unverified.** It exists in `ci.yml` and is
-  listed in `deploy.needs` (both checked mechanically), and the exact commands it runs
-  (`uv sync --locked` + `uv run pytest` from `poc/cp-sat`) pass locally. CI only triggers on a PR to
-  `main`, so confirming it green needs a pushed branch + PR — an outward-facing step left to the author.
+- ~~**Progress 2.3**~~ — **closed** on PR #111, run 31430776483: all five jobs green. The first run
+  failed at job setup because `astral-sh/setup-uv` publishes moving major tags only through `v7`, so
+  `@v9` was unresolvable; pinned to `@v9.0.0` in `93f39da`.
+- **The solver lane's interpreter is unpinned.** CI resolved the runner's system CPython **3.12.3**
+  while local dev runs 3.13.x — `requires-python = ">=3.12"` constrains nothing further. Harmless so
+  far (53/53 either way) but visible: two dependency-internal `DeprecationWarning`s appear on 3.12 and
+  not on 3.13. For a package whose premise is a tightly-pinned dedicated venv, a `.python-version`
+  belongs here; deferred to the S-302/FR-315 solver lane unless picked up sooner.
+- **In CI the suite reports `52 passed, 1 skipped`.** The skip is `test_golden_dump_parity_is_exact`,
+  gated on a gitignored production-derived dump — pre-existing and by design. The 10/10 objective
+  parity that runs in CI is `test_seed_greedy_board_parity_is_exact` over the committed seed fixture.
 - **Every `#### Manual` row is unchecked**, per the implement skill (manual rows are the human's to
   sign off). Six of the seven were nonetheless executed mechanically during the run and their
   evidence is in the session; `4.5` (runbook executability) is a judgement call.

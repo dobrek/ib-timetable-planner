@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ib-timetable-planner.dev/contracts/generation-wire.schema.json",
+  "title": "Generation wire contract",
+  "description": "The frozen TS<->Python wire contract for automatic plan generation. Definitions only — there is no root type, because the wire carries several independent payloads (a SolveRequest, a GenerationResult, a StageReport). Owned by neither side: the TS types in src/entities/timetable/model/generation/types.ts and the Python dataclasses in the solver package are both projections of THIS document. See ./README.md for the canonical JSON form, the versioning policy, and what is deliberately out of scope. Every object is additionalProperties:false and no property may be null — an absent optional is omitted, never nulled.",
+  "$defs": {
+    "Cohort": {
+      "description": "The fixed two-cohort programme structure. Mirrors the DB `cohort` enum (shared/config/cohorts.ts).",
+      "type": "string",
+      "enum": ["dp1", "dp2"]
+    },
+    "WeekMode": {
+      "description": "Course fortnightly eligibility. Mirrors the DB `course_week_mode` enum (shared/config/week.ts).",
+      "type": "string",
+      "enum": ["agnostic", "biweekly"]
+    },
+    "PlacementWeek": {
+      "description": "Which fortnightly week a placement runs on. Mirrors the DB `placement_week` enum (shared/config/week.ts). An `agnostic` course is always `both`; a `biweekly` course is `a` or `b`.",
+      "type": "string",
+      "enum": ["both", "a", "b"]
+    },
+    "AvailabilitySeverity": {
+      "description": "Teacher-availability storage severity. Mirrors the DB `availability_severity` enum. `strong` is a hard block; `soft` is an objective term, never a constraint.",
+      "type": "string",
+      "enum": ["strong", "soft"]
+    },
+    "Pin": {
+      "description": "An immovable placement inside one cohort (fill-the-gaps: the engine never moves or removes a pin). Exactly four fields — the in-app PlannerPlacement's `id`, `isOptional` and `bundleId` are caller-local markers that never cross the wire, so the projection to this shape happens AT the wire boundary.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["courseId", "day", "period", "week"],
+      "properties": {
+        "courseId": { "type": "string", "minLength": 1 },
+        "day": { "type": "integer", "minimum": 1 },
+        "period": { "type": "integer", "minimum": 1 },
+        "week": { "$ref": "#/$defs/PlacementWeek" }
+      }
+    },
+    "WireCourse": {
+      "description": "A course as the engine sees it — opaque ids only. Mirrors GroupingCourse (shared/lib/catalog-hash/types.ts). The PII posture is structural: names, levels, colours and flags have no property here, so additionalProperties:false turns 'the solver only ever sees UUIDs' from a convention into an enforced property of the wire.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "teacherKeys", "hours", "studentKeys", "weekMode"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "teacherKeys": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "hours": { "type": "integer", "minimum": 0 },
+        "studentKeys": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "weekMode": { "$ref": "#/$defs/WeekMode" }
+      }
+    },
+    "AvailabilityCell": {
+      "description": "One plan-scoped teacher-availability cell. `teacherKey` matches a member of WireCourse.teacherKeys (availability is authored per individual teacher).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["teacherKey", "day", "period", "severity"],
+      "properties": {
+        "teacherKey": { "type": "string", "minLength": 1 },
+        "day": { "type": "integer", "minimum": 1 },
+        "period": { "type": "integer", "minimum": 1 },
+        "severity": { "$ref": "#/$defs/AvailabilitySeverity" }
+      }
+    },
+    "GeneratorCohortSnapshot": {
+      "description": "One cohort's generation input: its validation catalog, its board as pins, and its parked coverage.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["courses", "pins", "parkedCourseIds"],
+      "properties": {
+        "courses": { "type": "array", "items": { "$ref": "#/$defs/WireCourse" } },
+        "pins": { "type": "array", "items": { "$ref": "#/$defs/Pin" } },
+        "parkedCourseIds": {
+          "description": "One entry per parked (shelved) bundle member — a MULTISET: duplicate count is semantic (each entry covers one required hour), so the canonical sort must never dedupe it.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "GeneratorSnapshot": {
+      "description": "The full two-cohort problem snapshot — the engine's only view of the world, and by definition the complete input set of a solve. `snapshot_hash` (generation_jobs) is a SHA-256 over the canonical serialization of exactly this object.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["days", "periods", "availability", "finishesEarlyByCourseId", "cohorts"],
+      "properties": {
+        "days": { "type": "integer", "minimum": 1 },
+        "periods": { "type": "integer", "minimum": 1 },
+        "availability": { "type": "array", "items": { "$ref": "#/$defs/AvailabilityCell" } },
+        "finishesEarlyByCourseId": {
+          "description": "Ids of every course flagged `finishes_early` across BOTH cohorts — a side-set, never a WireCourse field.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "cohorts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dp1", "dp2"],
+          "properties": {
+            "dp1": { "$ref": "#/$defs/GeneratorCohortSnapshot" },
+            "dp2": { "$ref": "#/$defs/GeneratorCohortSnapshot" }
+          }
+        }
+      }
+    },
+    "GeneratedPlacement": {
+      "description": "One generated course-hour — the engine's output unit, pre-persistence (no ids yet). Unlike Pin it carries its cohort, because the result's placements are a single flat cross-cohort list.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cohort", "courseId", "day", "period", "week"],
+      "properties": {
+        "cohort": { "$ref": "#/$defs/Cohort" },
+        "courseId": { "type": "string", "minLength": 1 },
+        "day": { "type": "integer", "minimum": 1 },
+        "period": { "type": "integer", "minimum": 1 },
+        "week": { "$ref": "#/$defs/PlacementWeek" }
+      }
+    },
+    "CourseDeficit": {
+      "description": "A course's remaining hours the engine could not place (already net of pins and parked coverage). Only strictly-positive deficits appear.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["courseId", "missing"],
+      "properties": {
+        "courseId": { "type": "string", "minLength": 1 },
+        "missing": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "GenerationCohortDiagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["occupiedSlotsBefore", "occupiedSlotsAfter", "unplaced"],
+      "properties": {
+        "occupiedSlotsBefore": {
+          "description": "Distinct occupied (day, period) cells before generation (pins only).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "occupiedSlotsAfter": {
+          "description": "Distinct occupied cells after merging the generated placements.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "unplaced": { "type": "array", "items": { "$ref": "#/$defs/CourseDeficit" } },
+        "lowerBound": {
+          "description": "Provable lower bound on this cohort's occupied slots (max-weight conflict clique, in hours). OPTIONAL and integral: when the engine has no bound the key is OMITTED — `\"lowerBound\": null` is not a legal wire value.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "GenerationDiagnostics": {
+      "description": "CP-SAT is the sole producer on this wire, so its emission semantics ARE the contract: `provenOptimal` is always present, `partial` means exactly `not provenOptimal`, and `stopReason` appears only when the solve did not prove optimality. The in-app TS type stays wider (it still describes the greedy engine, removed in S-309) — the wire is the narrow one.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "elapsedMs", "partial", "provenOptimal", "cohorts"],
+      "properties": {
+        "engine": { "const": "cp-sat" },
+        "elapsedMs": { "type": "integer", "minimum": 0 },
+        "partial": {
+          "description": "True when the result is not a proven optimum. Identical to `not provenOptimal` — the greedy `signal.aborted` reading is out of contract.",
+          "type": "boolean"
+        },
+        "provenOptimal": { "type": "boolean" },
+        "stopReason": {
+          "description": "Why the solve ended. `stagnation` is deliberately absent: it is a greedy-only reason and greedy never crosses this wire.",
+          "type": "string",
+          "enum": ["budget", "cancelled"]
+        },
+        "cohorts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dp1", "dp2"],
+          "properties": {
+            "dp1": { "$ref": "#/$defs/GenerationCohortDiagnostics" },
+            "dp2": { "$ref": "#/$defs/GenerationCohortDiagnostics" }
+          }
+        }
+      }
+    },
+    "GenerationResult": {
+      "description": "What the solver returns: the generated board plus its diagnostics. The 10-tuple `objective` is NOT part of it — that is bench transport (see README, Out of scope).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["placements", "diagnostics"],
+      "properties": {
+        "placements": { "type": "array", "items": { "$ref": "#/$defs/GeneratedPlacement" } },
+        "diagnostics": { "$ref": "#/$defs/GenerationDiagnostics" }
+      }
+    },
+    "StageReport": {
+      "description": "One rung of the lexicographic ladder, camelCased for the wire (the solver's internal dataclass and the throwaway .report.json sidecar stay snake_case — see README). In contract because S-303 persists an array of these to generation_jobs.stages. The stage set is VARIABLE-LENGTH and may be sparse: solve_repair emits tiers 1 and 4 only, so never model it as a fixed 10-tuple. `best`/`bound` are per-stage UPPER BOUNDS under `tier_k <= best_k` hardening, not the finished board's objective.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "name", "status", "wallClockS"],
+      "properties": {
+        "tier": { "description": "1-based tier index.", "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "status": {
+          "description": "The raw CP-SAT status string (OPTIMAL | FEASIBLE | INFEASIBLE | UNKNOWN | MODEL_INVALID). Left unenumerated on purpose: it is or-tools' vocabulary, not ours, and it is distinct from the job-level status vocabulary in generation_jobs.",
+          "type": "string",
+          "minLength": 1
+        },
+        "best": {
+          "description": "Objective value at stage end. OMITTED when no solution was found — never null.",
+          "type": "integer"
+        },
+        "bound": {
+          "description": "Best proven bound at stage end. OMITTED when no solution was found — never null.",
+          "type": "integer"
+        },
+        "wallClockS": {
+          "description": "The ONLY non-integer number in this contract. Schema-validated but carrying NO cross-language canonical-byte guarantee (Python renders 2.0 as \"2.0\", JS as \"2\"), so a StageReport must never enter a byte-compared or hashed payload. See README, Canonical JSON form / Numbers.",
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "SolveRequest": {
+      "description": "The envelope the future POST /solve wrapper (F-302) accepts. This is the only place `formatVersion` lives: the snapshot and the result are versioned BY the envelope that carries them, never field-by-field.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formatVersion", "snapshot"],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "snapshot": { "$ref": "#/$defs/GeneratorSnapshot" },
+        "warmStart": {
+          "description": "An optional incumbent board to hint the solver with. Same shape as a result's placements.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/GeneratedPlacement" }
+        }
+      }
+    }
+  }
+}

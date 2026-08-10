@@ -10,12 +10,20 @@ import type { PlannerPlacement } from "../placement";
  * types (`GroupingCourse`, `PlannerPlacement`) — no parallel shapes (lessons: port the
  * mechanism). All fields are structured-clone-safe plain data, so a snapshot crosses a
  * Web Worker boundary as-is.
+ *
+ * These are the IN-APP types. The frozen TS↔Python wire contract is
+ * `contracts/generation-wire.schema.json`, and it is deliberately NARROWER in several places
+ * (const `engine`, four-field pins, no `stagnation`, no nulls) — see the per-field notes below and
+ * `contracts/README.md`. `model/generation/wire.ts` is the projection between the two; changing a
+ * shape here without the artifact turns both suites' golden tests red, which is the point.
  */
 
 /** One cohort's generation input: its validation catalog, its board as pins, and parked coverage. */
 export type GeneratorCohortSnapshot = {
   courses: GroupingCourse[];
-  /** Existing placements — always pins (fill-the-gaps): the generator never moves or removes them. */
+  /** Existing placements — always pins (fill-the-gaps): the generator never moves or removes them.
+   *  **Narrower on the wire**: the contract's pin is `{courseId, day, period, week}` only; `id`,
+   *  `isOptional` and `bundleId` are caller-local and are dropped by `canonicalizeSnapshot`. */
   pins: PlannerPlacement[];
   /** One entry per parked (shelved) bundle member — a multiset; each entry covers one required
    *  hour of its course, so parked-covered deficits are skipped (author decision). */
@@ -64,20 +72,30 @@ export type GenerationCohortDiagnostics = {
   /** Provable lower bound on this cohort's occupied slots (max-weight conflict clique, in hours).
    *  Additive/optional: consumers that predate it ignore it. `occupiedSlotsAfter ≥ lowerBound`
    *  holds only when the cohort is fully placed (`unplaced` empty); on an infeasible instance the
-   *  engine may seat fewer hours than the clique bound, so a consumer must clamp before rendering. */
+   *  engine may seat fewer hours than the clique bound, so a consumer must clamp before rendering.
+   *  On the wire it is an integer, OMITTED when absent — `"lowerBound": null` is not legal. */
   lowerBound?: number;
 };
 
 export type GenerationDiagnostics = {
-  /** Engine identifier (e.g. `cp-sat`, `greedy`) for the summary panel and benchmark reports. */
+  /** Engine identifier (e.g. `cp-sat`, `greedy`) for the summary panel and benchmark reports.
+   *  **Wider than the wire**: `contracts/generation-wire.schema.json` pins `engine` to the constant
+   *  `"cp-sat"`, the sole producer that crosses the TS↔Python boundary. `"greedy"` is in-app only,
+   *  and disappears with the engine itself (S-309). */
   engine: string;
   elapsedMs: number;
-  /** True when the result is a cancelled best-so-far rather than a full-budget solve. */
+  /** True when the result is not a full-budget, proven-optimal solve.
+   *  **On the wire this is exact**: `partial === !provenOptimal` (CP-SAT's reading, frozen in the
+   *  contract). In-app, greedy sets it from `signal.aborted` instead — a second meaning that leaves
+   *  with greedy (S-309). Never read it as "was cancelled" without checking `stopReason`. */
   partial: boolean;
-  /** Set only by engines that prove optimality (CP-SAT); absent means unknown. */
+  /** Set only by engines that prove optimality (CP-SAT); absent means unknown.
+   *  **Required on the wire** — CP-SAT always emits it. */
   provenOptimal?: boolean;
   /** Why the solve ended: `budget` (full budget spent), `stagnation` (complete zero-hole board,
-   *  no improvement window), or `cancelled` (Stop & keep). Additive/optional; UI may ignore it. */
+   *  no improvement window), or `cancelled` (Stop & keep). Additive/optional; UI may ignore it.
+   *  **Narrower on the wire**: the contract allows `budget | cancelled` only — `stagnation` is a
+   *  greedy-only reason and greedy never crosses the wire. */
   stopReason?: "budget" | "stagnation" | "cancelled";
   cohorts: Record<Cohort, GenerationCohortDiagnostics>;
 };

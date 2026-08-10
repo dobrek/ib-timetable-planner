@@ -83,6 +83,7 @@ src/
 ├── actions/        # Astro Actions (thin; logic lives in slice model/api)
 ├── pages/          # Astro file-routing — routes + API endpoints (src/pages/api/)
 └── middleware.ts   # Deny-by-default route protection
+contracts/          # The frozen TS↔Python generation wire contract (JSON Schema + goldens)
 supabase/           # Local Supabase config, migrations, generated seed.sql
 data/               # Reference CSV fixtures (not read at runtime)
 context/            # Foundation docs (PRD, tech-stack, infrastructure, deploy plan)
@@ -91,6 +92,8 @@ wrangler.jsonc      # Cloudflare Workers configuration
 ```
 
 > The pure two-cohort (dp1/dp2) constraint/validation core lives in `src/entities/timetable/` (shared by the editing board and the read-only perspective views). Editing orchestration (drag state, optimistic placements, hooks) stays in `src/_pages/plan-detail/model/`.
+>
+> `contracts/generation-wire.schema.json` is owned by neither the TypeScript nor the Python side: both are projections of it, and both suites byte-gate the same golden fixtures. Read [`contracts/README.md`](contracts/README.md) before changing anything on either side of the wire — it is normative for the canonical JSON form and the `formatVersion` policy.
 
 ## Environment Profiles
 
@@ -110,7 +113,7 @@ Both scripts write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler
 
 ## Deployment
 
-The app deploys to **Cloudflare Workers**. The full deployment plan is in [`context/changes/deployment/deploy-plan.md`](context/changes/deployment/deploy-plan.md).
+The app deploys to **Cloudflare Workers**. The full deployment plan is in [`context/deployment/deploy-plan.md`](context/deployment/deploy-plan.md).
 
 - **Production URL:** <https://ib-timetable-planner.dobromir-kropielnicki.workers.dev>
 - **Custom domain:** <https://ib-timetable-planner.dev>
@@ -145,16 +148,16 @@ GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on 
 3. **`e2e` job** — boots the stack + workerd preview, runs the Playwright suite (`pnpm test:e2e`)
 4. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` all pass: applies pending migrations (`supabase db push`), then ships via `cloudflare/wrangler-action@v4`
 
-Required repository secrets:
+Required **GitHub repository** secrets — exactly the four the `deploy` job reads:
 
-| Secret                  | Description                                       |
+| Secret                  | Read by                                           |
 | ----------------------- | ------------------------------------------------- |
-| `SUPABASE_URL`          | Hosted Supabase project URL                       |
-| `SUPABASE_KEY`          | Hosted Supabase Publishable (anon) key            |
 | `SUPABASE_ACCESS_TOKEN` | Supabase CLI access token — `db push` in `deploy` |
 | `SUPABASE_DB_PASSWORD`  | Hosted DB password — `db push` in `deploy`        |
 | `CLOUDFLARE_API_TOKEN`  | Scoped token (Workers Scripts: Edit)              |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier                     |
+
+`SUPABASE_URL` and `SUPABASE_KEY` are **Worker** secrets, not repository secrets — they are set out-of-band with `pnpm exec wrangler secret put` (see [Deployment](#deployment)) and no CI job reads them. The `integration` and `e2e` jobs get their own values from the ephemeral local stack they boot, never from repository secrets: pointing a CI preview at production is exactly what that separation prevents.
 
 ## Supabase
 

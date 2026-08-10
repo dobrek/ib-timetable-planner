@@ -323,6 +323,106 @@ export type Database = {
           },
         ]
       }
+      generation_jobs: {
+        Row: {
+          checkpoint: Json | null
+          checkpoint_stage_index: number | null
+          created_at: string
+          delivered_plan_id: string | null
+          delivery: string | null
+          error: string | null
+          finished_at: string | null
+          heartbeat_at: string | null
+          id: string
+          notified_at: string | null
+          plan_id: string
+          policy: Json
+          proposal_plan_id: string | null
+          result: Json | null
+          snapshot: Json
+          snapshot_hash: string
+          stage_index: number | null
+          stage_name: string | null
+          stages: Json
+          started_at: string | null
+          status: string
+          stop_requested_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          checkpoint?: Json | null
+          checkpoint_stage_index?: number | null
+          created_at?: string
+          delivered_plan_id?: string | null
+          delivery?: string | null
+          error?: string | null
+          finished_at?: string | null
+          heartbeat_at?: string | null
+          id?: string
+          notified_at?: string | null
+          plan_id: string
+          policy: Json
+          proposal_plan_id?: string | null
+          result?: Json | null
+          snapshot: Json
+          snapshot_hash: string
+          stage_index?: number | null
+          stage_name?: string | null
+          stages?: Json
+          started_at?: string | null
+          status?: string
+          stop_requested_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          checkpoint?: Json | null
+          checkpoint_stage_index?: number | null
+          created_at?: string
+          delivered_plan_id?: string | null
+          delivery?: string | null
+          error?: string | null
+          finished_at?: string | null
+          heartbeat_at?: string | null
+          id?: string
+          notified_at?: string | null
+          plan_id?: string
+          policy?: Json
+          proposal_plan_id?: string | null
+          result?: Json | null
+          snapshot?: Json
+          snapshot_hash?: string
+          stage_index?: number | null
+          stage_name?: string | null
+          stages?: Json
+          started_at?: string | null
+          status?: string
+          stop_requested_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_jobs_delivered_plan_id_fkey"
+            columns: ["delivered_plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generation_jobs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generation_jobs_proposal_plan_id_fkey"
+            columns: ["proposal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       placements: {
         Row: {
           bundle_id: string

@@ -31,7 +31,11 @@ runs:
     # its values (SUPABASE_URL="http://..."); $GITHUB_ENV keeps quotes literal, which
     # supabase-js rejects as an invalid URL — strip them before appending. The e2e lane
     # additionally needs the anon key (SUPABASE_KEY) for `.dev.vars` + signInWithPassword,
-    # toggled via the `export-anon-key` input.
+    # toggled via the `export-anon-key` input. `SUPABASE_DB_URL` is the direct Postgres endpoint the
+    # grant-posture suite needs: `has_table_privilege` is catalog introspection, which PostgREST
+    # cannot express at all — and reading a migration's revoke statements is explicitly NOT proof
+    # (lessons.md). The CLI's local port is fixed, so this matches the local default; exporting it
+    # keeps CI explicit rather than lucky.
     #
     # Env isolation (e2e ↔ deploy): these vars come SOLELY from this job's own ephemeral
     # stack. Never reference `${{ secrets.SUPABASE_* }}` here (those are the hosted/
@@ -47,4 +51,5 @@ runs:
         supabase status -o env \
           --override-name api.url=SUPABASE_URL $EXTRA \
           --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \
+          --override-name db.url=SUPABASE_DB_URL \
           | sed 's/"//g' >> "$GITHUB_ENV"

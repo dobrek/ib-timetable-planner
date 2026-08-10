@@ -16,11 +16,17 @@ archived_at: null
 - ~~**Progress 2.3**~~ — **closed** on PR #111, run 31430776483: all five jobs green. The first run
   failed at job setup because `astral-sh/setup-uv` publishes moving major tags only through `v7`, so
   `@v9` was unresolvable; pinned to `@v9.0.0` in `93f39da`.
-- **The solver lane's interpreter is unpinned.** CI resolved the runner's system CPython **3.12.3**
-  while local dev runs 3.13.x — `requires-python = ">=3.12"` constrains nothing further. Harmless so
-  far (53/53 either way) but visible: two dependency-internal `DeprecationWarning`s appear on 3.12 and
-  not on 3.13. For a package whose premise is a tightly-pinned dedicated venv, a `.python-version`
-  belongs here; deferred to the S-302/FR-315 solver lane unless picked up sooner.
+- **The solver lane's interpreter was unpinned** — CI resolved the runner's system CPython **3.12.3**
+  while local dev ran 3.13.x, because `requires-python = ">=3.12"` constrains nothing further. Fixed
+  in `d6d0e05` with `poc/cp-sat/.python-version`.
+- **The two `DeprecationWarning`s in the solver job are NOT ours and are not fixed by that pin.**
+  First hypothesis (they track the Python minor) was wrong: after pinning, CI runs 3.13.15 and still
+  reports them. Established by direct probe — `~True` warns on 3.14.4 and on CI's interpreters, and
+  does not warn on the local 3.13.12 — so `Bitwise inversion '~' on bool` was backported into recent
+  CPython **patch** releases and its presence tracks the interpreter build. The emitting code runs at
+  import time inside a dependency (`<frozen importlib._bootstrap>` frame; swallowed when escalated to
+  an error, i.e. a guarded import in ortools' loader). Our own `~` uses are cp_model `BoolVar`
+  negation at solve time. Forward-compat notice only; the fix is upstream.
 - **In CI the suite reports `52 passed, 1 skipped`.** The skip is `test_golden_dump_parity_is_exact`,
   gated on a gitignored production-derived dump — pre-existing and by design. The 10/10 objective
   parity that runs in CI is `test_seed_greedy_board_parity_is_exact` over the committed seed fixture.

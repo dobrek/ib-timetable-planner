@@ -34,10 +34,17 @@ a dedicated venv — never a shared one.
 
 Two version knobs, and they say different things: `requires-python = ">=3.12"` in `pyproject.toml` is
 the compatibility floor, while `.python-version` pins the interpreter this package is actually
-developed and tested on. Without the pin, uv takes whatever Python the host offers — CI's `solver`
-job took the runner's system CPython 3.12 while local dev ran 3.13, and the two disagreed on which
-dependency-internal deprecation warnings appeared. Same code, different report is the beginning of
-"works on my machine", so the interpreter is pinned like every other dependency.
+developed and tested on. Without the pin, uv takes whatever Python the host happens to offer — CI's
+`solver` job silently used the runner's system CPython 3.12 while local dev ran 3.13. Nothing broke,
+but a solver package whose entire premise is a tightly pinned dedicated venv should not leave its
+interpreter to chance.
+
+What the pin does **not** control is the patch level: uv resolves the newest available 3.13, so CI
+may sit on a later patch than your machine. That is why the pytest run can report a couple of
+dependency-internal `DeprecationWarning`s (currently `Bitwise inversion '~' on bool`, raised at
+import time inside ortools' loader) in CI and not locally — the deprecation was backported into
+recent CPython patch releases, so its presence tracks the interpreter build, not our code. It is a
+forward-compat notice, it does not affect any result, and the fix is upstream.
 
 ```bash
 cd poc/cp-sat

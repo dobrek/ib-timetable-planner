@@ -81,6 +81,33 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  # The Python half of the wire-contract gate (F-301). It ships here rather than with the full
+  # FR-315 solver lane (S-302) for one reason: without it, "the frozen contract is gated in BOTH
+  # suites" would be true locally and false in CI — the exact half-truth the contract exists to
+  # prevent. Deliberately minimal: pytest only. ruff, `mypy --strict` and path filtering arrive
+  # with S-302. No path filters exist anywhere in this workflow, so this runs on every push; the
+  # suite is ~53 tests and finishes long before the stack-booting jobs that dominate wall-clock.
+  solver:
+    name: "Solver tests (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: poc/cp-sat
+    steps:
+      - uses: actions/checkout@v6
+
+      # ortools pins protobuf/numpy tightly, so this package owns a dedicated venv — uv builds it
+      # from the committed lockfile. `working-directory` is repeated here because `defaults.run`
+      # applies to `run:` steps only, not to an action's own file discovery and cache glob.
+      - uses: astral-sh/setup-uv@v9
+        with:
+          working-directory: poc/cp-sat
+
+      # `--locked` is the JS side's `--frozen-lockfile`: it fails if uv.lock is stale rather than
+      # silently resolving something the lockfile never recorded.
+      - run: uv sync --locked
+      - run: uv run pytest
+
   bench:
     name: "Generation benchmark (non-blocking)"
     runs-on: ubuntu-latest
@@ -101,7 +128,7 @@ jobs:
 
   deploy:
     name: "Deploy"
-    needs: [verify, integration, e2e]
+    needs: [verify, integration, e2e, solver]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

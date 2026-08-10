@@ -5,6 +5,11 @@ context/
 # whole-file reformat diff on top of the real schema change. Ignored at its real path, the committed
 # file is exactly what the generator emits and a regen diff shows only what the schema did.
 src/shared/api/database.types.ts
+# Same reason, different generator: `pnpm format` reflows pnpm's own quoting (lockfileVersion: '9.0'
+# -> "9.0") across ~9k lines, and the next `pnpm add` writes it straight back — so the lockfile
+# flip-flops between commits and buries the real dependency change. lefthook's format job globs
+# json/css/md only, so nothing catches it; ignoring it here does.
+pnpm-lock.yaml
 supabase/seed.sql
 poc/
 # The frozen wire contract and its golden fixtures. The goldens are CANONICAL BYTES (compact, no

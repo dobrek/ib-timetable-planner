@@ -1,30 +1,76 @@
-# CP-SAT solver POC (backend-service shape)
+# CP-SAT solver service
 
-A local, file-transport Python OR-Tools CP-SAT solver that consumes an exported
-`GeneratorSnapshot` and answers the decision question the `generation-quality-tuning` follow-up
-left open: **can the 5–8 h unplaced residue on the golden catalog be closed, or is it provably
-infeasible?**
+The Python OR-Tools CP-SAT solver for IB timetable generation: a pure engine (`cpsat_engine`) plus a
+thin HTTP wrapper (`cpsat_service`). The engine answers the decision question the
+`generation-quality-tuning` follow-up left open — **can the 5–8 h unplaced residue on the golden
+catalog be closed, or is it provably infeasible?** — and the wrapper is how the app asks it.
 
-The package is shaped as the future service core (`schema → model → objective → solve → explain`);
-only the file-based transport (`cli`) is throwaway. Full context:
-`context/changes/poc-cp-sat-backend-service/{plan.md,research.md}`.
+**The dependency runs one way.** `cpsat_service` imports `cpsat_engine`; the engine imports nothing
+from the service and stays transport-agnostic and side-effect-free (`log_dir=None` writes no file
+and no stdout). That is what lets the CLI, the tests, and a future queue consumer all call the same
+core. The file-based `cli` transport is still the acknowledged throwaway.
 
 ## Layout
 
 ```
 services/solver/
-  pyproject.toml            uv-managed; ortools + ruff + pytest + jsonschema
+  pyproject.toml            uv-managed; ortools + fastapi + uvicorn + httpx + jsonschema
   .python-version           the interpreter CI and local dev share (see Setup)
-  src/cpsat_engine/
-    schema.py               dump JSON → typed model (opaque ids only)
+  src/cpsat_engine/         the pure core
+    schema.py               dump/contract JSON → typed model (opaque ids only)
     model.py                snapshot → CpModel (variables + hard rules; pure)
     objective.py            tier expressions 1–10 (mirrors objective.ts)
     solve.py                staged lexicographic runner + parity + Mode A/B
+    wire.py                 the Python half of the canonical JSON form
     explain.py              assumptions / conflict-set path for infeasibility
     cli.py                  file in → file out (the POC transport)
+  src/cpsat_service/        the HTTP wrapper
+    app.py                  GET /health, POST /jobs/{jobId}/solve
+    runner.py               background worker: claim → solve → write the outcome
+    supabase.py             httpx job-row client (no SDK, no privileged key)
+    registry.py             in-process job map: dedupe guard + the S-303/S-305 stop seam
+    settings.py             the container's environment
   tests/
     fixtures/seed-plan-a.json   committed, PII-free (from the CSV-seeded catalog)
   data/                     gitignored: golden dumps, results, solver logs
+```
+
+## The HTTP service
+
+| Route                     | Behaviour                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `GET /health`             | `200 {"status":"ok"}`. Dependency-free — it reports the container's health, never the database's.                 |
+| `POST /jobs/{jobId}/solve` | Body is an unmodified contract `SolveRequest`. **202** on accept; **422** with schema error paths on a bad body. |
+
+The job id travels in the **path**: `SolveRequest` is `additionalProperties: false`, so it cannot
+ride in the body. The body is validated against `contracts/generation-wire.schema.json` itself —
+never a Pydantic projection of it, which would be a third projection of a document owned by neither
+side and free to drift from both. (That anchor assumes a repo checkout: `contracts/` is not in the
+wheel, so S-302's image must `COPY` it.)
+
+A 202 means *accepted*, not *solved*. The worker runs on a background thread — sound because CP-SAT
+releases the GIL, so `/health` keeps answering through a multi-minute solve — and reports by
+advancing the `generation_jobs` row: `queued → running → succeeded | failed`. **The database row is
+the only status channel.** A duplicate POST is idempotent: 202, and no second solve.
+
+### Environment
+
+| Variable                  | Default                          | Notes                                                  |
+| ------------------------- | -------------------------------- | ------------------------------------------------------ |
+| `SUPABASE_URL`            | —                                | Project URL.                                           |
+| `SUPABASE_KEY`            | —                                | The **publishable** key. Never a secret/service key.   |
+| `SOLVER_MACHINE_PASSWORD` | —                                | The machine Auth user's password.                      |
+| `SOLVER_MACHINE_EMAIL`    | `solver@ib-timetable-planner.dev` |                                                       |
+| `SOLVER_WORKERS`          | `8`                              | Pinned for reproducibility — never `0`/auto.           |
+| `SOLVER_LOG_LEVEL`        | `INFO`                           | Below INFO hides the lost-claim line, which the row does not record. |
+
+Missing Supabase values do not block startup (`/health` must answer on a bare container); the first
+job fails loudly instead. Full credential story: `docs/runbooks/solver-credential.md`.
+
+```bash
+mise run solver:dev     # uvicorn on :8000
+mise run solver:test    # pytest
+mise run solver:check   # ruff + mypy --strict
 ```
 
 ## Setup

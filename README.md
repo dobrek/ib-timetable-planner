@@ -38,8 +38,11 @@ mkdir -p .envs
 cat > .envs/local.vars <<EOF
 SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_KEY=<Publishable key from supabase start>
+SOLVER_URL=http://127.0.0.1:8000
 EOF
 ```
+
+> `.envs/` is gitignored, so these files are per-machine — this snippet is the only place their contents are specified. `SOLVER_URL` is optional: leave it out and generation dispatch is simply unavailable (`getSolverTransport()` returns `null`). See [Running the solver service](#running-the-solver-service-dev).
 
 4. Activate the local environment profile:
 
@@ -111,6 +114,42 @@ pnpm env:prod    # read-only smoke against hosted Supabase
 
 Both scripts write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler dev`) so the two dev commands stay in sync. Always run `pnpm env:local` after a prod smoke test.
 
+`SOLVER_URL` belongs in `local.vars` only and must stay **absent** from `prod.vars`: production reaches the solver through a Cloudflare container binding, not a URL, so a value there would give production a dispatch surface pointing at a developer machine. With it unset, `getSolverTransport()` returns `null` and nothing dispatches.
+
+## Running the solver service (dev)
+
+The CP-SAT solver runs as a **native process** in the local loop — no container, no image. Cross-ecosystem commands go through [mise](https://mise.jdx.dev/) (`mise.toml` pins `uv`); pnpm scripts stay the JS-side canon and never gain a solver step.
+
+One-time, per local database: create the machine Auth user the service signs in as.
+
+```bash
+SOLVER_MACHINE_PASSWORD='<strong-password>' node scripts/provision-solver-user.mjs
+```
+
+Then, with the Supabase stack up:
+
+```bash
+mise run solver:dev     # uvicorn on :8000 — needs the env trio below
+mise run solver:test    # pytest (engine + contract + HTTP wrapper)
+mise run solver:check   # ruff + mypy --strict, the same two gates CI runs
+```
+
+`solver:dev` reads three variables, and **none of them is privileged** — no secret key, no service-role key (see [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md)):
+
+| Variable                  | Value                          |
+| ------------------------- | ------------------------------ |
+| `SUPABASE_URL`            | `http://127.0.0.1:54321`       |
+| `SUPABASE_KEY`            | the **publishable** key        |
+| `SOLVER_MACHINE_PASSWORD` | whatever you provisioned above |
+
+Optional: `SOLVER_WORKERS` (default `8`, pinned for reproducibility — never auto) and `SOLVER_LOG_LEVEL` (default `INFO`).
+
+Endpoints: `GET /health` (dependency-free) and `POST /jobs/{jobId}/solve`, which takes an unmodified contract `SolveRequest`, answers **202**, and reports the outcome by advancing the `generation_jobs` row — the database is the only status channel. To exercise the whole chain end to end:
+
+```bash
+SOLVER_URL=http://127.0.0.1:8000 pnpm test:integration src/test/solver-transport.integration.test.ts
+```
+
 ## Deployment
 
 The app deploys to **Cloudflare Workers**. The full deployment plan is in [`context/deployment/deploy-plan.md`](context/deployment/deploy-plan.md).
@@ -144,9 +183,10 @@ pnpm exec wrangler rollback <deployment-id>
 GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`. All jobs share the `./.github/actions/setup` step (pnpm + Node + `pnpm install --frozen-lockfile`):
 
 1. **`verify` job** — `astro sync` → `lint` → `steiger` → `pnpm audit --audit-level=high` → `test` → `build`
-2. **`integration` job** — boots a trimmed local Supabase stack, runs `pnpm test:integration --maxWorkers=2`
+2. **`integration` job** — boots a trimmed local Supabase stack, provisions the solver machine user with a per-run password, launches the CP-SAT service and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` (which includes the `queued → running → succeeded` proof-of-life against that service)
 3. **`e2e` job** — boots the stack + workerd preview, runs the Playwright suite (`pnpm test:e2e`)
-4. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` all pass: applies pending migrations (`supabase db push`), then ships via `cloudflare/wrangler-action@v4`
+4. **`solver` job** — from `services/solver`: `uv sync --locked` → `ruff check` → `mypy` (strict, src + tests) → `pytest` → `uv audit`
+5. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` + `solver` all pass: applies pending migrations (`supabase db push`), then ships via `cloudflare/wrangler-action@v4`
 
 Required **GitHub repository** secrets — exactly the four the `deploy` job reads:
 

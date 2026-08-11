@@ -76,6 +76,11 @@ export default defineConfig({
     schema: {
       SUPABASE_URL: envField.string({ context: "server", access: "secret", optional: true }),
       SUPABASE_KEY: envField.string({ context: "server", access: "secret", optional: true }),
+      // The CP-SAT solver service. Optional, and DEV-ONLY by nature: in production the Worker
+      // reaches the container through a Durable Object container binding, not a URL (S-302), so
+      // this stays unset in `prod.vars` and the transport is null there. `optional: true` is what
+      // makes "no solver configured" a supported state rather than a boot failure.
+      SOLVER_URL: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },
 });

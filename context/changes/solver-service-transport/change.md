@@ -1,7 +1,7 @@
 ---
 change_id: solver-service-transport
 title: Solver service transport
-status: preparing
+status: plan_reviewed
 created: 2026-08-11
 updated: 2026-08-11
 archived_at: null

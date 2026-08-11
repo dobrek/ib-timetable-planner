@@ -45,7 +45,7 @@ Verified in `research.md` (all file:line references there are current as of `f9f
 
 ## Implementation Approach
 
-Five phases, strictly ordered. The promotion lands first and alone so CI proves the rename before anything stacks on it (research Risk #1). The mypy gate lands second so the new HTTP module is *born* strict (R7). The contract fixture lands third so the wrapper's tests can reuse a gated, known-valid request body. The wrapper is phase 4, hermetic (mocked httpx transport). Phase 5 wires the app seam, mise, and the end-to-end proof-of-life against the real local stack.
+Five phases, strictly ordered. The promotion lands first and alone so CI proves the rename before anything stacks on it (research Risk #1). The mypy gate lands second so the new HTTP module is _born_ strict (R7). The contract fixture lands third so the wrapper's tests can reuse a gated, known-valid request body. The wrapper is phase 4, hermetic (mocked httpx transport). Phase 5 wires the app seam, mise, and the end-to-end proof-of-life against the real local stack.
 
 ## Critical Implementation Details
 
@@ -440,27 +440,27 @@ The app-side transport (`SOLVER_URL` + typed dispatch + health probe), mise pins
 
 #### Automated
 
-- [x] 1.1 Solver suite green in new location (`uv sync --locked`, `ruff check`, `pytest`)
-- [x] 1.2 JS suite untouched (`pnpm test`, `pnpm check`)
-- [x] 1.3 No stale `poc/cp-sat` references outside `context/`
-- [ ] 1.4 Full CI run green on the branch
+- [x] 1.1 Solver suite green in new location (`uv sync --locked`, `ruff check`, `pytest`) — b436d72
+- [x] 1.2 JS suite untouched (`pnpm test`, `pnpm check`) — b436d72
+- [x] 1.3 No stale `poc/cp-sat` references outside `context/` — b436d72
+- [x] 1.4 Full CI run green on the branch — b436d72 (run 31485291268: `verify`/`integration`/`e2e`/`solver` all green; `bench` red, pre-existing on `main` and non-blocking by design)
 
 #### Manual
 
-- [ ] 1.5 CI shows `solver` job from `services/solver`, still in `deploy.needs`
+- [x] 1.5 CI shows `solver` job from `services/solver`, still in `deploy.needs` — b436d72
 
 ### Phase 2: `mypy --strict` gate — src + tests
 
 #### Automated
 
-- [ ] 2.1 `uv run mypy` → 0 errors over src/ and tests/
-- [ ] 2.2 `uv run pytest` → 56 passing
-- [ ] 2.3 `uv run ruff check` clean
+- [x] 2.1 `uv run mypy` → 0 errors over src/ and tests/
+- [x] 2.2 `uv run pytest` → 56 passing
+- [x] 2.3 `uv run ruff check` clean
 - [ ] 2.4 CI solver job green with the mypy step
 
 #### Manual
 
-- [ ] 2.5 `Term`-touching diffs are type-only
+- [x] 2.5 `Term`-touching diffs are type-only
 
 ### Phase 3: `SolveRequest` under the both-suites contract gate
 

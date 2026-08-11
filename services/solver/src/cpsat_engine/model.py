@@ -28,6 +28,7 @@ their own lane. Two weeks conflict iff not disjoint = they share a lane or eithe
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ortools.sat.python import cp_model
@@ -40,6 +41,8 @@ from .schema import (
     WEEK_B,
     Course,
     Dump,
+    Pin,
+    PlacementKey,
     Snapshot,
     deficits,
 )
@@ -50,7 +53,13 @@ TEACHER_STREAK_MAX = 6
 DAY_CAP = 2
 
 # A merged-board occupancy term is either a CP-SAT literal (generated) or a constant 1 (a pin).
-Term = object  # cp_model.IntVar | int
+# `LinearExpr`, not `IntVar`: `IntVar` subclasses it, and the objective tiers build LinearExpr values
+# (sums, differences) that flow back through these same term lists.
+Term = cp_model.LinearExpr | int
+
+# Teacher key -> a set of (day, period) cells — the shape of both availability indexes
+# (`_strong_unavailable_index` here, `_soft_index` in objective.py).
+CellIndex = dict[str, set[tuple[int, int]]]
 
 
 class PreconditionError(Exception):
@@ -69,7 +78,7 @@ class ModelBundle:
     dump: Dump
     deficits: dict[tuple[str, str], int]
     # Placement decision vars, keyed (cohort, course_id, day, period, week).
-    x: dict[tuple[str, str, int, int, str], cp_model.IntVar]
+    x: dict[PlacementKey, cp_model.IntVar]
     # Merged-board occupancy term lists (vars + pin constants), keyed for each rule/tier that reads them.
     by_teacher_lane: dict[tuple[str, int, int, str], list[Term]]  # (teacher, day, period, lane)
     by_student_lane: dict[tuple[str, int, int, str], list[Term]]  # (student, day, period, lane)
@@ -114,7 +123,7 @@ def build_model(dump: Dump) -> ModelBundle:
 # --- variables ------------------------------------------------------------------------------------
 
 
-def _create_variables(bundle: ModelBundle, strong: dict[str, set[tuple[int, int]]]) -> None:
+def _create_variables(bundle: ModelBundle, strong: CellIndex) -> None:
     """One bool per (course-with-deficit, non-pinned & available cell, week option)."""
     snapshot = bundle.snapshot
     skipped_pinned = 0
@@ -142,7 +151,7 @@ def _create_variables(bundle: ModelBundle, strong: dict[str, set[tuple[int, int]
     bundle.stats["cells_skipped_strong_unavailable"] = skipped_strong
 
 
-def _strong_blocked(course: Course, day: int, period: int, strong: dict[str, set[tuple[int, int]]]) -> bool:
+def _strong_blocked(course: Course, day: int, period: int, strong: CellIndex) -> bool:
     return any((day, period) in strong.get(teacher, frozenset()) for teacher in course.teacher_keys)
 
 
@@ -359,15 +368,15 @@ def _reify_any(bundle: ModelBundle, terms: list[Term], name: str) -> cp_model.In
 # --- precondition & indexes ----------------------------------------------------------------------
 
 
-def _strong_unavailable_index(snapshot: Snapshot) -> dict[str, set[tuple[int, int]]]:
-    index: dict[str, set[tuple[int, int]]] = {}
+def _strong_unavailable_index(snapshot: Snapshot) -> CellIndex:
+    index: CellIndex = {}
     for cell in snapshot.availability:
         if cell.severity == "strong":
             index.setdefault(cell.teacher_key, set()).add((cell.day, cell.period))
     return index
 
 
-def _assert_pins_precondition(snapshot: Snapshot, strong: dict[str, set[tuple[int, int]]]) -> None:
+def _assert_pins_precondition(snapshot: Snapshot, strong: CellIndex) -> None:
     """Mirror of ``verifyGeneration(snapshot, [])``: the pins ALONE must violate no hard rule."""
     for cohort in COHORTS:
         snap = snapshot.cohorts[cohort]
@@ -379,7 +388,7 @@ def _assert_pins_precondition(snapshot: Snapshot, strong: dict[str, set[tuple[in
     _check_pin_teacher_days(snapshot)
 
 
-def _check_pin_duplicates(cohort: str, pins) -> None:
+def _check_pin_duplicates(cohort: str, pins: Sequence[Pin]) -> None:
     seen: set[tuple[str, int, int]] = set()
     for pin in pins:
         key = (pin.course_id, pin.day, pin.period)
@@ -388,7 +397,7 @@ def _check_pin_duplicates(cohort: str, pins) -> None:
         seen.add(key)
 
 
-def _check_pin_lane_conflicts(cohort: str, pins, course_by: dict[str, Course]) -> None:
+def _check_pin_lane_conflicts(cohort: str, pins: Sequence[Pin], course_by: dict[str, Course]) -> None:
     teacher: dict[tuple[str, int, int, str], int] = {}
     student: dict[tuple[str, int, int, str], int] = {}
     for pin in pins:
@@ -405,7 +414,9 @@ def _check_pin_lane_conflicts(cohort: str, pins, course_by: dict[str, Course]) -
             raise PreconditionError(f"{cohort}: pins already double-book {key} ({n} occupants)")
 
 
-def _check_pin_strong(cohort: str, pins, course_by: dict[str, Course], strong) -> None:
+def _check_pin_strong(
+    cohort: str, pins: Sequence[Pin], course_by: dict[str, Course], strong: CellIndex
+) -> None:
     for pin in pins:
         course = course_by.get(pin.course_id)
         if course and _strong_blocked(course, pin.day, pin.period, strong):
@@ -413,7 +424,7 @@ def _check_pin_strong(cohort: str, pins, course_by: dict[str, Course], strong) -
             raise PreconditionError(f"{cohort}: pin {pin.course_id} on a strong-unavailable cell {cell}")
 
 
-def _check_pin_course_days(cohort: str, pins, course_by: dict[str, Course]) -> None:
+def _check_pin_course_days(cohort: str, pins: Sequence[Pin], course_by: dict[str, Course]) -> None:
     by_course_day_lane: dict[tuple[str, int, str], list[int]] = {}
     for pin in pins:
         if pin.course_id not in course_by:

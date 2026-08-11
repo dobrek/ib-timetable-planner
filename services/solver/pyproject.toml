@@ -18,6 +18,10 @@ dev = [
   # Wire-contract validation is a TEST-LANE concern only: the frozen schema in `contracts/` gates
   # the goldens here, and nothing validates inside the solve path (see contracts/README.md).
   "jsonschema>=4",
+  "mypy>=1.14",
+  # jsonschema ships no inline types; without this stub package `--strict` reports the whole
+  # contract test module as untyped rather than checking it.
+  "types-jsonschema>=4",
 ]
 
 [build-system]
@@ -37,3 +41,16 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+# CLAUDE.md's standing rule: all solver code stays fully type-annotated, with `--strict` as the gate.
+# Config-driven so `uv run mypy` (no args) is the whole command, in CI and locally alike.
+#
+# `tests/` is inside the gate, not beside it: the wrapper suite is the surface FR-310 singles out,
+# and a strict `src/` with untyped tests would let the tests drift into exactly the shape the gate
+# exists to prevent. `mypy_path` mirrors pytest's `pythonpath` — the package is not installed into
+# the venv's site-packages as a real distribution during a checkout run, so tests resolve
+# `cpsat_engine` only via the source tree.
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+mypy_path = ["src"]

@@ -14,10 +14,11 @@ import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from .explain import explain_infeasibility
 from .model import PreconditionError
-from .schema import load_dump
+from .schema import Dump, load_dump
 from .solve import (
     SolveConfig,
     SolveResult,
@@ -49,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
-def _run_parity(dump, args) -> int:
+def _run_parity(dump: Dump, args: argparse.Namespace) -> int:
     report = parity(dump)
     payload = {
         "mode": "parity",
@@ -64,7 +65,7 @@ def _run_parity(dump, args) -> int:
     return 0 if report.ok else 1
 
 
-def _run_solve(dump, args) -> int:
+def _run_solve(dump: Dump, args: argparse.Namespace) -> int:
     config = _config(args)
     result: SolveResult = _SOLVERS[args.mode](dump, config)
 
@@ -78,7 +79,7 @@ def _run_solve(dump, args) -> int:
     return 0
 
 
-def _explain(dump, config: SolveConfig) -> dict:
+def _explain(dump: Dump, config: SolveConfig) -> dict[str, Any]:
     report = explain_infeasibility(dump, budget_s=config.mode_a_budget_s, seed=config.seed)
     return {
         "conflict": ["/".join(key) for key in report.conflict],
@@ -87,7 +88,7 @@ def _explain(dump, config: SolveConfig) -> dict:
     }
 
 
-def _report(args, result: SolveResult) -> dict:
+def _report(args: argparse.Namespace, result: SolveResult) -> dict[str, Any]:
     return {
         "mode": result.mode,
         "config": _config_echo(args),
@@ -99,7 +100,7 @@ def _report(args, result: SolveResult) -> dict:
     }
 
 
-def _print_summary(args, result: SolveResult) -> None:
+def _print_summary(args: argparse.Namespace, result: SolveResult) -> None:
     print(f"mode={result.mode} outcome={result.notes.get('outcome', result.mode)} rows={len(result.board)}")
     for stage in result.stages:
         best = "-" if stage.best is None else stage.best
@@ -112,7 +113,7 @@ def _print_summary(args, result: SolveResult) -> None:
 # --- config & argument plumbing -------------------------------------------------------------------
 
 
-def _config(args) -> SolveConfig:
+def _config(args: argparse.Namespace) -> SolveConfig:
     return SolveConfig(
         stage_budget_s=args.stage_budget,
         mode_a_budget_s=args.mode_a_budget,
@@ -124,7 +125,7 @@ def _config(args) -> SolveConfig:
     )
 
 
-def _config_echo(args) -> dict:
+def _config_echo(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "mode": args.mode,
         "stageBudgetS": args.stage_budget,
@@ -146,7 +147,7 @@ def _log_dir(output: str) -> Path:
     return path.with_name(f"{path.stem}-logs")
 
 
-def _write_json(path: Path, payload: dict) -> None:
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2))
 

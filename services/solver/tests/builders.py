@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from cpsat_engine.schema import (
     AGNOSTIC,
     BOTH,
@@ -14,7 +16,13 @@ from cpsat_engine.schema import (
 )
 
 
-def course(cid: str, teachers=(), students=(), hours: int = 4, week_mode: str = AGNOSTIC) -> Course:
+def course(
+    cid: str,
+    teachers: Iterable[str] = (),
+    students: Iterable[str] = (),
+    hours: int = 4,
+    week_mode: str = AGNOSTIC,
+) -> Course:
     return Course(
         id=cid,
         teacher_keys=tuple(teachers),
@@ -28,7 +36,9 @@ def pin(course_id: str, day: int, period: int, week: str = BOTH) -> Pin:
     return Pin(course_id, day, period, week)
 
 
-def cohort(courses=(), pins=(), parked=()) -> CohortSnapshot:
+def cohort(
+    courses: Iterable[Course] = (), pins: Iterable[Pin] = (), parked: Iterable[str] = ()
+) -> CohortSnapshot:
     return CohortSnapshot(courses=tuple(courses), pins=tuple(pins), parked_course_ids=tuple(parked))
 
 
@@ -44,10 +54,10 @@ def snapshot(
     dp1: CohortSnapshot | None = None,
     dp2: CohortSnapshot | None = None,
     *,
-    days=5,
-    periods=10,
-    availability=(),
-    flagged=(),
+    days: int = 5,
+    periods: int = 10,
+    availability: Iterable[AvailabilityCell] = (),
+    flagged: Iterable[str] = (),
 ) -> Snapshot:
     return Snapshot(
         days=days,

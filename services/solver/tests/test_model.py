@@ -11,12 +11,12 @@ from ortools.sat.python import cp_model
 
 import builders as b
 from cpsat_engine.model import PreconditionError, build_model
-from cpsat_engine.schema import BIWEEKLY, load_dump
+from cpsat_engine.schema import BIWEEKLY, Snapshot, load_dump
 
 FIXTURE = Path(__file__).parent / "fixtures" / "seed-plan-a.json"
 
 
-def _solve(model: cp_model.CpModel) -> int:
+def _solve(model: cp_model.CpModel) -> cp_model.CpSolverStatus:
     solver = cp_model.CpSolver()
     solver.parameters.num_workers = 1
     solver.parameters.max_time_in_seconds = 20
@@ -149,7 +149,7 @@ def test_course_day_split_forbids_non_adjacent_pair() -> None:
 # --- early-finish-edge: a flagged course may not be strictly interior to a student's other courses -
 
 
-def _edge_snapshot():
+def _edge_snapshot() -> Snapshot:
     # F (flagged) shares student s1 with G and H; distinct teachers so no teacher conflict.
     return b.snapshot(
         dp1=b.cohort(

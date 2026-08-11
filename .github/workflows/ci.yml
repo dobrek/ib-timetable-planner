@@ -91,10 +91,12 @@ jobs:
   # suites" would be true locally and false in CI — the exact half-truth the contract exists to
   # prevent. Deliberately minimal: pytest plus ruff, which is already in the dev group and costs no
   # new dependency — a linter that only ever runs when someone remembers to is not a gate.
-  # `mypy --strict` and path filtering arrive with S-302 (mypy is not installed yet, so wiring it
-  # here would mean adding the dep ahead of the lane that owns it). No path filters exist anywhere
-  # in this workflow, so this runs on every push; the suite is ~56 tests and finishes long before
-  # the stack-booting jobs that dominate wall-clock.
+  # `mypy --strict` landed with F-302 rather than waiting for the full FR-315 lane: the gate had to
+  # exist BEFORE the HTTP wrapper was written, so the new module was born under it instead of being
+  # retrofitted. It is config-driven (`[tool.mypy]` in pyproject) and covers `src/` and `tests/`.
+  # Path filtering still arrives with S-302. No path filters exist anywhere in this workflow, so this
+  # runs on every push; the suite is ~56 tests and finishes long before the stack-booting jobs that
+  # dominate wall-clock.
   solver:
     name: "Solver tests (Python)"
     runs-on: ubuntu-latest
@@ -119,6 +121,9 @@ jobs:
       # silently resolving something the lockfile never recorded.
       - run: uv sync --locked
       - run: uv run ruff check
+      # Config-driven: files, strictness and mypy_path all live in `[tool.mypy]`, so this command
+      # is identical to the local one and cannot drift from it by argument.
+      - run: uv run mypy
       - run: uv run pytest
 
   bench:

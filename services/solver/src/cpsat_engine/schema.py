@@ -19,6 +19,10 @@ from typing import Any
 FORMAT_VERSION = 1
 COHORTS: tuple[str, ...] = ("dp1", "dp2")
 
+# The identity of one board row: (cohort, course_id, day, period, week). It keys every decision var,
+# hint map, and extracted board in the engine; ``Placement(*key)`` rebuilds the dataclass from it.
+PlacementKey = tuple[str, str, int, int, str]
+
 # Week vocabulary — mirrors PlacementWeek / WeekMode.
 BOTH = "both"
 WEEK_A = "a"
@@ -95,10 +99,10 @@ class Dump:
     """The whole export: transformed snapshot, greedy warm-start board, and the TS objective tuple."""
 
     format_version: int
-    meta: dict
+    meta: dict[str, Any]
     snapshot: Snapshot
     greedy_placements: tuple[Placement, ...]
-    greedy_diagnostics: dict
+    greedy_diagnostics: dict[str, Any]
     objective: tuple[int, ...]
 
     def lower_bound(self, cohort: str) -> int | None:

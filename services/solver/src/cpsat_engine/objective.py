@@ -19,12 +19,16 @@ trap and are pinned individually by the micro-tests:
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from ortools.sat.python import cp_model
 
-from .model import LANES, ModelBundle, Term, _lanes_of
-from .schema import COHORTS, AvailabilityCell
+from .model import LANES, CellIndex, ModelBundle, Term, _lanes_of
+from .schema import COHORTS, AvailabilityCell, Course, Snapshot
+
+# The per-cohort course lookup every tier builds to resolve a placement key back to its course.
+CourseIndex = dict[tuple[str, str], Course]
 
 # golden-sets.ts: derive the miss share (1 - 0.1 is exact 0.9 in IEEE-754; 1 - 0.9 is not).
 GOLDEN_MISS_SHARE = 0.1
@@ -87,7 +91,7 @@ class _Occupancy:
         self.course_cell: dict[tuple[str, str, int, int], list[Term]] = {}
         self.coverage: dict[tuple[str, int, int, str], list[tuple[int, Term]]] = {}
 
-        def register(cohort: str, course, day: int, period: int, week: str, term: Term) -> None:
+        def register(cohort: str, course: Course, day: int, period: int, week: str, term: Term) -> None:
             self.cohort_cell.setdefault((cohort, day, period), []).append(term)
             self.course_cell.setdefault((cohort, course.id, day, period), []).append(term)
             for lane in _lanes_of(week):
@@ -188,7 +192,8 @@ def _tier_soft_hits(bundle: ModelBundle, occ: _Occupancy) -> cp_model.IntVar:
 def _tier_doubles(bundle: ModelBundle) -> cp_model.IntVar:
     snapshot = bundle.snapshot
     course_by = {(co, c.id): c for co in COHORTS for c in snapshot.cohorts[co].courses}
-    deficits: list[cp_model.IntVar] = []
+    # A (course, lane) with no rows yields None (`_doubles_deficit`) and is filtered out below.
+    deficits: list[cp_model.IntVar | None] = []
     # Every (course, lane) — a lane with no rows contributes 0, so iterating both lanes is safe.
     keys = {(cohort, cid, lane) for (cohort, cid, _d, lane) in bundle.by_course_day_lane}
     for cohort, cid, lane in keys:
@@ -210,7 +215,11 @@ def _tier_doubles(bundle: ModelBundle) -> cp_model.IntVar:
 
 
 def _doubles_deficit(
-    bundle: ModelBundle, course, lane: str, singles, period_counts
+    bundle: ModelBundle,
+    course: Course,
+    lane: str,
+    singles: Sequence[cp_model.IntVar],
+    period_counts: Sequence[Term],
 ) -> cp_model.IntVar | None:
     if not period_counts:
         return None
@@ -284,9 +293,11 @@ def _tier_golden(bundle: ModelBundle, occ: _Occupancy) -> cp_model.IntVar:
     return _as_var(bundle, sum(terms), 0, _max_golden(bundle, snapshot), "tier_golden")
 
 
-def _golden_cell(bundle: ModelBundle, occ: _Occupancy, cohort: str, day: int, period: int, bar: int):
+def _golden_cell(
+    bundle: ModelBundle, occ: _Occupancy, cohort: str, day: int, period: int, bar: int
+) -> cp_model.IntVar | None:
     """A bool: the cell reaches the coverage bar in EVERY lane. None if it can never (no coverage)."""
-    lane_bools = []
+    lane_bools: list[cp_model.IntVar] = []
     for lane in LANES:
         weighted = occ.coverage.get((cohort, day, period, lane), [])
         if not weighted:
@@ -360,20 +371,20 @@ def _as_var(bundle: ModelBundle, expr: Term, lo: int, hi: int, name: str) -> cp_
     return var
 
 
-def _sum_var(bundle: ModelBundle, parts: list[Term], name: str) -> cp_model.IntVar:
+def _sum_var(bundle: ModelBundle, parts: Sequence[Term], name: str) -> cp_model.IntVar:
     hi = bundle.snapshot.days * bundle.snapshot.periods * 200 + 1  # generous safe upper bound
     return _as_var(bundle, sum(parts) if parts else 0, 0, hi, name)
 
 
-def _soft_index(availability: tuple[AvailabilityCell, ...]) -> dict[str, set[tuple[int, int]]]:
-    index: dict[str, set[tuple[int, int]]] = {}
+def _soft_index(availability: tuple[AvailabilityCell, ...]) -> CellIndex:
+    index: CellIndex = {}
     for cell in availability:
         if cell.severity == "soft":
             index.setdefault(cell.teacher_key, set()).add((cell.day, cell.period))
     return index
 
 
-def _max_soft(bundle: ModelBundle, occ: _Occupancy, soft, course_by) -> int:
+def _max_soft(bundle: ModelBundle, occ: _Occupancy, soft: CellIndex, course_by: CourseIndex) -> int:
     return (
         sum(
             sum(1 for t in course_by[(cohort, cid)].teacher_keys if (day, period) in soft.get(t, frozenset()))
@@ -383,5 +394,5 @@ def _max_soft(bundle: ModelBundle, occ: _Occupancy, soft, course_by) -> int:
     )
 
 
-def _max_golden(bundle: ModelBundle, snapshot) -> int:
+def _max_golden(bundle: ModelBundle, snapshot: Snapshot) -> int:
     return snapshot.days * snapshot.periods * (GOLDEN_BAND_FIRST + snapshot.periods) * len(COHORTS) + 1

@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-08-11
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -29,7 +29,7 @@ The timetable editor's only generation engine is a client-side greedy solver at 
 
 | ID   | Change ID                       | Outcome (user can …)                                                                    | Prerequisites          | PRD refs                                                          | Status   |
 | ---- | ------------------------------- | --------------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------- | -------- |
-| F-301 | solver-contract-and-jobs-schema | (foundation) frozen wire-contract artifact + durable jobs schema, least-privilege machine access | —                      | FR-301, FR-310, §Constraints & Compatibility, §Access Control Changes | ready    |
+| F-301 | solver-contract-and-jobs-schema | (foundation) frozen wire-contract artifact + durable jobs schema, least-privilege machine access | —                      | FR-301, FR-310, §Constraints & Compatibility, §Access Control Changes | done     |
 | F-302 | solver-service-transport        | (foundation) promoted solver package accepts jobs over HTTP, writes durable status/results | F-301                   | FR-310, FR-316                                                    | proposed |
 | S-301 | first-verified-proposal         | start a CP-SAT job (clean-mode default) and receive a complete, oracle-verified board on the proposal plan | F-301, F-302             | FR-301, FR-302, FR-303, FR-308, FR-310, FR-313, US-301             | proposed |
 | S-302 | solver-deploy-lane              | (maintainer) ship app + solver with one merge to main; container runs attached to the Worker | F-302                   | FR-315, FR-316                                                    | proposed |
@@ -90,7 +90,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Unknowns:**
   - Solver container credential scoping — which Supabase key/role, and the grants design consistent with the least-privilege lesson (a role limited to `generation_jobs` writes would be cleanest) — Owner: author + plan phase. Block: no (resolved inside `/10x-plan`).
 - **Risk:** Two components (app Actions and the Python service) write against this schema and speak this contract, so folding it into S-301 would create a cycle (F-302 needs it first) — that downstream fan-in is why it's a foundation and not slice-work. Scope is deliberately minimal: one artifact, one table, one credential design; the least-privilege lesson (revoke, don't just grant) applies directly.
-- **Status:** ready
+- **Status:** done
 
 ### F-302: Solver service transport
 
@@ -271,3 +271,5 @@ Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**
 ## Done
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips that item's `Status` to `done` — when a change whose `Change ID` matches the item is archived. Do NOT pre-populate.)
+
+- **F-301: (foundation) the frozen dump/result wire contract exists as a committed tech-neutral schema artifact in `contracts/`, golden-fixture-gated in **both** the TS and Python suites with `formatVersion` gating incompatibility; the `generation_jobs` table exists (additive migration, RLS + explicit grants) together with a least-privilege machine credential design for the solver's status/result writes.** — Archived 2026-08-11 → `context/archive/2026-08-10-solver-contract-and-jobs-schema/`. Lesson: —.

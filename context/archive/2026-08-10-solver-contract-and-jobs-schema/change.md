@@ -1,10 +1,10 @@
 ---
 change_id: solver-contract-and-jobs-schema
 title: Frozen wire-contract artifact + generation_jobs schema (F-301)
-status: impl_reviewed
+status: archived
 created: 2026-08-10
 updated: 2026-08-11
-archived_at: null
+archived_at: 2026-08-11T07:01:51Z
 ---
 
 ## Notes

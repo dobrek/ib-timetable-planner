@@ -81,13 +81,14 @@ test-results/
 playwright-report/
 .playwright/
 
-# poc/cp-sat — Python CP-SAT solver POC (local tooling)
+# services/solver — Python CP-SAT solver service (local tooling)
 # Golden-catalog dumps are production-derived and must NEVER be committable; a `.json` golden
 # dump is NOT caught by the `.sql`-only golden-plan pattern above. Python tooling droppings are
 # ignored so `git status` stays clean. The committed seed fixture lives under
-# poc/cp-sat/tests/fixtures/, outside every ignored path below.
-/poc/cp-sat/data/
-/poc/cp-sat/.venv/
+# services/solver/tests/fixtures/, outside every ignored path below.
+/services/solver/data/
+/services/solver/.venv/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/

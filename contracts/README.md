@@ -3,7 +3,7 @@
 `generation-wire.schema.json` is the TS↔Python contract for automatic plan generation, as a
 tech-neutral JSON Schema (draft 2020-12) owned by neither side. The TypeScript types
 (`src/entities/timetable/model/generation/types.ts`) and the Python dataclasses
-(`poc/cp-sat/src/cpsat_engine/schema.py`) are both **projections of this document**, not the other
+(`services/solver/src/cpsat_engine/schema.py`) are both **projections of this document**, not the other
 way round.
 
 This README is normative for everything the schema cannot express: the canonical JSON form, the
@@ -14,7 +14,7 @@ Both suites gate it:
 | Suite | Test | Runs in |
 | --- | --- | --- |
 | Vitest | `bench/contract-parity.test.ts` | `pnpm test` → CI `verify` |
-| pytest | `poc/cp-sat/tests/test_contract.py` | `uv run pytest` → CI `solver` |
+| pytest | `services/solver/tests/test_contract.py` | `uv run pytest` → CI `solver` |
 
 A change on one side that diverges from the artifact turns a suite red. That is the whole point:
 before this existed, the two halves were each internally consistent and disagreed in eight places.
@@ -52,7 +52,7 @@ Three decisions the schema encodes that are easy to miss when reading it quickly
 
 ## Out of scope — stated so it is never "discovered" and frozen by mistake
 
-- **The bench export dump** (`bench/export-snapshot.experiment.ts` → `poc/cp-sat/tests/fixtures/seed-plan-a.json`).
+- **The bench export dump** (`bench/export-snapshot.experiment.ts` → `services/solver/tests/fixtures/seed-plan-a.json`).
   Its `meta`, its `greedy.*` warm-start, and its `objective` 10-tuple are **bench transport**, not
   production wire. The dump keeps its own `formatVersion` gate in `schema.py`; that gate is bench
   scope and is unrelated to `SolveRequest.formatVersion`.
@@ -112,7 +112,7 @@ The two implementations:
 
 - TypeScript — `src/entities/timetable/model/generation/wire.ts`
   (`canonicalStringify`, `canonicalizeSnapshot`, `canonicalizeResult`, `computeSnapshotHash`).
-- Python — `poc/cp-sat/src/cpsat_engine/wire.py`
+- Python — `services/solver/src/cpsat_engine/wire.py`
   (`canonical_json`, `canonical_snapshot_json`, `canonical_result_json`, `wire_stage_report`), which
   is `json.dumps(..., sort_keys=True, separators=(",", ":"))` plus the same array sorts and
   `None`-key dropping.
@@ -143,7 +143,7 @@ worse than no golden.
 canonical bytes, derived from the committed seed dump (5 days × 10 periods, 39 + 42 courses, 238
 placements).
 
-**Fixture rule: UUIDs only, no names.** Same posture `.gitignore:84-93` pins for the dump itself —
+**Fixture rule: UUIDs only, no names.** Same posture `.gitignore:84-94` pins for the dump itself —
 golden data is production-derived and display text must never be committable. `contract-parity.test.ts`
 asserts it.
 
@@ -157,9 +157,9 @@ byte assertion is the permanent tripwire if that protection is ever removed.
 Only needed for a `formatVersion` bump or a deliberate canonical-form change.
 
 ```bash
-# 1. One CP-SAT run over the committed seed dump (from poc/cp-sat/).
+# 1. One CP-SAT run over the committed seed dump (from services/solver/).
 #    --workers 1 --seed 1 keeps the search deterministic; ~90 s at a 10 s stage budget.
-cd poc/cp-sat
+cd services/solver
 uv run cpsat --input tests/fixtures/seed-plan-a.json --output /tmp/cpsat-result.json \
   --mode full --stage-budget 10 --workers 1 --seed 1
 
@@ -169,7 +169,7 @@ RESULT=/tmp/cpsat-result.json pnpm experiment:goldens
 
 # 3. Both gates, same commit.
 pnpm test
-cd poc/cp-sat && uv run pytest
+cd services/solver && uv run pytest
 ```
 
 The result golden is a **recorded** artifact, not a reproducible one: CP-SAT's search is

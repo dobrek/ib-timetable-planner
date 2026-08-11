@@ -2,7 +2,7 @@
 name = "cpsat-engine"
 version = "0.1.0"
 description = "Local CP-SAT solver POC for IB timetable generation, shaped as a future backend-service core."
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
   # ortools pins protobuf/numpy tightly — this project owns a dedicated uv venv, never a shared one.
   "ortools>=9.15,<9.16",

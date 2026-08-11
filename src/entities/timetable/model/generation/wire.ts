@@ -12,9 +12,9 @@ import type { PlannerPlacement } from "../placement";
 /**
  * The TS half of the frozen wire contract (`contracts/generation-wire.schema.json`) — the ONE
  * implementation of the canonical JSON form declared normatively in `contracts/README.md`, and the
- * `snapshot_hash` digest built on it. `poc/cp-sat/src/cpsat_engine/wire.py` is the Python mirror;
+ * `snapshot_hash` digest built on it. `services/solver/src/cpsat_engine/wire.py` is the Python mirror;
  * the two are byte-gated against the committed goldens in `bench/contract-parity.test.ts` and
- * `poc/cp-sat/tests/test_contract.py`.
+ * `services/solver/tests/test_contract.py`.
  *
  * Lives in the entity rather than `shared/lib` because it consumes `GeneratorSnapshot` — the FSD
  * import direction forbids the upward reach.

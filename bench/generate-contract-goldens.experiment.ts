@@ -14,11 +14,11 @@ import { readJson } from "./read-json";
  * `pnpm experiment:goldens` — regenerates the two committed contract fixtures in `contracts/fixtures/`
  * through the TS canonicalizer, which is the tool that DEFINES canonical bytes (`wire.ts`).
  *
- *   [DUMP=poc/cp-sat/tests/fixtures/seed-plan-a.json] RESULT=<cpsat-result.json> pnpm experiment:goldens
+ *   [DUMP=services/solver/tests/fixtures/seed-plan-a.json] RESULT=<cpsat-result.json> pnpm experiment:goldens
  *
  * Inputs, and why they are what they are:
  *   • the snapshot golden is the `snapshot` key of the committed seed dump, projected to the wire pin
- *     and canonicalized — real-size and UUID-only by construction, the same posture `.gitignore:84-93`
+ *     and canonicalized — real-size and UUID-only by construction, the same posture `.gitignore:84-94`
  *     pins for the dump itself.
  *   • the result golden is ONE CP-SAT CLI run over that same dump, canonicalized. The canonicalizer
  *     drops the solver's `"lowerBound": null` keys by specification, which is exactly the omit-when-
@@ -31,7 +31,7 @@ import { readJson } from "./read-json";
  * experiment runner (vitest + env-var args + `it.runIf`), matching `export-snapshot.experiment.ts`.
  * No file is written without `RESULT`, so a bare run cannot half-regenerate the pair.
  */
-const DUMP = process.env.DUMP ?? "poc/cp-sat/tests/fixtures/seed-plan-a.json";
+const DUMP = process.env.DUMP ?? "services/solver/tests/fixtures/seed-plan-a.json";
 const RESULT = process.env.RESULT;
 
 const FIXTURES = join(process.cwd(), "contracts", "fixtures");
@@ -41,7 +41,7 @@ type DumpSnapshot = { snapshot: GeneratorSnapshot };
 
 const USAGE =
   "Skipping the contract-golden regeneration. Usage: RESULT=<cpsat-result.json> " +
-  "[DUMP=poc/cp-sat/tests/fixtures/seed-plan-a.json] pnpm experiment:goldens — see contracts/README.md " +
+  "[DUMP=services/solver/tests/fixtures/seed-plan-a.json] pnpm experiment:goldens — see contracts/README.md " +
   "for the CP-SAT command line that produces RESULT.";
 
 describe("contract goldens", () => {

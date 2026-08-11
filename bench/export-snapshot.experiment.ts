@@ -37,15 +37,15 @@ import { autoParkPhantomCourses, type AutoParkedEntry } from "./auto-park";
  * The dump (schema below) is the Python package's INPUT CONTRACT — the Python side never re-derives
  * the snapshot or re-scores the greedy board; it reads them here. UUIDs only: names, levels, and
  * flags are not in the snapshot type and never enter the dump. The seed-catalog dump is committed as
- * the pytest fixture (`OUT=poc/cp-sat/tests/fixtures/seed-plan-a.json`); the golden dump stays
- * gitignored under `poc/cp-sat/data/`.
+ * the pytest fixture (`OUT=services/solver/tests/fixtures/seed-plan-a.json`); the golden dump stays
+ * gitignored under `services/solver/data/`.
  *
  * Plans are addressed by id, never by name. Dev tooling — the Workers-runtime constraints do not apply.
  */
 const SOURCE_PLAN_ID = process.env.SOURCE_PLAN_ID;
 const PIN_SKELETON = process.env.PIN_SKELETON === "1";
 const BUDGET_MS = Number(process.env.BUDGET_MS ?? 20_000);
-const OUT = process.env.OUT ?? (SOURCE_PLAN_ID ? `poc/cp-sat/data/${SOURCE_PLAN_ID}-dump.json` : undefined);
+const OUT = process.env.OUT ?? (SOURCE_PLAN_ID ? `services/solver/data/${SOURCE_PLAN_ID}-dump.json` : undefined);
 
 /** The export dump — the Python package's input contract. See the Python `schema.py` mirror. */
 export type ExportDump = {

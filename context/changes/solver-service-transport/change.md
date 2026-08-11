@@ -1,7 +1,7 @@
 ---
 change_id: solver-service-transport
 title: Solver service transport
-status: implementing
+status: implemented
 created: 2026-08-11
 updated: 2026-08-11
 archived_at: null
@@ -61,3 +61,31 @@ archived_at: null
 - **2026-08-11 — CP-SAT is not implemented as a second `GeneratePlan`.** The port stays untouched;
   dispatch is a separate transport function, and `runVerifiedGeneration` is applied on the
   result-read side. See `research.md` §6.
+
+### Found during implementation
+
+- **2026-08-11 — the `entities/timetable` barrel must stay client-safe; `solver-config.ts` is NOT in
+  it.** The plan said to export both the factory and the env-reading module through the barrel.
+  `pnpm build` refused: that barrel is pulled into the Web Worker bundle
+  (`_pages/plan-detail/model/generation/generate.worker.ts`), and Astro's env plugin throws
+  `[ServerOnlyModule]` at **load** time — before tree-shaking could drop an unused export — so one
+  server-only module in it fails the build outright. Resolution: the barrel exports
+  `api/solver-transport.ts` (pure) only; server-side callers reach `api/solver-config.ts` at its own
+  path, exactly as `createClient` in `shared/api` is reached. **S-301 imports
+  `@/entities/timetable/api/solver-config` directly.** The plan's env-isolation design is unchanged
+  and is now enforced by the build rather than by convention.
+- **2026-08-11 — a full-catalog solve is ~12.5 minutes, not seconds.** Measured end to end against
+  the local stack (12:32:39 → 12:45:07 on the golden). Mode A completeness is ~0.7 s as researched,
+  but `solve_complete` then chains all ten tiers at `SolveConfig.stage_budget_s = 120` each. Not a
+  defect and not calibrated here (S-308 owns budgets) — but it is why the proof-of-life test drives a
+  small builder snapshot rather than the golden, and it is worth knowing before S-303 designs
+  progress reporting.
+- **2026-08-11 — uvicorn leaves the root logger at WARNING.** It configures only its own `uvicorn.*`
+  loggers, so every `log.info` in `cpsat_service` was silently dropped on the first real run. That
+  contradicted the design's documented fallback: the lost-compare-and-set and sign-in-failure paths
+  write **nothing to the row**, so the service log is their entire trace. Fixed with
+  `logging.basicConfig` at app import (`SOLVER_LOG_LEVEL`, default INFO) and the lost-claim line
+  raised to WARNING; pinned by a `caplog` assertion.
+- **2026-08-11 — `.env.example` and `.envs/*` are gitignored** (`.gitignore:34-35`), so the plan's
+  edits to them cannot ship. `SOLVER_URL` is documented where a fresh clone actually creates those
+  files — the README's Getting Started heredoc.

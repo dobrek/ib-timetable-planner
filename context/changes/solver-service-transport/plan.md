@@ -492,12 +492,12 @@ The app-side transport (`SOLVER_URL` + typed dispatch + health probe), mise pins
 
 #### Automated
 
-- [x] 5.1 `pnpm check` / `lint` / `steiger` / `test` / `build` green
-- [x] 5.2 Proof-of-life integration test green locally
-- [ ] 5.3 Full CI green with the proof-of-life in the integration job
-- [x] 5.4 `mise run solver:test` and `solver:check` succeed
+- [x] 5.1 `pnpm check` / `lint` / `steiger` / `test` / `build` green — 96ea3b2
+- [x] 5.2 Proof-of-life integration test green locally — 96ea3b2
+- [x] 5.3 Full CI green with the proof-of-life in the integration job — 96ea3b2 (run 31496791239: `verify`/`integration`/`e2e`/`solver` green, proof-of-life executed; `bench` red, pre-existing and non-blocking)
+- [x] 5.4 `mise run solver:test` and `solver:check` succeed — 96ea3b2
 
 #### Manual
 
-- [x] 5.5 Fresh dev-loop walkthrough (env:local → provision → solver:dev → test)
-- [x] 5.6 `pnpm env:prod` leaves `SOLVER_URL` unset
+- [x] 5.5 Fresh dev-loop walkthrough (env:local → provision → solver:dev → test) — 96ea3b2
+- [x] 5.6 `pnpm env:prod` leaves `SOLVER_URL` unset — 96ea3b2

@@ -5,6 +5,7 @@ The golden-dump parity (manual check 3.3) runs here too when the gitignored dump
 local run reproduces it; CI (no dump) skips it. Every *committed* assertion is seed or micro-snapshot.
 """
 
+from collections.abc import Collection
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ from ortools.sat.python import cp_model
 import builders as b
 from cpsat_engine.model import build_model
 from cpsat_engine.objective import build_tiers
-from cpsat_engine.schema import BIWEEKLY, WEEK_A, load_dump
+from cpsat_engine.schema import BIWEEKLY, WEEK_A, PlacementKey, Snapshot, load_dump
 from cpsat_engine.solve import parity
 
 FIXTURE = Path(__file__).parent / "fixtures" / "seed-plan-a.json"
@@ -23,7 +24,7 @@ GOLDEN = Path(__file__).parent.parent / "data" / "4bc9fe99-33ae-4c58-9b66-9b8477
 SEED_OBJECTIVE = (0, 0, 97, 223, 0, 1048, 316, 4, 38, 14)
 
 
-def _tiers(snap, placed=frozenset()) -> dict[str, int]:
+def _tiers(snap: Snapshot, placed: Collection[PlacementKey] = frozenset()) -> dict[str, int]:
     """Build the tier model, fix the generated vars to ``placed`` (default: none placed), and read
     each tier off the unique completion. Pin-only snapshots (deficit 0) have no vars to fix."""
     bundle = build_model(b.dump(snap))
@@ -94,7 +95,7 @@ def test_holes_and_slots_are_week_agnostic() -> None:
 
 def test_teacher_holes_fan_out_by_week_lane() -> None:
     # One teacher, two courses at P1 and P4 of a day -> a 2-hole lane. Agnostic doubles it (a + b).
-    def snap(mode, week):
+    def snap(mode: str, week: str) -> Snapshot:
         return b.snapshot(
             dp1=b.cohort(
                 courses=[
@@ -113,7 +114,7 @@ def test_teacher_holes_fan_out_by_week_lane() -> None:
 
 
 def test_soft_hits_count_rows_on_a_soft_cell_week_agnostic() -> None:
-    def snap(mode, week, day, period):
+    def snap(mode: str, week: str, day: int, period: int) -> Snapshot:
         return b.snapshot(
             dp1=b.cohort(
                 courses=[b.course("a", teachers=["T1"], hours=1, week_mode=mode)],
@@ -131,7 +132,7 @@ def test_soft_hits_count_rows_on_a_soft_cell_week_agnostic() -> None:
 
 
 def test_student_holes_fan_out_by_week_lane() -> None:
-    def snap(mode, week):
+    def snap(mode: str, week: str) -> Snapshot:
         return b.snapshot(
             dp1=b.cohort(
                 courses=[
@@ -180,7 +181,7 @@ def test_doubles_deficit_forgives_the_odd_hour() -> None:
 
 def test_late_starts_fan_out_by_lane() -> None:
     # A cohort's only lesson at day 1 P3 -> lateStart (3 - 1) = 2 per occupied lane.
-    def snap(mode, week):
+    def snap(mode: str, week: str) -> Snapshot:
         return b.snapshot(
             dp1=b.cohort(
                 courses=[b.course("a", teachers=["T1"], hours=1, week_mode=mode)],
@@ -194,7 +195,7 @@ def test_late_starts_fan_out_by_lane() -> None:
 
 def test_friday_tail_fan_out_by_lane() -> None:
     # A lesson on the LAST day (5) at P6 -> fridayTail = last occupied period 6 per occupied lane.
-    def snap(mode, week):
+    def snap(mode: str, week: str) -> Snapshot:
         return b.snapshot(
             dp1=b.cohort(
                 courses=[b.course("a", teachers=["T1"], hours=1, week_mode=mode)],

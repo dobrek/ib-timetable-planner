@@ -17,6 +17,7 @@ from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator
+from jsonschema.protocols import Validator
 
 import builders as b
 from cpsat_engine.schema import Dump, Snapshot, parse_snapshot
@@ -36,10 +37,11 @@ RESULT_GOLDEN = CONTRACTS / "fixtures" / "generation-result.json"
 
 @pytest.fixture(scope="module")
 def schema() -> dict[str, Any]:
-    return json.loads(SCHEMA_PATH.read_text())
+    parsed: dict[str, Any] = json.loads(SCHEMA_PATH.read_text())
+    return parsed
 
 
-def _validator(schema: dict[str, Any], name: str) -> Draft202012Validator:
+def _validator(schema: dict[str, Any], name: str) -> Validator:
     """A validator for one ``$defs`` entry that can still resolve the document's internal ``$ref``s.
 
     ``evolve(schema=...)`` keeps the root-anchored resolver the validator was built with, which is
@@ -48,7 +50,7 @@ def _validator(schema: dict[str, Any], name: str) -> Draft202012Validator:
     return Draft202012Validator(schema).evolve(schema=schema["$defs"][name])
 
 
-def _errors(validator: Draft202012Validator, payload: object) -> list[str]:
+def _errors(validator: Validator, payload: Any) -> list[str]:
     return [f"{list(e.absolute_path)} {e.message}" for e in validator.iter_errors(payload)]
 
 

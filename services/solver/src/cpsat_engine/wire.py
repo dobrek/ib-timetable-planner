@@ -106,7 +106,7 @@ def wire_stage_report(stage: StageReport) -> dict[str, Any]:
     A serializer, deliberately NOT a rename of the dataclass: the internal fields and the throwaway
     ``.report.json`` sidecar stay snake_case and stay out of contract (``contracts/README.md``).
     """
-    return _without_nones(
+    return _dict_without_nones(
         {
             "tier": stage.tier,
             "name": stage.name,
@@ -143,11 +143,20 @@ def _wire_cohort(cohort: CohortSnapshot) -> dict[str, Any]:
     }
 
 
+def _dict_without_nones(value: dict[str, Any]) -> dict[str, Any]:
+    """:func:`_without_nones` at its top-level-dict entry point.
+
+    The recursion below is genuinely ``Any -> Any`` (it walks arbitrary JSON), but every projection
+    that RETURNS a payload starts from a dict — saying so here keeps those signatures honest instead
+    of leaking ``Any`` back out to their callers."""
+    return {key: _without_nones(item) for key, item in value.items() if item is not None}
+
+
 def _without_nones(value: Any) -> Any:
     """Drop every ``None``-valued key, at every depth. Array elements are left alone (this wire has
     no nullable array members, and silently shrinking a list would hide a producer bug)."""
     if isinstance(value, dict):
-        return {k: _without_nones(v) for k, v in value.items() if v is not None}
+        return _dict_without_nones(value)
     if isinstance(value, list):
         return [_without_nones(v) for v in value]
     if isinstance(value, tuple):

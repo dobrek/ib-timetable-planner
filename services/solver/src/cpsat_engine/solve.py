@@ -14,6 +14,7 @@ already completes (the bound is a *complete*-cohort property; ``types.ts:64-68``
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,7 @@ from ortools.sat.python import cp_model
 
 from .model import ModelBundle, build_model
 from .objective import ObjectiveModel, build_objective, build_tiers
-from .schema import COHORTS, Course, Dump, Placement, deficits
+from .schema import COHORTS, Course, Dump, Placement, PlacementKey, deficits
 
 # --- configuration & reports ----------------------------------------------------------------------
 
@@ -58,7 +59,9 @@ class SolveResult:
     board: tuple[Placement, ...]  # generated placements only (pins stay pins)
     stages: tuple[StageReport, ...]
     proven_optimal: bool
-    notes: dict = field(default_factory=dict)  # mode-specific: neighbourhood size, mode-A outcome
+    # Mode-specific: neighbourhood size, mode-A outcome. `notes["outcome"]` is the field a wrapper
+    # branches on — a non-optimal solve is NOT an exception (see `solve_complete`).
+    notes: dict[str, Any] = field(default_factory=dict)
 
     @property
     def elapsed_s(self) -> float:
@@ -157,8 +160,8 @@ def solve_staged(dump: Dump, config: SolveConfig) -> SolveResult:
 
 
 def _place_maximally(
-    bundle: ModelBundle, config: SolveConfig, warm_start: dict[tuple, int]
-) -> tuple[StageReport, dict[tuple, int]]:
+    bundle: ModelBundle, config: SolveConfig, warm_start: dict[PlacementKey, int]
+) -> tuple[StageReport, dict[PlacementKey, int]]:
     """Tier 1 on the hard-rules-only model: maximise placed hours (= minimise unplaced), warm-started
     from the greedy board, harden the best, and return the concrete board as the ladder's warm-start."""
     placed = sum(bundle.x.values())
@@ -318,8 +321,8 @@ def _run_ladder(
     objective: ObjectiveModel,
     dump: Dump,
     config: SolveConfig,
-    tier_indices,
-    incumbent: dict[tuple, int],
+    tier_indices: Iterable[int],
+    incumbent: dict[PlacementKey, int],
 ) -> tuple[tuple[StageReport, ...], tuple[Placement, ...], bool]:
     """Optimise the given 0-based tier indices in order; harden each; return (stages, board, proven)."""
     stages: list[StageReport] = []
@@ -329,7 +332,9 @@ def _run_ladder(
         if idx == 2:  # about to minimise totalSlots — inject the clique cut for completed cohorts
             _add_clique_cuts(bundle, objective, dump, incumbent)
 
-        bundle.model.clear_hints()
+        # ortools declares `CpModel.clear_hints(self)` with no annotations at all, so `--strict`
+        # reads the call as untyped. Upstream gap, not ours.
+        bundle.model.clear_hints()  # type: ignore[no-untyped-call]
         _hint_board(bundle, incumbent)
         bundle.model.minimize(tier.var)
         status, solver = _run_solver(
@@ -356,7 +361,7 @@ def _run_ladder(
 
 
 def _add_clique_cuts(
-    bundle: ModelBundle, objective: ObjectiveModel, dump: Dump, incumbent: dict[tuple, int]
+    bundle: ModelBundle, objective: ObjectiveModel, dump: Dump, incumbent: dict[PlacementKey, int]
 ) -> None:
     """``cohort_slots >= lowerBound`` — a redundant tier-3 cut, added only for a cohort the incumbent
     already completes (the clique bound holds only for a fully-placed cohort)."""
@@ -382,7 +387,7 @@ def _add_completeness(bundle: ModelBundle, targets: dict[tuple[str, str], int]) 
 
 
 def _freeze_outside(
-    bundle: ModelBundle, greedy: dict[tuple, int], freed: set[tuple[str, str]]
+    bundle: ModelBundle, greedy: dict[PlacementKey, int], freed: set[tuple[str, str]]
 ) -> tuple[int, int]:
     """Fix every var of a course OUTSIDE the freed set to its greedy value; leave freed vars open."""
     frozen = 0
@@ -394,7 +399,7 @@ def _freeze_outside(
     return frozen, len(freed)
 
 
-def _neighbourhood(dump: Dump, greedy: dict[tuple, int], hops: int) -> set[tuple[str, str]]:
+def _neighbourhood(dump: Dump, greedy: dict[PlacementKey, int], hops: int) -> set[tuple[str, str]]:
     """The greedy unplaced courses plus their k-hop conflict-graph neighbourhood (shares a teacher or
     a student — the ``problem.ts`` edge). Placed courses in the window are freed for rearrangement."""
     courses = {(co, c.id): c for co in COHORTS for c in dump.snapshot.cohorts[co].courses}
@@ -422,25 +427,25 @@ def _conflicts(a: Course, b: Course) -> bool:
 # --- board helpers --------------------------------------------------------------------------------
 
 
-def _greedy_board(dump: Dump) -> dict[tuple, int]:
+def _greedy_board(dump: Dump) -> dict[PlacementKey, int]:
     """The greedy warm-start as a var-value map keyed like ``bundle.x``."""
     return {(p.cohort, p.course_id, p.day, p.period, p.week): 1 for p in dump.greedy_placements}
 
 
-def _hint_board(bundle: ModelBundle, board: dict[tuple, int]) -> None:
+def _hint_board(bundle: ModelBundle, board: dict[PlacementKey, int]) -> None:
     for key, var in bundle.x.items():
         bundle.model.add_hint(var, board.get(key, 0))
 
 
-def _extract_board(bundle: ModelBundle, solver: cp_model.CpSolver) -> dict[tuple, int]:
+def _extract_board(bundle: ModelBundle, solver: cp_model.CpSolver) -> dict[PlacementKey, int]:
     return {key: int(solver.value(var)) for key, var in bundle.x.items()}
 
 
-def _generated(board: dict[tuple, int]) -> tuple[Placement, ...]:
+def _generated(board: dict[PlacementKey, int]) -> tuple[Placement, ...]:
     return tuple(Placement(*key) for key, value in board.items() if value == 1)
 
 
-def _residue(bundle: ModelBundle, board: dict[tuple, int]) -> dict[str, int]:
+def _residue(bundle: ModelBundle, board: dict[PlacementKey, int]) -> dict[str, int]:
     """Per-cohort unplaced hours = sum over courses of ``deficit - placed`` on this board."""
     placed = _placed_by_course(board)
     out = {cohort: 0 for cohort in COHORTS}
@@ -449,13 +454,13 @@ def _residue(bundle: ModelBundle, board: dict[tuple, int]) -> dict[str, int]:
     return out
 
 
-def _residue_from_deficits(dump: Dump, board: dict[tuple, int]) -> dict[tuple[str, str], int]:
+def _residue_from_deficits(dump: Dump, board: dict[PlacementKey, int]) -> dict[tuple[str, str], int]:
     placed = _placed_by_course(board)
     defs = deficits(dump.snapshot)
     return {key: max(0, need - placed.get(key, 0)) for key, need in defs.items()}
 
 
-def _placed_by_course(board: dict[tuple, int]) -> dict[tuple[str, str], int]:
+def _placed_by_course(board: dict[PlacementKey, int]) -> dict[tuple[str, str], int]:
     out: dict[tuple[str, str], int] = {}
     for (cohort, cid, _d, _p, _w), value in board.items():
         if value == 1:
@@ -468,7 +473,7 @@ def _placed_by_course(board: dict[tuple, int]) -> dict[tuple[str, str], int]:
 
 def _run_solver(
     config: SolveConfig, budget_s: float, stage: str, model: cp_model.CpModel
-) -> tuple[int, cp_model.CpSolver]:
+) -> tuple[cp_model.CpSolverStatus, cp_model.CpSolver]:
     """Configure a solver (budget, workers, seed), solve, and tee the search log to a per-stage file."""
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = budget_s

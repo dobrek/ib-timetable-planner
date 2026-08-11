@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -11,7 +12,7 @@ from cpsat_engine.schema import BIWEEKLY, Snapshot, deficits, load_dump
 FIXTURE = Path(__file__).parent / "fixtures" / "seed-plan-a.json"
 
 
-def _wire(snapshot: Snapshot) -> dict:
+def _wire(snapshot: Snapshot) -> dict[str, Any]:
     """Re-serialize a parsed snapshot back to the dump's wire shape (for the round-trip check)."""
     return {
         "days": snapshot.days,
@@ -44,7 +45,7 @@ def _wire(snapshot: Snapshot) -> dict:
     }
 
 
-def test_rejects_unknown_format_version(tmp_path) -> None:
+def test_rejects_unknown_format_version(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"formatVersion": 99, "meta": {}, "snapshot": {}, "greedy": {}}))
     with pytest.raises(ValueError, match="formatVersion"):

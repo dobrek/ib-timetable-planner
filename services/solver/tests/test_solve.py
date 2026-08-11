@@ -4,10 +4,11 @@ JSON carries the TS import shape. Synthetic micro-instances keep the ladder test
 the one seed test rides the fast completeness path.
 """
 
+from collections.abc import Iterable
 from pathlib import Path
 
 import builders as b
-from cpsat_engine.schema import Dump, Placement, load_dump
+from cpsat_engine.schema import Dump, Placement, Snapshot, load_dump
 from cpsat_engine.solve import (
     SolveConfig,
     evaluate_board,
@@ -20,7 +21,7 @@ from cpsat_engine.solve import (
 FIXTURE = Path(__file__).parent / "fixtures" / "seed-plan-a.json"
 
 
-def _dump(snap, greedy=()) -> Dump:
+def _dump(snap: Snapshot, greedy: Iterable[Placement] = ()) -> Dump:
     return Dump(
         format_version=1,
         meta={},
@@ -31,7 +32,7 @@ def _dump(snap, greedy=()) -> Dump:
     )
 
 
-def _micro_snapshot():
+def _micro_snapshot() -> Snapshot:
     # A tiny two-cohort instance: T1 spans cohorts; disjoint enough to solve every tier to OPTIMAL fast.
     return b.snapshot(
         dp1=b.cohort(

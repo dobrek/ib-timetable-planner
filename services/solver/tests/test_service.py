@@ -43,6 +43,7 @@ SETTINGS = Settings(
     machine_email="solver@ib-timetable-planner.dev",
     machine_password="test-password",
     workers=1,
+    max_concurrent_jobs=1,
     log_level="INFO",
 )
 
@@ -102,8 +103,9 @@ class FakeSupabase:
 @pytest.fixture
 def client() -> TestClient:
     """A fresh registry per test: it is module state on the app, and a leaked entry would make the
-    next test's POST a silent no-op."""
-    app_module.registry = JobRegistry()
+    next test's POST a silent no-op. Capacity mirrors production so the cap is under test, not
+    bypassed by an uncapped fixture."""
+    app_module.registry = JobRegistry(capacity=SETTINGS.max_concurrent_jobs)
     return TestClient(app_module.app)
 
 
@@ -174,6 +176,39 @@ def test_duplicate_post_is_accepted_but_starts_no_second_solve(
     assert started == [JOB_ID], "the retry must not spawn a second solve"
 
 
+def test_a_second_distinct_job_past_capacity_is_refused_with_503(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Distinct from the duplicate-POST case: that one is idempotent and answers 202. This is a
+    DIFFERENT job arriving while the container is full — accepting it would not run it sooner, it
+    would starve the solve already running and the `/health` answer keeping the container alive."""
+    monkeypatch.setattr(app_module, "start_job", lambda *_args, **_kwargs: None)
+    other = "9c2e7f10-4a3b-4d5e-8f61-0b7c9d2e3a44"
+
+    first = client.post(f"/jobs/{JOB_ID}/solve", json=_micro_request())
+    second = client.post(f"/jobs/{other}/solve", json=_micro_request())
+
+    assert first.status_code == 202
+    assert second.status_code == 503
+
+
+def test_a_failed_spawn_does_not_strand_the_registry_entry(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Release lives in the worker's `finally`, which never runs if the thread never started. A
+    stranded entry would make every later dispatch for this id a 202 no-op forever."""
+
+    def explode(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("can't start new thread")
+
+    monkeypatch.setattr(app_module, "start_job", explode)
+    with pytest.raises(RuntimeError):
+        client.post(f"/jobs/{JOB_ID}/solve", json=_micro_request())
+
+    monkeypatch.setattr(app_module, "start_job", lambda *_args, **_kwargs: None)
+    assert client.post(f"/jobs/{JOB_ID}/solve", json=_micro_request()).json()["status"] == "accepted"
+
+
 def test_malformed_body_is_a_422_naming_the_field_not_a_keyerror(client: TestClient) -> None:
     """The engine does raw dict access, so without boundary validation this would be a bare
     `KeyError` surfacing as a 500 on a request that was merely malformed."""
@@ -204,6 +239,20 @@ def test_wrong_format_version_is_rejected(client: TestClient) -> None:
 
 def test_non_uuid_job_id_never_reaches_the_handler(client: TestClient) -> None:
     assert client.post("/jobs/not-a-uuid/solve", json=_micro_request()).status_code == 422
+
+
+def test_a_non_json_content_type_is_refused_before_the_body_is_read(client: TestClient) -> None:
+    """`text/plain` is a CORS *simple* content type: accepting it would let a page in a developer's
+    browser dispatch to a known job id with no preflight. Demanding `application/json` is what makes
+    the browser ask first — and this service never answers a preflight. See the README's
+    trust-boundary note."""
+    response = client.post(
+        f"/jobs/{JOB_ID}/solve",
+        content=json.dumps(_micro_request()),
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert response.status_code == 415
 
 
 def test_the_committed_golden_is_accepted_as_a_body(
@@ -391,3 +440,60 @@ def test_a_postgrest_error_surfaces_its_body_verbatim() -> None:
 
     with pytest.raises(SupabaseError, match="42501"):
         client.claim(JOB_ID)
+
+
+def test_the_terminal_write_retries_a_transient_5xx(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The one call that retries. A row left `running` can never be reclaimed (`claim` filters on
+    `status=eq.queued`), so a 502 at minute twelve would discard the board permanently."""
+    monkeypatch.setattr("cpsat_service.supabase.time.sleep", lambda _seconds: None)
+    attempts = 0
+
+    def flaky(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        if request.url.path == "/auth/v1/token":
+            return httpx.Response(200, json={"access_token": ACCESS_TOKEN})
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(502, text="invalid response from upstream server")
+        return httpx.Response(200, json=[{"id": JOB_ID}])
+
+    http = httpx.Client(base_url=SETTINGS.supabase_url, transport=httpx.MockTransport(flaky))
+    JobRowClient(SETTINGS, client=http).finish(JOB_ID, status="succeeded", result={})
+
+    assert attempts == 2
+
+
+def test_a_terminal_write_that_matched_no_row_raises() -> None:
+    """PostgREST answers 200 with an EMPTY array when the row has already left the RLS window. That
+    is a LOST write, not a successful one — silence here would log a board as stored that is gone."""
+
+    def matched_nothing(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/auth/v1/token":
+            return httpx.Response(200, json={"access_token": ACCESS_TOKEN})
+        return httpx.Response(200, json=[])
+
+    http = httpx.Client(base_url=SETTINGS.supabase_url, transport=httpx.MockTransport(matched_nothing))
+    client = JobRowClient(SETTINGS, client=http)
+
+    with pytest.raises(SupabaseError, match="matched no row"):
+        client.finish(JOB_ID, status="succeeded", result={})
+
+
+def test_a_deterministic_failure_is_not_retried() -> None:
+    """`42501` is a rule the database enforced, not a blip: a second attempt just delays the log
+    line that matters."""
+    attempts = 0
+
+    def deny(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        if request.url.path == "/auth/v1/token":
+            return httpx.Response(200, json={"access_token": ACCESS_TOKEN})
+        attempts += 1
+        return httpx.Response(403, json={"code": "42501", "message": "permission denied for table"})
+
+    http = httpx.Client(base_url=SETTINGS.supabase_url, transport=httpx.MockTransport(deny))
+    client = JobRowClient(SETTINGS, client=http)
+
+    with pytest.raises(SupabaseError, match="42501"):
+        client.finish(JOB_ID, status="failed", error="whatever")
+    assert attempts == 1

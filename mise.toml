@@ -14,11 +14,11 @@
 _.path = ['{{config_root}}/node_modules/.bin']
 
 [tools]
-# Pinned to the version CI's `setup-uv` currently resolves. setup-uv has no version pinned in the
-# workflow and falls back to latest, so when it moves, move this with it — the point of the pin is
-# that a developer and the gate build the venv with the same resolver, not that the number is
-# frozen forever. Python itself is pinned by `services/solver/.python-version` (3.13), which uv
-# reads; duplicating it here would create a second source of truth for the interpreter.
+# The same version both `setup-uv` steps in `.github/workflows/ci.yml` pin via their `version:`
+# input. Bump all three together — the point of the pin is that a developer and the gate build the
+# venv with the same resolver, not that the number is frozen forever. Python itself is pinned by
+# `services/solver/.python-version` (3.13), which uv reads; duplicating it here would create a
+# second source of truth for the interpreter.
 uv = "0.12.3"
 
 # --- solver (services/solver) ---------------------------------------------------------------------

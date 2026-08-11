@@ -21,6 +21,7 @@ Known failure codes, surfaced verbatim in the raised message so a log line is di
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -29,6 +30,8 @@ import httpx
 
 from .settings import Settings
 
+log = logging.getLogger("cpsat_service.supabase")
+
 # Re-sign-in this long after the last grant. Comfortably inside the 3600s `jwt_expiry`, so a write
 # never races the boundary: the alternative is discovering expiry as a 401 mid-solve, after the
 # result exists but before it is durable.
@@ -36,9 +39,30 @@ TOKEN_MAX_AGE_S = 3000.0
 
 JOBS = "/rest/v1/generation_jobs"
 
+# The TERMINAL write is the only durable record a solve produces, and it is the one call whose
+# failure is unrecoverable: `claim`'s `status=eq.queued` filter means a row left `running` can never
+# be reclaimed, so a transient 502 at minute twelve discards the board permanently. Hence a retry
+# here and nowhere else — `claim` failing is safe (the row is untouched and a redispatch works) and
+# `sign_in` failing is reported by whichever call needed it.
+FINISH_ATTEMPTS = 3
+FINISH_BACKOFF_S = (1.0, 4.0)
+
+# Only failures a second attempt could plausibly survive. A `42501` (wrote outside the grant), a
+# `23514` (status the CHECK rejects) and a matched-no-row write are all deterministic: retrying them
+# just delays the log line that matters.
+RETRYABLE_STATUS = frozenset({500, 502, 503, 504})
+
 
 class SupabaseError(RuntimeError):
-    """A non-2xx from Auth or PostgREST. The message carries the status and the body verbatim."""
+    """A non-2xx from Auth or PostgREST. The message carries the status and the body verbatim.
+
+    `status_code` is None when the failure was not an HTTP status at all — the matched-no-row case
+    in :meth:`JobRowClient.finish` — which is also what makes it non-retryable.
+    """
+
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class JobRowClient:
@@ -99,7 +123,10 @@ class JobRowClient:
         stages: list[dict[str, Any]] | None = None,
     ) -> None:
         """Write the terminal state. Only the granted columns; absent fields are simply not sent, so
-        a failure never blanks a column it has nothing to say about."""
+        a failure never blanks a column it has nothing to say about.
+
+        Retried on transient failures — see :data:`FINISH_ATTEMPTS`.
+        """
         payload: dict[str, Any] = {"status": status, "finished_at": _utc_now()}
         if result is not None:
             payload["result"] = result
@@ -107,13 +134,7 @@ class JobRowClient:
             payload["error"] = error
         if stages is not None:
             payload["stages"] = stages
-        response = self._client.patch(
-            JOBS,
-            params={"id": f"eq.{job_id}", "select": "id"},
-            headers=self._headers(),
-            json=payload,
-        )
-        _raise_for_status(response, f"finish job {job_id} as {status}")
+        self._finish_with_retry(job_id, status, payload)
 
     def close(self) -> None:
         self._client.close()
@@ -125,13 +146,65 @@ class JobRowClient:
             "Content-Type": "application/json",
         }
 
+    def _finish_with_retry(self, job_id: str, status: str, payload: dict[str, Any]) -> None:
+        """Attempt the terminal write until it lands, the failure proves deterministic, or attempts
+        run out. The last failure propagates unchanged — the caller logs it and the row is stuck."""
+        for attempt in range(1, FINISH_ATTEMPTS + 1):
+            try:
+                self._finish_once(job_id, status, payload)
+            except (SupabaseError, httpx.TransportError) as error:
+                if attempt == FINISH_ATTEMPTS or not _is_retryable(error):
+                    raise
+                delay = FINISH_BACKOFF_S[attempt - 1]
+                log.warning(
+                    "job %s: terminal write attempt %d/%d failed, retrying in %.0fs: %s",
+                    job_id,
+                    attempt,
+                    FINISH_ATTEMPTS,
+                    delay,
+                    error,
+                )
+                time.sleep(delay)
+            else:
+                return
+
+    def _finish_once(self, job_id: str, status: str, payload: dict[str, Any]) -> None:
+        """`return=representation` for the same reason `claim` uses it, and it matters more here:
+        this PATCH carries no status filter, so PostgREST's default `return=minimal` answers 204
+        whether it matched the row or nothing at all. A terminal write that matched NOTHING — the
+        row was moved out of the RLS `using (status in ('queued','running'))` window by someone else
+        — would otherwise be indistinguishable from success, and a twelve-minute board would be
+        logged as stored while never reaching the column."""
+        response = self._client.patch(
+            JOBS,
+            params={"id": f"eq.{job_id}", "select": "id"},
+            headers={**self._headers(), "Prefer": "return=representation"},
+            json=payload,
+        )
+        _raise_for_status(response, f"finish job {job_id} as {status}")
+        if not response.json():
+            raise SupabaseError(
+                f"could not finish job {job_id} as {status}: the write matched no row — it is no "
+                "longer in a state this role may update"
+            )
+
 
 def _raise_for_status(response: httpx.Response, action: str) -> None:
     """PostgREST puts the diagnosable part (`code`, `message`, `hint`) in the BODY, not the status —
     a bare `raise_for_status()` would throw away exactly what makes `42501` vs `23514` legible."""
     if response.is_success:
         return
-    raise SupabaseError(f"could not {action}: HTTP {response.status_code} {response.text}")
+    raise SupabaseError(
+        f"could not {action}: HTTP {response.status_code} {response.text}",
+        status_code=response.status_code,
+    )
+
+
+def _is_retryable(error: SupabaseError | httpx.TransportError) -> bool:
+    """A connection that never landed, or a 5xx from the edge — not a rule the database enforced."""
+    if isinstance(error, httpx.TransportError):
+        return True
+    return error.status_code in RETRYABLE_STATUS
 
 
 def _utc_now() -> str:

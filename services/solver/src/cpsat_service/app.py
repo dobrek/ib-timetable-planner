@@ -24,7 +24,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
-from .registry import JobRegistry
+from .registry import JobRegistry, Registration
 from .runner import start_job
 from .settings import settings
 
@@ -46,7 +46,7 @@ REPO_ROOT: Final = Path(__file__).resolve().parents[4]
 SCHEMA_PATH: Final = REPO_ROOT / "contracts" / "generation-wire.schema.json"
 
 app = FastAPI(title="CP-SAT solver service", version="0.1.0")
-registry = JobRegistry()
+registry = JobRegistry(capacity=settings.max_concurrent_jobs)
 
 
 @app.get("/health")
@@ -68,15 +68,47 @@ async def solve(job_id: UUID, request: Request) -> dict[str, str]:
     _validate(body)
 
     key = str(job_id)
-    if not registry.register(key):
-        log.info("job %s is already running in this process — accepting the retry as a no-op", key)
-        return {"status": "already running", "jobId": key}
+    outcome = registry.register(key)
 
-    start_job(key, body, settings=settings, registry=registry)
-    return {"status": "accepted", "jobId": key}
+    if outcome is Registration.ALREADY_RUNNING:
+        log.info("job %s is already running in this process — accepting the retry as a no-op", key)
+        return {"status": outcome.value, "jobId": key}
+
+    if outcome is Registration.AT_CAPACITY:
+        # The one non-202. Accepting past the cap would not run the job sooner — it would starve the
+        # solves already running and the `/health` answer that keeps this container alive.
+        log.warning("job %s refused: %d solve(s) already running", key, settings.max_concurrent_jobs)
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"the solver is already running {settings.max_concurrent_jobs} job(s) — retry later",
+        )
+
+    try:
+        start_job(key, body, settings=settings, registry=registry)
+    except Exception:
+        # Release is otherwise the WORKER's `finally` — which never runs if the thread never
+        # started. A stranded entry makes every later dispatch for this id a 202 no-op while the row
+        # sits `queued` forever, clearable only by a restart: exactly the silent failure this
+        # service is built to avoid.
+        registry.release(key)
+        raise
+    return {"status": outcome.value, "jobId": key}
 
 
 async def _json_body(request: Request) -> Any:
+    """Require `application/json` before reading a byte.
+
+    Not pedantry, and not something jsonschema can do for us: `application/json` is NOT a CORS
+    *simple* content type, so demanding it is what forces a browser to preflight — and a preflight
+    this service never answers is a request it never sees. Without the check, a page open in a
+    developer's browser while `mise run solver:dev` is up can POST a `text/plain` body to a known
+    job id with no preflight at all. See the trust-boundary note in `services/solver/README.md`.
+    """
+    media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+    if media_type != "application/json":
+        raise HTTPException(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="body must be sent as application/json"
+        )
     try:
         return json.loads(await request.body())
     except ValueError as error:
@@ -112,7 +144,10 @@ def _build_validator() -> Validator | None:
     contract test uses."""
     try:
         schema = json.loads(SCHEMA_PATH.read_text())
-    except OSError:
+    except (OSError, ValueError):
+        # ValueError covers `JSONDecodeError` on a truncated or half-copied contract file. Catching
+        # only OSError would let that case kill the import — defeating the `None` fallback above,
+        # whose entire purpose is that `/health` still answers when `contracts/` did not make it in.
         log.exception("could not read the wire contract at %s", SCHEMA_PATH)
         return None
     return Draft202012Validator(schema).evolve(schema=schema["$defs"]["SolveRequest"])

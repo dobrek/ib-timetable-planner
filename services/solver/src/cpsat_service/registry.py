@@ -19,7 +19,21 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
+
+
+class Registration(Enum):
+    """What :meth:`JobRegistry.register` did — three outcomes, three HTTP answers.
+
+    ``AT_CAPACITY`` is the only one that is not a 202: a solve holds `SOLVER_WORKERS` CP-SAT workers
+    for as long as the tier ladder runs, so an uncapped registry turns a burst of dispatches into a
+    container that starves its own `/health` and gets killed mid-solve on every job at once.
+    """
+
+    ACCEPTED = "accepted"
+    ALREADY_RUNNING = "already running"
+    AT_CAPACITY = "at capacity"
 
 
 @dataclass
@@ -36,18 +50,25 @@ class JobRegistry:
     """Thread-safe. Every mutation takes the lock — the HTTP thread registers while worker threads
     complete, so the two genuinely race."""
 
-    def __init__(self) -> None:
+    def __init__(self, capacity: int | None = None) -> None:
         self._lock = threading.Lock()
         self._entries: dict[str, JobEntry] = {}
+        self._capacity = capacity
 
-    def register(self, job_id: str) -> bool:
-        """Claim the id in-process. False when it is already registered — the caller must NOT start
-        a second solve, and should still answer 202 (the job is running; the retry is a no-op)."""
+    def register(self, job_id: str) -> Registration:
+        """Claim the id in-process, under the lock, so the capacity check and the insert cannot be
+        interleaved — a `len()` read outside the lock would let two concurrent POSTs both pass it.
+
+        ``ALREADY_RUNNING`` means the caller must NOT start a second solve and should still answer
+        202: the job is running and the retry is a no-op.
+        """
         with self._lock:
             if job_id in self._entries:
-                return False
+                return Registration.ALREADY_RUNNING
+            if self._capacity is not None and len(self._entries) >= self._capacity:
+                return Registration.AT_CAPACITY
             self._entries[job_id] = JobEntry(job_id=job_id)
-            return True
+            return Registration.ACCEPTED
 
     def attach_thread(self, job_id: str, thread: threading.Thread) -> None:
         """Record the worker thread. Separate from :meth:`register` because registration must

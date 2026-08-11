@@ -112,7 +112,7 @@ design exists to prevent. Re-signing-in costs one request and removes the questi
 
 ---
 
-## Hosted enablement — the one manual step
+## Hosted enablement — the one manual step (S-302, not F-302)
 
 Hook configuration does **not** travel with `supabase db push`. The migrations create the function;
 `config.toml` enables the hook locally. The hosted project needs a one-time:
@@ -172,11 +172,32 @@ A guard test that has never been shown to fail is not yet a guard.
 
 ---
 
-## Checklist for F-302
+## Checklist for F-302 — the container's own behaviour
 
-- [ ] `supabase config push` (or dashboard toggle) on the hosted project, then verify the claim.
-- [ ] Provision the hosted machine user; store the password in the container's config, not the Worker's.
+All of this is verifiable against the **local** stack, where the hook is already enabled
+(`supabase/config.toml`, `[auth.hook.custom_access_token] enabled = true`) and the CI `integration`
+job boots that same config. **F-302 needs no hosted setup** — it is local-fidelity tier 1 by
+definition (native uvicorn + `SOLVER_URL` + local Supabase).
+
 - [ ] Container reads `SUPABASE_URL`, `SUPABASE_KEY` (publishable), `SOLVER_MACHINE_PASSWORD`.
 - [ ] Container re-runs the password grant near expiry; it never refreshes.
 - [ ] Every poll uses a **narrow column projection** — `select()` with no argument drags the
       ~124 KB TOASTed snapshot on every request (see the `generation_jobs` migration header).
+
+## Checklist for S-302 — hosted enablement, before the first hosted container run
+
+Manual by design, and **not** required to implement or verify F-302. These two steps gate the first
+moment a _hosted_ container authenticates against _hosted_ Supabase — S-302's deploy lane, and hard
+required before S-308 runs calibration jobs on production.
+
+Both need a human: `config push` rewrites the **whole** `config.toml` on the hosted project (which is
+why the `deploy` job does not run it), and provisioning needs `SUPABASE_SERVICE_ROLE_KEY`, which CI
+deliberately does not hold.
+
+- [ ] `supabase config push` (or dashboard toggle) on the hosted project, then verify the claim.
+- [ ] Provision the hosted machine user; store the password in the container's config, not the Worker's.
+
+> **Verification is a gate, not a formality.** Skipping it fails _upward_: with no hook, the machine
+> user does not lose access — it falls back to `authenticated` and reaches the whole database, with
+> no error to notice. Decode the token and confirm `role` reads `solver_job_writer` **before**
+> pointing any container at hosted.

@@ -105,7 +105,14 @@ Do **not** trust generic "deploy Astro to Cloudflare" blog posts from 2024–202
 
 The following were not evaluated in this research:
 
-- Docker image configuration (Cloudflare Workers doesn't use containers)
+- ~~Docker image configuration (Cloudflare Workers doesn't use containers)~~ — **superseded
+  2026-08-11.** Cloudflare Containers reached GA in 2026-04, after this research was written. The
+  CP-SAT solver service runs as a linux/amd64 container attached to the existing Worker via a Durable
+  Object binding, so container/image configuration is squarely **in** scope for the project. The
+  platform decisions (instance type, region pinning, scale-to-zero, the documented mid-solve sleep
+  issue, cost envelope) live in `context/changes/post-poc-cp-sat-refactoring-plan/research.md` and
+  `context/foundation/tech-stack.md`, not in this document — this line is corrected rather than
+  deleted so the supersession is visible.
 - CI/CD pipeline setup (separate from platform decision; the scaffold's `.github/workflows/` is already configured for `pnpm install → astro sync → lint → build` per CLAUDE.md)
 - Production-scale architecture: multi-region failover, HA, DR, dedicated support tier
 - Cost projections beyond MVP scale (50–150 users); growth beyond ~3M req/mo crosses into Workers Paid territory and warrants re-measurement

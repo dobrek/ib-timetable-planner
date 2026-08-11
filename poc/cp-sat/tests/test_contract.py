@@ -21,7 +21,12 @@ from jsonschema import Draft202012Validator
 import builders as b
 from cpsat_engine.schema import Dump, Snapshot, parse_snapshot
 from cpsat_engine.solve import SolveResult, StageReport, to_generation_result
-from cpsat_engine.wire import canonical_json, canonical_snapshot_json, wire_stage_report
+from cpsat_engine.wire import (
+    canonical_json,
+    canonical_result_json,
+    canonical_snapshot_json,
+    wire_stage_report,
+)
 
 CONTRACTS = Path(__file__).resolve().parents[3] / "contracts"
 SCHEMA_PATH = CONTRACTS / "generation-wire.schema.json"
@@ -67,10 +72,13 @@ def test_snapshot_golden_round_trips_to_identical_canonical_bytes() -> None:
     assert canonical_snapshot_json(snapshot) == SNAPSHOT_GOLDEN.read_text()
 
 
-def test_result_golden_is_already_canonical() -> None:
-    """``canonical_json`` sorts keys but never reorders arrays, so this passes only if the committed
-    bytes already carry the declared array sorts."""
-    assert canonical_json(json.loads(RESULT_GOLDEN.read_text())) == RESULT_GOLDEN.read_text()
+def test_result_golden_round_trips_to_identical_canonical_bytes() -> None:
+    """Re-emit the golden through the Python result canonicalizer and compare BYTES.
+
+    Runs through ``canonical_result_json``, not bare ``canonical_json``: the latter sorts keys but
+    never reorders arrays, so it would pass whether or not this side implements the result-side sorts
+    at all. Going through the real canonicalizer is what makes a Python sort regression red here."""
+    assert canonical_result_json(json.loads(RESULT_GOLDEN.read_text())) == RESULT_GOLDEN.read_text()
 
 
 def test_goldens_carry_no_nulls() -> None:
@@ -83,6 +91,20 @@ def test_goldens_carry_no_nulls() -> None:
 
 def test_canonical_form_sorts_keys_drops_nones_and_is_compact() -> None:
     assert canonical_json({"b": 1, "a": {"d": None, "c": [2, 3]}}) == '{"a":{"c":[2,3]},"b":1}'
+
+
+def test_canonical_form_writes_non_ascii_raw_never_as_escapes() -> None:
+    """`JSON.stringify` emits the character; `json.dumps` escapes it unless told not to. Every string
+    on this wire is a UUID today, so only this test stands between the rule and a silent
+    `snapshot_hash` split the first time a non-ASCII id appears."""
+    assert canonical_json({"teacherKey": "Zoë"}) == '{"teacherKey":"Zoë"}'
+
+
+def test_canonical_form_refuses_non_finite_numbers() -> None:
+    """Python would write the bare token `NaN` — not JSON, and unreadable by `JSON.parse`, where
+    JavaScript writes `null`. Raising here beats shipping bytes no parser will take back."""
+    with pytest.raises(ValueError):
+        canonical_json({"wallClockS": float("nan")})
 
 
 def test_canonical_snapshot_is_invariant_to_input_order() -> None:
@@ -110,6 +132,38 @@ def test_canonical_snapshot_is_invariant_to_input_order() -> None:
 def test_canonical_snapshot_keeps_parked_ids_a_multiset() -> None:
     snapshot = b.snapshot(dp1=b.cohort(parked=["b", "a", "b"]))
     assert '"parkedCourseIds":["a","b","b"]' in canonical_snapshot_json(snapshot)
+
+
+def test_canonical_result_applies_the_declared_array_sorts() -> None:
+    """The result-side mirror of the snapshot's order-invariance test: two payloads carrying the same
+    board in different producer order must canonicalize to identical bytes."""
+    placements = [
+        {"cohort": "dp2", "courseId": "b", "day": 1, "period": 1, "week": "both"},
+        {"cohort": "dp1", "courseId": "a", "day": 2, "period": 3, "week": "both"},
+        {"cohort": "dp1", "courseId": "a", "day": 1, "period": 3, "week": "a"},
+    ]
+    unplaced = [{"courseId": "z", "missing": 1}, {"courseId": "a", "missing": 2}]
+
+    def result(board: list[dict[str, Any]], missing: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "placements": board,
+            "diagnostics": {
+                "engine": "cp-sat",
+                "elapsedMs": 1,
+                "partial": False,
+                "provenOptimal": True,
+                "cohorts": {
+                    "dp1": {"occupiedSlotsBefore": 0, "occupiedSlotsAfter": 1, "unplaced": missing},
+                    "dp2": {"occupiedSlotsBefore": 0, "occupiedSlotsAfter": 1, "unplaced": []},
+                },
+            },
+        }
+
+    canonical = canonical_result_json(result(placements, unplaced))
+
+    assert canonical == canonical_result_json(result(placements[::-1], unplaced[::-1]))
+    assert '"placements":[{"cohort":"dp1","courseId":"a","day":1,"period":3,"week":"a"}' in canonical
+    assert '"unplaced":[{"courseId":"a","missing":2},{"courseId":"z","missing":1}]' in canonical
 
 
 def test_canonical_snapshot_matches_the_schema(schema: dict[str, Any]) -> None:

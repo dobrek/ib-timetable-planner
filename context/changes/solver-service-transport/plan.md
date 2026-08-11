@@ -466,27 +466,27 @@ The app-side transport (`SOLVER_URL` + typed dispatch + health probe), mise pins
 
 #### Automated
 
-- [x] 3.1 `pnpm test` + `pnpm check` green with new parity assertions
-- [x] 3.2 Solver suite + mypy green with new contract tests
-- [x] 3.3 `contracts/generation-wire.schema.json` untouched
-- [x] 3.4 Golden regeneration reproduces `solve-request.json` byte-identically
+- [x] 3.1 `pnpm test` + `pnpm check` green with new parity assertions — 5105576
+- [x] 3.2 Solver suite + mypy green with new contract tests — 5105576
+- [x] 3.3 `contracts/generation-wire.schema.json` untouched — 5105576
+- [x] 3.4 Golden regeneration reproduces `solve-request.json` byte-identically — 5105576
 
 #### Manual
 
-- [x] 3.5 Fixture eyeball: UUID-only, no display text
+- [x] 3.5 Fixture eyeball: UUID-only, no display text — 5105576
 
 ### Phase 4: The HTTP wrapper (`cpsat_service`)
 
 #### Automated
 
-- [ ] 4.1 Solver lane fully green (`ruff`, `mypy`, `pytest` incl. `test_service.py`)
-- [ ] 4.2 `uv audit` clean or triaged
-- [ ] 4.3 Service boots; `/health` → 200
+- [x] 4.1 Solver lane fully green (`ruff`, `mypy`, `pytest` incl. `test_service.py`)
+- [x] 4.2 `uv audit` clean or triaged
+- [x] 4.3 Service boots; `/health` → 200
 
 #### Manual
 
-- [ ] 4.4 Real local-stack solve: row observed `queued → running → succeeded`, result eyeballed
-- [ ] 4.5 Duplicate POST is a no-op
+- [x] 4.4 Real local-stack solve: row observed `queued → running → succeeded`, result eyeballed
+- [x] 4.5 Duplicate POST is a no-op
 
 ### Phase 5: App seam, mise graduation, proof-of-life
 

@@ -126,6 +126,14 @@ jobs:
       - run: uv run mypy
       - run: uv run pytest
 
+      # The Python mirror of `pnpm audit --audit-level=high` in the verify job. It arrives with
+      # F-302 because that is when the surface stopped being trivial: adding the HTTP wrapper took
+      # this package from ONE direct dependency (ortools) to a ~50-package resolution, which is the
+      # exact moment health-check.md flagged for wiring a scan. `--preview-features audit` is not a
+      # tidy-up — `uv audit` is still experimental, and naming the preview keeps a future default
+      # flip from changing this step's behaviour silently.
+      - run: uv audit --preview-features audit
+
   bench:
     name: "Generation benchmark (non-blocking)"
     runs-on: ubuntu-latest

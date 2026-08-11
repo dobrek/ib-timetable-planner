@@ -479,25 +479,25 @@ The app-side transport (`SOLVER_URL` + typed dispatch + health probe), mise pins
 
 #### Automated
 
-- [x] 4.1 Solver lane fully green (`ruff`, `mypy`, `pytest` incl. `test_service.py`)
-- [x] 4.2 `uv audit` clean or triaged
-- [x] 4.3 Service boots; `/health` → 200
+- [x] 4.1 Solver lane fully green (`ruff`, `mypy`, `pytest` incl. `test_service.py`) — 4ac7843
+- [x] 4.2 `uv audit` clean or triaged — 4ac7843
+- [x] 4.3 Service boots; `/health` → 200 — 4ac7843
 
 #### Manual
 
-- [x] 4.4 Real local-stack solve: row observed `queued → running → succeeded`, result eyeballed
-- [x] 4.5 Duplicate POST is a no-op
+- [x] 4.4 Real local-stack solve: row observed `queued → running → succeeded`, result eyeballed — 4ac7843
+- [x] 4.5 Duplicate POST is a no-op — 4ac7843
 
 ### Phase 5: App seam, mise graduation, proof-of-life
 
 #### Automated
 
-- [ ] 5.1 `pnpm check` / `lint` / `steiger` / `test` / `build` green
-- [ ] 5.2 Proof-of-life integration test green locally
+- [x] 5.1 `pnpm check` / `lint` / `steiger` / `test` / `build` green
+- [x] 5.2 Proof-of-life integration test green locally
 - [ ] 5.3 Full CI green with the proof-of-life in the integration job
-- [ ] 5.4 `mise run solver:test` and `solver:check` succeed
+- [x] 5.4 `mise run solver:test` and `solver:check` succeed
 
 #### Manual
 
-- [ ] 5.5 Fresh dev-loop walkthrough (env:local → provision → solver:dev → test)
-- [ ] 5.6 `pnpm env:prod` leaves `SOLVER_URL` unset
+- [x] 5.5 Fresh dev-loop walkthrough (env:local → provision → solver:dev → test)
+- [x] 5.6 `pnpm env:prod` leaves `SOLVER_URL` unset

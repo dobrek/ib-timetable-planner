@@ -1,2 +1,41 @@
+# Cross-ecosystem toolchain and tasks.
+#
+# Division of labour, per CLAUDE.md: **pnpm scripts stay the JS-side canon** and no solver step ever
+# enters `package.json`. mise owns the Python side — it is the only place a developer can pick up
+# the solver's toolchain without knowing that `uv` exists — and it is the front door for the
+# cross-ecosystem commands that have no natural home in either package manager.
+#
+# CI deliberately does NOT run through mise: the `solver` job calls `uv` directly via
+# `astral-sh/setup-uv`. That is not duplication to be tidied away — the two paths run the SAME
+# underlying commands (`uv run ruff check`, `uv run mypy`, `uv run pytest`), so a drift between the
+# developer's front door and the gate shows up as a red build rather than as a local-only green.
+
 [env]
 _.path = ['{{config_root}}/node_modules/.bin']
+
+[tools]
+# Pinned to the version CI's `setup-uv` currently resolves. setup-uv has no version pinned in the
+# workflow and falls back to latest, so when it moves, move this with it — the point of the pin is
+# that a developer and the gate build the venv with the same resolver, not that the number is
+# frozen forever. Python itself is pinned by `services/solver/.python-version` (3.13), which uv
+# reads; duplicating it here would create a second source of truth for the interpreter.
+uv = "0.12.3"
+
+# --- solver (services/solver) ---------------------------------------------------------------------
+# ortools pins protobuf/numpy tightly, so this package owns a dedicated venv and every task runs
+# from its directory. `uv run` builds/refreshes that venv on demand — no activate step to forget.
+
+[tasks."solver:dev"]
+description = "Run the CP-SAT solver service on :8000 (needs the local Supabase stack + a provisioned machine user)"
+dir = "{{config_root}}/services/solver"
+run = "uv run uvicorn cpsat_service.app:app --port 8000"
+
+[tasks."solver:test"]
+description = "Run the solver's pytest suite (engine + contract + HTTP wrapper)"
+dir = "{{config_root}}/services/solver"
+run = "uv run pytest"
+
+[tasks."solver:check"]
+description = "Lint and type-check the solver — the same two gates CI's solver job runs"
+dir = "{{config_root}}/services/solver"
+run = ["uv run ruff check", "uv run mypy"]

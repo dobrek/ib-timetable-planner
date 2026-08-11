@@ -66,6 +66,18 @@ export * from "./model/export/perspective-workbook";
 // Test-fixture builders travel with the domain; consumer-slice tests import them
 // through this barrel so no cross-slice deep import exists.
 export * from "./model/__fixtures__/builders";
+// The CP-SAT solver seam — the PURE factory only.
+//
+// Its sibling `api/solver-config.ts` is deliberately NOT re-exported here: it imports
+// `astro:env/server`, and this barrel is pulled into the Web Worker bundle by
+// `_pages/plan-detail/model/generation/generate.worker.ts`. Astro's env plugin throws
+// `[ServerOnlyModule]` at LOAD time in a client build, before tree-shaking could drop the unused
+// export, so a single server-only module in this barrel fails `pnpm build` outright.
+//
+// Everything in this file must therefore stay client-safe. Server-side callers reach the env-gated
+// factory at its own path (`@/entities/timetable/api/solver-config`), the same way `createClient`
+// in `shared/api` is only ever reached from server code.
+export * from "./api/solver-transport";
 export * from "./lib/period-breaks";
 export * from "./lib/period-times";
 export { default as CollisionDetailsDialog, type CollisionInspectionTarget } from "./ui/CollisionDetailsDialog";

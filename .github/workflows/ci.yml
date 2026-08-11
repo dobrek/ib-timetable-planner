@@ -45,6 +45,53 @@ jobs:
         with:
           export-anon-key: "true"
 
+      # --- the CP-SAT solver service (F-302 proof-of-life) ------------------------------------
+      # `solver-transport.integration.test.ts` drives a real job row `queued -> running ->
+      # succeeded` through the actual service, over the actual credential path. That is the ONE
+      # test in this change that can tell a correct write from a merely-well-formed one, so it
+      # runs on every push rather than "when someone remembers" — the POC's recorded lesson.
+      #
+      # Env isolation holds exactly as it does for the stack itself: the password is minted per
+      # run, the URL and keys come from this job's own ephemeral stack, and no repo secret is
+      # readable here. Pointing this at production is precisely what that separation prevents.
+      - name: Provision the solver machine user
+        run: |
+          SOLVER_MACHINE_PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::$SOLVER_MACHINE_PASSWORD"
+          echo "SOLVER_MACHINE_PASSWORD=$SOLVER_MACHINE_PASSWORD" >> "$GITHUB_ENV"
+          SOLVER_MACHINE_PASSWORD="$SOLVER_MACHINE_PASSWORD" node scripts/provision-solver-user.mjs
+
+      # Same EXACT pin caveat as the `solver` job: astral-sh/setup-uv publishes moving major tags
+      # only up to v7, so `@v9` does not resolve. Bump deliberately; do not "tidy" to a bare major.
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          working-directory: services/solver
+      - run: uv sync --locked
+        working-directory: services/solver
+
+      # Background service + a HEALTH POLL, not a sleep: a fixed sleep is either flaky or slow, and
+      # it cannot tell "still booting" from "died on startup". Output goes to a file so the
+      # `if: failure()` step below can surface it — without that, a service that dies mid-suite
+      # reduces to a bare vitest poll timeout with zero explanation, which is the silent-failure
+      # class this change avoids everywhere else.
+      - name: Start the solver service
+        working-directory: services/solver
+        run: |
+          uv run uvicorn cpsat_service.app:app --port 8000 > "$RUNNER_TEMP/solver.log" 2>&1 &
+          SOLVER_PID=$!
+          for _ in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8000/health > /dev/null; then
+              echo "SOLVER_URL=http://127.0.0.1:8000" >> "$GITHUB_ENV"
+              echo "solver service is up"
+              exit 0
+            fi
+            if ! kill -0 "$SOLVER_PID" 2>/dev/null; then
+              echo "solver service died during startup"; cat "$RUNNER_TEMP/solver.log"; exit 1
+            fi
+            sleep 1
+          done
+          echo "solver service never answered /health"; cat "$RUNNER_TEMP/solver.log"; exit 1
+
       # Plan-rooted isolation (Phase 3) makes the lane DATA-safe under parallelism:
       # every suite owns a fresh plan and tears it down, reading no shared seed state.
       # `--maxWorkers=2` is a separate, RESOURCE concern: nine suites hammering the
@@ -53,6 +100,12 @@ jobs:
       # files keeps real parallelism while staying under that ceiling. CI-only — local
       # `pnpm test:integration` runs unconstrained.
       - run: pnpm test:integration --maxWorkers=2
+
+      # The whole point of writing the log to a file: a solver that crashed mid-suite would
+      # otherwise present only as a vitest timeout with nothing to read.
+      - name: Solver service log
+        if: failure()
+        run: cat "$RUNNER_TEMP/solver.log"
 
   e2e:
     name: "E2E tests"

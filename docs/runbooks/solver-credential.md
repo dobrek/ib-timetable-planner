@@ -179,10 +179,31 @@ All of this is verifiable against the **local** stack, where the hook is already
 job boots that same config. **F-302 needs no hosted setup** — it is local-fidelity tier 1 by
 definition (native uvicorn + `SOLVER_URL` + local Supabase).
 
-- [ ] Container reads `SUPABASE_URL`, `SUPABASE_KEY` (publishable), `SOLVER_MACHINE_PASSWORD`.
-- [ ] Container re-runs the password grant near expiry; it never refreshes.
-- [ ] Every poll uses a **narrow column projection** — `select()` with no argument drags the
+All three are **implemented and pinned** as of F-302 — the citations are what to re-read if any of
+them is ever in question.
+
+- [x] Container reads `SUPABASE_URL`, `SUPABASE_KEY` (publishable), `SOLVER_MACHINE_PASSWORD`.
+      → `services/solver/src/cpsat_service/settings.py`. No secret key is read anywhere; startup
+      succeeds without them so `/health` answers on a bare container, and the first job fails loudly.
+- [x] Container re-runs the password grant near expiry; it never refreshes.
+      → `JobRowClient.sign_in` (`cpsat_service/supabase.py`), re-granting past `TOKEN_MAX_AGE_S`
+      (3000 s, inside the 3600 s `jwt_expiry`). Pinned by
+      `test_an_aged_token_is_re_minted_with_the_password_grant_never_a_refresh`, which asserts both
+      that the second call is a password grant and that no refresh token is ever sent.
+- [x] Every poll uses a **narrow column projection** — `select()` with no argument drags the
       ~124 KB TOASTed snapshot on every request (see the `generation_jobs` migration header).
+      → every request in `cpsat_service/supabase.py` carries `select=id`; asserted per-call in
+      `test_successful_solve_claims_then_writes_the_result`.
+
+Two behaviours worth knowing that the original checklist did not anticipate:
+
+- **The claim is a compare-and-set**, `PATCH …?id=eq.{id}&status=eq.queued`. The RLS `WITH CHECK`
+  window permits `running → running`, so the policy cannot stop a duplicate dispatch — the filter
+  is what does, and it is the only guard that survives a container restart.
+- **A sign-in failure leaves the row `queued` with nothing written**, because the container has no
+  credential to write an error WITH. The service log is the entire trace (WARNING level, so it is
+  not swallowed by uvicorn's root-logger default). S-304's heartbeat is what turns this into a
+  detectable state rather than a silent one.
 
 ## Checklist for S-302 — hosted enablement, before the first hosted container run
 

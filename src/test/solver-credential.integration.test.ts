@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { computeSnapshotHash } from "@/entities/timetable";
 import { createPlan, teardown } from "@/test/factories";
-import { connectPostgres, heldPrivileges } from "./postgres-client";
+import { connectPostgres, heldColumnPrivileges, heldPrivileges } from "./postgres-client";
 import { readPublishableKey } from "./publishable-key";
 
 /**
@@ -136,9 +136,35 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     expect(after.data?.status).toBe("succeeded");
   });
 
-  it("holds SELECT and UPDATE on generation_jobs at the grant layer, and nothing on plans", async () => {
-    expect(await heldPrivileges(pg, "solver_job_writer", "public.generation_jobs")).toEqual(["SELECT", "UPDATE"]);
+  it("holds SELECT on generation_jobs at the grant layer — no table-wide UPDATE — and nothing on plans", async () => {
+    // Only SELECT: `has_table_privilege` answers for TABLE-level grants, and UPDATE is granted per
+    // column below, so its absence here is the proof that no table-wide UPDATE exists.
+    expect(await heldPrivileges(pg, "solver_job_writer", "public.generation_jobs")).toEqual(["SELECT"]);
     expect(await heldPrivileges(pg, "solver_job_writer", "public.plans")).toEqual([]);
+  });
+
+  it("holds UPDATE on the progress columns only — never on the solve input or the delivery fields", async () => {
+    // The load-bearing half: the RLS window (`status in ('queued','running')`) stays open for a
+    // job's whole run, so the column list IS the write boundary. Without it the container could
+    // rewrite `snapshot`/`snapshot_hash` — the T0 drift baseline it is judged against.
+    expect(await heldColumnPrivileges(pg, "solver_job_writer", "public.generation_jobs", "UPDATE")).toEqual([
+      "checkpoint",
+      "checkpoint_stage_index",
+      "error",
+      "finished_at",
+      "heartbeat_at",
+      "result",
+      "stage_index",
+      "stage_name",
+      "stages",
+      "started_at",
+      "status",
+    ]);
+
+    // SELECT stays table-wide — the solver needs the whole row to solve at all.
+    expect(await heldColumnPrivileges(pg, "solver_job_writer", "public.generation_jobs", "SELECT")).toContain(
+      "snapshot",
+    );
   });
 
   it("has no BYPASSRLS attribute — the policies above are load-bearing", async () => {

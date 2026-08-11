@@ -44,15 +44,24 @@ access token                role: solver_job_writer
 PostgREST                   set role solver_job_writer   (authenticator holds membership)
         │
         ▼
-Postgres                    GRANT: select, update on generation_jobs — and nothing else
+Postgres                    GRANT: select on generation_jobs; update on its
+                                   progress COLUMNS only — and nothing else
                             RLS:   read any job; update only non-terminal ones,
                                    only into a state the solver may declare
 ```
 
-Two locks, and both are needed. The GRANT layer decides whether a table is **reachable at all**; RLS
-decides which **rows** are visible. `solver_job_writer` has no `BYPASSRLS`, no `INSERT` (the Worker
-enqueues), no `DELETE` (a job row is the record of a run), and no `alter default privileges` — so a
-table added tomorrow is unreachable to it until someone deliberately grants it.
+Three locks, and all three are needed. The GRANT layer decides whether a table is **reachable at
+all**; the column grant decides which **fields** are writable; RLS decides which **rows** are
+visible. `solver_job_writer` has no `BYPASSRLS`, no `INSERT` (the Worker enqueues), no `DELETE` (a
+job row is the record of a run), and no `alter default privileges` — so a table added tomorrow is
+unreachable to it until someone deliberately grants it.
+
+The column scope matters because RLS alone would not contain a bad write: a job sits inside the
+policy's `status in ('queued','running')` window for its entire run, so a table-wide UPDATE would let
+the container rewrite `snapshot`/`snapshot_hash` (the T0 drift baseline it is judged against),
+`policy`, `plan_id`, or the `delivery`/`delivered_plan_id` fields the auto-apply path reads. The
+solver may write only what it authors: `status`, `result`, `error`, the timestamps, and the
+stage/checkpoint progress columns.
 
 Files:
 

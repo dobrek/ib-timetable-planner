@@ -52,3 +52,27 @@ export const heldPrivileges = async (client: Client, role: string, table: string
     .map((row) => row.verb)
     .sort();
 };
+
+/**
+ * Which columns of `table` the role holds `verb` on, straight from the catalog.
+ *
+ * `has_table_privilege` reports true when the role holds the verb on ANY column, so it cannot tell a
+ * table-wide grant from a column-scoped one — this is the probe that can. Returns sorted names.
+ */
+export const heldColumnPrivileges = async (
+  client: Client,
+  role: string,
+  table: string,
+  verb: TablePrivilege,
+): Promise<string[]> => {
+  const { rows } = await client.query<{ column_name: string }>(
+    `select column_name
+       from information_schema.columns
+      where table_schema = split_part($2, '.', 1)
+        and table_name = split_part($2, '.', 2)
+        and has_column_privilege($1, $2, column_name, $3)
+      order by column_name`,
+    [role, table, verb],
+  );
+  return rows.map((row) => row.column_name);
+};

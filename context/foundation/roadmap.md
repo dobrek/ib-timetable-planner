@@ -21,37 +21,37 @@ The timetable editor's only generation engine is a client-side greedy solver at 
 
 ## North star
 
-**S-301: Author starts a CP-SAT job and receives a complete, oracle-verified board on the proposal plan** — the smallest end-to-end flow that proves the change's core hypothesis (the claim everything else depends on): that a production CP-SAT service can deliver the complete, quality-optimized board *as a proposal*, through the existing oracle trust boundary, without ever locking the author's editing.
+**S-301: Author starts a CP-SAT job and receives a complete, oracle-verified board on the proposal plan** — the smallest end-to-end flow that proves the change's core hypothesis (the claim everything else depends on): that a production CP-SAT service can deliver the complete, quality-optimized board _as a proposal_, through the existing oracle trust boundary, without ever locking the author's editing.
 
 > The **north star** is the smallest end-to-end slice whose successful delivery would prove that claim — placed as early as its prerequisites allow, because everything else (progress, stop-&-keep, drift delivery, calibration, retirement) only matters if this works. It sits immediately after the two foundations because it exercises every new layer at once: the frozen contract, the jobs schema, the solver service, and the server-side oracle.
 
 ## At a glance
 
-| ID   | Change ID                       | Outcome (user can …)                                                                    | Prerequisites          | PRD refs                                                          | Status   |
-| ---- | ------------------------------- | --------------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------- | -------- |
-| F-301 | solver-contract-and-jobs-schema | (foundation) frozen wire-contract artifact + durable jobs schema, least-privilege machine access | —                      | FR-301, FR-310, §Constraints & Compatibility, §Access Control Changes | done     |
-| F-302 | solver-service-transport        | (foundation) promoted solver package accepts jobs over HTTP, writes durable status/results | F-301                   | FR-310, FR-316                                                    | proposed |
-| S-301 | first-verified-proposal         | start a CP-SAT job (clean-mode default) and receive a complete, oracle-verified board on the proposal plan | F-301, F-302             | FR-301, FR-302, FR-303, FR-308, FR-310, FR-313, US-301             | proposed |
-| S-302 | solver-deploy-lane              | (maintainer) ship app + solver with one merge to main; container runs attached to the Worker | F-302                   | FR-315, FR-316                                                    | proposed |
-| S-303 | staged-progress-and-checkpoints | watch a job stage by stage; every completed stage durably checkpoints a strictly better board | S-301                   | FR-303, FR-304, FR-308, FR-312                                    | proposed |
-| S-304 | job-aware-container-lifecycle   | a running job survives container sleep, crash, and deploy — at most the in-flight stage is lost | S-302, S-303             | FR-311                                                            | proposed |
-| S-305 | stop-and-keep                   | stop a running job and keep the best completed-stage board                              | S-303                   | FR-305, US-302                                                     | proposed |
-| S-306 | drift-decided-delivery          | unchanged source auto-updates; changed source yields a new plan reviewed on the comparison page | S-301                   | FR-306, FR-307, FR-313, US-301, US-303                              | proposed |
-| S-307 | solve-policy-choice             | choose the solve policy at launch — canonical order and trade-off dial join the clean default | S-301                   | FR-302                                                            | proposed |
-| S-308 | production-calibration-campaign | see honest, production-calibrated budgets/targets; the default-switch gate is evaluated | S-304                   | FR-303, FR-314, Non-functional guardrails                         | proposed |
-| S-309 | greedy-retirement               | Generate defaults to CP-SAT; the greedy engine + Web Worker path are deleted            | S-305, S-306, S-307, S-308 | FR-312, FR-314                                                    | proposed |
-| S-310 | job-completion-email            | get notified of completion by email as well as in-app — "kick it off and walk away"     | S-306                   | FR-309                                                            | proposed |
+| ID    | Change ID                       | Outcome (user can …)                                                                                       | Prerequisites              | PRD refs                                                              | Status   |
+| ----- | ------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------- | -------- |
+| F-301 | solver-contract-and-jobs-schema | (foundation) frozen wire-contract artifact + durable jobs schema, least-privilege machine access           | —                          | FR-301, FR-310, §Constraints & Compatibility, §Access Control Changes | done     |
+| F-302 | solver-service-transport        | (foundation) promoted solver package accepts jobs over HTTP, writes durable status/results                 | F-301                      | FR-310, FR-316                                                        | proposed |
+| S-301 | first-verified-proposal         | start a CP-SAT job (clean-mode default) and receive a complete, oracle-verified board on the proposal plan | F-301, F-302               | FR-301, FR-302, FR-303, FR-308, FR-310, FR-313, US-301                | proposed |
+| S-302 | solver-deploy-lane              | (maintainer) ship app + solver with one merge to main; container runs attached to the Worker               | F-302                      | FR-315, FR-316                                                        | proposed |
+| S-303 | staged-progress-and-checkpoints | watch a job stage by stage; every completed stage durably checkpoints a strictly better board              | S-301                      | FR-303, FR-304, FR-308, FR-312                                        | proposed |
+| S-304 | job-aware-container-lifecycle   | a running job survives container sleep, crash, and deploy — at most the in-flight stage is lost            | S-302, S-303               | FR-311                                                                | proposed |
+| S-305 | stop-and-keep                   | stop a running job and keep the best completed-stage board                                                 | S-303                      | FR-305, US-302                                                        | proposed |
+| S-306 | drift-decided-delivery          | unchanged source auto-updates; changed source yields a new plan reviewed on the comparison page            | S-301                      | FR-306, FR-307, FR-313, US-301, US-303                                | proposed |
+| S-307 | solve-policy-choice             | choose the solve policy at launch — canonical order and trade-off dial join the clean default              | S-301                      | FR-302                                                                | proposed |
+| S-308 | production-calibration-campaign | see honest, production-calibrated budgets/targets; the default-switch gate is evaluated                    | S-304                      | FR-303, FR-314, Non-functional guardrails                             | proposed |
+| S-309 | greedy-retirement               | Generate defaults to CP-SAT; the greedy engine + Web Worker path are deleted                               | S-305, S-306, S-307, S-308 | FR-312, FR-314                                                        | proposed |
+| S-310 | job-completion-email            | get notified of completion by email as well as in-app — "kick it off and walk away"                        | S-306                      | FR-309                                                                | proposed |
 
 ## Streams
 
 Navigation aid — groups items that share a Prerequisites chain. Canonical ordering still lives in the dependency graph below; this table is the proposed reading order across parallel tracks.
 
-| Stream | Theme                              | Chain                                    | Note                                                                                                    |
-| ------ | ---------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| A      | Contract → service → first proposal | `F-301` → `F-302` → `S-301`                 | The north-star track; quality-sequenced — the contract parity gate and server-side oracle land before any UI promise. |
-| B      | Platform proof & retirement        | `S-302` → `S-304` → `S-308` → `S-309`        | The external-blocker track, started as early as F-302 allows; joins Stream C at `S-304` (SIGTERM persistence needs S-303's checkpoints). |
-| C      | Job experience                     | `S-303` → `S-305`                          | Stage-by-stage progress + durable checkpoints, then Stop & keep; runs parallel with Stream B's deploy lane. |
-| D      | Delivery, policy & notification    | `S-306` → `S-310`, with `S-307` parallel    | Drift-decided delivery and the launch-time policy picker both hang directly off `S-301`; email tails delivery. |
+| Stream | Theme                               | Chain                                    | Note                                                                                                                                     |
+| ------ | ----------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| A      | Contract → service → first proposal | `F-301` → `F-302` → `S-301`              | The north-star track; quality-sequenced — the contract parity gate and server-side oracle land before any UI promise.                    |
+| B      | Platform proof & retirement         | `S-302` → `S-304` → `S-308` → `S-309`    | The external-blocker track, started as early as F-302 allows; joins Stream C at `S-304` (SIGTERM persistence needs S-303's checkpoints). |
+| C      | Job experience                      | `S-303` → `S-305`                        | Stage-by-stage progress + durable checkpoints, then Stop & keep; runs parallel with Stream B's deploy lane.                              |
+| D      | Delivery, policy & notification     | `S-306` → `S-310`, with `S-307` parallel | Drift-decided delivery and the launch-time policy picker both hang directly off `S-301`; email tails delivery.                           |
 
 ## Baseline
 
@@ -63,7 +63,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Backend / API:** present — Astro Actions are the single mutation/compute transport.
 - **Data:** present — Supabase Postgres, 51 migrations.
 - **Auth:** present — email/password, deny-by-default `src/middleware.ts`, single Author role. Human-facing auth is unchanged in this change.
-- **Deploy / infra:** present *for the app* — GitHub Actions gate-then-deploy (`ci.yml`: verify/integration/e2e/bench/deploy → wrangler-action + `supabase db push`).
+- **Deploy / infra:** present _for the app_ — GitHub Actions gate-then-deploy (`ci.yml`: verify/integration/e2e/bench/deploy → wrangler-action + `supabase db push`).
 - **Observability:** partial — Cloudflare observability only. Not promoted to a foundation; the PRD demands job-status durability, not telemetry.
 
 **Change-specific:**
@@ -108,7 +108,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 ## Slices
 
-### S-301: First verified proposal  *(north star)*
+### S-301: First verified proposal _(north star)_
 
 - **Outcome:** Author can start a CP-SAT solve on an existing plan with the shipped clean-mode default policy: the app settles unsaved board state, clones the plan as the proposal target, assembles the snapshot from the clone server-side, records a durable job (one active job per source plan), and dispatches it to the solver; on completion the complete board passes the **server-side** oracle (the relocated runner seam) and lands on the proposal plan through the atomic RPC, ready to open. Runs against the native/local solver — production deploy is S-302.
 - **Change ID:** first-verified-proposal
@@ -116,8 +116,9 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Prerequisites:** F-301, F-302
 - **Parallel with:** S-302
 - **Blockers:** —
-- **Unknowns:** —
-- **Risk:** The proof that the whole architecture hangs together — contract, jobs schema, service, and the oracle moved server-side (FR-313's pinned resolution) are exercised in one flow; if the seams don't compose, better to learn here than after the deploy lane and UI investment. Carries FR-302's *default* only (policy selection UI is S-307) and FR-303's Mode A + ladder under budget ceilings (target-stopping machinery is S-303). Sequenced immediately after the foundations because, per `main_goal: quality`, no UI promise is made before the trust boundary works end-to-end.
+- **Unknowns:**
+  - **Clean mode is not implemented in the engine — added 2026-08-11 (F-302 research).** This slice's outcome ships "the shipped clean-mode default policy", but `softHits` exists only as tier 5 of the objective (`objective.py:60,172`); nothing anywhere constrains it to `0` as a hard rule, so clean mode (`softHits ≡ 0`) has no implementation. Whoever ships the default must build it — it is **not** inherited from the POC and **not** deferrable to S-307 (which adds the selectable alternatives on top of the default). Owner: plan phase. Block: no, but it is engine work this slice's estimate did not previously carry.
+- **Risk:** The proof that the whole architecture hangs together — contract, jobs schema, service, and the oracle moved server-side (FR-313's pinned resolution) are exercised in one flow; if the seams don't compose, better to learn here than after the deploy lane and UI investment. Carries FR-302's _default_ only (policy selection UI is S-307) and FR-303's Mode A + ladder under budget ceilings (target-stopping machinery is S-303) — but see Unknowns: that default is net-new engine work, not existing configuration. Sequenced immediately after the foundations because, per `main_goal: quality`, no UI promise is made before the trust boundary works end-to-end.
 - **Status:** proposed
 
 ### S-302: Solver deploy lane
@@ -160,7 +161,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 ### S-305: Stop & keep
 
-- **Outcome:** Author can stop a running job and keep the best checkpointed board ("Stop & keep"), mirroring the greedy path's existing cancel semantics; the affordance states exactly what will be kept — the last *completed* stage's board, not the in-flight stage — and the kept board is delivered onto the proposal clone rather than discarded.
+- **Outcome:** Author can stop a running job and keep the best checkpointed board ("Stop & keep"), mirroring the greedy path's existing cancel semantics; the affordance states exactly what will be kept — the last _completed_ stage's board, not the in-flight stage — and the kept board is delivered onto the proposal clone rather than discarded.
 - **Change ID:** stop-and-keep
 - **PRD refs:** FR-305, US-302
 - **Prerequisites:** S-303
@@ -191,7 +192,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Parallel with:** S-303, S-304, S-305, S-306, S-310
 - **Blockers:** —
 - **Unknowns:** —
-- **Risk:** Small, additive launch-surface work — policy is already request-level configuration in the engine (the POC's ladder is policy-parameterized), so the risk is UI clarity, not mechanism. Sequenced off S-301 and kept independent so it never blocks the delivery or platform tracks; it must land before retirement (FR-302 is part of the proposal flow FR-314 gates on).
+- **Risk:** **Re-scoped 2026-08-11 (F-302 research) — this is engine work, not just launch-surface work.** The earlier claim that "policy is already request-level configuration in the engine (the POC's ladder is policy-parameterized)" was verified against the code and **does not hold**: the tier order is a hardcoded tuple literal (`objective.py:55-66`), `solve_staged` hardcodes the ladder as `range(1, 10)` (`solve.py:152`), and `SolveConfig` (`solve.py:30-40`) has no tier-order and no hard/soft field — only budgets, seed, workers, hops, log_dir. The POC's three-board frontier was produced by editing the tier tuple, not through a public knob. So the risk is **mechanism as well as UI clarity**: this slice must first plumb tier order and the hard/soft split through `SolveConfig` and `_run_ladder` before any launch-time picker can mean anything. Note the _clean-mode default itself_ is a separate prerequisite carried by S-301 (see that slice's Unknowns) — S-307 adds the selectable **alternatives** on top of it. Sequenced off S-301 and kept independent so it never blocks the delivery or platform tracks; it must land before retirement (FR-302 is part of the proposal flow FR-314 gates on).
 - **Status:** proposed
 
 ### S-308: Production calibration campaign
@@ -236,20 +237,20 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**, tracking issue [#108](https://github.com/dobrek/ib-timetable-planner/issues/108) (dependency-ordered checklist). One issue per item, below.
 
-| Roadmap ID | Change ID                       | Issue | Suggested issue title                                                       | Ready for `/10x-plan` | Notes |
-| ---------- | ------------------------------- | ----- | ---------------------------------------------------------------------------- | --------------------- | ----- |
-| F-301       | solver-contract-and-jobs-schema | [#96](https://github.com/dobrek/ib-timetable-planner/issues/96) | Frozen wire-contract artifact + generation_jobs schema (least privilege)     | yes                   | Run `/10x-plan solver-contract-and-jobs-schema` — no prerequisites |
-| F-302       | solver-service-transport        | [#97](https://github.com/dobrek/ib-timetable-planner/issues/97) | Promote solver to services/solver with HTTP transport + wrapper tests        | no                    | Promotes to `ready` once F-301 done |
-| S-301       | first-verified-proposal         | [#98](https://github.com/dobrek/ib-timetable-planner/issues/98) | First end-to-end CP-SAT proposal: start job → oracle-verified board (north star) | no                | Promotes to `ready` once F-301 + F-302 done |
-| S-302       | solver-deploy-lane              | [#99](https://github.com/dobrek/ib-timetable-planner/issues/99) | Container deploy lane: path-filtered solver CI + image ship with the Worker  | no                    | Promotes to `ready` once F-302 done; parallel with S-301 |
-| S-303       | staged-progress-and-checkpoints | [#100](https://github.com/dobrek/ib-timetable-planner/issues/100) | Solve-to-target + per-stage checkpoints + polling progress UI                | no                    | Promotes to `ready` once S-301 done |
-| S-304       | job-aware-container-lifecycle   | [#101](https://github.com/dobrek/ib-timetable-planner/issues/101) | Job-aware lifecycle: activity renewal + SIGTERM checkpoint persistence       | no                    | Promotes to `ready` once S-302 + S-303 done |
-| S-305       | stop-and-keep                   | [#102](https://github.com/dobrek/ib-timetable-planner/issues/102) | Stop & keep the best completed-stage board                                   | no                    | Promotes to `ready` once S-303 done |
-| S-306       | drift-decided-delivery          | [#103](https://github.com/dobrek/ib-timetable-planner/issues/103) | Drift-decided delivery: auto-apply unchanged source / new plan on drift      | no                    | Promotes to `ready` once S-301 done |
-| S-307       | solve-policy-choice             | [#104](https://github.com/dobrek/ib-timetable-planner/issues/104) | Launch-time solve-policy choice (canonical order + trade-off dial)           | no                    | Promotes to `ready` once S-301 done |
-| S-308       | production-calibration-campaign | [#105](https://github.com/dobrek/ib-timetable-planner/issues/105) | Calibration campaign on production hardware — set budgets/targets, evaluate gate | no                | Promotes to `ready` once S-304 done |
-| S-309       | greedy-retirement               | [#106](https://github.com/dobrek/ib-timetable-planner/issues/106) | Retire greedy: CP-SAT default Generate, delete Web Worker path               | no                    | Promotes to `ready` once S-305 + S-306 + S-307 + S-308 done |
-| S-310       | job-completion-email            | [#107](https://github.com/dobrek/ib-timetable-planner/issues/107) | Email notification on job completion                                         | no                    | Promotes to `ready` once S-306 done; nice-to-have |
+| Roadmap ID | Change ID                       | Issue                                                             | Suggested issue title                                                            | Ready for `/10x-plan` | Notes                                                              |
+| ---------- | ------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------ |
+| F-301      | solver-contract-and-jobs-schema | [#96](https://github.com/dobrek/ib-timetable-planner/issues/96)   | Frozen wire-contract artifact + generation_jobs schema (least privilege)         | yes                   | Run `/10x-plan solver-contract-and-jobs-schema` — no prerequisites |
+| F-302      | solver-service-transport        | [#97](https://github.com/dobrek/ib-timetable-planner/issues/97)   | Promote solver to services/solver with HTTP transport + wrapper tests            | yes                   | F-301 done 2026-08-11. Feasibility researched — see `context/changes/solver-service-transport/research.md` (no blockers; 8 decisions pre-recorded in `change.md`) |
+| S-301      | first-verified-proposal         | [#98](https://github.com/dobrek/ib-timetable-planner/issues/98)   | First end-to-end CP-SAT proposal: start job → oracle-verified board (north star) | no                    | Promotes to `ready` once F-301 + F-302 done                        |
+| S-302      | solver-deploy-lane              | [#99](https://github.com/dobrek/ib-timetable-planner/issues/99)   | Container deploy lane: path-filtered solver CI + image ship with the Worker      | no                    | Promotes to `ready` once F-302 done; parallel with S-301           |
+| S-303      | staged-progress-and-checkpoints | [#100](https://github.com/dobrek/ib-timetable-planner/issues/100) | Solve-to-target + per-stage checkpoints + polling progress UI                    | no                    | Promotes to `ready` once S-301 done                                |
+| S-304      | job-aware-container-lifecycle   | [#101](https://github.com/dobrek/ib-timetable-planner/issues/101) | Job-aware lifecycle: activity renewal + SIGTERM checkpoint persistence           | no                    | Promotes to `ready` once S-302 + S-303 done                        |
+| S-305      | stop-and-keep                   | [#102](https://github.com/dobrek/ib-timetable-planner/issues/102) | Stop & keep the best completed-stage board                                       | no                    | Promotes to `ready` once S-303 done                                |
+| S-306      | drift-decided-delivery          | [#103](https://github.com/dobrek/ib-timetable-planner/issues/103) | Drift-decided delivery: auto-apply unchanged source / new plan on drift          | no                    | Promotes to `ready` once S-301 done                                |
+| S-307      | solve-policy-choice             | [#104](https://github.com/dobrek/ib-timetable-planner/issues/104) | Launch-time solve-policy choice (canonical order + trade-off dial)               | no                    | Promotes to `ready` once S-301 done                                |
+| S-308      | production-calibration-campaign | [#105](https://github.com/dobrek/ib-timetable-planner/issues/105) | Calibration campaign on production hardware — set budgets/targets, evaluate gate | no                    | Promotes to `ready` once S-304 done                                |
+| S-309      | greedy-retirement               | [#106](https://github.com/dobrek/ib-timetable-planner/issues/106) | Retire greedy: CP-SAT default Generate, delete Web Worker path                   | no                    | Promotes to `ready` once S-305 + S-306 + S-307 + S-308 done        |
+| S-310      | job-completion-email            | [#107](https://github.com/dobrek/ib-timetable-planner/issues/107) | Email notification on job completion                                             | no                    | Promotes to `ready` once S-306 done; nice-to-have                  |
 
 ## Open Roadmap Questions
 

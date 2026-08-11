@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -122,7 +123,7 @@ def load_dump(path: str | Path) -> Dump:
         format_version=version,
         meta=raw["meta"],
         snapshot=snapshot,
-        greedy_placements=tuple(_placement(p) for p in raw["greedy"]["placements"]),
+        greedy_placements=parse_placements(raw["greedy"]["placements"]),
         greedy_diagnostics=raw["greedy"]["diagnostics"],
         objective=tuple(int(v) for v in raw["objective"]),
     )
@@ -160,6 +161,16 @@ def parse_snapshot(raw: dict[str, Any]) -> Snapshot:
         finishes_early_by_course_id=frozenset(raw["finishesEarlyByCourseId"]),
         cohorts={cohort: _cohort(raw["cohorts"][cohort]) for cohort in COHORTS},
     )
+
+
+def parse_placements(raw: Iterable[dict[str, Any]]) -> tuple[Placement, ...]:
+    """Parse a ``GeneratedPlacement[]`` payload — a dump's greedy board, or a ``SolveRequest``'s
+    ``warmStart``.
+
+    Public for the same reason :func:`parse_snapshot` is: a placement array is a contract payload in
+    its own right, and the HTTP wrapper receives one without a dump envelope around it.
+    """
+    return tuple(_placement(p) for p in raw)
 
 
 def _cohort(raw: dict[str, Any]) -> CohortSnapshot:

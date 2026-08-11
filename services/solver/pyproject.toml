@@ -1,11 +1,24 @@
 [project]
 name = "cpsat-engine"
 version = "0.1.0"
-description = "Local CP-SAT solver POC for IB timetable generation, shaped as a future backend-service core."
+description = "CP-SAT solver service for IB timetable generation: a pure engine plus a thin HTTP wrapper."
 requires-python = ">=3.13"
 dependencies = [
   # ortools pins protobuf/numpy tightly — this project owns a dedicated uv venv, never a shared one.
   "ortools>=9.15,<9.16",
+  # The `cpsat_service` HTTP wrapper. `cpsat_engine` imports none of these — the engine stays
+  # transport-agnostic and the service depends on the engine, never the reverse.
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.34",
+  # The ONLY Supabase client: the runbook settles that httpx alone suffices, which matters because
+  # the SDK would drag a second resolution pass across the ortools protobuf/numpy pins.
+  "httpx>=0.28",
+  # RUNTIME, not test-lane. F-302 deliberately inverts the old "TEST-LANE concern only" note below:
+  # the wrapper accepts arbitrary HTTP JSON and the engine does raw dict access (a malformed body
+  # would raise a bare KeyError), so the boundary MUST validate — and it validates against
+  # `contracts/generation-wire.schema.json` itself rather than a hand-written Pydantic projection,
+  # which would be a third projection of a document owned by neither side, free to drift from both.
+  "jsonschema>=4",
 ]
 
 [project.scripts]
@@ -15,10 +28,12 @@ cpsat = "cpsat_engine.cli:main"
 dev = [
   "pytest>=8",
   "ruff>=0.8",
-  # Wire-contract validation is a TEST-LANE concern only: the frozen schema in `contracts/` gates
-  # the goldens here, and nothing validates inside the solve path (see contracts/README.md).
-  "jsonschema>=4",
   "mypy>=1.14",
+  # TEST-LANE ONLY, and not interchangeable with the runtime `httpx` above: starlette's TestClient
+  # drives itself through httpx2 and warns (soon: fails) when only httpx 0.x is present. The service
+  # deliberately stays on `httpx`, which is the client the runbook settled on and the one the
+  # ortools pins were verified against — this dependency buys the test harness, nothing else.
+  "httpx2>=2",
   # jsonschema ships no inline types; without this stub package `--strict` reports the whole
   # contract test module as untyped rather than checking it.
   "types-jsonschema>=4",
@@ -29,7 +44,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cpsat_engine"]
+packages = ["src/cpsat_engine", "src/cpsat_service"]
 
 [tool.ruff]
 line-length = 110

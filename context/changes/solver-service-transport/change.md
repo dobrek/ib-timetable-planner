@@ -1,0 +1,63 @@
+---
+change_id: solver-service-transport
+title: Solver service transport
+status: preparing
+created: 2026-08-11
+updated: 2026-08-11
+archived_at: null
+---
+
+## Notes
+
+<!-- Free-form notes for this change: links, ad-hoc context, decisions that don't belong in research/frame/plan. -->
+
+### Decisions
+
+- **2026-08-11 — Zero schema edit for the solve request; F-302 ignores `policy`.**
+  `POST /jobs/{jobId}/solve` carries an unmodified `SolveRequest`; `jobId` travels in the URL path
+  (the body is `additionalProperties: false`). F-302 does **not** read `policy` — it solves the
+  canonical order and records status/results; the app writes `policy` to the job row for the audit
+  trail and **S-307** owns making the solver honour it. So the wrapper needs no DB read path for the
+  solve itself, only the status/result writes.
+  `contracts/generation-wire.schema.json` is **not** touched by F-302 — no `formatVersion` bump, no
+  golden regeneration. Rejected alternative: `policy?` as an additive-optional property (also
+  bump-free, but policy already lives in `generation_jobs.policy jsonb not null`, so a second copy
+  could disagree — one authoritative home is better). See `research.md` §R2.
+- **2026-08-11 — `mypy --strict` lands in F-302, as an early phase.** Not deferred again to S-302.
+  The gate goes in **before** the HTTP wrapper, so the new module is written under it rather than
+  retrofitted. Scope: `src/` strictly; `tests/` (38 more, needs `types-jsonschema` + a `py.typed`
+  marker or `mypy_path`) only if it stays cheap. `cli.py` cannot be skipped — the goldens-regen
+  script depends on it. See `research.md` R7.
+- **2026-08-11 — `Term = cp_model.LinearExpr | int`.** Not a design decision: `Term = object`
+  (`model.py:53`) was a placeholder whose own comment names the fix, one notch too narrow
+  (`IntVar` subclasses `LinearExpr`). Measured on a scratch copy: **70 → 46 errors from one line**,
+  every `operator` error gone, runtime-verified on 3.13. Pair with `Sequence[Term]` (not
+  `list[Term]`) in ~4 helper signatures to clear the residual list-invariance errors. No `cast()`s.
+  See `research.md` §8.1 / R8.
+- **2026-08-11 — Pin Python 3.13 everywhere.** `requires-python = ">=3.13"`, `.python-version` stays
+  3.13, image base becomes `python:3.13-slim` when S-302 writes it. Rationale: uv reads
+  `.python-version`, so local and CI already run 3.13 — leaving the image at 3.12 would mean testing
+  on 3.13 and shipping 3.12. See `research.md` R9.
+- **2026-08-11 — Idempotency guard: two layers, both free.** (a) the `jobId → (thread, CpSolver
+  handle)` registry doubles as the in-process guard; (b) the mandatory `status → 'running'` write
+  becomes a compare-and-set (`WHERE id = ? AND status = 'queued'`), proceeding only if it affected a
+  row — this survives the container restart that clears the registry. The RLS `WITH CHECK` window
+  permits `running → running`, so the guard must be the `status = 'queued'` filter, not the policy.
+  See `research.md` R10.
+- **2026-08-11 — Hosted hook enablement is S-302's, not F-302's; stays manual.** F-302 needs no
+  hosted setup — the Custom Access Token Hook is already enabled in `supabase/config.toml`, which the
+  CI `integration` job boots, and F-302 is local-fidelity tier 1 throughout. The hosted `config push`
+  + machine-user provisioning gate the first *hosted* container run (S-302), and must stay manual:
+  `config push` rewrites the whole hosted `config.toml`, and provisioning needs a service-role key CI
+  deliberately does not hold. **Absence fails upward** — no hook means the machine user falls back to
+  `authenticated` and reaches the whole database with no error — so verifying the token decodes to
+  `solver_job_writer` is a gate before the first hosted run. The runbook's single "Checklist for
+  F-302" was split into F-302 (container behaviour) and S-302 (hosted enablement) sections. See
+  `research.md` §5.1.
+- **2026-08-11 — Flagged for later: S-307 is under-scoped.** The engine cannot accept a policy today
+  — tier order is a hardcoded tuple, `solve_staged` hardcodes `range(1, 10)`, `SolveConfig` has no
+  policy field, and clean mode (FR-302's *shipped default*) is unimplemented. Not F-302 work; see
+  `research.md` §1.1.
+- **2026-08-11 — CP-SAT is not implemented as a second `GeneratePlan`.** The port stays untouched;
+  dispatch is a separate transport function, and `runVerifiedGeneration` is applied on the
+  result-read side. See `research.md` §6.

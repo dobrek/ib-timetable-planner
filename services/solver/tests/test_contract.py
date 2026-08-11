@@ -26,6 +26,7 @@ from cpsat_engine.wire import (
     canonical_json,
     canonical_result_json,
     canonical_snapshot_json,
+    canonical_solve_request_json,
     wire_stage_report,
 )
 
@@ -33,6 +34,8 @@ CONTRACTS = Path(__file__).resolve().parents[3] / "contracts"
 SCHEMA_PATH = CONTRACTS / "generation-wire.schema.json"
 SNAPSHOT_GOLDEN = CONTRACTS / "fixtures" / "generator-snapshot.json"
 RESULT_GOLDEN = CONTRACTS / "fixtures" / "generation-result.json"
+SOLVE_REQUEST_GOLDEN = CONTRACTS / "fixtures" / "solve-request.json"
+GOLDENS = (SNAPSHOT_GOLDEN, RESULT_GOLDEN, SOLVE_REQUEST_GOLDEN)
 
 
 @pytest.fixture(scope="module")
@@ -83,8 +86,31 @@ def test_result_golden_round_trips_to_identical_canonical_bytes() -> None:
     assert canonical_result_json(json.loads(RESULT_GOLDEN.read_text())) == RESULT_GOLDEN.read_text()
 
 
+def test_solve_request_golden_validates(schema: dict[str, Any]) -> None:
+    payload = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
+    assert _errors(_validator(schema, "SolveRequest"), payload) == []
+
+
+def test_solve_request_golden_round_trips_to_identical_canonical_bytes() -> None:
+    """F-302's own envelope, held to the same byte-parity bar as the payloads it carries.
+
+    Through ``canonical_solve_request_json`` rather than bare ``canonical_json`` for the same reason
+    as the result golden: the bare serializer sorts keys but never reorders arrays, so it would pass
+    even if this side implemented none of the declared sorts."""
+    payload = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
+    assert canonical_solve_request_json(payload) == SOLVE_REQUEST_GOLDEN.read_text()
+
+
+def test_solve_request_golden_exercises_the_optional_warm_start() -> None:
+    """The golden is worth little if it only covers the required half of the envelope: ``warmStart``
+    is the one optional key, so a fixture without it would leave the omit-vs-present rule ungated."""
+    payload = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
+    assert payload["formatVersion"] == 1
+    assert payload["warmStart"], "the fixture must carry a non-empty warm start"
+
+
 def test_goldens_carry_no_nulls() -> None:
-    for golden in (SNAPSHOT_GOLDEN, RESULT_GOLDEN):
+    for golden in GOLDENS:
         assert "null" not in golden.read_text(), f"{golden.name} nulls an optional instead of omitting it"
 
 

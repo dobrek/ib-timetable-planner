@@ -453,27 +453,27 @@ The app-side transport (`SOLVER_URL` + typed dispatch + health probe), mise pins
 
 #### Automated
 
-- [x] 2.1 `uv run mypy` → 0 errors over src/ and tests/
-- [x] 2.2 `uv run pytest` → 56 passing
-- [x] 2.3 `uv run ruff check` clean
-- [ ] 2.4 CI solver job green with the mypy step
+- [x] 2.1 `uv run mypy` → 0 errors over src/ and tests/ — 33b5302
+- [x] 2.2 `uv run pytest` → 56 passing — 33b5302
+- [x] 2.3 `uv run ruff check` clean — 33b5302
+- [x] 2.4 CI solver job green with the mypy step — 33b5302
 
 #### Manual
 
-- [x] 2.5 `Term`-touching diffs are type-only
+- [x] 2.5 `Term`-touching diffs are type-only — 33b5302
 
 ### Phase 3: `SolveRequest` under the both-suites contract gate
 
 #### Automated
 
-- [ ] 3.1 `pnpm test` + `pnpm check` green with new parity assertions
-- [ ] 3.2 Solver suite + mypy green with new contract tests
-- [ ] 3.3 `contracts/generation-wire.schema.json` untouched
-- [ ] 3.4 Golden regeneration reproduces `solve-request.json` byte-identically
+- [x] 3.1 `pnpm test` + `pnpm check` green with new parity assertions
+- [x] 3.2 Solver suite + mypy green with new contract tests
+- [x] 3.3 `contracts/generation-wire.schema.json` untouched
+- [x] 3.4 Golden regeneration reproduces `solve-request.json` byte-identically
 
 #### Manual
 
-- [ ] 3.5 Fixture eyeball: UUID-only, no display text
+- [x] 3.5 Fixture eyeball: UUID-only, no display text
 
 ### Phase 4: The HTTP wrapper (`cpsat_service`)
 

@@ -6,10 +6,12 @@ import {
   assembleGeneratorSnapshot,
   canonicalizeResult,
   canonicalizeSnapshot,
+  canonicalizeSolveRequest,
   canonicalStringify,
   course,
   placement,
   type GenerationResult,
+  type SolveRequest,
   type WireSnapshot,
 } from "@/entities/timetable";
 import { readJson, readText } from "./read-json";
@@ -35,11 +37,14 @@ const CONTRACTS = join(process.cwd(), "contracts");
 const SCHEMA_PATH = join(CONTRACTS, "generation-wire.schema.json");
 const SNAPSHOT_GOLDEN = join(CONTRACTS, "fixtures", "generator-snapshot.json");
 const RESULT_GOLDEN = join(CONTRACTS, "fixtures", "generation-result.json");
+const SOLVE_REQUEST_GOLDEN = join(CONTRACTS, "fixtures", "solve-request.json");
+const GOLDENS = [SNAPSHOT_GOLDEN, RESULT_GOLDEN, SOLVE_REQUEST_GOLDEN];
 
 const SCHEMA_ID = "https://ib-timetable-planner.dev/contracts/generation-wire.schema.json";
 
 let validateSnapshot: ValidateFunction;
 let validateResult: ValidateFunction;
+let validateSolveRequest: ValidateFunction;
 
 beforeAll(() => {
   // `strict: true` is the point: it rejects a schema with unknown keywords or a mistyped `$ref`,
@@ -48,6 +53,7 @@ beforeAll(() => {
   ajv.addSchema(readJson(SCHEMA_PATH));
   validateSnapshot = getValidator(ajv, "GeneratorSnapshot");
   validateResult = getValidator(ajv, "GenerationResult");
+  validateSolveRequest = getValidator(ajv, "SolveRequest");
 });
 
 describe("contract goldens", () => {
@@ -68,22 +74,38 @@ describe("contract goldens", () => {
     expect(canonicalizeResult(readJson<GenerationResult>(RESULT_GOLDEN))).toBe(readText(RESULT_GOLDEN));
   });
 
-  it("stores both goldens already in the declared array order", () => {
+  it("validates the solve-request golden against $defs/SolveRequest", () => {
+    expect(errorsOf(validateSolveRequest, readJson(SOLVE_REQUEST_GOLDEN))).toEqual([]);
+  });
+
+  it("keeps the solve-request golden byte-identical to its canonical form", () => {
+    expect(canonicalizeSolveRequest(readJson<SolveRequest>(SOLVE_REQUEST_GOLDEN))).toBe(readText(SOLVE_REQUEST_GOLDEN));
+  });
+
+  it("exercises the envelope's one optional key rather than only its required half", () => {
+    // A `warmStart`-less fixture would leave omit-vs-present — the rule most likely to drift between
+    // the two canonicalizers — completely ungated.
+    const request = readJson<SolveRequest>(SOLVE_REQUEST_GOLDEN);
+    expect(request.formatVersion).toBe(1);
+    expect(request.warmStart?.length).toBeGreaterThan(0);
+  });
+
+  it("stores every golden already in the declared array order", () => {
     // `canonicalStringify` sorts keys but never reorders arrays, so this passes only if the committed
     // bytes already carry the declared sorts — proving the ordering rules are baked into the files.
-    expect(canonicalStringify(readJson(SNAPSHOT_GOLDEN))).toBe(readText(SNAPSHOT_GOLDEN));
-    expect(canonicalStringify(readJson(RESULT_GOLDEN))).toBe(readText(RESULT_GOLDEN));
+    for (const golden of GOLDENS) expect(canonicalStringify(readJson(golden))).toBe(readText(golden));
   });
 
   it("contains no null anywhere — optionals are omitted on this wire, never nulled", () => {
-    expect(readText(SNAPSHOT_GOLDEN)).not.toContain("null");
-    expect(readText(RESULT_GOLDEN)).not.toContain("null");
+    for (const golden of GOLDENS) expect(readText(golden)).not.toContain("null");
   });
 
   it("carries opaque ids only — no display text survives the wire projection", () => {
     // The dump the snapshot golden derives from is UUID-only by construction; this pins that the
-    // projection did not smuggle a name/level/colour in through a widened course shape.
-    expect(readText(SNAPSHOT_GOLDEN)).not.toMatch(/"(name|level|color|fullName|groupIndex)"/);
+    // projection did not smuggle a name/level/colour in through a widened course shape. The
+    // solve-request golden embeds a snapshot, so it inherits the same fixture rule.
+    for (const golden of [SNAPSHOT_GOLDEN, SOLVE_REQUEST_GOLDEN])
+      expect(readText(golden)).not.toMatch(/"(name|level|color|fullName|groupIndex)"/);
   });
 });
 

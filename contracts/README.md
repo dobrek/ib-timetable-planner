@@ -11,9 +11,9 @@ versioning policy, and what is deliberately outside the freeze.
 
 Both suites gate it:
 
-| Suite | Test | Runs in |
-| --- | --- | --- |
-| Vitest | `bench/contract-parity.test.ts` | `pnpm test` → CI `verify` |
+| Suite  | Test                                     | Runs in                       |
+| ------ | ---------------------------------------- | ----------------------------- |
+| Vitest | `bench/contract-parity.test.ts`          | `pnpm test` → CI `verify`     |
 | pytest | `services/solver/tests/test_contract.py` | `uv run pytest` → CI `solver` |
 
 A change on one side that diverges from the artifact turns a suite red. That is the whole point:
@@ -31,8 +31,9 @@ Every `$defs` entry in `generation-wire.schema.json`:
 - `StageReport` — one rung of the lexicographic ladder. **In contract** because S-303 persists an
   array of these into `generation_jobs.stages` and the progress UI reads them. Variable-length and
   possibly sparse (`solve_repair` emits tiers 1 and 4 only) — never a fixed 10-tuple.
-- `SolveRequest` — the envelope F-302's `POST /solve` will accept, and the **only** carrier of
-  `formatVersion`.
+- `SolveRequest` — the envelope `POST /jobs/{jobId}/solve` accepts, and the **only** carrier of
+  `formatVersion`. The body is `additionalProperties: false`, so the job identity travels in the URL
+  path rather than inside it.
 - `Cohort`, `WeekMode`, `PlacementWeek`, `AvailabilitySeverity` — leaf vocabularies, mirroring the
   Postgres enums that single-source them in `src/shared/config/`.
 
@@ -85,15 +86,15 @@ A canonical payload is:
 4. **`null`/`undefined`-valued keys omitted** (see decision 3 above).
 5. **Every semantically-unordered array sorted by a declared key:**
 
-   | Array | Order |
-   | --- | --- |
-   | `courses` | by `id` |
-   | `teacherKeys`, `studentKeys`, `finishesEarlyByCourseId` | lexicographic |
-   | `parkedCourseIds` | lexicographic — a **multiset**: duplicates are semantic (one entry = one parked hour) and must never be deduped |
-   | `pins` | by (`courseId`, `day`, `period`, `week`) |
-   | `availability` | by (`teacherKey`, `day`, `period`) |
-   | `placements` | by (`cohort`, `courseId`, `day`, `period`, `week`) |
-   | `unplaced` | by `courseId` |
+   | Array                                                   | Order                                                                                                           |
+   | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+   | `courses`                                               | by `id`                                                                                                         |
+   | `teacherKeys`, `studentKeys`, `finishesEarlyByCourseId` | lexicographic                                                                                                   |
+   | `parkedCourseIds`                                       | lexicographic — a **multiset**: duplicates are semantic (one entry = one parked hour) and must never be deduped |
+   | `pins`                                                  | by (`courseId`, `day`, `period`, `week`)                                                                        |
+   | `availability`                                          | by (`teacherKey`, `day`, `period`)                                                                              |
+   | `placements`                                            | by (`cohort`, `courseId`, `day`, `period`, `week`)                                                              |
+   | `unplaced`                                              | by `courseId`                                                                                                   |
 
    `stages` is **not** in this table: it is a ladder transcript, so its order is chronological and
    load-bearing.
@@ -111,10 +112,12 @@ A canonical payload is:
 The two implementations:
 
 - TypeScript — `src/entities/timetable/model/generation/wire.ts`
-  (`canonicalStringify`, `canonicalizeSnapshot`, `canonicalizeResult`, `computeSnapshotHash`).
+  (`canonicalStringify`, `canonicalizeSnapshot`, `canonicalizeResult`, `canonicalizeSolveRequest`,
+  `computeSnapshotHash`).
 - Python — `services/solver/src/cpsat_engine/wire.py`
-  (`canonical_json`, `canonical_snapshot_json`, `canonical_result_json`, `wire_stage_report`), which
-  is `json.dumps(..., sort_keys=True, separators=(",", ":"))` plus the same array sorts and
+  (`canonical_json`, `canonical_snapshot_json`, `canonical_result_json`,
+  `canonical_solve_request_json`, `wire_stage_report`), which is
+  `json.dumps(..., sort_keys=True, separators=(",", ":"))` plus the same array sorts and
   `None`-key dropping.
 
 Note the split of responsibility on each side: `canonicalStringify` / `canonical_json` serialize an
@@ -139,9 +142,15 @@ worse than no golden.
 
 ## Fixtures
 
-`fixtures/generator-snapshot.json` and `fixtures/generation-result.json` are real-size goldens in
-canonical bytes, derived from the committed seed dump (5 days × 10 periods, 39 + 42 courses, 238
-placements).
+`fixtures/generator-snapshot.json`, `fixtures/generation-result.json` and
+`fixtures/solve-request.json` are real-size goldens in canonical bytes, derived from the committed
+seed dump (5 days × 10 periods, 39 + 42 courses, 238 placements).
+
+The third one is **derived from the other two** — that same snapshot as `snapshot`, the result's
+board as `warmStart` — so it needs no CP-SAT run of its own and regenerates deterministically. It
+carries a non-empty `warmStart` on purpose: that is the envelope's only optional key, and a fixture
+without it would leave the omit-when-absent rule (the one most likely to drift between the two
+canonicalizers) ungated. Both suites assert it.
 
 **Fixture rule: UUIDs only, no names.** Same posture `.gitignore:84-94` pins for the dump itself —
 golden data is production-derived and display text must never be committable. `contract-parity.test.ts`
@@ -163,7 +172,7 @@ cd services/solver
 uv run cpsat --input tests/fixtures/seed-plan-a.json --output /tmp/cpsat-result.json \
   --mode full --stage-budget 10 --workers 1 --seed 1
 
-# 2. Rewrite both fixtures through the TS canonicalizer (from the repo root).
+# 2. Rewrite all three fixtures through the TS canonicalizer (from the repo root).
 cd -
 RESULT=/tmp/cpsat-result.json pnpm experiment:goldens
 
@@ -174,4 +183,4 @@ cd services/solver && uv run pytest
 
 The result golden is a **recorded** artifact, not a reproducible one: CP-SAT's search is
 non-deterministic across worker counts and `elapsedMs` is wall-clock, so a regeneration yields a
-different — equally legal — board. What the goldens pin is the *form*, not the solution.
+different — equally legal — board. What the goldens pin is the _form_, not the solution.

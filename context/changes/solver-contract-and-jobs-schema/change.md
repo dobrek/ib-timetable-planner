@@ -1,15 +1,40 @@
 ---
 change_id: solver-contract-and-jobs-schema
 title: Frozen wire-contract artifact + generation_jobs schema (F-301)
-status: implemented
+status: impl_reviewed
 created: 2026-08-10
-updated: 2026-08-10
+updated: 2026-08-11
 archived_at: null
 ---
 
 ## Notes
 
 <!-- Free-form notes for this change: links, ad-hoc context, decisions that don't belong in research/frame/plan. -->
+
+### Implementation review (2026-08-11)
+
+`reviews/impl-review.md` — NEEDS ATTENTION, 0 critical / 3 warnings / 3 observations. Five fixed
+during triage, one skipped:
+
+- **F1** Python had no result-side canonicalizer (`placements`/`unplaced` sorts existed only in TS)
+  and `contracts/README.md` claimed otherwise → added `wire_result`/`canonical_result_json`; the
+  result-golden test now round-trips through it, so the 238-placement golden byte-proves the sort
+  cross-language.
+- **F2** `grant select, update` was table-wide, so the container could rewrite `snapshot`/
+  `snapshot_hash` (its own T0 drift baseline) and the `delivery` fields on any live job — the RLS
+  window is open for a job's whole run. Confirmed live, then column-scoped to the eleven progress
+  columns and pinned with a new `has_column_privilege` probe.
+- **F3 (skipped)** Four declared sorts — `availability`, `finishesEarlyByCourseId`,
+  `parkedCourseIds`, `unplaced` — are empty in the goldens, so they are unit-tested per side but
+  never byte-agreed across languages. Unreachable without new seed data or re-exporting the frozen
+  parity fixture; revisit if a dense fixture ever gets cheap.
+- **F4** policy renamed `"Solver reads any job"` (`using (true)` reads every row).
+- **F5** canonical form gains a raw-UTF-8 rule (both suites) and `allow_nan=False`.
+- **F6** `uv run ruff check` added to the `solver` CI job; mypy still waits for S-302.
+
+Disproven and recorded so it is not re-raised: `create role` without `if not exists` does NOT break
+the local loop — the Supabase CLI drops custom roles on `db reset` (verified on a machine where the
+role already existed).
 
 ### Still open at implementation close
 

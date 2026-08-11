@@ -76,8 +76,14 @@ A canonical payload is:
 2. **Keys sorted** lexicographically at every depth. Keys are ASCII in this contract, so JS
    code-unit order and Python code-point order coincide; a non-ASCII key would need this restated
    before it could be added.
-3. **`null`/`undefined`-valued keys omitted** (see decision 3 above).
-4. **Every semantically-unordered array sorted by a declared key:**
+3. **Raw UTF-8, never `\uXXXX` escapes.** `JSON.stringify` emits a non-ASCII character literally;
+   Python's `json.dumps` escapes it unless told otherwise, so the Python side must pass
+   `ensure_ascii=False`. Today every string on this wire is a UUID, so nothing exercises the rule —
+   which is exactly why it is written down: the schema constrains `courseId`/`teacherKey`/
+   `studentKey` to `string`, so the first non-ASCII key would silently split `snapshot_hash` between
+   the two languages. Both suites pin it.
+4. **`null`/`undefined`-valued keys omitted** (see decision 3 above).
+5. **Every semantically-unordered array sorted by a declared key:**
 
    | Array | Order |
    | --- | --- |
@@ -92,21 +98,30 @@ A canonical payload is:
    `stages` is **not** in this table: it is a ladder transcript, so its order is chronological and
    load-bearing.
 
-5. **Numbers.** Every byte-compared or hash-digested payload (both goldens, the `snapshot_hash`
+6. **Numbers.** Every byte-compared or hash-digested payload (both goldens, the `snapshot_hash`
    input) contains **integers only**. `StageReport.wallClockS` is the sole non-integer in the whole
    contract: it is schema-validated but carries **no cross-language canonical-byte guarantee**
    (Python renders `2.0` as `"2.0"`, JavaScript as `"2"`), so a `StageReport` must never enter a
    byte-compared or hashed payload. Introducing any new float into such a payload is a
-   `formatVersion` decision, not an implementation detail.
+   `formatVersion` decision, not an implementation detail. Non-finite numbers are not JSON at all:
+   `JSON.stringify(NaN)` writes `null` while Python's `json.dumps` writes a bare `NaN` token, so the
+   Python canonicalizer passes `allow_nan=False` and raises rather than emitting bytes no JSON parser
+   will read back.
 
 The two implementations:
 
 - TypeScript — `src/entities/timetable/model/generation/wire.ts`
   (`canonicalStringify`, `canonicalizeSnapshot`, `canonicalizeResult`, `computeSnapshotHash`).
 - Python — `poc/cp-sat/src/cpsat_engine/wire.py`
-  (`canonical_json`, `canonical_snapshot_json`, `wire_stage_report`), which is
-  `json.dumps(..., sort_keys=True, separators=(",", ":"))` plus the same array sorts and `None`-key
-  dropping.
+  (`canonical_json`, `canonical_snapshot_json`, `canonical_result_json`, `wire_stage_report`), which
+  is `json.dumps(..., sort_keys=True, separators=(",", ":"))` plus the same array sorts and
+  `None`-key dropping.
+
+Note the split of responsibility on each side: `canonicalStringify` / `canonical_json` serialize an
+already-wire-shaped payload and never reorder arrays; the declared sorts live in
+`canonicalizeSnapshot` / `canonical_snapshot_json` and `canonicalizeResult` /
+`canonical_result_json`. Byte-comparing or hashing a payload that skipped those entry points is a
+bug, not a shortcut.
 
 ## Versioning
 

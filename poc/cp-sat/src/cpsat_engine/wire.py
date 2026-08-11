@@ -12,14 +12,18 @@ The canonical form, restated because this module IS one of its two implementatio
 * object keys sorted at every depth (``sort_keys=True``; contract keys are ASCII, so Python's
   code-point order and JavaScript's code-unit order coincide);
 * ``None``-valued keys dropped — this wire has no nulls, an absent optional is an absent key;
-* every semantically-unordered array sorted by its declared key (see ``_wire_cohort`` /
-  ``wire_snapshot``), with ``parkedCourseIds`` sorted but NEVER deduped: it is a multiset in which
-  the duplicate count is semantic (one entry covers one parked hour);
+* every semantically-unordered array sorted by its declared key (see ``wire_snapshot`` /
+  ``_wire_cohort`` for the snapshot side, ``wire_result`` for the result side), with
+  ``parkedCourseIds`` sorted but NEVER deduped: it is a multiset in which the duplicate count is
+  semantic (one entry covers one parked hour);
 * ``ensure_ascii=False`` because ``JSON.stringify`` emits raw UTF-8 rather than ``\\uXXXX`` escapes.
 
 Numbers: every byte-compared or hash-digested payload is integer-only. ``StageReport.wall_clock_s``
 is the single non-integer in the contract and therefore must never enter one —
-``json.dumps(2.0)`` is ``"2.0"`` where JavaScript writes ``"2"``.
+``json.dumps(2.0)`` is ``"2.0"`` where JavaScript writes ``"2"``. ``allow_nan=False`` for the same
+family of reasons, one step worse: a non-finite would leave here as the bare token ``NaN``, which is
+not JSON and which ``JSON.parse`` cannot read back (JavaScript would have written ``null``). Raising
+at the canonicalizer beats shipping unparseable bytes.
 
 Validation lives in the test lane (``jsonschema``, dev group), never in the solve path.
 """
@@ -35,7 +39,13 @@ from .solve import StageReport
 
 def canonical_json(value: Any) -> str:
     """Serialize an already-wire-shaped payload to canonical bytes, dropping ``None``-valued keys."""
-    return json.dumps(_without_nones(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(
+        _without_nones(value),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
 
 
 def canonical_snapshot_json(snapshot: Snapshot) -> str:
@@ -57,6 +67,39 @@ def wire_snapshot(snapshot: Snapshot) -> dict[str, Any]:
     }
 
 
+def canonical_result_json(result: dict[str, Any]) -> str:
+    """The canonical form of a ``GenerationResult`` — the mirror of ``canonicalizeResult`` in wire.ts.
+
+    ``to_generation_result`` emits placements in board order and unplaced entries in course order, so
+    the declared sorts have to be applied HERE rather than at the producer: two runs that place the
+    same board in a different search order must canonicalize to the same bytes.
+    """
+    return canonical_json(wire_result(result))
+
+
+def wire_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Apply the result-side declared array sorts: ``placements`` and per-cohort ``unplaced``.
+
+    Sort-only, deliberately not a re-projection: ``to_generation_result`` already emits exactly the
+    contract's shape, so spreading the rest through means a future contract field is carried rather
+    than silently dropped by a serializer nobody remembered to update.
+    """
+    diagnostics: dict[str, Any] = result["diagnostics"]
+    return {
+        **result,
+        "placements": sorted(
+            result["placements"],
+            key=lambda p: (p["cohort"], p["courseId"], p["day"], p["period"], p["week"]),
+        ),
+        "diagnostics": {
+            **diagnostics,
+            "cohorts": {
+                cohort: _wire_cohort_diagnostics(diagnostics["cohorts"][cohort]) for cohort in COHORTS
+            },
+        },
+    }
+
+
 def wire_stage_report(stage: StageReport) -> dict[str, Any]:
     """Project a :class:`StageReport` onto the contract's camelCase ``StageReport``.
 
@@ -73,6 +116,10 @@ def wire_stage_report(stage: StageReport) -> dict[str, Any]:
             "wallClockS": stage.wall_clock_s,
         }
     )
+
+
+def _wire_cohort_diagnostics(cohort: dict[str, Any]) -> dict[str, Any]:
+    return {**cohort, "unplaced": sorted(cohort["unplaced"], key=lambda u: u["courseId"])}
 
 
 def _wire_cohort(cohort: CohortSnapshot) -> dict[str, Any]:

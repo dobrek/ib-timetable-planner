@@ -39,6 +39,13 @@ describe("canonicalStringify", () => {
   it("escapes strings the way JSON does", () => {
     expect(canonicalStringify({ 'a"b': "c\\d\ne" })).toBe('{"a\\"b":"c\\\\d\\ne"}');
   });
+
+  it("writes non-ASCII raw, never as \\uXXXX escapes", () => {
+    // The Python mirror needs `ensure_ascii=False` to match this (contracts/README.md §Canonical
+    // JSON form rule 3). Every string on this wire is a UUID today, so this pair of tests is all
+    // that stands between the rule and a silent snapshot_hash split when that stops being true.
+    expect(canonicalStringify({ teacherKey: "Zoë" })).toBe('{"teacherKey":"Zoë"}');
+  });
 });
 
 describe("canonicalizeSnapshot", () => {

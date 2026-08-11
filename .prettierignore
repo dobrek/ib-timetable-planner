@@ -11,9 +11,13 @@ src/shared/api/database.types.ts
 # json/css/md only, so nothing catches it; ignoring it here does.
 pnpm-lock.yaml
 supabase/seed.sql
-poc/
+# The Python solver package. Its README/JSON belong to the uv+ruff toolchain, not to prettier —
+# without this entry lefthook's `prettier --write` starts reformatting the tree on every commit
+# that touches it. (Inherited from the `poc/` entry this package was promoted out of.)
+services/solver/
 # The frozen wire contract and its golden fixtures. The goldens are CANONICAL BYTES (compact, no
 # whitespace, sorted keys) and are byte-compared by both test suites — lefthook runs `prettier --write`
 # on staged `.json` with `stage_fixed: true`, which would re-indent them on every commit and break the
-# comparison with nothing in CI to catch it (`pnpm format` is not a CI step). Same reason `poc/` is here.
+# comparison with nothing in CI to catch it (`pnpm format` is not a CI step). Same reason
+# `services/solver/` is here.
 contracts/

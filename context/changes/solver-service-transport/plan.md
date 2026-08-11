@@ -440,9 +440,9 @@ The app-side transport (`SOLVER_URL` + typed dispatch + health probe), mise pins
 
 #### Automated
 
-- [ ] 1.1 Solver suite green in new location (`uv sync --locked`, `ruff check`, `pytest`)
-- [ ] 1.2 JS suite untouched (`pnpm test`, `pnpm check`)
-- [ ] 1.3 No stale `poc/cp-sat` references outside `context/`
+- [x] 1.1 Solver suite green in new location (`uv sync --locked`, `ruff check`, `pytest`)
+- [x] 1.2 JS suite untouched (`pnpm test`, `pnpm check`)
+- [x] 1.3 No stale `poc/cp-sat` references outside `context/`
 - [ ] 1.4 Full CI run green on the branch
 
 #### Manual

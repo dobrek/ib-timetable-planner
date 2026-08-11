@@ -12,7 +12,7 @@ only the file-based transport (`cli`) is throwaway. Full context:
 ## Layout
 
 ```
-poc/cp-sat/
+services/solver/
   pyproject.toml            uv-managed; ortools + ruff + pytest + jsonschema
   .python-version           the interpreter CI and local dev share (see Setup)
   src/cpsat_engine/
@@ -32,12 +32,13 @@ poc/cp-sat/
 Requires [uv](https://docs.astral.sh/uv/). ortools pins protobuf/numpy tightly, so this project owns
 a dedicated venv — never a shared one.
 
-Two version knobs, and they say different things: `requires-python = ">=3.12"` in `pyproject.toml` is
-the compatibility floor, while `.python-version` pins the interpreter this package is actually
+Two version knobs, and they now say the same thing: `requires-python = ">=3.13"` in `pyproject.toml`
+is the compatibility floor and `.python-version` pins the interpreter this package is actually
 developed and tested on. Without the pin, uv takes whatever Python the host happens to offer — CI's
 `solver` job silently used the runner's system CPython 3.12 while local dev ran 3.13. Nothing broke,
 but a solver package whose entire premise is a tightly pinned dedicated venv should not leave its
-interpreter to chance.
+interpreter to chance — and a floor one minor below the pin would mean testing on 3.13 while the
+production image is free to ship 3.12. The image base is `python:3.13-slim` when S-302 writes it.
 
 What the pin does **not** control is the patch level: uv resolves the newest available 3.13, so CI
 may sit on a later patch than your machine. That is why the pytest run can report a couple of
@@ -47,7 +48,7 @@ recent CPython patch releases, so its presence tracks the interpreter build, not
 forward-compat notice, it does not affect any result, and the fix is upstream.
 
 ```bash
-cd poc/cp-sat
+cd services/solver
 uv sync            # creates .venv (gitignored), writes uv.lock (committed)
 uv run pytest      # unit pins
 uv run ruff check .
@@ -64,9 +65,9 @@ never `supabase db reset` mid-campaign (the dump records its `clonePlanId`).
 ```bash
 # Committed seed fixture (PII-free, from CSV-seeded catalog):
 SOURCE_PLAN_ID=c43c5f07-9448-5ab2-ad54-358f59403585 PIN_SKELETON=1 \
-  OUT=poc/cp-sat/tests/fixtures/seed-plan-a.json pnpm experiment:export
+  OUT=services/solver/tests/fixtures/seed-plan-a.json pnpm experiment:export
 
-# Golden catalog (gitignored dump under poc/cp-sat/data/):
+# Golden catalog (gitignored dump under services/solver/data/):
 SOURCE_PLAN_ID=<golden-plan-id> PIN_SKELETON=1 pnpm experiment:export
 ```
 
@@ -79,7 +80,7 @@ lowerBound, TS 10-tier objective tuple }`.
 ### 2. Parity gate (Phase 3)
 
 ```bash
-cd poc/cp-sat
+cd services/solver
 uv run cpsat --input data/<golden>-dump.json --output data/parity.json --mode parity   # expect 10/10
 ```
 
@@ -114,7 +115,7 @@ escalate an infeasible residual.
 ### 6. Import (dump + result → verify → persist → analyze) (Phase 5)
 
 ```bash
-IN=poc/cp-sat/data/complete.json DUMP=poc/cp-sat/data/<golden>-dump.json pnpm experiment:import
+IN=services/solver/data/complete.json DUMP=services/solver/data/<golden>-dump.json pnpm experiment:import
 ANALYZE_PLAN_A=<clonePlanId> ANALYZE_PLAN_B=<golden-plan-id> pnpm analyze:plans
 ```
 

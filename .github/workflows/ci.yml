@@ -100,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: poc/cp-sat
+        working-directory: services/solver
     steps:
       - uses: actions/checkout@v6
 
@@ -113,7 +113,7 @@ jobs:
       # v9"). Bump this deliberately; do not "tidy" it back to a bare major.
       - uses: astral-sh/setup-uv@v9.0.0
         with:
-          working-directory: poc/cp-sat
+          working-directory: services/solver
 
       # `--locked` is the JS side's `--frozen-lockfile`: it fails if uv.lock is stale rather than
       # silently resolving something the lockfile never recorded.

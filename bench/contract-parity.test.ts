@@ -15,7 +15,7 @@ import {
 import { readJson, readText } from "./read-json";
 
 /**
- * The TS half of the both-suites contract gate (`poc/cp-sat/tests/test_contract.py` is the other).
+ * The TS half of the both-suites contract gate (`services/solver/tests/test_contract.py` is the other).
  *
  * It lives in `bench/` rather than `contracts/` because a test at `contracts/**\/*.test.ts` is
  * collected by NO vitest project (`vitest.config.ts` roots are `src/` and `bench/`) — it would be

@@ -4,9 +4,9 @@ Mirror of ``bench/contract-parity.test.ts``. Between them the frozen contract in
 enforced from both sides: a producer that drifts turns exactly one suite red, and which one names
 the side that moved.
 
-Path note: pytest's rootdir is the package directory (``poc/cp-sat/``), not the repo root, so a
-repo-relative string would break here. Anchoring on ``__file__`` also survives the planned
-``services/solver/`` promotion verbatim — the depth to the repo root is the same.
+Path note: pytest's rootdir is the package directory (``services/solver/``), not the repo root, so a
+repo-relative string would break here. Anchoring on ``__file__`` is also what carried this file
+through the package's promotion out of ``poc/`` unedited — the depth to the repo root is the same.
 """
 
 from __future__ import annotations

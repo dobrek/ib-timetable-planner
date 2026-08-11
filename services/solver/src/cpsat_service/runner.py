@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from typing import Any
 
 from cpsat_engine.model import PreconditionError
@@ -44,7 +45,7 @@ def start_job(
     *,
     settings: Settings,
     registry: JobRegistry,
-    client_factory: type[JobRowClient] | Any = JobRowClient,
+    client_factory: Callable[[Settings], JobRowClient] = JobRowClient,
 ) -> threading.Thread:
     """Spawn the worker for an ALREADY-REGISTERED job and return its thread.
 
@@ -69,21 +70,14 @@ def run_job(
     *,
     settings: Settings,
     registry: JobRegistry,
-    client_factory: type[JobRowClient] | Any = JobRowClient,
+    client_factory: Callable[[Settings], JobRowClient] = JobRowClient,
 ) -> None:
     """The whole worker body, synchronous. Called on a thread by :func:`start_job`; called directly
     by the tests, which is why it takes its collaborators rather than reaching for globals."""
     client: JobRowClient | None = None
     try:
         client = client_factory(settings)
-        if not client.claim(job_id):
-            # Another worker (or an earlier run of this one, before a restart) already has it.
-            # Exit without writing: anything written here would trample a solve in progress.
-            #
-            # WARNING, not INFO: the row itself records nothing about this — the caller got its 202
-            # and the row is untouched — so this line is the entire trace that a dispatch was
-            # refused. Routine when a retry is the cause, worth noticing when it is not.
-            log.warning("job %s was not claimable (already running or terminal) — nothing to do", job_id)
+        if not _claim(client, job_id):
             return
         _solve_and_write(job_id, request, client=client, settings=settings)
     except PreconditionError as error:
@@ -119,6 +113,27 @@ def build_dump(request: dict[str, Any]) -> Dump:
         greedy_diagnostics={},
         objective=(),
     )
+
+
+def _claim(client: JobRowClient, job_id: str) -> bool:
+    """True iff THIS worker now owns the row — and the only place a claim failure is handled.
+
+    A claim that FAILED is not a claim that was LOST, but neither may write: `finish` carries no
+    status filter and RLS admits `running -> failed`, so a terminal write from here would trample a
+    row a different worker is legitimately solving. Both outcomes therefore exit through the log.
+
+    WARNING, not INFO: the row itself records nothing about either case — the caller got its 202 and
+    the row is untouched — so these lines are the entire trace that a dispatch was refused. Routine
+    when a retry is the cause, worth noticing when it is not.
+    """
+    try:
+        claimed = client.claim(job_id)
+    except Exception:  # noqa: BLE001 — see above: an unclaimed row must not be written to
+        log.exception("job %s: the claim itself failed — leaving the row untouched", job_id)
+        return False
+    if not claimed:
+        log.warning("job %s was not claimable (already running or terminal) — nothing to do", job_id)
+    return claimed
 
 
 def _solve_and_write(

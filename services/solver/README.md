@@ -37,10 +37,10 @@ services/solver/
 
 ## The HTTP service
 
-| Route                     | Behaviour                                                                                                        |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `GET /health`             | `200 {"status":"ok"}`. Dependency-free — it reports the container's health, never the database's.                 |
-| `POST /jobs/{jobId}/solve` | Body is an unmodified contract `SolveRequest`. **202** on accept; **422** with schema error paths on a bad body. |
+| Route                      | Behaviour                                                                                                                                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /health`              | `200 {"status":"ok"}`. Dependency-free — it reports the container's health, never the database's.                                                                                                                                                     |
+| `POST /jobs/{jobId}/solve` | Body is an unmodified contract `SolveRequest`, sent as `application/json`. **202** on accept; **415** on any other content type; **422** with schema error paths on a bad body; **503** when `SOLVER_MAX_CONCURRENT_JOBS` solves are already running. |
 
 The job id travels in the **path**: `SolveRequest` is `additionalProperties: false`, so it cannot
 ride in the body. The body is validated against `contracts/generation-wire.schema.json` itself —
@@ -48,21 +48,45 @@ never a Pydantic projection of it, which would be a third projection of a docume
 side and free to drift from both. (That anchor assumes a repo checkout: `contracts/` is not in the
 wheel, so S-302's image must `COPY` it.)
 
-A 202 means *accepted*, not *solved*. The worker runs on a background thread — sound because CP-SAT
+A 202 means _accepted_, not _solved_. The worker runs on a background thread — sound because CP-SAT
 releases the GIL, so `/health` keeps answering through a multi-minute solve — and reports by
 advancing the `generation_jobs` row: `queued → running → succeeded | failed`. **The database row is
 the only status channel.** A duplicate POST is idempotent: 202, and no second solve.
 
+### Trust boundary — read before exposing this service
+
+`POST /jobs/{jobId}/solve` **takes no credential**, and the solve is **not bound to the row**: the
+engine runs the snapshot in the _body_ and writes the board onto the job named in the _path_, without
+ever reading that row's `snapshot` or `snapshot_hash`. Anything that can reach the port and knows a
+live job UUID can therefore plant a result on it — and because the row's hash still describes the
+input the board was never derived from, the substitution reads as internally consistent downstream.
+
+This is deliberate for F-302 and matches the posture the credential migration already takes one layer
+down (`Solver reads any job … using (true)` — "nothing yet binds a container to a job id; S-301
+introduces that binding and is where this predicate can narrow"). What holds it safe is **where the
+port is**, not what the handler checks:
+
+- **Local dev** — bound to loopback, reached only by the developer's own stack. The one browser-side
+  path is closed here: the handler requires `Content-Type: application/json` (415 otherwise), which
+  is not a CORS _simple_ type, so a cross-origin page must preflight — and no preflight is answered.
+- **Production** — S-302 reaches the container through a Cloudflare container binding, not a public
+  URL. **That binding is the authentication.** If the service is ever given a routable address, it
+  needs a real caller credential first; do not treat the current handler as safe on the open internet.
+- **The snapshot binding is S-301's**, alongside the result-read path and its drift check: after a
+  successful claim, compare the row's `snapshot_hash` against `canonical_snapshot_json` of the body's
+  snapshot (`cpsat_engine/wire.py`) and refuse the dispatch on a mismatch.
+
 ### Environment
 
-| Variable                  | Default                          | Notes                                                  |
-| ------------------------- | -------------------------------- | ------------------------------------------------------ |
-| `SUPABASE_URL`            | —                                | Project URL.                                           |
-| `SUPABASE_KEY`            | —                                | The **publishable** key. Never a secret/service key.   |
-| `SOLVER_MACHINE_PASSWORD` | —                                | The machine Auth user's password.                      |
-| `SOLVER_MACHINE_EMAIL`    | `solver@ib-timetable-planner.dev` |                                                       |
-| `SOLVER_WORKERS`          | `8`                              | Pinned for reproducibility — never `0`/auto.           |
-| `SOLVER_LOG_LEVEL`        | `INFO`                           | Below INFO hides the lost-claim line, which the row does not record. |
+| Variable                     | Default                           | Notes                                                                                             |
+| ---------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`               | —                                 | Project URL.                                                                                      |
+| `SUPABASE_KEY`               | —                                 | The **publishable** key. Never a secret/service key.                                              |
+| `SOLVER_MACHINE_PASSWORD`    | —                                 | The machine Auth user's password.                                                                 |
+| `SOLVER_MACHINE_EMAIL`       | `solver@ib-timetable-planner.dev` |                                                                                                   |
+| `SOLVER_WORKERS`             | `8`                               | Pinned for reproducibility — never `0`/auto.                                                      |
+| `SOLVER_MAX_CONCURRENT_JOBS` | `1`                               | Solves allowed at once; further dispatches get a 503. Raise only with the container sized for it. |
+| `SOLVER_LOG_LEVEL`           | `INFO`                            | Below INFO hides the lost-claim line, which the row does not record.                              |
 
 Missing Supabase values do not block startup (`/health` must answer on a bare container); the first
 job fails loudly instead. Full credential story: `docs/runbooks/solver-credential.md`.

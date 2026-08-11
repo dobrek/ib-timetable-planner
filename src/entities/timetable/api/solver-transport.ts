@@ -37,6 +37,18 @@ export class SolverDispatchError extends Error {
   }
 }
 
+/**
+ * Both calls are bounded, because "unreachable" and "wedged" are different failures and only the
+ * first one settles on its own. A container that accepts the connection and never answers — the
+ * containers#162 sleep behaviour — would otherwise leave these hanging until the Worker's own
+ * invocation limit kills the request, turning `checkHealth`'s "never throws" into a 500.
+ *
+ * Dispatch gets the longer budget: it only has to survive the service ACCEPTING the job (202), and
+ * the solve itself is reported minutes later through the row.
+ */
+const HEALTH_TIMEOUT_MS = 3_000;
+const DISPATCH_TIMEOUT_MS = 15_000;
+
 export const createSolverTransport = (baseUrl: string): SolverTransport => {
   const root = baseUrl.replace(/\/+$/, "");
 
@@ -44,10 +56,11 @@ export const createSolverTransport = (baseUrl: string): SolverTransport => {
     async dispatchSolveJob(jobId, request) {
       // Through the canonicalizer, so dispatch is deterministic for free: two callers that
       // assembled the same solve in a different order send byte-identical bodies.
-      const response = await fetch(`${root}/jobs/${jobId}/solve`, {
+      const response = await fetch(`${root}/jobs/${encodeURIComponent(jobId)}/solve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: canonicalizeSolveRequest(request),
+        signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
       });
       // 202 is the ONLY success. A 2xx that is not 202 would mean the service answered something
       // this client does not understand, and treating it as accepted would lose the job silently.
@@ -56,7 +69,7 @@ export const createSolverTransport = (baseUrl: string): SolverTransport => {
 
     async checkHealth() {
       try {
-        const response = await fetch(`${root}/health`);
+        const response = await fetch(`${root}/health`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) });
         return response.ok;
       } catch {
         return false;

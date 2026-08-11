@@ -142,7 +142,7 @@ mise run solver:check   # ruff + mypy --strict, the same two gates CI runs
 | `SUPABASE_KEY`            | the **publishable** key        |
 | `SOLVER_MACHINE_PASSWORD` | whatever you provisioned above |
 
-Optional: `SOLVER_WORKERS` (default `8`, pinned for reproducibility — never auto) and `SOLVER_LOG_LEVEL` (default `INFO`).
+Optional: `SOLVER_WORKERS` (default `8`, pinned for reproducibility — never auto), `SOLVER_MAX_CONCURRENT_JOBS` (default `1`; further dispatches get a 503) and `SOLVER_LOG_LEVEL` (default `INFO`).
 
 Endpoints: `GET /health` (dependency-free) and `POST /jobs/{jobId}/solve`, which takes an unmodified contract `SolveRequest`, answers **202**, and reports the outcome by advancing the `generation_jobs` row — the database is the only status channel. To exercise the whole chain end to end:
 

@@ -9,11 +9,18 @@ student and teacher name in the database.
 Missing Supabase configuration does NOT prevent startup. `/health` must answer on a bare container
 (that is what a platform health probe hits before secrets are wired), so absence surfaces at the
 first job instead — loudly, as a `SettingsError` in the service log.
+
+The same rule binds the numeric and log-level knobs: a MALFORMED value degrades to its default with
+a complaint on stderr rather than raising. This module is read at import, before `basicConfig` has
+run, so stderr — not `logging` — is the only channel that exists here; and a container that refuses
+to start over `SOLVER_WORKERS=eight` fails a health probe that would otherwise have passed.
 """
 
 from __future__ import annotations
 
+import logging
 import os
+import sys
 from dataclasses import dataclass
 
 DEFAULT_MACHINE_EMAIL = "solver@ib-timetable-planner.dev"
@@ -22,6 +29,14 @@ DEFAULT_MACHINE_EMAIL = "solver@ib-timetable-planner.dev"
 # container that silently solves with a different parallelism than the machine it was calibrated on
 # produces a different — equally legal — board. Overridable per deployment, not per request.
 DEFAULT_WORKERS = 8
+
+# How many solves may run at once. One, because one solve already claims `DEFAULT_WORKERS` CP-SAT
+# workers for as long as the tier ladder runs (~21 minutes at the engine's default budgets): a second
+# concurrent solve does not halve the wall clock, it doubles both and starves `/health` — whose
+# answerability under load is the whole argument for running the solve on a plain thread. Raise it
+# per deployment when the container is sized for it; the cap exists so a burst of dispatches is
+# REFUSED (503) rather than silently accepted and then thrashed.
+DEFAULT_MAX_CONCURRENT_JOBS = 1
 
 # INFO, not WARNING. The database row is the only status channel a CLIENT has, but the service log
 # is the only channel for everything that happens BESIDE the row — a lost compare-and-set, a
@@ -43,6 +58,7 @@ class Settings:
     machine_email: str
     machine_password: str
     workers: int
+    max_concurrent_jobs: int
     log_level: str
 
     @property
@@ -72,9 +88,42 @@ def load_settings() -> Settings:
         supabase_key=os.environ.get("SUPABASE_KEY", ""),
         machine_email=os.environ.get("SOLVER_MACHINE_EMAIL", DEFAULT_MACHINE_EMAIL),
         machine_password=os.environ.get("SOLVER_MACHINE_PASSWORD", ""),
-        workers=int(os.environ.get("SOLVER_WORKERS", DEFAULT_WORKERS)),
-        log_level=os.environ.get("SOLVER_LOG_LEVEL", DEFAULT_LOG_LEVEL),
+        workers=_positive_int("SOLVER_WORKERS", DEFAULT_WORKERS),
+        max_concurrent_jobs=_positive_int("SOLVER_MAX_CONCURRENT_JOBS", DEFAULT_MAX_CONCURRENT_JOBS),
+        log_level=_log_level(),
     )
+
+
+def _positive_int(name: str, default: int) -> int:
+    """Read a knob, and DEGRADE rather than crash on a bad one.
+
+    These are read at import, so a raw `int()` on `SOLVER_WORKERS=eight` would kill the process
+    before `/health` ever binds — the opposite of this module's whole promise. Values below 1 are
+    floored for the same reason `DEFAULT_WORKERS` exists: `0` means "auto" to CP-SAT, which is the
+    one thing the reproducibility rule forbids.
+    """
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        print(f"{name}={raw!r} is not an integer — falling back to {default}", file=sys.stderr)
+        return default
+    if value < 1:
+        print(f"{name}={value} is below 1 — falling back to {default}", file=sys.stderr)
+        return default
+    return value
+
+
+def _log_level() -> str:
+    """An unknown level would make `logging.basicConfig` raise at import, for a cosmetic knob."""
+    level = os.environ.get("SOLVER_LOG_LEVEL", DEFAULT_LOG_LEVEL).upper()
+    if level not in logging.getLevelNamesMapping():
+        message = f"SOLVER_LOG_LEVEL={level!r} is not a level — falling back to {DEFAULT_LOG_LEVEL}"
+        print(message, file=sys.stderr)
+        return DEFAULT_LOG_LEVEL
+    return level
 
 
 settings = load_settings()

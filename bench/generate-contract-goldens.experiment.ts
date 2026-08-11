@@ -5,14 +5,16 @@ import { describe, expect, it } from "vitest";
 import {
   canonicalizeResult,
   canonicalizeSnapshot,
+  canonicalizeSolveRequest,
   type GenerationResult,
   type GeneratorSnapshot,
 } from "@/entities/timetable";
 import { readJson } from "./read-json";
 
 /**
- * `pnpm experiment:goldens` — regenerates the two committed contract fixtures in `contracts/fixtures/`
- * through the TS canonicalizer, which is the tool that DEFINES canonical bytes (`wire.ts`).
+ * `pnpm experiment:goldens` — regenerates the three committed contract fixtures in
+ * `contracts/fixtures/` through the TS canonicalizer, which is the tool that DEFINES canonical
+ * bytes (`wire.ts`).
  *
  *   [DUMP=services/solver/tests/fixtures/seed-plan-a.json] RESULT=<cpsat-result.json> pnpm experiment:goldens
  *
@@ -26,10 +28,14 @@ import { readJson } from "./read-json";
  *     one: CP-SAT is non-deterministic across worker counts and its `elapsedMs` is wall-clock, so a
  *     regeneration produces a different (equally legal) board. Regenerate only for a `formatVersion`
  *     bump — see `contracts/README.md` §Regeneration for the exact command line.
+ *   • the solve-request golden is DERIVED from the other two — that same snapshot as `snapshot`, and
+ *     the result's board as `warmStart` (so the optional key is exercised rather than merely
+ *     declared). No second CP-SAT run: given the same RESULT it reproduces byte-identically, which
+ *     is a criterion of its own in the plan.
  *
  * The `*.experiment.ts` suffix keeps this file out of the `pnpm test` glob and gives it the bench
  * experiment runner (vitest + env-var args + `it.runIf`), matching `export-snapshot.experiment.ts`.
- * No file is written without `RESULT`, so a bare run cannot half-regenerate the pair.
+ * No file is written without `RESULT`, so a bare run cannot half-regenerate the set.
  */
 const DUMP = process.env.DUMP ?? "services/solver/tests/fixtures/seed-plan-a.json";
 const RESULT = process.env.RESULT;
@@ -52,7 +58,7 @@ describe("contract goldens", () => {
     expect(RESULT).toBeUndefined();
   });
 
-  it.runIf(RESULT)("rewrites both fixtures in canonical bytes", () => {
+  it.runIf(RESULT)("rewrites every fixture in canonical bytes", () => {
     if (!RESULT) throw new Error(USAGE);
     const { snapshot } = readJson<DumpSnapshot>(DUMP);
     const result = readJson<GenerationResult>(RESULT);
@@ -61,13 +67,17 @@ describe("contract goldens", () => {
     const written = [
       write("generator-snapshot.json", canonicalizeSnapshot(snapshot)),
       write("generation-result.json", canonicalizeResult(result)),
+      write(
+        "solve-request.json",
+        canonicalizeSolveRequest({ formatVersion: 1, snapshot, warmStart: result.placements }),
+      ),
     ];
 
     console.log(`\nregenerated from ${DUMP} + ${RESULT}:`);
     for (const line of written) console.log(`  • ${line}`);
     console.log("Both suites' contract tests must go green in the same commit — the goldens are bilateral.");
 
-    expect(written).toHaveLength(2);
+    expect(written).toHaveLength(3);
   });
 });
 

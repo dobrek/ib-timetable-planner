@@ -45,6 +45,22 @@ export type WireCohortSnapshot = Omit<GeneratorCohortSnapshot, "pins"> & { pins:
 export type WireSnapshot = Omit<GeneratorSnapshot, "cohorts"> & { cohorts: Record<Cohort, WireCohortSnapshot> };
 
 /**
+ * The envelope `POST /jobs/{jobId}/solve` accepts (F-302) — and the ONLY carrier of `formatVersion`
+ * on this wire: the snapshot and the result are versioned by the envelope around them, never
+ * field-by-field.
+ *
+ * The schema is `additionalProperties: false`, so a job identity cannot ride in the body — it
+ * travels in the URL path. Declared here rather than in `types.ts` because it carries a
+ * `WireSnapshot`, which is defined in this module.
+ */
+export type SolveRequest = {
+  formatVersion: 1;
+  snapshot: WireSnapshot;
+  /** An incumbent board to hint the solver with. Omitted when absent — never `null`. */
+  warmStart?: GeneratedPlacement[];
+};
+
+/**
  * Canonical JSON: keys sorted lexicographically at every depth, compact separators, and
  * `null`/`undefined`-valued keys omitted. The omit-when-absent convention is encoded HERE rather
  * than merely documented — a producer that emits `lowerBound: null` still canonicalizes to a
@@ -68,6 +84,16 @@ export const canonicalizeSnapshot = (snapshot: WireSnapshot): string => canonica
 
 /** The canonical form of a result: declared array sorts applied, optional keys dropped when absent. */
 export const canonicalizeResult = (result: GenerationResult): string => canonicalStringify(toWireResult(result));
+
+/**
+ * The canonical form of a solve request: the snapshot through its own declared sorts, `warmStart`
+ * through the `placements` order, and the key omitted entirely when there is no warm start.
+ *
+ * This is what the app POSTs, so dispatch gets deterministic bytes for free — two callers that
+ * assembled the same solve in a different order send the identical body.
+ */
+export const canonicalizeSolveRequest = (request: SolveRequest): string =>
+  canonicalStringify(toWireSolveRequest(request));
 
 /**
  * `generation_jobs.snapshot_hash` — SHA-256 hex over the canonical snapshot. Drift is a
@@ -123,6 +149,14 @@ const toWireCohort = (cohort: WireCohortSnapshot): WireCohortSnapshot => ({
 });
 
 const toWirePin = ({ courseId, day, period, week }: WirePin): WirePin => ({ courseId, day, period, week });
+
+const toWireSolveRequest = ({ formatVersion, snapshot, warmStart }: SolveRequest): SolveRequest => ({
+  formatVersion,
+  snapshot: toWireSnapshot(snapshot),
+  // Omit-when-absent stated at the projection rather than left to `canonicalStringify` dropping an
+  // `undefined`: an EMPTY warm start is a present value and must survive as `[]`.
+  ...(warmStart === undefined ? {} : { warmStart: [...warmStart].map(toWirePlacement).sort(byWirePlacement) }),
+});
 
 const toWireResult = (result: GenerationResult): GenerationResult => ({
   placements: [...result.placements].map(toWirePlacement).sort(byWirePlacement),

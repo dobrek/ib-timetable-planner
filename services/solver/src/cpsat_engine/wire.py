@@ -33,7 +33,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .schema import COHORTS, CohortSnapshot, Snapshot
+from .schema import COHORTS, CohortSnapshot, Snapshot, parse_snapshot
 from .solve import StageReport
 
 
@@ -87,10 +87,7 @@ def wire_result(result: dict[str, Any]) -> dict[str, Any]:
     diagnostics: dict[str, Any] = result["diagnostics"]
     return {
         **result,
-        "placements": sorted(
-            result["placements"],
-            key=lambda p: (p["cohort"], p["courseId"], p["day"], p["period"], p["week"]),
-        ),
+        "placements": sorted(result["placements"], key=_by_wire_placement),
         "diagnostics": {
             **diagnostics,
             "cohorts": {
@@ -98,6 +95,26 @@ def wire_result(result: dict[str, Any]) -> dict[str, Any]:
             },
         },
     }
+
+
+def canonical_solve_request_json(request: dict[str, Any]) -> str:
+    """The canonical form of a ``SolveRequest`` — the mirror of ``canonicalizeSolveRequest`` in wire.ts.
+
+    Dict in, like :func:`canonical_result_json`: a solve request reaches this side as raw JSON off the
+    wire, never as a dataclass. The snapshot is routed through ``parse_snapshot`` -> :func:`wire_snapshot`
+    so the envelope reuses the ONE snapshot-side sort implementation instead of growing a second that
+    can drift from it; ``warmStart`` takes the same declared order as a result's ``placements``.
+
+    ``warmStart`` is omitted when the key is absent and preserved when it is an empty list — absent
+    and empty are different states, and only the first one is "no warm start".
+    """
+    wire: dict[str, Any] = {
+        "formatVersion": request["formatVersion"],
+        "snapshot": wire_snapshot(parse_snapshot(request["snapshot"])),
+    }
+    if "warmStart" in request:
+        wire["warmStart"] = sorted(request["warmStart"], key=_by_wire_placement)
+    return canonical_json(wire)
 
 
 def wire_stage_report(stage: StageReport) -> dict[str, Any]:
@@ -115,6 +132,18 @@ def wire_stage_report(stage: StageReport) -> dict[str, Any]:
             "bound": stage.bound,
             "wallClockS": stage.wall_clock_s,
         }
+    )
+
+
+def _by_wire_placement(placement: dict[str, Any]) -> tuple[str, str, int, int, str]:
+    """The declared ``placements`` order — shared by a result's board and a request's warm start,
+    because the contract declares one order for that array shape (``byWirePlacement`` in wire.ts)."""
+    return (
+        placement["cohort"],
+        placement["courseId"],
+        placement["day"],
+        placement["period"],
+        placement["week"],
     )
 
 

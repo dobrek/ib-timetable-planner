@@ -30,6 +30,7 @@ Validation lives in the test lane (``jsonschema``, dev group), never in the solv
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 
@@ -51,6 +52,19 @@ def canonical_json(value: Any) -> str:
 def canonical_snapshot_json(snapshot: Snapshot) -> str:
     """The canonical form of a snapshot — the exact bytes ``generation_jobs.snapshot_hash`` digests."""
     return canonical_json(wire_snapshot(snapshot))
+
+
+def snapshot_hash(snapshot: Snapshot) -> str:
+    """``generation_jobs.snapshot_hash`` — lowercase hex SHA-256 over :func:`canonical_snapshot_json`.
+
+    The mirror of ``computeSnapshotHash`` (``wire.ts``): same bytes in, same digest out, no prefix.
+    The service compares it against the value the app recorded at enqueue, so a body that is not the
+    snapshot the job was enqueued with cannot be solved under that job's identity.
+
+    That the two languages agree is a property under test, not an assumption: one recorded hash of
+    the snapshot golden is asserted in ``tests/test_contract.py`` and in ``bench/contract-parity.test.ts``.
+    """
+    return hashlib.sha256(canonical_snapshot_json(snapshot).encode("utf-8")).hexdigest()
 
 
 def wire_snapshot(snapshot: Snapshot) -> dict[str, Any]:

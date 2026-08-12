@@ -27,6 +27,7 @@ from cpsat_engine.wire import (
     canonical_result_json,
     canonical_snapshot_json,
     canonical_solve_request_json,
+    snapshot_hash,
     wire_stage_report,
 )
 
@@ -36,6 +37,14 @@ SNAPSHOT_GOLDEN = CONTRACTS / "fixtures" / "generator-snapshot.json"
 RESULT_GOLDEN = CONTRACTS / "fixtures" / "generation-result.json"
 SOLVE_REQUEST_GOLDEN = CONTRACTS / "fixtures" / "solve-request.json"
 GOLDENS = (SNAPSHOT_GOLDEN, RESULT_GOLDEN, SOLVE_REQUEST_GOLDEN)
+
+# The recorded digest of the snapshot golden. The IDENTICAL literal is asserted in
+# `bench/contract-parity.test.ts` against `computeSnapshotHash`, which is the whole point: the app
+# writes `generation_jobs.snapshot_hash` from the TS side and the service binds its dispatched body
+# against it from this side, so the two digests agreeing is the load-bearing property. Byte-parity of
+# the canonical form is necessary but not sufficient — an encoding or hex-formatting difference would
+# split the hashes while leaving both round-trip tests green.
+SNAPSHOT_GOLDEN_SHA256 = "8ab77d79e1138f7ed0c054ff51429330998e32df40c4dea42c1d95ac85c8698b"
 
 
 @pytest.fixture(scope="module")
@@ -107,6 +116,12 @@ def test_solve_request_golden_exercises_the_optional_warm_start() -> None:
     payload = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
     assert payload["formatVersion"] == 1
     assert payload["warmStart"], "the fixture must carry a non-empty warm start"
+
+
+def test_snapshot_golden_digests_to_the_recorded_cross_language_hash() -> None:
+    """The `snapshot_hash` binding is only a binding if both languages compute the same digest."""
+    snapshot = parse_snapshot(json.loads(SNAPSHOT_GOLDEN.read_text()))
+    assert snapshot_hash(snapshot) == SNAPSHOT_GOLDEN_SHA256
 
 
 def test_goldens_carry_no_nulls() -> None:

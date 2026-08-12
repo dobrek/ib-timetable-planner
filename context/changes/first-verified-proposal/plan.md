@@ -11,8 +11,8 @@ against the solved snapshot, translates `courseId` into the clone's id space via
 applies the board onto the proposal clone through the atomic RPC.
 
 **FR-313 honesty note (say it out loud):** the Action-triggered result read satisfies FR-313's
-*location* requirement (the oracle runs server-side in the delivery pipeline) but **not** its
-*rationale* ("without a browser open") — headless delivery is S-303 (polling) and S-306 (drift-decided
+_location_ requirement (the oracle runs server-side in the delivery pipeline) but **not** its
+_rationale_ ("without a browser open") — headless delivery is S-303 (polling) and S-306 (drift-decided
 delivery). This plan does not pretend otherwise.
 
 ## Current State Analysis
@@ -46,10 +46,10 @@ oracle → id translation → apply onto clone, **all assertions green**. What e
 ## Desired End State
 
 An author on the plan-detail page clicks **Generate** (the existing button, now dispatching CP-SAT
-instead of the greedy worker). A status strip appears: *"Generating… started \<time\>"* with a
+instead of the greedy worker). A status strip appears: _"Generating… started \<time\>"_ with a
 Refresh affordance. When the author revisits (or refreshes) after the solve completes, the app
-verifies and applies the board, and the strip shows *"Proposal ready — open"* linking to the proposal
-plan, with honest clean labelling (*clean*, or *"clean — N pinned hours remain on soft cells"*, or
+verifies and applies the board, and the strip shows _"Proposal ready — open"_ linking to the proposal
+plan, with honest clean labelling (_clean_, or _"clean — N pinned hours remain on soft cells"_, or
 the non-clean fallback label). Failures show the diagnostic and the orphan clone is removed. A
 tiny-fixture integration test proves the whole chain in CI.
 
@@ -105,7 +105,7 @@ deletion, tiny-fixture E2E test.
   persist anyway: tiers 2–4 hardening could otherwise push `softHits` above the floor); tier-5
   minimization then lands on the floor trivially.
 - **Fallback, not inference.** Clean-infeasibility is handled by construction: compute the floor
-  up front, constrain to it, and if the feasibility solve is INFEASIBLE *with* the constraint,
+  up front, constrain to it, and if the feasibility solve is INFEASIBLE _with_ the constraint,
   **rebuild the model from the dump without it** (constraints can't be dropped from a CP-SAT model;
   `build_model` is cheap — `parity()` already rebuilds per call) and re-run the feasibility solve
   once, then continue the ladder normally (labelled downstream, never refused).
@@ -128,7 +128,7 @@ deletion, tiny-fixture E2E test.
   `auto-park` transform may be barrel-exported; the new env-free loaders may be too, but own-path
   imports are the safe default for api modules.
 - **Delivery idempotency.** The delivered marker is a CAS: `update … set delivered_plan_id = …
-  where id = <job> and delivered_plan_id is null` (with a returning check), so two tabs firing the
+where id = <job> and delivered_plan_id is null` (with a returning check), so two tabs firing the
   on-visit check cannot double-apply. Check the marker before loading the heavy columns.
 - **Narrow projections.** The status read selects only
   `id,status,proposal_plan_id,delivered_plan_id,stages,error,created_at,finished_at`; `snapshot` and
@@ -589,15 +589,15 @@ functions without the narrowing (it only widens what the solver role can read).
 
 #### Automated
 
-- [ ] 1.1 Solver suite passes (`mise run solver:test`)
-- [ ] 1.2 Strict types + lint (`mise run solver:check`)
-- [ ] 1.3 Objective-parity suite stays exactly 10/10
-- [ ] 1.4 Golden parity test executed locally (skipif-gated)
-- [ ] 1.5 TS contract suite green (`pnpm test`)
+- [x] 1.1 Solver suite passes (`mise run solver:test`)
+- [x] 1.2 Strict types + lint (`mise run solver:check`)
+- [x] 1.3 Objective-parity suite stays exactly 10/10
+- [x] 1.4 Golden parity test executed locally (skipif-gated)
+- [x] 1.5 TS contract suite green (`pnpm test`)
 
 #### Manual
 
-- [ ] 1.6 Clean solve on a real dump: OPTIMAL, complete, `softHits = 0`
+- [x] 1.6 Clean solve on a real dump: OPTIMAL, complete, `softHits = 0`
 
 ### Phase 2: DB — RLS status-window narrowing
 

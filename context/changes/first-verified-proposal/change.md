@@ -1,7 +1,7 @@
 ---
 change_id: first-verified-proposal
 title: First verified proposal
-status: plan_reviewed
+status: implementing
 created: 2026-08-12
 updated: 2026-08-12
 archived_at: null

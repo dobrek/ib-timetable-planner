@@ -25,7 +25,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 import builders as b
-from cpsat_engine.wire import wire_snapshot
+from cpsat_engine.schema import Dump, parse_snapshot
+from cpsat_engine.solve import SolveConfig, SolveResult, solve_complete
+from cpsat_engine.wire import snapshot_hash, wire_snapshot
 from cpsat_service import app as app_module
 from cpsat_service.registry import JobRegistry
 from cpsat_service.runner import run_job
@@ -67,11 +69,16 @@ class FakeSupabase:
 
     ``claimable`` False models the CAS losing: PostgREST answers 200 with an EMPTY array, which is
     exactly how "no row matched `status=eq.queued`" looks on the wire.
+
+    ``snapshot_hash`` is the digest the claimed ROW carries. Left None, :func:`_run` fills it with the
+    request's own digest so the binding passes — a test that wants a mismatch states one explicitly
+    rather than every other test drifting through a hole in the guard.
     """
 
-    def __init__(self, *, claimable: bool = True) -> None:
+    def __init__(self, *, claimable: bool = True, snapshot_hash: str | None = None) -> None:
         self.calls: list[RecordedCall] = []
         self.claimable = claimable
+        self.snapshot_hash = snapshot_hash
         self.sign_in_count = 0
 
     def transport(self) -> httpx.MockTransport:
@@ -92,7 +99,8 @@ class FakeSupabase:
             return httpx.Response(200, json={"access_token": ACCESS_TOKEN, "token_type": "bearer"})
         if call.path == "/rest/v1/generation_jobs":
             claiming = call.params.get("status") == "eq.queued"
-            rows = [{"id": JOB_ID}] if (self.claimable or not claiming) else []
+            row = {"id": JOB_ID, "snapshot_hash": self.snapshot_hash} if claiming else {"id": JOB_ID}
+            rows = [row] if (self.claimable or not claiming) else []
             return httpx.Response(200, json=rows)
         return httpx.Response(404, json={"message": f"unexpected path {call.path}"})
 
@@ -133,7 +141,13 @@ def _infeasible_request() -> dict[str, Any]:
 
 def _run(request: dict[str, Any], fake: FakeSupabase) -> JobRegistry:
     """Run the worker SYNCHRONOUSLY (no thread) so a test asserts on a finished state rather than
-    on a sleep."""
+    on a sleep.
+
+    The row's `snapshot_hash` defaults to this request's own digest, matching the app's enqueue: the
+    binding is under test in its own two cases, not incidentally in every other one.
+    """
+    if fake.snapshot_hash is None:
+        fake.snapshot_hash = snapshot_hash(parse_snapshot(request["snapshot"]))
     registry = JobRegistry()
     registry.register(JOB_ID)
     run_job(JOB_ID, request, settings=SETTINGS, registry=registry, client_factory=fake.client_factory)
@@ -277,7 +291,10 @@ def test_successful_solve_claims_then_writes_the_result() -> None:
     claim, finish = fake.patches()
     assert claim.params["status"] == "eq.queued", "the CAS filter is the durable idempotency guard"
     assert claim.params["id"] == f"eq.{JOB_ID}"
-    assert claim.params["select"] == "id", "a bare select would drag the ~124 KB TOASTed snapshot"
+    assert claim.params["select"] == "id,snapshot_hash", (
+        "the binding digest rides the claim's own round trip; a BARE select would drag the ~124 KB "
+        "TOASTed snapshot along with it"
+    )
     assert claim.headers["prefer"] == "return=representation"
     assert claim.headers["authorization"] == f"Bearer {ACCESS_TOKEN}"
     assert claim.headers["apikey"] == SETTINGS.supabase_key
@@ -353,6 +370,49 @@ def test_losing_the_claim_writes_nothing_further(caplog: pytest.LogCaptureFixtur
 
     assert len(fake.patches()) == 1, "only the failed claim; a lost CAS must not trample a live solve"
     assert any("not claimable" in record.message for record in caplog.records)
+
+
+def test_every_solve_requests_clean_mode() -> None:
+    """FR-302's shipped default, and it can only be asserted HERE: `SolveRequest` has nowhere to
+    carry a policy and the service deliberately never reads `generation_jobs.policy`, so the runner's
+    own `SolveConfig` is the entire decision."""
+    configs: list[SolveConfig] = []
+
+    def record(dump: Dump, config: SolveConfig) -> SolveResult:
+        configs.append(config)
+        return solve_complete(dump, config)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", record)
+        _run(_micro_request(), FakeSupabase())
+
+    assert [config.clean_mode for config in configs] == [True]
+
+
+def test_a_snapshot_that_is_not_the_enqueued_one_fails_before_solving() -> None:
+    """Dispatch is unauthenticated and body-trusting, so the row's digest is what binds a body to the
+    job id in its URL. `failed` rather than back to `queued`: the claim already moved the row to
+    `running` and RLS admits no way back."""
+    fake = FakeSupabase(snapshot_hash="0" * 64)
+
+    _run(_micro_request(), fake)
+
+    claim, finish = fake.patches()
+    assert claim.body["status"] == "running"
+    assert finish.body["status"] == "failed"
+    assert "snapshot mismatch" in finish.body["error"]
+    assert "result" not in finish.body
+    assert "stages" not in finish.body, "nothing was solved, so there is no ladder transcript to write"
+
+
+def test_a_matching_snapshot_binds_and_proceeds_to_the_solve() -> None:
+    """The other half of the guard: the digest the app recorded is exactly what dispatch carries, so
+    the same fixture that fails above must sail through when the row agrees."""
+    fake = FakeSupabase(snapshot_hash=snapshot_hash(parse_snapshot(_micro_request()["snapshot"])))
+
+    _run(_micro_request(), fake)
+
+    assert fake.patches()[1].body["status"] == "succeeded"
 
 
 def test_infeasible_outcome_fails_the_job_and_still_writes_stages() -> None:

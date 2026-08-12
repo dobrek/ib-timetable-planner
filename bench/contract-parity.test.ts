@@ -8,6 +8,7 @@ import {
   canonicalizeSnapshot,
   canonicalizeSolveRequest,
   canonicalStringify,
+  computeSnapshotHash,
   course,
   placement,
   type GenerationResult,
@@ -41,6 +42,17 @@ const SOLVE_REQUEST_GOLDEN = join(CONTRACTS, "fixtures", "solve-request.json");
 const GOLDENS = [SNAPSHOT_GOLDEN, RESULT_GOLDEN, SOLVE_REQUEST_GOLDEN];
 
 const SCHEMA_ID = "https://ib-timetable-planner.dev/contracts/generation-wire.schema.json";
+
+/**
+ * The recorded digest of the snapshot golden. The IDENTICAL literal is asserted in
+ * `services/solver/tests/test_contract.py` against `cpsat_engine.wire.snapshot_hash`.
+ *
+ * This is the one property byte-parity of the canonical form does not already buy: the app writes
+ * `generation_jobs.snapshot_hash` from here, the solver binds its dispatched body against it from
+ * there, and a text-encoding or hex-formatting difference would split the two digests while leaving
+ * every round-trip assertion in both suites green.
+ */
+const SNAPSHOT_GOLDEN_SHA256 = "8ab77d79e1138f7ed0c054ff51429330998e32df40c4dea42c1d95ac85c8698b";
 
 let validateSnapshot: ValidateFunction;
 let validateResult: ValidateFunction;
@@ -94,6 +106,10 @@ describe("contract goldens", () => {
     // `canonicalStringify` sorts keys but never reorders arrays, so this passes only if the committed
     // bytes already carry the declared sorts — proving the ordering rules are baked into the files.
     for (const golden of GOLDENS) expect(canonicalStringify(readJson(golden))).toBe(readText(golden));
+  });
+
+  it("digests the snapshot golden to the hash the Python suite records", async () => {
+    expect(await computeSnapshotHash(readJson<WireSnapshot>(SNAPSHOT_GOLDEN))).toBe(SNAPSHOT_GOLDEN_SHA256);
   });
 
   it("contains no null anywhere — optionals are omitted on this wire, never nulled", () => {

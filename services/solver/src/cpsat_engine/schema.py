@@ -73,7 +73,9 @@ class AvailabilityCell:
     teacher_key: str
     day: int
     period: int
-    severity: str  # "strong" (block) | "soft" (tier-5 objective term, never a constraint)
+    # "strong" is a hard block. "soft" is the tier-5 objective term — and, under `SolveConfig.clean_mode`
+    # (the service's shipped default), additionally a constraint pinning tier 5 to its pinned floor.
+    severity: str
 
 
 @dataclass(frozen=True)

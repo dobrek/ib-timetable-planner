@@ -173,6 +173,44 @@ def _lane_holes_tier(
 # --- tier 5: soft-availability hits (week-agnostic, one per row x soft co-teacher) -----------------
 
 
+def soft_hits_terms(bundle: ModelBundle) -> tuple[Term, int]:
+    """The tier-5 ``softHits`` count as a plain linear form over ``bundle.x``, plus its pinned floor.
+
+    Same arithmetic as :func:`_tier_soft_hits` — one hit per (row, soft co-teacher) — but expressed
+    without the tier aux-vars, so the completeness feasibility solve can constrain it *before*
+    :func:`build_objective` has run. That is what clean mode needs (``solve.py``); keeping the two
+    formulas adjacent is what stops them drifting.
+
+    The floor is the pins-only half. Pins fold into the merged board as constants
+    (``_Occupancy.register``), so their contribution is irreducible: no assignment of the generated
+    rows can bring ``softHits`` below it, and ``softHits == floor`` is therefore the strongest
+    honest reading of "the solve adds no NEW soft violations".
+
+    It is counted PER PIN ROW x PER SOFT CO-TEACHER, never as a pins-against-soft-cells set
+    intersection — that would undercount twice over: a co-taught pin whose cell is soft for two of
+    its teachers contributes 2, and two lane-disjoint pin rows sharing one soft cell contribute 1
+    each (the tier dedups by neither teacher nor cell).
+    """
+    soft = _soft_index(bundle.snapshot.availability)
+    course_by = {(co, c.id): c for co in COHORTS for c in bundle.snapshot.cohorts[co].courses}
+
+    def weight(course: Course, day: int, period: int) -> int:
+        return sum(1 for t in course.teacher_keys if (day, period) in soft.get(t, frozenset()))
+
+    generated = sum(
+        hits * var
+        for (cohort, cid, day, period, _week), var in bundle.x.items()
+        if (hits := weight(course_by[(cohort, cid)], day, period))
+    )
+    floor = sum(
+        weight(course, pin.day, pin.period)
+        for cohort in COHORTS
+        for pin in bundle.snapshot.cohorts[cohort].pins
+        if (course := course_by.get((cohort, pin.course_id))) is not None
+    )
+    return generated + floor, floor
+
+
 def _tier_soft_hits(bundle: ModelBundle, occ: _Occupancy) -> cp_model.IntVar:
     soft = _soft_index(bundle.snapshot.availability)
     course_by = {(co, c.id): c for co in COHORTS for c in bundle.snapshot.cohorts[co].courses}

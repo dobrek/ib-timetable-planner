@@ -22,7 +22,7 @@ from typing import Any
 from ortools.sat.python import cp_model
 
 from .model import ModelBundle, build_model
-from .objective import ObjectiveModel, build_objective, build_tiers
+from .objective import ObjectiveModel, build_objective, build_tiers, soft_hits_terms
 from .schema import COHORTS, Course, Dump, Placement, PlacementKey, deficits
 
 # --- configuration & reports ----------------------------------------------------------------------
@@ -39,6 +39,11 @@ class SolveConfig:
     workers: int = 0  # 0 = let CP-SAT pick (num_search_workers auto)
     hops: int = 1
     log_dir: Path | None = None
+    # Read by `solve_complete` ALONE, and defaulted off. That placement is load-bearing: `parity()`
+    # and `evaluate_board()` take no config, so the 10/10 objective-parity gate cannot see this flag
+    # by construction. Implementing the same semantics as variable pruning inside `build_model`
+    # would be mathematically equivalent and would put the gate's own model inside the change.
+    clean_mode: bool = False
 
 
 @dataclass(frozen=True)
@@ -190,14 +195,19 @@ def _place_maximally(
 
 def solve_complete(dump: Dump, config: SolveConfig) -> SolveResult:
     """Constrain every deficit fully placed and feasibility-solve. On SAT, chain the ladder from
-    tier 2 (unplaced is already 0). On INFEASIBLE, hand off to ``explain``. On timeout, report unknown."""
-    # The completeness feasibility solve carries the hard rules only — the tier aux-vars would bloat
-    # it for no gain. They are built after SAT, when the ladder actually needs them.
-    bundle = build_model(dump)
-    _add_completeness(bundle, bundle.deficits)
+    tier 2 (unplaced is already 0). On INFEASIBLE, hand off to ``explain``. On timeout, report unknown.
 
-    _hint_board(bundle, _greedy_board(dump))
-    status, solver = _run_solver(config, config.mode_a_budget_s, "mode-a", bundle.model)
+    Under ``config.clean_mode`` the feasibility model additionally carries ``softHits == floor`` —
+    the solve may not add a soft-availability hit the author's own pins did not already own. If THAT
+    is infeasible, the constraint is dropped and feasibility re-runs once (:func:`_feasibility`), so
+    a clean-infeasible snapshot still yields a board — labelled by the caller, never refused."""
+    bundle, status, solver = _feasibility(dump, config, clean=config.clean_mode)
+    # Only a PROOF of infeasibility falls back: an UNKNOWN is a budget verdict on the model, not
+    # evidence that clean is unsatisfiable, and re-solving it would just burn the budget twice.
+    fallback = config.clean_mode and status == cp_model.INFEASIBLE
+    if fallback:
+        bundle, status, solver = _feasibility(dump, config, clean=False)
+
     feasibility = StageReport(
         tier=1,
         name="completeness",
@@ -206,6 +216,8 @@ def solve_complete(dump: Dump, config: SolveConfig) -> SolveResult:
         bound=None,
         wall_clock_s=solver.wall_time,
     )
+    # Internal only — `to_generation_result` never reads `notes`, so nothing here reaches the wire.
+    clean_notes: dict[str, Any] = {"clean_fallback": fallback} if config.clean_mode else {}
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         incumbent = _extract_board(bundle, solver)
@@ -216,7 +228,7 @@ def solve_complete(dump: Dump, config: SolveConfig) -> SolveResult:
             board=board,
             stages=(feasibility, *stages),
             proven_optimal=proven,
-            notes={"outcome": "complete"},
+            notes={"outcome": "complete", **clean_notes},
         )
 
     outcome = "infeasible" if status == cp_model.INFEASIBLE else "unknown"
@@ -225,8 +237,39 @@ def solve_complete(dump: Dump, config: SolveConfig) -> SolveResult:
         board=(),
         stages=(feasibility,),
         proven_optimal=False,
-        notes={"outcome": outcome},
+        notes={"outcome": outcome, **clean_notes},
     )
+
+
+def _feasibility(
+    dump: Dump, config: SolveConfig, *, clean: bool
+) -> tuple[ModelBundle, cp_model.CpSolverStatus, cp_model.CpSolver]:
+    """Build the hard-rules model, force completeness (plus the clean floor when asked), and solve.
+
+    The completeness feasibility solve carries the hard rules only — the tier aux-vars would bloat
+    it for no gain. They are built after SAT, when the ladder actually needs them. Clean mode is no
+    exception: :func:`soft_hits_terms` is a plain linear form over ``bundle.x`` and the pin
+    constants, so the constraint needs no aux-var either.
+
+    It has to go HERE, and it has to STAY. Here, because adding it next to ``build_objective`` after
+    Mode A would leave a later ladder stage that returns neither OPTIMAL nor FEASIBLE returning the
+    PRE-clean incumbent behind a green `succeeded`. Stay, because CP-SAT cannot drop a constraint
+    and because tiers 2-4 hardening could otherwise push ``softHits`` back above the floor; tier 5
+    then lands on the floor trivially.
+
+    Which is also why the fallback REBUILDS rather than relaxes: dropping the constraint from a
+    built model is not a thing CP-SAT offers, and ``build_model`` is cheap enough that ``parity()``
+    already rebuilds per call.
+    """
+    bundle = build_model(dump)
+    _add_completeness(bundle, bundle.deficits)
+    if clean:
+        soft_hits, floor = soft_hits_terms(bundle)
+        bundle.model.add(soft_hits == floor)
+    _hint_board(bundle, _greedy_board(dump))
+    stage = "mode-a-clean" if clean else "mode-a"
+    status, solver = _run_solver(config, config.mode_a_budget_s, stage, bundle.model)
+    return bundle, status, solver
 
 
 # --- Mode B: 1-hop residual repair ----------------------------------------------------------------

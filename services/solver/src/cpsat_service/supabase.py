@@ -92,26 +92,32 @@ class JobRowClient:
         self._token_minted_at = time.monotonic()
         return self._token
 
-    def claim(self, job_id: str) -> bool:
-        """Compare-and-set `queued -> running`. True iff THIS call is the one that claimed it.
+    def claim(self, job_id: str) -> dict[str, Any] | None:
+        """Compare-and-set `queued -> running`. The claimed row iff THIS call claimed it, else None.
 
         The `status=eq.queued` filter is the durable half of the idempotency guard (research R10):
         the in-process registry cannot survive a container restart, and RLS cannot help here because
         its `with check` window permits `running -> running`. So the filter — not the policy, and
         not the registry — is what stops a retried dispatch from starting a second solve.
 
-        `return=representation` with a `select=id` projection is what makes the affected-row count
+        `return=representation` with a narrow projection is what makes the affected-row count
         observable at all: an empty array means another worker already had it.
+
+        `snapshot_hash` rides along in that same projection rather than costing a second round trip
+        — the role already holds table-wide SELECT, and the column is a 64-char digest, not one of
+        the TOASTed payloads the narrow-projection rule exists to keep off the wire. The runner
+        binds the dispatched body to it before solving.
         """
         now = _utc_now()
         response = self._client.patch(
             JOBS,
-            params={"id": f"eq.{job_id}", "status": "eq.queued", "select": "id"},
+            params={"id": f"eq.{job_id}", "status": "eq.queued", "select": "id,snapshot_hash"},
             headers={**self._headers(), "Prefer": "return=representation"},
             json={"status": "running", "started_at": now, "heartbeat_at": now},
         )
         _raise_for_status(response, f"claim job {job_id}")
-        return len(response.json()) > 0
+        rows: list[dict[str, Any]] = response.json()
+        return rows[0] if rows else None
 
     def finish(
         self,

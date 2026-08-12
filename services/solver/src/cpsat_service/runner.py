@@ -6,12 +6,17 @@ main-thread ticks through a live solve), so `/health` keeps answering while this
 **The outcome mapping is the load-bearing part, and it is not exception-driven.** A non-optimal
 solve does not raise: `solve_complete` returns `board=()` with `notes["outcome"]` reading
 `infeasible` or `unknown`. Branching on exceptions here would silently write `succeeded` over an
-empty board. The three shapes:
+empty board. The four shapes:
 
     outcome == "complete"   -> succeeded, `result` + `stages`
     infeasible / unknown    -> failed, `error` naming the outcome, `stages` STILL written
     PreconditionError       -> failed — a client-data failure (the pins already violate a hard
                                rule), not a solver failure, so the message goes to the author
+    snapshot mismatch       -> failed BEFORE any solve, `error` naming both digests: the body is
+                               not the snapshot this job id was enqueued with (S-301's binding)
+
+Every solve requests CLEAN mode — the FR-302 shipped default, solver-side because the frozen
+`SolveRequest` has nowhere to carry a policy.
 
 **Accepted silent-failure surface (F-302).** If sign-in fails the worker cannot write anything to
 the row: the row stays `queued` and the only signal is a loud service log. That is tolerable for a
@@ -30,7 +35,7 @@ from typing import Any
 from cpsat_engine.model import PreconditionError
 from cpsat_engine.schema import Dump, parse_placements, parse_snapshot
 from cpsat_engine.solve import SolveConfig, SolveResult, solve_complete, to_generation_result
-from cpsat_engine.wire import wire_result, wire_stage_report
+from cpsat_engine.wire import snapshot_hash, wire_result, wire_stage_report
 
 from .registry import JobRegistry
 from .settings import Settings
@@ -77,9 +82,18 @@ def run_job(
     client: JobRowClient | None = None
     try:
         client = client_factory(settings)
-        if not _claim(client, job_id):
+        claimed = _claim(client, job_id)
+        if claimed is None:
             return
-        _solve_and_write(job_id, request, client=client, settings=settings)
+        dump = build_dump(request)
+        mismatch = _snapshot_mismatch(claimed, dump)
+        if mismatch is not None:
+            # The row is already `running` and RLS forbids returning it to `queued`, so `failed`
+            # with a diagnostic is the only truthful terminal state available here.
+            log.error("job %s: %s", job_id, mismatch)
+            client.finish(job_id, status="failed", error=mismatch)
+            return
+        _solve_and_write(job_id, dump, client=client, settings=settings)
     except PreconditionError as error:
         # The author's pinned board already violates a hard rule — no engine result could ever pass
         # verify. Their data, their message.
@@ -115,8 +129,8 @@ def build_dump(request: dict[str, Any]) -> Dump:
     )
 
 
-def _claim(client: JobRowClient, job_id: str) -> bool:
-    """True iff THIS worker now owns the row — and the only place a claim failure is handled.
+def _claim(client: JobRowClient, job_id: str) -> dict[str, Any] | None:
+    """The claimed row iff THIS worker now owns it — and the only place a claim failure is handled.
 
     A claim that FAILED is not a claim that was LOST, but neither may write: `finish` carries no
     status filter and RLS admits `running -> failed`, so a terminal write from here would trample a
@@ -130,18 +144,40 @@ def _claim(client: JobRowClient, job_id: str) -> bool:
         claimed = client.claim(job_id)
     except Exception:  # noqa: BLE001 — see above: an unclaimed row must not be written to
         log.exception("job %s: the claim itself failed — leaving the row untouched", job_id)
-        return False
-    if not claimed:
+        return None
+    if claimed is None:
         log.warning("job %s was not claimable (already running or terminal) — nothing to do", job_id)
     return claimed
 
 
-def _solve_and_write(
-    job_id: str, request: dict[str, Any], *, client: JobRowClient, settings: Settings
-) -> None:
-    dump = build_dump(request)
+def _snapshot_mismatch(claimed: dict[str, Any], dump: Dump) -> str | None:
+    """The diagnostic when the dispatched body is not the snapshot this job was enqueued with.
+
+    Dispatch is unauthenticated and body-trusting (`services/solver/README.md`), so the row's
+    `snapshot_hash` is what binds a request to the job id in its URL. Without this check a caller
+    who knows a job id could have any board solved and durably written under it — and, more likely
+    in practice, a snapshot re-assembled between enqueue and dispatch would be solved against a
+    different input than the one the app will later verify the result against.
+
+    A missing digest is a mismatch, not a pass: the column is `not null`, so the only way to see one
+    absent is a projection that stopped asking for it.
+    """
+    recorded = claimed.get("snapshot_hash")
+    actual = snapshot_hash(dump.snapshot)
+    if recorded == actual:
+        return None
+    return (
+        f"snapshot mismatch: the dispatched body digests to {actual} but the job row records "
+        f"{recorded!r} — this request is not the snapshot the job was enqueued with"
+    )
+
+
+def _solve_and_write(job_id: str, dump: Dump, *, client: JobRowClient, settings: Settings) -> None:
     log.info("job %s solving with %d workers", job_id, settings.workers)
-    result = solve_complete(dump, SolveConfig(workers=settings.workers, log_dir=None))
+    # Clean is the SHIPPED default (FR-302), and it is necessarily solver-side: `SolveRequest` is
+    # `additionalProperties: false` and the service deliberately does not read `generation_jobs.policy`,
+    # so there is nowhere on the wire for a caller to ask for it. S-307 is where alternatives arrive.
+    result = solve_complete(dump, SolveConfig(workers=settings.workers, log_dir=None, clean_mode=True))
     stages = [wire_stage_report(stage) for stage in result.stages]
     outcome = result.notes.get("outcome")
 

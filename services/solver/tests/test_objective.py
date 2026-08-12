@@ -13,8 +13,8 @@ from ortools.sat.python import cp_model
 
 import builders as b
 from cpsat_engine.model import build_model
-from cpsat_engine.objective import build_tiers
-from cpsat_engine.schema import BIWEEKLY, WEEK_A, PlacementKey, Snapshot, load_dump
+from cpsat_engine.objective import build_tiers, soft_hits_terms
+from cpsat_engine.schema import BIWEEKLY, WEEK_A, WEEK_B, PlacementKey, Snapshot, load_dump
 from cpsat_engine.solve import parity
 
 FIXTURE = Path(__file__).parent / "fixtures" / "seed-plan-a.json"
@@ -126,6 +126,56 @@ def test_soft_hits_count_rows_on_a_soft_cell_week_agnostic() -> None:
     assert _tiers(snap("agnostic", "both", 1, 1))["softHits"] == 1  # lands on the soft cell
     assert _tiers(snap(BIWEEKLY, WEEK_A, 1, 1))["softHits"] == 1  # biweekly still hits (week-agnostic)
     assert _tiers(snap("agnostic", "both", 2, 2))["softHits"] == 0  # elsewhere -> no hit
+
+
+# --- the tier-5 PINNED FLOOR: the quantity clean mode constrains against ---------------------------
+#
+# `soft_hits_terms` re-expresses tier 5 without the aux-vars so clean mode can constrain it before
+# the objective exists. Two properties matter, and both are ways an intuitive "pins intersected with
+# soft cells" formula UNDERCOUNTS — which would make `softHits == floor` infeasible by construction
+# and send every such solve down the fallback with a mislabelled board.
+
+
+def _floor(snap: Snapshot) -> int:
+    return soft_hits_terms(build_model(b.dump(snap)))[1]
+
+
+def test_soft_floor_counts_a_pin_row_once_per_soft_co_teacher() -> None:
+    snap = b.snapshot(
+        dp1=b.cohort(courses=[b.course("a", teachers=["T1", "T2"], hours=2)], pins=[b.pin("a", 1, 1)]),
+        availability=[b.soft("T1", 1, 1), b.soft("T2", 1, 1)],
+    )
+
+    assert _floor(snap) == 2, "one pin row, two soft co-teachers — a cell intersection would say 1"
+    # The floor IS what the tier reads with nothing generated: same board, same number, two formulas.
+    assert _tiers(snap)["softHits"] == 2
+
+
+def test_soft_floor_never_dedups_two_pin_rows_sharing_one_soft_cell() -> None:
+    # Opposite weeks are lane-disjoint, so two rows legally share a cell even under one teacher.
+    snap = b.snapshot(
+        dp1=b.cohort(
+            courses=[
+                b.course("a", teachers=["T1"], hours=2, week_mode=BIWEEKLY),
+                b.course("bb", teachers=["T1"], hours=2, week_mode=BIWEEKLY),
+            ],
+            pins=[b.pin("a", 1, 1, WEEK_A), b.pin("bb", 1, 1, WEEK_B)],
+        ),
+        availability=[b.soft("T1", 1, 1)],
+    )
+
+    assert _floor(snap) == 2, "two pin rows on one soft cell — a cell intersection would say 1"
+    assert _tiers(snap)["softHits"] == 2
+
+
+def test_soft_floor_is_zero_when_no_pin_sits_on_a_soft_cell() -> None:
+    # The common case, and the one that makes clean mode literally `softHits == 0` (FR-302's spec).
+    snap = b.snapshot(
+        dp1=b.cohort(courses=[b.course("a", teachers=["T1"], hours=2)], pins=[b.pin("a", 2, 2)]),
+        availability=[b.soft("T1", 1, 1)],
+    )
+
+    assert _floor(snap) == 0
 
 
 # --- tier 6 (studentHoles): a `both` row fans into both lanes; biweekly into one -------------------

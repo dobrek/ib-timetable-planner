@@ -20,7 +20,7 @@
       "enum": ["both", "a", "b"]
     },
     "AvailabilitySeverity": {
-      "description": "Teacher-availability storage severity. Mirrors the DB `availability_severity` enum. `strong` is a hard block; `soft` is an objective term, never a constraint.",
+      "description": "Teacher-availability storage severity. Mirrors the DB `availability_severity` enum. `strong` is a hard block. `soft` is a tier-5 objective term, and under the CP-SAT service's shipped clean-mode default additionally a constraint holding tier 5 at its pinned floor — the solve may not add a soft hit the author's own pins did not already own.",
       "type": "string",
       "enum": ["strong", "soft"]
     },

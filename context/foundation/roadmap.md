@@ -156,6 +156,18 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Parallel with:** S-305, S-306, S-307
 - **Blockers:** —
 - **Unknowns:** —
+- **Inherited from F-302 — scope this in, it is not covered by the Outcome above:** a job can reach a
+  state no redispatch can rescue. `JobRowClient.claim` is a compare-and-set filtered on
+  `status=eq.queued` (`services/solver/src/cpsat_service/supabase.py`), so a row left at `running` is
+  permanently unclaimable — and F-302's terminal write can leave one there if all three retry
+  attempts fail, or if the container dies between the last checkpoint and the final PATCH. **Renewing
+  `heartbeat_at` is therefore only half the job: something must also be allowed to RECLAIM a
+  `running` row whose heartbeat has gone stale**, which means widening that CAS filter (e.g.
+  `status=eq.queued` OR `status=eq.running AND heartbeat_at < now() - <grace>`) and confirming the
+  RLS `using`/`with check` windows on `generation_jobs` still permit it. Without the reclaim half,
+  the heartbeat makes the wedge *visible* but still not *recoverable*. Recorded 2026-08-12 from the
+  F-302 implementation review (finding F2) — see
+  `context/archive/2026-08-11-solver-service-transport/reviews/impl-review.md`.
 - **Risk:** The core external-blocker de-risk: the platform's documented mid-solve sleep issue (containers#162) makes job-aware lifecycle a correctness requirement, not hygiene — and the calibration campaign (S-308) cannot trust 20-minute production runs until this holds, which is why it gates Stream B. Needs S-302 (a real container to renew/terminate) and S-303 (checkpoints to persist on SIGTERM).
 - **Status:** proposed
 
@@ -244,7 +256,7 @@ Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**
 | S-301      | first-verified-proposal         | [#98](https://github.com/dobrek/ib-timetable-planner/issues/98)   | First end-to-end CP-SAT proposal: start job → oracle-verified board (north star) | yes                   | Unblocked — F-301 + F-302 done. Run `/10x-plan first-verified-proposal`. Inherits from F-302: the snapshot binding (compare the row's `snapshot_hash` after claim) and the relocated `runVerifiedGeneration` oracle |
 | S-302      | solver-deploy-lane              | [#99](https://github.com/dobrek/ib-timetable-planner/issues/99)   | Container deploy lane: path-filtered solver CI + image ship with the Worker      | yes                   | Unblocked — F-302 done; parallel with S-301. Inherits from F-302: the image must `COPY contracts/`, and the container binding IS the solve endpoint's authentication (see `services/solver/README.md` § trust boundary) |
 | S-303      | staged-progress-and-checkpoints | [#100](https://github.com/dobrek/ib-timetable-planner/issues/100) | Solve-to-target + per-stage checkpoints + polling progress UI                    | no                    | Promotes to `ready` once S-301 done                                |
-| S-304      | job-aware-container-lifecycle   | [#101](https://github.com/dobrek/ib-timetable-planner/issues/101) | Job-aware lifecycle: activity renewal + SIGTERM checkpoint persistence           | no                    | Promotes to `ready` once S-302 + S-303 done                        |
+| S-304      | job-aware-container-lifecycle   | [#101](https://github.com/dobrek/ib-timetable-planner/issues/101) | Job-aware lifecycle: activity renewal + SIGTERM checkpoint persistence           | no                    | Promotes to `ready` once S-302 + S-303 done. **Scope is short by one item** — heartbeat renewal alone cannot rescue a job wedged at `running`; the claim CAS must also be widened to reclaim stale-heartbeat rows. See the S-304 item body, "Inherited from F-302" |
 | S-305      | stop-and-keep                   | [#102](https://github.com/dobrek/ib-timetable-planner/issues/102) | Stop & keep the best completed-stage board                                       | no                    | Promotes to `ready` once S-303 done                                |
 | S-306      | drift-decided-delivery          | [#103](https://github.com/dobrek/ib-timetable-planner/issues/103) | Drift-decided delivery: auto-apply unchanged source / new plan on drift          | no                    | Promotes to `ready` once S-301 done                                |
 | S-307      | solve-policy-choice             | [#104](https://github.com/dobrek/ib-timetable-planner/issues/104) | Launch-time solve-policy choice (canonical order + trade-off dial)               | no                    | Promotes to `ready` once S-301 done                                |

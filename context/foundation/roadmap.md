@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-07-16
-updated: 2026-08-11
+updated: 2026-08-12
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -30,7 +30,7 @@ The timetable editor's only generation engine is a client-side greedy solver at 
 | ID    | Change ID                       | Outcome (user can …)                                                                                       | Prerequisites              | PRD refs                                                              | Status   |
 | ----- | ------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------- | -------- |
 | F-301 | solver-contract-and-jobs-schema | (foundation) frozen wire-contract artifact + durable jobs schema, least-privilege machine access           | —                          | FR-301, FR-310, §Constraints & Compatibility, §Access Control Changes | done     |
-| F-302 | solver-service-transport        | (foundation) promoted solver package accepts jobs over HTTP, writes durable status/results                 | F-301                      | FR-310, FR-316                                                        | proposed |
+| F-302 | solver-service-transport        | (foundation) promoted solver package accepts jobs over HTTP, writes durable status/results                 | F-301                      | FR-310, FR-316                                                        | done     |
 | S-301 | first-verified-proposal         | start a CP-SAT job (clean-mode default) and receive a complete, oracle-verified board on the proposal plan | F-301, F-302               | FR-301, FR-302, FR-303, FR-308, FR-310, FR-313, US-301                | proposed |
 | S-302 | solver-deploy-lane              | (maintainer) ship app + solver with one merge to main; container runs attached to the Worker               | F-302                      | FR-315, FR-316                                                        | proposed |
 | S-303 | staged-progress-and-checkpoints | watch a job stage by stage; every completed stage durably checkpoints a strictly better board              | S-301                      | FR-303, FR-304, FR-308, FR-312                                        | proposed |
@@ -104,7 +104,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Unknowns:**
   - HTTP framework choice (FastAPI vs lighter) — Owner: dev. Block: no (the PRD explicitly calls it a plan-phase detail).
 - **Risk:** The minimal enabler for any job slice — without a service that accepts a job and records its outcome, no vertical slice exists. Deliberately excludes solve-to-target, checkpoint emission, and lifecycle handling (those land with the first slices that make them user-visible: S-303, S-304), so S-301 still integrates this layer through a real user capability. The greedy Generate path stays untouched throughout.
-- **Status:** proposed
+- **Status:** done
 
 ## Slices
 
@@ -274,3 +274,4 @@ Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**
 (Empty on first generation. `/10x-archive` appends an entry here — and flips that item's `Status` to `done` — when a change whose `Change ID` matches the item is archived. Do NOT pre-populate.)
 
 - **F-301: (foundation) the frozen dump/result wire contract exists as a committed tech-neutral schema artifact in `contracts/`, golden-fixture-gated in **both** the TS and Python suites with `formatVersion` gating incompatibility; the `generation_jobs` table exists (additive migration, RLS + explicit grants) together with a least-privilege machine credential design for the solver's status/result writes.** — Archived 2026-08-11 → `context/archive/2026-08-10-solver-contract-and-jobs-schema/`. Lesson: —.
+- **F-302: (foundation) `poc/cp-sat` is promoted to `services/solver/`; a thin HTTP wrapper accepts a solve job, runs the engine with a pinned worker count, and writes status/results durably to the database over HTTPS; the wrapper is tested at the wrapper level (the untested-CLI lesson); a developer runs the service natively against the app via the env-gated `SOLVER_URL` transport (local fidelity tier 1), with mise carrying the toolchain pins.** — Archived 2026-08-12 → `context/archive/2026-08-11-solver-service-transport/`. Lesson: —.

@@ -1,10 +1,10 @@
 ---
 change_id: solver-service-transport
 title: Solver service transport
-status: impl_reviewed
+status: archived
 created: 2026-08-11
-updated: 2026-08-11
-archived_at: null
+updated: 2026-08-12
+archived_at: 2026-08-12T06:48:45Z
 ---
 
 ## Notes

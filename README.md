@@ -147,8 +147,15 @@ Optional: `SOLVER_WORKERS` (default `8`, pinned for reproducibility — never au
 Endpoints: `GET /health` (dependency-free) and `POST /jobs/{jobId}/solve`, which takes an unmodified contract `SolveRequest`, answers **202**, and reports the outcome by advancing the `generation_jobs` row — the database is the only status channel. To exercise the whole chain end to end:
 
 ```bash
+# the transport alone (queued → running → succeeded), and the full S-301 slice
+# (Generate → solve → server-side oracle → id translation → board on the proposal plan)
 SOLVER_URL=http://127.0.0.1:8000 pnpm test:integration src/test/solver-transport.integration.test.ts
+SOLVER_URL=http://127.0.0.1:8000 pnpm test:integration src/test/generation-proposal.integration.test.ts
 ```
+
+> Running the **whole** integration lane against the solver needs the job cap raised, because those
+> are two suites that dispatch and vitest runs files in parallel: start the service with
+> `SOLVER_MAX_CONCURRENT_JOBS=2` (what CI does) or the loser of the race gets a correct-but-unhelpful 503. Both fixtures solve in about a second.
 
 ## Deployment
 
@@ -183,7 +190,7 @@ pnpm exec wrangler rollback <deployment-id>
 GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`. All jobs share the `./.github/actions/setup` step (pnpm + Node + `pnpm install --frozen-lockfile`):
 
 1. **`verify` job** — `astro sync` → `lint` → `steiger` → `pnpm audit --audit-level=high` → `test` → `build`
-2. **`integration` job** — boots a trimmed local Supabase stack, provisions the solver machine user with a per-run password, launches the CP-SAT service and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` (which includes the `queued → running → succeeded` proof-of-life against that service)
+2. **`integration` job** — boots a trimmed local Supabase stack, provisions the solver machine user with a per-run password, launches the CP-SAT service (with `SOLVER_MAX_CONCURRENT_JOBS=2`, sized to the worker cap below) and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` — which includes both solver-touching suites: the `queued → running → succeeded` proof-of-life, and the full S-301 chain from Generate to a verified board on the proposal plan
 3. **`e2e` job** — boots the stack + workerd preview, runs the Playwright suite (`pnpm test:e2e`)
 4. **`solver` job** — from `services/solver`: `uv sync --locked` → `ruff check` → `mypy` (strict, src + tests) → `pytest` → `uv audit`
 5. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` + `solver` all pass: applies pending migrations (`supabase db push`), then ships via `cloudflare/wrangler-action@v4`

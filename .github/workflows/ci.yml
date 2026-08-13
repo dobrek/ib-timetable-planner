@@ -76,8 +76,18 @@ jobs:
       # `if: failure()` step below can surface it — without that, a service that dies mid-suite
       # reduces to a bare vitest poll timeout with zero explanation, which is the silent-failure
       # class this change avoids everywhere else.
+      #
+      # `SOLVER_MAX_CONCURRENT_JOBS` is sized to `--maxWorkers=2` below, and the two numbers must
+      # move together. The service defaults to 1 and answers 503 past the cap — right for production,
+      # where one container solves one ~12-minute job — but this lane now has TWO suites that
+      # dispatch (`solver-transport` and `generation-proposal`), and under two workers they race.
+      # Whichever loses gets a 503 that is a correct answer to the wrong question: the cap is a
+      # capacity contract, not a queue, so the fix is to size it to the concurrency rather than to
+      # retry around it or to serialize the suites. Both fixtures solve in ~1 s.
       - name: Start the solver service
         working-directory: services/solver
+        env:
+          SOLVER_MAX_CONCURRENT_JOBS: "2"
         run: |
           uv run uvicorn cpsat_service.app:app --port 8000 > "$RUNNER_TEMP/solver.log" 2>&1 &
           SOLVER_PID=$!

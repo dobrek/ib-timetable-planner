@@ -631,27 +631,28 @@ functions without the narrowing (it only widens what the solver role can read).
 
 #### Automated
 
-- [x] 4.1 Unit tests pass (`pnpm test`)
-- [x] 4.2 Type / lint / structure / build gates
-- [x] 4.3 Delivery integration test (`pnpm test:integration`)
+- [x] 4.1 Unit tests pass (`pnpm test`) — c998d0b
+- [x] 4.2 Type / lint / structure / build gates — c998d0b
+- [x] 4.3 Delivery integration test (`pnpm test:integration`) — c998d0b
 
 #### Manual
 
-- [x] 4.4 Full local run delivers and opens the proposal
-- [x] 4.5 Clean label correct on the seed catalog
-- [x] 4.6 Failure path shows diagnostic and removes the clone
-- [x] 4.7 Concurrent refresh delivers exactly once
+- [x] 4.4 Full local run delivers and opens the proposal — c998d0b
+- [x] 4.5 Clean label correct on the seed catalog — c998d0b
+- [x] 4.6 Failure path shows diagnostic and removes the clone — c998d0b
+- [x] 4.7 Concurrent refresh delivers exactly once — c998d0b
 
 ### Phase 5: End-to-end proof + truth-up
 
 #### Automated
 
-- [ ] 5.1 Tiny-fixture E2E integration test green
-- [ ] 5.2 `/verify` full local gate passes
-- [ ] 5.3 Solver lane green (`mise run solver:test`, `mise run solver:check`)
-- [ ] 5.4 Full integration suite (`pnpm test:integration`)
+- [x] 5.1 Tiny-fixture E2E integration test green
+- [x] 5.2 `/verify` full local gate passes
+- [x] 5.3 Solver lane green (`mise run solver:test`, `mise run solver:check`)
+- [x] 5.4 Full integration suite (`pnpm test:integration`)
 
 #### Manual
 
-- [ ] 5.5 One full-catalog end-to-end run observed
-- [ ] 5.6 CI shows the new test executing in the `integration` job
+- [x] 5.5 One full-catalog end-to-end run observed
+- [ ] 5.6 CI shows the new test executing in the `integration` job (blocked: needs a push — the
+      branch has no remote ref yet, so no CI run can have observed it)

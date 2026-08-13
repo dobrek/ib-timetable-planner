@@ -4,6 +4,7 @@ import type { Database } from "./database.types";
 export { createClient } from "./supabase";
 export { isPlanId, isUuid, loadPlanSummary, type PlanSummary } from "./load-plan-summary";
 export { loadCohortCourses } from "./load-cohort-courses";
+export { clonePlan, type ClonePlanParams } from "./clone-plan";
 export { loadPlacements } from "./load-placements";
 export { loadTeacherAvailability } from "./load-teacher-availability";
 export { loadTeacherNames } from "./load-teacher-names";

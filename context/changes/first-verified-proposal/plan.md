@@ -603,29 +603,29 @@ functions without the narrowing (it only widens what the solver role can read).
 
 #### Automated
 
-- [x] 2.1 Fresh reset applies cleanly (`pnpm exec supabase db reset`)
-- [x] 2.2 Credential + transport integration suites pass
+- [x] 2.1 Fresh reset applies cleanly (`pnpm exec supabase db reset`) — 5e77599
+- [x] 2.2 Credential + transport integration suites pass — 5e77599
 
 #### Manual
 
 - [x] 2.3 Solver-role read posture verified unreadable by live probe (adapted: payload columns on
-      every row, not terminal rows — see change.md "Found during implementation")
+      every row, not terminal rows — see change.md "Found during implementation") — 5e77599
 
 ### Phase 3: App — assembly promotion + enqueue path
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass (`pnpm test`)
-- [ ] 3.2 Type gate (`pnpm check`)
-- [ ] 3.3 FSD structure (`pnpm steiger`)
-- [ ] 3.4 Lint + build (`pnpm lint`, `pnpm build`)
-- [ ] 3.5 Enqueue integration test (`pnpm test:integration`)
+- [x] 3.1 Unit tests pass (`pnpm test`)
+- [x] 3.2 Type gate (`pnpm check`)
+- [x] 3.3 FSD structure (`pnpm steiger`)
+- [x] 3.4 Lint + build (`pnpm lint`, `pnpm build`)
+- [x] 3.5 Enqueue integration test (`pnpm test:integration`)
 
 #### Manual
 
-- [ ] 3.6 Generate creates clone + queued row; solver claims it
-- [ ] 3.7 Second click surfaces "already running"
-- [ ] 3.8 `SOLVER_URL` unset fails cleanly, nothing left behind
+- [x] 3.6 Generate creates clone + queued row; solver claims it
+- [x] 3.7 Second click surfaces "already running"
+- [x] 3.8 `SOLVER_URL` unset fails cleanly, nothing left behind
 
 ### Phase 4: App — delivery pipeline + status strip
 

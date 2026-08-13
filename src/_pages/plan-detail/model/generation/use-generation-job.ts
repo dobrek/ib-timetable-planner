@@ -73,6 +73,10 @@ export function useGenerationJob({
       setState(job ? { status: "tracking", job } : { status: "idle" });
     } catch (cause: unknown) {
       setError(messageOf(cause, "Could not read the generation job"));
+      // A failed read must never strand "launching": the button would stay disabled and the strip
+      // (which renders only when tracking) would hide its Refresh — the one recovery affordance.
+      // Fall back to idle; the job row is durable, so the next visit or refresh finds it honestly.
+      setState((prev) => (prev.status === "launching" ? { status: "idle" } : prev));
     } finally {
       setChecking(false);
     }

@@ -23,6 +23,12 @@ import { readPublishableKey } from "./publishable-key";
  * than from the grant layer. `has_table_privilege` settles the second question from the catalog,
  * per lessons.md ("prove the posture, don't read the migration text").
  *
+ * It also pins the read policy's NAME and PREDICATE from `pg_policies`. That is not decoration: a
+ * hand-patched local database was found carrying `Solver reads its jobs` where the migration series
+ * creates a differently-named policy, and it drifted for a whole slice because nothing in the repo
+ * asserted a policy name anywhere. Predicates happened to match, so nothing was exposed — the next
+ * one might not.
+ *
  * The kill-switch drill for this is in docs/runbooks/solver-credential.md: disable the hook in
  * config.toml, restart, and confirm this file goes RED. A guard test that cannot be shown to fail
  * is not yet a guard.
@@ -122,6 +128,49 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     expect(deleted.error?.code).toBe("42501");
   });
 
+  it("cannot read the solve input or the board it produced — SELECT is scoped to three columns", async () => {
+    // The narrowing S-301 shipped, and the one an attacker holding this credential feels: no plan
+    // identity, no snapshot, no board. Note `result`/`stages`/`error` are WRITE-ONLY here — the
+    // solver authors them and may not read them back, which is the right posture for an audit record.
+    for (const column of ["snapshot", "policy", "result", "stages", "error", "plan_id", "proposal_plan_id"] as const) {
+      const { error } = await solver.from("generation_jobs").select(column).eq("id", jobId);
+      expect(error?.code, `${column} should be unreadable`).toBe("42501");
+    }
+
+    // A bare `select=*` — what an unprojected client sends — is refused outright rather than
+    // silently trimmed, so no caller can drift into reading the ~124 KB TOASTed snapshot by accident.
+    const { error: star } = await solver.from("generation_jobs").select().eq("id", jobId);
+    expect(star?.code).toBe("42501");
+  });
+
+  it("pins the read policy's name AND predicate, because a hand-patched DB drifted from both", async () => {
+    // Found during research: this machine's live policy was `Solver reads its jobs` while the
+    // migration created `Solver reads any job` — predicates identical, so nothing was exposed, but
+    // nothing asserted a policy name anywhere either, which is exactly why it drifted unnoticed for
+    // a whole slice. Reading it from `pg_policies` is the lessons.md rule: prove the posture from the
+    // catalog, never from the migration text.
+    const { rows } = await pg.query<{ policyname: string; cmd: string; qual: string }>(
+      `select policyname, cmd, qual
+         from pg_policies
+        where tablename = 'generation_jobs' and 'solver_job_writer' = any(roles)
+        order by policyname`,
+    );
+
+    expect(rows).toEqual([
+      // `using (true)` at the ROW level is deliberate and is NOT the gap it looks like. A row
+      // predicate cannot exclude a state the solver writes: PostgREST's UPDATE carries a RETURNING,
+      // so Postgres checks the NEW row against the SELECT policy, and a `status in
+      // ('queued','running')` window turns every terminal write into a 42501 — measured, and the
+      // reason this slice narrowed by column instead. See the migration's own comment.
+      { policyname: "Solver reads any job row, three columns of it", cmd: "SELECT", qual: "true" },
+      {
+        policyname: "Solver updates non-terminal jobs",
+        cmd: "UPDATE",
+        qual: "(status = ANY (ARRAY['queued'::text, 'running'::text]))",
+      },
+    ]);
+  });
+
   it("cannot re-queue a job or touch one that already reached a terminal state", async () => {
     // WITH CHECK: 'queued' is not a state the solver may declare.
     const requeued = await solver.from("generation_jobs").update({ status: "queued" }).eq("id", jobId);
@@ -136,11 +185,28 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     expect(after.data?.status).toBe("succeeded");
   });
 
-  it("holds SELECT on generation_jobs at the grant layer — no table-wide UPDATE — and nothing on plans", async () => {
-    // Only SELECT: `has_table_privilege` answers for TABLE-level grants, and UPDATE is granted per
-    // column below, so its absence here is the proof that no table-wide UPDATE exists.
-    expect(await heldPrivileges(pg, "solver_job_writer", "public.generation_jobs")).toEqual(["SELECT"]);
+  it("holds NO table-wide privilege at all — every grant it has is column-scoped", async () => {
+    // `has_table_privilege` answers for TABLE-level grants only and is blind to column grants
+    // (see `postgres-client.ts`). So an empty list is the strongest form of this assertion since
+    // S-301: the role now reaches `generation_jobs` exclusively through column grants — SELECT on
+    // three columns, UPDATE on eleven — and holds nothing whatsoever table-wide, including the four
+    // verbs Supabase's auto-grant leaves behind elsewhere (TRUNCATE, REFERENCES, TRIGGER, MAINTAIN).
+    // Before S-301 this read `["SELECT"]`, because SELECT was the one table-wide grant.
+    expect(await heldPrivileges(pg, "solver_job_writer", "public.generation_jobs")).toEqual([]);
     expect(await heldPrivileges(pg, "solver_job_writer", "public.plans")).toEqual([]);
+  });
+
+  it("holds SELECT on exactly the three columns the service projects — never on the payload", async () => {
+    // The whole readable surface, asserted as an exact list rather than a `toContain`: a widened
+    // grant has to fail here, and a `toContain` could not see one. `id` + `snapshot_hash` are the
+    // claim's projection (`select=id,snapshot_hash`), `status` is what its own `status=eq.queued` CAS
+    // filter references. `snapshot` is absent because it never comes from the database at all —
+    // F-302's dispatch carries it in the request body.
+    expect(await heldColumnPrivileges(pg, "solver_job_writer", "public.generation_jobs", "SELECT")).toEqual([
+      "id",
+      "snapshot_hash",
+      "status",
+    ]);
   });
 
   it("holds UPDATE on the progress columns only — never on the solve input or the delivery fields", async () => {
@@ -161,10 +227,11 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
       "status",
     ]);
 
-    // SELECT stays table-wide — the solver needs the whole row to solve at all.
-    expect(await heldColumnPrivileges(pg, "solver_job_writer", "public.generation_jobs", "SELECT")).toContain(
-      "snapshot",
-    );
+    // The two lists are deliberately DIFFERENT, and the difference is the point: `result`, `stages`
+    // and `error` are writable and not readable. The solver authors that audit record; it has no
+    // business reading it back, and `snapshot`/`snapshot_hash` stay unwritable either way.
+    const readable = await heldColumnPrivileges(pg, "solver_job_writer", "public.generation_jobs", "SELECT");
+    for (const written of ["result", "stages", "error"]) expect(readable).not.toContain(written);
   });
 
   it("has no BYPASSRLS attribute — the policies above are load-bearing", async () => {

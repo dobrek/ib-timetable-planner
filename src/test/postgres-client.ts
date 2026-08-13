@@ -38,9 +38,16 @@ export const TABLE_PRIVILEGES = [
 export type TablePrivilege = (typeof TABLE_PRIVILEGES)[number];
 
 /**
- * Which of the eight privileges `role` actually holds on `table`, straight from the catalog.
+ * Which of the eight privileges `role` holds on `table` AT THE TABLE LEVEL, straight from the catalog.
  * Returns them sorted so a failing expectation reads as a set difference rather than an ordering
  * accident.
+ *
+ * Table level is the whole subtlety: `has_table_privilege` does NOT see column-scoped grants.
+ * Verified against the local stack — with SELECT granted on three columns of `generation_jobs` and
+ * revoked table-wide, `has_table_privilege(role, table, 'SELECT')` is **false** while
+ * `has_column_privilege(role, table, 'id', 'SELECT')` is **true**. So an empty result here does not
+ * mean "unreachable", it means "no table-wide grant" — pair it with
+ * :func:`heldColumnPrivileges` to state the actual reachable surface.
  */
 export const heldPrivileges = async (client: Client, role: string, table: string): Promise<TablePrivilege[]> => {
   const { rows } = await client.query<{ verb: TablePrivilege; held: boolean }>(
@@ -56,8 +63,9 @@ export const heldPrivileges = async (client: Client, role: string, table: string
 /**
  * Which columns of `table` the role holds `verb` on, straight from the catalog.
  *
- * `has_table_privilege` reports true when the role holds the verb on ANY column, so it cannot tell a
- * table-wide grant from a column-scoped one — this is the probe that can. Returns sorted names.
+ * The complement of :func:`heldPrivileges`, which is blind to column grants entirely: this is the only
+ * probe that can enumerate a column-scoped surface. `has_column_privilege` counts the table-level
+ * grant too, so a table-wide grant shows up here as every column. Returns sorted names.
  */
 export const heldColumnPrivileges = async (
   client: Client,

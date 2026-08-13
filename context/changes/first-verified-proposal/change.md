@@ -3,7 +3,7 @@ change_id: first-verified-proposal
 title: First verified proposal
 status: implementing
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-13
 archived_at: null
 ---
 
@@ -121,6 +121,52 @@ archived_at: null
   "clean".** When `floor > 0` the board is clean-as-permitted, not clean; surface it as e.g. "clean —
   2 pinned hours remain on soft cells" with the hint that unpinning them goes fully clean. Rejected:
   keeping "clean" strict and requiring the author to unpin first (makes the shipped default refuse).
+
+### Found during implementation
+
+- **2026-08-12 (Phase 2) — the RLS status-window narrowing is NOT shippable, and the narrowing that
+  is turned out to be better. Measured, not reasoned.** The plan (and `plan-review.md`'s Grounding,
+  which recorded it as deep-verified) held that `using (status in ('queued','running'))` was safe for
+  the solver's own writes because "`finish` PATCHes while the row is still `running`". That is only
+  half the rule. **PostgREST's UPDATE always carries a `RETURNING`, and Postgres applies SELECT
+  policies to the NEW row** — so the row's post-write status has to satisfy the SELECT window too.
+  Live measurements against the local stack with the machine credential:
+
+  | probe | result |
+  | --- | --- |
+  | `finish`, `return=representation` (shipped code) | **403 `42501` "new row violates row-level security policy"**, row stuck `running` |
+  | `finish`, `return=minimal` | 403 — so it is not the representation preference |
+  | `finish`, `return=minimal,count=exact` | 403 |
+  | same write, window widened to include `succeeded` | **200**, row reaches `succeeded` |
+
+  A window would therefore have to admit every state the solver may declare (`succeeded`/`failed`/
+  `stopped`/`interrupted`, per the UPDATE policy's WITH CHECK) plus `queued`/`running` — all six,
+  i.e. `using (true)` spelled at length. It would have narrowed nothing while producing a solver that
+  can never record a result. Only Phase 2's insistence on running the transport suite caught it;
+  `solver-transport.integration.test.ts` went red at "never settled; observed: queued -> running".
+
+  **Shipped instead: a COLUMN-scoped SELECT grant** (`id`, `status`, `snapshot_hash`), row predicate
+  left at `using (true)` with the reasoning and the measurements in the migration. This is strictly
+  stronger than the intended win: `snapshot` (~124 KB), `policy`, `result`, `error`, `stages`,
+  `checkpoint`, `plan_id`, `proposal_plan_id`, `delivered_plan_id` and `delivery` leave the role's
+  reach **on every row**, not just terminal ones, and a bare `select=*` is refused outright (403).
+  Verified live: the claim (`select=id,snapshot_hash`) and the terminal write (which *writes* `result`
+  while holding no SELECT on it) both return 200.
+
+  Two stale claims in `20260810200931_solver_job_writer_role.sql` fall out of this and are marked
+  superseded in place: the forward promise that S-301 would narrow the predicate, and "the solver
+  needs the whole row, `snapshot` above all, to solve at all" — F-302's dispatch carries the snapshot
+  in the request **body**, so the service SELECTs only `id`, `status` and `snapshot_hash`
+  (`cpsat_service/supabase.py:114,186`).
+
+  **Row-level narrowing is deferred, not abandoned**: it requires moving the terminal write behind a
+  `security definer` RPC so the SELECT policy stops governing it — a rewrite of F-302's reviewed
+  transport, and its own slice.
+
+  Also corrected: `src/test/postgres-client.ts` documented `has_table_privilege` as reporting true
+  when a role holds the verb on any column. It is the opposite — it sees table-level grants only and
+  is blind to column grants (verified both ways). That false docstring produced one wrong assertion
+  before the catalog corrected it.
 
 ### Resolved during `/10x-plan` (2026-08-12)
 

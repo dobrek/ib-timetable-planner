@@ -589,26 +589,27 @@ functions without the narrowing (it only widens what the solver role can read).
 
 #### Automated
 
-- [x] 1.1 Solver suite passes (`mise run solver:test`)
-- [x] 1.2 Strict types + lint (`mise run solver:check`)
-- [x] 1.3 Objective-parity suite stays exactly 10/10
-- [x] 1.4 Golden parity test executed locally (skipif-gated)
-- [x] 1.5 TS contract suite green (`pnpm test`)
+- [x] 1.1 Solver suite passes (`mise run solver:test`) — 9737b06
+- [x] 1.2 Strict types + lint (`mise run solver:check`) — 9737b06
+- [x] 1.3 Objective-parity suite stays exactly 10/10 — 9737b06
+- [x] 1.4 Golden parity test executed locally (skipif-gated) — 9737b06
+- [x] 1.5 TS contract suite green (`pnpm test`) — 9737b06
 
 #### Manual
 
-- [x] 1.6 Clean solve on a real dump: OPTIMAL, complete, `softHits = 0`
+- [x] 1.6 Clean solve on a real dump: OPTIMAL, complete, `softHits = 0` — 9737b06
 
 ### Phase 2: DB — RLS status-window narrowing
 
 #### Automated
 
-- [ ] 2.1 Fresh reset applies cleanly (`pnpm exec supabase db reset`)
-- [ ] 2.2 Credential + transport integration suites pass
+- [x] 2.1 Fresh reset applies cleanly (`pnpm exec supabase db reset`)
+- [x] 2.2 Credential + transport integration suites pass
 
 #### Manual
 
-- [ ] 2.3 Terminal rows verified unreadable by the solver role (live probe)
+- [x] 2.3 Solver-role read posture verified unreadable by live probe (adapted: payload columns on
+      every row, not terminal rows — see change.md "Found during implementation")
 
 ### Phase 3: App — assembly promotion + enqueue path
 

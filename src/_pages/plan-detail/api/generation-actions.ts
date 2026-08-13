@@ -1,4 +1,5 @@
 import { defineDomainAction } from "@/shared/lib/actions";
+import { checkGeneration, checkGenerationInput } from "./generation-delivery";
 import { startGeneration, startGenerationInput, type GenerationDeps } from "./generation-job";
 
 /**
@@ -20,4 +21,7 @@ export const createGenerationActions = (deps: GenerationDeps) => ({
     input: startGenerationInput,
     run: (supabase, input) => startGeneration(supabase, input, deps),
   }),
+  // No injected dependency: delivery never talks to the solver. It reads the row the solver already
+  // wrote, and everything after that is the database and the pure oracle.
+  checkGeneration: defineDomainAction({ input: checkGenerationInput, run: checkGeneration }),
 });

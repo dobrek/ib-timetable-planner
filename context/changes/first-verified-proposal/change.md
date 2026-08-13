@@ -201,6 +201,22 @@ archived_at: null
      `getSolverTransport`. Same split as `solver-transport`/`solver-config`, one level up — and it
      keeps the enqueue domain function unit-testable without `astro:env/server`.
 
+- **2026-08-13 (Phase 4) — the on-visit check runs in the PAGE RENDER, not in a mount effect.** The
+  plan said "the hook fires the check action on mount". Written that way it fails lint twice over:
+  `react-hooks/exhaustive-deps` (suppressing which makes the **React Compiler skip optimizing the
+  whole hook** — it says so explicitly) and then `react-hooks/set-state-in-effect`, React 19's rule
+  against fetch-and-set-state effects. Rather than fight both, the check moved to where the visit
+  actually happens: `src/pages/plans/[id]/index.astro` calls `checkGeneration` in its frontmatter and
+  passes the result down as `generationJob`, which seeds the strip. Strictly better than the planned
+  shape — the trigger is now literally the visit, with no client round-trip and no frame of empty
+  strip — and the hook keeps only what the author does *after* the page exists (launch, refresh). The
+  page-render call is wrapped so a delivery failure degrades to "no job" instead of 500-ing the board.
+
+- **2026-08-13 (Phase 4) — `translateCourseIds` ships in Phase 3's `course-map.ts`, not Phase 4.**
+  The plan scoped the map to Phase 3 and the translation to Phase 4. A bare `Map` invites an
+  unguarded `.get()` at exactly the point where a miss means a silently short board, so the guarded
+  translation lives beside the map and is unit-tested with it.
+
 ### Resolved during `/10x-plan` (2026-08-12)
 
 The three formerly-open items, plus four solution-design choices made in the planning session — all

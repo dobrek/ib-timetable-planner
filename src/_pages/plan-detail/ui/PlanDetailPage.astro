@@ -4,6 +4,7 @@ import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
 import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { BoardSurface } from "../lib/board-surface";
 import type { Cohort } from "@/shared/config";
+import type { GenerationJobView } from "../api/generation-delivery";
 
 type Props = {
   planName: string;
@@ -14,9 +15,12 @@ type Props = {
   batchExport: BatchExportSources;
   paletteCollapsed: boolean;
   initialPaletteCohort: Cohort;
+  /** The plan's latest generation job, already checked (and delivered) server-side. */
+  generationJob: GenerationJobView | null;
 };
 
-const { planName, focus, shared, dp1, dp2, batchExport, paletteCollapsed, initialPaletteCohort } = Astro.props;
+const { planName, focus, shared, dp1, dp2, batchExport, paletteCollapsed, initialPaletteCohort, generationJob } =
+  Astro.props;
 ---
 
 <div class="flex h-full min-h-0 flex-1 flex-col">
@@ -29,6 +33,7 @@ const { planName, focus, shared, dp1, dp2, batchExport, paletteCollapsed, initia
     batchExport={batchExport}
     paletteCollapsed={paletteCollapsed}
     initialPaletteCohort={initialPaletteCohort}
+    generationJob={generationJob}
     client:load
   />
 </div>

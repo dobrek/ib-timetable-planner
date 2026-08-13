@@ -615,32 +615,32 @@ functions without the narrowing (it only widens what the solver role can read).
 
 #### Automated
 
-- [x] 3.1 Unit tests pass (`pnpm test`)
-- [x] 3.2 Type gate (`pnpm check`)
-- [x] 3.3 FSD structure (`pnpm steiger`)
-- [x] 3.4 Lint + build (`pnpm lint`, `pnpm build`)
-- [x] 3.5 Enqueue integration test (`pnpm test:integration`)
+- [x] 3.1 Unit tests pass (`pnpm test`) — 39c69e3
+- [x] 3.2 Type gate (`pnpm check`) — 39c69e3
+- [x] 3.3 FSD structure (`pnpm steiger`) — 39c69e3
+- [x] 3.4 Lint + build (`pnpm lint`, `pnpm build`) — 39c69e3
+- [x] 3.5 Enqueue integration test (`pnpm test:integration`) — 39c69e3
 
 #### Manual
 
-- [x] 3.6 Generate creates clone + queued row; solver claims it
-- [x] 3.7 Second click surfaces "already running"
-- [x] 3.8 `SOLVER_URL` unset fails cleanly, nothing left behind
+- [x] 3.6 Generate creates clone + queued row; solver claims it — 39c69e3
+- [x] 3.7 Second click surfaces "already running" — 39c69e3
+- [x] 3.8 `SOLVER_URL` unset fails cleanly, nothing left behind — 39c69e3
 
 ### Phase 4: App — delivery pipeline + status strip
 
 #### Automated
 
-- [ ] 4.1 Unit tests pass (`pnpm test`)
-- [ ] 4.2 Type / lint / structure / build gates
-- [ ] 4.3 Delivery integration test (`pnpm test:integration`)
+- [x] 4.1 Unit tests pass (`pnpm test`)
+- [x] 4.2 Type / lint / structure / build gates
+- [x] 4.3 Delivery integration test (`pnpm test:integration`)
 
 #### Manual
 
-- [ ] 4.4 Full local run delivers and opens the proposal
-- [ ] 4.5 Clean label correct on the seed catalog
-- [ ] 4.6 Failure path shows diagnostic and removes the clone
-- [ ] 4.7 Concurrent refresh delivers exactly once
+- [x] 4.4 Full local run delivers and opens the proposal
+- [x] 4.5 Clean label correct on the seed catalog
+- [x] 4.6 Failure path shows diagnostic and removes the clone
+- [x] 4.7 Concurrent refresh delivers exactly once
 
 ### Phase 5: End-to-end proof + truth-up
 

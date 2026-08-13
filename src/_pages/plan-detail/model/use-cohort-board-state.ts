@@ -15,6 +15,7 @@ import { applyGeneratedPlacements } from "../api/placement-client";
 import { buildGeneratedSegments, buildRegionPayload, generationHistoryEntry } from "./generation/apply-generated";
 import type { ApplyGeneratedResult } from "./generation/use-generate-plan";
 import { useGenerationJob, type GenerationJobControls } from "./generation/use-generation-job";
+import type { GenerationJobView } from "../api/generation-delivery";
 import { type LensCriterion } from "./lens";
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
@@ -63,6 +64,8 @@ export function useCombinedBoardState(
   dp2Props: PlannerBoardProps,
   focus: BoardSurface = "combined",
   lensCriteria: LensCriterion[] = NO_LENS_CRITERIA,
+  /** The server-side on-visit generation check's result — seeds the status strip flash-free. */
+  generationJob: GenerationJobView | null = null,
 ) {
   // History recorder built FIRST: its stable `record` exists before either `usePlacements` runs, so
   // each cohort can receive it as `onRecord` (the upstream half of the ordering cycle).
@@ -169,7 +172,7 @@ export function useCombinedBoardState(
   // S-301: Generate enqueues a durable CP-SAT job instead of running the greedy engine in a Web
   // Worker. The snapshot is assembled SERVER-side from the plan's own loader, so nothing is captured
   // at click time here — the click carries only the plan id.
-  const generateControls = useGenerationJob({ planId: shared.planId, busy: combinedBusy });
+  const generateControls = useGenerationJob({ planId: shared.planId, initialJob: generationJob, busy: combinedBusy });
 
   return {
     dp1: toCohortState(dp1Props, dp1Base, dp1Deriv),

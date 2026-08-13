@@ -42,6 +42,9 @@ grant solver_job_writer to authenticator;
 grant usage on schema public to solver_job_writer;
 
 -- SELECT is table-wide: the solver needs the whole row, `snapshot` above all, to solve at all.
+--   ^ SUPERSEDED, and it was never true of the shipped design: F-302's dispatch carries the snapshot
+--     in the REQUEST BODY, so the service reads only `id`, `status` and `snapshot_hash`.
+--     `20260812141459_solver_select_column_scope.sql` scopes this grant to exactly those three.
 -- UPDATE is COLUMN-SCOPED to the progress columns the solver is the author of. Without that scope
 -- the RLS window (`status in ('queued','running')`) is the only limit on an update, and a job
 -- spends its entire run inside that window — so a table-wide UPDATE would let the container rewrite
@@ -76,6 +79,14 @@ grant update (
 -- one the container was dispatched to solve — including other plans' snapshot, policy and result.
 -- Deliberate, because nothing yet binds a container to a job id; S-301 introduces that binding and
 -- is where this predicate can narrow. Until then the honest name is the whole mitigation.
+--
+-- SUPERSEDED by `20260812141459_solver_select_column_scope.sql`, which also settles what the
+-- sentence above got wrong twice over. A per-DISPATCH predicate is not expressible at all with one
+-- shared machine credential (the role claim is stamped per USER by the token hook). And a row
+-- predicate of ANY kind cannot exclude a state the solver writes: PostgREST's UPDATE carries a
+-- RETURNING, so Postgres checks the NEW row against the SELECT policy — measured, 42501. S-301
+-- narrowed the reach by COLUMN instead and bound the dispatch by digest. This body stays as written
+-- — it is what this migration did — and that file carries the reasoning and the measurements.
 create policy "Solver reads any job" on generation_jobs
   for select to solver_job_writer using (true);
 

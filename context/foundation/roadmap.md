@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-07-16
-updated: 2026-08-12
+updated: 2026-08-13
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -31,7 +31,7 @@ The timetable editor's only generation engine is a client-side greedy solver at 
 | ----- | ------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------- | -------- |
 | F-301 | solver-contract-and-jobs-schema | (foundation) frozen wire-contract artifact + durable jobs schema, least-privilege machine access           | —                          | FR-301, FR-310, §Constraints & Compatibility, §Access Control Changes | done     |
 | F-302 | solver-service-transport        | (foundation) promoted solver package accepts jobs over HTTP, writes durable status/results                 | F-301                      | FR-310, FR-316                                                        | done     |
-| S-301 | first-verified-proposal         | start a CP-SAT job (clean-mode default) and receive a complete, oracle-verified board on the proposal plan | F-301, F-302               | FR-301, FR-302, FR-303, FR-308, FR-310, FR-313, US-301                | proposed |
+| S-301 | first-verified-proposal         | start a CP-SAT job (clean-mode default) and receive a complete, oracle-verified board on the proposal plan | F-301, F-302               | FR-301, FR-302, FR-303, FR-308, FR-310, FR-313, US-301                | done |
 | S-302 | solver-deploy-lane              | (maintainer) ship app + solver with one merge to main; container runs attached to the Worker               | F-302                      | FR-315, FR-316                                                        | proposed |
 | S-303 | staged-progress-and-checkpoints | watch a job stage by stage; every completed stage durably checkpoints a strictly better board              | S-301                      | FR-303, FR-304, FR-308, FR-312                                        | proposed |
 | S-304 | job-aware-container-lifecycle   | a running job survives container sleep, crash, and deploy — at most the in-flight stage is lost            | S-302, S-303               | FR-311                                                                | proposed |
@@ -120,7 +120,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Unknowns:**
   - **Clean mode is not implemented in the engine — added 2026-08-11 (F-302 research).** This slice's outcome ships "the shipped clean-mode default policy", but `softHits` exists only as tier 5 of the objective (`objective.py:60,172`); nothing anywhere constrains it to `0` as a hard rule, so clean mode (`softHits ≡ 0`) has no implementation. Whoever ships the default must build it — it is **not** inherited from the POC and **not** deferrable to S-307 (which adds the selectable alternatives on top of the default). Owner: plan phase. Block: no, but it is engine work this slice's estimate did not previously carry.
 - **Risk:** The proof that the whole architecture hangs together — contract, jobs schema, service, and the oracle moved server-side (FR-313's pinned resolution) are exercised in one flow; if the seams don't compose, better to learn here than after the deploy lane and UI investment. Carries FR-302's _default_ only (policy selection UI is S-307) and FR-303's Mode A + ladder under budget ceilings (target-stopping machinery is S-303) — but see Unknowns: that default is net-new engine work, not existing configuration. Sequenced immediately after the foundations because, per `main_goal: quality`, no UI promise is made before the trust boundary works end-to-end.
-- **Status:** proposed
+- **Status:** done
 
 ### S-302: Solver deploy lane
 
@@ -288,3 +288,4 @@ Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**
 
 - **F-301: (foundation) the frozen dump/result wire contract exists as a committed tech-neutral schema artifact in `contracts/`, golden-fixture-gated in **both** the TS and Python suites with `formatVersion` gating incompatibility; the `generation_jobs` table exists (additive migration, RLS + explicit grants) together with a least-privilege machine credential design for the solver's status/result writes.** — Archived 2026-08-11 → `context/archive/2026-08-10-solver-contract-and-jobs-schema/`. Lesson: —.
 - **F-302: (foundation) `poc/cp-sat` is promoted to `services/solver/`; a thin HTTP wrapper accepts a solve job, runs the engine with a pinned worker count, and writes status/results durably to the database over HTTPS; the wrapper is tested at the wrapper level (the untested-CLI lesson); a developer runs the service natively against the app via the env-gated `SOLVER_URL` transport (local fidelity tier 1), with mise carrying the toolchain pins.** — Archived 2026-08-12 → `context/archive/2026-08-11-solver-service-transport/`. Lesson: —.
+- **S-301: Author can start a CP-SAT solve on an existing plan with the shipped clean-mode default policy: the app waits for pending board edits to settle, clones the plan as the proposal target, assembles the snapshot from the **source** plan server-side, records a durable job (one active job per source plan), and dispatches it to the solver; on completion the complete board passes the **server-side** oracle (the relocated runner seam), has its `courseId`s translated into the clone's id space, and lands on the proposal plan through the atomic RPC, ready to open. Runs against the native/local solver — production deploy is S-302.** — Archived 2026-08-13 → `context/archive/2026-08-12-first-verified-proposal/`. Lesson: —.

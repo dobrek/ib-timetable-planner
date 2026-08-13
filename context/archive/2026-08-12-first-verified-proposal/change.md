@@ -1,10 +1,10 @@
 ---
 change_id: first-verified-proposal
 title: First verified proposal
-status: impl_reviewed
+status: archived
 created: 2026-08-12
 updated: 2026-08-13
-archived_at: null
+archived_at: 2026-08-13T13:56:21Z
 ---
 
 ## Notes

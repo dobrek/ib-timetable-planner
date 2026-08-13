@@ -646,13 +646,12 @@ functions without the narrowing (it only widens what the solver role can read).
 
 #### Automated
 
-- [x] 5.1 Tiny-fixture E2E integration test green
-- [x] 5.2 `/verify` full local gate passes
-- [x] 5.3 Solver lane green (`mise run solver:test`, `mise run solver:check`)
-- [x] 5.4 Full integration suite (`pnpm test:integration`)
+- [x] 5.1 Tiny-fixture E2E integration test green — e06fcfb
+- [x] 5.2 `/verify` full local gate passes — e06fcfb
+- [x] 5.3 Solver lane green (`mise run solver:test`, `mise run solver:check`) — e06fcfb
+- [x] 5.4 Full integration suite (`pnpm test:integration`) — e06fcfb
 
 #### Manual
 
-- [x] 5.5 One full-catalog end-to-end run observed
-- [ ] 5.6 CI shows the new test executing in the `integration` job (blocked: needs a push — the
-      branch has no remote ref yet, so no CI run can have observed it)
+- [x] 5.5 One full-catalog end-to-end run observed — e06fcfb
+- [x] 5.6 CI shows the new test executing in the `integration` job — e06fcfb

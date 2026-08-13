@@ -13,7 +13,8 @@ import type { GroupingCourse } from "@/shared/lib/catalog-hash";
 import type { LocalParkedBundle } from "./placement/parked";
 import { applyGeneratedPlacements } from "../api/placement-client";
 import { buildGeneratedSegments, buildRegionPayload, generationHistoryEntry } from "./generation/apply-generated";
-import { useGeneratePlan, type ApplyGeneratedResult, type GeneratePlanControls } from "./generation/use-generate-plan";
+import type { ApplyGeneratedResult } from "./generation/use-generate-plan";
+import { useGenerationJob, type GenerationJobControls } from "./generation/use-generation-job";
 import { type LensCriterion } from "./lens";
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
@@ -165,17 +166,10 @@ export function useCombinedBoardState(
       : dp1Deficits.length === 0 && dp2Deficits.length === 0
         ? "complete"
         : null;
-  const generateControls = useGeneratePlan({
-    assemble: () =>
-      assembleGeneratorSnapshot(shared, {
-        dp1: toSnapshotInput(dp1Props.catalog, dp1Base.api),
-        dp2: toSnapshotInput(dp2Props.catalog, dp2Base.api),
-      }),
-    applyGenerated,
-    busy: combinedBusy,
-    dp1Placements: dp1Base.api.placements,
-    dp2Placements: dp2Base.api.placements,
-  });
+  // S-301: Generate enqueues a durable CP-SAT job instead of running the greedy engine in a Web
+  // Worker. The snapshot is assembled SERVER-side from the plan's own loader, so nothing is captured
+  // at click time here — the click carries only the plan id.
+  const generateControls = useGenerationJob({ planId: shared.planId, busy: combinedBusy });
 
   return {
     dp1: toCohortState(dp1Props, dp1Base, dp1Deriv),
@@ -189,7 +183,7 @@ export function useCombinedBoardState(
 /** Why Generate is disabled: blocking violations on either cohort, or nothing left to place. */
 export type GenerationDisabledReason = "violations" | "complete" | null;
 
-export type GenerationControls = GeneratePlanControls & {
+export type GenerationControls = GenerationJobControls & {
   disabledReason: GenerationDisabledReason;
   /** True while other board writes are unsettled — the button also disables then. */
   busy: boolean;

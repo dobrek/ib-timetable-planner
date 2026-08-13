@@ -168,6 +168,39 @@ archived_at: null
   is blind to column grants (verified both ways). That false docstring produced one wrong assertion
   before the catalog corrected it.
 
+- **2026-08-13 (Phase 3) — the plan's relocation into `entities/timetable/api/` is not reachable
+  from `_pages`, by either route; the enqueue path assembles from the slice's OWN loader instead.**
+  The plan moved `loadPlanAnalysis` + `clonePlan` into the entity and imported them at their own
+  paths, inheriting that contract from `solver-config.ts`'s docstring. Measured with throwaway probes:
+
+  | probe | verdict |
+  | --- | --- |
+  | `_pages/plan-detail` → `@/_pages/plan-comparison/api` | ✘ `fsd/forbidden-imports` — the plan's premise holds |
+  | `_pages/plan-detail` → `@/entities/timetable/api/solver-config` | ✘ **error** `fsd/no-public-api-sidestep` |
+  | `_pages/plan-detail` → `@/entities/timetable/api` (segment index) | ✘ **error**, same rule |
+  | `src/actions/…` → `@/entities/timetable/api/solver-config` | ✔ `src/actions/` is outside the FSD graph |
+
+  Own-path import is a CI-failing error, not a convention — and nothing had ever proved otherwise,
+  because `solver-config` had zero call sites. Barrel-exporting is worse: both modules import
+  `@/shared/api`, whose barrel exports `createClient` → `astro:env/server`, so the entity barrel
+  would break **every React island** that imports it, not merely the greedy worker the plan reasoned
+  about. Three consequences, all shipped:
+
+  1. **No `loadPlanAnalysis` relocation.** `plan-detail`'s own `loadCombinedPlannerData` already
+     loads exactly what `assembleGeneratorSnapshot` needs — the same inputs the board feeds the
+     CLIENT-side assembler (`use-cohort-board-state.ts`). So the snapshot the server hashes is, by
+     construction, the one the author's board would build. `plan-comparison` and `bench/` are
+     untouched, and `loadPins`/`toSnapshot` stay in bench (nothing in `src/` needs them; both sides
+     still funnel through the one `assembleGeneratorSnapshot`, which was the actual anti-drift
+     guarantee).
+  2. **`clonePlan` → `src/shared/api/`**, not the entity: it touches no entity type, only shared
+     accessors and the shared catalog hash, and that segment already hosts `loadCohortCourses` /
+     `loadPlanSummary`. Both `_pages` consumers reach it legally.
+  3. **The solver transport is INJECTED from `src/actions/`**, which is outside steiger's graph:
+     the slice exports `createGenerationActions(deps)` and the composition root supplies
+     `getSolverTransport`. Same split as `solver-transport`/`solver-config`, one level up — and it
+     keeps the enqueue domain function unit-testable without `astro:env/server`.
+
 ### Resolved during `/10x-plan` (2026-08-12)
 
 The three formerly-open items, plus four solution-design choices made in the planning session — all

@@ -19,6 +19,8 @@ export * from "./model/generation/types";
 export * from "./model/generation/assemble-snapshot";
 export * from "./model/generation/wire";
 export * from "./model/generation/deficits";
+export * from "./model/generation/auto-park";
+export * from "./model/generation/course-map";
 export * from "./model/generation/verify";
 export * from "./model/generation/occupied-slots";
 export * from "./model/generation/objective";

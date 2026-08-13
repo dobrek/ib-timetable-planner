@@ -1,8 +1,13 @@
 import { COHORT_VALUES, type Cohort } from "@/shared/config";
-import { deriveGenerationDeficits, type GeneratorCohortSnapshot, type GeneratorSnapshot } from "@/entities/timetable";
+import { deriveGenerationDeficits } from "./deficits";
+import type { GeneratorCohortSnapshot, GeneratorSnapshot } from "./types";
 
 /**
- * Phantom-course auto-parking (POC export transform, user decision 2026-07-15).
+ * Phantom-course auto-parking (POC export transform, user decision 2026-07-15), promoted out of
+ * `bench/` by S-301 so PRODUCTION assembly does what bench and the human expert already do before
+ * every solve. It runs on the enqueue path, between assembly and hashing — the alternative was a
+ * default that refuses a catalog containing a phantom course, which is the same philosophy the
+ * clean-mode fallback rejected.
  *
  * A course whose expanded roster is EMPTY (`studentKeys.length === 0`) cannot be meaningfully
  * scheduled or judged "complete" — nobody has to be anywhere for it. On the golden plan this is

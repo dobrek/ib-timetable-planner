@@ -4,9 +4,11 @@ import { dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 import { COHORT_VALUES } from "@/shared/config";
 import {
+  autoParkPhantomCourses,
   generatePlanGreedy,
   runVerifiedGeneration,
   scoreCandidate,
+  type AutoParkedEntry,
   type GeneratedPlacement,
   type GenerationResult,
   type GeneratorSnapshot,
@@ -22,7 +24,6 @@ import {
   toSnapshot,
   verdictReasons,
 } from "./experiment-harness";
-import { autoParkPhantomCourses, type AutoParkedEntry } from "./auto-park";
 
 /**
  * `pnpm experiment:export` — the CP-SAT POC's export seam. Mirrors the generation experiment's flow

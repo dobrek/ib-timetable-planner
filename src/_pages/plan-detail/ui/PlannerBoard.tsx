@@ -9,7 +9,6 @@ import {
   ErrorBanner,
   ExportMenu,
   GenerateButton,
-  GenerationSummaryPanel,
   PlanSummaryBar,
   buildCoursesLeftSummary,
   inspectedViolations,
@@ -311,13 +310,10 @@ export default function PlannerBoard({
               </>
             }
           />
-          {generation.summary && (
-            <GenerationSummaryPanel
-              summary={generation.summary}
-              courseDisplay={overlayCourseDisplay}
-              onDismiss={generation.dismissSummary}
-            />
-          )}
+          {/* The greedy engine's post-solve review panel is gone with its engine (S-301): a CP-SAT
+              job's result lands on a PROPOSAL plan minutes later, so there is nothing to review in
+              place here. `GenerationSummaryPanel` stays in the tree unreferenced, to be removed with
+              the rest of the greedy path rather than by this slice. */}
           {lens.criteria.length > 0 && (
             <LensBar
               criteria={lens.criteria}

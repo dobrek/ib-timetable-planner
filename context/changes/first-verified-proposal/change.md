@@ -217,6 +217,15 @@ archived_at: null
   unguarded `.get()` at exactly the point where a miss means a silently short board, so the guarded
   translation lives beside the map and is unit-tested with it.
 
+- **2026-08-13 (Phase 5) — the new E2E suite forced a CI change the plan did not carry:
+  `SOLVER_MAX_CONCURRENT_JOBS=2`.** The service defaults to a cap of 1 and answers 503 past it —
+  correct for production, where one container solves one ~12-minute job. But the integration lane now
+  has TWO suites that dispatch (`solver-transport` and `generation-proposal`) and CI runs
+  `--maxWorkers=2`, so they race and the loser gets a 503. Caught locally, on the full-suite run,
+  before it could land as a flaky gate. Sized the cap to the worker cap rather than retrying around
+  it or serializing the suites: the cap is a capacity contract, not a queue. The two numbers now have
+  a comment tying them together in `ci.yml`, and the README says the same for local runs.
+
 ### Resolved during `/10x-plan` (2026-08-12)
 
 The three formerly-open items, plus four solution-design choices made in the planning session — all

@@ -1,7 +1,7 @@
 ---
 change_id: first-verified-proposal
 title: First verified proposal
-status: implemented
+status: impl_reviewed
 created: 2026-08-12
 updated: 2026-08-13
 archived_at: null
@@ -78,7 +78,10 @@ archived_at: null
   Discipline note: run the **golden** parity test locally before claiming green — it is `skipif`-gated
   on the dump's presence, so a green CI does not prove it. Comments to correct in the same diff:
   `services/solver/src/cpsat_engine/schema.py:76` (soft severity as "a tier-5 objective term, **never
-  a constraint**" becomes false) and `contracts/README.md`'s soft-tier framing — leaving them is the
+  a constraint**" becomes false) and the soft-tier framing in
+  `contracts/generation-wire.schema.json`'s `AvailabilitySeverity` description (impl-review
+  correction: the plan named `contracts/README.md`, but the stale prose lived in the schema's
+  description annotation — canonical form untouched, fixtures byte-identical) — leaving them is the
   prose-coupled-to-mechanism drift `context/foundation/lessons.md` warns about.
 
 - **2026-08-12 — Snapshot id space: assemble and hash from the SOURCE; translate `courseId` to the
@@ -225,6 +228,14 @@ archived_at: null
   before it could land as a flaky gate. Sized the cap to the worker cap rather than retrying around
   it or serializing the suites: the cap is a capacity contract, not a queue. The two numbers now have
   a comment tying them together in `ci.yml`, and the README says the same for local runs.
+
+- **2026-08-13 (impl review) — the enqueue ordering cannot forbid a stranded `queued` row; the
+  window is S-304 inherited scope.** Process death between `insertJob` and `dispatch` (or a failed
+  dispatch whose best-effort `markDispatchFailed` also fails) leaves a `queued` row that trips the
+  partial unique index — Generate answers "already running" forever, recoverable only by manual DB
+  surgery. The module docstring previously overclaimed that the ordering "forbids" this state;
+  corrected. S-304's stale-job reclaim must cover app-side `queued` staleness, not only
+  wedged-`running` rows.
 
 ### Resolved during `/10x-plan` (2026-08-12)
 

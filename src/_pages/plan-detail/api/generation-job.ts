@@ -9,9 +9,12 @@ import { loadCombinedPlannerData } from "./load";
  * Enqueue a CP-SAT generation job for a plan (S-301's launch half).
  *
  * **Ordering is the contract, not a preference.** Assemble + hash first — pure reads, no side effects
- * — then clone, then insert the row, then dispatch. Every failure therefore unwinds cleanly, and the
- * one state that must never exist is the one this ordering forbids: a `queued` row nothing was ever
- * dispatched for, which no later slice can distinguish from a solver that died before claiming.
+ * — then clone, then insert the row, then dispatch. Every ERROR path therefore unwinds cleanly: a
+ * refused dispatch marks the row `failed` and sweeps the clone. What ordering cannot rule out is
+ * process death between the insert and the dispatch — a stranded `queued` row nothing was dispatched
+ * for, which no later reader can distinguish from a solver that died before claiming, and which wedges
+ * this plan's Generate via the partial unique index. That recovery window belongs to S-304's staleness
+ * reclaim (recorded in change.md), not to this slice.
  *
  * **The snapshot is assembled from the SOURCE plan**, not the clone, and hashed as such. `clone_plan`
  * re-mints every course UUID (measured: 0 of 84 survive), so a clone-assembled snapshot could never

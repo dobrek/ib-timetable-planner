@@ -116,6 +116,15 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
 
   const { snapshot, result } = await loadPayload(supabase, row.id);
 
+  // A succeeded job with nothing to place cannot become a proposal: "ready" would link to a board
+  // that is just the clone's own pins. Unreachable via the UI (Generate is disabled on a complete
+  // plan) but reachable via the action — terminal, with the same handling as a failed verdict.
+  if (result.placements.length === 0) {
+    await failJob(supabase, row.id, "the solver returned a result with no placements");
+    await deleteOrphanClone(supabase, proposalPlanId);
+    return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" });
+  }
+
   // The relocated runner seam (FR-313), with a trivial engine handing back the already-solved board.
   // Deliberately `runVerifiedGeneration` and not a bare `verifyGeneration`: it re-runs the pins
   // precondition against the same snapshot the solver validated — an idempotent re-check, and the
@@ -131,8 +140,23 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
     return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" });
   }
 
-  const courseIds = await courseIdMap(supabase, planId, proposalPlanId);
-  await applyToProposal(supabase, proposalPlanId, translateCourseIds(result.placements, courseIds));
+  let translated: GeneratedPlacement[];
+  try {
+    translated = translateCourseIds(result.placements, await courseIdMap(supabase, planId, proposalPlanId));
+  } catch (cause) {
+    // A transient read failure stays retryable; only a natural-key mismatch is terminal.
+    if (cause instanceof DomainError) throw cause;
+    // The clone's catalog diverged from the source — the author edited the proposal between enqueue
+    // and delivery, and no retry can mend a key mismatch. Fail the job with the diagnostic, and KEEP
+    // the clone (it carries the very edits that caused the mismatch): detaching it is what protects
+    // it from the failed-job orphan sweep above.
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    await failJob(supabase, row.id, `the result could not be translated onto the proposal plan: ${reason}`, {
+      detachClone: true,
+    });
+    return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" });
+  }
+  await applyToProposal(supabase, proposalPlanId, translated);
   await markDelivered(supabase, row.id, proposalPlanId);
 
   return toView(
@@ -187,7 +211,6 @@ const applyToProposal = async (
   proposalPlanId: string,
   placements: GeneratedPlacement[],
 ): Promise<void> => {
-  if (placements.length === 0) return;
   const cells = [...new Map(placements.map((row) => [cellKey(row), cellOf(row)])).values()];
   const generated: RegionRow[] = placements.map((row) => ({ ...row, isOptional: false }));
   await applyGeneratedPlacements(supabase, {
@@ -294,10 +317,20 @@ const markDelivered = async (supabase: SupabaseClient, jobId: string, proposalPl
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to mark the job delivered: ${error.message}`);
 };
 
-const failJob = async (supabase: SupabaseClient, jobId: string, reason: string): Promise<void> => {
+const failJob = async (
+  supabase: SupabaseClient,
+  jobId: string,
+  reason: string,
+  options: { detachClone?: boolean } = {},
+): Promise<void> => {
   const { error } = await supabase
     .from("generation_jobs")
-    .update({ status: "failed", error: reason, finished_at: new Date().toISOString() })
+    .update({
+      status: "failed",
+      error: reason,
+      finished_at: new Date().toISOString(),
+      ...(options.detachClone ? { proposal_plan_id: null } : {}),
+    })
     .eq("id", jobId);
   // eslint-disable-next-line no-console
   if (error) console.error(`[checkGeneration] could not mark job ${jobId} failed:`, error.message);

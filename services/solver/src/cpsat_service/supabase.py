@@ -104,9 +104,10 @@ class JobRowClient:
         observable at all: an empty array means another worker already had it.
 
         `snapshot_hash` rides along in that same projection rather than costing a second round trip
-        — the role already holds table-wide SELECT, and the column is a 64-char digest, not one of
-        the TOASTed payloads the narrow-projection rule exists to keep off the wire. The runner
-        binds the dispatched body to it before solving.
+        — the role's SELECT is column-scoped to exactly `id, status, snapshot_hash` (migration
+        20260812141459), so this projection names precisely what the grant allows, and the column is
+        a 64-char digest, not one of the TOASTed payloads kept off the wire. The runner binds the
+        dispatched body to it before solving.
         """
         now = _utc_now()
         response = self._client.patch(

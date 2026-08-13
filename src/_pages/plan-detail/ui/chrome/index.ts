@@ -7,6 +7,7 @@ export { default as CollapsibleEdgePanel, EDGE_PANEL_ICON_BUTTON } from "./Colla
 export { default as CohortSwitcher } from "./CohortSwitcher";
 export { default as ExportMenu } from "./ExportMenu";
 export { default as GenerateButton } from "./GenerateButton";
+export { default as GenerationStatusStrip } from "./GenerationStatusStrip";
 export { default as GenerationSummaryPanel } from "./GenerationSummaryPanel";
 export { default as PlanSummaryBar } from "./PlanSummaryBar";
 export { default as UndoRedoControls, type UndoRedoControlsProps } from "./UndoRedoControls";

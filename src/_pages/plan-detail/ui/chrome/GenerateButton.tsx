@@ -22,6 +22,9 @@ export default function GenerateButton({ generation }: Props) {
   const { state, error, disabledReason, busy, launch } = generation;
 
   const launching = state.status === "launching";
+  // Only a LIVE job blocks a new one, matching the partial unique index that enforces it server-side:
+  // once a job is delivered or failed the plan is enqueueable again, and the button has to agree.
+  const jobIsLive = state.status === "tracking" && (state.job.status === "queued" || state.job.status === "running");
   const disabledTitle =
     disabledReason === "violations"
       ? "Resolve blocking violations first"
@@ -29,7 +32,7 @@ export default function GenerateButton({ generation }: Props) {
         ? "Plan is complete"
         : busy
           ? "Waiting for pending edits to settle"
-          : state.status === "launched"
+          : jobIsLive
             ? "A generation is already running for this plan"
             : null;
 

@@ -1,15 +1,29 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { GenerationJobView } from "../../api/generation-delivery";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 import GenerateButton from "./GenerateButton";
 
 const controls = (over: Partial<GenerationControls> = {}): GenerationControls => ({
   state: { status: "idle" },
   error: null,
+  checking: false,
   launch: vi.fn(),
+  refresh: vi.fn(),
   disabledReason: null,
   busy: false,
   ...over,
+});
+
+const trackedJob = (status: GenerationJobView["status"]): GenerationJobView => ({
+  jobId: "job-1",
+  status,
+  proposalPlanId: "plan-2",
+  delivered: status === "succeeded",
+  error: null,
+  createdAt: "2026-08-13T07:40:07.000Z",
+  finishedAt: null,
+  cleanLabel: { kind: "clean" },
 });
 
 describe("GenerateButton", () => {
@@ -52,15 +66,26 @@ describe("GenerateButton", () => {
     expect(screen.getByText("Starting…")).toBeInTheDocument();
   });
 
-  it("once launched the button stays disabled — one active job per plan", () => {
+  it("a LIVE job disables the button — one active job per plan", () => {
     // The database enforces this with a partial unique index; the button says so before the author
     // spends a click discovering it.
-    const state = { status: "launched", job: { jobId: "job-1", proposalPlanId: "plan-2" } } as const;
-    render(<GenerateButton generation={controls({ state })} />);
+    render(<GenerateButton generation={controls({ state: { status: "tracking", job: trackedJob("running") } })} />);
 
     const button = screen.getByRole("button", { name: "Generate plan" });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("title", "A generation is already running for this plan");
+  });
+
+  it("a finished job does NOT disable it — the plan is enqueueable again", () => {
+    // Matching the partial unique index, which only covers queued/running. A button that stayed
+    // disabled after delivery would be stricter than the database and strand the author.
+    for (const status of ["succeeded", "failed"] as const) {
+      const { unmount } = render(
+        <GenerateButton generation={controls({ state: { status: "tracking", job: trackedJob(status) } })} />,
+      );
+      expect(screen.getByRole("button", { name: "Generate plan" }), status).toBeEnabled();
+      unmount();
+    }
   });
 
   it("errors surface inline with role=alert", () => {

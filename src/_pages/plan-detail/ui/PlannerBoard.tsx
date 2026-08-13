@@ -9,6 +9,7 @@ import {
   ErrorBanner,
   ExportMenu,
   GenerateButton,
+  GenerationStatusStrip,
   PlanSummaryBar,
   buildCoursesLeftSummary,
   inspectedViolations,
@@ -36,6 +37,7 @@ import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohor
 import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { BoardSurface } from "../lib/board-surface";
 import type { ExportCohortData } from "../lib/export-workbook";
+import type { GenerationJobView } from "../api/generation-delivery";
 
 type Props = {
   planName: string;
@@ -49,6 +51,9 @@ type Props = {
   paletteCollapsed: boolean;
   /** SSR seed (from cookie) for the combined-mode palette cohort, so a recompute refresh keeps it. */
   initialPaletteCohort: Cohort;
+  /** The plan's latest generation job, already checked — and, if it was ready, DELIVERED — during
+   *  the page render. Seeding the strip from here is what makes the visit itself the trigger. */
+  generationJob: GenerationJobView | null;
 };
 
 /**
@@ -69,6 +74,7 @@ export default function PlannerBoard({
   batchExport,
   paletteCollapsed,
   initialPaletteCohort,
+  generationJob,
 }: Props) {
   const { planId, days, periods } = shared;
   // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
@@ -80,6 +86,7 @@ export default function PlannerBoard({
     dp2Props,
     focus,
     lens.effectiveCriteria,
+    generationJob,
   );
   const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
   const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
@@ -310,10 +317,11 @@ export default function PlannerBoard({
               </>
             }
           />
-          {/* The greedy engine's post-solve review panel is gone with its engine (S-301): a CP-SAT
-              job's result lands on a PROPOSAL plan minutes later, so there is nothing to review in
-              place here. `GenerationSummaryPanel` stays in the tree unreferenced, to be removed with
-              the rest of the greedy path rather than by this slice. */}
+          {/* The generation job's window. It replaces the greedy engine's post-solve review panel,
+              which went with its engine (S-301): a CP-SAT result lands on a PROPOSAL plan minutes
+              later, so there is nothing to review in place here. `GenerationSummaryPanel` stays in
+              the tree unreferenced, to be removed with the rest of the greedy path. */}
+          <GenerationStatusStrip generation={generation} />
           {lens.criteria.length > 0 && (
             <LensBar
               criteria={lens.criteria}

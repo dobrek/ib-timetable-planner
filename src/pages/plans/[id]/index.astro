@@ -3,7 +3,7 @@ import SidebarLayout from "@/app/layouts/SidebarLayout.astro";
 import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import { createClient } from "@/shared/api";
-import { loadCombinedPlannerData } from "@/_pages/plan-detail/api";
+import { checkGeneration, loadCombinedPlannerData, type GenerationJobView } from "@/_pages/plan-detail/api";
 import { boardSurfaceSchema } from "@/_pages/plan-detail/lib/board-surface";
 import { COOKIE_NAME, parsePaletteCollapsed } from "@/_pages/plan-detail/lib/palette-collapsed";
 import { COOKIE_NAME as PALETTE_COHORT_COOKIE, parsePaletteCohort } from "@/_pages/plan-detail/lib/palette-cohort";
@@ -17,6 +17,26 @@ if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 
 
 // Read the per-device palette-collapse pref server-side so the island can seed flash-free
 // initial state (a client-only read would render expanded for one frame then snap shut).
+// The on-visit generation check (S-301, FR-313). It runs HERE, in the page render, because that is
+// literally what "on visit" means — and because a mount effect that fetched and set state would both
+// cost a round-trip and flash an empty strip. When the plan's latest job has succeeded and nothing
+// has been delivered yet, this call is what verifies the board server-side and applies it to the
+// proposal plan; otherwise it is a narrow status read. Never fatal: a delivery failure must not take
+// the board down with it, so it degrades to "no job" and the author can hit Refresh.
+//
+// Ordering note: it runs AFTER the board load and writes only to the proposal CLONE, so the board
+// rendered below cannot be stale because of it.
+let generationJob: GenerationJobView | null = null;
+if (result.ok && supabase) {
+  generationJob = await checkGeneration(supabase, { planId: result.value.shared.planId }).catch(
+    (error: unknown): null => {
+      // eslint-disable-next-line no-console -- the server log is the only trace a delivery failed
+      console.error("[plans/:id] generation check failed:", error);
+      return null;
+    },
+  );
+}
+
 const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.value);
 // Same rationale for the combined-mode palette cohort: seeding from the cookie keeps the selection
 // across the full-document refresh a stale-grouping recompute triggers (else it snaps back to dp1).
@@ -39,6 +59,7 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
         batchExport={result.value.batchExport}
         paletteCollapsed={paletteCollapsed}
         initialPaletteCohort={initialPaletteCohort}
+        generationJob={generationJob}
       />
     </SidebarLayout>
   ) : (

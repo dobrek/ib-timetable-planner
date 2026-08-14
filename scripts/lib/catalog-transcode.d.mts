@@ -94,9 +94,10 @@ export function buildPlanRows(
   fixtures: Fixtures,
   /**
    * Namespaces every generated row id (content-addressed UUIDv5). Defaults to `planName`, which is
-   * what the seed needs — identical input must mint identical ids so `bench:generation` can resolve
-   * its plan by id in CI. Callers that materialize this catalog more than once in one database MUST
-   * pass a per-instance scope, or the second copy collides on `teachers_pkey`.
+   * what the seed needs — identical input must mint identical ids so the committed seed and a fresh
+   * CI regeneration agree (pinned by `src/test/seed-transcode-identity.test.ts`). Callers that
+   * materialize this catalog more than once in one database MUST pass a per-instance scope, or the
+   * second copy collides on `teachers_pkey`.
    */
   idScope?: string,
 ): { rows: PlanCatalogRows; stats: PlanStats };

@@ -497,13 +497,13 @@ if needed, and Phase 3 was isolated specifically to keep its revert independent.
 
 #### Automated
 
-- [ ] 1.1 No `bench` job in the workflow
-- [ ] 1.2 No live reference to `bench:generation`
-- [ ] 1.3 `vitest.bench.config.ts` and `bench/generation.bench.ts` no longer exist
-- [ ] 1.4 Unit suite passes: `pnpm test`
-- [ ] 1.5 Type check passes: `pnpm check`
-- [ ] 1.6 Lint passes: `pnpm lint`
-- [ ] 1.7 Build passes: `pnpm build`
+- [x] 1.1 No `bench` job in the workflow
+- [x] 1.2 No live reference to `bench:generation`
+- [x] 1.3 `vitest.bench.config.ts` and `bench/generation.bench.ts` no longer exist
+- [x] 1.4 Unit suite passes: `pnpm test`
+- [x] 1.5 Type check passes: `pnpm check`
+- [x] 1.6 Lint passes: `pnpm lint`
+- [x] 1.7 Build passes: `pnpm build`
 
 #### Manual
 

@@ -7,10 +7,10 @@ import { defineConfig } from "vitest/config";
  * generates, verifies, persists, and prints the comparison against the source plan (start the stack
  * with `pnpm exec supabase start`; env comes from `.env.test.local`).
  *
- * A config of its own, mirroring `vitest.bench.config.ts` / `vitest.analyze.config.ts`: the
- * `*.experiment.ts` / `*.bench.ts` / `*.analyze.ts` include split keeps the three DB-touching entry
- * points from ever triggering each other, and keeps all three invisible to `pnpm test`'s
- * `bench/**\/*.test.ts` glob (which collects only the pure unit tests beside them).
+ * A config of its own, mirroring `vitest.analyze.config.ts`: the `*.experiment.ts` / `*.analyze.ts`
+ * include split keeps the DB-touching entry points from ever triggering each other, and keeps both
+ * invisible to `pnpm test`'s `bench/**\/*.test.ts` glob (which collects only the pure unit tests
+ * beside them).
  */
 export default defineConfig({
   resolve: { tsconfigPaths: true },

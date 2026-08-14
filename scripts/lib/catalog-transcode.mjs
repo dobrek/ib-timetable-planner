@@ -369,10 +369,12 @@ function buildChoices(studentRows, studentIds, courseIds, choiceResolution, cata
 // content-addressed UUID. Returns the raw row collections + per-cohort stats.
 //
 // `idScope` namespaces every generated id and defaults to the plan name — which is what the seed
-// wants: `Seed Plan A` must mint the SAME ids on every regeneration, or the bench's by-id lookup
-// breaks in CI. Callers that materialize the catalog MORE THAN ONCE inside a single database (the
-// test factories) must pass a scope unique to each instance — otherwise two catalogs collide on
-// `teachers_pkey`, since identical inputs deliberately produce identical ids.
+// wants: `Seed Plan A` must mint the SAME ids on every regeneration, or the committed seed and a
+// fresh CI regeneration disagree and every by-id reference to a seed row breaks
+// (`src/test/seed-transcode-identity.test.ts` is what pins that). Callers that materialize the
+// catalog MORE THAN ONCE inside a single database (the test factories) must pass a scope unique to
+// each instance — otherwise two catalogs collide on `teachers_pkey`, since identical inputs
+// deliberately produce identical ids.
 export function buildPlanRows(planName, dp1Data, dp2Data, fixtures, idScope = planName) {
   const planId = seedId(idScope, "plan");
   const idOf1 = (...parts) => seedId(idScope, COHORT_DP1, ...parts);

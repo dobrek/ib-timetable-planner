@@ -6,9 +6,9 @@ import { defineConfig } from "vitest/config";
  * or two plans **by id** from the local Supabase stack (start it with `pnpm exec supabase start`;
  * env comes from `.env.test.local`) and prints the comparison report.
  *
- * A config of its own, mirroring `vitest.bench.config.ts`: the `*.analyze.ts` / `*.bench.ts` include
- * split keeps the analyzer and the generation benchmark from ever triggering each other (a 60-second
- * engine solve is not something an analysis run should pay for).
+ * A config of its own, mirroring `vitest.experiment.config.ts`: the `*.analyze.ts` /
+ * `*.experiment.ts` include split keeps the analyzer and the generation experiments from ever
+ * triggering each other (a 60-second engine solve is not something an analysis run should pay for).
  */
 export default defineConfig({
   resolve: { tsconfigPaths: true },

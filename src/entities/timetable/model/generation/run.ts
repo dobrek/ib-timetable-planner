@@ -3,9 +3,10 @@ import { type GenerationVerdict, verifyGeneration } from "./verify";
 
 /**
  * The trust-but-verify runner seam: precondition → engine → verdict. Every present and future runner
- * (the Web Worker today, a possible HTTP/CLI runner later) calls this instead of re-implementing the
- * fail-fast precondition and the post-solve re-judge, so the engine's index-integrity assumption
- * (conflict-free pins) can never be forgotten. The engine is injected, keeping the seam
+ * (the server-side generation delivery path today — `_pages/plan-detail/api/generation-delivery.ts`
+ * — a possible CLI runner later) calls this instead of re-implementing the fail-fast precondition
+ * and the post-solve re-judge, so the engine's index-integrity assumption (conflict-free pins) can
+ * never be forgotten. The engine is injected, keeping the seam
  * engine-agnostic; transport concerns (progress throttling, message formatting) stay in the caller.
  */
 

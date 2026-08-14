@@ -13,9 +13,9 @@ import { createSolverTransport, type SolverTransport } from "./solver-transport"
  * binding, this module is what changes. `createSolverTransport` and every call site do not.
  *
  * **Not exported from the slice barrel, and it must not be.** `entities/timetable`'s `index.ts` is
- * pulled into the Web Worker bundle, where Astro's env plugin throws `[ServerOnlyModule]` at load
- * time — before tree-shaking can drop an unused export — so re-exporting this would fail
- * `pnpm build` outright. Server callers therefore import this module at its own path, which IS a
+ * pulled into the CLIENT bundle by the `client:load` islands that import it (`PlannerBoard.tsx` and
+ * ~20 more components), where Astro's env plugin throws `[ServerOnlyModule]` at load time — before
+ * tree-shaking can drop an unused export — so re-exporting this would fail `pnpm build` outright. Server callers therefore import this module at its own path, which IS a
  * step outside the slice's public API — a deliberate one, forced by the bundle and enforced by the
  * build rather than by convention. (`shared/api`'s `createClient` is not the precedent it looks
  * like: that one is barrel-exported and reached as `@/shared/api`.)

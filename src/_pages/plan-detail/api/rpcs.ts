@@ -38,8 +38,10 @@ export function makeRpcs(planId: string, cohort: Cohort) {
     deleteShelfBundle: (args: { shelfBundleId: string }) => deleteShelfBundle({ planId, ...args }),
     shelveCourses: (args: { members: ParkedMember[] }) => shelveCourses({ planId, cohort, ...args }),
     // Single-cohort region replace for the undo/redo reconcile of a generated batch: tags every
-    // cell/row with this binding's cohort and unwraps that cohort's settled rows. The two-cohort
-    // forward apply calls the plan-scoped client directly (combined orchestrator, not per-cohort).
+    // cell/row with this binding's cohort and unwraps that cohort's settled rows. Reconcile is the
+    // ONLY client-side caller of the region replace — the forward apply is server-side now (S-301
+    // put a CP-SAT job behind Generate, and `api/generation-delivery.ts` lands its board through the
+    // domain function directly), so this per-cohort binding has no plan-scoped client twin.
     applyGeneratedRegion: (args: {
       cells: { day: number; period: number }[];
       placements: { courseId: string; day: number; period: number; week: PlacementWeek; isOptional: boolean }[];

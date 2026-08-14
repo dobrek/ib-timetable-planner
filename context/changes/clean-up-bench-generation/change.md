@@ -115,6 +115,23 @@ The orphan sweep found the deletion set was larger than D1 assumed, and the user
 **Known gap, recorded not closed:** there is no E2E coverage of the Generate button at all. This change
 deliberately does not add it — that needs the solver in the E2E lane, a CI change of its own.
 
+### Adaptations during implementation (2026-08-14)
+
+- **Phase 2, item 4 was wrong about the client wrapper.** The plan deleted
+  `applyGeneratedPlacements` from `api/placement-client.ts` on the claim that its only caller was the
+  excised `applyGenerated` verb. It has a **second, live caller**: `api/rpcs.ts:47` binds it
+  per-cohort as `applyGeneratedRegion`, which is on the undo/redo reconcile path
+  (`use-placements.ts:157` → `use-reconcile-executor.ts:117` → `reconcile-exec.ts:87`). Deleting it
+  turned `pnpm check` red — the gate the plan nominated caught exactly the hazard its own Critical
+  Implementation Details had predicted. The wrapper is **kept**, with a docblock recording that
+  reconcile is now its sole client-side caller, and the stale forward-apply clause in `rpcs.ts:40-42`
+  was re-anchored.
+- **Newly orphaned, deliberately not swept:** `stageGenerated` / `settleGenerated` / `failGenerated`
+  on the `usePlacements` api (`use-placements.ts:83-87, 213-222`) lose their only caller with the
+  excised verb. Left in place for the same reason `placement-actions.ts:19` is: S-306 plausibly wants
+  a client-side apply path again, and removing them is an api-surface change beyond this change's
+  scope. Flagged, not deleted.
+
 ## Guardrails for the plan
 
 - `bench/` is three unrelated things under one name. **Reason per-file, never per-directory.**

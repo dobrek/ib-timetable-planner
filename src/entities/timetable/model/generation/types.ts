@@ -5,11 +5,12 @@ import type { PlannerPlacement } from "../placement";
 
 /**
  * Engine-agnostic contract for automatic plan generation. Every engine implements the
- * `GeneratePlan` port over these shapes; everything downstream (worker protocol, apply,
- * review UX) builds against the port, never an engine. Modeled on the app's own domain
- * types (`GroupingCourse`, `PlannerPlacement`) — no parallel shapes (lessons: port the
- * mechanism). All fields are structured-clone-safe plain data, so a snapshot crosses a
- * Web Worker boundary as-is.
+ * `GeneratePlan` port over these shapes; everything downstream (dispatch, apply, review UX)
+ * builds against the port, never an engine. Modeled on the app's own domain types
+ * (`GroupingCourse`, `PlannerPlacement`) — no parallel shapes (lessons: port the mechanism).
+ * All fields are plain, serializable data with no class instances or cycles, so a snapshot
+ * crosses a process boundary as-is — today the JSON/HTTP hop to the solver service
+ * (`dispatchSolveJob`).
  *
  * These are the IN-APP types. The frozen TS↔Python wire contract is
  * `contracts/generation-wire.schema.json`, and it is deliberately NARROWER in several places

@@ -1,19 +1,11 @@
 import { useMemo } from "react";
 import {
-  assembleGeneratorSnapshot,
   buildCrossCohortIndex,
-  type CohortSnapshotInput,
   type CrossCohortIndex,
-  type GeneratedPlacement,
   type LocalPlacement,
   projectFromPlacements,
 } from "@/entities/timetable";
-import { deriveGenerationDeficits, verifyGeneration, type CellCollisions } from "@/entities/timetable";
-import type { GroupingCourse } from "@/shared/lib/catalog-hash";
-import type { LocalParkedBundle } from "./placement/parked";
-import { applyGeneratedPlacements } from "../api/placement-client";
-import { buildGeneratedSegments, buildRegionPayload, generationHistoryEntry } from "./generation/apply-generated";
-import type { ApplyGeneratedResult } from "./generation/use-generate-plan";
+import { deriveGenerationDeficits, type CellCollisions } from "@/entities/timetable";
 import { useGenerationJob, type GenerationJobControls } from "./generation/use-generation-job";
 import type { GenerationJobView } from "../api/generation-delivery";
 import { type LensCriterion } from "./lens";
@@ -110,48 +102,9 @@ export function useCombinedBoardState(
   // only exist now that both bases have run (the downstream half of the ordering cycle).
   const history = useHistoryControls(store, { dp1: dp1Base.api, dp2: dp2Base.api });
 
-  // The generation apply verb (Phase 3 machinery; Phase 4's hook drives it): stage both cohorts
-  // optimistically, ONE plan-scoped atomic RPC carrying both cohorts' regions, settle from the
-  // returned rows, and record ONE two-cohort history entry (single undo press reverts both).
-  // Records via `store.push` directly (the forward path records on settled success — the
-  // recorder-bypass invariant concerns `applyReconcile`, which this never calls). Staged rows are
-  // `pending`, so both cohorts' `busy` gate undo/redo and drag writes while the RPC is in flight.
-  const bases = { dp1: dp1Base, dp2: dp2Base };
-  async function applyGenerated(generated: GeneratedPlacement[]): Promise<ApplyGeneratedResult> {
-    const segments = buildGeneratedSegments(
-      generated,
-      (cohort, scope) => bases[cohort].api.snapshot(scope),
-      () => crypto.randomUUID(),
-    );
-    if (segments.length === 0) return { ok: true };
-    // Apply-time re-verify: the engine judged its result against the CLICK-time snapshot, but the
-    // board stays editable through the ~20 s solve. Re-judge the generated rows against the LIVE
-    // board (read via refs, not the click-time closure) so a concurrent edit can't commit a board
-    // the oracle never saw — the same clean-board guarantee the block-until-clean gate enforces at
-    // click. `liveState()` and each segment's `snapshot(scope)` read the same refs in this one
-    // synchronous pass, so the captured `before` slices and this judgment agree.
-    const liveSnapshot = assembleGeneratorSnapshot(shared, {
-      dp1: toSnapshotInput(dp1Props.catalog, dp1Base.api.liveState()),
-      dp2: toSnapshotInput(dp2Props.catalog, dp2Base.api.liveState()),
-    });
-    if (!verifyGeneration(liveSnapshot, generated).ok) return { ok: false, reason: "stale" };
-    for (const segment of segments) bases[segment.cohort].api.stageGenerated(segment.entries);
-    try {
-      const result = await applyGeneratedPlacements({ planId: shared.planId, ...buildRegionPayload(segments) });
-      for (const segment of segments)
-        bases[segment.cohort].api.settleGenerated(segment.entries, result[segment.cohort]);
-      const entry = generationHistoryEntry(segments);
-      if (entry) store.push(entry);
-      return { ok: true };
-    } catch (err: unknown) {
-      for (const segment of segments) bases[segment.cohort].api.failGenerated(segment.entries, err);
-      return { ok: false };
-    }
-  }
-
-  // The Generate orchestration (Phase 4): snapshot assembly captures the LIVE combined state at
-  // click time; the disabled inputs derive from the existing collision severities and the Phase 1
-  // deficits — no new derivation passes (warns never block, per the block-until-clean decision).
+  // The Generate orchestration: the disabled inputs derive from the existing collision severities
+  // and the deficits — no new derivation passes (warns never block, per the block-until-clean
+  // decision).
   const combinedBusy = dp1Base.api.busy || dp2Base.api.busy;
   const dp1Deficits = useMemo(
     () =>
@@ -178,7 +131,6 @@ export function useCombinedBoardState(
     dp1: toCohortState(dp1Props, dp1Base, dp1Deriv),
     dp2: toCohortState(dp2Props, dp2Base, dp2Deriv),
     history,
-    applyGenerated,
     generation: { ...generateControls, disabledReason, busy: combinedBusy },
   };
 }
@@ -197,17 +149,6 @@ const hasBlocking = (collisions: Map<string, CellCollisions>): boolean =>
 
 const parkedCourseIds = (bundles: { members: { courseId: string }[] }[]): string[] =>
   bundles.flatMap((bundle) => bundle.members.map((member) => member.courseId));
-
-/** Adapt one cohort's board state to the entity-level snapshot input: placements go in verbatim
- *  (the assembly strips their local markers), parked bundles flatten to the course-id multiset. */
-const toSnapshotInput = (
-  catalog: GroupingCourse[],
-  state: { placements: LocalPlacement[]; parkedBundles: LocalParkedBundle[] },
-): CohortSnapshotInput => ({
-  courses: catalog,
-  placements: state.placements,
-  parkedCourseIds: parkedCourseIds(state.parkedBundles),
-});
 
 export type CombinedBoardState = ReturnType<typeof useCombinedBoardState>;
 export type CohortBoardState = CombinedBoardState["dp1"];

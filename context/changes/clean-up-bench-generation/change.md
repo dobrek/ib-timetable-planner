@@ -1,7 +1,7 @@
 ---
 change_id: clean-up-bench-generation
 title: Retire the flaky CI generation-benchmark job (and its dead code)
-status: plan_reviewed
+status: implementing
 created: 2026-08-14
 updated: 2026-08-14
 archived_at: null

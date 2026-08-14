@@ -4,10 +4,11 @@ import { generatePlanGreedy } from "./engines/greedy";
 import { verifyGeneration } from "./verify";
 
 /**
- * CI smoke (Phase 2): the shipped pipeline — snapshot → greedy engine → verify judge —
- * on the synthetic catalog, fast and deterministic. The real-catalog parity bar lives in
- * the on-demand benchmark (`pnpm bench:generation`), not here. The shipped engine is pure
- * TS, so the full pipeline runs under Node — no browser lane needed.
+ * CI smoke (Phase 2): the greedy pipeline — snapshot → greedy engine → verify judge —
+ * on the synthetic catalog, fast and deterministic. Nothing here asserts a real-catalog
+ * quality bar: that is the CP-SAT calibration campaign's job (S-308), and this suite is
+ * deliberately synthetic so it stays deterministic. The engine is pure TS, so the full
+ * pipeline runs under Node — no browser lane needed.
  */
 describe("generation pipeline smoke", () => {
   it("produces a complete, zero-blocking-violation board within seconds", async () => {

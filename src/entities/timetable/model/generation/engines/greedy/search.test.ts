@@ -8,12 +8,12 @@ import { DEFICIT_EVERY, DESTROY_OPERATORS, destroyFor } from "./search";
  * was set by measurement, and every nearby setting was measured and rejected: a flat 1-in-3 teacher
  * round cost slots *and* completeness, and merely lengthening the cycle cost dp2 a slot.
  *
- * Nothing else pins them. `pnpm bench:generation` is the only other guard, it is not in CI, and it is
- * wall-clock-driven — the same code on the same input walks a different plateau under different
- * machine load, so it fails intermittently on unmodified `main`. A silent edit to these constants
- * would therefore hide inside that noise. These tests are the loud failure instead: they do not claim
- * the cadence is *optimal*, only that it is what was measured. Retuning it means updating them
- * deliberately, with a fresh measurement — which is exactly the point.
+ * Nothing else pins them. The one other guard that ever existed — a real-catalog CI benchmark — was
+ * retired as noise: the search is wall-clock-driven, so the same code on the same input walks a
+ * different plateau under different machine load, and it failed intermittently on unmodified `main`.
+ * A silent edit to these constants would have hidden inside that noise. These tests are the loud
+ * failure instead: they do not claim the cadence is *optimal*, only that it is what was measured.
+ * Retuning it means updating them deliberately, with a fresh measurement — which is exactly the point.
  */
 
 /** Only `objective[0]` (unplacedTotal) is read by `destroyFor` — the rest is scaffolding. */

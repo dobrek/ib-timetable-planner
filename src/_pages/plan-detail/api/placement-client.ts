@@ -48,7 +48,15 @@ export function updatePlacementOptional(id: string, isOptional: boolean): Promis
   return callActionData(actions.updatePlacementOptional, { id, isOptional });
 }
 
-/** Atomic region replace for plan generation (one call may carry both cohorts; see `placements.ts`). */
+/**
+ * Atomic region replace for plan generation (one call may carry both cohorts; see `placements.ts`).
+ *
+ * Its forward caller is gone — S-301 moved Generate onto a server-side CP-SAT job, which lands its
+ * board through the DOMAIN function of the same name (`api/placements.ts`, via
+ * `generation-delivery.ts`), never through this client wrapper. What keeps this alive is the
+ * UNDO/REDO path: `rpcs.ts`'s `applyGeneratedRegion` binds it per-cohort so reconciling a generated
+ * batch replays as one region write.
+ */
 export function applyGeneratedPlacements(args: {
   planId: string;
   cells: { cohort: Cohort; day: number; period: number }[];

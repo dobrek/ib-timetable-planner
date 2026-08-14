@@ -319,8 +319,7 @@ export default function PlannerBoard({
           />
           {/* The generation job's window. It replaces the greedy engine's post-solve review panel,
               which went with its engine (S-301): a CP-SAT result lands on a PROPOSAL plan minutes
-              later, so there is nothing to review in place here. `GenerationSummaryPanel` stays in
-              the tree unreferenced, to be removed with the rest of the greedy path. */}
+              later, so there is nothing to review in place here. */}
           <GenerationStatusStrip generation={generation} />
           {lens.criteria.length > 0 && (
             <LensBar

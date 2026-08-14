@@ -222,7 +222,7 @@ two greedy test files' comments does not violate D6 — their code and assertion
 
 #### Manual Verification:
 
-- [ ] A CI run on the branch shows four jobs (`verify`, `integration`, `e2e`, `solver`) and no benchmark
+- [x] A CI run on the branch shows four jobs (`verify`, `integration`, `e2e`, `solver`) and no benchmark
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause for
 manual confirmation before proceeding.
@@ -312,17 +312,17 @@ only their cited causes die.
 
 #### Automated Verification:
 
-- [ ] Zero references to the deleted symbols: `grep -rn "useGeneratePlan\|generate\.worker\|worker-protocol\|GenerationSummaryPanel\|ApplyGeneratedResult" src/` returns nothing
-- [ ] Zero `src/_pages/**` import edges into greedy: `grep -rn "engines/greedy\|generatePlanGreedy\|createGreedyEngine" src/_pages/` returns nothing
-- [ ] Type check passes — the authority on the excision: `pnpm check`
-- [ ] Lint passes, proving no orphaned imports survive: `pnpm lint`
-- [ ] FSD boundaries hold: `pnpm steiger`
-- [ ] Unit + DOM suites pass: `pnpm test`
-- [ ] Build passes — the gate on the barrel client-safety trap: `pnpm build`
+- [x] Zero references to the deleted symbols: `grep -rn "useGeneratePlan\|generate\.worker\|worker-protocol\|GenerationSummaryPanel\|ApplyGeneratedResult" src/` returns nothing
+- [x] Zero `src/_pages/**` import edges into greedy: `grep -rn "engines/greedy\|generatePlanGreedy\|createGreedyEngine" src/_pages/` returns nothing
+- [x] Type check passes — the authority on the excision: `pnpm check`
+- [x] Lint passes, proving no orphaned imports survive: `pnpm lint`
+- [x] FSD boundaries hold: `pnpm steiger`
+- [x] Unit + DOM suites pass: `pnpm test`
+- [x] Build passes — the gate on the barrel client-safety trap: `pnpm build`
 
 #### Manual Verification:
 
-- [ ] The plan-detail board page renders and the Generate button is present (app + Supabase only; no solver needed)
+- [x] The plan-detail board page renders and the Generate button is present (app + Supabase only; no solver needed)
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause for
 manual confirmation before proceeding.
@@ -507,23 +507,23 @@ if needed, and Phase 3 was isolated specifically to keep its revert independent.
 
 #### Manual
 
-- [ ] 1.8 CI run on the branch shows four jobs and no benchmark
+- [x] 1.8 CI run on the branch shows four jobs and no benchmark — 58b5b0c
 
 ### Phase 2: Delete the orphaned client generation path
 
 #### Automated
 
-- [ ] 2.1 Zero references to the deleted symbols
-- [ ] 2.2 Zero `src/_pages/**` import edges into greedy
-- [ ] 2.3 Type check passes: `pnpm check`
-- [ ] 2.4 Lint passes (no orphaned imports): `pnpm lint`
-- [ ] 2.5 FSD boundaries hold: `pnpm steiger`
-- [ ] 2.6 Unit + DOM suites pass: `pnpm test`
-- [ ] 2.7 Build passes (barrel client-safety gate): `pnpm build`
+- [x] 2.1 Zero references to the deleted symbols
+- [x] 2.2 Zero `src/_pages/**` import edges into greedy
+- [x] 2.3 Type check passes: `pnpm check`
+- [x] 2.4 Lint passes (no orphaned imports): `pnpm lint`
+- [x] 2.5 FSD boundaries hold: `pnpm steiger`
+- [x] 2.6 Unit + DOM suites pass: `pnpm test`
+- [x] 2.7 Build passes (barrel client-safety gate): `pnpm build`
 
 #### Manual
 
-- [ ] 2.8 Board page renders and the Generate button is present
+- [x] 2.8 Board page renders and the Generate button is present
 
 ### Phase 3: Sweep the unrelated `useCollisionInspection` orphan
 

@@ -36,8 +36,9 @@ import { buildReport, printPlanReports } from "./plan-report";
  */
 const SOURCE_PLAN_ID = process.env.SOURCE_PLAN_ID;
 const PIN_SKELETON = process.env.PIN_SKELETON === "1";
-/** The app's Generate budget (`GENERATION_BUDGET_MS`, `_pages/plan-detail/model/generation/worker-protocol.ts`).
- *  Restated rather than imported: `bench/` never reaches into a page slice. */
+/** The greedy engine's solve budget, as the in-page Generate path used to set it (20 s). That path
+ *  is gone — Generate now enqueues a server-side CP-SAT job — so this is the experiment's OWN knob
+ *  and nothing in the app pins it. Override with `BUDGET_MS`. */
 const BUDGET_MS = Number(process.env.BUDGET_MS ?? 20_000);
 
 const USAGE =

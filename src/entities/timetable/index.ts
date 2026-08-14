@@ -73,10 +73,11 @@ export * from "./model/__fixtures__/builders";
 // The CP-SAT solver seam — the PURE factory only.
 //
 // Its sibling `api/solver-config.ts` is deliberately NOT re-exported here: it imports
-// `astro:env/server`, and this barrel is pulled into the Web Worker bundle by
-// `_pages/plan-detail/model/generation/generate.worker.ts`. Astro's env plugin throws
-// `[ServerOnlyModule]` at LOAD time in a client build, before tree-shaking could drop the unused
-// export, so a single server-only module in this barrel fails `pnpm build` outright.
+// `astro:env/server`, and this barrel is pulled into the CLIENT bundle — `PlannerBoard.tsx` is a
+// `client:load` island (`_pages/plan-detail/ui/PlanDetailPage.astro`) and ~20 more client
+// components import it. Astro's env plugin throws `[ServerOnlyModule]` at LOAD time in a client
+// build, before tree-shaking could drop the unused export, so a single server-only module in this
+// barrel fails `pnpm build` outright.
 //
 // Everything in this file must therefore stay client-safe. Server-side callers reach the env-gated
 // factory at its own path (`@/entities/timetable/api/solver-config`), the same way `createClient`

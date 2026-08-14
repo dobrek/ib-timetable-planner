@@ -212,17 +212,17 @@ two greedy test files' comments does not violate D6 — their code and assertion
 
 #### Automated Verification:
 
-- No `bench` job in the workflow: `grep -c "bench" .github/workflows/ci.yml` returns 0
-- No live reference to the script: `grep -rn "bench:generation" --exclude-dir=node_modules --exclude-dir=context .` returns nothing
-- `vitest.bench.config.ts` and `bench/generation.bench.ts` no longer exist
-- Unit suite passes (proves the three surviving `bench/**/*.test.ts` files were not caught): `pnpm test`
-- Type check passes: `pnpm check`
-- Lint passes: `pnpm lint`
-- Build passes: `pnpm build`
+- [x] No `bench` job in the workflow: `grep -c "bench" .github/workflows/ci.yml` returns 0
+- [x] No live reference to the script: `grep -rn "bench:generation" --exclude-dir=node_modules --exclude-dir=context .` returns nothing
+- [x] `vitest.bench.config.ts` and `bench/generation.bench.ts` no longer exist
+- [x] Unit suite passes (proves the surviving `bench/**/*.test.ts` files were not caught): `pnpm test`
+- [x] Type check passes: `pnpm check`
+- [x] Lint passes: `pnpm lint`
+- [x] Build passes: `pnpm build`
 
 #### Manual Verification:
 
-- A CI run on the branch shows four jobs (`verify`, `integration`, `e2e`, `solver`) and no benchmark
+- [ ] A CI run on the branch shows four jobs (`verify`, `integration`, `e2e`, `solver`) and no benchmark
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause for
 manual confirmation before proceeding.
@@ -312,17 +312,17 @@ only their cited causes die.
 
 #### Automated Verification:
 
-- Zero references to the deleted symbols: `grep -rn "useGeneratePlan\|generate\.worker\|worker-protocol\|GenerationSummaryPanel\|ApplyGeneratedResult" src/` returns nothing
-- Zero `src/_pages/**` import edges into greedy: `grep -rn "engines/greedy\|generatePlanGreedy\|createGreedyEngine" src/_pages/` returns nothing
-- Type check passes — the authority on the excision: `pnpm check`
-- Lint passes, proving no orphaned imports survive: `pnpm lint`
-- FSD boundaries hold: `pnpm steiger`
-- Unit + DOM suites pass: `pnpm test`
-- Build passes — the gate on the barrel client-safety trap: `pnpm build`
+- [ ] Zero references to the deleted symbols: `grep -rn "useGeneratePlan\|generate\.worker\|worker-protocol\|GenerationSummaryPanel\|ApplyGeneratedResult" src/` returns nothing
+- [ ] Zero `src/_pages/**` import edges into greedy: `grep -rn "engines/greedy\|generatePlanGreedy\|createGreedyEngine" src/_pages/` returns nothing
+- [ ] Type check passes — the authority on the excision: `pnpm check`
+- [ ] Lint passes, proving no orphaned imports survive: `pnpm lint`
+- [ ] FSD boundaries hold: `pnpm steiger`
+- [ ] Unit + DOM suites pass: `pnpm test`
+- [ ] Build passes — the gate on the barrel client-safety trap: `pnpm build`
 
 #### Manual Verification:
 
-- The plan-detail board page renders and the Generate button is present (app + Supabase only; no solver needed)
+- [ ] The plan-detail board page renders and the Generate button is present (app + Supabase only; no solver needed)
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause for
 manual confirmation before proceeding.
@@ -356,16 +356,16 @@ describes the file as "state and its two pure selectors" — only the selectors 
 
 #### Automated Verification:
 
-- Symbol is gone: `grep -rn "useCollisionInspection" src/` returns nothing
-- Type check passes: `pnpm check`
-- Lint passes (catches the now-unused `useState` import): `pnpm lint`
-- FSD boundaries hold: `pnpm steiger`
-- Tests pass: `pnpm test`
-- Build passes: `pnpm build`
+- [ ] Symbol is gone: `grep -rn "useCollisionInspection" src/` returns nothing
+- [ ] Type check passes: `pnpm check`
+- [ ] Lint passes (catches the now-unused `useState` import): `pnpm lint`
+- [ ] FSD boundaries hold: `pnpm steiger`
+- [ ] Tests pass: `pnpm test`
+- [ ] Build passes: `pnpm build`
 
 #### Manual Verification:
 
-- The collision-details dialog still opens from a colliding cell and closes correctly
+- [ ] The collision-details dialog still opens from a colliding cell and closes correctly
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause for
 manual confirmation before proceeding.
@@ -434,14 +434,14 @@ does not add it; record it so it is a known gap rather than an accidental one.
 
 #### Automated Verification:
 
-- Corrected docs no longer claim greedy is the working affordance: `grep -n "remains the working Generate affordance" context/foundation/prd.md context/foundation/roadmap.md` returns nothing (`shape-notes.md` keeps the phrase by design, behind its dated annotation)
-- Corrected docs no longer name the deleted bench as a precondition: `grep -n "bench re-anchored" context/foundation/prd.md context/foundation/roadmap.md` returns nothing (same `shape-notes.md` carve-out)
-- Archived docs untouched: `git diff --name-only` shows no path under `context/archive/`
+- [ ] Corrected docs no longer claim greedy is the working affordance: `grep -n "remains the working Generate affordance" context/foundation/prd.md context/foundation/roadmap.md` returns nothing (`shape-notes.md` keeps the phrase by design, behind its dated annotation)
+- [ ] Corrected docs no longer name the deleted bench as a precondition: `grep -n "bench re-anchored" context/foundation/prd.md context/foundation/roadmap.md` returns nothing (same `shape-notes.md` carve-out)
+- [ ] Archived docs untouched: `git diff --name-only` shows no path under `context/archive/`
 
 #### Manual Verification:
 
-- FR-314 reads as an accurate statement of the current engine situation
-- S-309's remaining scope (delete the greedy engine) is unambiguous to whoever plans it
+- [ ] FR-314 reads as an accurate statement of the current engine situation
+- [ ] S-309's remaining scope (delete the greedy engine) is unambiguous to whoever plans it
 
 ---
 
@@ -497,13 +497,13 @@ if needed, and Phase 3 was isolated specifically to keep its revert independent.
 
 #### Automated
 
-- [x] 1.1 No `bench` job in the workflow
-- [x] 1.2 No live reference to `bench:generation`
-- [x] 1.3 `vitest.bench.config.ts` and `bench/generation.bench.ts` no longer exist
-- [x] 1.4 Unit suite passes: `pnpm test`
-- [x] 1.5 Type check passes: `pnpm check`
-- [x] 1.6 Lint passes: `pnpm lint`
-- [x] 1.7 Build passes: `pnpm build`
+- [x] 1.1 No `bench` job in the workflow — 58b5b0c
+- [x] 1.2 No live reference to `bench:generation` — 58b5b0c
+- [x] 1.3 `vitest.bench.config.ts` and `bench/generation.bench.ts` no longer exist — 58b5b0c
+- [x] 1.4 Unit suite passes: `pnpm test` — 58b5b0c
+- [x] 1.5 Type check passes: `pnpm check` — 58b5b0c
+- [x] 1.6 Lint passes: `pnpm lint` — 58b5b0c
+- [x] 1.7 Build passes: `pnpm build` — 58b5b0c
 
 #### Manual
 

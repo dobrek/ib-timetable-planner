@@ -10,10 +10,10 @@ import {
  *
  * The shape of the problem changed with the engine, not just the engine. The greedy predecessor was
  * a ~20 s in-page solve a hook could watch tick by tick; a CP-SAT run is ~12 minutes on a server and
- * the page will usually be gone before it finishes. So this hook does not own a solve — it owns an ENQUEUE and a RE-READ, with
- * a durable row (`generation_jobs`) in between. That is why there is no elapsed/budget progress and
- * no "Stop & keep": a job that outlives the page cannot be cancelled from a closed tab (S-305 gives
- * it a real server-side stop path).
+ * the page will usually be gone before it finishes. So this hook does not own a solve — it owns an
+ * ENQUEUE and a RE-READ, with a durable row (`generation_jobs`) in between. That is why there is no
+ * elapsed/budget progress and no "Stop & keep": a job that outlives the page cannot be cancelled from
+ * a closed tab (S-305 gives it a real server-side stop path).
  *
  * **The on-visit check is NOT here — it already happened.** `src/pages/plans/[id]/index.astro` runs
  * `checkGeneration` in the page render and seeds `initialJob`, which means the visit itself is the

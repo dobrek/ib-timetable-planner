@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import {
   buildCrossCohortIndex,
+  type CellCollisions,
   type CrossCohortIndex,
+  deriveGenerationDeficits,
   type LocalPlacement,
   projectFromPlacements,
 } from "@/entities/timetable";
-import { deriveGenerationDeficits, type CellCollisions } from "@/entities/timetable";
 import { useGenerationJob, type GenerationJobControls } from "./generation/use-generation-job";
 import type { GenerationJobView } from "../api/generation-delivery";
 import { type LensCriterion } from "./lens";

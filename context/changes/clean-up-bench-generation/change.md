@@ -1,7 +1,7 @@
 ---
 change_id: clean-up-bench-generation
 title: Retire the flaky CI generation-benchmark job (and its dead code)
-status: implemented
+status: impl_reviewed
 created: 2026-08-14
 updated: 2026-08-15
 archived_at: null
@@ -136,10 +136,12 @@ deliberately does not add it — that needs the solver in the E2E lane, a CI cha
   reconcile is now its sole client-side caller, and the stale forward-apply clause in `rpcs.ts:40-42`
   was re-anchored.
 - **Newly orphaned, deliberately not swept:** `stageGenerated` / `settleGenerated` / `failGenerated`
-  on the `usePlacements` api (`use-placements.ts:83-87, 213-222`) lose their only caller with the
-  excised verb. Left in place for the same reason `placement-actions.ts:19` is: S-306 plausibly wants
-  a client-side apply path again, and removing them is an api-surface change beyond this change's
-  scope. Flagged, not deleted.
+  **and `liveState`** on the `usePlacements` api (`use-placements.ts:78-89, 196-224`) lose their
+  only caller with the excised verb (`liveState` fed the excised `toSnapshotInput`; added to this
+  note by the 2026-08-15 impl review). Left in place for the same reason `placement-actions.ts:19`
+  is: S-306 plausibly wants a client-side apply path again, and removing them is an api-surface
+  change beyond this change's scope. Flagged in their docblocks ("Currently has NO caller"), not
+  deleted.
 
 ## Guardrails for the plan
 

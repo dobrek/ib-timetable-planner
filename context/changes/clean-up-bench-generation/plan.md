@@ -356,12 +356,12 @@ describes the file as "state and its two pure selectors" — only the selectors 
 
 #### Automated Verification:
 
-- [ ] Symbol is gone: `grep -rn "useCollisionInspection" src/` returns nothing
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint passes (catches the now-unused `useState` import): `pnpm lint`
-- [ ] FSD boundaries hold: `pnpm steiger`
-- [ ] Tests pass: `pnpm test`
-- [ ] Build passes: `pnpm build`
+- [x] Symbol is gone: `grep -rn "useCollisionInspection" src/` returns nothing
+- [x] Type check passes: `pnpm check`
+- [x] Lint passes (catches the now-unused `useState` import): `pnpm lint`
+- [x] FSD boundaries hold: `pnpm steiger`
+- [x] Tests pass: `pnpm test`
+- [x] Build passes: `pnpm build`
 
 #### Manual Verification:
 
@@ -513,28 +513,28 @@ if needed, and Phase 3 was isolated specifically to keep its revert independent.
 
 #### Automated
 
-- [x] 2.1 Zero references to the deleted symbols
-- [x] 2.2 Zero `src/_pages/**` import edges into greedy
-- [x] 2.3 Type check passes: `pnpm check`
-- [x] 2.4 Lint passes (no orphaned imports): `pnpm lint`
-- [x] 2.5 FSD boundaries hold: `pnpm steiger`
-- [x] 2.6 Unit + DOM suites pass: `pnpm test`
-- [x] 2.7 Build passes (barrel client-safety gate): `pnpm build`
+- [x] 2.1 Zero references to the deleted symbols — c6c18f9
+- [x] 2.2 Zero `src/_pages/**` import edges into greedy — c6c18f9
+- [x] 2.3 Type check passes: `pnpm check` — c6c18f9
+- [x] 2.4 Lint passes (no orphaned imports): `pnpm lint` — c6c18f9
+- [x] 2.5 FSD boundaries hold: `pnpm steiger` — c6c18f9
+- [x] 2.6 Unit + DOM suites pass: `pnpm test` — c6c18f9
+- [x] 2.7 Build passes (barrel client-safety gate): `pnpm build` — c6c18f9
 
 #### Manual
 
-- [x] 2.8 Board page renders and the Generate button is present
+- [x] 2.8 Board page renders and the Generate button is present — c6c18f9
 
 ### Phase 3: Sweep the unrelated `useCollisionInspection` orphan
 
 #### Automated
 
-- [ ] 3.1 `useCollisionInspection` is gone from `src/`
-- [ ] 3.2 Type check passes: `pnpm check`
-- [ ] 3.3 Lint passes (unused `useState` import caught): `pnpm lint`
-- [ ] 3.4 FSD boundaries hold: `pnpm steiger`
-- [ ] 3.5 Tests pass: `pnpm test`
-- [ ] 3.6 Build passes: `pnpm build`
+- [x] 3.1 `useCollisionInspection` is gone from `src/`
+- [x] 3.2 Type check passes: `pnpm check`
+- [x] 3.3 Lint passes (unused `useState` import caught): `pnpm lint`
+- [x] 3.4 FSD boundaries hold: `pnpm steiger`
+- [x] 3.5 Tests pass: `pnpm test`
+- [x] 3.6 Build passes: `pnpm build`
 
 #### Manual
 

@@ -377,12 +377,14 @@ calibration campaign, never tuned locally on the M4.
   > is unspecified — client-only verification can't serve headless delivery."
   > Resolution: oracle execution pinned to the server-side job pipeline; the
   > trust boundary is unchanged, its location is now explicit.
-- [modified] FR-314: The greedy Web Worker path remains the working Generate
-  affordance, untouched, until the calibration gate passes and the proposal
-  flow ships; then CP-SAT becomes the default generate path and the greedy
-  engine + Web Worker machinery are deleted (clique-bound derivation
-  extracted, bench re-anchored to pinned CP-SAT numbers, and hint-free Mode A
-  measured first). Priority: must-have.
+- [modified] FR-314: CP-SAT is the default Generate path — S-301 shipped it,
+  and the greedy Web Worker machinery it orphaned has since been deleted
+  (`clean-up-bench-generation`), so the Generate button has no greedy path
+  left to fall back to. What remains of the retirement is the greedy ENGINE
+  itself, which stays in the entity layer, reachable only from its own unit
+  tests and the `bench/` experiments, until its preconditions are met:
+  clique-bound derivation extracted, a CP-SAT regression baseline pinned and
+  executable, and hint-free Mode A measured. Priority: must-have.
   > Socrates: Counter-arguments re-tested: deletion is one-way vs freeze; a
   > slipping retirement could stall the close-out. Resolution: stands — the
   > research's 14:20 follow-up already weighed both; deletion stays inside the
@@ -419,12 +421,13 @@ calibration campaign, never tuned locally on the M4.
   write path for generated boards; the existing `clone_plan` is reused for
   the proposal clone. Additive migrations only; `generation_jobs` is a new
   table with RLS + explicit grants per the least-privilege lesson.
-- **Engine transition compatibility.** The greedy Web Worker path keeps
-  working, untouched, until the calibration gate; the archived prior PRD's FR-016 is amended
+- **Engine transition compatibility.** Generate runs CP-SAT as of S-301, and
+  the greedy Web Worker path is gone; the archived prior PRD's FR-016 is amended
   engine-agnostically (an engine produces a verified board under a
-  budget/target) so greedy's later retirement is a PRD non-event. Retirement
-  preconditions: clique-bound derivation extracted out of `engines/greedy/`,
-  bench re-anchored to pinned CP-SAT numbers, hint-free Mode A measured.
+  budget/target) so greedy's remaining retirement is a PRD non-event. Retirement
+  preconditions for the engine itself: clique-bound derivation extracted out of
+  `engines/greedy/`, a CP-SAT regression baseline pinned and executable,
+  hint-free Mode A measured.
 - **Runtime split.** The workerd constraint (no Node-only APIs) continues to
   bind all app code; the solver appliance is exempt by design. Container
   reality: linux/amd64 images, 4 vCPU ceiling (standard-4), outbound ports

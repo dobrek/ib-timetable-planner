@@ -20,6 +20,15 @@ last_updated_note: "Follow-ups: (1) 20-minute job concurrency/notifications/slee
 **Branch**: main
 **Repository**: ib-timetable-planner
 
+> **Dated snapshot — 2026-08-15 note.** Findings below are pinned to `23d0cfa` and are not
+> maintained against the current codebase. Two of them have since been overtaken by events:
+> the greedy Web Worker path is **deleted** (S-301 put CP-SAT behind Generate;
+> `clean-up-bench-generation` swept the orphaned client path), and the retirement precondition
+> phrased as *"retirement re-anchors regression to pinned CP-SAT numbers"* named the CI `bench`
+> job, which the same change deleted as noise — the precondition now reads "a CP-SAT regression
+> baseline is pinned and executable" (S-308's output). The body is unedited on purpose. Current
+> statements live in `context/foundation/prd.md` (FR-314) and `roadmap.md` (S-309).
+
 Permalink base: `https://github.com/dobrek/ib-timetable-planner/blob/23d0cfa4e70a5d84372d5ad73c9930128cdffbe2/`
 
 ## Research Question

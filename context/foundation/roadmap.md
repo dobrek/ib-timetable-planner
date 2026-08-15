@@ -63,7 +63,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Backend / API:** present — Astro Actions are the single mutation/compute transport.
 - **Data:** present — Supabase Postgres, 51 migrations.
 - **Auth:** present — email/password, deny-by-default `src/middleware.ts`, single Author role. Human-facing auth is unchanged in this change.
-- **Deploy / infra:** present _for the app_ — GitHub Actions gate-then-deploy (`ci.yml`: verify/integration/e2e/bench/deploy → wrangler-action + `supabase db push`).
+- **Deploy / infra:** present _for the app_ — GitHub Actions gate-then-deploy (`ci.yml`: verify/integration/e2e/solver/deploy → wrangler-action + `supabase db push`).
 - **Observability:** partial — Cloudflare observability only. Not promoted to a foundation; the PRD demands job-status durability, not telemetry.
 
 **Change-specific:**
@@ -223,14 +223,14 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 ### S-309: Greedy retirement — CP-SAT becomes the engine of record
 
-- **Outcome:** CP-SAT is the author's default Generate path; the greedy engine and its Web Worker machinery are deleted, with the retirement preconditions honored first: clique-bound derivation extracted out of the greedy package, the bench re-anchored to pinned CP-SAT numbers, and hint-free Mode A already measured (S-308). Interactive editing, drag-drop validation, and all board views keep working unchanged.
+- **Outcome:** the greedy ENGINE is deleted. Half of this slice's original outcome has already shipped: S-301 made CP-SAT the author's default Generate path, and `clean-up-bench-generation` deleted the orphaned Web Worker machinery, so what remains here is the entity-layer engine package plus its own tests and the `bench/` experiments that drive it — a pure `src/entities/timetable/` deletion with no page-slice involvement. Retirement preconditions must be honored first: clique-bound derivation extracted out of the greedy package, a CP-SAT regression baseline pinned and executable, and hint-free Mode A already measured (S-308). Interactive editing, drag-drop validation, and all board views keep working unchanged.
 - **Change ID:** greedy-retirement
 - **PRD refs:** FR-312, FR-314
 - **Prerequisites:** S-305, S-306, S-307, S-308
 - **Parallel with:** S-310
 - **Blockers:** —
 - **Unknowns:** —
-- **Risk:** Deletion is one-way — which is exactly why it's last and double-gated (calibration passed + proposal flow shipped, per FR-314); until this slice, greedy remains the working Generate affordance untouched, so generation never stops working during the build. The Socrates re-test already weighed freeze-vs-delete and locked deletion inside this migration; a slipping retirement is the named close-out risk.
+- **Risk:** Deletion is one-way — which is exactly why it's last and double-gated (calibration passed + proposal flow shipped, per FR-314). The "generation never stops working during the build" guarantee no longer rests on greedy: Generate has run CP-SAT since S-301, so the engine this slice deletes has had no production caller for the whole stretch. The Socrates re-test already weighed freeze-vs-delete and locked deletion inside this migration; a slipping retirement is the named close-out risk.
 - **Status:** proposed
 
 ### S-310: Job-completion email

@@ -73,13 +73,15 @@ type UsePlacements = {
   removeParked: (shelfBundleId: string) => void;
   /** Read the live affected slice at a scope — the orchestrator's forward (redo) target capture. */
   snapshot: (scope: AffectedScope) => AffectedSlice;
-  /** Read the live full board + shelf state (both refs). The generation apply-time re-verify reads
-   *  this so a concurrent edit during the ~20 s solve can't commit a board the oracle never judged. */
+  /** Read the live full board + shelf state (both refs), so an apply-time re-verify can't commit a
+   *  board the oracle never judged. Currently has NO caller — the client-side generation apply path
+   *  was deleted with `clean-up-bench-generation`; kept, with `stage/settle/failGenerated` below, for
+   *  a future client-side apply (S-306). */
   liveState: () => { placements: LocalPlacement[]; parkedBundles: LocalParkedBundle[] };
   /** Drive both stores to a target slice over the existing RPCs, NON-recording (undo/redo executor). */
   applyReconcile: (target: AffectedSlice, scope: AffectedScope) => Promise<{ ok: boolean }>;
-  /** Stage a verified generated batch optimistically (multi-cell, pending temps). The combined
-   *  orchestrator owns the flow — one plan-scoped RPC, then settle/fail — and records the entry. */
+  /** Stage a verified generated batch optimistically (multi-cell, pending temps); a caller owns the
+   *  flow — one plan-scoped RPC, then settle/fail. Currently has NO caller (see `liveState`). */
   stageGenerated: (entries: PlaceEntry[]) => void;
   /** Swap staged temps for their server rows (business-key match) and clear any stale banner. */
   settleGenerated: (entries: PlaceEntry[], rows: PlannerPlacement[]) => void;
@@ -191,8 +193,8 @@ export function usePlacements(
     return sliceAt(placementsRef.current, parkedBundlesRef.current, scope);
   }
 
-  // Read the live full board + shelf state (both refs) for the generation apply-time re-verify —
-  // same ref-read contract as `snapshot`: called only from the async apply path, never during render.
+  // Read the live full board + shelf state (both refs) for an apply-time re-verify — same ref-read
+  // contract as `snapshot`: only ever from an async apply path, never during render. No caller today.
   function liveState(): { placements: LocalPlacement[]; parkedBundles: LocalParkedBundle[] } {
     return { placements: placementsRef.current, parkedBundles: parkedBundlesRef.current };
   }

@@ -9,11 +9,13 @@
 //
 // Content-addressing fixes that at the root: the same catalog always yields the
 // same ids, so the committed seed and a fresh regeneration agree, and "plans by
-// id, never by name" holds in CI as well as locally. That identity is pinned by
-// `src/test/seed-transcode-identity.test.ts`, which runs in the unit lane and
-// fails if a regeneration stops matching the committed seed. Keying by CONTENT
-// (not by call order) also keeps regeneration diffs minimal — adding a course
-// shifts only that course's row, instead of every uuid below it.
+// id, never by name" holds in CI as well as locally. That guarantee comes from
+// the hashing itself (a fixed namespace, deterministic name parts) — no test
+// asserts by-id stability; `src/test/seed-transcode-identity.test.ts` pins only
+// that a regeneration is STRUCTURALLY identical to the committed seed (UUIDs
+// masked). Keying by CONTENT (not by call order) also keeps regeneration diffs
+// minimal — adding a course shifts only that course's row, instead of every
+// uuid below it.
 //
 // These ids are dev-fixture identifiers only; they never reach the hosted
 // project (the seed is local-only and is never applied to prod).

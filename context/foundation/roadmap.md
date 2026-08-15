@@ -39,7 +39,7 @@ The timetable editor's only generation engine is a client-side greedy solver at 
 | S-306 | drift-decided-delivery          | unchanged source auto-updates; changed source yields a new plan reviewed on the comparison page            | S-301                      | FR-306, FR-307, FR-313, US-301, US-303                                | proposed |
 | S-307 | solve-policy-choice             | choose the solve policy at launch — canonical order and trade-off dial join the clean default              | S-301                      | FR-302                                                                | proposed |
 | S-308 | production-calibration-campaign | see honest, production-calibrated budgets/targets; the default-switch gate is evaluated                    | S-304                      | FR-303, FR-314, Non-functional guardrails                             | proposed |
-| S-309 | greedy-retirement               | Generate defaults to CP-SAT; the greedy engine + Web Worker path are deleted                               | S-305, S-306, S-307, S-308 | FR-312, FR-314                                                        | proposed |
+| S-309 | greedy-retirement               | The greedy engine is deleted (CP-SAT default + Web Worker removal already shipped in S-301 / cleanup)     | S-305, S-306, S-307, S-308 | FR-312, FR-314                                                        | proposed |
 | S-310 | job-completion-email            | get notified of completion by email as well as in-app — "kick it off and walk away"                        | S-306                      | FR-309                                                                | proposed |
 
 ## Streams
@@ -68,7 +68,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 **Change-specific:**
 
-- **Generation seams:** present — engine-agnostic `GeneratePlan` port (`src/entities/timetable/model/generation/types.ts:104`), `runVerifiedGeneration` (`run.ts:16`), `verifyGeneration` oracle (`verify.ts:51`), `apply_generated_placements` RPC, `clone_plan` RPC, plan-comparison page (`src/pages/plans/compare.astro`), greedy Web Worker (`generate.worker.ts:38`). These are consumed, not rebuilt.
+- **Generation seams:** present — engine-agnostic `GeneratePlan` port (`src/entities/timetable/model/generation/types.ts:104`), `runVerifiedGeneration` (`run.ts:16`), `verifyGeneration` oracle (`verify.ts:51`), `apply_generated_placements` RPC, `clone_plan` RPC, plan-comparison page (`src/pages/plans/compare.astro`). These are consumed, not rebuilt. (The greedy Web Worker that once sat here was deleted by `clean-up-bench-generation`; Generate now dispatches to the CP-SAT service.)
 - **Async-job layer:** absent — no job table, no polling/status-record pattern anywhere in `src/`. → F-301, S-301, S-303.
 - **Cloudflare bindings:** absent — `wrangler.jsonc` is ~15 lines (assets + observability only); no KV/DO/Queues/containers. → S-302.
 - **Solver package:** partial — `poc/cp-sat` (`cpsat_engine`, ~1,783 LOC src + ~764 LOC tests, uv-managed, `schema.py` mirrors the TS contract with a golden-fixture round-trip), but no HTTP wrapper (CLI only), no solve-to-target, no checkpoints/progress emission (solve-to-budget, batch-only). → F-302, S-303.

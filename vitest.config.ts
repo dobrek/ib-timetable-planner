@@ -21,7 +21,7 @@ export default defineConfig({
           environment: "node",
           // `bench/**/*.test.ts` is the PURE unit coverage beside the bench runners (identity
           // mapping, skeleton copy). The runners themselves are invisible to this glob by suffix
-          // (`*.bench.ts` / `*.analyze.ts` / `*.experiment.ts`), and a bench unit test must stay
+          // (`*.analyze.ts` / `*.experiment.ts`), and a bench unit test must stay
           // pure — there is no `load-test-env` setup here, so a DB-reaching test fails loudly in CI
           // rather than being quietly absorbed into `pnpm test`.
           include: ["src/**/*.test.ts", "bench/**/*.test.ts"],

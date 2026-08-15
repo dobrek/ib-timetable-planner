@@ -39,7 +39,7 @@ The bag-hook anti-pattern (a `usePlannerBoard` that hides the board's orchestrat
 - **Per-cohort state unit (fine):** scoped to one cohort's *derived data*, returns a flat state shape + an `actions` record, and is composed by an orchestrator that keeps its **own** drop dispatch, disclosure (palette/shelf/hint-mode), and inspection visible at the component level. The orchestration the board *is* responsible for stays in the board.
 - **Orchestration bag (bad):** a hook that also swallows the drop dispatch, disclosure, and inspection — collapsing the board to `const everything = usePlannerBoard()` and hiding the wiring that is the component's job.
 
-So `PlannerBoard` destructures the per-cohort unit but keeps `handleDrop`, the disclosure hooks, and `useCollisionInspection` in the component body — the board reads as orchestration, not a façade.
+So `PlannerBoard` destructures the per-cohort unit but keeps `handleDrop`, the disclosure hooks, and the collision-inspection `useState` in the component body — the board reads as orchestration, not a façade.
 
 Example: `MergeManageDialog` uses `useMergeHoursForm` (RHF submit) and a `useConfirmAction` instance (destructive action) as two hooks, not one combined hook. `PlannerBoard` uses `usePlacements`, private `useCollisions`, and private `useHours` as three hooks — not one `usePlannerBoard`.
 

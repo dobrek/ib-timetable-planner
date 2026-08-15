@@ -434,9 +434,9 @@ does not add it; record it so it is a known gap rather than an accidental one.
 
 #### Automated Verification:
 
-- [ ] Corrected docs no longer claim greedy is the working affordance: `grep -n "remains the working Generate affordance" context/foundation/prd.md context/foundation/roadmap.md` returns nothing (`shape-notes.md` keeps the phrase by design, behind its dated annotation)
-- [ ] Corrected docs no longer name the deleted bench as a precondition: `grep -n "bench re-anchored" context/foundation/prd.md context/foundation/roadmap.md` returns nothing (same `shape-notes.md` carve-out)
-- [ ] Archived docs untouched: `git diff --name-only` shows no path under `context/archive/`
+- [x] Corrected docs no longer claim greedy is the working affordance: `grep -n "remains the working Generate affordance" context/foundation/prd.md context/foundation/roadmap.md` returns nothing (`shape-notes.md` keeps the phrase by design, behind its dated annotation)
+- [x] Corrected docs no longer name the deleted bench as a precondition: `grep -n "bench re-anchored" context/foundation/prd.md context/foundation/roadmap.md` returns nothing (same `shape-notes.md` carve-out)
+- [x] Archived docs untouched: `git diff --name-only` shows no path under `context/archive/`
 
 #### Manual Verification:
 
@@ -529,12 +529,12 @@ if needed, and Phase 3 was isolated specifically to keep its revert independent.
 
 #### Automated
 
-- [x] 3.1 `useCollisionInspection` is gone from `src/`
-- [x] 3.2 Type check passes: `pnpm check`
-- [x] 3.3 Lint passes (unused `useState` import caught): `pnpm lint`
-- [x] 3.4 FSD boundaries hold: `pnpm steiger`
-- [x] 3.5 Tests pass: `pnpm test`
-- [x] 3.6 Build passes: `pnpm build`
+- [x] 3.1 `useCollisionInspection` is gone from `src/` — 641621c
+- [x] 3.2 Type check passes: `pnpm check` — 641621c
+- [x] 3.3 Lint passes (unused `useState` import caught): `pnpm lint` — 641621c
+- [x] 3.4 FSD boundaries hold: `pnpm steiger` — 641621c
+- [x] 3.5 Tests pass: `pnpm test` — 641621c
+- [x] 3.6 Build passes: `pnpm build` — 641621c
 
 #### Manual
 
@@ -544,9 +544,9 @@ if needed, and Phase 3 was isolated specifically to keep its revert independent.
 
 #### Automated
 
-- [ ] 4.1 Corrected docs no longer claim greedy is the working affordance
-- [ ] 4.2 Corrected docs no longer name the deleted bench as a precondition
-- [ ] 4.3 Archived docs untouched
+- [x] 4.1 Corrected docs no longer claim greedy is the working affordance
+- [x] 4.2 Corrected docs no longer name the deleted bench as a precondition
+- [x] 4.3 Archived docs untouched
 
 #### Manual
 

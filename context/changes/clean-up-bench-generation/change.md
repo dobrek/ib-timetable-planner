@@ -20,6 +20,15 @@ Research classified the removable surface into four tiers (re-verified after S-3
 `first-verified-proposal` merged into main at `1524e0c` — that merge moved Generate onto CP-SAT and
 changed the removable set). The decisions below settle which tiers this change takes and how.
 
+**Known gap: the Generate button has no E2E coverage.** The reachability sweep for this change looked
+for E2E coupling and found none — no spec under `e2e/` drives Generate at all (every "worker" hit in
+that directory refers to Cloudflare workerd). That was convenient here, since it meant deleting the
+client generation path could not red the E2E lane, but it is a real hole: the one flow this whole
+migration exists to deliver is the one flow the browser suite never exercises. This change
+deliberately does not close it — doing so needs the solver running in the E2E lane, which is a CI
+change with its own cost and its own decisions. Recorded so it stays a **known** gap rather than an
+accidental one; the natural owner is S-306 or the FR-315 solver-lane work.
+
 ## Decisions
 
 Taken 2026-08-14, from `research.md`'s recommendations. These are the inputs to `/10x-plan`; the plan

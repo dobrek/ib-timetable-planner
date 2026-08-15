@@ -52,6 +52,15 @@ timeline_budget:
 > POC. Seed: `context/changes/post-poc-cp-sat-refactoring-plan/research.md`
 > (2026-07-16, incl. four follow-up rounds). Prior shape sessions archived at
 > `context/foundation/archive/`.
+>
+> **Dated artifact — 2026-08-15 note.** This document is the record of what was shaped on
+> 2026-07-16, kept intact on purpose; its body is NOT maintained against the current codebase.
+> Two claims below have since been overtaken by events: greedy "remains the working Generate
+> affordance" (S-301 moved Generate onto CP-SAT and `clean-up-bench-generation` deleted the
+> orphaned Web Worker path), and the retirement precondition naming a re-anchored `bench`
+> (that CI job was deleted as noise by the same change; the precondition is now "a CP-SAT
+> regression baseline is pinned and executable"). For the current statements, read
+> `context/foundation/prd.md` (FR-314) and `context/foundation/roadmap.md` (S-309).
 
 ## Current System
 

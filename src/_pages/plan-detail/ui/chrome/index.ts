@@ -1,5 +1,5 @@
-// Public surface of the chrome feature folder: the board frame components plus the disclosure /
-// inspection orchestration hooks both boards wire in.
+// Public surface of the chrome feature folder: the board frame components, the disclosure
+// orchestration hooks the board wires in, and the pure collision-inspection selectors.
 export { default as BoardHeader } from "./BoardHeader";
 export { default as BoardSettingsMenu } from "./BoardSettingsMenu";
 export { default as BoardShell } from "./BoardShell";
@@ -24,4 +24,4 @@ export {
   useShelfDisclosure,
   useZoom,
 } from "./board-disclosure";
-export { inspectedViolations, inspectedWeeks, useCollisionInspection } from "./board-inspection";
+export { inspectedViolations, inspectedWeeks } from "./board-inspection";

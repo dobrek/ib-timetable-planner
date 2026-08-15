@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { PlacementWeek } from "@/shared/config";
 import {
   type CellCollisions,
@@ -8,31 +7,14 @@ import {
 } from "@/entities/timetable";
 
 /**
- * The collision-details dialog's active-inspection state and its two pure selectors, lifted out of
- * `PlannerBoard` so the single-cohort board and the combined shell derive the dialog's violations +
- * same-week hint from ONE place (no drift). Stays in the UI layer — not `model/` — because
- * `CollisionInspectionTarget` is a UI-dialog type and a `model → ui` import is forbidden by FSD.
+ * The collision-details dialog's two pure selectors, lifted out of `PlannerBoard` so every caller
+ * derives the dialog's violations + same-week hint from ONE place (no drift). The inspected cell
+ * itself is owned by the caller — `PlannerBoard` tracks `{cohort, target}` with its own `useState`,
+ * because it must choose which cohort's collision map to read.
+ *
+ * Stays in the UI layer — not `model/` — because `CollisionInspectionTarget` is a UI-dialog type and
+ * a `model → ui` import is forbidden by FSD.
  */
-
-// Owns the single inspected cell for the single-cohort board. The collision map is a reactive
-// derivation; if the inspected cell's violations vanish while the dialog is open (participant moved
-// or removed elsewhere, server reconciliation), close rather than show stale content. Adjust-state-
-// during-render (not an effect) so the close lands in the same render as the recompute. The combined
-// shell tracks its own `{cohort, target}` (it must choose which cohort's map to check) but reuses
-// the two selectors below.
-export function useCollisionInspection(collisions: Map<string, CellCollisions>) {
-  const [target, setTarget] = useState<CollisionInspectionTarget | null>(null);
-
-  if (target && !collisions.has(cellKey(target.day, target.period))) setTarget(null);
-
-  return {
-    target,
-    open: setTarget,
-    close: () => {
-      setTarget(null);
-    },
-  };
-}
 
 export const inspectedViolations = (
   target: CollisionInspectionTarget | null,

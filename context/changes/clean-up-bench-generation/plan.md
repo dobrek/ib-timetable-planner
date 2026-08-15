@@ -365,7 +365,7 @@ describes the file as "state and its two pure selectors" — only the selectors 
 
 #### Manual Verification:
 
-- [ ] The collision-details dialog still opens from a colliding cell and closes correctly
+- [x] The collision-details dialog still opens from a colliding cell and closes correctly
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause for
 manual confirmation before proceeding.
@@ -440,8 +440,8 @@ does not add it; record it so it is a known gap rather than an accidental one.
 
 #### Manual Verification:
 
-- [ ] FR-314 reads as an accurate statement of the current engine situation
-- [ ] S-309's remaining scope (delete the greedy engine) is unambiguous to whoever plans it
+- [x] FR-314 reads as an accurate statement of the current engine situation
+- [x] S-309's remaining scope (delete the greedy engine) is unambiguous to whoever plans it
 
 ---
 
@@ -538,17 +538,17 @@ if needed, and Phase 3 was isolated specifically to keep its revert independent.
 
 #### Manual
 
-- [ ] 3.7 Collision-details dialog opens and closes correctly
+- [x] 3.7 Collision-details dialog opens and closes correctly — 641621c
 
 ### Phase 4: Truth-up the documentation
 
 #### Automated
 
-- [x] 4.1 Corrected docs no longer claim greedy is the working affordance
-- [x] 4.2 Corrected docs no longer name the deleted bench as a precondition
-- [x] 4.3 Archived docs untouched
+- [x] 4.1 Corrected docs no longer claim greedy is the working affordance — 66b32fc
+- [x] 4.2 Corrected docs no longer name the deleted bench as a precondition — 66b32fc
+- [x] 4.3 Archived docs untouched — 66b32fc
 
 #### Manual
 
-- [ ] 4.4 FR-314 reads as an accurate statement of the current engine situation
-- [ ] 4.5 S-309's remaining scope is unambiguous
+- [x] 4.4 FR-314 reads as an accurate statement of the current engine situation — 66b32fc
+- [x] 4.5 S-309's remaining scope is unambiguous — 66b32fc

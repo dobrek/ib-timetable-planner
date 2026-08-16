@@ -115,20 +115,50 @@ design exists to prevent. Re-signing-in costs one request and removes the questi
 ## Hosted enablement — the one manual step (S-302, not F-302)
 
 Hook configuration does **not** travel with `supabase db push`. The migrations create the function;
-`config.toml` enables the hook locally. The hosted project needs a one-time:
+`config.toml` enables the hook locally. The hosted project needs the hook switched on once, by hand.
+
+**When:** exactly once, before the first time a _hosted_ container (or a locally-run solver pointed at
+hosted, see `README.md` § environment profiles) authenticates against hosted Supabase. It is hard
+required before S-308 runs calibration jobs on production.
+
+**Who:** a human. The CI `deploy` job deliberately runs `db push` only — extending it to push config
+would let any merge change auth configuration.
+
+### Do this: the dashboard toggle
+
+**Dashboard → Authentication → Hooks → Customize Access Token (JWT) Claims**, select
+`public.custom_access_token_hook`, enable, save. Then verify the claim (below).
+
+This is the prescribed path because it changes **one setting**.
+
+### Do NOT reach for `supabase config push` unless you have read this
 
 ```bash
-pnpm exec supabase link --project-ref hwmuiymhjgewtymymbmb   # one-time
-pnpm exec supabase config push
+pnpm exec supabase config push   # ⚠️ pushes the ENTIRE local config.toml — see below
 ```
 
-The CI `deploy` job deliberately runs `db push` only — extending it to push config is a separate
-decision (it would let any merge change auth configuration), so this stays a deliberate manual step.
-Alternatively, enable it in the dashboard under **Authentication → Hooks**, selecting
-`public.custom_access_token_hook`.
+`config push` does not push "the hook". It pushes the whole of `supabase/config.toml`, and this
+repo's local file is a **development** config. Pushing it as-is would change hosted auth in ways
+that are not obviously connected to the solver, and that no test would catch:
 
-**Verify after pushing**, before pointing a container at it: run the provisioning script against
-hosted, sign in as the machine user, and decode the token — `role` must read `solver_job_writer`.
+| Local setting                                           | `supabase/config.toml` | What it would do to hosted                                                                                                          |
+| ------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `site_url = "http://127.0.0.1:3000"`                    | `:154`                 | Points production's auth Site URL at **localhost** — breaks every redirect-bearing flow (password reset, magic link, email change). |
+| `additional_redirect_urls = ["https://127.0.0.1:3000"]` | `:156`                 | Drops the real allow-list for the same flows.                                                                                       |
+| `enable_confirmations = false`                          | `:212`                 | Turns off email confirmation on hosted.                                                                                             |
+| `secure_password_change = false`                        | `:214`                 | Removes re-authentication on password change.                                                                                       |
+| `minimum_password_length = 6`                           | `:175`                 | Weakens the hosted password floor.                                                                                                  |
+
+(Both URL values are stale even for local use — the app serves on `4321`, not `3000`.)
+
+If you use `config push` anyway: fix `site_url` and `additional_redirect_urls` **first**, review the
+diff the CLI prints, and confirm the rest of the table above is what you intend hosted to have. The
+exact set of keys `config push` transmits is a property of the Supabase CLI version in use — check
+its current docs rather than trusting this table to be exhaustive.
+
+**Either way, verify afterwards**, before pointing anything at hosted: run the provisioning script
+against hosted, sign in as the machine user, and decode the token — `role` must read
+`solver_job_writer`.
 
 ```bash
 curl -s -X POST 'https://<project-ref>.supabase.co/auth/v1/token?grant_type=password' \
@@ -215,7 +245,12 @@ Both need a human: `config push` rewrites the **whole** `config.toml` on the hos
 why the `deploy` job does not run it), and provisioning needs `SUPABASE_SERVICE_ROLE_KEY`, which CI
 deliberately does not hold.
 
-- [ ] `supabase config push` (or dashboard toggle) on the hosted project, then verify the claim.
+- [ ] Enable the hook on hosted **via the dashboard** (Authentication → Hooks →
+      `public.custom_access_token_hook`). Do **not** use `supabase config push` without reading
+      § Hosted enablement first — it pushes the whole dev `config.toml` and would repoint
+      production's auth `site_url` at localhost.
+- [ ] Verify the claim: sign in as the machine user against hosted and decode the token —
+      `role` must read `solver_job_writer`.
 - [ ] Provision the hosted machine user; store the password in the container's config, not the Worker's.
 
 > **Verification is a gate, not a formality.** Skipping it fails _upward_: with no hook, the machine

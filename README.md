@@ -265,7 +265,11 @@ The app deploys to **Cloudflare Workers**. The full deployment plan is in [`cont
 - **Production URL:** <https://ib-timetable-planner.dobromir-kropielnicki.workers.dev>
 - **Custom domain:** <https://ib-timetable-planner.dev>
 
-Deployment is **automated**: every push to `main` runs the CI pipeline, and once all test jobs pass the `deploy` job applies pending Supabase migrations to the hosted project and ships the Worker (see [CI / CD](#ci--cd)). Merging to `main` is the normal release path — no manual steps required.
+Deployment is **automated**: every push to `main` runs the CI pipeline, and once all test jobs pass the `deploy` job applies pending Supabase migrations to the hosted project, then builds and pushes the solver container image and ships the Worker + container in a single `wrangler deploy` (see [CI / CD](#ci--cd)). Merging to `main` is the normal release path — no manual steps required.
+
+> ⚠️ **Do not merge to `main` while a production solve is running.** Every merge deploys, and when the image changes the container rolls out; at `max_instances: 1` the running instance is the one replaced, so a 12–20 minute solve in flight dies and leaves its row stuck at `running`.
+>
+> `rollout_active_grace_period` is set to 1200 s and does **not** reliably prevent this: it delays replacement of an _active_ instance, but dispatch answers 202 and detaches, so nothing is in flight to make the instance look active — and once SIGTERM lands, uvicorn's graceful shutdown does not wait for the daemon thread doing the solve. S-304 owns the real fix (activity renewal + SIGTERM checkpointing + widening the claim CAS so a killed solve is recoverable). Until then this rule is the guard.
 
 ### Manual deploy (escape hatch)
 
@@ -274,10 +278,26 @@ For out-of-band releases (e.g. CI is unavailable), run the same two steps the `d
 ```bash
 pnpm exec supabase db push   # apply pending migrations to the hosted project
 pnpm build
-pnpm exec wrangler deploy
+pnpm exec wrangler deploy    # ALSO builds + pushes the container image — needs Docker running
 ```
 
-Production secrets (`SUPABASE_URL`, `SUPABASE_KEY`) are stored on the Worker via `pnpm exec wrangler secret put`.
+**`wrangler deploy` needs a Docker daemon**, because `containers[].image` is a Dockerfile path and wrangler builds it locally before pushing. To ship a Worker-only change without touching the container (or from a machine without Docker):
+
+```bash
+pnpm exec wrangler deploy --containers-rollout=none
+```
+
+The same flag is the only way to make `--dry-run` Docker-free: a plain `wrangler deploy --dry-run` still runs `docker build` (no push).
+
+Production secrets are stored on the Worker via `pnpm exec wrangler secret put`:
+
+| Worker secret             | Used by                                                                   |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `SUPABASE_URL`            | the Worker, and forwarded to the container                                |
+| `SUPABASE_KEY`            | the Worker (publishable), and forwarded to the container                  |
+| `SOLVER_MACHINE_PASSWORD` | **the container only** — the Worker is a courier and never uses it itself |
+
+> The Worker gains no new privilege by carrying the third one: a Cloudflare container cannot read Worker secrets on its own (there is no `containers[].configuration.secrets`), so `SolverContainer` reads them and passes them down through `envVars`. **If `SOLVER_MACHINE_PASSWORD` is missing, generation fails silently** — the container still boots (`/health` must answer on a bare container, so its credential check skips itself), accepts the job, and then cannot claim it. The row sits at `queued` with nothing in the UI. Setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
 
 ### Rollback
 
@@ -294,16 +314,20 @@ GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on 
 2. **`integration` job** — boots a trimmed local Supabase stack, provisions the solver machine user with a per-run password, launches the CP-SAT service (with `SOLVER_MAX_CONCURRENT_JOBS=2`, sized to the worker cap below) and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` — which includes both solver-touching suites: the `queued → running → succeeded` proof-of-life, and the full S-301 chain from Generate to a verified board on the proposal plan
 3. **`e2e` job** — boots the stack + workerd preview, runs the Playwright suite (`pnpm test:e2e`)
 4. **`solver` job** — from `services/solver`: `uv sync --locked` → `ruff check` → `mypy` (strict, src + tests) → `pytest` → `uv audit`
-5. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` + `solver` all pass: applies pending migrations (`supabase db push`), then ships via `cloudflare/wrangler-action@v4`
+5. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` + `solver` all pass: applies pending migrations (`supabase db push`), checks the Docker daemon, then builds and pushes the solver container image and ships the Worker + container via `cloudflare/wrangler-action@v4`
+
+**No path filters anywhere in this workflow**, and that is deliberate rather than an oversight. The four test jobs carry no `needs:` between them, so they run in parallel and the critical path is `e2e` at ~426 s; the `solver` job is 44 s, so filtering it saves billed minutes and zero wall clock — while requiring a rewrite of `deploy`'s `if:` gate that would switch off the implicit success check on all four needs at once, on the only job that touches production. The accepted cost is that the image build runs on every merge, doc-only merges included. If that becomes a problem the lever is GitHub Actions Docker layer caching (`cache-from`/`cache-to: type=gha`), **never** path filters.
 
 Required **GitHub repository** secrets — exactly the four the `deploy` job reads:
 
-| Secret                  | Read by                                           |
-| ----------------------- | ------------------------------------------------- |
-| `SUPABASE_ACCESS_TOKEN` | Supabase CLI access token — `db push` in `deploy` |
-| `SUPABASE_DB_PASSWORD`  | Hosted DB password — `db push` in `deploy`        |
-| `CLOUDFLARE_API_TOKEN`  | Scoped token (Workers Scripts: Edit)              |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier                     |
+| Secret                  | Read by                                                    |
+| ----------------------- | ---------------------------------------------------------- |
+| `SUPABASE_ACCESS_TOKEN` | Supabase CLI access token — `db push` in `deploy`          |
+| `SUPABASE_DB_PASSWORD`  | Hosted DB password — `db push` in `deploy`                 |
+| `CLOUDFLARE_API_TOKEN`  | Scoped token: **Workers Scripts: Edit + Containers: Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier                              |
+
+> Both token permissions are account-scoped, and the second is easy to miss: Cloudflare's own `Edit Cloudflare Workers` **template does not include Containers**, so a token minted from it deploys the Worker and then 403s on the image push. If that happens, `Cloudchamber: Edit` is the next thing to add — wrangler's OAuth flow requests both. Do not add `Cloudflare Images: Edit`; it is an unrelated product.
 
 `SUPABASE_URL` and `SUPABASE_KEY` are **Worker** secrets, not repository secrets — they are set out-of-band with `pnpm exec wrangler secret put` (see [Deployment](#deployment)) and no CI job reads them. The `integration` and `e2e` jobs get their own values from the ephemeral local stack they boot, never from repository secrets: pointing a CI preview at production is exactly what that separation prevents.
 

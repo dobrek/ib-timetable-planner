@@ -560,21 +560,21 @@ Squash-merge the PR; watch the first container deploy; prove the binding path in
 
 #### Automated
 
-- [x] 3.1 `pnpm env:prod-solver && pnpm env:local` round-trips
-- [x] 3.2 `mise tasks` lists `solver:image:build`, `solver:image:smoke`, `solver:tier3`, `solver:hosted` with descriptions
-- [x] 3.3 `pnpm lint`/`pnpm check` still green
+- [x] 3.1 `pnpm env:prod-solver && pnpm env:local` round-trips — ad10ad6
+- [x] 3.2 `mise tasks` lists `solver:image:build`, `solver:image:smoke`, `solver:tier3`, `solver:hosted` with descriptions — ad10ad6
+- [x] 3.3 `pnpm lint`/`pnpm check` still green — ad10ad6
 
 #### Manual
 
-- [x] 3.4 `mise run solver:tier3` boots workerd with the container; a local Generate reaches the container and completes
-- [x] 3.5 `mise run solver:hosted` rehearsed against a local stand-in; run against hosted once after Phase 6
-- [x] 3.6 Aborting the campaign restores `env:local` and stops the solver
+- [x] 3.4 `mise run solver:tier3` boots workerd with the container; a local Generate reaches the container and completes — ad10ad6
+- [x] 3.5 `mise run solver:hosted` rehearsed against a local stand-in; run against hosted once after Phase 6 — ad10ad6
+- [x] 3.6 Aborting the campaign restores `env:local` and stops the solver — ad10ad6
 
 ### Phase 4: CI deploy lane
 
 #### Automated
 
-- [ ] 4.1 Workflow YAML valid; no `paths` keys anywhere in `ci.yml`
+- [x] 4.1 Workflow YAML valid; no `paths` keys anywhere in `ci.yml`
 - [ ] 4.2 Full CI run on the branch is green (`deploy` skipped on non-main)
 
 #### Manual

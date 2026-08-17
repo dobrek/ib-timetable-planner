@@ -598,10 +598,10 @@ Squash-merge the PR; watch the first container deploy; prove the binding path in
 
 #### Manual
 
-- [x] 6.1 Decoded hosted token shows `role: solver_job_writer`
-- [x] 6.2 `wrangler secret list` shows `SOLVER_MACHINE_PASSWORD`
-- [x] 6.3 CF token has `Containers: Edit` (verified in dashboard)
-- [x] 6.4 One hosted-solve campaign job completed on a scratch plan; clone inspected/deleted
+- [x] 6.1 Decoded hosted token shows `role: solver_job_writer` — a801171
+- [x] 6.2 `wrangler secret list` shows `SOLVER_MACHINE_PASSWORD` — a801171
+- [x] 6.3 CF token has `Containers: Edit` (verified in dashboard) — a801171
+- [x] 6.4 One hosted-solve campaign job completed on a scratch plan; clone inspected/deleted — a801171
 
 ### Phase 7: Merge, first deploy, production smoke
 

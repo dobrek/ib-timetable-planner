@@ -98,8 +98,8 @@ retire the greedy engine and its Web Worker path entirely.
    discipline, not a retrofit.
 2. **The platform matured just in time.** Cloudflare Containers went GA
    (2026-04) on the plan the project already pays for: standard-4 instance,
-   EEUR pinning next to Supabase Frankfurt, scale-to-zero, ≈ $7/month at peak
-   planning season.
+   EEUR pinning next to Supabase Frankfurt, scale-to-zero, ~$15/month at peak
+   planning season (restated 2026-08-17 — see the cost envelope below).
 3. **The value function was reframed.** Greedy's output lost its product value
    the day the POC returned GO; keeping it is operational cost, not product
    value — which is why deletion belongs inside this migration.
@@ -109,9 +109,8 @@ migration** — PRD amendment, package promotion + service transport,
 contract/jobs schema, app integration (proposal flow), deploy lane,
 calibration campaign on production hardware, and the calibration-gated greedy
 retirement. It is simultaneously a new module, an engine-of-record migration,
-an architectural improvement (monorepo formalization, CI path-filtering,
-container deploy lane), and a significant user-facing feature (the proposal
-flow).
+an architectural improvement (monorepo formalization, container deploy lane),
+and a significant user-facing feature (the proposal flow).
 
 ## User & Persona
 
@@ -200,8 +199,14 @@ calibration campaign, never tuned locally on the M4.
 - **Outcome reproducibility.** Delivered board quality is defined by targets
   (a property of the catalog), not wall-clock (a property of hardware); two
   runs to the same targets are comparable even when their paths differ.
-- **Cost envelope.** Solver compute ≈ $7/month at peak planning season and
-  ~cents off-season (scale-to-zero), on the already-paid plan.
+- **Cost envelope.** Solver compute **~$15/month** at peak planning season
+  and ~cents off-season (scale-to-zero), on the already-paid plan.
+  > Restated 2026-08-17 (S-302). The original ≈$7 reproduces exactly ($7.11)
+  > under its stated input of a 5-minute solve: the arithmetic was sound, the
+  > input was overtaken by F-302's measured ~12.5-minute full-catalog solve,
+  > which puts it at $14.63. The PRD's own 20-minute ceiling would be $22.15.
+  > S-302's `sleepAfter: 30m` stopgap adds roughly $5/month of idle billing;
+  > lowering it trades against cold starts on a ~394 MB image.
 - **Privacy (preserved).** Student and teacher names never leave the app; the
   solver receives opaque UUIDs only.
 
@@ -354,9 +359,17 @@ calibration campaign, never tuned locally on the M4.
   checkpoint and marks the job interrupted on SIGTERM. Priority: must-have.
   > Socrates: Counter-arguments considered: sleepAfter > max job length as
   > the simpler dodge; SIGTERM handler redundant next to per-stage
-  > checkpoints. Resolution: stands as written — the platform's documented
-  > mid-solve sleep issue (containers#162) makes job-aware lifecycle a
+  > checkpoints. Resolution: stands as written — job-aware lifecycle is a
   > correctness requirement.
+  > Re-grounded 2026-08-17 (S-302): the original justification cited
+  > containers#162, which was **closed 2026-05-12** and fixed in
+  > `@cloudflare/containers` v0.2.2 by in-flight request tracking. FR-311 is
+  > unaffected, because the durable reason is the platform's own statement
+  > that it "does not guarantee that any container instance will run for any
+  > set period of time" — and because the wedged-`running`-row problem is
+  > ours, not Cloudflare's. S-302 ships `sleepAfter: 30m` as a stopgap above
+  > the 20-minute job ceiling; it is not a lifecycle, and S-304 still owns
+  > activity renewal, SIGTERM checkpointing and widening the claim CAS.
 
 ### Preserved behaviour & migration
 
@@ -393,9 +406,18 @@ calibration campaign, never tuned locally on the M4.
 ### Dev & ops
 
 - [new] FR-315: A maintainer ships app + solver with one merge to main: a
-  path-filtered solver verify job (ruff + pytest) joins the CI gate, and the
+  solver verify job (ruff + mypy + pytest + audit) joins the CI gate, and the
   deploy job builds/pushes the container image alongside the Worker. Priority:
   must-have.
+  > Amended 2026-08-17 (S-302): "path-filtered" removed. Measurement did not
+  > support it — the four test jobs run in parallel, so the critical path is
+  > `e2e` at ~426 s while the solver job is 44 s; filtering saves billed
+  > minutes and zero wall clock. It would also require rewriting `deploy`'s
+  > `if:` gate to tolerate skipped jobs, and the `always()` form that does so
+  > disables the implicit success check on all four needs at once — on the
+  > only job that touches production. `contracts/**` is cross-cutting besides.
+  > Accepted cost: the image build runs on every merge. The escape lever is
+  > GHA Docker layer caching, never path filters.
   > Socrates: Counter-arguments considered: app releases coupled to Docker
   > builds; deliberate narrow-token posture quietly widening. Resolution:
   > stands — one gate-then-deploy lane matches the single-author load; the
@@ -409,6 +431,17 @@ calibration campaign, never tuned locally on the M4.
   > one developer; mise tasks duplicating pnpm scripts. Resolution: stands —
   > the tiers document what already exists rather than adding machinery, and
   > the grain rule keeps pnpm the JS-side canon.
+  > Confirmed 2026-08-17 (S-302): all three shipped, and "`wrangler dev` with
+  > the real container binding" turned out to be literally right — `wrangler
+  > dev` honours `.wrangler/deploy/config.json`, so it picks up the generated
+  > `dist/server/wrangler.json` and its container config, and a hidden
+  > `--enable-containers` flag overrides `dev.enable_containers: false` for a
+  > session. (Research had expected this to be inaccurate; it is not.) One
+  > clarification the FR should carry: tiers 2 and 3 are **opt-in** and Docker
+  > is not otherwise required — `pnpm dev`/`pnpm preview` never build an
+  > image. A fourth mode arrived beside the tiers: a hosted-solve campaign
+  > (`mise run solver:hosted`) running the native solver against the hosted
+  > database, for policy comparison on real data.
 
 ## Constraints & Compatibility
 
@@ -439,10 +472,21 @@ calibration campaign, never tuned locally on the M4.
   `apps/` move inside this migration; no Turborepo/Nx/pnpm-workspace
   packages; `supabase/` stays root as shared infra. mise graduates to
   toolchain pins + cross-ecosystem tasks (pnpm scripts remain the JS canon).
-- **Deploy posture.** The single gate-then-deploy pipeline extends
-  (path-filtered solver verify + container deploy step); container secrets
-  live in container config, not the Worker; the CF API token broadens only as
-  far as Containers deploys require (exact scopes in Open Questions).
+- **Deploy posture.** The single gate-then-deploy pipeline extends (solver
+  verify + container deploy step); the container receives its credential via
+  Worker secrets forwarded through the Durable Object's `envVars`, and the
+  Worker gains no new privilege by carrying it (the same publishable key it
+  already holds, plus a password only the container ever uses); the CF API
+  token broadens by exactly one account-scoped permission,
+  `Containers: Edit`, alongside `Workers Scripts: Edit`.
+  > Amended 2026-08-17 (S-302). Two corrections. "Path-filtered" is dropped —
+  > see FR-315. And "container secrets live in container config, not the
+  > Worker" is not implementable as written: Cloudflare exposes no
+  > `containers[].configuration.secrets` field, and the documented channel IS
+  > the Worker's own secret store, read by Worker code and passed down. The
+  > *intent* — no new Worker privilege — is preserved and now stated as the
+  > property rather than as a mechanism. The token scope, listed as an open
+  > question, is resolved.
 - **Tuning discipline.** Budgets/targets are never tuned on the M4; the
   production calibration campaign is the only source of shipped numbers and
   gates the default-path switch.

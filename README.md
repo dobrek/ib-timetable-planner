@@ -301,10 +301,27 @@ Production secrets are stored on the Worker via `pnpm exec wrangler secret put`:
 
 ### Rollback
 
+**Container deploys are roll-forward-only.** Ship a fix with a new `wrangler deploy`; do not plan around `wrangler rollback`.
+
+Two facts make that the policy rather than a preference:
+
+- **A Durable Object migration between versions blocks `wrangler rollback` outright**, and containers are DO-backed. The `v1` migration that introduces `SolverContainer` is exactly such a change, so rolling back to any pre-container version is refused.
+- Even where a rollback is permitted, Cloudflare states that _"resources connected to your Worker will not be changed during a rollback"_ — so it is a Worker-**version** operation, and whether it would restore a previous container image is undocumented. There is no image-rollback command.
+
+The Worker-only rollback below still works between two post-container versions, and is worth knowing for a bad app-code deploy:
+
 ```bash
 pnpm exec wrangler deployments list
 pnpm exec wrangler rollback <deployment-id>
 ```
+
+> **Operational rule:** never `wrangler containers images delete` an image that is still referenced by a reachable Worker version. Nothing will stop you, and there is no way back.
+
+### Known gaps
+
+- **The container image has no vulnerability scanner.** `verify` runs `pnpm audit` and `solver` runs `uv audit`, but the base image and its OS packages are a third dependency surface with no gate. The base is pinned by tag (`python:3.13-slim`), not by digest, so it also moves under you between builds.
+- **Egress is not restricted.** `@cloudflare/containers` exposes `allowedHosts`/`deniedHosts`; pinning outbound traffic to the Supabase host would be a cheap hardening win and is not done.
+- **Generate has no E2E coverage** — owned by S-306, not closed by this lane.
 
 ## CI / CD
 

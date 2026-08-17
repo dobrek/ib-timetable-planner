@@ -574,25 +574,25 @@ Squash-merge the PR; watch the first container deploy; prove the binding path in
 
 #### Automated
 
-- [x] 4.1 Workflow YAML valid; no `paths` keys anywhere in `ci.yml`
-- [ ] 4.2 Full CI run on the branch is green (`deploy` skipped on non-main)
+- [x] 4.1 Workflow YAML valid; no `paths` keys anywhere in `ci.yml` — 0d2b562
+- [x] 4.2 Full CI run on the branch is green (`deploy` skipped on non-main)
 
 #### Manual
 
-- [ ] 4.3 Reviewer confirms `deploy.needs`/`if:` lines are byte-identical to `main`
+- [x] 4.3 Reviewer confirms `deploy.needs`/`if:` lines are byte-identical to `main`
 
 ### Phase 5: Doc truth-up
 
 #### Automated
 
-- [ ] 5.1 No live-hazard `containers#162` wording remains in CLAUDE.md / prd.md / roadmap.md
-- [ ] 5.2 No unqualified "path-filtered" wording remains in prd.md / roadmap.md
-- [ ] 5.3 `pnpm format` clean on touched markdown
+- [x] 5.1 No live-hazard `containers#162` wording remains in CLAUDE.md / prd.md / roadmap.md
+- [x] 5.2 No unqualified "path-filtered" wording remains in prd.md / roadmap.md
+- [x] 5.3 `pnpm format` clean on touched markdown
 
 #### Manual
 
-- [ ] 5.4 Each stale-claim row in `research.md` § Historical Context has a corresponding edit
-- [ ] 5.5 FR-315/FR-316 read as an accurate description of what ships
+- [x] 5.4 Each stale-claim row in `research.md` § Historical Context has a corresponding edit
+- [x] 5.5 FR-315/FR-316 read as an accurate description of what ships
 
 ### Phase 6: Manual hosted gate (human)
 

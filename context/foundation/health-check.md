@@ -113,8 +113,10 @@ Configuration: .github/workflows/ci.yml
 Deploy job ships migrations + Worker on merge to main after all gates pass.
 
 **Coverage boundary:** the pipeline is JS-only. The solver's 40 tests and ruff
-lint run nowhere in CI — the path-filtered solver lane is scoped as net-new
-work in PRD FR-315. Flagged as Fix 2 so it lands with a type checker included
+lint run nowhere in CI — the solver lane is scoped as net-new work in PRD
+FR-315. *(Closed since this audit: F-302 added the `solver` job — `uv sync
+--locked` → ruff → mypy --strict → pytest → uv audit — and S-302 added the
+container image build to `deploy`. No path filtering was adopted; see FR-315.)* Flagged as Fix 2 so it lands with a type checker included
 (see cross-reference below). No scheduled dependency scanning
 (Dependabot/Renovate) — audit runs only on push/PR; acceptable at this scale,
 noted in Fix 6.

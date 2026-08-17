@@ -30,6 +30,37 @@ is entirely about keeping `cloudflare:workers` and `@cloudflare/containers` unre
 structural `ContainerLike` and its only package import is `import type`. A future threshold should
 be stated against `dist/client`, where it can actually regress.
 
+### 2026-08-17 — Phase 5: doc truth-up applied, following the precedent's one rule.
+
+**Normative docs corrected, dated artifacts annotated** — the rule
+`docs(clean-up-bench-generation): truth-up …` established. Every row of `research.md`
+§ "Stale claims found" now has an edit:
+
+| Claim | Where | What landed |
+| ----- | ----- | ----------- |
+| containers#162 a live hazard | `CLAUDE.md`, `prd.md` FR-311, `roadmap.md` S-304 | Re-grounded on "Cloudflare does not guarantee that any container instance will run for any set period of time". All three mentions now read explicitly as closed-2026-05-12 history. **S-304 not deleted** — the wedged-row problem is ours. |
+| "path-filtered" | `prd.md` FR-315 + Deploy posture + the migration summary, `roadmap.md` S-302 + table | Removed, with the measurement recorded as a deviation note rather than a silent edit. |
+| container secrets in container config | `prd.md` Deploy posture, `docs/runbooks/solver-credential.md` | Restated as the Worker-secrets→`envVars` mechanism; the *intent* (no new Worker privilege) preserved as a property. |
+| ≈$7/month | `prd.md` ×2, `tech-stack.md`, `shape-notes.md` | ~$15/month, with the arithmetic explained (the original was right; its 5-minute input was overtaken). |
+| `python:3.12-slim` | `tech-stack.md`, `shape-notes.md` | 3.13. |
+| solver at `poc/cp-sat`, "promoting" | `tech-stack.md` | Promoted in F-302. |
+| solver tests "run nowhere in CI" | `health-check.md`, `stack-assessment.md` | Annotated as closed (dated audits — the conclusions stay, the status is marked). |
+| mise graduation is S-302's | `roadmap.md:77` | Attributed to F-302. |
+| tier 3 = `wrangler dev` | `roadmap.md` S-302, `prd.md` FR-316 | **Kept — it was right.** See below. |
+| `bench` as CI template | `post-poc…/research.md` | Already covered by `clean-up-bench-generation`'s dated banner; nothing owed here. |
+
+**One "stale claim" turned out not to be stale.** Research recorded that the roadmap's tier-3 wording
+(`wrangler dev` with the real container binding) named the wrong mechanism, on the grounds that this
+project's workerd path runs through `@cloudflare/vite-plugin`. Verified 2026-08-17: `wrangler dev`
+honours `.wrangler/deploy/config.json`, picks up the generated `dist/server/wrangler.json` with its
+container block, and takes a hidden `--enable-containers` flag. **The original wording was accurate**
+and has been confirmed rather than softened — a reminder that a research finding is itself a claim
+with a date on it.
+
+**Two additions the docs now carry that the plan did not list**, both learned during implementation:
+`README` § Known gaps (no image vulnerability scanner, no egress `allowedHosts`, no E2E for
+Generate), and the silent-failure warning attached to the `SOLVER_MACHINE_PASSWORD` Worker secret.
+
 ### 2026-08-17 — Phase 3: tier 3 ships on the PRIMARY mechanism; no fallback was needed.
 
 The plan required verifying, before shipping the task, that a redirected `wrangler dev` actually

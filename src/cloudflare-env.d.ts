@@ -40,6 +40,10 @@ declare namespace Cloudflare {
     /** Forwarded to the container through `SolverContainer`'s `envVars`. The Worker never uses it
      *  itself — it is a courier, which is what keeps "the Worker gains no new privilege" true. */
     SOLVER_MACHINE_PASSWORD?: string;
+    /** **Dev-only, and unset in production.** The Supabase URL the CONTAINER should use when it
+     *  differs from the Worker's: under local `wrangler dev` the Worker reaches the stack at
+     *  `127.0.0.1`, which inside the container is the container. See `solver-container-env.ts`. */
+    SOLVER_SUPABASE_URL?: string;
   }
 }
 

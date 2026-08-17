@@ -24,7 +24,8 @@
     "pretest:e2e": "node scripts/provision-e2e-author.mjs",
     "test:e2e": "playwright test",
     "env:local": "cp .envs/local.vars .env.local && cp .envs/local.vars .dev.vars",
-    "env:prod": "cp .envs/prod.vars .env.local && cp .envs/prod.vars .dev.vars"
+    "env:prod": "cp .envs/prod.vars .env.local && cp .envs/prod.vars .dev.vars",
+    "env:prod-solver": "cp .envs/prod-solver.vars .env.local && cp .envs/prod-solver.vars .dev.vars"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",

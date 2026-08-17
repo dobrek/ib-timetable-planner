@@ -546,29 +546,29 @@ Squash-merge the PR; watch the first container deploy; prove the binding path in
 
 #### Automated
 
-- [x] 2.1 `pnpm exec astro sync && pnpm check` — 0 errors, 0 warnings
-- [x] 2.2 `pnpm lint`, `pnpm steiger`, `pnpm test` pass (new transport/selector tests included)
-- [x] 2.3 `pnpm build` succeeds; `entry.mjs` exports `SolverContainer`; `dist/server/wrangler.json` carries containers, DO binding, migration, `dev.enable_containers: false`
-- [x] 2.4 `wrangler deploy --dry-run --containers-rollout=none` (Docker-free) lists `env.SOLVER (SolverContainer)`; full `--dry-run` with Docker builds the image and lists the container
+- [x] 2.1 `pnpm exec astro sync && pnpm check` — 0 errors, 0 warnings — f6097bb
+- [x] 2.2 `pnpm lint`, `pnpm steiger`, `pnpm test` pass (new transport/selector tests included) — f6097bb
+- [x] 2.3 `pnpm build` succeeds; `entry.mjs` exports `SolverContainer`; `dist/server/wrangler.json` carries containers, DO binding, migration, `dev.enable_containers: false` — f6097bb
+- [x] 2.4 `wrangler deploy --dry-run --containers-rollout=none` (Docker-free) lists `env.SOLVER (SolverContainer)`; full `--dry-run` with Docker builds the image and lists the container — f6097bb
 
 #### Manual
 
-- [x] 2.5 `pnpm env:local && pnpm build && pnpm preview` starts without Docker and Generate dispatches to a native solver
-- [x] 2.6 Bundle size delta is negligible (< 50 KiB)
+- [x] 2.5 `pnpm env:local && pnpm build && pnpm preview` starts without Docker and Generate dispatches to a native solver — f6097bb
+- [x] 2.6 Bundle size delta is negligible (< 50 KiB) — f6097bb
 
 ### Phase 3: Local modes — hosted-solve campaign and tier 3
 
 #### Automated
 
-- [ ] 3.1 `pnpm env:prod-solver && pnpm env:local` round-trips
-- [ ] 3.2 `mise tasks` lists `solver:image:build`, `solver:image:smoke`, `solver:tier3`, `solver:hosted` with descriptions
-- [ ] 3.3 `pnpm lint`/`pnpm check` still green
+- [x] 3.1 `pnpm env:prod-solver && pnpm env:local` round-trips
+- [x] 3.2 `mise tasks` lists `solver:image:build`, `solver:image:smoke`, `solver:tier3`, `solver:hosted` with descriptions
+- [x] 3.3 `pnpm lint`/`pnpm check` still green
 
 #### Manual
 
-- [ ] 3.4 `mise run solver:tier3` boots workerd with the container; a local Generate reaches the container and completes
-- [ ] 3.5 `mise run solver:hosted` rehearsed against a local stand-in; run against hosted once after Phase 6
-- [ ] 3.6 Aborting the campaign restores `env:local` and stops the solver
+- [x] 3.4 `mise run solver:tier3` boots workerd with the container; a local Generate reaches the container and completes
+- [x] 3.5 `mise run solver:hosted` rehearsed against a local stand-in; run against hosted once after Phase 6
+- [x] 3.6 Aborting the campaign restores `env:local` and stops the solver
 
 ### Phase 4: CI deploy lane
 

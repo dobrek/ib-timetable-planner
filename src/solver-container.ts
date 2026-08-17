@@ -1,4 +1,5 @@
 import { Container } from "@cloudflare/containers";
+import { solverContainerEnvVars } from "./solver-container-env";
 
 /**
  * The Durable Object that fronts the CP-SAT solver container.
@@ -32,23 +33,10 @@ export class SolverContainer extends Container<Env> {
   /**
    * **The secrets channel, and the only one a Cloudflare container has.** There is no
    * `containers[].configuration.secrets` field — Worker secrets are read here and forwarded down.
-   * The Worker gains no new privilege by being the courier: it already holds the publishable key,
-   * and `SOLVER_MACHINE_PASSWORD` is a value only the container ever uses.
-   *
-   * `SOLVER_WORKERS=4` is a literal, set explicitly rather than inherited. The service's own default
-   * is 8 (`settings.py:31`, pinned for reproducibility), and 8 CP-SAT workers timesharing
-   * `standard-4`'s 4 vCPU is a third regime that honours the pin nominally while losing the property
-   * it protects. S-308 re-evaluates on production hardware; until then this literal is the fixture
-   * its calibration measures against, which is why it must never be left to a default.
+   * The rule itself lives in `solver-container-env.ts` as a pure function, so what gets forwarded
+   * (and what must not) is pinned by tests rather than by reading this class.
    */
-  envVars = {
-    SUPABASE_URL: this.env.SUPABASE_URL ?? "",
-    SUPABASE_KEY: this.env.SUPABASE_KEY ?? "",
-    SOLVER_MACHINE_PASSWORD: this.env.SOLVER_MACHINE_PASSWORD ?? "",
-    SOLVER_WORKERS: "4",
-    SOLVER_MAX_CONCURRENT_JOBS: "1",
-    SOLVER_LOG_LEVEL: "INFO",
-  };
+  envVars = solverContainerEnvVars(this.env);
 
   /**
    * Lifecycle logging. Observability is enabled on the Worker (`wrangler.jsonc`), so these land in

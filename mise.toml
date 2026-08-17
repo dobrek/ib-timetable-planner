@@ -28,7 +28,36 @@ uv = "0.12.3"
 [tasks."solver:dev"]
 description = "Run the CP-SAT solver service on :8000 (needs the local Supabase stack + a provisioned machine user)"
 dir = "{{config_root}}/services/solver"
-run = "uv run uvicorn cpsat_service.app:app --port 8000"
+run = '''
+{% raw %}
+# Fail fast on a missing credential, at the TASK level.
+#
+# The service deliberately boots without one — `/health` must answer on a bare container, which is
+# what a platform probe hits before secrets are wired — so absence surfaces at the first job. In a
+# container that is right. On a developer's machine it is a trap: uvicorn comes up looking healthy,
+# the app dispatches a real job, gets its 202, and the worker only then discovers it cannot claim.
+# The row is left `queued` forever (nothing compensates: dispatch SUCCEEDED) and its proposal clone
+# with it. Measured cost of learning this the hard way: one wedged row and a manual DELETE.
+#
+# So the guard lives here rather than in `settings.py`, where it would break the bare-container
+# promise. `solver:image:smoke` carries the same guard for the same reason.
+missing=""
+if [ -z "${SUPABASE_URL:-}" ]; then missing="$missing SUPABASE_URL"; fi
+if [ -z "${SUPABASE_KEY:-}" ]; then missing="$missing SUPABASE_KEY"; fi
+if [ -z "${SOLVER_MACHINE_PASSWORD:-}" ]; then missing="$missing SOLVER_MACHINE_PASSWORD"; fi
+if [ -n "$missing" ]; then
+  echo "solver:dev is missing:$missing" >&2
+  echo >&2
+  echo "  set -a; . .envs/local.vars; set +a      # SUPABASE_URL + SUPABASE_KEY" >&2
+  echo "  export SOLVER_MACHINE_PASSWORD='...'   # what you gave provision-solver-user.mjs" >&2
+  echo >&2
+  echo "Starting without these would look healthy, take a real dispatch, and leave the job row" >&2
+  echo "stuck at 'queued' with an orphan proposal plan. See README § Running the solver service." >&2
+  exit 1
+fi
+uv run uvicorn cpsat_service.app:app --port 8000
+{% endraw %}
+'''
 
 [tasks."solver:test"]
 description = "Run the solver's pytest suite (engine + contract + HTTP wrapper)"

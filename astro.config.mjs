@@ -76,10 +76,13 @@ export default defineConfig({
     schema: {
       SUPABASE_URL: envField.string({ context: "server", access: "secret", optional: true }),
       SUPABASE_KEY: envField.string({ context: "server", access: "secret", optional: true }),
-      // The CP-SAT solver service. Optional, and DEV-ONLY by nature: in production the Worker
-      // reaches the container through a Durable Object container binding, not a URL (S-302), so
-      // this stays unset in `prod.vars` and the transport is null there. `optional: true` is what
-      // makes "no solver configured" a supported state rather than a boot failure.
+      // The CP-SAT solver service, as a URL. Since S-302 this is the LOCAL half of a two-way
+      // choice, not the only way in: production reaches the container through the `SOLVER`
+      // Durable Object binding, and `getSolverTransport()` prefers an explicit URL over it. So a
+      // value here means "dispatch to this process instead of starting a container" — which is
+      // exactly what the tier-1 loop, the CI integration lane and the hosted-solve campaign want,
+      // and exactly why `prod.vars` must not carry one. `optional: true` is what makes "no solver
+      // configured at all" a supported state (transport `null`) rather than a boot failure.
       SOLVER_URL: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },

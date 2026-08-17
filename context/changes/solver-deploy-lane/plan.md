@@ -531,30 +531,30 @@ Squash-merge the PR; watch the first container deploy; prove the binding path in
 
 #### Automated
 
-- [x] 1.1 `mise run solver:check` (ruff + mypy --strict) passes
-- [x] 1.2 `mise run solver:test` passes, including the new role-assertion tests
-- [x] 1.3 `mise run solver:image:build` produces a linux/amd64 image
-- [x] 1.4 `mise run solver:image:smoke` returns 202 for the golden fixture against the local Supabase stack
+- [x] 1.1 `mise run solver:check` (ruff + mypy --strict) passes — 0dbf6f2
+- [x] 1.2 `mise run solver:test` passes, including the new role-assertion tests — 0dbf6f2
+- [x] 1.3 `mise run solver:image:build` produces a linux/amd64 image — 0dbf6f2
+- [x] 1.4 `mise run solver:image:smoke` returns 202 for the golden fixture against the local Supabase stack — 0dbf6f2
 
 #### Manual
 
-- [x] 1.5 Image size is in the ~330–450 MB range
-- [x] 1.6 Smoke log shows the job row advancing in local `generation_jobs`
-- [x] 1.7 Role assertion observed to refuse a token when the local hook is temporarily disabled (optional drill)
+- [x] 1.5 Image size is in the ~330–450 MB range — 0dbf6f2
+- [x] 1.6 Smoke log shows the job row advancing in local `generation_jobs` — 0dbf6f2
+- [x] 1.7 Role assertion observed to refuse a token when the local hook is temporarily disabled (optional drill) — 0dbf6f2
 
 ### Phase 2: Worker entry, container binding, transport selector
 
 #### Automated
 
-- [ ] 2.1 `pnpm exec astro sync && pnpm check` — 0 errors, 0 warnings
-- [ ] 2.2 `pnpm lint`, `pnpm steiger`, `pnpm test` pass (new transport/selector tests included)
-- [ ] 2.3 `pnpm build` succeeds; `entry.mjs` exports `SolverContainer`; `dist/server/wrangler.json` carries containers, DO binding, migration, `dev.enable_containers: false`
-- [ ] 2.4 `wrangler deploy --dry-run --containers-rollout=none` (Docker-free) lists `env.SOLVER (SolverContainer)`; full `--dry-run` with Docker builds the image and lists the container
+- [x] 2.1 `pnpm exec astro sync && pnpm check` — 0 errors, 0 warnings
+- [x] 2.2 `pnpm lint`, `pnpm steiger`, `pnpm test` pass (new transport/selector tests included)
+- [x] 2.3 `pnpm build` succeeds; `entry.mjs` exports `SolverContainer`; `dist/server/wrangler.json` carries containers, DO binding, migration, `dev.enable_containers: false`
+- [x] 2.4 `wrangler deploy --dry-run --containers-rollout=none` (Docker-free) lists `env.SOLVER (SolverContainer)`; full `--dry-run` with Docker builds the image and lists the container
 
 #### Manual
 
-- [ ] 2.5 `pnpm env:local && pnpm build && pnpm preview` starts without Docker and Generate dispatches to a native solver
-- [ ] 2.6 Bundle size delta is negligible (< 50 KiB)
+- [x] 2.5 `pnpm env:local && pnpm build && pnpm preview` starts without Docker and Generate dispatches to a native solver
+- [x] 2.6 Bundle size delta is negligible (< 50 KiB)
 
 ### Phase 3: Local modes — hosted-solve campaign and tier 3
 

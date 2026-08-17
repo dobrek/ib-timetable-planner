@@ -245,15 +245,45 @@ Both need a human: `config push` rewrites the **whole** `config.toml` on the hos
 why the `deploy` job does not run it), and provisioning needs `SUPABASE_SERVICE_ROLE_KEY`, which CI
 deliberately does not hold.
 
-- [ ] Enable the hook on hosted **via the dashboard** (Authentication → Hooks →
-      `public.custom_access_token_hook`). Do **not** use `supabase config push` without reading
-      § Hosted enablement first — it pushes the whole dev `config.toml` and would repoint
-      production's auth `site_url` at localhost.
-- [ ] Verify the claim: sign in as the machine user against hosted and decode the token —
-      `role` must read `solver_job_writer`.
-- [ ] Provision the hosted machine user; store the password in the container's config, not the Worker's.
+Do them in this order — each step depends on the one above it.
+
+- [ ] **1. Enable the hook on hosted, via the dashboard** (Authentication → Hooks → Customize Access
+      Token (JWT) Claims → `public.custom_access_token_hook`). Do **not** use `supabase config push`
+      without reading § Hosted enablement first — it pushes the whole dev `config.toml` and would
+      repoint production's auth `site_url` at localhost.
+- [ ] **2. Provision the hosted machine user.** `SOLVER_MACHINE_PASSWORD='…' node
+scripts/provision-solver-user.mjs` against hosted, with the hosted **service-role** key
+      exported in a human shell (CI deliberately holds none). Store the password in your password
+      manager and in `.envs/prod-solver.vars`.
+- [ ] **3. Verify the claim.** Sign in as the machine user against hosted and decode the token —
+      `role` must read `solver_job_writer`. The `curl` one-liner in § Hosted enablement does it.
+- [ ] **4. `pnpm exec wrangler secret put SOLVER_MACHINE_PASSWORD`** on the Worker. `SUPABASE_URL`
+      and `SUPABASE_KEY` already exist there. Confirm with `wrangler secret list`.
+- [ ] **5. Add `Containers: Edit` to the Cloudflare API token** (account-scoped), alongside the
+      existing `Workers Scripts: Edit` — or mint a replacement token carrying both and rotate the
+      `CLOUDFLARE_API_TOKEN` repository secret. Record which you did. Cloudflare's
+      `Edit Cloudflare Workers` template does **not** include Containers; if a container push 403s,
+      `Cloudchamber: Edit` is the documented fallback.
+- [ ] **6. Run `mise run solver:hosted` once against hosted** with a scratch plan, as the end-to-end
+      credential proof. Inspect the resulting proposal clone, then delete it.
+
+> **Step 4 corrects an earlier claim in this runbook.** It used to say "store the password in the
+> container's config, not the Worker's". That is not implementable on Cloudflare: there is no
+> `containers[].configuration.secrets` field, and the documented channel IS the Worker's secret
+> store, read by Worker code and forwarded to the container through the Durable Object's `envVars`
+> (`src/solver-container-env.ts`). The **intent** holds exactly as before — the Worker gains no new
+> privilege, since it already holds the publishable key and never uses the password itself.
 
 > **Verification is a gate, not a formality.** Skipping it fails _upward_: with no hook, the machine
 > user does not lose access — it falls back to `authenticated` and reaches the whole database, with
 > no error to notice. Decode the token and confirm `role` reads `solver_job_writer` **before**
 > pointing any container at hosted.
+>
+> Since S-302 the solver also asserts this **in code**, at startup and on every token re-mint: a
+> token whose `role` is not `solver_job_writer` makes the service exit non-zero, so the container
+> never binds its port and the dispatch fails visibly. Treat that as a **seatbelt, not the gate** —
+> it catches a hook switched off later, and it does nothing about step 4, where a _missing_
+> `SOLVER_MACHINE_PASSWORD` lets the container boot unconfigured and wedge every job at `queued`.
+>
+> The hosted-solve campaign (`mise run solver:hosted`, README § Environment Profiles) authenticates
+> with this same credential, so it is gated on this same checklist.

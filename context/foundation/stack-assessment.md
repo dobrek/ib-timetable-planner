@@ -57,6 +57,8 @@ net-new for this change. Package is standard src-layout (hatchling,
 **CI/CD.** GitHub Actions (`.github/workflows/ci.yml`): `verify` (sync → check
 → lint → steiger → audit → test → build) → `integration` → `e2e` → `deploy`
 (migrations + Worker ship on main). No Python lane yet — net-new per FR-315.
+*(Landed since this assessment: the `solver` job in F-302; the container image
+build and push inside `deploy` in S-302.)*
 
 **Deployment.** Cloudflare Workers (workerd) via `@astrojs/cloudflare` +
 `wrangler.jsonc`; Cloudflare Containers (GA 2026-04) planned for the solver.

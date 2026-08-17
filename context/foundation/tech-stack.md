@@ -31,8 +31,8 @@ hints:
 
 Solo author building IB Schedule Planner after-hours. The stack is now
 **two components**: the TypeScript app at the repo root and the Python
-CP-SAT solver package at `poc/cp-sat/`, promoting to `services/solver/` in
-the current change.
+CP-SAT solver package at `services/solver/` (promoted from `poc/cp-sat/` in
+F-302).
 
 **App (repo root, unchanged).** Astro 7 (server-output, Vite 8/Rolldown) with
 React 19 islands compiled through the React Compiler; TypeScript 6 strict with
@@ -42,14 +42,15 @@ pnpm 11.9.0; Vitest 4 (+ Playwright E2E); FSD layout machine-enforced by
 steiger. The interactive core — drag-and-drop grid with sub-200 ms client-side
 validation — stays in-process and untouched by this change.
 
-**Solver service (new component).** Python ≥3.12 managed by uv (hatchling,
+**Solver service (new component).** Python ≥3.13 managed by uv (hatchling,
 src-layout, dedicated venv — ortools pins protobuf/numpy tightly); or-tools
 CP-SAT as the modeling core; an HTTP wrapper (FastAPI per FR-310) is net-new;
 pytest 8 + ruff, with mypy `--strict` joining per the stack assessment's one
 failed gate. Deploys as a **Cloudflare Container** (GA 2026-04) attached to
 the existing Worker: standard-4 instance, EEUR pinned next to Supabase
-Frankfurt, linux/amd64 `python:3.12-slim` image, scale-to-zero with job-aware
-lifecycle (FR-311), ≈ $7/month at peak. Supabase is reached over HTTPS only
+Frankfurt, linux/amd64 `python:3.13-slim` image, scale-to-zero with job-aware
+lifecycle (FR-311), ~$15/month at peak (restated 2026-08-17 against the
+measured ~12.5-minute solve; see PRD § Cost envelope). Supabase is reached over HTTPS only
 (container outbound is 80/443 — never the Postgres wire protocol).
 
 **Background jobs (flipped from `false`).** The change introduces the app's

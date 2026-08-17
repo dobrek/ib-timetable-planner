@@ -73,8 +73,8 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Cloudflare bindings:** absent — `wrangler.jsonc` is ~15 lines (assets + observability only); no KV/DO/Queues/containers. → S-302.
 - **Solver package:** partial — `poc/cp-sat` (`cpsat_engine`, ~1,783 LOC src + ~764 LOC tests, uv-managed, `schema.py` mirrors the TS contract with a golden-fixture round-trip), but no HTTP wrapper (CLI only), no solve-to-target, no checkpoints/progress emission (solve-to-budget, batch-only). → F-302, S-303.
 - **Wire-contract artifact:** absent — no `contracts/` directory. → F-301.
-- **Python CI lane / container deploy:** absent — no Dockerfile, no docker steps, no path-filtered jobs. → S-302.
-- **mise:** present — `mise.toml` at repo root; graduation to toolchain pins + cross-ecosystem tasks still to come. → F-302, S-302.
+- **Python CI lane / container deploy:** absent — no Dockerfile, no docker steps. → S-302. *(Shipped 2026-08-17: `solver` job since F-302; Dockerfile + image build/push in `deploy` since S-302. No path filters — see S-302.)*
+- **mise:** present — `mise.toml` at repo root; graduation to toolchain pins + cross-ecosystem tasks still to come. → F-302. *(Graduated in F-302, not S-302; S-302 added the image/tier-3/campaign tasks on top.)*
 
 ## Foundations
 
@@ -124,14 +124,15 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 ### S-302: Solver deploy lane
 
-- **Outcome:** A maintainer ships app + solver with one merge to main: a path-filtered solver verify job (ruff + pytest) joins the CI gate, and the deploy job builds/pushes the container image (linux/amd64) alongside the Worker; the container runs attached to the existing Worker (standard-4, EEUR, scale-to-zero); local fidelity tiers 2 and 3 work (image smoke, `wrangler dev` with the real container binding), orchestrated by mise.
+- **Outcome:** A maintainer ships app + solver with one merge to main: the solver verify job (ruff + mypy + pytest + audit) is part of the CI gate, and the deploy job builds/pushes the container image (linux/amd64) alongside the Worker; the container runs attached to the existing Worker (standard-4, EEUR, scale-to-zero, `SOLVER_WORKERS=4`); local fidelity tiers 2 and 3 work (image smoke, `wrangler dev --enable-containers` with the real container binding), orchestrated by mise. Two additions beyond the original outcome: a **hosted-solve campaign** (`mise run solver:hosted`) that points the native solver at the hosted database for policy comparison on real data, and a **fail-closed role assertion** in the solver, which refuses to start when its token is not `solver_job_writer`.
+- **Amended 2026-08-17:** "path-filtered" removed — the measurement did not support it (44 s solver job against a 426 s parallel critical path) and the required `deploy.needs` rewrite is a silent-regression surface on the only production-touching job. See PRD FR-315. Cost restated to ~$15/month. The CF-token unknown is resolved: `Workers Scripts: Edit` + `Containers: Edit`, both account-scoped.
 - **Change ID:** solver-deploy-lane
 - **PRD refs:** FR-315, FR-316
 - **Prerequisites:** F-302
 - **Parallel with:** S-301
 - **Blockers:** —
 - **Unknowns:**
-  - CF API token scopes for Containers deploys — the deploy token is deliberately narrow today (Workers Scripts: Edit); verify the exact scopes against current Cloudflare docs when wiring — Owner: deploy-lane phase. Block: no (resolved inside this slice; the narrow-token posture must not quietly widen).
+  - ~~CF API token scopes for Containers deploys~~ — **RESOLVED 2026-08-17**: `Workers Scripts: Edit` + `Containers: Edit`, both account-scoped. The posture widens by exactly one permission. Note Cloudflare's `Edit Cloudflare Workers` template does **not** include Containers, so it is insufficient; `Cloudchamber: Edit` is the fallback on a 403.
 - **Risk:** The head of the external-blocker track — Cloudflare Containers is a young GA platform, so getting a real container deployed and reachable early (parallel with S-301, not after the whole proposal flow) is the cheapest way to surface platform surprises while there's still time to react; the Cloud Run/Fly.io escape hatches stay unbuilt but the image stays host-portable. Container secrets live in container config, not the Worker.
 - **Status:** proposed
 
@@ -169,7 +170,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
   the heartbeat makes the wedge *visible* but still not *recoverable*. Recorded 2026-08-12 from the
   F-302 implementation review (finding F2) — see
   `context/archive/2026-08-11-solver-service-transport/reviews/impl-review.md`.
-- **Risk:** The core external-blocker de-risk: the platform's documented mid-solve sleep issue (containers#162) makes job-aware lifecycle a correctness requirement, not hygiene — and the calibration campaign (S-308) cannot trust 20-minute production runs until this holds, which is why it gates Stream B. Needs S-302 (a real container to renew/terminate) and S-303 (checkpoints to persist on SIGTERM).
+- **Risk:** The core external-blocker de-risk: job-aware lifecycle is a correctness requirement, not hygiene — and the calibration campaign (S-308) cannot trust 20-minute production runs until this holds, which is why it gates Stream B. Needs S-302 (a real container to renew/terminate) and S-303 (checkpoints to persist on SIGTERM). *(Re-grounded 2026-08-17: the original citation, containers#162, was closed 2026-05-12 and fixed in `@cloudflare/containers` v0.2.2. S-304 is unaffected — the durable reason is that Cloudflare "does not guarantee that any container instance will run for any set period of time", and the wedged-`running`-row problem is ours. S-302 shipped `sleepAfter: 30m` as a stopgap and `rollout_active_grace_period: 1200`, which does **not** protect an in-flight solve; both hand off here.)*
 - **Status:** proposed
 
 ### S-305: Stop & keep
@@ -255,7 +256,7 @@ Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**
 | F-301      | solver-contract-and-jobs-schema | [#96](https://github.com/dobrek/ib-timetable-planner/issues/96)   | Frozen wire-contract artifact + generation_jobs schema (least privilege)         | done                  | Archived 2026-08-11 → `context/archive/2026-08-10-solver-contract-and-jobs-schema/` |
 | F-302      | solver-service-transport        | [#97](https://github.com/dobrek/ib-timetable-planner/issues/97)   | Promote solver to services/solver with HTTP transport + wrapper tests            | done                  | Archived 2026-08-12 → `context/archive/2026-08-11-solver-service-transport/` |
 | S-301      | first-verified-proposal         | [#98](https://github.com/dobrek/ib-timetable-planner/issues/98)   | First end-to-end CP-SAT proposal: start job → oracle-verified board (north star) | yes                   | Unblocked — F-301 + F-302 done. Run `/10x-plan first-verified-proposal`. Inherits from F-302: the snapshot binding (compare the row's `snapshot_hash` after claim) and the relocated `runVerifiedGeneration` oracle |
-| S-302      | solver-deploy-lane              | [#99](https://github.com/dobrek/ib-timetable-planner/issues/99)   | Container deploy lane: path-filtered solver CI + image ship with the Worker      | yes                   | Unblocked — F-302 done; parallel with S-301. Inherits from F-302: the image must `COPY contracts/`, and the container binding IS the solve endpoint's authentication (see `services/solver/README.md` § trust boundary) |
+| S-302      | solver-deploy-lane              | [#99](https://github.com/dobrek/ib-timetable-planner/issues/99)   | Container deploy lane: solver CI + image ship with the Worker (no path filters)  | yes                   | Unblocked — F-302 done; parallel with S-301. Inherits from F-302: the image must `COPY contracts/`, and the container binding IS the solve endpoint's authentication (see `services/solver/README.md` § trust boundary) |
 | S-303      | staged-progress-and-checkpoints | [#100](https://github.com/dobrek/ib-timetable-planner/issues/100) | Solve-to-target + per-stage checkpoints + polling progress UI                    | no                    | Promotes to `ready` once S-301 done                                |
 | S-304      | job-aware-container-lifecycle   | [#101](https://github.com/dobrek/ib-timetable-planner/issues/101) | Job-aware lifecycle: activity renewal + SIGTERM checkpoint persistence           | no                    | Promotes to `ready` once S-302 + S-303 done. **Scope is short by one item** — heartbeat renewal alone cannot rescue a job wedged at `running`; the claim CAS must also be widened to reclaim stale-heartbeat rows. See the S-304 item body, "Inherited from F-302" |
 | S-305      | stop-and-keep                   | [#102](https://github.com/dobrek/ib-timetable-planner/issues/102) | Stop & keep the best completed-stage board                                       | no                    | Promotes to `ready` once S-303 done                                |
@@ -269,7 +270,7 @@ Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**
 
 1. **Solver container credential scoping.** Which Supabase key/role does the container get? A dedicated role limited to `generation_jobs` writes would be cleanest; needs a grants design consistent with the least-privilege lesson. — Owner: author + plan phase. Block: none (resolved inside `/10x-plan solver-contract-and-jobs-schema`, F-301).
 2. **Solve-to-target thresholds.** Which quality tiers get targets and at what values (e.g. `teacherHoles ≤ 148`? ≤ 100?). The strategy — solve-to-target with budget ceilings — is locked; only the values are open. — Owner: calibration campaign + expert input. Block: none (resolved by S-308 itself).
-3. **CF API token scopes for Containers deploys.** The deploy token is deliberately narrow today (Workers Scripts: Edit); verify the exact scopes Containers requires against current Cloudflare docs when wiring the deploy lane. — Owner: deploy-lane phase. Block: none (resolved inside S-302).
+3. ~~**CF API token scopes for Containers deploys.**~~ **RESOLVED 2026-08-17 in S-302**: `Workers Scripts: Edit` + `Containers: Edit`, both account-scoped — the narrow-token posture widens by exactly one permission. Cloudflare's `Edit Cloudflare Workers` template does not include Containers; `Cloudchamber: Edit` is the documented fallback if a container push 403s.
 
 ## Parked
 

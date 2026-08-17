@@ -61,6 +61,13 @@ timeline_budget:
 > (that CI job was deleted as noise by the same change; the precondition is now "a CP-SAT
 > regression baseline is pinned and executable"). For the current statements, read
 > `context/foundation/prd.md` (FR-314) and `context/foundation/roadmap.md` (S-309).
+>
+> **2026-08-17 note (S-302).** Three more figures below have been overtaken. The image base is
+> `python:3.13-slim`, not 3.12, and the solver requires Python ≥3.13. The "≈ $7/month" cost
+> envelope was arithmetically sound but assumed a 5-minute solve; against F-302's measured
+> ~12.5 minutes it is **~$15/month** (~$22 at the PRD's 20-minute ceiling). And the deploy lane
+> ships with **no CI path filtering** — the measurement did not support it. Current statements:
+> `context/foundation/prd.md` (FR-315, FR-316, § Cost envelope) and `README.md`.
 
 ## Current System
 

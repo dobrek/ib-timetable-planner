@@ -1,7 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ib-timetable-planner",
-  "main": "@astrojs/cloudflare/entrypoints/server",
+  // PROJECT-OWNED entry, not `@astrojs/cloudflare/entrypoints/server`. The adapter's own entrypoint
+  // emits a default export and nothing else, and a Cloudflare container must be fronted by a Durable
+  // Object class exported BY NAME from the entry module. `src/worker.ts` re-exports the adapter's
+  // public `handle` plus `SolverContainer`. Repointing this back would keep the build green and
+  // silently make the container undeployable — see the docblock in that file.
+  "main": "./src/worker.ts",
   "compatibility_date": "2026-05-08",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -11,5 +16,74 @@
   },
   "observability": {
     "enabled": true,
+  },
+
+  // --- the CP-SAT solver container (S-302) ---------------------------------------------------------
+  // Every value here is set EXPLICITLY, because each of these defaults is wrong for this workload in
+  // a way that fails quietly rather than loudly. Field names were read from
+  // `node_modules/wrangler/config-schema.json` (`ContainerApp`), never from memory.
+  "containers": [
+    {
+      "class_name": "SolverContainer",
+      // A Dockerfile path, so `wrangler deploy` builds and pushes the image itself. Both wrangler and
+      // `@cloudflare/vite-plugin` resolve this via `fs.existsSync` at CONFIG LOAD, which makes a
+      // missing file a config error: every `pnpm build` — CI's `verify` and `e2e` included — fails
+      // without it, not just the deploy.
+      "image": "./services/solver/Dockerfile",
+      // The REPO ROOT, because `contracts/` is a sibling of `services/` and the image must reproduce
+      // the repo-relative layout for `app.py`'s `parents[4]` anchor. See the Dockerfile's header.
+      "image_build_context": ".",
+      // Default is `lite` (1/16 vCPU, 256 MiB). A CP-SAT solve peaked at 854 MB RSS on the SMALL
+      // fixture — `lite` is not survivable. `standard-4` (4 vCPU, 12 GiB, 20 GB) is the largest
+      // predefined type and the documented per-instance ceiling.
+      "instance_type": "standard-4",
+      // Default is unbounded. One solve already claims every worker for ~12–20 minutes, and the
+      // service itself refuses a second concurrent job (503), so a second instance would only add
+      // cost. It also makes the rollout note below matter: the running instance IS the one replaced.
+      "max_instances": 1,
+      // Default is any region. Pinned to central/eastern Europe next to the Supabase project
+      // (Frankfurt) — this is a latency and data-locality choice, not a compliance one.
+      "constraints": {
+        "regions": ["EEUR"],
+      },
+      // Seconds. Read from the current Cloudflare rollout docs rather than assumed: it is the
+      // MINIMUM WAIT before an ACTIVE instance becomes eligible for replacement, after which the
+      // instance gets SIGTERM and 15 minutes before SIGKILL. 1200 = the PRD's 20-minute job ceiling.
+      //
+      // **It does not reliably protect an in-flight solve, and must not be read as if it does.**
+      // Dispatch answers 202 and detaches, so no request is in flight while a solve runs and the
+      // platform has no reason to call the instance "active"; and even once SIGTERM lands, uvicorn's
+      // graceful shutdown does not wait for the daemon thread doing the solving. Until S-304 lands
+      // activity renewal and SIGTERM checkpointing, the real guard is the human rule in README
+      // § Deployment: do not merge to `main` while a production solve is running.
+      //
+      // `rollout_step_percentage` is left at its default deliberately — stepping a rollout is
+      // meaningless at `max_instances: 1`.
+      "rollout_active_grace_period": 1200,
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SOLVER",
+        "class_name": "SolverContainer",
+      },
+    ],
+  },
+  // `new_sqlite_classes`, not `new_classes` — containers require the SQLite-backed DO storage.
+  // This is a DO lifecycle change: once it ships, `wrangler rollback` to a pre-container version is
+  // BLOCKED. Container deploys are roll-forward-only; see README § Rollback.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SolverContainer"],
+    },
+  ],
+  // Default is `true`, which would make `astro dev` / `astro preview` build the image and demand a
+  // Docker daemon on every start. `false` keeps the local loop and the CI `e2e` job Docker-free;
+  // production is unaffected (this key is dev-only). Tier 3 opts back in per-session via
+  // `mise run solver:tier3`, without editing this file.
+  "dev": {
+    "enable_containers": false,
   },
 }

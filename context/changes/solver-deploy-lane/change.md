@@ -11,6 +11,73 @@ archived_at: null
 
 <!-- Free-form notes for this change: links, ad-hoc context, decisions that don't belong in research/frame/plan. -->
 
+### 2026-08-17 — Phase 2: bundle delta lands at +54.85 KiB, over criterion 2.6's "< 50 KiB". Accepted.
+
+**Measured against HEAD, not inherited.** Worker upload 3788.02 → **3842.87 KiB** (+54.85 KiB;
+gzip 864.91 → 880.60, +15.69). The **client bundle is byte-identical** — 1308 KiB across 29 files
+before and after, and `grep` finds no `cloudflare:workers`, `@cloudflare/containers`,
+`startAndWaitForPorts` or `SolverContainer` anywhere under `dist/client/`.
+
+**Accepted rather than fixed** (author decision, 2026-08-17). Essentially the whole delta is
+`@cloudflare/containers` itself (72 KiB of unminified source); the four new modules are 13 KiB of
+source, mostly comments. There is no lever short of vendoring a trimmed subset of the package, which
+would trade a supported dependency for hand-maintained platform code. In context the number is
+1.4% of a script with a 10 MB paid ceiling and a 7 MB self-imposed yellow line.
+
+**The criterion was measuring the wrong bundle.** Its argument (Critical Details, "Client bundle")
+is entirely about keeping `cloudflare:workers` and `@cloudflare/containers` unreachable from
+`entities/timetable/index.ts` — that came out at exactly zero, because the binding transport takes a
+structural `ContainerLike` and its only package import is `import type`. A future threshold should
+be stated against `dist/client`, where it can actually regress.
+
+### 2026-08-17 — Unplanned but earned: `solver:dev` now fails fast on a missing credential.
+
+Found by hitting it during Phase 2's manual check. `mise run solver:dev` with no Supabase env booted
+looking healthy, took a real dispatch, answered 202 — and only then discovered it could not claim.
+Because **dispatch succeeded**, nothing compensates: `startGeneration` cleans up only when dispatch
+fails, so the row sat `queued` forever with an orphan proposal clone beside it, and
+one-active-job-per-plan blocked that plan's Generate until both were deleted by hand.
+
+The guard is at the **task** level, not in `settings.py`, and that placement is the whole decision.
+The service must still boot bare — `/health` answering on an unconfigured container is what a
+platform probe hits before secrets are wired, and Phase 1's startup check explicitly skips itself in
+that state. What is right for a container is a trap on a developer's machine, so the launcher is
+where the asymmetry belongs. `solver:image:smoke` already carried the same guard; `solver:dev` was
+simply the one that had never been made to match.
+
+Verified both ways: nothing set → named failure before uvicorn; trio set with a wrong password →
+past the guard, into uvicorn, refused by the Phase 1 startup credential check.
+
+### 2026-08-17 — Phase 2: what the installed `@cloudflare/containers@0.3.7` actually confirmed.
+
+Re-verified against the installed package rather than the planning-time Context7 read, as the plan
+required. `startAndWaitForPorts({ ports, cancellationOptions: { portReadyTimeoutMS } })` and
+`containerFetch(url, init, port)` both exist as planned; `getContainer(ns, name)` returns the stub.
+Three details the source settled that docs would not have:
+
+- `containerFetch` builds `new Request(url, init)`, so the URL must be **absolute** — hence
+  `http://solver-container/...`. A path alone would throw.
+- `startAndWaitForPorts` **throws** on failure, while `containerFetch`'s own implicit start returns a
+  503/429/500 **Response**. Calling start explicitly first is what keeps "did not come up" and
+  "refused the job" distinguishable — plan review F3's concern, resolved in favour of the RPC pair.
+- The `withTimeout` design was kept: an `AbortSignal` still cannot cross Workers RPC, and there is a
+  regression test asserting no `signal` ever appears in the RPC arguments.
+
+**`rollout_active_grace_period`, read from current docs (not memory), does NOT protect an in-flight
+solve.** It is the minimum wait before an *active* instance becomes eligible for replacement, after
+which the instance gets SIGTERM and 15 minutes before SIGKILL. Two reasons it does not help us:
+dispatch is 202-and-detach so nothing is in flight to make the instance "active", and uvicorn's
+graceful shutdown does not wait for the daemon thread doing the solve. Per plan review F4 the field
+ships **explicit anyway** (1200 s = the PRD's 20-minute ceiling) with an accurate comment, and F4's
+Fix B fallback is now the real guard: README § Deployment must carry "do not merge to `main` while a
+production solve is running". S-304 owns the mechanism.
+
+**Typing: the hand-written ambient file was enough, and it is load-bearing.** `src/cloudflare-env.d.ts`
+gives `pnpm check` 0 errors / 0 warnings over 752 files with `@cloudflare/containers` imported, and
+no `@cloudflare/workers-types` devDependency was needed. Probed rather than assumed — a scratch file
+confirmed that `envVars` rejects a non-string value, an unknown `env.*` binding errors, and
+`defaultPort` is a `number`, so the declarations constrain rather than collapsing to `any`.
+
 ### 2026-08-17 — Phase 1 measurements: the image is 394 MB, and the credential check is fatal at boot.
 
 **Image**: `ib-solver:local` builds at **394 MB** on `python:3.13-slim`, linux/amd64 — inside the

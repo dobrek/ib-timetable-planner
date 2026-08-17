@@ -31,6 +31,7 @@
     "@astrojs/cloudflare": "^14.2.0",
     "@astrojs/react": "^6.0.2",
     "@astrojs/sitemap": "^3.7.3",
+    "@cloudflare/containers": "^0.3.7",
     "@dnd-kit/dom": "0.5.0",
     "@dnd-kit/react": "0.5.0",
     "@fontsource-variable/geist": "^5.2.9",

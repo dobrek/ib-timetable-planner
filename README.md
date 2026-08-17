@@ -100,25 +100,54 @@ wrangler.jsonc      # Cloudflare Workers configuration
 
 ## Environment Profiles
 
-The project uses two Supabase targets — **local** (default for development) and **hosted** (production / quick smoke tests). Profile files live in `.envs/`:
+The project uses three profiles across two Supabase targets — **local** (default for development) and **hosted**. Profile files live in `.envs/`, which is gitignored, so each is per-machine:
 
-- `.envs/local.vars` — local Supabase (`127.0.0.1:54321`)
-- `.envs/prod.vars` — hosted Supabase project
+| File                     | Database | `SOLVER_URL` | What it is for                                          |
+| ------------------------ | -------- | ------------ | ------------------------------------------------------- |
+| `.envs/local.vars`       | local    | set          | the default dev loop                                    |
+| `.envs/prod.vars`        | hosted   | **unset**    | read-only smoke against hosted                          |
+| `.envs/prod-solver.vars` | hosted   | set          | the [hosted-solve campaign](#the-hosted-solve-campaign) |
 
 Swap with a single command:
 
 ```bash
-pnpm env:local   # default dev loop
-pnpm env:prod    # read-only smoke against hosted Supabase
+pnpm env:local         # default dev loop
+pnpm env:prod          # read-only smoke against hosted Supabase
+pnpm env:prod-solver   # hosted data + a solver on this machine — see the campaign section
 ```
 
-Both scripts write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler dev`) so the two dev commands stay in sync. Always run `pnpm env:local` after a prod smoke test.
+All three write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler dev`) so the two dev commands stay in sync. Always run `pnpm env:local` afterwards; `mise run solver:hosted` does it for you on exit.
 
-`SOLVER_URL` belongs in `local.vars` only and must stay **absent** from `prod.vars`: production reaches the solver through a Cloudflare container binding, not a URL, so a value there would give production a dispatch surface pointing at a developer machine. With it unset, `getSolverTransport()` returns `null` and nothing dispatches.
+> **Switching a profile requires a rebuild before `pnpm preview`.** `astro build` snapshots the root `.dev.vars` into `dist/server/.dev.vars`, and both `astro preview` and `wrangler dev` read _that copy_. A stale build keeps the previous profile's transport, silently — which is exactly the trap `mise run solver:tier3` sequences around.
+
+`.envs/prod-solver.vars` carries a fourth key the other two do not — `SOLVER_MACHINE_PASSWORD` — because `mise run solver:hosted` sources this file directly to configure the solver process. It is harmless in `.env.local`/`.dev.vars`: `astro:env` ignores keys its schema does not declare.
+
+```bash
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_KEY=<hosted publishable key>
+SOLVER_URL=http://127.0.0.1:8000
+SOLVER_MACHINE_PASSWORD=<hosted machine user password>
+```
+
+### Why `prod.vars` has no `SOLVER_URL`
+
+Because the two hosted profiles must stay distinguishable, and the hazard is narrower than "leaking a URL into production". `.envs/*.vars` is copied only to `.env.local` and `.dev.vars` — both gitignored, neither deployed; the Worker's own secrets come from `wrangler secret put`, and production reaches the solver through the container binding regardless. The real risk is the other direction: **a developer running locally against hosted data dispatches production jobs to their own laptop**, and a solve interrupted by a closing lid leaves a production row stuck at `running`.
+
+That mode is legitimate — it is the whole point of the campaign below — but it has to be chosen deliberately rather than inherited from a profile. So `prod.vars` stays the read-only smoke, and the dispatching variant is a separate, louder command.
 
 ## Running the solver service (dev)
 
-The CP-SAT solver runs as a **native process** in the local loop — no container, no image. Cross-ecosystem commands go through [mise](https://mise.jdx.dev/) (`mise.toml` pins `uv`); pnpm scripts stay the JS-side canon and never gain a solver step.
+The daily loop runs the CP-SAT solver as a **native process** — no container, no image, and `pnpm dev` / `pnpm preview` never touch Docker (`dev.enable_containers: false` in `wrangler.jsonc`). Two heavier tiers exist for the things a native process cannot prove. Cross-ecosystem commands go through [mise](https://mise.jdx.dev/) (`mise.toml` pins `uv`); pnpm scripts stay the JS-side canon and never gain a solver step.
+
+| Tier                         | Command                                        | Docker | What only this tier proves                                                      |
+| ---------------------------- | ---------------------------------------------- | ------ | ------------------------------------------------------------------------------- |
+| **1 — native**               | `mise run solver:dev`                          | no     | the daily loop; also what CI's integration lane runs                            |
+| **2 — image**                | `mise run solver:image:build` + `:image:smoke` | yes    | the **image** is correct: `contracts/` resolves, uvicorn binds `0.0.0.0`, amd64 |
+| **3 — container in workerd** | `mise run solver:tier3`                        | yes    | the **binding** path: `env.SOLVER`, a real container start, `containerFetch`    |
+
+Tiers 1 and 2 both dispatch over a URL, so neither exercises the Durable Object binding at all — that is what tier 3 is for, and why it exists despite being the slowest. Separately, the [hosted-solve campaign](#the-hosted-solve-campaign) points tier 1 at the **hosted** database.
+
+### Tier 1 — native (the default)
 
 One-time, per local database: create the machine Auth user the service signs in as.
 
@@ -134,13 +163,30 @@ mise run solver:test    # pytest (engine + contract + HTTP wrapper)
 mise run solver:check   # ruff + mypy --strict, the same two gates CI runs
 ```
 
-`solver:dev` reads three variables, and **none of them is privileged** — no secret key, no service-role key (see [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md)):
+`solver:dev` reads three variables from **your shell**, and **none of them is privileged** — no secret key, no service-role key (see [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md)):
 
 | Variable                  | Value                          |
 | ------------------------- | ------------------------------ |
 | `SUPABASE_URL`            | `http://127.0.0.1:54321`       |
 | `SUPABASE_KEY`            | the **publishable** key        |
 | `SOLVER_MACHINE_PASSWORD` | whatever you provisioned above |
+
+Two of the three are already in `.envs/local.vars`, so the usual incantation is:
+
+```bash
+set -a; . .envs/local.vars; set +a
+export SOLVER_MACHINE_PASSWORD='<what you provisioned>'
+mise run solver:dev
+```
+
+The task **refuses to start** without all three. That guard is task-level on purpose: the service itself boots happily unconfigured, because `/health` must answer on a bare container before secrets are wired. On a developer's machine that same tolerance is a trap — uvicorn looks healthy, the app dispatches a real job and gets its 202, and only the worker discovers it cannot claim, leaving the row stuck at `queued` with an orphan proposal plan (nothing compensates: the dispatch _succeeded_). A correctly configured start logs its effective settings and the credential check:
+
+```
+solver service starting: workers=8 max_concurrent_jobs=1 ... credential_configured=True wire_contract=loaded
+startup credential check passed: the access token carries role=solver_job_writer
+```
+
+That second line is a **fail-closed gate**, not decoration: if the Custom Access Token Hook is off, Auth silently issues `role: authenticated`, which reaches every table. The service refuses to start rather than run with it.
 
 Optional: `SOLVER_WORKERS` (default `8`, pinned for reproducibility — never auto), `SOLVER_MAX_CONCURRENT_JOBS` (default `1`; further dispatches get a 503) and `SOLVER_LOG_LEVEL` (default `INFO`).
 
@@ -156,6 +202,61 @@ SOLVER_URL=http://127.0.0.1:8000 pnpm test:integration src/test/generation-propo
 > Running the **whole** integration lane against the solver needs the job cap raised, because those
 > are two suites that dispatch and vitest runs files in parallel: start the service with
 > `SOLVER_MAX_CONCURRENT_JOBS=2` (what CI does) or the loser of the race gets a correct-but-unhelpful 503. Both fixtures solve in about a second.
+
+### Tier 2 — the container image
+
+Proves the **image**, which the native process cannot: that the Dockerfile reproduces the repo layout `app.py`'s `parents[4]` anchor needs, that uvicorn binds `0.0.0.0` rather than loopback, and that the result is `linux/amd64` (`wrangler containers push` rejects anything else).
+
+```bash
+mise run solver:image:build   # ~394 MB, asserts amd64 itself
+SOLVER_MACHINE_PASSWORD='…' mise run solver:image:smoke
+```
+
+The smoke POSTs a real golden `SolveRequest` and asserts **202** — probing `/health` would not do, because the contract validator **fails open**: with `contracts/` missing from the image, `/health` still answers 200 while every solve 500s. It runs against your local stack via `host.docker.internal`.
+
+> Docker Desktop must be running. On Apple silicon the amd64 image runs under emulation: fine for correctness, **worthless for timing** — never quote a solve duration measured here.
+
+### Tier 3 — the real container inside workerd
+
+The only tier that exercises the production dispatch path: `getSolverTransport()` choosing the **binding** over a URL, `SolverContainer` starting a real container, and `containerFetch` crossing Workers RPC.
+
+```bash
+export SOLVER_MACHINE_PASSWORD='<what you provisioned>'
+mise run solver:tier3          # TIER3_PORT=8790 to move it off :8787
+```
+
+It rewrites `.dev.vars`, rebuilds, then runs `wrangler dev --enable-containers`. **That order is load-bearing** — see the rebuild note under [Environment Profiles](#environment-profiles). Ctrl-C restores `pnpm env:local`. Generate on a local plan, and the POST appears in the container's `docker logs`.
+
+Three edits go into `.dev.vars`, all before the build — because **`wrangler dev` builds the Worker's `env` from that file, not from your shell**, and `SolverContainer` can only forward what the Worker actually holds:
+
+- **`SOLVER_URL` removed**, so `getSolverTransport()` falls through to the binding. This is the point of the tier.
+- **`SOLVER_SUPABASE_URL` added**, pointing at `host.docker.internal`. The Worker and the container need _different_ Supabase URLs: the Worker runs on the host and reaches the stack at `127.0.0.1`, which inside the container is the container's own loopback — every request refused, the startup check kills the process, and `startAndWaitForPorts` times out 45 s later.
+- **`SOLVER_MACHINE_PASSWORD` added** from your shell. In production this is a Worker secret (`wrangler secret put`); locally it has nowhere else to come from.
+
+The last two are inert in production — no such Worker secret exists there. Both are dropped again by the exit trap's `pnpm env:local`.
+
+> **The failure this prevents is a quiet one.** Without the password the container still starts: `settings.py` lets an unconfigured service boot so `/health` answers on a bare container, so the credential check _skips itself_, the container takes the 202, and only then cannot claim. The job sits at `queued` with an orphan proposal plan, and nothing surfaces in the UI. The same applies in production if the Worker is missing the `SOLVER_MACHINE_PASSWORD` secret — which is why setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md), not a formality.
+
+> `wrangler dev` reads the generated `dist/server/wrangler.json` through `.wrangler/deploy/config.json`, so it picks up the container config; `--enable-containers` overrides the committed `dev.enable_containers: false` for that session only. No edit to `wrangler.jsonc` is needed, and none should be made.
+
+### The hosted-solve campaign
+
+Local app + **native** solver against the **hosted** database. It exists to compare plan and policy variations against real current data, cheaply and without spending Cloudflare container time.
+
+```bash
+mise run solver:hosted         # SOLVER_HOSTED_CONFIRM=yes to skip the prompt
+```
+
+It validates `.envs/prod-solver.vars`, prints a confirmation banner, switches the profile, starts the solver under `caffeinate -i`, builds and previews — and on exit stops the solver and restores `pnpm env:local`.
+
+**Prerequisite:** hosted enablement must be done first (the hook enabled and the hosted machine user provisioned — [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md) § Hosted enablement). Until then, point `.envs/prod-solver.vars` at the local stack to rehearse the command itself.
+
+Know what it costs before running it:
+
+- **It writes to production.** Generation inserts `generation_jobs` rows, calls `clone_plan` (creating real proposal plans that accumulate), and applies placements on delivery. It is not a smoke test.
+- **Do not let the machine sleep.** The claim CAS filters `status=eq.queued`, so a solve interrupted mid-flight leaves a _production_ row stuck at `running`, unclaimable until S-304 widens it — recovery today is manual SQL against hosted. `caffeinate -i` covers idle sleep, not a closed lid or a flat battery.
+- **Timing measured here is invalid.** M-series cores plus 8 workers against the container's 4 give a 3–5× wall-clock difference; the PRD forbids M-series-derived budgets reaching S-308. Board **quality** is target-defined and hardware-independent, so policy comparison is legitimate — but worker count changes _which_ equally-good board comes back, so a local board is not what production would emit.
+- **Real names on your machine.** The solver still sees UUIDs only, but the app renders hosted data. Never commit an export.
 
 ## Deployment
 

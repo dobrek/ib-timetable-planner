@@ -30,6 +30,111 @@ is entirely about keeping `cloudflare:workers` and `@cloudflare/containers` unre
 structural `ContainerLike` and its only package import is `import type`. A future threshold should
 be stated against `dist/client`, where it can actually regress.
 
+### 2026-08-17 — Phase 3: tier 3 ships on the PRIMARY mechanism; no fallback was needed.
+
+The plan required verifying, before shipping the task, that a redirected `wrangler dev` actually
+reaches the container — with a documented manual `dev.enable_containers` flip as the fallback.
+**Verified working, so the primary mechanism ships and the fallback is not in the repo.**
+
+Run against `dist/server/wrangler.json` via `.wrangler/deploy/config.json`:
+
+```
+⎔ Preparing container image(s)...
+#15 naming to docker.io/cloudflare-dev/solvercontainer:8918a2c3 done
+    (digest sha256:a89e3f5f… — the SAME image `mise run solver:image:build` produces)
+docker.io/cloudflare/proxy-everything@sha256:0ef6716c… pulled
+⎔ Container image(s) ready
+[wrangler:info] Ready on http://localhost:8790
+```
+
+So all three paths that build this image — `solver:image:build`, `wrangler deploy`, and
+`wrangler dev --enable-containers` — produce byte-identical output. `--enable-containers` is a
+**hidden** boolean flag on `wrangler dev` ("Whether to build and enable containers during
+development"); it overrides the committed `dev.enable_containers: false` per session, so no edit to
+`wrangler.jsonc` is required and none should be made.
+
+**F5's ordering hazard confirmed empirically, not just reasoned about.** Stripping `SOLVER_URL` from
+`.dev.vars` *before* `pnpm build` leaves `dist/server/.dev.vars` with zero `SOLVER_URL` lines;
+writing it after the build would leave the URL transport silently in charge and the task would prove
+nothing while appearing to pass. `solver:tier3` sequences strip → build → dev → restore, in that
+order, with the reason in the source.
+
+One incidental: `wrangler dev` defaults to `:8787` and `astro preview` leaves a workerd on `:8788`,
+so the task takes `TIER3_PORT` rather than hardcoding.
+
+### 2026-08-17 — Phase 3 found a real gap the plan did not anticipate: the container's Supabase URL.
+
+`SolverContainer` forwards `env.SUPABASE_URL` into `envVars`. Under local `wrangler dev` that value
+comes from `.dev.vars` and reads `http://127.0.0.1:54321` — which **inside the container is the
+container**. Proved rather than assumed: running the image with that URL gives
+`httpx.ConnectError: [Errno 111] Connection refused`, the fail-closed startup check kills the
+process, and `startAndWaitForPorts` would then time out 45 s later. **Tier 3 could never have
+completed a job**, and the plan's success criterion 3.4 asks for exactly that.
+
+The Worker and the container genuinely need different values here — the Worker runs on the host and
+must use `127.0.0.1` — so one variable cannot serve both. Fix: an optional `SOLVER_SUPABASE_URL`
+that `SolverContainer` prefers when present. `solver:tier3` derives it from the existing
+`SUPABASE_URL` by swapping `127.0.0.1`/`localhost` for `host.docker.internal`, and skips it entirely
+when the URL is already remote. Production sets no such Worker secret, so it is inert there.
+
+Verified: with the rewritten value the container reaches GoTrue and gets a genuine
+`400 invalid_credentials` (a wrong password on purpose) instead of `ConnectError` — i.e. it
+connected.
+
+**Taken as an opportunity to make the forwarding rule testable.** The env construction moved out of
+the DO class into a pure `src/solver-container-env.ts`, with seven tests pinning what the plan had
+only asserted in prose: `SOLVER_WORKERS` is explicitly `4` and not the service's default `8`, the
+override precedence, empty strings rather than `undefined` (a literal `"undefined"` would make
+`settings.configured` read as PRESENT and defeat the bare-container promise), and — the security
+one — that **exactly six keys** are forwarded and no more.
+
+Interaction worth recording: Phase 1's fail-closed startup check turned this from a
+silent-and-confusing failure (container up, job stuck at `queued`) into a loud one at container
+start. It made the bug findable.
+
+**Then the same class of gap bit a second time, on `SOLVER_MACHINE_PASSWORD`** — and this one was
+quiet, because it lands in the state the design deliberately tolerates. `wrangler dev` builds the
+Worker's `env` from `.dev.vars`, **not from the invoking shell**, so exporting the password had no
+effect: `SolverContainer` forwarded `""`, the container saw `credential_configured=False`, and the
+startup check *skipped itself* — exactly as `settings.py` promises for a bare container. It then
+bound `:8000`, answered 202, and failed at claim. Row stuck at `queued`, orphan clone, no error
+anywhere the UI could show. `solver:tier3` now requires the password in the shell and injects it
+into `.dev.vars` before the build; the trap's `pnpm env:local` drops it again.
+
+**The residual, stated plainly.** The fail-closed check is fail-closed against a *wrong* role, not
+against an *absent* credential — an unconfigured container still boots and wedges every job it takes.
+That is the plan's deliberate trade (`/health` must answer on a bare container before secrets are
+wired), and it is not being changed here. It does mean **a production Worker missing the
+`SOLVER_MACHINE_PASSWORD` secret would wedge every generation silently**. Phase 6 step 4
+(`wrangler secret put`) is what prevents it and Phase 7's smoke is what would catch it; both should
+be read as load-bearing rather than administrative. If it recurs, the fix is Worker-side — refuse to
+build a binding transport when the secret is absent — not a change to the container's boot contract.
+
+### 2026-08-17 — For whoever runs Phase 7's smoke: a succeeded job does NOT mean a filled board.
+
+Observed during tier 3 and briefly mistaken for a container fault, so it is written down here.
+Delivery is lazy and **triggered by visiting the SOURCE plan**, not by the solve finishing:
+`src/pages/plans/[id]/index.astro` runs `checkGeneration` in the page render, and that call is what
+runs the oracle, translates ids and applies placements. `use-generation-job.ts` says so in its
+docblock and names S-303 as the owner of polling — "nothing here loops".
+
+Consequence when smoke-testing: after `status=succeeded`, the proposal plan's board is **empty**, and
+refreshing the *proposal* page will never fix it — that page's `checkGeneration` is scoped to its own
+plan id, which has no job. Go back to the source plan; the visit itself delivers. Identical on tier 1
+and in production, and unrelated to the transport.
+
+### 2026-08-17 — Phase 3: `.envs/` is gitignored, so the README is the durable home for profile guidance.
+
+`.envs/prod.vars`'s inaccurate comment (the one claiming a `SOLVER_URL` there "would give prod a
+dispatch surface") was restated on this machine — but that file is per-machine and uncommitted, so
+the correction cannot travel. The committed version of the argument now lives in README
+§ Environment Profiles → "Why `prod.vars` has no `SOLVER_URL`", along with the full
+`prod-solver.vars` template. Anyone setting up a new machine reads the README, not another
+developer's `.envs/`.
+
+`.envs/prod-solver.vars` currently points at the **local** stack — the rehearsal configuration for
+step 3.5. It must be repointed at hosted after Phase 6.
+
 ### 2026-08-17 — Unplanned but earned: `solver:dev` now fails fast on a missing credential.
 
 Found by hitting it during Phase 2's manual check. `mise run solver:dev` with no Supabase env booted

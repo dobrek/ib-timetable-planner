@@ -30,6 +30,42 @@ is entirely about keeping `cloudflare:workers` and `@cloudflare/containers` unre
 structural `ContainerLike` and its only package import is `import type`. A future threshold should
 be stated against `dist/client`, where it can actually regress.
 
+### 2026-08-17 — Phase 6 closed: hosted enablement done, and the campaign is the credential proof.
+
+All six runbook boxes ticked and dated. The load-bearing outcome is step 6: `mise run solver:hosted`
+completed a job on a **scratch plan against hosted**, which proves the whole hosted credential chain
+in one shot — the dashboard hook actually firing, the machine user's password, the narrow role
+surviving into PostgREST, and the claim/finish writes landing under `solver_job_writer`'s
+column-scoped grant. That is more than the checklist's individual steps prove separately.
+
+Also closes the plan's deferred **3.5** (the hosted run Phase 3 could not do before enablement).
+
+**What it does NOT prove, and Phase 7 must.** The campaign authenticates from
+`.envs/prod-solver.vars`, not from the Worker secret. So `SOLVER_MACHINE_PASSWORD` on the Worker is
+still unverified — the two could have diverged by a typo, and nothing would surface it until a
+container tries to sign in. First proof is the production smoke; the symptom would be the container
+exiting at startup with `invalid_credentials`, and the fix is `wrangler secret put` again plus a
+redeploy. Worth reading the container's first log lines deliberately rather than only checking that
+the job row moved.
+
+### 2026-08-17 — Phase 6: the CF token already carried `Containers: Edit`. Risk 5 did not materialise.
+
+**No token change was made** — neither a permission added nor a replacement minted. The deploy token
+behind `CLOUDFLARE_API_TOKEN` was inspected in the dashboard and already holds `Containers: Edit`
+alongside `Workers Scripts: Edit`, so the narrow-token posture is unchanged by this slice and the
+`gh secret set` rotation path was never used.
+
+Worth keeping, because it corrects two artefacts. Research risk 5 rated this **likelihood H** with
+impact L, and the reasoning behind that — Cloudflare's `Edit Cloudflare Workers` template does not
+include Containers — is still correct as a general warning; it simply did not apply to *this* token,
+which was evidently not minted from that template. The conclusion the research reached
+(`Workers Scripts: Edit` + `Containers: Edit`, both account-scoped) is confirmed as the requirement.
+`Cloudchamber: Edit` remains the untested fallback if a container push ever 403s.
+
+Hosted enablement steps 1–4 completed the same day: the dashboard hook toggle (Postgres hook type,
+`public` / `custom_access_token_hook` — **not** the HTTPS variant), the hosted machine user, a
+decoded token reading `role: solver_job_writer`, and `SOLVER_MACHINE_PASSWORD` on the Worker.
+
 ### 2026-08-17 — Phase 5: doc truth-up applied, following the precedent's one rule.
 
 **Normative docs corrected, dated artifacts annotated** — the rule

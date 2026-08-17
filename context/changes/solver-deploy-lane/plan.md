@@ -531,16 +531,16 @@ Squash-merge the PR; watch the first container deploy; prove the binding path in
 
 #### Automated
 
-- [ ] 1.1 `mise run solver:check` (ruff + mypy --strict) passes
-- [ ] 1.2 `mise run solver:test` passes, including the new role-assertion tests
-- [ ] 1.3 `mise run solver:image:build` produces a linux/amd64 image
-- [ ] 1.4 `mise run solver:image:smoke` returns 202 for the golden fixture against the local Supabase stack
+- [x] 1.1 `mise run solver:check` (ruff + mypy --strict) passes
+- [x] 1.2 `mise run solver:test` passes, including the new role-assertion tests
+- [x] 1.3 `mise run solver:image:build` produces a linux/amd64 image
+- [x] 1.4 `mise run solver:image:smoke` returns 202 for the golden fixture against the local Supabase stack
 
 #### Manual
 
-- [ ] 1.5 Image size is in the ~330–450 MB range
-- [ ] 1.6 Smoke log shows the job row advancing in local `generation_jobs`
-- [ ] 1.7 Role assertion observed to refuse a token when the local hook is temporarily disabled (optional drill)
+- [x] 1.5 Image size is in the ~330–450 MB range
+- [x] 1.6 Smoke log shows the job row advancing in local `generation_jobs`
+- [x] 1.7 Role assertion observed to refuse a token when the local hook is temporarily disabled (optional drill)
 
 ### Phase 2: Worker entry, container binding, transport selector
 

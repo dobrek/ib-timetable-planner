@@ -21,10 +21,12 @@ Known failure codes, surfaced verbatim in the raised message so a log line is di
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Final
 
 import httpx
 
@@ -52,6 +54,13 @@ FINISH_BACKOFF_S = (1.0, 4.0)
 # just delays the log line that matters.
 RETRYABLE_STATUS = frozenset({500, 502, 503, 504})
 
+# The narrow Postgres role the Custom Access Token Hook mints for the machine user. Asserted on
+# every grant because this is the one misconfiguration that fails *upward*: with the hook disabled,
+# GoTrue quietly issues `role: authenticated`, which `alter default privileges` has granted DML on
+# every current and future public table. Nothing looks broken — the container connects, claims its
+# row and solves — while holding a full read of every student and teacher name in the database.
+REQUIRED_ROLE: Final = "solver_job_writer"
+
 
 class SupabaseError(RuntimeError):
     """A non-2xx from Auth or PostgREST. The message carries the status and the body verbatim.
@@ -63,6 +72,35 @@ class SupabaseError(RuntimeError):
     def __init__(self, message: str, *, status_code: int | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
+
+
+class RoleClaimError(SupabaseError):
+    """The access token does not carry :data:`REQUIRED_ROLE`, so this container refuses to use it.
+
+    A `SupabaseError` subclass so the existing handling applies unchanged: `status_code` stays None,
+    which is exactly what makes it non-retryable — a wrong role is a rule about configuration, not a
+    blip a second attempt could survive.
+    """
+
+
+def assert_role(token: str) -> None:
+    """Refuse an access token whose `role` claim is not :data:`REQUIRED_ROLE`.
+
+    The payload segment is base64url-decoded and read; the **signature is deliberately not
+    verified**. This guards against MISCONFIGURATION (a hook that is off), not forgery — the token
+    was just minted by Auth over the wire this client owns, and verifying it would mean holding the
+    JWT signing secret, which `settings.py` documents as the one thing this container must never
+    have.
+    """
+    claims = _decode_claims(token)
+    role = claims.get("role")
+    if role != REQUIRED_ROLE:
+        raise RoleClaimError(
+            f"the access token carries role={role!r}, not {REQUIRED_ROLE!r} — the Custom Access "
+            "Token Hook is not enabled on this project, so Auth fell back to a role that reaches "
+            "every table. Enable it and re-verify the claim before pointing this container at the "
+            "database: docs/runbooks/solver-credential.md § Hosted enablement."
+        )
 
 
 class JobRowClient:
@@ -78,7 +116,13 @@ class JobRowClient:
 
     def sign_in(self) -> str:
         """Return a live access token, re-running the PASSWORD grant when the current one is aged
-        out (or absent). Never the refresh grant — see the module docstring."""
+        out (or absent). Never the refresh grant — see the module docstring.
+
+        Every freshly minted token is role-asserted BEFORE it is cached, so a hook switched off
+        mid-life fails closed on the next re-mint rather than silently widening the container's
+        reach. `app.py`'s lifespan runs the same assertion once at boot, which is the *visible*
+        half: a failure there stops the container from ever binding its port.
+        """
         if self._token is not None and time.monotonic() - self._token_minted_at < TOKEN_MAX_AGE_S:
             return self._token
         response = self._client.post(
@@ -88,9 +132,11 @@ class JobRowClient:
             json={"email": self._settings.machine_email, "password": self._settings.machine_password},
         )
         _raise_for_status(response, "sign in as the machine user")
-        self._token = str(response.json()["access_token"])
+        token = str(response.json()["access_token"])
+        assert_role(token)
+        self._token = token
         self._token_minted_at = time.monotonic()
-        return self._token
+        return token
 
     def claim(self, job_id: str) -> dict[str, Any] | None:
         """Compare-and-set `queued -> running`. The claimed row iff THIS call claimed it, else None.
@@ -194,6 +240,26 @@ class JobRowClient:
                 f"could not finish job {job_id} as {status}: the write matched no row — it is no "
                 "longer in a state this role may update"
             )
+
+
+def _decode_claims(token: str) -> dict[str, Any]:
+    """The JWT's middle segment as a claims mapping.
+
+    Padding is re-added by hand because Auth strips it: base64url in a JWT is unpadded, and
+    `b64decode` insists on a multiple of four.
+    """
+    segments = token.split(".")
+    if len(segments) != 3:
+        raise RoleClaimError(f"the access token is not a JWT — {len(segments)} segment(s), expected 3")
+    payload = segments[1]
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+    except ValueError as error:
+        # `binascii.Error` (bad base64) and `JSONDecodeError` are both ValueError subclasses.
+        raise RoleClaimError(f"the access token's payload segment is not decodable JSON: {error}") from error
+    if not isinstance(claims, dict):
+        raise RoleClaimError(f"the access token's payload decoded to {type(claims).__name__}, not an object")
+    return claims
 
 
 def _raise_for_status(response: httpx.Response, action: str) -> None:

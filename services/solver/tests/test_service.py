@@ -16,7 +16,9 @@ the committed `contracts/fixtures/solve-request.json` so the known-valid body is
 
 from __future__ import annotations
 
+import base64
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -32,12 +34,36 @@ from cpsat_service import app as app_module
 from cpsat_service.registry import JobRegistry
 from cpsat_service.runner import run_job
 from cpsat_service.settings import Settings
-from cpsat_service.supabase import TOKEN_MAX_AGE_S, JobRowClient, SupabaseError
+from cpsat_service.supabase import (
+    REQUIRED_ROLE,
+    TOKEN_MAX_AGE_S,
+    JobRowClient,
+    RoleClaimError,
+    SupabaseError,
+)
 
 SOLVE_REQUEST_GOLDEN = Path(__file__).resolve().parents[3] / "contracts" / "fixtures" / "solve-request.json"
 
 JOB_ID = "3f1a8c22-0b7e-4c8e-9a1d-2f6b5e4d3c21"
-ACCESS_TOKEN = "test-access-token"
+
+
+def _jwt(claims: dict[str, Any]) -> str:
+    """A JWT-SHAPED token: header.payload.signature, unsigned.
+
+    `assert_role` reads the payload and deliberately does not verify the signature — it guards
+    against a hook that is switched off, not against forgery — so an unsigned token is a faithful
+    stand-in for what Auth returns, and the suite never needs a signing secret the container is
+    forbidden to hold.
+    """
+
+    def segment(part: dict[str, Any]) -> str:
+        raw = json.dumps(part, separators=(",", ":")).encode()
+        return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+    return f"{segment({'alg': 'HS256', 'typ': 'JWT'})}.{segment(claims)}.signature-not-verified"
+
+
+ACCESS_TOKEN = _jwt({"role": REQUIRED_ROLE, "sub": "machine-user"})
 
 SETTINGS = Settings(
     supabase_url="https://stack.test",
@@ -73,12 +99,22 @@ class FakeSupabase:
     ``snapshot_hash`` is the digest the claimed ROW carries. Left None, :func:`_run` fills it with the
     request's own digest so the binding passes — a test that wants a mismatch states one explicitly
     rather than every other test drifting through a hole in the guard.
+
+    ``access_token`` is what the Auth grant answers with; it is mutable so a test can model the hook
+    being switched off *between* two grants.
     """
 
-    def __init__(self, *, claimable: bool = True, snapshot_hash: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        claimable: bool = True,
+        snapshot_hash: str | None = None,
+        access_token: str = ACCESS_TOKEN,
+    ) -> None:
         self.calls: list[RecordedCall] = []
         self.claimable = claimable
         self.snapshot_hash = snapshot_hash
+        self.access_token = access_token
         self.sign_in_count = 0
 
     def transport(self) -> httpx.MockTransport:
@@ -96,7 +132,7 @@ class FakeSupabase:
         self.calls.append(call)
         if call.path == "/auth/v1/token":
             self.sign_in_count += 1
-            return httpx.Response(200, json={"access_token": ACCESS_TOKEN, "token_type": "bearer"})
+            return httpx.Response(200, json={"access_token": self.access_token, "token_type": "bearer"})
         if call.path == "/rest/v1/generation_jobs":
             claiming = call.params.get("status") == "eq.queued"
             row = {"id": JOB_ID, "snapshot_hash": self.snapshot_hash} if claiming else {"id": JOB_ID}
@@ -557,3 +593,116 @@ def test_a_deterministic_failure_is_not_retried() -> None:
     with pytest.raises(SupabaseError, match="42501"):
         client.finish(JOB_ID, status="failed", error="whatever")
     assert attempts == 1
+
+
+# --- the role assertion: fail-closed against a hook that is off ---------------------------------------
+
+
+def test_a_token_carrying_the_narrow_role_is_accepted() -> None:
+    """The happy path, stated once explicitly — every other test in this file rides on it."""
+    client = FakeSupabase().client_factory(SETTINGS)
+
+    assert client.sign_in() == ACCESS_TOKEN
+
+
+@pytest.mark.parametrize(
+    ("token", "why"),
+    [
+        (_jwt({"role": "authenticated"}), "the hook is off and GoTrue fell back"),
+        (_jwt({"role": "service_role"}), "a wider role is still the wrong role"),
+        (_jwt({"sub": "machine-user"}), "the claim is absent entirely"),
+        ("not-a-jwt", "one segment, not three"),
+        ("aaa.bbbb.ccc", "the payload segment decodes to bytes that are not JSON"),
+        (f"aaa.{base64.urlsafe_b64encode(b'[1,2]').decode().rstrip('=')}.ccc", "JSON, but not an object"),
+    ],
+)
+def test_a_token_that_is_not_the_narrow_role_is_refused(token: str, why: str) -> None:
+    """Absence of the hook is the one misconfiguration that fails UPWARD — `authenticated` reaches
+    every public table through `alter default privileges`, and nothing about it looks broken. So the
+    token is refused before it is ever cached, and the message names the runbook."""
+    client = FakeSupabase(access_token=token).client_factory(SETTINGS)
+
+    with pytest.raises(RoleClaimError):
+        client.sign_in()
+
+
+def test_a_re_mint_that_lost_the_role_is_refused_mid_life() -> None:
+    """Tokens are re-minted roughly hourly, so the check cannot be a startup-only affair: a hook
+    disabled while the container is alive must fail closed on the very next grant."""
+    fake = FakeSupabase()
+    client = fake.client_factory(SETTINGS)
+    client.sign_in()
+
+    fake.access_token = _jwt({"role": "authenticated"})
+    client._token_minted_at -= TOKEN_MAX_AGE_S + 1  # pretend the token aged past the threshold
+
+    with pytest.raises(RoleClaimError, match=REQUIRED_ROLE):
+        client.sign_in()
+
+
+# --- the startup credential check ---------------------------------------------------------------------
+
+
+def test_startup_refuses_to_serve_with_a_token_that_is_not_the_narrow_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The VISIBLE half of the assertion. `sign_in` is otherwise lazy — first called on the worker
+    thread after the handler answered 202, where `runner._claim` swallows the exception and the row
+    sits `queued` forever. Failing in the lifespan instead exits uvicorn non-zero, so the port never
+    binds, the container start fails, and the dispatch error path already marks the row `failed`."""
+    fake = FakeSupabase(access_token=_jwt({"role": "authenticated"}))
+    monkeypatch.setattr(app_module, "settings", SETTINGS)
+    monkeypatch.setattr(app_module, "JobRowClient", fake.client_factory)
+
+    with pytest.raises(RoleClaimError), TestClient(app_module.app):
+        pass  # pragma: no cover — the lifespan raises before the body runs
+
+
+def test_startup_signs_in_exactly_once_and_then_serves(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeSupabase()
+    monkeypatch.setattr(app_module, "settings", SETTINGS)
+    monkeypatch.setattr(app_module, "JobRowClient", fake.client_factory)
+
+    with TestClient(app_module.app) as client:
+        assert client.get("/health").status_code == 200
+
+    assert fake.sign_in_count == 1
+
+
+def test_startup_skips_the_check_when_the_credential_trio_is_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`/health` must answer on a bare container — that is what a platform probe hits before secrets
+    are wired, and it is how the tier-2 image is smoked before anything is provisioned. The startup
+    check must not quietly take that promise away."""
+    bare = replace(SETTINGS, supabase_url="", supabase_key="", machine_password="")
+
+    def explode(_settings: Settings) -> JobRowClient:
+        raise AssertionError("an unconfigured container must not attempt to sign in")
+
+    monkeypatch.setattr(app_module, "settings", bare)
+    monkeypatch.setattr(app_module, "JobRowClient", explode)
+
+    with TestClient(app_module.app) as client:
+        assert client.get("/health").status_code == 200
+
+
+def test_startup_logs_the_effective_non_secret_settings(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The line a production smoke reads to prove `SOLVER_WORKERS=4` is in effect — and the line
+    that surfaces the `contracts/` fail-open trap at boot rather than at the first 500."""
+    fake = FakeSupabase()
+    monkeypatch.setattr(app_module, "settings", SETTINGS)
+    monkeypatch.setattr(app_module, "JobRowClient", fake.client_factory)
+
+    with caplog.at_level("INFO", logger="cpsat_service.app"), TestClient(app_module.app):
+        pass
+
+    startup = next(
+        record.getMessage() for record in caplog.records if "solver service starting" in record.message
+    )
+    assert f"workers={SETTINGS.workers}" in startup
+    assert "wire_contract=loaded" in startup
+    assert SETTINGS.machine_password not in startup, "the password must never reach a log line"
+    assert SETTINGS.supabase_key not in startup, "nor the key"

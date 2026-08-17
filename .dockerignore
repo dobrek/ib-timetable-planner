@@ -1,0 +1,29 @@
+# Build context for `services/solver/Dockerfile`, whose context is the REPO ROOT — `contracts/` is a
+# sibling of `services/`, and `app.py`'s `parents[4]` anchor requires both trees in their
+# repo-relative positions. Almost nothing else in this repository belongs in a Python image.
+#
+# **Positive list, deliberately.** A deny list would have to name `node_modules` (~934 MB), `.git`,
+# `dist`, `.astro`, `.wrangler`, `data/`, `context/`, `docs/`, `e2e/`, `src/`, `public/`,
+# `supabase/` AND every secret-bearing path (`.envs/`, `.env*`, `.dev.vars`) — and would silently
+# start leaking again the day someone adds a top-level directory. A positive list cannot leak by
+# omission; the worst it can do is fail loudly at build time.
+
+# Exclude every top-level entry. `*` matches one path segment, so this reaches no deeper.
+*
+
+# The two trees the image needs. Re-including a directory makes its contents eligible again — `*`
+# never matched them, being one segment up.
+!contracts
+!services
+
+# ...minus what must never reach the image, now that `services/` is back in.
+#
+# `.venv` is the sharp one: 269 MB of ARM64 binaries on this machine, which would silently poison an
+# amd64 image (the Dockerfile builds its own venv from `uv.lock`).
+services/solver/.venv
+# Engine dumps and solve transcripts — development fixtures with no runtime role.
+services/solver/data
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache

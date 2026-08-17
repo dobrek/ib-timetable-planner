@@ -116,6 +116,12 @@ jobs:
         if: failure()
         run: cat "$RUNNER_TEMP/solver.log"
 
+  # Stays Docker-free even though the Worker now declares a container: `dev.enable_containers: false`
+  # in `wrangler.jsonc` means `astro preview` never builds or starts an image. The `SOLVER` binding
+  # object still exists in the preview, so `getSolverTransport()` returns a BINDING transport here
+  # rather than `null` — harmless, because no spec presses Generate (S-306 owns that coverage). If an
+  # E2E for Generate is ever added, it needs a solver: either `SOLVER_URL` in the `.dev.vars` written
+  # below (pointing at a native service, as the `integration` job does) or a real container.
   e2e:
     name: "E2E tests"
     runs-on: ubuntu-latest
@@ -156,9 +162,18 @@ jobs:
   # `mypy --strict` landed with F-302 rather than waiting for the full FR-315 lane: the gate had to
   # exist BEFORE the HTTP wrapper was written, so the new module was born under it instead of being
   # retrofitted. It is config-driven (`[tool.mypy]` in pyproject) and covers `src/` and `tests/`.
-  # Path filtering still arrives with S-302. No path filters exist anywhere in this workflow, so this
-  # runs on every push; the suite is ~56 tests and finishes long before the stack-booting jobs that
-  # dominate wall-clock.
+  #
+  # **No path filtering, and S-302 decided that deliberately** — the earlier note here promising it
+  # was wrong about the economics. This job runs 44 s; `verify`, `integration`, `e2e` and `solver`
+  # carry no `needs:` between them, so they run in parallel and the critical path is `e2e` at 426 s.
+  # Filtering a 44 s job out of that saves billed minutes and exactly zero wall clock — while costing
+  # a rewrite of `deploy`'s `if:` gate, because a skipped job is not a success and would stop
+  # shipping `main`. The `always() && !contains(needs.*.result,'failure')` form that fixes it also
+  # switches off the implicit success gate for all four needs at once, on the only job that touches
+  # production. `contracts/**` is cross-cutting besides: it is byte-gated here AND in `verify`, so a
+  # naive `services/solver/**` filter would skip the Python half of the very gate this job exists to
+  # make honest. If deploy wall-clock becomes a problem the lever is GHA Docker layer caching, never
+  # path filters.
   solver:
     name: "Solver tests (Python)"
     runs-on: ubuntu-latest
@@ -224,9 +239,35 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
+      # Since S-302 the deploy step below ALSO builds and pushes the solver container image, using
+      # the runner's own Docker daemon (`ubuntu-latest` ships Docker 28; `wrangler-action` is a
+      # node24 JS action running on the host, not a container action, so the daemon is reachable).
+      # This check exists so a missing or broken daemon fails here, with a legible message, instead
+      # of two minutes later inside wrangler's image build.
+      - name: Verify the Docker daemon (the container image builds during deploy)
+        run: |
+          docker version
+          docker buildx version
+
       # wranglerVersion pins the action's installed Wrangler to the repo's devDependency
       # (package.json `^4.102.0` → lockfile 4.102.0) so CI deploys with the version the app
       # is built against. Keep in lockstep with the `wrangler` devDependency on bumps.
+      #
+      # One command, three side effects since S-302: it uploads the Worker, and it builds and pushes
+      # `services/solver/Dockerfile` to Cloudflare's registry, and it rolls the container out. The
+      # image build runs on EVERY merge to `main` (no path filters — see the `solver` job's note);
+      # the layer PUSH stays incremental via registry-side dedup, but the build itself re-runs from
+      # scratch on each ephemeral runner. Measure the added wall-clock before optimising; the lever
+      # is `cache-from`/`cache-to: type=gha`, not path filters.
+      #
+      # `CLOUDFLARE_API_TOKEN` needs `Workers Scripts: Edit` AND `Containers: Edit`, both
+      # account-scoped. The `Edit Cloudflare Workers` template does NOT include Containers, so it is
+      # insufficient on its own. On a 403 mentioning containers, `Cloudchamber: Edit` is the next
+      # thing to add (wrangler's own OAuth flow requests both).
+      #
+      # If the daemon is ever unreachable from the action, the documented fallback is
+      # `preCommands: pnpm exec wrangler containers build -p -t …` — do not pre-build in a separate
+      # step, which would decouple the image from the config wrangler deploys against.
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v4
         with:

@@ -575,33 +575,33 @@ Squash-merge the PR; watch the first container deploy; prove the binding path in
 #### Automated
 
 - [x] 4.1 Workflow YAML valid; no `paths` keys anywhere in `ci.yml` — 0d2b562
-- [x] 4.2 Full CI run on the branch is green (`deploy` skipped on non-main)
+- [x] 4.2 Full CI run on the branch is green (`deploy` skipped on non-main) — 4ed07c3
 
 #### Manual
 
-- [x] 4.3 Reviewer confirms `deploy.needs`/`if:` lines are byte-identical to `main`
+- [x] 4.3 Reviewer confirms `deploy.needs`/`if:` lines are byte-identical to `main` — 4ed07c3
 
 ### Phase 5: Doc truth-up
 
 #### Automated
 
-- [x] 5.1 No live-hazard `containers#162` wording remains in CLAUDE.md / prd.md / roadmap.md
-- [x] 5.2 No unqualified "path-filtered" wording remains in prd.md / roadmap.md
-- [x] 5.3 `pnpm format` clean on touched markdown
+- [x] 5.1 No live-hazard `containers#162` wording remains in CLAUDE.md / prd.md / roadmap.md — 4ed07c3
+- [x] 5.2 No unqualified "path-filtered" wording remains in prd.md / roadmap.md — 4ed07c3
+- [x] 5.3 `pnpm format` clean on touched markdown — 4ed07c3
 
 #### Manual
 
-- [x] 5.4 Each stale-claim row in `research.md` § Historical Context has a corresponding edit
-- [x] 5.5 FR-315/FR-316 read as an accurate description of what ships
+- [x] 5.4 Each stale-claim row in `research.md` § Historical Context has a corresponding edit — 4ed07c3
+- [x] 5.5 FR-315/FR-316 read as an accurate description of what ships — 4ed07c3
 
 ### Phase 6: Manual hosted gate (human)
 
 #### Manual
 
-- [ ] 6.1 Decoded hosted token shows `role: solver_job_writer`
-- [ ] 6.2 `wrangler secret list` shows `SOLVER_MACHINE_PASSWORD`
-- [ ] 6.3 CF token has `Containers: Edit` (verified in dashboard)
-- [ ] 6.4 One hosted-solve campaign job completed on a scratch plan; clone inspected/deleted
+- [x] 6.1 Decoded hosted token shows `role: solver_job_writer`
+- [x] 6.2 `wrangler secret list` shows `SOLVER_MACHINE_PASSWORD`
+- [x] 6.3 CF token has `Containers: Edit` (verified in dashboard)
+- [x] 6.4 One hosted-solve campaign job completed on a scratch plan; clone inspected/deleted
 
 ### Phase 7: Merge, first deploy, production smoke
 

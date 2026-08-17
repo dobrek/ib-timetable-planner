@@ -247,24 +247,32 @@ deliberately does not hold.
 
 Do them in this order — each step depends on the one above it.
 
-- [ ] **1. Enable the hook on hosted, via the dashboard** (Authentication → Hooks → Customize Access
+> **Completed 2026-08-17** (S-302, all six). The verification in step 3 returned
+> `role: solver_job_writer`, and step 6's campaign job succeeded on a scratch plan against hosted.
+> Re-run steps 2–3 on any credential rotation; steps 1 and 5 are one-time unless the project or the
+> deploy token is replaced.
+
+- [x] **1. Enable the hook on hosted, via the dashboard** (Authentication → Hooks → Customize Access
       Token (JWT) Claims → `public.custom_access_token_hook`). Do **not** use `supabase config push`
       without reading § Hosted enablement first — it pushes the whole dev `config.toml` and would
       repoint production's auth `site_url` at localhost.
-- [ ] **2. Provision the hosted machine user.** `SOLVER_MACHINE_PASSWORD='…' node
+- [x] **2. Provision the hosted machine user.** `SOLVER_MACHINE_PASSWORD='…' node
 scripts/provision-solver-user.mjs` against hosted, with the hosted **service-role** key
       exported in a human shell (CI deliberately holds none). Store the password in your password
       manager and in `.envs/prod-solver.vars`.
-- [ ] **3. Verify the claim.** Sign in as the machine user against hosted and decode the token —
+- [x] **3. Verify the claim.** Sign in as the machine user against hosted and decode the token —
       `role` must read `solver_job_writer`. The `curl` one-liner in § Hosted enablement does it.
-- [ ] **4. `pnpm exec wrangler secret put SOLVER_MACHINE_PASSWORD`** on the Worker. `SUPABASE_URL`
+- [x] **4. `pnpm exec wrangler secret put SOLVER_MACHINE_PASSWORD`** on the Worker. `SUPABASE_URL`
       and `SUPABASE_KEY` already exist there. Confirm with `wrangler secret list`.
-- [ ] **5. Add `Containers: Edit` to the Cloudflare API token** (account-scoped), alongside the
+- [x] **5. Add `Containers: Edit` to the Cloudflare API token** (account-scoped), alongside the
       existing `Workers Scripts: Edit` — or mint a replacement token carrying both and rotate the
       `CLOUDFLARE_API_TOKEN` repository secret. Record which you did. Cloudflare's
       `Edit Cloudflare Workers` template does **not** include Containers; if a container push 403s,
       `Cloudchamber: Edit` is the documented fallback.
-- [ ] **6. Run `mise run solver:hosted` once against hosted** with a scratch plan, as the end-to-end
+      → **2026-08-17: no change needed.** The existing deploy token already carried
+      `Containers: Edit`, so nothing was added and no token was rotated. The narrow-token posture is
+      unchanged by S-302.
+- [x] **6. Run `mise run solver:hosted` once against hosted** with a scratch plan, as the end-to-end
       credential proof. Inspect the resulting proposal clone, then delete it.
 
 > **Step 4 corrects an earlier claim in this runbook.** It used to say "store the password in the

@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Final
 from uuid import UUID
@@ -26,7 +28,8 @@ from jsonschema.protocols import Validator
 
 from .registry import JobRegistry, Registration
 from .runner import start_job
-from .settings import settings
+from .settings import Settings, settings
+from .supabase import REQUIRED_ROLE, JobRowClient
 
 log = logging.getLogger("cpsat_service.app")
 
@@ -45,7 +48,25 @@ logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s 
 REPO_ROOT: Final = Path(__file__).resolve().parents[4]
 SCHEMA_PATH: Final = REPO_ROOT / "contracts" / "generation-wire.schema.json"
 
-app = FastAPI(title="CP-SAT solver service", version="0.1.0")
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Announce the effective configuration, then prove the credential before serving anything.
+
+    Both halves exist because the alternative is silence. `sign_in()` is otherwise LAZY — first
+    called from the worker thread, after the handler has already answered 202 — and `runner._claim`
+    swallows what it raises, so a wrong role would leave the row `queued` forever with one log line
+    as its entire trace. Asserting at boot instead makes the failure visible and self-cleaning:
+    uvicorn exits non-zero on a lifespan error, the port never binds, `startAndWaitForPorts` fails,
+    and the dispatch error already marks the row `failed` and deletes the clone.
+
+    `/health` stays dependency-free on purpose — the check lives here, not in the endpoint.
+    """
+    _log_startup(settings)
+    _verify_credential(settings)
+    yield
+
+
+app = FastAPI(title="CP-SAT solver service", version="0.1.0", lifespan=lifespan)
 registry = JobRegistry(capacity=settings.max_concurrent_jobs)
 
 
@@ -93,6 +114,56 @@ async def solve(job_id: UUID, request: Request) -> dict[str, str]:
         registry.release(key)
         raise
     return {"status": outcome.value, "jobId": key}
+
+
+def _log_startup(current: Settings) -> None:
+    """The effective, non-secret configuration, once — never the password or the key.
+
+    This is the line a production smoke reads to prove `SOLVER_WORKERS` is what the container config
+    set rather than what `settings.py` defaults to, and the line that catches the `contracts/` trap
+    at boot instead of at the first 500: a wrong image layout leaves the validator None while
+    `/health` stays green.
+    """
+    log.info(
+        "solver service starting: workers=%d max_concurrent_jobs=%d log_level=%s machine_email=%s "
+        "supabase_url=%s credential_configured=%s wire_contract=%s",
+        current.workers,
+        current.max_concurrent_jobs,
+        current.log_level,
+        current.machine_email,
+        current.supabase_url or "<unset>",
+        current.configured,
+        "loaded" if _SOLVE_REQUEST_VALIDATOR is not None else f"UNREADABLE at {SCHEMA_PATH}",
+    )
+
+
+def _verify_credential(current: Settings) -> None:
+    """Sign in once and let `assert_role` refuse anything but the narrow role — fatally.
+
+    Fatal is the point: absence of the Custom Access Token Hook fails *upward* into a token that
+    reaches every table, so "don't start" is the only safe answer. An unconfigured container skips
+    the check entirely and still answers `/health`, exactly as `settings.py` promises — that is what
+    a platform probe hits before secrets are wired, and how the tier-2 image smoke boots.
+    """
+    if not current.configured:
+        log.warning(
+            "Supabase is not configured — skipping the startup credential check; /health will "
+            "answer, and the first solve will fail loudly at its first database call"
+        )
+        return
+    client = JobRowClient(current)
+    try:
+        client.sign_in()
+    except Exception:
+        log.exception(
+            "the startup credential check failed — refusing to start. If the role claim is the "
+            "cause, enable the Custom Access Token Hook and re-verify: "
+            "docs/runbooks/solver-credential.md § Hosted enablement"
+        )
+        raise
+    finally:
+        client.close()
+    log.info("startup credential check passed: the access token carries role=%s", REQUIRED_ROLE)
 
 
 async def _json_body(request: Request) -> Any:

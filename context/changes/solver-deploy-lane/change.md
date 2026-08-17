@@ -1,15 +1,40 @@
 ---
 change_id: solver-deploy-lane
 title: Solver deploy lane
-status: plan_reviewed
+status: implementing
 created: 2026-08-15
-updated: 2026-08-16
+updated: 2026-08-17
 archived_at: null
 ---
 
 ## Notes
 
 <!-- Free-form notes for this change: links, ad-hoc context, decisions that don't belong in research/frame/plan. -->
+
+### 2026-08-17 — Phase 1 measurements: the image is 394 MB, and the credential check is fatal at boot.
+
+**Image**: `ib-solver:local` builds at **394 MB** on `python:3.13-slim`, linux/amd64 — inside the
+330–450 MB band the research projected, and the number `CONTAINER_START_TIMEOUT_MS` (Phase 2) and the
+Phase 7 cold-start measurement should be read against. First build on this machine took ~2m24s
+including the cross-arch base pulls; that is the figure the CI deploy wall-clock will be compared to.
+
+**Where the role assertion runs.** Plan review F1's Fix A shipped: a startup (FastAPI lifespan)
+assertion *plus* the per-mint one in `sign_in()`. The startup half is fatal — uvicorn exits non-zero
+on a lifespan error, so the container never binds :8000. Drilled with a deliberately wrong password:
+the container exited, and `mise run solver:image:smoke` reported it as "exited before binding :8000"
+rather than hanging. The wrong-*role* half was drilled separately by disabling the local hook.
+
+**What the tier-2 smoke actually proved**, beyond 202: the container's own startup line reads
+`wire_contract=loaded` (so the `parents[4]` layout holds inside the image) and `workers=4` (so the
+`envVars` channel production will use works). `.venv` (269 MB of arm64) and `services/solver/data`
+stayed out of the context; `contracts/` came in. ortools imports cleanly under amd64 emulation on
+Apple silicon — no SIGILL, so tier 2 is usable on this hardware for correctness (never for timing).
+
+**A gap worth naming.** The smoke's default job id has no queued row, so the worker correctly logs
+"not claimable" and stops — the smoke alone cannot show a row advancing. The full
+`queued → running → succeeded` advance through the *image* was proved instead by running the
+container on :8000 and pointing `solver-transport.integration.test.ts` at it. That recipe is not a
+mise task; if it is wanted repeatedly, it belongs in the README's tier-2 section (Phase 3 §4).
 
 ### 2026-08-16 — No path filtering in CI. Deliberate deviation from FR-315's wording.
 

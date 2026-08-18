@@ -35,42 +35,15 @@ uv = "0.12.3"
 shellcheck = "0.11.0"
 
 # --- solver (services/solver) ---------------------------------------------------------------------
-# ortools pins protobuf/numpy tightly, so this package owns a dedicated venv and every task runs
-# from its directory. `uv run` builds/refreshes that venv on demand — no activate step to forget.
+# ortools pins protobuf/numpy tightly, so this package owns a dedicated venv and every `uv` command
+# runs from the package directory — supplied by `dir` for the one-liner tasks below, and by an
+# explicit `cd` inside `dev.sh`, which self-locates to the repo root first like every task script.
+# `uv run` builds/refreshes that venv on demand — no activate step to forget.
 
 [tasks."solver:dev"]
 description = "Run the CP-SAT solver service on :8000 (needs the local Supabase stack + a provisioned machine user)"
-dir = "{{config_root}}/services/solver"
-run = '''
-{% raw %}
-# Fail fast on a missing credential, at the TASK level.
-#
-# The service deliberately boots without one — `/health` must answer on a bare container, which is
-# what a platform probe hits before secrets are wired — so absence surfaces at the first job. In a
-# container that is right. On a developer's machine it is a trap: uvicorn comes up looking healthy
-# and every dispatch is refused with a 503 (row → `failed`, clone deleted). Before `solve` learned
-# to refuse (2026-08-18) the service TOOK the job and the row wedged at `queued`; measured cost of
-# learning that the hard way: one wedged row and a manual DELETE.
-#
-# So the guard lives here rather than in `settings.py`, where it would break the bare-container
-# promise. `solver:image:smoke` carries the same guard for the same reason.
-missing=""
-if [ -z "${SUPABASE_URL:-}" ]; then missing="$missing SUPABASE_URL"; fi
-if [ -z "${SUPABASE_KEY:-}" ]; then missing="$missing SUPABASE_KEY"; fi
-if [ -z "${SOLVER_MACHINE_PASSWORD:-}" ]; then missing="$missing SOLVER_MACHINE_PASSWORD"; fi
-if [ -n "$missing" ]; then
-  echo "solver:dev is missing:$missing" >&2
-  echo >&2
-  echo "  set -a; . .envs/local.vars; set +a      # SUPABASE_URL + SUPABASE_KEY" >&2
-  echo "  export SOLVER_MACHINE_PASSWORD='...'   # what you gave provision-solver-user.mjs" >&2
-  echo >&2
-  echo "Starting without these would look healthy, take a real dispatch, and leave the job row" >&2
-  echo "stuck at 'queued' with an orphan proposal plan. See README § Running the solver service." >&2
-  exit 1
-fi
-uv run uvicorn cpsat_service.app:app --port 8000
-{% endraw %}
-'''
+dir = "{{config_root}}"
+run = "sh {{config_root}}/scripts/solver/dev.sh"
 
 [tasks."solver:test"]
 description = "Run the solver's pytest suite (engine + contract + HTTP wrapper)"
@@ -97,127 +70,12 @@ run = ["uv run ruff check", "uv run mypy", "sh {{config_root}}/scripts/solver/li
 [tasks."solver:image:build"]
 description = "Build the linux/amd64 solver container image (tier 2) — needs Docker Desktop running"
 dir = "{{config_root}}"
-run = '''
-{% raw %}
-set -eu
-docker build --platform linux/amd64 -f services/solver/Dockerfile -t ib-solver:local .
-
-# `wrangler containers push` rejects a non-amd64 image outright, and an arm64 build on this machine
-# is the easy accident — so the assertion belongs here, not in a reviewer's head.
-arch=$(docker image inspect ib-solver:local --format '{{.Architecture}}')
-if [ "$arch" != "amd64" ]; then
-  echo "ib-solver:local is $arch, not amd64 — 'wrangler containers push' would reject it" >&2
-  exit 1
-fi
-size=$(docker image inspect ib-solver:local --format '{{.Size}}' | awk '{printf "%.0f MB", $1/1000000}')
-echo "ib-solver:local  arch=$arch  size=$size"
-{% endraw %}
-'''
+run = "sh {{config_root}}/scripts/solver/image-build.sh"
 
 [tasks."solver:image:smoke"]
 description = "Smoke the tier-2 image: boot it against the local stack and POST a golden SolveRequest, asserting 202"
 dir = "{{config_root}}"
-run = '''
-{% raw %}
-set -eu
-
-# A `/health` probe is NOT sufficient here, and that is the whole point of this task. The contract
-# validator fails OPEN (`app.py:_build_validator` returns None when `contracts/` is missing), so a
-# wrong image layout leaves `/health` green while every solve 500s. Only a real `SolveRequest` body
-# tells the two apart.
-image=ib-solver:local
-container=ib-solver-smoke
-job_id="${SMOKE_JOB_ID:-11111111-2222-4333-8444-555555555555}"
-
-if [ -z "${SOLVER_MACHINE_PASSWORD:-}" ]; then
-  echo "SOLVER_MACHINE_PASSWORD is unset. The container signs in at STARTUP, so it would exit" >&2
-  echo "before binding :8000 rather than failing later. Export the password you provisioned with" >&2
-  echo "scripts/provision-solver-user.mjs — the same way 'mise run solver:dev' gets it." >&2
-  exit 1
-fi
-
-supabase_key="${SUPABASE_KEY:-}"
-if [ -z "$supabase_key" ] && [ -f .envs/local.vars ]; then
-  supabase_key=$(sed -n 's/^SUPABASE_KEY=//p' .envs/local.vars | head -1)
-fi
-if [ -z "$supabase_key" ]; then
-  echo "No SUPABASE_KEY in the environment and none readable from .envs/local.vars." >&2
-  echo "Export the local stack's PUBLISHABLE key (never the secret key)." >&2
-  exit 1
-fi
-
-docker image inspect "$image" >/dev/null 2>&1 || {
-  echo "$image does not exist — run 'mise run solver:image:build' first." >&2
-  exit 1
-}
-
-docker rm -f "$container" >/dev/null 2>&1 || true
-cleanup() {
-  echo "--- container log -----------------------------------------------------------------"
-  docker logs "$container" 2>&1 || true
-  echo "-----------------------------------------------------------------------------------"
-  docker rm -f "$container" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
-
-# `host.docker.internal` is how the container reaches the stack on the HOST; `--add-host` makes the
-# name resolve on engines that do not provide it for free. The env trio is exactly what production
-# forwards through the Container class's `envVars` — no secret key, no service-role key.
-docker run -d --name "$container" \
-  --platform linux/amd64 \
-  --add-host host.docker.internal:host-gateway \
-  -p 8000:8000 \
-  -e SUPABASE_URL=http://host.docker.internal:54321 \
-  -e SUPABASE_KEY="$supabase_key" \
-  -e SOLVER_MACHINE_PASSWORD="$SOLVER_MACHINE_PASSWORD" \
-  -e SOLVER_WORKERS=4 \
-  -e SOLVER_MAX_CONCURRENT_JOBS=1 \
-  -e SOLVER_LOG_LEVEL=INFO \
-  "$image" >/dev/null
-
-waited=0
-until curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1; do
-  if [ "$(docker inspect -f '{{.State.Running}}' "$container")" != "true" ]; then
-    echo "the container exited before binding :8000 — a FAILED STARTUP CREDENTIAL CHECK looks" >&2
-    echo "exactly like this. Is the local Supabase stack up, and the machine user provisioned?" >&2
-    exit 1
-  fi
-  waited=$((waited + 1))
-  if [ "$waited" -gt 90 ]; then
-    echo "the container never answered /health within 90s" >&2
-    exit 1
-  fi
-  sleep 1
-done
-echo "/health is up after ${waited}s"
-
-body=$(mktemp)
-code=$(curl -s -o "$body" -w '%{http_code}' -X POST \
-  -H 'Content-Type: application/json' \
-  --data-binary @contracts/fixtures/solve-request.json \
-  "http://127.0.0.1:8000/jobs/$job_id/solve")
-
-if [ "$code" = "500" ]; then
-  echo "500 on a KNOWN-VALID golden body — this is the contracts/ layout trap." >&2
-  echo "The image must preserve <root>/services/solver/src/... beside <root>/contracts/ so that" >&2
-  echo "app.py's parents[4] anchor resolves. Response body:" >&2
-  cat "$body" >&2
-  rm -f "$body"
-  exit 1
-fi
-if [ "$code" != "202" ]; then
-  echo "expected 202 from the golden SolveRequest, got $code:" >&2
-  cat "$body" >&2
-  rm -f "$body"
-  exit 1
-fi
-rm -f "$body"
-echo "202 accepted for job $job_id — the wire contract resolved inside the image"
-echo
-echo "With a job id that has no queued row the worker logs 'not claimable' and stops: that is the"
-echo "expected smoke outcome. Set SMOKE_JOB_ID to a real queued row to watch a full advance."
-{% endraw %}
-'''
+run = "sh {{config_root}}/scripts/solver/image-smoke.sh"
 
 # --- local fidelity tier 3 + the hosted-solve campaign ---------------------------------------------
 

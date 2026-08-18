@@ -536,31 +536,31 @@ list; Dockerfile COPYs only `contracts` and `services/solver`), and no `wrangler
 
 #### Automated
 
-- [x] 1.1 `mise install` provisions shellcheck 0.11.0 (`mise x -- shellcheck --version`)
-- [x] 1.2 `mise run solver:check` passes (ruff, mypy, lint.sh)
-- [x] 1.3 `sh scripts/solver/lint.sh` exits 0; with `set -eu` commented out of `common.sh` it exits non-zero naming the file
-- [x] 1.4 `shellcheck -o check-set-e-suppressed scripts/solver/*.sh` reports zero findings
+- [x] 1.1 `mise install` provisions shellcheck 0.11.0 (`mise x -- shellcheck --version`) — 5e40ed7
+- [x] 1.2 `mise run solver:check` passes (ruff, mypy, lint.sh) — 5e40ed7
+- [x] 1.3 `sh scripts/solver/lint.sh` exits 0; with `set -eu` commented out of `common.sh` it exits non-zero naming the file — 5e40ed7
+- [x] 1.4 `shellcheck -o check-set-e-suppressed scripts/solver/*.sh` reports zero findings — 5e40ed7
 - [ ] 1.5 CI `verify` job green on the branch, with the shellcheck step logging `version: 0.11.0`
 
 #### Manual
 
-- [x] 1.6 The pinned tarball sha256 in `ci.yml` was computed from the downloaded artifact, not typed from memory
+- [x] 1.6 The pinned tarball sha256 in `ci.yml` was computed from the downloaded artifact, not typed from memory — 5e40ed7
 
 ### Phase 2: Extract tiers 1–2 — `dev.sh`, `image-build.sh`, `image-smoke.sh`
 
 #### Automated
 
-- [ ] 2.1 `mise run solver:check` passes (lint.sh covers the three new scripts)
-- [ ] 2.2 `mise tasks ls` still lists `solver:dev`, `solver:image:build`, `solver:image:smoke` with their descriptions
-- [ ] 2.3 `grep -c '{% raw %}' mise.toml` shows only the two remaining tasks (tier3, hosted)
-- [ ] 2.4 `mise run solver:dev` with the trio unset exits 1 with the remediation block
+- [x] 2.1 `mise run solver:check` passes (lint.sh covers the three new scripts)
+- [x] 2.2 `mise tasks ls` still lists `solver:dev`, `solver:image:build`, `solver:image:smoke` with their descriptions
+- [x] 2.3 `grep -c '{% raw %}' mise.toml` shows only the two remaining tasks (tier3, hosted)
+- [x] 2.4 `mise run solver:dev` with the trio unset exits 1 with the remediation block
 
 #### Manual
 
-- [ ] 2.5 Tier 1: `mise run solver:dev` with the trio logs `credential_configured=True` and `startup credential check passed`
-- [ ] 2.6 Tier 2: `mise run solver:image:build` prints `arch=amd64`; `mise run solver:image:smoke` prints `202 accepted for job …` and the container log block on exit
-- [ ] 2.7 Smoke without the password refuses with the same message; smoke with a stopped stack hits the liveness bail, not the 90 s timeout
-- [ ] 2.8 `sh scripts/solver/image-build.sh` invoked from `services/solver/` still builds with the repo-root context
+- [x] 2.5 Tier 1: `mise run solver:dev` with the trio logs `credential_configured=True` and `startup credential check passed`
+- [x] 2.6 Tier 2: `mise run solver:image:build` prints `arch=amd64`; `mise run solver:image:smoke` prints `202 accepted for job …` and the container log block on exit
+- [x] 2.7 Smoke without the password refuses with the same message; smoke with a stopped stack hits the liveness bail, not the 90 s timeout
+- [x] 2.8 `sh scripts/solver/image-build.sh` invoked from `services/solver/` still builds with the repo-root context
 
 ### Phase 3: Extract tier 3 + the hosted campaign — `tier3.sh`, `hosted.sh`
 

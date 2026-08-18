@@ -536,15 +536,15 @@ list; Dockerfile COPYs only `contracts` and `services/solver`), and no `wrangler
 
 #### Automated
 
-- [ ] 1.1 `mise install` provisions shellcheck 0.11.0 (`mise x -- shellcheck --version`)
-- [ ] 1.2 `mise run solver:check` passes (ruff, mypy, lint.sh)
-- [ ] 1.3 `sh scripts/solver/lint.sh` exits 0; with `set -eu` commented out of `common.sh` it exits non-zero naming the file
-- [ ] 1.4 `shellcheck -o check-set-e-suppressed scripts/solver/*.sh` reports zero findings
+- [x] 1.1 `mise install` provisions shellcheck 0.11.0 (`mise x -- shellcheck --version`)
+- [x] 1.2 `mise run solver:check` passes (ruff, mypy, lint.sh)
+- [x] 1.3 `sh scripts/solver/lint.sh` exits 0; with `set -eu` commented out of `common.sh` it exits non-zero naming the file
+- [x] 1.4 `shellcheck -o check-set-e-suppressed scripts/solver/*.sh` reports zero findings
 - [ ] 1.5 CI `verify` job green on the branch, with the shellcheck step logging `version: 0.11.0`
 
 #### Manual
 
-- [ ] 1.6 The pinned tarball sha256 in `ci.yml` was computed from the downloaded artifact, not typed from memory
+- [x] 1.6 The pinned tarball sha256 in `ci.yml` was computed from the downloaded artifact, not typed from memory
 
 ### Phase 2: Extract tiers 1–2 — `dev.sh`, `image-build.sh`, `image-smoke.sh`
 

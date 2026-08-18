@@ -1,7 +1,7 @@
 ---
 change_id: solver-mise-scripts-extract
 title: Extract the solver mise task bodies into tested shell scripts
-status: plan_reviewed
+status: implementing
 created: 2026-08-18
 updated: 2026-08-18
 archived_at: null
@@ -54,6 +54,11 @@ that grounds it.
    `aqua:koalaman/shellcheck`; it is not installed locally today) *and* by pinning `runs-on: ubuntu-24.04`
    for the job that runs it — `ubuntu-latest` ships 0.9.0 now and 0.11.0 after the image migration.
    `mise.toml:17-21` already argues developer and gate should match. (§7)
+   **Superseded in part (2026-08-18, planning → implementation):** the `runs-on: ubuntu-24.04` half is
+   dropped. CI downloads shellcheck 0.11.0 from a pinned release URL, checks its sha256 and asserts the
+   version, so the runner image's preinstalled copy is irrelevant and `runs-on` stays `ubuntu-latest`.
+   Developer/gate parity now comes from two version literals — `mise.toml` `[tools]` and `ci.yml`'s
+   install step — that must move together. See the planning addenda below.
 5. **CI's health-wait stays a third copy.** `.github/workflows/ci.yml:84-102` is not absorbed into the
    shared helper — a workflow step cannot cleanly source a repo shell script. Recorded as a decision so
    it does not read as an oversight. (§5)

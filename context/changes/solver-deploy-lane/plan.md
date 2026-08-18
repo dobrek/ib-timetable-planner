@@ -531,86 +531,86 @@ Squash-merge the PR; watch the first container deploy; prove the binding path in
 
 #### Automated
 
-- [x] 1.1 `mise run solver:check` (ruff + mypy --strict) passes — 0dbf6f2
-- [x] 1.2 `mise run solver:test` passes, including the new role-assertion tests — 0dbf6f2
-- [x] 1.3 `mise run solver:image:build` produces a linux/amd64 image — 0dbf6f2
-- [x] 1.4 `mise run solver:image:smoke` returns 202 for the golden fixture against the local Supabase stack — 0dbf6f2
+- [x] 1.1 `mise run solver:check` (ruff + mypy --strict) passes — e004417
+- [x] 1.2 `mise run solver:test` passes, including the new role-assertion tests — e004417
+- [x] 1.3 `mise run solver:image:build` produces a linux/amd64 image — e004417
+- [x] 1.4 `mise run solver:image:smoke` returns 202 for the golden fixture against the local Supabase stack — e004417
 
 #### Manual
 
-- [x] 1.5 Image size is in the ~330–450 MB range — 0dbf6f2
-- [x] 1.6 Smoke log shows the job row advancing in local `generation_jobs` — 0dbf6f2
-- [x] 1.7 Role assertion observed to refuse a token when the local hook is temporarily disabled (optional drill) — 0dbf6f2
+- [x] 1.5 Image size is in the ~330–450 MB range — e004417
+- [x] 1.6 Smoke log shows the job row advancing in local `generation_jobs` — e004417
+- [x] 1.7 Role assertion observed to refuse a token when the local hook is temporarily disabled (optional drill) — e004417
 
 ### Phase 2: Worker entry, container binding, transport selector
 
 #### Automated
 
-- [x] 2.1 `pnpm exec astro sync && pnpm check` — 0 errors, 0 warnings — f6097bb
-- [x] 2.2 `pnpm lint`, `pnpm steiger`, `pnpm test` pass (new transport/selector tests included) — f6097bb
-- [x] 2.3 `pnpm build` succeeds; `entry.mjs` exports `SolverContainer`; `dist/server/wrangler.json` carries containers, DO binding, migration, `dev.enable_containers: false` — f6097bb
-- [x] 2.4 `wrangler deploy --dry-run --containers-rollout=none` (Docker-free) lists `env.SOLVER (SolverContainer)`; full `--dry-run` with Docker builds the image and lists the container — f6097bb
+- [x] 2.1 `pnpm exec astro sync && pnpm check` — 0 errors, 0 warnings — cf6e592
+- [x] 2.2 `pnpm lint`, `pnpm steiger`, `pnpm test` pass (new transport/selector tests included) — cf6e592
+- [x] 2.3 `pnpm build` succeeds; `entry.mjs` exports `SolverContainer`; `dist/server/wrangler.json` carries containers, DO binding, migration, `dev.enable_containers: false` — cf6e592
+- [x] 2.4 `wrangler deploy --dry-run --containers-rollout=none` (Docker-free) lists `env.SOLVER (SolverContainer)`; full `--dry-run` with Docker builds the image and lists the container — cf6e592
 
 #### Manual
 
-- [x] 2.5 `pnpm env:local && pnpm build && pnpm preview` starts without Docker and Generate dispatches to a native solver — f6097bb
-- [x] 2.6 Bundle size delta is negligible (< 50 KiB) — f6097bb
+- [x] 2.5 `pnpm env:local && pnpm build && pnpm preview` starts without Docker and Generate dispatches to a native solver — cf6e592
+- [x] 2.6 Bundle size delta is negligible (< 50 KiB) — cf6e592
 
 ### Phase 3: Local modes — hosted-solve campaign and tier 3
 
 #### Automated
 
-- [x] 3.1 `pnpm env:prod-solver && pnpm env:local` round-trips — ad10ad6
-- [x] 3.2 `mise tasks` lists `solver:image:build`, `solver:image:smoke`, `solver:tier3`, `solver:hosted` with descriptions — ad10ad6
-- [x] 3.3 `pnpm lint`/`pnpm check` still green — ad10ad6
+- [x] 3.1 `pnpm env:prod-solver && pnpm env:local` round-trips — dc7e77f
+- [x] 3.2 `mise tasks` lists `solver:image:build`, `solver:image:smoke`, `solver:tier3`, `solver:hosted` with descriptions — dc7e77f
+- [x] 3.3 `pnpm lint`/`pnpm check` still green — dc7e77f
 
 #### Manual
 
-- [x] 3.4 `mise run solver:tier3` boots workerd with the container; a local Generate reaches the container and completes — ad10ad6
-- [x] 3.5 `mise run solver:hosted` rehearsed against a local stand-in; run against hosted once after Phase 6 — ad10ad6
-- [x] 3.6 Aborting the campaign restores `env:local` and stops the solver — ad10ad6
+- [x] 3.4 `mise run solver:tier3` boots workerd with the container; a local Generate reaches the container and completes — dc7e77f
+- [x] 3.5 `mise run solver:hosted` rehearsed against a local stand-in; run against hosted once after Phase 6 — dc7e77f
+- [x] 3.6 Aborting the campaign restores `env:local` and stops the solver — dc7e77f
 
 ### Phase 4: CI deploy lane
 
 #### Automated
 
-- [x] 4.1 Workflow YAML valid; no `paths` keys anywhere in `ci.yml` — 0d2b562
-- [x] 4.2 Full CI run on the branch is green (`deploy` skipped on non-main) — 4ed07c3
+- [x] 4.1 Workflow YAML valid; no `paths` keys anywhere in `ci.yml` — 1a91af6
+- [x] 4.2 Full CI run on the branch is green (`deploy` skipped on non-main) — 9d184e0
 
 #### Manual
 
-- [x] 4.3 Reviewer confirms `deploy.needs`/`if:` lines are byte-identical to `main` — 4ed07c3
+- [x] 4.3 Reviewer confirms `deploy.needs`/`if:` lines are byte-identical to `main` — 9d184e0
 
 ### Phase 5: Doc truth-up
 
 #### Automated
 
-- [x] 5.1 No live-hazard `containers#162` wording remains in CLAUDE.md / prd.md / roadmap.md — 4ed07c3
-- [x] 5.2 No unqualified "path-filtered" wording remains in prd.md / roadmap.md — 4ed07c3
-- [x] 5.3 `pnpm format` clean on touched markdown — 4ed07c3
+- [x] 5.1 No live-hazard `containers#162` wording remains in CLAUDE.md / prd.md / roadmap.md — 9d184e0
+- [x] 5.2 No unqualified "path-filtered" wording remains in prd.md / roadmap.md — 9d184e0
+- [x] 5.3 `pnpm format` clean on touched markdown — 9d184e0
 
 #### Manual
 
-- [x] 5.4 Each stale-claim row in `research.md` § Historical Context has a corresponding edit — 4ed07c3
-- [x] 5.5 FR-315/FR-316 read as an accurate description of what ships — 4ed07c3
+- [x] 5.4 Each stale-claim row in `research.md` § Historical Context has a corresponding edit — 9d184e0
+- [x] 5.5 FR-315/FR-316 read as an accurate description of what ships — 9d184e0
 
 ### Phase 6: Manual hosted gate (human)
 
 #### Manual
 
-- [x] 6.1 Decoded hosted token shows `role: solver_job_writer` — a801171
-- [x] 6.2 `wrangler secret list` shows `SOLVER_MACHINE_PASSWORD` — a801171
-- [x] 6.3 CF token has `Containers: Edit` (verified in dashboard) — a801171
-- [x] 6.4 One hosted-solve campaign job completed on a scratch plan; clone inspected/deleted — a801171
+- [x] 6.1 Decoded hosted token shows `role: solver_job_writer` — aba4ce0
+- [x] 6.2 `wrangler secret list` shows `SOLVER_MACHINE_PASSWORD` — aba4ce0
+- [x] 6.3 CF token has `Containers: Edit` (verified in dashboard) — aba4ce0
+- [x] 6.4 One hosted-solve campaign job completed on a scratch plan; clone inspected/deleted — aba4ce0
 
 ### Phase 7: Merge, first deploy, production smoke
 
 #### Automated
 
-- [ ] 7.1 `deploy` job green on `main`; `wrangler deployments list` shows the new version
+- [x] 7.1 `deploy` job green on `main`; `wrangler deployments list` shows the new version
 
 #### Manual
 
-- [ ] 7.2 Production Generate on a scratch plan succeeds via the container binding
-- [ ] 7.3 Container instance type/region/env verified; cold-start latency and deploy wall-clock recorded in `change.md`
-- [ ] 7.4 Rollback section's roll-forward policy re-read against reality
+- [x] 7.2 Production Generate on a scratch plan succeeds via the container binding
+- [x] 7.3 Container instance type/region/env verified; cold-start latency and deploy wall-clock recorded in `change.md`
+- [x] 7.4 Rollback section's roll-forward policy re-read against reality

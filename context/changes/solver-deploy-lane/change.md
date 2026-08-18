@@ -1,9 +1,9 @@
 ---
 change_id: solver-deploy-lane
 title: Solver deploy lane
-status: implementing
+status: implemented
 created: 2026-08-15
-updated: 2026-08-17
+updated: 2026-08-18
 archived_at: null
 ---
 
@@ -29,6 +29,136 @@ is entirely about keeping `cloudflare:workers` and `@cloudflare/containers` unre
 `entities/timetable/index.ts` — that came out at exactly zero, because the binding transport takes a
 structural `ContainerLike` and its only package import is `import type`. A future threshold should
 be stated against `dist/client`, where it can actually regress.
+
+### 2026-08-18 — Production smoke: the numbers, from the container's own log export.
+
+Job `386b9d35`, scratch plan, **248 placements**. Every timing below is from the exported container
+logs (`dataset: containers`), so they are production measurements — the first in this change that
+S-308 may quote.
+
+| Measurement | Value |
+| ----------- | ----- |
+| **Cold start** — `startAndWaitForPorts` → `202 Accepted` | **~5.5 s** |
+| ...of which process boot → uvicorn listening | 0.40 s |
+| ...process boot → 202 accepted | 0.70 s |
+| **Solve** — `solving with 4 workers` → `succeeded` | **14.72 min** |
+| **Sleep** — last request → `Shutting down` | **30.002 min** |
+| Placement colo | `TXL` (Berlin) — `EEUR` pinning honoured |
+
+**`CONTAINER_START_TIMEOUT_MS = 45_000` is correct and generous.** A 5.5 s cold start on a 394 MB
+image leaves an 8× margin. Left unchanged; the constant is now evidence-backed rather than a guess,
+and the "measure on the deployed container" comment in `solver-binding-transport.ts` is discharged.
+
+**Two things I asserted during the smoke and had to withdraw**, both corrected by this export:
+
+1. *"The 2–6 s was a warm start, the deploy left an instance running."* **Wrong.** There are no
+   container logs at all between the 07:09:34 rollout and `Started server process [1]` at 07:14:07 —
+   the deploy provisioned an instance record without starting the process. This was a genuine cold
+   start. `wrangler containers instances` reporting `STATE: running` for a provisioned-but-not-
+   executing instance is what misled me; that field is not a statement about the process.
+2. *"Every deploy starts a ~30-minute billing window."* **Also wrong**, for the same reason —
+   nothing ran until the first dispatch.
+
+**The sleep hazard is now measured, not reasoned.** Shutdown began 30.002 minutes after the **last
+HTTP request** (the 07:14:08 dispatch), *not* 30 minutes after the solve ended at 07:28:51. Dispatch
+is 202-and-detach, so a 14.7-minute solve renews nothing: the effective budget is **30 minutes from
+dispatch**, and the PRD's 20-minute ceiling sits inside it with ~10 minutes of headroom. A solve that
+overran would be killed — and the shutdown sequence (`Shutting down` → `Application shutdown
+complete.` → `Finished server process [1]`, all inside 100 ms) confirms uvicorn does not wait for the
+daemon thread that does the solving. This is precisely S-304's scope, and it now has a number.
+
+**4 workers cost far less than feared.** 14.72 min against F-302's ~12.5 min at 8 workers on an M4 —
+about **18% slower**, not the 3–5× the local-hardware multiplier suggested. The portfolio-diversity
+trade-off recorded when `SOLVER_WORKERS=4` was chosen looks cheap on this evidence. S-308 still owns
+the real calibration; this is one data point on one catalog, not a budget.
+
+**Cost, recomputed from observed behaviour.** One solve holds the container ~30 min of provisioned
+time plus ~14.7 min of 4-vCPU activity ≈ $0.13. At 5 solves/day that is **~$18/month** before free
+tiers, ~$15 after — consistent with the restated PRD figure, and firmly not the original ≈$7.
+
+**One cosmetic finding.** `GET / HTTP/1.1 404` appears at 07:14:08.287: the Container class's
+port-readiness probe hits `/`, which the service does not serve. Harmless — a 404 still proves the
+port is listening — but `Container.pingEndpoint` could be set to `/health` to make the log honest.
+Not changed here; noted as a follow-up.
+
+### 2026-08-18 — Follow-ups filed out of S-302.
+
+- **S-304 (lifecycle)** — inherits `sleepAfter: 30m` and `rollout_active_grace_period: 1200`, both
+  stopgaps. The measured facts it needs: the sleep clock runs from the last *request*, and uvicorn's
+  graceful shutdown does not wait for the solve thread.
+- **S-308 (calibration)** — first production data point: 14.72 min / 248 placements at 4 workers on
+  `standard-4`, colo TXL. Also inherits the question of whether 4 remains right.
+- **S-306 (E2E)** — Generate still has no browser coverage; S-302 did not close it.
+- **Not scheduled, recorded as gaps**: no image vulnerability scanner (base pinned by tag, not
+  digest); no egress restriction (`enableInternet` defaults true, `allowedHosts` unset);
+  `pingEndpoint` left at `/`; and the Worker-side hole where a *missing* `SOLVER_MACHINE_PASSWORD`
+  lets the container boot unconfigured and wedge jobs silently — fixable by refusing to build a
+  binding transport when the secret is absent.
+- **Closed, not deferred**: GHA Docker layer caching is not warranted (+37 s on a 9-minute pipeline).
+
+### 2026-08-18 — First container deploy: +37 s. GHA layer caching is NOT warranted.
+
+The measurement the no-path-filtering decision promised to take. Run 32109444802, deploy job
+07:07:56 → 07:09:37 = **101 s**, against a **64 s** baseline (the last three successful `main`
+deploys were 64/63/65 s). **Delta: +37 s.**
+
+| Segment | Time |
+| ------- | ---- |
+| `wrangler deploy` step | 41 s |
+| ...image build | ~7.3 s |
+| ...image push (11 layers, `Image does not exist remotely`) | ~17.3 s |
+| ...container application rollout (`NEW`) | ~5 s |
+| `docker version` / `buildx version` sanity step | 3 s |
+
+**Decision: do not add `cache-from`/`cache-to: type=gha`.** +37 s sits on a pipeline whose critical
+path is the 426 s `e2e` job, and the deploy job only starts after all four test jobs finish — so the
+end-to-end effect on "merge to live" is 37 s on ~9 minutes. The accepted cost of no path filtering
+turns out to be almost nothing, which retires research risk 12 (rated **H/M**) rather than
+mitigating it. Re-measure if the image grows substantially; the build is only 7 s today because
+`uv sync` resolves from a committed lockfile with every wheel prebuilt.
+
+**Verified live** (`wrangler containers list` + the deploy's own config echo): `standard-4`, `EEUR`,
+`max_instances: 1`, `scheduling_policy: default`, observability logs enabled, image
+`registry.cloudflare.com/…/ib-timetable-planner-solvercontainer:ac77c484` (digest
+`sha256:587a7a38…`). Worker version `ac77c484-0c0f-4879-8ce1-c3d68a0d8fd4`, startup time 25 ms,
+upload 3844.42 KiB. Cloudflare added `constraints.tiers: [1, 2]` of its own accord — not in our
+config, and not something S-302 set.
+
+**Cost note worth watching.** `containers list` reports **1 live instance immediately after the
+rollout**, before any solve was dispatched. Combined with `sleepAfter: 30m`, that means the deploy
+itself starts a ~30-minute billing window for memory and disk. Every merge to `main` that changes
+the image therefore has a small standing cost beyond the solve itself — a second reason S-304's
+lifecycle work matters, and a number S-308 should fold into its calibration budget.
+
+**The registry push had no 403**, so `Containers: Edit` on the existing token was sufficient and the
+`Cloudchamber: Edit` fallback stays untested.
+
+### 2026-08-18 — PR #115 was REBASE-merged, not squash-merged. Progress SHAs remapped.
+
+CLAUDE.md's convention is "PRs squash-merge onto `main` with a `(#NN)` suffix". #115 landed as a
+**rebase** instead: all seven commits kept their own identity on `main`, without the `(#NN)` suffix,
+and every SHA was rewritten.
+
+**Consequence, and why it needed fixing rather than noting.** Each of the 31 SHA suffixes in the
+plan's Progress section pointed at a branch commit that is unreachable from `main` — `git show` on
+any of them would have failed for anyone reading this change later, and the whole point of the
+suffixes is that a Progress row leads to its diff. Remapped one-to-one by matching the `(pN)` suffix
+in each commit subject, and each replacement was verified with `git merge-base --is-ancestor`:
+
+| Phase | branch | main |
+| ----- | ------ | ---- |
+| p1 | `0dbf6f2` | `e004417` |
+| p2 | `f6097bb` | `cf6e592` |
+| p3 | `ad10ad6` | `dc7e77f` |
+| p4 | `0d2b562` | `1a91af6` |
+| p5 | `4ed07c3` | `9d184e0` |
+| p6 | `a801171` | `aba4ce0` |
+
+**Not a complaint about the merge choice.** A rebase is arguably the better outcome for a
+seven-phase change — the per-phase history survives, and that is exactly what makes the remap a
+clean one-to-one rather than "all rows now point at one squashed commit". But it does mean the
+convention and the practice disagree, and a future change should expect either shape: any tooling
+that reads these suffixes must tolerate SHAs being rewritten between the phase commit and the merge.
 
 ### 2026-08-17 — Phase 6 closed: hosted enablement done, and the campaign is the credential proof.
 

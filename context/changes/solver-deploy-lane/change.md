@@ -1,7 +1,7 @@
 ---
 change_id: solver-deploy-lane
 title: Solver deploy lane
-status: implemented
+status: impl_reviewed
 created: 2026-08-15
 updated: 2026-08-18
 archived_at: null
@@ -10,6 +10,26 @@ archived_at: null
 ## Notes
 
 <!-- Free-form notes for this change: links, ad-hoc context, decisions that don't belong in research/frame/plan. -->
+
+### 2026-08-18 — Impl review: 0 critical / 4 warnings / 5 observations, all nine fixed.
+
+Report: `reviews/impl-review.md`. The one with teeth is **F1**: an unconfigured solver used to
+*accept* a job (202) and wedge it at `queued`; `solve` now refuses with a **503** when
+`settings.configured` is false, so the caller's existing compensation marks the row `failed` and
+deletes the clone. `/health` still answers bare. This retires the "missing `SOLVER_MACHINE_PASSWORD`
+wedges production silently" residual — it now fails loudly per Generate instead. README, `mise.toml`
+and the runbook were truthed-up to match.
+
+The rest: `solver:hosted` refuses when :8000 is already bound and bails when its solver dies
+(F2, closes the "hosted rows dispatched to a local solver" path); the profile is read with `sed`
+rather than executed as shell, and tier 3 writes the password single-quoted, refusing `'`/newline
+(F3 — the bundled dotenv cuts unquoted values at `#` and never unescapes `\'`); both
+`instanceGetTimeoutMS` and `portReadyTimeoutMS` now carry the 45 s budget (F4 — the library's
+get-instance default is only 8 s); the +37 s / 5.5 s measurements are written into the ci.yml and
+transport comments (F5); `.gitignore` covers `.dev.vars*` (F6); `withTimeout` clears its timer (F7);
+`.dockerignore` re-includes `services/solver` only and drops `node_modules`/`.astro`/`tests` — the
+context now holds exactly `contracts/` + `src`, `pyproject.toml`, `uv.lock`, `.python-version`,
+`README.md`, `Dockerfile` (F8); `onStop` uses the package's `StopParams` (F9).
 
 ### 2026-08-17 — Phase 2: bundle delta lands at +54.85 KiB, over criterion 2.6's "< 50 KiB". Accepted.
 
@@ -82,6 +102,9 @@ port is listening — but `Container.pingEndpoint` could be set to `/health` to 
 Not changed here; noted as a follow-up.
 
 ### 2026-08-18 — Follow-ups filed out of S-302.
+
+- **`solver-mise-scripts-extract`** (filed 2026-08-18 after the impl review) — extract the 300+ lines of
+  inline sh in `mise.toml` into `scripts/solver/*.sh` + a shared `lib.sh`, shellcheck-gated; no behaviour change.
 
 - **S-304 (lifecycle)** — inherits `sleepAfter: 30m` and `rollout_active_grace_period: 1200`, both
   stopgaps. The measured facts it needs: the sleep clock runs from the last *request*, and uvicorn's

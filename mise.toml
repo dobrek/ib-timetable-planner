@@ -9,6 +9,12 @@
 # `astral-sh/setup-uv`. That is not duplication to be tidied away — the two paths run the SAME
 # underlying commands (`uv run ruff check`, `uv run mypy`, `uv run pytest`), so a drift between the
 # developer's front door and the gate shows up as a red build rather than as a local-only green.
+#
+# **This file is the catalog, not the code.** Every solver task body lives in `scripts/solver/*.sh`
+# (POSIX sh, `set -eu` first, self-locating, sourcing `common.sh`); a task here is a `description`, a
+# `dir` and a one-line `run`. Those scripts sit in every other gate's blind spot — ESLint ignores
+# `scripts/`, prettier has no shell parser, steiger covers `src`, vitest cannot reach them — so
+# shellcheck via `mise run solver:check` and CI's `verify` job is the only thing that ever reads them.
 
 [env]
 _.path = ['{{config_root}}/node_modules/.bin']
@@ -20,6 +26,13 @@ _.path = ['{{config_root}}/node_modules/.bin']
 # `services/solver/.python-version` (3.13), which uv reads; duplicating it here would create a
 # second source of truth for the interpreter.
 uv = "0.12.3"
+
+# The gate on `scripts/solver/*.sh`, pinned for the same reason `uv` is: this literal must equal the
+# version `.github/workflows/ci.yml`'s verify job downloads (it pins the release URL + sha256 rather
+# than trusting the runner image, which ships 0.9.0 today and 0.11.0 after the `ubuntu-latest`
+# migration). Bump the two together — a developer and the gate must run the same checker, or a
+# finding lands on push instead of before it.
+shellcheck = "0.11.0"
 
 # --- solver (services/solver) ---------------------------------------------------------------------
 # ortools pins protobuf/numpy tightly, so this package owns a dedicated venv and every task runs
@@ -65,9 +78,11 @@ dir = "{{config_root}}/services/solver"
 run = "uv run pytest"
 
 [tasks."solver:check"]
-description = "Lint and type-check the solver — the same two gates CI's solver job runs"
+description = "Lint and type-check the solver, and shellcheck its task scripts — the same gates CI's solver and verify jobs run"
 dir = "{{config_root}}/services/solver"
-run = ["uv run ruff check", "uv run mypy"]
+# `dir` is for the two uv commands; `lint.sh` self-locates to the repo root, so it does not care.
+# CI runs the same three gates in two jobs: ruff/mypy in `solver`, `lint.sh` in `verify`.
+run = ["uv run ruff check", "uv run mypy", "sh {{config_root}}/scripts/solver/lint.sh"]
 
 # --- local fidelity tier 2: the container image ----------------------------------------------------
 # Tier 1 is `solver:dev` above (native uvicorn + SOLVER_URL). Tier 2 proves the IMAGE — that the

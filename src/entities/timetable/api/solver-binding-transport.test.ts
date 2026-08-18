@@ -83,7 +83,10 @@ describe("createBindingSolverTransport", () => {
 
       expect(fake.startArgs[0]).toEqual({
         ports: SOLVER_CONTAINER_PORT,
-        cancellationOptions: { portReadyTimeoutMS: CONTAINER_START_TIMEOUT_MS },
+        cancellationOptions: {
+          instanceGetTimeoutMS: CONTAINER_START_TIMEOUT_MS,
+          portReadyTimeoutMS: CONTAINER_START_TIMEOUT_MS,
+        },
       });
     });
 

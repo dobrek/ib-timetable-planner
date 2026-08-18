@@ -34,10 +34,10 @@ run = '''
 #
 # The service deliberately boots without one — `/health` must answer on a bare container, which is
 # what a platform probe hits before secrets are wired — so absence surfaces at the first job. In a
-# container that is right. On a developer's machine it is a trap: uvicorn comes up looking healthy,
-# the app dispatches a real job, gets its 202, and the worker only then discovers it cannot claim.
-# The row is left `queued` forever (nothing compensates: dispatch SUCCEEDED) and its proposal clone
-# with it. Measured cost of learning this the hard way: one wedged row and a manual DELETE.
+# container that is right. On a developer's machine it is a trap: uvicorn comes up looking healthy
+# and every dispatch is refused with a 503 (row → `failed`, clone deleted). Before `solve` learned
+# to refuse (2026-08-18) the service TOOK the job and the row wedged at `queued`; measured cost of
+# learning that the hard way: one wedged row and a manual DELETE.
 #
 # So the guard lives here rather than in `settings.py`, where it would break the bare-container
 # promise. `solver:image:smoke` carries the same guard for the same reason.
@@ -233,14 +233,14 @@ fi
 
 # `wrangler dev` builds the Worker's `env` from `.dev.vars` — NOT from this shell. So exporting the
 # password is not enough: it has to be written into the file the Worker reads, or `SolverContainer`
-# forwards an empty string and the container boots UNCONFIGURED. That failure is quiet by design
-# (the service must answer `/health` on a bare container, so the startup check skips itself when the
-# trio is absent): the container comes up, takes the 202, and only then cannot claim — leaving the
-# row at `queued` with an orphan proposal plan. Checked before the build, which costs a minute.
+# forwards an empty string and the container boots UNCONFIGURED (the service must answer `/health`
+# on a bare container, so the startup check skips itself when the trio is absent): the container
+# comes up and refuses every dispatch with a 503, so tier 3 proves nothing. Checked before the
+# build, which costs a minute.
 if [ -z "${SOLVER_MACHINE_PASSWORD:-}" ]; then
   echo "SOLVER_MACHINE_PASSWORD is unset, and tier 3 needs it in .dev.vars for the WORKER to" >&2
-  echo "forward into the container. Without it the container boots unconfigured and every job" >&2
-  echo "wedges at 'queued'." >&2
+  echo "forward into the container. Without it the container boots unconfigured and refuses" >&2
+  echo "every dispatch with a 503." >&2
   echo >&2
   echo "  export SOLVER_MACHINE_PASSWORD='...'   # what you gave provision-solver-user.mjs" >&2
   exit 1
@@ -268,7 +268,19 @@ case "$container_url" in
   *host.docker.internal*) echo "SOLVER_SUPABASE_URL=$container_url" >> .dev.vars.tier3 ;;
   *) echo "note: SUPABASE_URL is not local, so the container can use it unchanged" ;;
 esac
-echo "SOLVER_MACHINE_PASSWORD=$SOLVER_MACHINE_PASSWORD" >> .dev.vars.tier3
+# Written single-quoted, because `.dev.vars` is dotenv: an UNQUOTED value is cut at the first `#`,
+# and a double-quoted one has `\n` expanded. Single quotes are literal - except that dotenv never
+# unescapes a `'` inside them, so a password containing one cannot be represented; refuse it
+# (and a newline) rather than hand the Worker a truncated secret it would forward silently.
+case "$SOLVER_MACHINE_PASSWORD" in *\'*) pw_unrepresentable=1 ;; *) pw_unrepresentable=0 ;; esac
+if [ "$(printf '%s' "$SOLVER_MACHINE_PASSWORD" | wc -l)" -gt 0 ]; then pw_unrepresentable=1; fi
+if [ "$pw_unrepresentable" -eq 1 ]; then
+  echo "SOLVER_MACHINE_PASSWORD contains a single quote or a newline, which .dev.vars cannot" >&2
+  echo "carry literally. Provision the local machine user with a password free of both." >&2
+  rm -f .dev.vars.tier3
+  exit 1
+fi
+echo "SOLVER_MACHINE_PASSWORD='$SOLVER_MACHINE_PASSWORD'" >> .dev.vars.tier3
 mv .dev.vars.tier3 .dev.vars
 pnpm build
 
@@ -308,6 +320,17 @@ for key in SUPABASE_URL SUPABASE_KEY SOLVER_URL SOLVER_MACHINE_PASSWORD; do
 done
 if [ -n "$missing" ]; then
   echo "$profile is missing:$missing" >&2
+  exit 1
+fi
+
+# :8000 must be OURS. If a tier-1 `solver:dev` (pointed at the LOCAL stack) already holds the port,
+# the hosted uvicorn fails to bind and exits, the /health wait below passes against the wrong
+# process, and every Generate then inserts a HOSTED job row + clone that the local solver cannot
+# claim - production rows wedged at `queued`. Refuse up front rather than discover it in the data.
+if lsof -nP -iTCP:8000 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "something is already listening on :8000 (a running 'mise run solver:dev'?)." >&2
+  echo "The campaign must own that port, or the app would dispatch HOSTED jobs to it. Stop it first:" >&2
+  lsof -nP -iTCP:8000 -sTCP:LISTEN >&2 || true
   exit 1
 fi
 
@@ -353,27 +376,43 @@ trap cleanup EXIT INT TERM
 
 pnpm env:prod-solver
 
-# The solver reads the trio from ITS OWN environment, so the profile is sourced here rather than
-# relying on the .env.local copy - `astro:env` feeds the app, never this process. `caffeinate -i`
-# keeps the machine awake for the whole solve; a sleeping laptop is the sharpest risk of this mode.
-set -a
-. "$profile"
-set +a
+# The solver reads the trio from ITS OWN environment, so the profile is read here rather than
+# relying on the .env.local copy - `astro:env` feeds the app, never this process. READ, not
+# sourced: the file is dotenv (bare literal values, as `.dev.vars` and `.env.local` will parse
+# it), and executing it as shell would make a password carrying `$`, `;` or a backtick either
+# mangled or run. `solver:image:smoke` reads its keys the same way. `caffeinate -i` keeps the
+# machine awake for the whole solve; a sleeping laptop is the sharpest risk of this mode.
+profile_value() {
+  sed -n "s/^$1=//p" "$profile" | head -1 | sed -e "s/^'\(.*\)'\$/\1/" -e 's/^"\(.*\)"$/\1/'
+}
+solver_supabase_url=$(profile_value SUPABASE_URL)
+solver_supabase_key=$(profile_value SUPABASE_KEY)
+solver_machine_password=$(profile_value SOLVER_MACHINE_PASSWORD)
 
 echo "starting the native solver against HOSTED Supabase"
 if [ "$(uname)" = "Darwin" ]; then
-  ( cd services/solver && caffeinate -i uv run uvicorn cpsat_service.app:app --port 8000 ) &
+  ( cd services/solver && SUPABASE_URL="$solver_supabase_url" SUPABASE_KEY="$solver_supabase_key" \
+      SOLVER_MACHINE_PASSWORD="$solver_machine_password" \
+      caffeinate -i uv run uvicorn cpsat_service.app:app --port 8000 ) &
 else
-  ( cd services/solver && uv run uvicorn cpsat_service.app:app --port 8000 ) &
+  ( cd services/solver && SUPABASE_URL="$solver_supabase_url" SUPABASE_KEY="$solver_supabase_key" \
+      SOLVER_MACHINE_PASSWORD="$solver_machine_password" \
+      uv run uvicorn cpsat_service.app:app --port 8000 ) &
 fi
 SOLVER_PID=$!
 
 waited=0
 until curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1; do
+  # Liveness first: a solver that died (failed startup credential check, port taken after our
+  # check) must not leave us polling until something ELSE answers on :8000.
+  if ! kill -0 "$SOLVER_PID" 2>/dev/null; then
+    echo "the solver process exited before answering /health - a failed startup credential check" >&2
+    echo "looks like this. Is the hosted Custom Access Token Hook enabled and the machine user provisioned?" >&2
+    exit 1
+  fi
   waited=$((waited + 1))
   if [ "$waited" -gt 60 ]; then
-    echo "the solver never answered /health - a failed startup credential check looks like this." >&2
-    echo "Is the hosted Custom Access Token Hook enabled and the machine user provisioned?" >&2
+    echo "the solver never answered /health within 60 s." >&2
     exit 1
   fi
   sleep 1

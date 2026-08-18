@@ -1,4 +1,4 @@
-import { Container } from "@cloudflare/containers";
+import { Container, type StopParams } from "@cloudflare/containers";
 import { solverContainerEnvVars } from "./solver-container-env";
 
 /**
@@ -48,7 +48,7 @@ export class SolverContainer extends Container<Env> {
     console.log("[solver-container] started");
   }
 
-  override onStop({ exitCode, reason }: { exitCode: number; reason: string }): void {
+  override onStop({ exitCode, reason }: StopParams): void {
     // A non-zero exit here is the visible half of the fail-closed credential check: the service
     // refuses to start when its token is not `solver_job_writer`, and this is where that shows up.
     // eslint-disable-next-line no-console

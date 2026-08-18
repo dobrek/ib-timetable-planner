@@ -56,7 +56,7 @@ pnpm-debug.log*
 .env.production
 
 # cloudflare
-.dev.vars
+.dev.vars*
 .wrangler/
 
 # jetbrains setting folder

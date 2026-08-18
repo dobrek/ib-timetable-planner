@@ -120,7 +120,9 @@ All three write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler de
 
 > **Switching a profile requires a rebuild before `pnpm preview`.** `astro build` snapshots the root `.dev.vars` into `dist/server/.dev.vars`, and both `astro preview` and `wrangler dev` read _that copy_. A stale build keeps the previous profile's transport, silently — which is exactly the trap `mise run solver:tier3` sequences around.
 
-`.envs/prod-solver.vars` carries a fourth key the other two do not — `SOLVER_MACHINE_PASSWORD` — because `mise run solver:hosted` sources this file directly to configure the solver process. It is harmless in `.env.local`/`.dev.vars`: `astro:env` ignores keys its schema does not declare.
+`.envs/prod-solver.vars` carries a fourth key the other two do not — `SOLVER_MACHINE_PASSWORD` — because `mise run solver:hosted` reads this file to configure the solver process. It is harmless in `.env.local`/`.dev.vars`: `astro:env` ignores keys its schema does not declare.
+
+> **Values are bare literals, dotenv-style** — no quotes, no shell escaping, and no `#` (an unquoted dotenv value is cut at the first `#`). The file is never executed as shell: `solver:hosted` reads keys with `sed`, and `.dev.vars` / `.env.local` are parsed as dotenv. Provision the machine user with a password that avoids `#`, quotes and whitespace and every reader agrees on it.
 
 ```bash
 SUPABASE_URL=https://<project-ref>.supabase.co
@@ -179,7 +181,7 @@ export SOLVER_MACHINE_PASSWORD='<what you provisioned>'
 mise run solver:dev
 ```
 
-The task **refuses to start** without all three. That guard is task-level on purpose: the service itself boots happily unconfigured, because `/health` must answer on a bare container before secrets are wired. On a developer's machine that same tolerance is a trap — uvicorn looks healthy, the app dispatches a real job and gets its 202, and only the worker discovers it cannot claim, leaving the row stuck at `queued` with an orphan proposal plan (nothing compensates: the dispatch _succeeded_). A correctly configured start logs its effective settings and the credential check:
+The task **refuses to start** without all three. That guard is task-level on purpose: the service itself boots happily unconfigured, because `/health` must answer on a bare container before secrets are wired. On a developer's machine that same tolerance is a trap — uvicorn looks healthy, and every dispatch is refused with a **503** (`solve` refuses work on an unconfigured service, so the row is marked `failed` and the clone deleted rather than left wedged at `queued`) — a loud failure, but one that costs a build and a click each time. A correctly configured start logs its effective settings and the credential check:
 
 ```
 solver service starting: workers=8 max_concurrent_jobs=1 ... credential_configured=True wire_contract=loaded
@@ -235,7 +237,7 @@ Three edits go into `.dev.vars`, all before the build — because **`wrangler de
 
 The last two are inert in production — no such Worker secret exists there. Both are dropped again by the exit trap's `pnpm env:local`.
 
-> **The failure this prevents is a quiet one.** Without the password the container still starts: `settings.py` lets an unconfigured service boot so `/health` answers on a bare container, so the credential check _skips itself_, the container takes the 202, and only then cannot claim. The job sits at `queued` with an orphan proposal plan, and nothing surfaces in the UI. The same applies in production if the Worker is missing the `SOLVER_MACHINE_PASSWORD` secret — which is why setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md), not a formality.
+> **The failure this prevents.** Without the password the container still starts: `settings.py` lets an unconfigured service boot so `/health` answers on a bare container, and the credential check _skips itself_. The container then refuses every dispatch with a **503** — the job is marked `failed` and the clone deleted — so tier 3 proves nothing. (Until 2026-08-18 the unconfigured service _accepted_ the job and the row wedged at `queued`; `solve` now refuses work when unconfigured.) The same applies in production if the Worker is missing the `SOLVER_MACHINE_PASSWORD` secret — which is why setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md), not a formality.
 
 > `wrangler dev` reads the generated `dist/server/wrangler.json` through `.wrangler/deploy/config.json`, so it picks up the container config; `--enable-containers` overrides the committed `dev.enable_containers: false` for that session only. No edit to `wrangler.jsonc` is needed, and none should be made.
 
@@ -297,7 +299,7 @@ Production secrets are stored on the Worker via `pnpm exec wrangler secret put`:
 | `SUPABASE_KEY`            | the Worker (publishable), and forwarded to the container                  |
 | `SOLVER_MACHINE_PASSWORD` | **the container only** — the Worker is a courier and never uses it itself |
 
-> The Worker gains no new privilege by carrying the third one: a Cloudflare container cannot read Worker secrets on its own (there is no `containers[].configuration.secrets`), so `SolverContainer` reads them and passes them down through `envVars`. **If `SOLVER_MACHINE_PASSWORD` is missing, generation fails silently** — the container still boots (`/health` must answer on a bare container, so its credential check skips itself), accepts the job, and then cannot claim it. The row sits at `queued` with nothing in the UI. Setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
+> The Worker gains no new privilege by carrying the third one: a Cloudflare container cannot read Worker secrets on its own (there is no `containers[].configuration.secrets`), so `SolverContainer` reads them and passes them down through `envVars`. **If `SOLVER_MACHINE_PASSWORD` is missing, every generation fails** — the container still boots (`/health` must answer on a bare container, so its credential check skips itself) but `solve` refuses work with a 503, so the row is marked `failed` and the clone deleted. Loud, but every Generate fails until the secret is set — setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
 
 ### Rollback
 

@@ -31,7 +31,7 @@ from cpsat_engine.schema import Dump, parse_snapshot
 from cpsat_engine.solve import SolveConfig, SolveResult, solve_complete
 from cpsat_engine.wire import snapshot_hash, wire_snapshot
 from cpsat_service import app as app_module
-from cpsat_service.registry import JobRegistry
+from cpsat_service.registry import JobRegistry, Registration
 from cpsat_service.runner import run_job
 from cpsat_service.settings import Settings
 from cpsat_service.supabase import (
@@ -145,10 +145,13 @@ class FakeSupabase:
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     """A fresh registry per test: it is module state on the app, and a leaked entry would make the
     next test's POST a silent no-op. Capacity mirrors production so the cap is under test, not
-    bypassed by an uncapped fixture."""
+    bypassed by an uncapped fixture. The app also sees a CONFIGURED `Settings`: the process env is
+    bare under pytest, and `solve` refuses work on a bare service — a test that wants that answer
+    swaps in a bare `Settings` explicitly."""
+    monkeypatch.setattr(app_module, "settings", SETTINGS)
     app_module.registry = JobRegistry(capacity=SETTINGS.max_concurrent_jobs)
     return TestClient(app_module.app)
 
@@ -208,6 +211,29 @@ def test_solve_accepts_a_valid_request_with_202(client: TestClient, monkeypatch:
     assert response.status_code == 202
     assert response.json() == {"status": "accepted", "jobId": JOB_ID}
     assert started == [JOB_ID]
+
+
+def test_an_unconfigured_service_refuses_work_with_503_instead_of_taking_it(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A bare container answers `/health`, but a 202 from it would wedge the job: the worker fails at
+    its first database call, `_claim` swallows it, and the row sits `queued`. The dispatch caller
+    compensates on any non-202, so refusing is what keeps the failure visible."""
+    bare = replace(SETTINGS, supabase_url="", supabase_key="", machine_password="")
+
+    def explode(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("an unconfigured service must not spawn a worker")
+
+    monkeypatch.setattr(app_module, "settings", bare)
+    monkeypatch.setattr(app_module, "start_job", explode)
+
+    response = client.post(f"/jobs/{JOB_ID}/solve", json=_micro_request())
+
+    assert response.status_code == 503
+    assert "not configured" in response.json()["detail"]
+    assert app_module.registry.register(JOB_ID) is Registration.ACCEPTED, (
+        "the refused id must not be left registered"
+    )
 
 
 def test_duplicate_post_is_accepted_but_starts_no_second_solve(

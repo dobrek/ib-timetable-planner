@@ -48,6 +48,7 @@ logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s 
 REPO_ROOT: Final = Path(__file__).resolve().parents[4]
 SCHEMA_PATH: Final = REPO_ROOT / "contracts" / "generation-wire.schema.json"
 
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Announce the effective configuration, then prove the credential before serving anything.
@@ -89,6 +90,17 @@ async def solve(job_id: UUID, request: Request) -> dict[str, str]:
     _validate(body)
 
     key = str(job_id)
+    if not settings.configured:
+        # An unconfigured container still boots (so `/health` answers bare), but it must not TAKE
+        # work: a 202 here would spawn a worker that fails at its first database call, `_claim`
+        # would swallow it, and the row would sit `queued` with an orphan clone — nothing in the UI.
+        # A 503 rides the dispatch caller's existing compensation path (row → failed, clone deleted).
+        log.error("job %s refused: the solver is not configured, so it could never claim it", key)
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="the solver is not configured — SUPABASE_URL, SUPABASE_KEY or "
+            "SOLVER_MACHINE_PASSWORD is missing",
+        )
     outcome = registry.register(key)
 
     if outcome is Registration.ALREADY_RUNNING:

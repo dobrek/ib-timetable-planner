@@ -11,18 +11,23 @@
 # Exclude every top-level entry. `*` matches one path segment, so this reaches no deeper.
 *
 
-# The two trees the image needs. Re-including a directory makes its contents eligible again — `*`
-# never matched them, being one segment up.
+# The two trees the image needs. Re-including a path makes its contents eligible again — `*` never
+# matched them, being one segment up. `services/solver`, not `services`: a future sibling service
+# must opt in here, not ship by default.
 !contracts
-!services
+!services/solver
 
-# ...minus what must never reach the image, now that `services/` is back in.
+# ...minus what must never reach the image, now that `services/solver/` is back in.
 #
 # `.venv` is the sharp one: 269 MB of ARM64 binaries on this machine, which would silently poison an
 # amd64 image (the Dockerfile builds its own venv from `uv.lock`).
 services/solver/.venv
 # Engine dumps and solve transcripts — development fixtures with no runtime role.
 services/solver/data
+# Tooling residue and the test suite — none of it runs in the image.
+services/solver/node_modules
+services/solver/.astro
+services/solver/tests
 **/__pycache__
 **/.pytest_cache
 **/.mypy_cache

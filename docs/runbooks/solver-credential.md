@@ -291,7 +291,8 @@ scripts/provision-solver-user.mjs` against hosted, with the hosted **service-rol
 > token whose `role` is not `solver_job_writer` makes the service exit non-zero, so the container
 > never binds its port and the dispatch fails visibly. Treat that as a **seatbelt, not the gate** —
 > it catches a hook switched off later, and it does nothing about step 4, where a _missing_
-> `SOLVER_MACHINE_PASSWORD` lets the container boot unconfigured and wedge every job at `queued`.
+> `SOLVER_MACHINE_PASSWORD` lets the container boot unconfigured and refuse every job with a 503
+> (row → `failed`; loud, but every Generate fails until the secret is set).
 >
 > The hosted-solve campaign (`mise run solver:hosted`, README § Environment Profiles) authenticates
 > with this same credential, so it is gated on this same checklist.

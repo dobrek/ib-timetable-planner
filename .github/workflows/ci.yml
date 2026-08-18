@@ -257,8 +257,11 @@ jobs:
       # `services/solver/Dockerfile` to Cloudflare's registry, and it rolls the container out. The
       # image build runs on EVERY merge to `main` (no path filters — see the `solver` job's note);
       # the layer PUSH stays incremental via registry-side dedup, but the build itself re-runs from
-      # scratch on each ephemeral runner. Measure the added wall-clock before optimising; the lever
-      # is `cache-from`/`cache-to: type=gha`, not path filters.
+      # scratch on each ephemeral runner. Measured 2026-08-18 on the first container deploy: +37 s
+      # on this job (101 s vs a 64 s baseline; ~7 s build, ~17 s first push, ~5 s rollout) against a
+      # pipeline whose critical path is the 426 s `e2e` job — so layer caching is NOT warranted.
+      # If the image grows and it starts to bite, the lever is `cache-from`/`cache-to: type=gha`,
+      # never path filters.
       #
       # `CLOUDFLARE_API_TOKEN` needs `Workers Scripts: Edit` AND `Containers: Edit`, both
       # account-scoped. The `Edit Cloudflare Workers` template does NOT include Containers, so it is

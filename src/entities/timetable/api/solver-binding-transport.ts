@@ -27,9 +27,11 @@ export const SOLVER_CONTAINER_PORT = 8000;
  * which starts only once it is up: a cold start pulls and boots a ~394 MB image, and it is not the
  * solver being slow.
  *
- * 45 s is a starting estimate, not a measurement — documented cold starts are "often 1-3 seconds"
- * but scale with image size. **Correct it from the Phase 7 production measurement** rather than by
- * guessing; the number is here, alone, so that is a one-line change.
+ * 45 s is evidence-backed: the first production cold start (2026-08-18, `standard-4`, EEUR, 394 MB
+ * image) took ~5.5 s from `startAndWaitForPorts` to the 202, so this leaves an 8× margin. It is
+ * applied to BOTH phases of the start — getting an instance placed (`instanceGetTimeoutMS`, whose
+ * library default is only 8 s) and the port coming up (`portReadyTimeoutMS`) — because a cold
+ * placement after sleep or a rollout is exactly when the first phase is slow.
  */
 export const CONTAINER_START_TIMEOUT_MS = 45_000;
 
@@ -101,7 +103,10 @@ const start = async (container: ContainerLike): Promise<void> => {
   try {
     await container.startAndWaitForPorts({
       ports: SOLVER_CONTAINER_PORT,
-      cancellationOptions: { portReadyTimeoutMS: CONTAINER_START_TIMEOUT_MS },
+      cancellationOptions: {
+        instanceGetTimeoutMS: CONTAINER_START_TIMEOUT_MS,
+        portReadyTimeoutMS: CONTAINER_START_TIMEOUT_MS,
+      },
     });
   } catch (error) {
     throw new SolverContainerStartError(error);
@@ -113,14 +118,18 @@ const start = async (container: ContainerLike): Promise<void> => {
  * cancel the in-flight RPC, so this bounds how long WE wait, which is the property the budget is
  * actually about.
  */
-const withTimeout = <T>(promise: Promise<T>, ms: number, message: string): Promise<T> =>
-  Promise.race([
-    promise,
-    new Promise<never>((_resolve, reject) => {
-      setTimeout(() => {
-        reject(new SolverDispatchError(408, message));
-      }, ms);
-    }),
-  ]);
+const withTimeout = <T>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new SolverDispatchError(408, message));
+    }, ms);
+  });
+  // Clear the timer once the race settles either way, so a fast answer does not leave a live
+  // timer (and a later, unobserved rejection) behind in the Durable Object's I/O context.
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timer);
+  });
+};
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));

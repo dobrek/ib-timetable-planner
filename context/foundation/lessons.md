@@ -78,3 +78,10 @@
 - **Problem**: Copying the body from the migration that ORIGINALLY defined the function silently reverts every later amendment. Concrete: `optional-subject-in-bundle` re-created `shelve_bundle`/`shelve_courses` from their original migrations, dropping the empty-source RAISE guards added by `20260626120006` — and no test pinned them, so CI stayed green on the regression.
 - **Rule**: Full-body SQL function re-creates must copy from the latest live definition, not the original migration.
 - **Applies to**: plan, plan-review, implement, impl-review
+
+## A Worker forwards only what `.dev.vars` holds — export nothing, write it, and guard in the launcher
+
+- **Context**: Any value the Worker must hand to a Cloudflare container through `SolverContainer.envVars`, and more broadly any local `wrangler dev` / `astro preview` run where code reads `env.X` from `cloudflare:workers`. Covers `mise run solver:tier3` and the `.dev.vars` → `dist/server/.dev.vars` build snapshot.
+- **Problem**: `wrangler dev` builds the Worker's `env` from `.dev.vars`, never from the invoking shell, so an exported variable reaches the container as an empty string. It bit twice in S-302: `SUPABASE_URL` loudly (connection refused), then `SOLVER_MACHINE_PASSWORD` silently — the service boots unconfigured by design so `/health` answers on a bare container, accepts the 202, and only then cannot claim; the row sits `queued` with an orphan clone and nothing in the UI.
+- **Rule**: Anything the Worker must forward to a container has to be written into `.dev.vars` BEFORE `pnpm build` — never merely exported. And when a service deliberately boots without configuration, put the fail-fast guard in the launcher (mise task, CI step), not in the service, so the developer-machine trap closes without breaking the bare-container promise.
+- **Applies to**: plan, plan-review, implement, impl-review

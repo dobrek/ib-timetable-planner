@@ -40,6 +40,10 @@ if [ -z "${SOLVER_MACHINE_PASSWORD:-}" ]; then
   echo "  export SOLVER_MACHINE_PASSWORD='...'   # what you gave provision-solver-user.mjs" >&2
   exit 1
 fi
+# The rewrite below edits .dev.vars in place; with no file the `grep -v … || true` would quietly
+# produce an empty base, the "not local" branch would fire, and the build would ship a .dev.vars
+# holding only the password. Refuse before anything is touched.
+[ -f .dev.vars ] || die "no .dev.vars to rewrite — run 'pnpm env:local' first (README § Environment Profiles)."
 
 # Two traps, not one, and the split is the point. EXIT owns the restore — it runs on every exit path,
 # including the signal ones below. INT/TERM only `exit`, which is what makes the script STOP.
@@ -80,7 +84,7 @@ grep -v -e '^SOLVER_URL=' -e '^SOLVER_SUPABASE_URL=' -e '^SOLVER_MACHINE_PASSWOR
 container_url=$(sed -n 's/^SUPABASE_URL=//p' .dev.vars | head -1 \
   | sed -e 's#//127\.0\.0\.1:#//host.docker.internal:#' -e 's#//localhost:#//host.docker.internal:#')
 case "$container_url" in
-  *host.docker.internal*) echo "SOLVER_SUPABASE_URL=$container_url" >> .dev.vars.tier3 ;;
+  *host.docker.internal*) printf 'SOLVER_SUPABASE_URL=%s\n' "$container_url" >> .dev.vars.tier3 ;;
   *) echo "note: SUPABASE_URL is not local, so the container can use it unchanged" ;;
 esac
 # Written single-quoted, because `.dev.vars` is dotenv: an UNQUOTED value is cut at the first `#`,
@@ -95,7 +99,9 @@ if [ "$pw_unrepresentable" -eq 1 ]; then
   rm -f .dev.vars.tier3
   exit 1
 fi
-echo "SOLVER_MACHINE_PASSWORD='$SOLVER_MACHINE_PASSWORD'" >> .dev.vars.tier3
+# printf, not echo: both target shells' echo interpret backslash escapes, which would silently
+# alter a password containing one — the very corruption the guard above exists to refuse.
+printf "SOLVER_MACHINE_PASSWORD='%s'\n" "$SOLVER_MACHINE_PASSWORD" >> .dev.vars.tier3
 mv .dev.vars.tier3 .dev.vars
 pnpm build
 

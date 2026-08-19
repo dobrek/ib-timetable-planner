@@ -13,7 +13,7 @@
 # guard impossible to omit from a call site.
 #
 # Consumers:
-#   scripts/solver/dev.sh · image-build.sh · image-smoke.sh · tier3.sh · hosted.sh
+#   scripts/solver/dev.sh · image-build.sh · image-smoke.sh · tier3.sh · hosted.sh · lint.sh
 #
 #   . scripts/solver/common.sh   # sourced AFTER the caller has cd'd to the repo root
 #
@@ -50,7 +50,8 @@ wait_for_health() {
   shift 3
 
   waited=0
-  until curl -sf "$url" >/dev/null 2>&1; do
+  # --max-time keeps one black-holed attempt from stalling the loop, so <timeout_s> stays ~seconds.
+  until curl -sf --max-time 5 "$url" >/dev/null 2>&1; do
     if ! "$alive_fn"; then
       die "$@"
     fi

@@ -29,8 +29,8 @@ uv = "0.12.3"
 
 # The gate on `scripts/solver/*.sh`, pinned for the same reason `uv` is: this literal must equal the
 # version `.github/workflows/ci.yml`'s verify job downloads (it pins the release URL + sha256 rather
-# than trusting the runner image, which ships 0.9.0 today and 0.11.0 after the `ubuntu-latest`
-# migration). Bump the two together — a developer and the gate must run the same checker, or a
+# than trusting the runner image, which ships 0.9.0 today and moves with every image migration).
+# Bump the two together — a developer and the gate must run the same checker, or a
 # finding lands on push instead of before it.
 shellcheck = "0.11.0"
 

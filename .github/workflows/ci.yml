@@ -26,13 +26,15 @@ jobs:
       # the only thing in CI that ever reads those files. It runs first because it costs ~1 s and a
       # shell defect should not wait behind a five-minute build to surface.
       #
-      # The runner image's preinstalled shellcheck (0.9.0 today, 0.11.0 once `ubuntu-latest` migrates
-      # to 24.10+) is deliberately NOT used: a checker that changes under us turns a green branch red
-      # on an unrelated merge. This pins the release, verifies its sha256, and asserts the version it
-      # actually got. `0.11.0` here must equal `mise.toml`'s `shellcheck = "..."` — that pair is what
-      # makes "a developer and the gate run the same checker" a fact rather than an aspiration. Bump
-      # the two together (and recompute the digest from the downloaded artifact, never by hand).
-      - name: Install shellcheck 0.11.0 (pinned)
+      # The runner image's preinstalled shellcheck (0.9.0 on `ubuntu-latest` today, and whatever a
+      # future image migration ships) is deliberately NOT used: a checker that changes under us turns
+      # a green branch red on an unrelated merge. This pins the release, verifies its sha256, and asserts the version it
+      # actually got. The `version=` literal below must equal `mise.toml`'s `shellcheck = "..."` — that
+      # pair is what makes "a developer and the gate run the same checker" a fact rather than an
+      # aspiration. Bump the two together (and recompute the digest from the downloaded artifact,
+      # never by hand). It is the ONLY place this workflow names the version: the assert step reads
+      # it back through $GITHUB_ENV so a bump cannot leave the assertion behind.
+      - name: Install shellcheck (pinned)
         run: |
           set -euo pipefail
           version=0.11.0
@@ -46,13 +48,14 @@ jobs:
           install -m 0755 "$RUNNER_TEMP/shellcheck-v$version/shellcheck" "$HOME/.local/bin/shellcheck"
           # Ahead of /usr/bin, where the image's own shellcheck lives.
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "SHELLCHECK_VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Shellcheck the solver task scripts
         run: |
           set -euo pipefail
           shellcheck --version
           got="$(shellcheck --version | sed -n 's/^version: //p')"
-          [ "$got" = "0.11.0" ] || { echo "expected shellcheck 0.11.0, got $got" >&2; exit 1; }
+          [ "$got" = "$SHELLCHECK_VERSION" ] || { echo "expected shellcheck $SHELLCHECK_VERSION, got $got" >&2; exit 1; }
           sh scripts/solver/lint.sh
 
       - run: pnpm astro sync

@@ -566,29 +566,29 @@ list; Dockerfile COPYs only `contracts` and `services/solver`), and no `wrangler
 
 #### Automated
 
-- [x] 3.1 `mise run solver:check` passes on all seven scripts
-- [x] 3.2 `grep -c "'''" mise.toml` and `grep -c '{% raw %}' mise.toml` are both 0
-- [x] 3.3 `mise tasks ls` lists all five solver tasks with unchanged names and descriptions
-- [x] 3.4 `pnpm build` still clean and the trap restored `.dev.vars` (`grep -q '^SOLVER_URL=' .dev.vars && grep -q 127.0.0.1 .env.local` — gitignored, so not via `git status`)
+- [x] 3.1 `mise run solver:check` passes on all seven scripts — d2213eb
+- [x] 3.2 `grep -c "'''" mise.toml` and `grep -c '{% raw %}' mise.toml` are both 0 — d2213eb
+- [x] 3.3 `mise tasks ls` lists all five solver tasks with unchanged names and descriptions — d2213eb
+- [x] 3.4 `pnpm build` still clean and the trap restored `.dev.vars` (`grep -q '^SOLVER_URL=' .dev.vars && grep -q 127.0.0.1 .env.local` — gitignored, so not via `git status`) — d2213eb
 
 #### Manual
 
-- [x] 3.5 Tier 3: refuses without Docker / without the password; with both, rewrites `.dev.vars`, builds, starts workerd; Generate shows the POST in the container's `docker logs`
-- [x] 3.6 Ctrl-C parity on tier 3: trap message, `.dev.vars` restored, exit 130, `wrangler dev` never starts
-- [x] 3.7 Hosted rehearsal on the local stack: missing profile / missing key refuse; `:8000` collision refuses; banner; abort on wrong answer; `SOLVER_HOSTED_CONFIRM=yes` bypass; solver up; build + preview run
-- [x] 3.8 Ctrl-C parity on hosted: cleanup prints, solver gone, profile back on local, exit 130, build/preview never ran
-- [x] 3.9 Hosted liveness bail with a wrong password stops on "the solver process exited before answering /health …", not the 60 s timeout
-- [x] 3.10 After all runs `pnpm env:local` state is confirmed and `.dev.vars` carries `SOLVER_URL` again
+- [x] 3.5 Tier 3: refuses without Docker / without the password; with both, rewrites `.dev.vars`, builds, starts workerd; Generate shows the POST in the container's `docker logs` — d2213eb
+- [x] 3.6 Ctrl-C parity on tier 3: trap message, `.dev.vars` restored, exit 130, `wrangler dev` never starts — d2213eb
+- [x] 3.7 Hosted rehearsal on the local stack: missing profile / missing key refuse; `:8000` collision refuses; banner; abort on wrong answer; `SOLVER_HOSTED_CONFIRM=yes` bypass; solver up; build + preview run — d2213eb
+- [x] 3.8 Ctrl-C parity on hosted: cleanup prints, solver gone, profile back on local, exit 130, build/preview never ran — d2213eb
+- [x] 3.9 Hosted liveness bail with a wrong password stops on "the solver process exited before answering /health …", not the 60 s timeout — d2213eb
+- [x] 3.10 After all runs `pnpm env:local` state is confirmed and `.dev.vars` carries `SOLVER_URL` again — d2213eb
 
 ### Phase 4: Docs and records
 
 #### Automated
 
-- [ ] 4.1 `pnpm format` clean; `pnpm lint` unaffected
-- [ ] 4.2 `grep -n "task-level\|reads keys with \`sed\`" README.md` shows the reworded lines; `grep -n "the same two gates CI runs" README.md` returns nothing
-- [ ] 4.3 `grep -n "mise task, CI step" context/foundation/lessons.md` returns nothing
-- [ ] 4.4 `/verify` PASS
+- [x] 4.1 `pnpm format` clean; `pnpm lint` unaffected
+- [x] 4.2 `grep -n "task-level\|reads keys with \`sed\`" README.md` shows the reworded lines; `grep -n "the same two gates CI runs" README.md` returns nothing
+- [x] 4.3 `grep -n "mise task, CI step" context/foundation/lessons.md` returns nothing
+- [x] 4.4 `/verify` PASS
 
 #### Manual
 
-- [ ] 4.5 README § Tier 1/2/3 and § hosted campaign read correctly against the extracted scripts
+- [x] 4.5 README § Tier 1/2/3 and § hosted campaign read correctly against the extracted scripts

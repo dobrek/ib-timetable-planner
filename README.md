@@ -122,7 +122,7 @@ All three write `.env.local` (for `astro dev`) and `.dev.vars` (for `wrangler de
 
 `.envs/prod-solver.vars` carries a fourth key the other two do not — `SOLVER_MACHINE_PASSWORD` — because `mise run solver:hosted` reads this file to configure the solver process. It is harmless in `.env.local`/`.dev.vars`: `astro:env` ignores keys its schema does not declare.
 
-> **Values are bare literals, dotenv-style** — no quotes, no shell escaping, and no `#` (an unquoted dotenv value is cut at the first `#`). The file is never executed as shell: `solver:hosted` reads keys with `sed`, and `.dev.vars` / `.env.local` are parsed as dotenv. Provision the machine user with a password that avoids `#`, quotes and whitespace and every reader agrees on it.
+> **Values are bare literals, dotenv-style** — no quotes, no shell escaping, and no `#` (an unquoted dotenv value is cut at the first `#`). The file is never executed as shell: `scripts/solver/hosted.sh` reads keys with `sed`, and `.dev.vars` / `.env.local` are parsed as dotenv. Provision the machine user with a password that avoids `#`, quotes and whitespace and every reader agrees on it.
 
 ```bash
 SUPABASE_URL=https://<project-ref>.supabase.co
@@ -149,6 +149,8 @@ The daily loop runs the CP-SAT solver as a **native process** — no container, 
 
 Tiers 1 and 2 both dispatch over a URL, so neither exercises the Durable Object binding at all — that is what tier 3 is for, and why it exists despite being the slowest. Separately, the [hosted-solve campaign](#the-hosted-solve-campaign) points tier 1 at the **hosted** database.
 
+> Every task body lives in `scripts/solver/*.sh`; `mise.toml` is the catalog (a `description`, a `dir` and a one-line `run`). Those scripts are POSIX sh, open with `set -eu`, self-locate to the repo root, and are shellcheck-gated by `mise run solver:check` and CI's `verify` job — shellcheck 0.11.0, pinned in both `mise.toml` and the workflow.
+
 ### Tier 1 — native (the default)
 
 One-time, per local database: create the machine Auth user the service signs in as.
@@ -162,7 +164,7 @@ Then, with the Supabase stack up:
 ```bash
 mise run solver:dev     # uvicorn on :8000 — needs the env trio below
 mise run solver:test    # pytest (engine + contract + HTTP wrapper)
-mise run solver:check   # ruff + mypy --strict, the same two gates CI runs
+mise run solver:check   # ruff + mypy --strict + shellcheck on scripts/solver — the same gates CI's solver and verify jobs run
 ```
 
 `solver:dev` reads three variables from **your shell**, and **none of them is privileged** — no secret key, no service-role key (see [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md)):
@@ -181,7 +183,7 @@ export SOLVER_MACHINE_PASSWORD='<what you provisioned>'
 mise run solver:dev
 ```
 
-The task **refuses to start** without all three. That guard is task-level on purpose: the service itself boots happily unconfigured, because `/health` must answer on a bare container before secrets are wired. On a developer's machine that same tolerance is a trap — uvicorn looks healthy, and every dispatch is refused with a **503** (`solve` refuses work on an unconfigured service, so the row is marked `failed` and the clone deleted rather than left wedged at `queued`) — a loud failure, but one that costs a build and a click each time. A correctly configured start logs its effective settings and the credential check:
+The task **refuses to start** without all three. That guard lives in the launcher script (`scripts/solver/dev.sh`), not the service, on purpose: the service itself boots happily unconfigured, because `/health` must answer on a bare container before secrets are wired. On a developer's machine that same tolerance is a trap — uvicorn looks healthy, and every dispatch is refused with a **503** (`solve` refuses work on an unconfigured service, so the row is marked `failed` and the clone deleted rather than left wedged at `queued`) — a loud failure, but one that costs a build and a click each time. A correctly configured start logs its effective settings and the credential check:
 
 ```
 solver service starting: workers=8 max_concurrent_jobs=1 ... credential_configured=True wire_contract=loaded
@@ -329,7 +331,7 @@ pnpm exec wrangler rollback <deployment-id>
 
 GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`. All jobs share the `./.github/actions/setup` step (pnpm + Node + `pnpm install --frozen-lockfile`):
 
-1. **`verify` job** — `astro sync` → `lint` → `steiger` → `pnpm audit --audit-level=high` → `test` → `build`
+1. **`verify` job** — `shellcheck scripts/solver` → `astro sync` → `check` → `lint` → `steiger` → `pnpm audit --audit-level=high` → `test` → `build`
 2. **`integration` job** — boots a trimmed local Supabase stack, provisions the solver machine user with a per-run password, launches the CP-SAT service (with `SOLVER_MAX_CONCURRENT_JOBS=2`, sized to the worker cap below) and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` — which includes both solver-touching suites: the `queued → running → succeeded` proof-of-life, and the full S-301 chain from Generate to a verified board on the proposal plan
 3. **`e2e` job** — boots the stack + workerd preview, runs the Playwright suite (`pnpm test:e2e`)
 4. **`solver` job** — from `services/solver`: `uv sync --locked` → `ruff check` → `mypy` (strict, src + tests) → `pytest` → `uv audit`

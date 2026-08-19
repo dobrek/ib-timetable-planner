@@ -88,3 +88,30 @@ lives and need a wording pass. (§8)
 - **Shared file is `scripts/solver/common.sh`, mechanism only** (`die`, `wait_for_health`); env
   guards, `profile_value`, banners and traps stay in the callers.
 - **Doc reach is live docs only**; prior-lane `mise.toml:NNN` citations stay as historical records.
+
+## Implementation addenda (2026-08-18, from `/10x-implement`)
+
+- **A third named behaviour change: `INT`/`TERM` are split off the `EXIT` trap** in `tier3.sh` and
+  `hosted.sh`. Measured in Phase 3 against both the extracted script *and* mise's own inline
+  invocation of the pre-extraction body (`sh -c -o errexit "$(git show 7efc9ad:mise.toml …)"`): with a
+  single `trap … EXIT INT TERM`, a Ctrl-C during `pnpm build` fired the handler, restored the
+  profile — and then **continued into `pnpm exec wrangler dev`**, with mise exiting 1; it also ran
+  the restore twice. The two forms behaved identically (`exit=1 trap_fired=2
+  continued_into_wrangler=1` for both), so this is a pre-existing defect the extraction inherited,
+  not a regression it introduced. Research §3's "inline → exit 130, stops at the interrupted
+  command" was measured on a `sleep`-based model and does not hold for the real body: a shell with
+  an `INT` handler *resumes* once the handler returns, and this handler's last command
+  (`pnpm env:local`) succeeded, so `set -e` saw nothing wrong. Fixed rather than merely recorded:
+  `trap <restore> EXIT` + `trap 'exit 130' INT` + `trap 'exit 143' TERM`. Plan criterion 3.6 now
+  passes as written — exit 130, one restore, `wrangler dev` never starts.
+
+- **Follow-up filed (not fixed here): a tier-3 container that dies is undiagnosable from the terminal.**
+  When `SolverContainer`'s container exits non-zero, `wrangler dev` reports only
+  `[ERROR] [solver-container] error [Error: Container exited with unexpected exit code: 3]`, and
+  Cloudflare's local runtime reaps the container before `docker ps -a` can see it — so the one
+  artifact that names the cause (the startup credential check's `invalid_credentials`) is gone by the
+  time anyone looks. Exit 3 is uvicorn's "Application startup failed", reproducible by running the
+  same image with a wrong password. Diagnosing it in Phase 3 took a `docker events` watcher plus a
+  direct sign-in probe against the local stack. Pre-existing and orthogonal to this change; worth a
+  `docker events`-based log capture in the tier-3 launcher, or at minimum a README § Tier 3 note
+  saying where the evidence went.

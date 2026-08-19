@@ -550,35 +550,35 @@ list; Dockerfile COPYs only `contracts` and `services/solver`), and no `wrangler
 
 #### Automated
 
-- [x] 2.1 `mise run solver:check` passes (lint.sh covers the three new scripts)
-- [x] 2.2 `mise tasks ls` still lists `solver:dev`, `solver:image:build`, `solver:image:smoke` with their descriptions
-- [x] 2.3 `grep -c '{% raw %}' mise.toml` shows only the two remaining tasks (tier3, hosted)
-- [x] 2.4 `mise run solver:dev` with the trio unset exits 1 with the remediation block
+- [x] 2.1 `mise run solver:check` passes (lint.sh covers the three new scripts) — 161c0d7
+- [x] 2.2 `mise tasks ls` still lists `solver:dev`, `solver:image:build`, `solver:image:smoke` with their descriptions — 161c0d7
+- [x] 2.3 `grep -c '{% raw %}' mise.toml` shows only the two remaining tasks (tier3, hosted) — 161c0d7
+- [x] 2.4 `mise run solver:dev` with the trio unset exits 1 with the remediation block — 161c0d7
 
 #### Manual
 
-- [x] 2.5 Tier 1: `mise run solver:dev` with the trio logs `credential_configured=True` and `startup credential check passed`
-- [x] 2.6 Tier 2: `mise run solver:image:build` prints `arch=amd64`; `mise run solver:image:smoke` prints `202 accepted for job …` and the container log block on exit
-- [x] 2.7 Smoke without the password refuses with the same message; smoke with a stopped stack hits the liveness bail, not the 90 s timeout
-- [x] 2.8 `sh scripts/solver/image-build.sh` invoked from `services/solver/` still builds with the repo-root context
+- [x] 2.5 Tier 1: `mise run solver:dev` with the trio logs `credential_configured=True` and `startup credential check passed` — 161c0d7
+- [x] 2.6 Tier 2: `mise run solver:image:build` prints `arch=amd64`; `mise run solver:image:smoke` prints `202 accepted for job …` and the container log block on exit — 161c0d7
+- [x] 2.7 Smoke without the password refuses with the same message; smoke with a stopped stack hits the liveness bail, not the 90 s timeout — 161c0d7
+- [x] 2.8 `sh scripts/solver/image-build.sh` invoked from `services/solver/` still builds with the repo-root context — 161c0d7
 
 ### Phase 3: Extract tier 3 + the hosted campaign — `tier3.sh`, `hosted.sh`
 
 #### Automated
 
-- [ ] 3.1 `mise run solver:check` passes on all seven scripts
-- [ ] 3.2 `grep -c "'''" mise.toml` and `grep -c '{% raw %}' mise.toml` are both 0
-- [ ] 3.3 `mise tasks ls` lists all five solver tasks with unchanged names and descriptions
-- [ ] 3.4 `pnpm build` still clean and the trap restored `.dev.vars` (`grep -q '^SOLVER_URL=' .dev.vars && grep -q 127.0.0.1 .env.local` — gitignored, so not via `git status`)
+- [x] 3.1 `mise run solver:check` passes on all seven scripts
+- [x] 3.2 `grep -c "'''" mise.toml` and `grep -c '{% raw %}' mise.toml` are both 0
+- [x] 3.3 `mise tasks ls` lists all five solver tasks with unchanged names and descriptions
+- [x] 3.4 `pnpm build` still clean and the trap restored `.dev.vars` (`grep -q '^SOLVER_URL=' .dev.vars && grep -q 127.0.0.1 .env.local` — gitignored, so not via `git status`)
 
 #### Manual
 
-- [ ] 3.5 Tier 3: refuses without Docker / without the password; with both, rewrites `.dev.vars`, builds, starts workerd; Generate shows the POST in the container's `docker logs`
-- [ ] 3.6 Ctrl-C parity on tier 3: trap message, `.dev.vars` restored, exit 130, `wrangler dev` never starts
-- [ ] 3.7 Hosted rehearsal on the local stack: missing profile / missing key refuse; `:8000` collision refuses; banner; abort on wrong answer; `SOLVER_HOSTED_CONFIRM=yes` bypass; solver up; build + preview run
-- [ ] 3.8 Ctrl-C parity on hosted: cleanup prints, solver gone, profile back on local, exit 130, build/preview never ran
-- [ ] 3.9 Hosted liveness bail with a wrong password stops on "the solver process exited before answering /health …", not the 60 s timeout
-- [ ] 3.10 After all runs `pnpm env:local` state is confirmed and `.dev.vars` carries `SOLVER_URL` again
+- [x] 3.5 Tier 3: refuses without Docker / without the password; with both, rewrites `.dev.vars`, builds, starts workerd; Generate shows the POST in the container's `docker logs`
+- [x] 3.6 Ctrl-C parity on tier 3: trap message, `.dev.vars` restored, exit 130, `wrangler dev` never starts
+- [x] 3.7 Hosted rehearsal on the local stack: missing profile / missing key refuse; `:8000` collision refuses; banner; abort on wrong answer; `SOLVER_HOSTED_CONFIRM=yes` bypass; solver up; build + preview run
+- [x] 3.8 Ctrl-C parity on hosted: cleanup prints, solver gone, profile back on local, exit 130, build/preview never ran
+- [x] 3.9 Hosted liveness bail with a wrong password stops on "the solver process exited before answering /health …", not the 60 s timeout
+- [x] 3.10 After all runs `pnpm env:local` state is confirmed and `.dev.vars` carries `SOLVER_URL` again
 
 ### Phase 4: Docs and records
 

@@ -1,7 +1,7 @@
 ---
 change_id: solver-mise-scripts-extract
 title: Extract the solver mise task bodies into tested shell scripts
-status: implemented
+status: impl_reviewed
 created: 2026-08-18
 updated: 2026-08-19
 archived_at: null
@@ -125,3 +125,26 @@ lives and need a wording pass. (§8)
   passes `local`, `[[ ]]`, `+=` and `echo -e` — all of which CI's dash rejects and shellcheck flags
   (SC3043/SC3010/SC3024/SC3037). A syntax check under a permissive shell is decoration, so the gate
   is `shellcheck -o check-set-e-suppressed` plus the `set -eu` conformance assertion.
+
+## Implementation-review addenda (2026-08-19, from `reviews/impl-review.md`)
+
+The review found no regression from the extraction; every warning was a defect inherited verbatim
+from the old `mise.toml` bodies, now visible because the code is readable. All nine findings were
+fixed in triage, which adds **five more named behaviour changes** on top of the trap split:
+
+- `hosted.sh` refuses a profile key that is present but **empty** (`grep "^$key=.\{1,\}"`) — an
+  empty `SOLVER_MACHINE_PASSWORD=` previously let the solver boot unconfigured, printed a false
+  "credential check passed", and dispatched hosted jobs that 503'd on production. (F1)
+- `tier3.sh` writes `.dev.vars.tier3` with `printf`, not `echo` — both target shells' `echo`
+  interpret backslash escapes, silently altering a password containing one. (F2)
+- `image-smoke.sh` gets the same `EXIT` + `INT`/`TERM` split as `tier3.sh`/`hosted.sh` — dash does
+  not run an EXIT trap on an untrapped SIGINT, so a Linux Ctrl-C left the container on :8000. (F3)
+- `hosted.sh` dies if `lsof` is absent instead of letting the `:8000` guard fail open. (F4)
+- `tier3.sh` dies on a missing `.dev.vars` before the trap is installed, instead of building a
+  `.dev.vars` that holds only the password. (F5)
+
+Hardening taken with them: `wait_for_health` uses `curl --max-time 5`; the smoke passes the
+password to `docker run` by name (`-e VAR`, exported) so it is not argv-visible; `profile_value`
+strips a CR; ci.yml names the shellcheck version once and hands it to the assert step via
+`$GITHUB_ENV`; comment fixes (port-taken liveness nuance restored, lint.sh listed as a `common.sh`
+consumer, the unsourced "0.11.0 after the ubuntu-latest migration" claim softened).

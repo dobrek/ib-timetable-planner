@@ -118,18 +118,20 @@ const start = async (container: ContainerLike): Promise<void> => {
  * cancel the in-flight RPC, so this bounds how long WE wait, which is the property the budget is
  * actually about.
  */
-const withTimeout = <T>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+const withTimeout = async <T>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => {
       reject(new SolverDispatchError(408, message));
     }, ms);
   });
-  // Clear the timer once the race settles either way, so a fast answer does not leave a live
-  // timer (and a later, unobserved rejection) behind in the Durable Object's I/O context.
-  return Promise.race([promise, timeout]).finally(() => {
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    // Clear the timer once the race settles either way, so a fast answer does not leave a live
+    // timer (and a later, unobserved rejection) behind in the Durable Object's I/O context.
     clearTimeout(timer);
-  });
+  }
 };
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));

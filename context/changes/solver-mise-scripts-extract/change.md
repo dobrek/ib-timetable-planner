@@ -115,3 +115,13 @@ lives and need a wording pass. (§8)
   direct sign-in probe against the local stack. Pre-existing and orthogonal to this change; worth a
   `docker events`-based log capture in the tier-3 launcher, or at minimum a README § Tier 3 note
   saying where the evidence went.
+
+- **Free fixes taken while the code moved**, as the brief planned: `mise.toml:54-55`'s stale
+  "row stuck at `queued` with an orphan proposal plan" remediation text is gone — `dev.sh` now states
+  the current outcome (refused with a 503, row `failed`, clone deleted), matching README § Tier 1;
+  and `README.md`'s `verify` job list, which omitted `pnpm check`, now reads
+  `shellcheck scripts/solver` → `astro sync` → `check` → `lint` → …
+- **`sh -n` was dropped from the gate by decision** (research §6): on macOS `/bin/sh` is bash 3.2 and
+  passes `local`, `[[ ]]`, `+=` and `echo -e` — all of which CI's dash rejects and shellcheck flags
+  (SC3043/SC3010/SC3024/SC3037). A syntax check under a permissive shell is decoration, so the gate
+  is `shellcheck -o check-set-e-suppressed` plus the `set -eu` conformance assertion.

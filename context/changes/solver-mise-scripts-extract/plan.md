@@ -540,7 +540,7 @@ list; Dockerfile COPYs only `contracts` and `services/solver`), and no `wrangler
 - [x] 1.2 `mise run solver:check` passes (ruff, mypy, lint.sh) — 5e40ed7
 - [x] 1.3 `sh scripts/solver/lint.sh` exits 0; with `set -eu` commented out of `common.sh` it exits non-zero naming the file — 5e40ed7
 - [x] 1.4 `shellcheck -o check-set-e-suppressed scripts/solver/*.sh` reports zero findings — 5e40ed7
-- [ ] 1.5 CI `verify` job green on the branch, with the shellcheck step logging `version: 0.11.0`
+- [x] 1.5 CI `verify` job green on the branch, with the shellcheck step logging `version: 0.11.0` — 5e40ed7
 
 #### Manual
 
@@ -584,11 +584,11 @@ list; Dockerfile COPYs only `contracts` and `services/solver`), and no `wrangler
 
 #### Automated
 
-- [x] 4.1 `pnpm format` clean; `pnpm lint` unaffected
-- [x] 4.2 `grep -n "task-level\|reads keys with \`sed\`" README.md` shows the reworded lines; `grep -n "the same two gates CI runs" README.md` returns nothing
-- [x] 4.3 `grep -n "mise task, CI step" context/foundation/lessons.md` returns nothing
-- [x] 4.4 `/verify` PASS
+- [x] 4.1 `pnpm format` clean; `pnpm lint` unaffected — f8efef2
+- [x] 4.2 `grep -n "task-level\|reads keys with \`sed\`" README.md` shows the reworded lines; `grep -n "the same two gates CI runs" README.md` returns nothing — f8efef2
+- [x] 4.3 `grep -n "mise task, CI step" context/foundation/lessons.md` returns nothing — f8efef2
+- [x] 4.4 `/verify` PASS — f8efef2
 
 #### Manual
 
-- [x] 4.5 README § Tier 1/2/3 and § hosted campaign read correctly against the extracted scripts
+- [x] 4.5 README § Tier 1/2/3 and § hosted campaign read correctly against the extracted scripts — f8efef2

@@ -1,9 +1,9 @@
 ---
 change_id: solver-mise-scripts-extract
 title: Extract the solver mise task bodies into tested shell scripts
-status: implementing
+status: implemented
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-08-19
 archived_at: null
 ---
 

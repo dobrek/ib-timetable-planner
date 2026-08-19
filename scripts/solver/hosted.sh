@@ -36,12 +36,15 @@ if [ ! -f "$profile" ]; then
   exit 1
 fi
 
+# A present-but-empty key must fail too: the service boots happily unconfigured (so /health can
+# answer on a bare container) and its credential check skips itself, so "solver is up" below would
+# be true and every hosted Generate would 503. The key must carry a value, not just exist.
 missing=""
 for key in SUPABASE_URL SUPABASE_KEY SOLVER_URL SOLVER_MACHINE_PASSWORD; do
-  grep -q "^$key=" "$profile" || missing="$missing $key"
+  grep -q "^$key=.\{1,\}" "$profile" || missing="$missing $key"
 done
 if [ -n "$missing" ]; then
-  echo "$profile is missing:$missing" >&2
+  echo "$profile is missing (or has empty):$missing" >&2
   exit 1
 fi
 
@@ -49,6 +52,9 @@ fi
 # the hosted uvicorn fails to bind and exits, the /health wait below passes against the wrong
 # process, and every Generate then inserts a HOSTED job row + clone that the local solver cannot
 # claim - production rows wedged at `queued`. Refuse up front rather than discover it in the data.
+# `lsof` missing would make the `if` below false (exit 127) and wave the campaign through — this guard
+# must fail closed, so require the tool first.
+command -v lsof >/dev/null 2>&1 || die "lsof is required for the :8000 ownership check and was not found on PATH."
 if lsof -nP -iTCP:8000 -sTCP:LISTEN >/dev/null 2>&1; then
   echo "something is already listening on :8000 (a running 'mise run solver:dev'?)." >&2
   echo "The campaign must own that port, or the app would dispatch HOSTED jobs to it. Stop it first:" >&2
@@ -113,7 +119,7 @@ pnpm env:prod-solver
 # mangled or run. `image-smoke.sh` reads its keys the same way. `caffeinate -i` keeps the
 # machine awake for the whole solve; a sleeping laptop is the sharpest risk of this mode.
 profile_value() {
-  sed -n "s/^$1=//p" "$profile" | head -1 | sed -e "s/^'\(.*\)'\$/\1/" -e 's/^"\(.*\)"$/\1/'
+  sed -n "s/^$1=//p" "$profile" | head -1 | tr -d '\r' | sed -e "s/^'\(.*\)'\$/\1/" -e 's/^"\(.*\)"$/\1/'
 }
 solver_supabase_url=$(profile_value SUPABASE_URL)
 solver_supabase_key=$(profile_value SUPABASE_KEY)
@@ -131,6 +137,9 @@ else
 fi
 SOLVER_PID=$!
 
+# Liveness first: a solver that died (failed startup credential check, port taken after our
+# check) must not leave us polling until something ELSE answers on :8000 — wait_for_health checks
+# this predicate before every retry.
 solver_alive() {
   kill -0 "$SOLVER_PID" 2>/dev/null
 }

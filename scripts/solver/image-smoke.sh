@@ -55,18 +55,27 @@ cleanup() {
   echo "-----------------------------------------------------------------------------------"
   docker rm -f "$container" >/dev/null 2>&1 || true
 }
+# EXIT owns the cleanup; INT/TERM only `exit` so the EXIT trap runs on a signal too — dash does
+# NOT run an EXIT trap when killed by an untrapped SIGINT (bash does), and without it a Ctrl-C
+# during the health wait would leave the container holding :8000 with no log dump. Same split as
+# tier3.sh / hosted.sh.
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # `host.docker.internal` is how the container reaches the stack on the HOST; `--add-host` makes the
 # name resolve on engines that do not provide it for free. The env trio is exactly what production
-# forwards through the Container class's `envVars` — no secret key, no service-role key.
+# forwards through the Container class's `envVars` — no secret key, no service-role key. The
+# password goes in by NAME (`-e VAR`, inherited from our environment) so it never appears in
+# `docker run`'s argv, where `ps` would show it for the run's duration.
+export SOLVER_MACHINE_PASSWORD
 docker run -d --name "$container" \
   --platform linux/amd64 \
   --add-host host.docker.internal:host-gateway \
   -p 8000:8000 \
   -e SUPABASE_URL=http://host.docker.internal:54321 \
   -e SUPABASE_KEY="$supabase_key" \
-  -e SOLVER_MACHINE_PASSWORD="$SOLVER_MACHINE_PASSWORD" \
+  -e SOLVER_MACHINE_PASSWORD \
   -e SOLVER_WORKERS=4 \
   -e SOLVER_MAX_CONCURRENT_JOBS=1 \
   -e SOLVER_LOG_LEVEL=INFO \

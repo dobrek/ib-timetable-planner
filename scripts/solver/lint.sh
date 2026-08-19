@@ -38,7 +38,7 @@ elif command -v mise >/dev/null 2>&1; then
   mise x -- shellcheck -o check-set-e-suppressed scripts/solver/*.sh
 else
   die "shellcheck is not installed. It is pinned in mise.toml's [tools] — run 'mise install'," \
-    "or install shellcheck 0.11.0 by hand (the version .github/workflows/ci.yml downloads)."
+    "or install by hand the version mise.toml pins (the same one .github/workflows/ci.yml downloads)."
 fi
 
 offenders=""

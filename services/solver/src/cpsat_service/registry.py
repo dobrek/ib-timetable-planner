@@ -9,10 +9,11 @@ otherwise start a second solve on the same row, with two workers interleaving st
 that survives a container restart clearing this map — is the `status=eq.queued` compare-and-set in
 `supabase.py`.
 
-**Tomorrow (S-303/S-305) it is the seam.** Interrupting a running solve requires holding a reference
-to the live `CpSolver`, and the engine constructs solvers internally. Carrying the slot now costs a
-few lines and is what keeps "Stop & keep" from becoming a wrapper rewrite. No stop BEHAVIOUR is
-built here — only the place to reach for.
+**Since S-303 it is also the stop seam, wired.** Interrupting a running solve requires holding a
+reference to the live `CpSolver`, and the engine constructs solvers internally — so the runner now
+hands each one down through `SolveHooks.on_solver`, and :meth:`JobRegistry.attach_solver` records it.
+Still no stop BEHAVIOUR: nothing reads `stop_requested_at` and nothing calls `stop_search()`. S-305
+adds the source; what exists here is the handle it will reach for.
 """
 
 from __future__ import annotations
@@ -38,8 +39,10 @@ class Registration(Enum):
 
 @dataclass
 class JobEntry:
-    """One running job. ``solver`` is populated by the runner once the engine exposes its handle;
-    it stays None for the whole of F-302, which builds no stop path."""
+    """One running job. ``solver`` holds the CP-SAT solver currently searching, handed over by the
+    runner through the engine's ``on_solver`` hook and overwritten per stage — the latest handle is
+    the live one. It is None before the first stage and after the last, and nothing reads it yet:
+    S-305 is what turns a held handle into a stop."""
 
     job_id: str
     thread: threading.Thread | None = None
@@ -79,7 +82,11 @@ class JobRegistry:
                 entry.thread = thread
 
     def attach_solver(self, job_id: str, solver: Any) -> None:
-        """The S-303/S-305 seam: hand the registry the live solver handle. Unused in F-302."""
+        """Record the solver that is searching right now — called once per stage, latest wins.
+
+        Overwriting rather than accumulating is the correct semantics: only one solver is live at a
+        time, and it is the one a stop would have to interrupt. Mode A's clean fallback solves twice
+        for a single stage, so this genuinely fires more than once per stage report."""
         with self._lock:
             entry = self._entries.get(job_id)
             if entry is not None:

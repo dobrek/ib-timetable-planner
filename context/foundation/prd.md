@@ -140,9 +140,12 @@ when, working from an existing plan:
 2. While the job runs, the author keeps editing freely; the source plan shows
    an advisory "proposal in progress from <time> state" indicator.
 3. Progress accrues **stage by stage**; every completed stage checkpoints a
-   complete board strictly better-ranked than the last, and the author can
+   complete board **never worse-ranked** than the last, and the author can
    **Stop & keep** the best board so far (mirroring the existing cancel
-   semantics).
+   semantics). _(Trued up 2026-08-20 with S-303: read "strictly better" as
+   "never worse". Each stage hardens `tier_k <= best_k`, so a later stage can
+   never undo an earlier one — but a stage that finds no improvement leaves the
+   ranking unchanged, which is a legitimate and common outcome, not a failure.)_
 4. On completion the drift check decides delivery: an **unchanged source is
    auto-updated** with the oracle-verified result (working clone cleaned up,
    author notified); a **changed source leaves the result as a new plan** the
@@ -289,6 +292,16 @@ calibration campaign, never tuned locally on the M4.
   > — calibration sets the target *values*, but target-stopping as the
   > strategy is locked (hardware-independence), and checkpoints are what make
   > a 20-minute job stoppable and SIGTERM-safe.
+  > Trued up 2026-08-20 (S-303 shipped): "objective tuple" overstated what the
+  > solver can produce mid-ladder and is read here as **the board plus the
+  > per-stage best/bound the ladder actually holds**. A true 10-tuple is not a
+  > by-product of a stage — it needs a separate `evaluate_board` re-solve over
+  > the incumbent — so it is not stored, and the checkpoint is a full
+  > `GenerationResult` (the same shape the terminal write uses) rather than a
+  > board-plus-tuple. The rest of the requirement shipped as written: the
+  > machinery for target-stopping is in, gated behind `SOLVER_STAGE_TARGETS`
+  > and empty by default, with the *values* still S-308's to measure — which
+  > is exactly the split this Resolution locked.
 - [new] FR-304: Author can observe a running job from the app — status,
   current stage, progress — by polling the durable job record; the plans list
   shows a job badge; job state survives browser close and container sleep.

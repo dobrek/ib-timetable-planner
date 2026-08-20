@@ -33,7 +33,7 @@ The timetable editor's only generation engine is a client-side greedy solver at 
 | F-302 | solver-service-transport        | (foundation) promoted solver package accepts jobs over HTTP, writes durable status/results                 | F-301                      | FR-310, FR-316                                                        | done     |
 | S-301 | first-verified-proposal         | start a CP-SAT job (clean-mode default) and receive a complete, oracle-verified board on the proposal plan | F-301, F-302               | FR-301, FR-302, FR-303, FR-308, FR-310, FR-313, US-301                | done |
 | S-302 | solver-deploy-lane              | (maintainer) ship app + solver with one merge to main; container runs attached to the Worker               | F-302                      | FR-315, FR-316                                                        | proposed |
-| S-303 | staged-progress-and-checkpoints | watch a job stage by stage; every completed stage durably checkpoints a strictly better board              | S-301                      | FR-303, FR-304, FR-308, FR-312                                        | proposed |
+| S-303 | staged-progress-and-checkpoints | watch a job stage by stage on the plans list; every completed stage durably checkpoints a never-worse board | S-301                      | FR-303, FR-304, FR-308, FR-312                                        | proposed |
 | S-304 | job-aware-container-lifecycle   | a running job survives container sleep, crash, and deploy — at most the in-flight stage is lost            | S-302, S-303               | FR-311                                                                | proposed |
 | S-305 | stop-and-keep                   | stop a running job and keep the best completed-stage board                                                 | S-303                      | FR-305, US-302                                                        | proposed |
 | S-306 | drift-decided-delivery          | unchanged source auto-updates; changed source yields a new plan reviewed on the comparison page            | S-301                      | FR-306, FR-307, FR-313, US-301, US-303                                | proposed |
@@ -138,15 +138,15 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 ### S-303: Staged progress + durable checkpoints
 
-- **Outcome:** Author can observe a running job from the app — status, current stage, progress — by polling the durable job record; the plans list shows a job badge and the source plan shows the advisory "proposal in progress from \<time\> state" indicator; stages stop by target (solve-to-target, budget ceilings as backstop) and after each completed stage the incumbent board + objective tuple is durably checkpointed, so quality accrues monotonically and job state survives browser close; editing is never blocked.
+- **Outcome:** Author can observe a running job from the app — status, current stage, progress — by polling the durable job record; the **plans list** shows a live "Generating — stage N of 10 · \<tier\>" badge (5 s, only while a job is active, paused when the tab is hidden) and the source plan keeps the static advisory "proposal in progress from \<time\> state" indicator plus a link to the list; stages stop by target **when a target is configured** (`SOLVER_STAGE_TARGETS`, empty by default — values ship with S-308; budget ceilings remain the backstop) and after each completed stage the incumbent board **+ that stage's best/bound** is durably checkpointed, so board quality is **never worse** stage over stage and job state survives browser close; editing is never blocked.
 - **Change ID:** staged-progress-and-checkpoints
 - **PRD refs:** FR-303, FR-304, FR-308, FR-312
 - **Prerequisites:** S-301
 - **Parallel with:** S-302, S-306, S-307
 - **Blockers:** —
 - **Unknowns:**
-  - Polling cadence/UX for a 12–20-minute job — Owner: dev. Block: no (polling is locked for this change; push via Realtime/WebSockets is the recorded upgrade if polling UX disappoints, see Parked).
-- **Risk:** The deepest new solver capability (target-stopping + checkpoint emission — the POC is solve-to-budget, batch-only) lands here, in the first slice that makes it user-visible, per progressive disclosure; it is also what makes long jobs stoppable (S-305) and SIGTERM-safe (S-304), so both tracks converge on this slice. The job UI lands on the plan-detail island — the FR-312 guardrail (< 200 ms drag-drop validation untouched) is re-proven here.
+  - ~~Polling cadence/UX for a 12–20-minute job~~ — **RESOLVED 2026-08-20**: 5 s, active-only, visibility-aware, with terminal states remembered in the tab. An idle hub issues no requests at all; a tab returning to the foreground makes one discovery read so a job started in another tab is picked up. Push via Realtime/WebSockets stays the recorded upgrade — see Parked for the trigger that would justify it.
+- **Risk:** The deepest new solver capability (target-stopping + checkpoint emission — the POC is solve-to-budget, batch-only) lands here, in the first slice that makes it user-visible, per progressive disclosure; it is also what makes long jobs stoppable (S-305) and SIGTERM-safe (S-304), so both tracks converge on this slice. *(Re-grounded 2026-08-20: the job UI landed on the **plans list**, not the plan-detail island. That retires the FR-312 guardrail **structurally** rather than by proof — `/plans` has no board on it, so a poll cannot contend with drag-drop validation at all, and `src/_pages/plan-detail/model/**` has no diff in the slice. The plan page keeps the static FR-308 advisory and gains only a link.)*
 - **Status:** proposed
 
 ### S-304: Job-aware container lifecycle
@@ -155,6 +155,11 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Change ID:** job-aware-container-lifecycle
 - **PRD refs:** FR-311
 - **Prerequisites:** S-302, S-303
+- **Inherited from S-303 (2026-08-20):** `heartbeat_at` now renews on every stage event rather than
+  once at claim, so a wedged row is already *coarsely* detectable — but Mode A alone can run 300 s
+  between renewals, so the finer resolution (a timer thread) is still this slice's. The column SELECT
+  grant the widened claim CAS needs (`heartbeat_at`, and `stop_requested_at` for S-305) was **pre-paid**
+  by S-303's migration, so no grant work remains here. The reclaim half below is unchanged.
 - **Parallel with:** S-305, S-306, S-307
 - **Blockers:** —
 - **Unknowns:** —
@@ -179,6 +184,13 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 - **Change ID:** stop-and-keep
 - **PRD refs:** FR-305, US-302
 - **Prerequisites:** S-303
+- **Inherited from S-303 (2026-08-20):** the stop SEAM exists and is tested, so this slice adds a
+  *source* rather than a mechanism. `SolveHooks.should_stop` is honoured by the engine's solution
+  callback (a stage it ends records `stoppedBy: "cancelled"`, and the ladder breaks out rather than
+  cascading through the remaining tiers); `registry.attach_solver` now holds the live `CpSolver` for
+  an immediate `stop_search()`; `stopReason: "cancelled"` and per-stage `stoppedBy` are already in
+  contract; and `stop_requested_at` is readable by the solver role but deliberately **not** writable
+  by it. What is missing is the button, the write, and the predicate that polls the column.
 - **Parallel with:** S-304, S-306, S-307, S-310
 - **Blockers:** —
 - **Unknowns:** —
@@ -277,7 +289,7 @@ Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**
 - **Off-Cloudflare hosting (Cloud Run / Fly.io)** — Why parked: PRD §Non-Goals; escape hatches considered only if calibration (S-308) proves the 4-vCPU ceiling genuinely binding. The image stays host-portable by construction.
 - **`apps/` repo restructure** — Why parked: PRD §Non-Goals; any `apps/web` move is a dedicated, purely mechanical change after this migration ships — never sharing a diff with behavior changes.
 - **Parallel jobs per plan** — Why parked: PRD §Non-Goals; one active job per source plan stands; multi-policy parallel runs (per-job container instances) are a later lift.
-- **Push-based progress (Supabase Realtime / container WebSockets)** — Why parked: deliberately not ruled out by the PRD; the acknowledged upgrade if S-303's polling UX disappoints.
+- **Push-based progress (Supabase Realtime / container WebSockets)** — Why parked: deliberately not ruled out by the PRD; the acknowledged upgrade if S-303's polling UX disappoints. **The trigger, defined 2026-08-20 so "disappoints" is not a matter of taste:** adopt push when either (a) a stage transition routinely takes more than ~10 s to appear on the plans list — which polling can only fix by shortening the interval, i.e. by multiplying the request count — or (b) hub polling becomes a measurable share of Supabase request volume. Until one of those is observed, the current shape reads nothing on an idle hub and nothing on a hidden tab, so neither is expected.
 - **Cloudflare Workflows / Queues adoption** — Why parked: deliberately not ruled out; a retry-durability upgrade, not needed for the locked job model.
 - **Mode B interactive repair in the board UI** — Why parked: deliberately not ruled out; available during the build without re-shaping, but no FR commits to it.
 - **New scheduling rules; author-configurable policy presets** — Why parked: deliberately not ruled out; no FR commits to them.

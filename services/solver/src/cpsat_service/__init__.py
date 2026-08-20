@@ -10,9 +10,10 @@ The shape, and why each piece exists:
                   validates the body against the FROZEN CONTRACT (never a Pydantic projection of
                   it), registers the job, spawns the worker and returns 202.
     runner.py     the background worker: sign in -> compare-and-set claim -> solve -> final write.
-    supabase.py   an httpx client with exactly three operations, holding no privileged key.
-    registry.py   the in-process job map. Doubles as the duplicate-POST guard and is the seam
-                  S-303/S-305 inherit for progress and stop.
+    supabase.py   an httpx client with four operations, holding no privileged key: sign in, claim,
+                  the best-effort per-stage progress write, and the retried terminal write.
+    registry.py   the in-process job map. Doubles as the duplicate-POST guard and holds the live
+                  solver handle S-305 will stop.
     settings.py   the container's environment, read once.
 
 Execution model (research R5): 202 + a background thread + the database row as the ONLY status

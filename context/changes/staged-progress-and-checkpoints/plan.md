@@ -620,6 +620,13 @@ board island). Test asserts the link.
 
 **Contract**: `src/_pages/plan-detail/model/**` has no diff in this phase (FR-312 structural proof).
 
+#### 7. Addendum (2026-08-20, recorded at impl-review) — what shipped beyond the letter of §4–§6
+
+- **Discovery read.** `readGenerationJobStatuses` takes `{ jobIds, planIds }` (both `max(200)`, both defaulting to `[]`; the planned `min(1)` on `jobIds` is gone) and runs a second read — active jobs by `planIds` — in parallel with the by-id read, deduped. Without it a hub tab open while Generate was pressed on a plan page knows no job id and would show nothing until reload.
+- **Store rule 5.** A tab becoming visible ticks once **unconditionally** (not gated on "≥ 1 active"), keyed by the page's plan ids; the 5 s timer still obeys the active-only rule. This is the one request the poll issues on an idle hub — bounded to one per tab-focus.
+- **`useHydrated`** (`src/shared/lib/use-hydrated/`). SSR on workerd formats `toLocaleTimeString` in UTC, the browser in the reader's zone; `suppressHydrationWarning` would freeze the wrong text. The indicator's `startedAt` therefore travels separately from the label and renders as `<time dateTime>` whose readable form fills in post-hydration. The same pattern now applies to the strip's start time.
+- **Store lifecycle.** The `visibilitychange` listener attaches on the first `subscribe` and detaches on the last unsubscribe (the `board-zoom.ts` shape); nothing touches the DOM at construction and `dispose` is re-armable — so creating the store in a `useState` initializer is side-effect free and a StrictMode remount re-arms it.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -627,7 +634,7 @@ board island). Test asserts the link.
 - `pnpm check` 0 errors; `pnpm lint` (both React 19 hook rules pass without any `eslint-disable`); `pnpm steiger` green (no cross-slice import; entity barrel exports used)
 - `pnpm test` green: `plan-indicators`, `job-progress-store` (fake timers: active-only start, stop on all-terminal, visibility pause/resume, stable snapshot identity, error keeps snapshot), `PlanIndicatorsCell.test.tsx`, updated `GenerationStatusStrip.test.tsx`, `stage-report`/`tier-labels`/`job-status`
 - `pnpm test:integration src/_pages/plans-list` green (loader attaches ≤ 1 indicator per plan; `readGenerationJobStatuses` returns active + terminal rows with the narrow projection)
-- `git diff --stat main -- src/_pages/plan-detail/model` is empty (FR-312)
+- `git diff main -- src/_pages/plan-detail/model` contains no non-comment change (FR-312; Phase 6 trues up one docstring in `use-generation-job.ts`)
 - `pnpm build` green
 
 #### Manual Verification:
@@ -825,7 +832,7 @@ hand-off list.
 - [x] 5.1 `pnpm check` 0 errors; `pnpm lint` without any hook-rule suppression; `pnpm steiger` green — 90c6f07
 - [x] 5.2 `pnpm test` green (plan-indicators, job-progress-store, PlanIndicatorsCell, strip, stage-report, tier-labels, job-status) — 90c6f07
 - [x] 5.3 `pnpm test:integration src/_pages/plans-list` green — 90c6f07
-- [x] 5.4 `src/_pages/plan-detail/model/**` has no diff (FR-312) — 90c6f07
+- [x] 5.4 `src/_pages/plan-detail/model/**` has no non-comment diff (FR-312; Phase 6 docstring only) — 90c6f07
 - [x] 5.5 `pnpm build` green — 90c6f07
 
 #### Manual

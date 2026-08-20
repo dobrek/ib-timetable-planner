@@ -1,5 +1,6 @@
 import { ExternalLink, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 import { describeCleanLabel } from "@/entities/timetable";
+import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 
@@ -27,6 +28,7 @@ type Props = {
  */
 export default function GenerationStatusStrip({ generation }: Props) {
   const { state, checking, refresh } = generation;
+  const hydrated = useHydrated();
   if (state.status !== "tracking") return null;
   const { job } = state;
 
@@ -35,7 +37,7 @@ export default function GenerationStatusStrip({ generation }: Props) {
       <Strip>
         <span role="status" className="text-muted-foreground flex items-center gap-1.5">
           <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          Generating… started {formatStarted(job.createdAt)}
+          Generating… started <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time>
         </span>
         <RefreshButton checking={checking} onRefresh={refresh} />
         <a href="/plans" className="text-foreground hover:text-primary font-medium underline underline-offset-2">
@@ -103,6 +105,11 @@ const RefreshButton = ({ checking, onRefresh }: { checking: boolean; onRefresh: 
   </Button>
 );
 
-/** `created_at` is an ISO instant from the database; render it in the reader's own locale. */
+/**
+ * `created_at` is an ISO instant from the database; render it in the reader's own locale — but only
+ * once there IS a reader. The server renders on workerd in UTC, so formatting there would hand every
+ * non-UTC author the wrong time; the `<time dateTime>` carries the instant meanwhile. Same shape as
+ * the plans-list Activity cell; see `useHydrated`.
+ */
 const formatStarted = (createdAt: string): string =>
   new Date(createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });

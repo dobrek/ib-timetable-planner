@@ -110,7 +110,10 @@ class SolveHooks:
     #: clean fallback solves twice — and the latest handle is the live one.
     on_solver: Callable[[cp_model.CpSolver], None] | None = None
     #: Polled on the solver thread at every improving solution. Must be cheap and must not block:
-    #: it decides, it does not act. Returning true ends the current stage and the ladder.
+    #: it decides, it does not act. Returning true ends the current stage and the ladder. It must
+    #: also be TOTAL: the propagation rule above is for the worker-thread hooks, whereas this one
+    #: runs inside OR-tools' solution callback, where a raise surfaces through the pybind layer in a
+    #: way the engine does not define. Wrap it before wiring it (S-305).
     should_stop: Callable[[], bool] | None = None
 
 
@@ -498,8 +501,9 @@ def to_generation_result(dump: Dump, result: SolveResult, engine: str = "cp-sat"
         "provenOptimal": result.proven_optimal,
         "cohorts": cohorts,
     }
-    if not result.proven_optimal:
-        diagnostics["stopReason"] = _stop_reason(result.stages)
+    stop_reason = _stop_reason(result.stages) if not result.proven_optimal else None
+    if stop_reason is not None:
+        diagnostics["stopReason"] = stop_reason
     return {
         "placements": [
             {"cohort": p.cohort, "courseId": p.course_id, "day": p.day, "period": p.period, "week": p.week}
@@ -509,7 +513,7 @@ def to_generation_result(dump: Dump, result: SolveResult, engine: str = "cp-sat"
     }
 
 
-def _stop_reason(stages: tuple[StageReport, ...]) -> Literal["budget", "target", "cancelled"]:
+def _stop_reason(stages: tuple[StageReport, ...]) -> Literal["budget", "target", "cancelled"] | None:
     """Why the RUN ended, read off the stages that did not prove optimality.
 
     Cancellation wins outright — one cancelled stage makes the whole run cancelled, whatever the rest
@@ -518,11 +522,16 @@ def _stop_reason(stages: tuple[StageReport, ...]) -> Literal["budget", "target",
     the ceiling is what ended it), makes the run budget-stopped. ``interrupted`` is not derivable
     here by construction: it labels a job that never came back, which only the app can observe.
 
-    Never called on a proven-optimal result — ``stopReason`` is then an omitted key, not a value."""
+    Never called on a proven-optimal result — ``stopReason`` is then an omitted key, not a value. It
+    IS called on a mid-ladder checkpoint (``proven_optimal=False`` by construction), and when every
+    stage so far proved optimal there is nothing to attribute: ``None``, so the key is omitted rather
+    than claiming a ceiling ended a run that nothing has ended yet."""
     if any(stage.stopped_by == "cancelled" for stage in stages):
         return "cancelled"
     fell_short = [stage for stage in stages if stage.status != "OPTIMAL"]
-    if fell_short and all(stage.stopped_by == "target" for stage in fell_short):
+    if not fell_short:
+        return None
+    if all(stage.stopped_by == "target" for stage in fell_short):
         return "target"
     return "budget"
 

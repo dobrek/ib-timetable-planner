@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Badge } from "@/shared/ui";
 import {
   describeGenerationIndicator,
@@ -6,7 +7,6 @@ import {
   type IndicatorTone,
   type PlanIndicator,
 } from "../model/plan-indicators";
-import { useHydrated } from "../model/use-hydrated";
 
 type Props = {
   indicators: readonly PlanIndicator[];
@@ -81,6 +81,6 @@ const VARIANTS: Record<IndicatorTone, "secondary" | "default" | "destructive" | 
   other: "outline",
 };
 
-/** The reader's own locale and zone — see `suppressHydrationWarning` above. */
+/** The reader's own locale and zone — rendered only post-hydration, see `useHydrated`. */
 const formatStarted = (iso: string): string =>
   new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });

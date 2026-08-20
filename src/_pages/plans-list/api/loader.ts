@@ -1,5 +1,6 @@
 import { unwrapMany, type SupabaseClient } from "@/shared/api";
 import { toGenerationIndicators, type PlanIndicator } from "../model/plan-indicators";
+import { STATUS_COLUMNS } from "./generation-status";
 
 /**
  * One hub row: identity + display fields, plus the entity counts the delete
@@ -66,9 +67,10 @@ const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
  * The active generation job per plan, as the indicators the hub renders and the poll store starts
  * from.
  *
- * The projection is explicit and narrow, and that is a correctness rule rather than an optimisation
- * on this table: `snapshot` is ~124 KB and TOASTed, `result` ~35 KB and `checkpoint` ~35 KB, so a
- * bare `select()` would drag hundreds of kilobytes per row into a page that shows one line of text.
+ * The projection is `STATUS_COLUMNS` — shared with the poll read so the two can never drift — and it
+ * is narrow as a correctness rule rather than an optimisation on this table: `snapshot` is ~124 KB
+ * and TOASTed, `result` ~35 KB and `checkpoint` ~35 KB, so a bare `select()` would drag hundreds of
+ * kilobytes per row into a page that shows one line of text.
  */
 const fetchActiveIndicators = async (
   client: SupabaseClient,
@@ -78,7 +80,7 @@ const fetchActiveIndicators = async (
   const jobs = unwrapMany(
     await client
       .from("generation_jobs")
-      .select("id, plan_id, status, stage_index, stage_name, created_at")
+      .select(STATUS_COLUMNS)
       .in("status", ["queued", "running"])
       .in("plan_id", planIds),
     "Generation activity lookup failed",

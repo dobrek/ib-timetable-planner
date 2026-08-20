@@ -1,10 +1,10 @@
 ---
 change_id: solver-deploy-lane
 title: Solver deploy lane
-status: impl_reviewed
+status: archived
 created: 2026-08-15
-updated: 2026-08-18
-archived_at: null
+updated: 2026-08-20
+archived_at: 2026-08-20T12:01:58Z
 ---
 
 ## Notes

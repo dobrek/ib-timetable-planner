@@ -26,8 +26,11 @@ import { applyGeneratedPlacements } from "./placements";
  *
  * **The trigger is a visit, and the plan says so out loud.** This satisfies FR-313's *location*
  * requirement — the oracle runs server-side in the delivery pipeline, not in a browser — but not its
- * *rationale* ("so headless delivery is verified without a browser open"). Nothing here polls; S-303
- * adds that, S-306 adds drift-decided delivery. Until then the author's return to the page is the clock.
+ * *rationale* ("so headless delivery is verified without a browser open"). Nothing here polls, and
+ * S-303 did not add that: it put a status-only poll on the plans list, which never calls this
+ * function — running delivery on a timer, from a page the author is not looking at, is exactly what
+ * that separation avoids. S-306 adds drift-decided delivery; until then the author's return to the
+ * page is the clock.
  *
  * **Idempotent under concurrent invocation**, because two tabs firing the on-visit check is the
  * normal case rather than an edge one. The delivered marker is a compare-and-set

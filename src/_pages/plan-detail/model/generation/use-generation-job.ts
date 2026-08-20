@@ -22,7 +22,11 @@ import {
  * what the author does AFTER the page exists — launching, and asking again.
  *
  * `refresh` is not a passive read either: on a job that has succeeded, that call is what verifies the
- * board server-side and applies it to the proposal plan. Polling is S-303's; nothing here loops.
+ * board server-side and applies it to the proposal plan.
+ *
+ * **Nothing here loops, and S-303 deliberately did not change that.** The live stage-by-stage view is
+ * on the plans list, where there is no board for a poll to contend with; this island keeps the static
+ * FR-308 advisory and a link to it. Anything that wants to loop belongs there, not here.
  */
 export type GenerationJob = { jobId: string; proposalPlanId: string };
 

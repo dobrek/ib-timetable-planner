@@ -89,8 +89,9 @@ const POLL_INTERVAL_MS = 250;
       );
       registerPlan(proposalPlanId);
 
-      // Test-side polling only. The APP does not poll — the author's next visit is the trigger
-      // (S-303 owns polling) — but a test cannot revisit a page, so it waits here instead.
+      // Test-side polling only. The app polls for STATUS on the plans list (S-303), but never for
+      // delivery: the author's next visit to the source plan is what verifies and applies the board.
+      // A test cannot revisit a page, so it waits here instead.
       const settled = await settle(admin, jobId);
       expect(settled.error).toBeNull();
       expect(settled.status).toBe("succeeded");

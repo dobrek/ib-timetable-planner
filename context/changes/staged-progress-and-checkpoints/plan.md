@@ -822,27 +822,27 @@ hand-off list.
 
 #### Automated
 
-- [x] 5.1 `pnpm check` 0 errors; `pnpm lint` without any hook-rule suppression; `pnpm steiger` green
-- [x] 5.2 `pnpm test` green (plan-indicators, job-progress-store, PlanIndicatorsCell, strip, stage-report, tier-labels, job-status)
-- [x] 5.3 `pnpm test:integration src/_pages/plans-list` green
-- [x] 5.4 `src/_pages/plan-detail/model/**` has no diff (FR-312)
-- [x] 5.5 `pnpm build` green
+- [x] 5.1 `pnpm check` 0 errors; `pnpm lint` without any hook-rule suppression; `pnpm steiger` green — 90c6f07
+- [x] 5.2 `pnpm test` green (plan-indicators, job-progress-store, PlanIndicatorsCell, strip, stage-report, tier-labels, job-status) — 90c6f07
+- [x] 5.3 `pnpm test:integration src/_pages/plans-list` green — 90c6f07
+- [x] 5.4 `src/_pages/plan-detail/model/**` has no diff (FR-312) — 90c6f07
+- [x] 5.5 `pnpm build` green — 90c6f07
 
 #### Manual
 
-- [x] 5.6 Live walkthrough: indicator advances on `/plans`, flips to "Finished — open plan"; polling only while active, paused when hidden, none when idle
-- [x] 5.7 "Finished — open plan" → strip shows "Proposal ready" (delivery on visit)
-- [x] 5.8 Strip shows static advisory + "Watch progress in Plans"; board drag-drop unchanged
-- [x] 5.9 `/plans` SSR renders the initial indicator state
+- [x] 5.6 Live walkthrough: indicator advances on `/plans`, flips to "Finished — open plan"; polling only while active, paused when hidden, none when idle — 90c6f07
+- [x] 5.7 "Finished — open plan" → strip shows "Proposal ready" (delivery on visit) — 90c6f07
+- [x] 5.8 Strip shows static advisory + "Watch progress in Plans"; board drag-drop unchanged — 90c6f07
+- [x] 5.9 `/plans` SSR renders the initial indicator state — 90c6f07
 
 ### Phase 6: Truth-up and close-out
 
 #### Automated
 
-- [ ] 6.1 `/verify` green
-- [ ] 6.2 Solver gates green (`pytest`, `mypy`, `ruff`, `mise run solver:check`)
-- [ ] 6.3 Stale-prose grep returns nothing
+- [x] 6.1 `/verify` green
+- [x] 6.2 Solver gates green (`pytest`, `mypy`, `ruff`, `mise run solver:check`)
+- [x] 6.3 Stale-prose grep returns nothing
 
 #### Manual
 
-- [ ] 6.4 Roadmap S-303/S-304/S-305 and PRD FR-303 read true end-to-end
+- [x] 6.4 Roadmap S-303/S-304/S-305 and PRD FR-303 read true end-to-end

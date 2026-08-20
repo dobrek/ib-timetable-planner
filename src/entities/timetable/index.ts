@@ -23,6 +23,8 @@ export * from "./model/generation/auto-park";
 export * from "./model/generation/course-map";
 export * from "./model/generation/soft-floor";
 export * from "./model/generation/clean-label";
+export * from "./model/generation/stage-report";
+export * from "./model/generation/tier-labels";
 export * from "./model/generation/verify";
 export * from "./model/generation/occupied-slots";
 export * from "./model/generation/objective";

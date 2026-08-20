@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from ortools.sat.python import cp_model
 
@@ -54,6 +54,10 @@ class StageReport:
     best: int | None  # objective value at stage end (None if no solution found)
     bound: int | None  # best proven bound
     wall_clock_s: float
+    # Why a non-optimal stage ended when it did. None on OPTIMAL, and on a stage with no solution to
+    # attribute (UNKNOWN/INFEASIBLE) — the wire omits the key rather than nulling it. Defaulted so
+    # every existing construction site stays valid.
+    stopped_by: Literal["budget", "target", "cancelled"] | None = None
 
 
 @dataclass(frozen=True)

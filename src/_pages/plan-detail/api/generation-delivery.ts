@@ -7,6 +7,7 @@ import {
   computePinnedSoftFloor,
   deriveCleanLabel,
   runVerifiedGeneration,
+  parseStoredStages,
   softHitsAchieved,
   translateCourseIds,
   type CleanLabel,
@@ -272,7 +273,13 @@ const latestJob = async (supabase: SupabaseClient, planId: string): Promise<Stat
     .limit(1)
     .maybeSingle();
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to read the generation job: ${error.message}`);
-  return data === null ? null : (data as unknown as StatusRow);
+  if (data === null) return null;
+  // `stages` is the one column here that arrives as untyped jsonb, so it is parsed rather than cast:
+  // a malformed transcript degrades the clean label to `unavailable` instead of feeding
+  // `deriveCleanLabel` a shape it will read a confident wrong number out of. Everything else in
+  // STATUS_COLUMNS is a scalar the check constraints already pin.
+  const row = data as unknown as Omit<StatusRow, "stages"> & { stages: unknown };
+  return { ...row, stages: parseStoredStages(row.stages) };
 };
 
 /** The heavy pair, fetched ONLY once a job is known to be succeeded-and-undelivered. */

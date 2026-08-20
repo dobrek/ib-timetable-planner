@@ -21,21 +21,13 @@
  * repair mode). A missing entry, or one with no `best`, yields `unavailable` rather than a throw or a
  * confident wrong number — the board is still deliverable, its cleanliness merely unknown.
  */
+import type { StoredStageReport } from "./stage-report";
+
 export type CleanLabel =
   | { kind: "clean" }
   | { kind: "clean-at-floor"; pinnedHours: number }
   | { kind: "not-clean"; softHits: number; floor: number }
   | { kind: "unavailable" };
-
-/** One camelCase `StageReport` as stored in `generation_jobs.stages` (contract shape, jsonb). */
-export type StoredStageReport = {
-  tier: number;
-  name: string;
-  status: string;
-  best?: number;
-  bound?: number;
-  wallClockS: number;
-};
 
 const SOFT_HITS_TIER = 5;
 

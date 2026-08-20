@@ -11,6 +11,7 @@ import {
   computeSnapshotHash,
   course,
   placement,
+  storedStageReportSchema,
   type GenerationResult,
   type SolveRequest,
   type WireSnapshot,
@@ -57,6 +58,7 @@ const SNAPSHOT_GOLDEN_SHA256 = "8ab77d79e1138f7ed0c054ff51429330998e32df40c4dea4
 let validateSnapshot: ValidateFunction;
 let validateResult: ValidateFunction;
 let validateSolveRequest: ValidateFunction;
+let validateStageReport: ValidateFunction;
 
 beforeAll(() => {
   // `strict: true` is the point: it rejects a schema with unknown keywords or a mistyped `$ref`,
@@ -66,6 +68,7 @@ beforeAll(() => {
   validateSnapshot = getValidator(ajv, "GeneratorSnapshot");
   validateResult = getValidator(ajv, "GenerationResult");
   validateSolveRequest = getValidator(ajv, "SolveRequest");
+  validateStageReport = getValidator(ajv, "StageReport");
 });
 
 describe("contract goldens", () => {
@@ -122,6 +125,48 @@ describe("contract goldens", () => {
     // solve-request golden embeds a snapshot, so it inherits the same fixture rule.
     for (const golden of [SNAPSHOT_GOLDEN, SOLVE_REQUEST_GOLDEN])
       expect(readText(golden)).not.toMatch(/"(name|level|color|fullName|groupIndex)"/);
+  });
+});
+
+/**
+ * `StageReport` has no golden — it is the one `$defs` entry no fixture contains, because a
+ * `wallClockS` float carries no cross-language byte guarantee and so may never enter a canonical
+ * payload. Its TS half is therefore gated the only other way available: hold the Zod schema the app
+ * parses `generation_jobs.stages` with against the same ajv validator, on cases chosen so the two
+ * disagreeing is the failure.
+ */
+describe("the StageReport projection", () => {
+  const stage = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+    tier: 4,
+    name: "teacherHoles",
+    status: "OPTIMAL",
+    best: 97,
+    bound: 97,
+    wallClockS: 1.5,
+    ...overrides,
+  });
+
+  const ACCEPT_REJECT: { case: string; payload: Record<string, unknown>; valid: boolean }[] = [
+    { case: "a complete report", payload: stage(), valid: true },
+    { case: "the S-303 stoppedBy", payload: stage({ status: "FEASIBLE", stoppedBy: "target" }), valid: true },
+    {
+      case: "every optional omitted",
+      payload: { tier: 2, name: "holes", status: "UNKNOWN", wallClockS: 10 },
+      valid: true,
+    },
+    { case: "a missing wallClockS", payload: stage({ wallClockS: undefined }), valid: false },
+    { case: "an unknown key", payload: stage({ elapsedMs: 1500 }), valid: false },
+    { case: "a stoppedBy outside the enum", payload: stage({ stoppedBy: "stagnation" }), valid: false },
+    { case: "a nulled optional", payload: stage({ best: null }), valid: false },
+    { case: "a tier below 1", payload: stage({ tier: 0 }), valid: false },
+  ];
+
+  it.each(ACCEPT_REJECT)("agrees with the schema on $case", ({ payload, valid }) => {
+    // `undefined` is not a JSON value: round-tripping drops those keys, which is what an omitted
+    // optional actually looks like on the wire and what ajv must be shown.
+    const wire: unknown = JSON.parse(JSON.stringify(payload));
+    expect(errorsOf(validateStageReport, wire).length === 0).toBe(valid);
+    expect(storedStageReportSchema.safeParse(wire).success).toBe(valid);
   });
 });
 

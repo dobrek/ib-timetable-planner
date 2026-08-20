@@ -30,7 +30,10 @@ Every `$defs` entry in `generation-wire.schema.json`:
   `CourseDeficit` — the solve output.
 - `StageReport` — one rung of the lexicographic ladder. **In contract** because S-303 persists an
   array of these into `generation_jobs.stages` and the progress UI reads them. Variable-length and
-  possibly sparse (`solve_repair` emits tiers 1 and 4 only) — never a fixed 10-tuple.
+  possibly sparse (`solve_repair` emits tiers 1 and 4 only) — never a fixed 10-tuple. Its optional
+  `stoppedBy` says why a non-optimal stage ended (`budget | target | cancelled`); the result-level
+  `stopReason` is derived from the set of them.
+
 - `SolveRequest` — the envelope `POST /jobs/{jobId}/solve` accepts, and the **only** carrier of
   `formatVersion`. The body is `additionalProperties: false`, so the job identity travels in the URL
   path rather than inside it.
@@ -44,12 +47,17 @@ Three decisions the schema encodes that are easy to miss when reading it quickly
    simply has no name/level/colour property, the "the solver sees UUIDs only" posture stops being a
    convention upheld by a projection function and becomes a property the schema enforces.
 2. **CP-SAT is the sole wire producer.** `engine` is `const "cp-sat"`; `provenOptimal` is required;
-   `partial` means exactly `not provenOptimal`; `stopReason` is `budget | cancelled`. `stagnation` is
-   absent because it is a greedy-only reason — **greedy is out of contract entirely** and leaves in
-   S-309. The in-app TS types stay wider until then; the wire is the narrow one.
+   `partial` means exactly `not provenOptimal`; `stopReason` is `budget | target | cancelled |
+   interrupted`, and it is **derived, not chosen**: `cancelled` if any stage was cancelled, else
+   `budget` if any non-optimal stage was ended by a ceiling (a stage with no solution counts as
+   budget — the ceiling is what ended it), else `target`; absent when the solve proved optimality.
+   `interrupted` is written by the app, not the engine: it labels a job that never finished (S-304).
+   `stagnation` is absent because it is a greedy-only reason — **greedy is out of contract entirely**
+   and leaves in S-309. The in-app TS types stay wider until then; the wire is the narrow one.
 3. **Omit when absent, never null.** No property on this wire may be `null`. An absent optional
-   (`lowerBound`, `stopReason`, `best`, `bound`, `warmStart`) is an omitted key. Both canonicalizers
-   implement the rule rather than merely documenting it: they drop `null`/`undefined`-valued keys.
+   (`lowerBound`, `stopReason`, `best`, `bound`, `stoppedBy`, `warmStart`) is an omitted key. Both
+   canonicalizers implement the rule rather than merely documenting it: they drop `null`/`undefined`-valued keys.
+
 
 ## Out of scope — stated so it is never "discovered" and frozen by mistake
 
@@ -139,6 +147,13 @@ tolerates) do not bump it.
 A schema change is always **bilateral**: regenerate both goldens, and both suites must go green in
 the same commit. Never update one side's fixture alone — a golden that only one suite agrees with is
 worse than no golden.
+
+**2026-08-20 (S-303).** `stopReason` gained `target` and `interrupted`, and `StageReport` gained the
+optional `stoppedBy` — both additive-and-optional, so `formatVersion` stayed at `1` and the goldens
+were **not** regenerated (they are byte-identical across the change; the parity suites prove it). It
+is the worked example of the paragraph above: a widened enum on values no existing peer emits, and a
+new optional key, do not bump.
+
 
 ## Fixtures
 

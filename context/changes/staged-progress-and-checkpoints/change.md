@@ -1,9 +1,9 @@
 ---
 change_id: staged-progress-and-checkpoints
 title: Staged progress and checkpoints
-status: plan_reviewed
+status: implementing
 created: 2026-08-19
-updated: 2026-08-19
+updated: 2026-08-20
 archived_at: null
 ---
 

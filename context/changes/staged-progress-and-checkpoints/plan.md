@@ -810,30 +810,30 @@ hand-off list.
 
 #### Automated
 
-- [x] 4.1 `supabase db reset` applies; `db diff` clean
-- [x] 4.2 `solver-credential` + `generation-jobs` integration tests green with the five-column list and renamed policy
-- [x] 4.3 `uv run pytest tests/test_service.py` still green
+- [x] 4.1 `supabase db reset` applies; `db diff` clean — 130430c
+- [x] 4.2 `solver-credential` + `generation-jobs` integration tests green with the five-column list and renamed policy — 130430c
+- [x] 4.3 `uv run pytest tests/test_service.py` still green — 130430c
 
 #### Manual
 
-- [x] 4.4 Studio `column_privileges` query lists exactly the five SELECT columns
+- [x] 4.4 Studio `column_privileges` query lists exactly the five SELECT columns — 130430c
 
 ### Phase 5: App — status read, poll store, plans-list indicator, strip link
 
 #### Automated
 
-- [ ] 5.1 `pnpm check` 0 errors; `pnpm lint` without any hook-rule suppression; `pnpm steiger` green
-- [ ] 5.2 `pnpm test` green (plan-indicators, job-progress-store, PlanIndicatorsCell, strip, stage-report, tier-labels, job-status)
-- [ ] 5.3 `pnpm test:integration src/_pages/plans-list` green
-- [ ] 5.4 `src/_pages/plan-detail/model/**` has no diff (FR-312)
-- [ ] 5.5 `pnpm build` green
+- [x] 5.1 `pnpm check` 0 errors; `pnpm lint` without any hook-rule suppression; `pnpm steiger` green
+- [x] 5.2 `pnpm test` green (plan-indicators, job-progress-store, PlanIndicatorsCell, strip, stage-report, tier-labels, job-status)
+- [x] 5.3 `pnpm test:integration src/_pages/plans-list` green
+- [x] 5.4 `src/_pages/plan-detail/model/**` has no diff (FR-312)
+- [x] 5.5 `pnpm build` green
 
 #### Manual
 
-- [ ] 5.6 Live walkthrough: indicator advances on `/plans`, flips to "Finished — open plan"; polling only while active, paused when hidden, none when idle
-- [ ] 5.7 "Finished — open plan" → strip shows "Proposal ready" (delivery on visit)
-- [ ] 5.8 Strip shows static advisory + "Watch progress in Plans"; board drag-drop unchanged
-- [ ] 5.9 `/plans` SSR renders the initial indicator state
+- [x] 5.6 Live walkthrough: indicator advances on `/plans`, flips to "Finished — open plan"; polling only while active, paused when hidden, none when idle
+- [x] 5.7 "Finished — open plan" → strip shows "Proposal ready" (delivery on visit)
+- [x] 5.8 Strip shows static advisory + "Watch progress in Plans"; board drag-drop unchanged
+- [x] 5.9 `/plans` SSR renders the initial indicator state
 
 ### Phase 6: Truth-up and close-out
 

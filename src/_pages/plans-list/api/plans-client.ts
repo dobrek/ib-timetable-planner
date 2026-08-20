@@ -1,6 +1,13 @@
 import { actions, type ActionError, type SafeResult } from "astro:actions";
 import { callAction } from "@/shared/lib/forms";
-import type { ClonePlanInput, CreatePlanInput, DeletePlanInput, RenamePlanInput } from "../model/schemas";
+import type {
+  ClonePlanInput,
+  CreatePlanInput,
+  DeletePlanInput,
+  ReadGenerationJobStatusesInput,
+  RenamePlanInput,
+} from "../model/schemas";
+import type { GenerationIndicator } from "../model/plan-indicators";
 
 /** Typed one-line wrappers over the generated action clients — the slice's api seam. */
 
@@ -12,6 +19,16 @@ export const clonePlan = (values: ClonePlanInput) => callActionForId(actions.clo
 export const renamePlan = (values: RenamePlanInput) => callAction(actions.renamePlan, values);
 
 export const deletePlan = (values: DeletePlanInput) => callAction(actions.deletePlan, values);
+
+/** The hub's poll. Throws on a failed call so the store can keep its last snapshot and retry — see
+ *  `createJobProgressStore`, which is the one caller. */
+export const readGenerationJobStatuses = async (
+  values: ReadGenerationJobStatusesInput,
+): Promise<GenerationIndicator[]> => {
+  const { data, error } = await actions.readGenerationJobStatuses(values);
+  if (error) throw error;
+  return data;
+};
 
 /**
  * Like `callAction`, but additionally surfaces the created row's id from the data

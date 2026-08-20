@@ -27,6 +27,19 @@ export const deletePlanInput = z.object({
   id: z.uuid(),
 });
 
+/**
+ * The hub's status poll. Both lists are optional and both default to empty, because the two serve
+ * different moments: `jobIds` refreshes jobs the tab already knows about, `planIds` discovers one
+ * that started in ANOTHER tab. A tick sends whichever it has.
+ *
+ * The 200-item caps mirror the hub's own `.limit(200)` on plans — the largest page that can exist —
+ * so a malformed or hostile call cannot turn one action into an unbounded `IN` list.
+ */
+export const readGenerationJobStatusesInput = z.object({
+  jobIds: z.array(z.uuid()).max(200).default([]),
+  planIds: z.array(z.uuid()).max(200).default([]),
+});
+
 /** Raw form field shapes before Zod transforms — what the RHF forms hold. */
 export type CreatePlanFormValues = z.input<typeof createPlanInput>;
 export type ClonePlanFormValues = z.input<typeof clonePlanInput>;
@@ -36,3 +49,4 @@ export type CreatePlanInput = z.output<typeof createPlanInput>;
 export type ClonePlanInput = z.output<typeof clonePlanInput>;
 export type RenamePlanInput = z.output<typeof renamePlanInput>;
 export type DeletePlanInput = z.infer<typeof deletePlanInput>;
+export type ReadGenerationJobStatusesInput = z.output<typeof readGenerationJobStatusesInput>;

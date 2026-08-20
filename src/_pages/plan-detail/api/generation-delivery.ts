@@ -13,6 +13,7 @@ import {
   type CleanLabel,
   type CourseIdentityIndex,
   type GeneratedPlacement,
+  type GenerationJobStatus,
   type GenerationResult,
   type GeneratorSnapshot,
   type StoredStageReport,
@@ -46,8 +47,6 @@ import { applyGeneratedPlacements } from "./placements";
 export const checkGenerationInput = z.object({ planId: z.uuid() });
 
 export type CheckGenerationInput = z.infer<typeof checkGenerationInput>;
-
-export type GenerationJobStatus = "queued" | "running" | "succeeded" | "failed" | "stopped" | "interrupted";
 
 export type GenerationJobView = {
   jobId: string;

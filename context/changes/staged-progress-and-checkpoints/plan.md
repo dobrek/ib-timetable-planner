@@ -839,10 +839,10 @@ hand-off list.
 
 #### Automated
 
-- [x] 6.1 `/verify` green
-- [x] 6.2 Solver gates green (`pytest`, `mypy`, `ruff`, `mise run solver:check`)
-- [x] 6.3 Stale-prose grep returns nothing
+- [x] 6.1 `/verify` green — 7a725bf
+- [x] 6.2 Solver gates green (`pytest`, `mypy`, `ruff`, `mise run solver:check`) — 7a725bf
+- [x] 6.3 Stale-prose grep returns nothing — 7a725bf
 
 #### Manual
 
-- [x] 6.4 Roadmap S-303/S-304/S-305 and PRD FR-303 read true end-to-end
+- [x] 6.4 Roadmap S-303/S-304/S-305 and PRD FR-303 read true end-to-end — 7a725bf

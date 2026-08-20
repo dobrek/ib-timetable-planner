@@ -1,10 +1,10 @@
 ---
 change_id: staged-progress-and-checkpoints
 title: Staged progress and checkpoints
-status: impl_reviewed
+status: archived
 created: 2026-08-19
 updated: 2026-08-20
-archived_at: null
+archived_at: 2026-08-20T11:14:10Z
 ---
 
 ## Notes

@@ -772,26 +772,26 @@ hand-off list.
 
 #### Automated
 
-- [x] 1.1 `uv run pytest tests/test_contract.py` green with new StageReport/stopReason cases
-- [x] 1.2 `uv run mypy` and `uv run ruff check` green
-- [x] 1.3 `pnpm test bench/contract-parity.test.ts src/entities/timetable` green; goldens byte-identical
-- [x] 1.4 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger` green
+- [x] 1.1 `uv run pytest tests/test_contract.py` green with new StageReport/stopReason cases — 17d4c36
+- [x] 1.2 `uv run mypy` and `uv run ruff check` green — 17d4c36
+- [x] 1.3 `pnpm test bench/contract-parity.test.ts src/entities/timetable` green; goldens byte-identical — 17d4c36
+- [x] 1.4 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger` green — 17d4c36
 
 #### Manual
 
-- [x] 1.5 Schema diff reviewed: only the two additive changes + descriptions; `required`/`formatVersion` untouched
+- [x] 1.5 Schema diff reviewed: only the two additive changes + descriptions; `required`/`formatVersion` untouched — 17d4c36
 
 ### Phase 2: Engine — solve-to-target + stage hooks seam
 
 #### Automated
 
-- [ ] 2.1 `uv run pytest` green incl. parity exact 10/10 and new stage-stop/hook tests
-- [ ] 2.2 Local golden-dump parity test run green
-- [ ] 2.3 `uv run mypy` 0 errors; `uv run ruff check` clean
+- [x] 2.1 `uv run pytest` green incl. parity exact 10/10 and new stage-stop/hook tests
+- [x] 2.2 Local golden-dump parity test run green
+- [x] 2.3 `uv run mypy` 0 errors; `uv run ruff check` clean
 
 #### Manual
 
-- [ ] 2.4 Seed-fixture run with a tier-6 target ends early with `stoppedBy: target`; no-target timings unchanged
+- [x] 2.4 Seed-fixture run with a tier-6 target ends early with `stoppedBy: target`; no-target timings unchanged
 
 ### Phase 3: Service — progress emission, targets knob, stop seam
 

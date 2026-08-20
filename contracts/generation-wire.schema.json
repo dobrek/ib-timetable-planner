@@ -161,9 +161,9 @@
         },
         "provenOptimal": { "type": "boolean" },
         "stopReason": {
-          "description": "Why the solve ended. `stagnation` is deliberately absent: it is a greedy-only reason and greedy never crosses this wire.",
+          "description": "Why the solve ended, derived from the per-stage `stoppedBy` values: `budget` — a ceiling ended at least one non-optimal stage; `target` — every non-optimal stage stopped at its configured target; `cancelled` — a stop predicate ended a stage (S-305); `interrupted` — the job did not finish (S-304). `stagnation` is deliberately absent: it is a greedy-only reason and greedy never crosses this wire.",
           "type": "string",
-          "enum": ["budget", "cancelled"]
+          "enum": ["budget", "target", "cancelled", "interrupted"]
         },
         "cohorts": {
           "type": "object",
@@ -211,6 +211,11 @@
           "description": "The ONLY non-integer number in this contract. Schema-validated but carrying NO cross-language canonical-byte guarantee (Python renders 2.0 as \"2.0\", JS as \"2\"), so a StageReport must never enter a byte-compared or hashed payload. See README, Canonical JSON form / Numbers.",
           "type": "number",
           "minimum": 0
+        },
+        "stoppedBy": {
+          "description": "Why this stage ended when it did not prove optimality: `budget` (its ceiling ran out), `target` (it reached its configured target value) or `cancelled` (a stop predicate ended it). OMITTED on OPTIMAL, and on a stage with no solution to attribute — never null.",
+          "type": "string",
+          "enum": ["budget", "target", "cancelled"]
         }
       }
     },

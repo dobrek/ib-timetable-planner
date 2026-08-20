@@ -145,6 +145,7 @@ def wire_stage_report(stage: StageReport) -> dict[str, Any]:
             "best": stage.best,
             "bound": stage.bound,
             "wallClockS": stage.wall_clock_s,
+            "stoppedBy": stage.stopped_by,
         }
     )
 

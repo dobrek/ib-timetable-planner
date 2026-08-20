@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { deriveCleanLabel, describeCleanLabel, softHitsAchieved, type StoredStageReport } from "./clean-label";
+import { deriveCleanLabel, describeCleanLabel, softHitsAchieved } from "./clean-label";
+import type { StoredStageReport } from "./stage-report";
 
 const stage = (tier: number, best?: number): StoredStageReport => ({
   tier,

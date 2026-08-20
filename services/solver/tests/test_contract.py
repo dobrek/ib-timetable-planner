@@ -275,3 +275,50 @@ def test_stage_report_omits_best_and_bound_when_no_solution_was_found(schema: di
 
     assert "best" not in wire and "bound" not in wire
     assert _errors(_validator(schema, "StageReport"), wire) == []
+
+
+def test_stage_report_carries_stopped_by_when_not_optimal(schema: dict[str, Any]) -> None:
+    stage = StageReport(
+        tier=6,
+        name="studentHoles",
+        status="FEASIBLE",
+        best=900,
+        bound=880,
+        wall_clock_s=8.29,
+        stopped_by="target",
+    )
+    wire = wire_stage_report(stage)
+
+    assert wire["stoppedBy"] == "target"
+    assert _errors(_validator(schema, "StageReport"), wire) == []
+
+
+def test_stage_report_omits_stopped_by_rather_than_nulling_it(schema: dict[str, Any]) -> None:
+    # The exact-dict test above is the byte gate; this one names the rule it enforces, because a
+    # `"stoppedBy": null` would validate nowhere on this wire and would break canonical bytes.
+    wire = wire_stage_report(
+        StageReport(tier=1, name="completeness", status="OPTIMAL", best=0, bound=0, wall_clock_s=0.4)
+    )
+
+    assert "stoppedBy" not in wire
+    assert "null" not in canonical_json(wire)
+    assert _errors(_validator(schema, "StageReport"), wire) == []
+
+
+def test_generation_result_of_a_target_stop_validates(schema: dict[str, Any]) -> None:
+    dump = _dump(b.snapshot(dp1=b.cohort(courses=[b.course("a", teachers=["t1"])])))
+    payload = to_generation_result(dump, _solve_result(proven_optimal=False))
+    payload["diagnostics"]["stopReason"] = "target"
+
+    assert _errors(_validator(schema, "GenerationResult"), json.loads(canonical_json(payload))) == []
+
+
+def test_the_stop_reason_enum_is_exactly_the_four_the_wire_declares(schema: dict[str, Any]) -> None:
+    # Pinned as data: widening it again is a contract decision, not an implementation detail, and
+    # `interrupted` in particular has no producer in the engine (the app writes it, S-304).
+    assert schema["$defs"]["GenerationDiagnostics"]["properties"]["stopReason"]["enum"] == [
+        "budget",
+        "target",
+        "cancelled",
+        "interrupted",
+    ]

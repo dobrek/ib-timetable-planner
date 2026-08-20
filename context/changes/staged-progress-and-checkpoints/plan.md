@@ -772,14 +772,14 @@ hand-off list.
 
 #### Automated
 
-- [ ] 1.1 `uv run pytest tests/test_contract.py` green with new StageReport/stopReason cases
-- [ ] 1.2 `uv run mypy` and `uv run ruff check` green
-- [ ] 1.3 `pnpm test bench/contract-parity.test.ts src/entities/timetable` green; goldens byte-identical
-- [ ] 1.4 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger` green
+- [x] 1.1 `uv run pytest tests/test_contract.py` green with new StageReport/stopReason cases
+- [x] 1.2 `uv run mypy` and `uv run ruff check` green
+- [x] 1.3 `pnpm test bench/contract-parity.test.ts src/entities/timetable` green; goldens byte-identical
+- [x] 1.4 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger` green
 
 #### Manual
 
-- [ ] 1.5 Schema diff reviewed: only the two additive changes + descriptions; `required`/`formatVersion` untouched
+- [x] 1.5 Schema diff reviewed: only the two additive changes + descriptions; `required`/`formatVersion` untouched
 
 ### Phase 2: Engine — solve-to-target + stage hooks seam
 

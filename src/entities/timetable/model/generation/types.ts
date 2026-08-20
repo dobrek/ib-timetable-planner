@@ -93,11 +93,14 @@ export type GenerationDiagnostics = {
   /** Set only by engines that prove optimality (CP-SAT); absent means unknown.
    *  **Required on the wire** — CP-SAT always emits it. */
   provenOptimal?: boolean;
-  /** Why the solve ended: `budget` (full budget spent), `stagnation` (complete zero-hole board,
-   *  no improvement window), or `cancelled` (Stop & keep). Additive/optional; UI may ignore it.
-   *  **Narrower on the wire**: the contract allows `budget | cancelled` only — `stagnation` is a
-   *  greedy-only reason and greedy never crosses the wire. */
-  stopReason?: "budget" | "stagnation" | "cancelled";
+  /** Why the solve ended: `budget` (a ceiling ended at least one non-optimal stage), `target` (every
+   *  non-optimal stage stopped at its configured target), `cancelled` (Stop & keep, S-305),
+   *  `interrupted` (the job never finished, S-304), or `stagnation` (complete zero-hole board, no
+   *  improvement window). Additive/optional; UI may ignore it.
+   *  **Narrower on the wire**: the contract allows `budget | target | cancelled | interrupted` —
+   *  `stagnation` is a greedy-only reason and greedy never crosses the wire. */
+  stopReason?: "budget" | "target" | "stagnation" | "cancelled" | "interrupted";
+
   cohorts: Record<Cohort, GenerationCohortDiagnostics>;
 };
 

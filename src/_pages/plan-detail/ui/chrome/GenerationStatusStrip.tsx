@@ -15,9 +15,12 @@ type Props = {
  * is the author's window onto it. Refresh re-reads that row, and on a job that has succeeded the
  * re-read is also what DELIVERS it (verify → translate → apply, server-side).
  *
- * Deliberately minimal, and S-303 upgrades it in place: no elapsed time, no stage-by-stage progress,
- * no cancel. Each of those needs either polling or a server-side stop path, and both belong to slices
- * that will design them properly rather than to this one improvising.
+ * **Static by design, and it stays that way.** This strip is FR-308's advisory — status plus a start
+ * time, SSR'd from the page's frontmatter — and S-303 deliberately did NOT make it live. Stage-by-
+ * stage progress lives on the plans list instead, behind the "Watch progress in Plans" link below,
+ * because `/plans` has no board on it: polling can never contend with dragging there, which is
+ * FR-312 satisfied structurally rather than by a memoization argument. Nothing in this island loops,
+ * and nothing should start. A cancel button is still S-305's.
  *
  * Semantic theme tokens only — no palette-named or arbitrary colours, so the whole light/dark theme
  * stays drivable from `global.css`.
@@ -35,6 +38,9 @@ export default function GenerationStatusStrip({ generation }: Props) {
           Generating… started {formatStarted(job.createdAt)}
         </span>
         <RefreshButton checking={checking} onRefresh={refresh} />
+        <a href="/plans" className="text-foreground hover:text-primary font-medium underline underline-offset-2">
+          Watch progress in Plans
+        </a>
         <span className="text-muted-foreground/80">This runs for several minutes — you can leave the page.</span>
       </Strip>
     );

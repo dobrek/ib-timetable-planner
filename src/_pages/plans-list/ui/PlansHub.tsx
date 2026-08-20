@@ -16,8 +16,12 @@ import {
   Toaster,
 } from "@/shared/ui";
 import type { PlanRow } from "../api/loader";
+import type { IndicatorsByPlan } from "../model/job-progress-store";
+import type { PlanIndicator } from "../model/plan-indicators";
+import { useGenerationIndicators } from "../model/use-generation-indicators";
 import { canCompare, compareHref, EMPTY_SELECTION, toggleAllSelection, toggleId } from "../model/plan-selection";
 import ClonePlanDialog from "./ClonePlanDialog";
+import PlanIndicatorsCell from "./PlanIndicatorsCell";
 import ComparePlansBar from "./ComparePlansBar";
 import DeletePlanDialog from "./DeletePlanDialog";
 import PlanFormDialog from "./PlanFormDialog";
@@ -34,6 +38,12 @@ type Props = {
  * multi-plan, so it is driven by **ticking rows here** and pressing Compare, not by a picker on the
  * comparison page: that page renders strictly what its URL names, and a picker over on it would be
  * client state quietly disagreeing with SSR'd numbers.
+ *
+ * The **Activity** column is the one live thing on this page, and it lives here rather than on the
+ * plan page for a structural reason: a CP-SAT solve runs for 12–20 minutes on a server, and FR-312
+ * requires that watching it never contend with editing the board. There is no board on `/plans`, and
+ * `PlansHub` is this page's only island — so the question of a poll re-rendering the grid cannot
+ * arise, instead of being answered by a memoization argument nobody can verify by reading.
  */
 export default function PlansHub({ plans }: Props) {
   const [formOpen, setFormOpen] = useState(false);
@@ -43,6 +53,13 @@ export default function PlansHub({ plans }: Props) {
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(EMPTY_SELECTION);
 
   const planIds = plans.map((plan) => plan.id);
+  // Seeded from the SSR'd indicators, so the first paint already shows a running job; the store then
+  // keeps them current while one is active. `plan.indicators` stays the fallback for a plan the store
+  // has never had anything to say about.
+  const liveIndicators = useGenerationIndicators(
+    plans.flatMap((plan) => plan.indicators),
+    planIds,
+  );
   const allSelected = planIds.length > 0 && planIds.every((id) => selectedIds.has(id));
   const someSelected = planIds.some((id) => selectedIds.has(id));
   const headerState: boolean | "indeterminate" = allSelected ? true : someSelected ? "indeterminate" : false;
@@ -110,6 +127,7 @@ export default function PlansHub({ plans }: Props) {
                 <TableHead>Name</TableHead>
                 <TableHead>Grid</TableHead>
                 <TableHead>Last updated</TableHead>
+                <TableHead>Activity</TableHead>
                 <TableHead className="w-12" aria-label="Actions" />
               </TableRow>
             </TableHeader>
@@ -134,6 +152,9 @@ export default function PlansHub({ plans }: Props) {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{plan.slotGridPreset}</TableCell>
                     <TableCell className="text-muted-foreground">{plan.updatedAt.slice(0, 10)}</TableCell>
+                    <TableCell>
+                      <PlanIndicatorsCell indicators={indicatorsFor(plan, liveIndicators)} />
+                    </TableCell>
                     <TableCell className="text-right">
                       <PlanRowActions
                         plan={plan}
@@ -167,6 +188,13 @@ export default function PlansHub({ plans }: Props) {
     </div>
   );
 }
+
+/** The store's live view of a plan wins; the SSR'd indicators are what a plan it has never spoken
+ *  about still shows. */
+const indicatorsFor = (plan: PlanRow, live: IndicatorsByPlan): readonly PlanIndicator[] => {
+  const indicator = live.get(plan.id);
+  return indicator === undefined ? plan.indicators : [indicator];
+};
 
 function PlanRowActions({
   plan,

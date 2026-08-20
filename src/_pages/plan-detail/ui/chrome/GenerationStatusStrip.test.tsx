@@ -44,6 +44,17 @@ describe("GenerationStatusStrip", () => {
     expect(screen.getByText(/you can leave the page/)).toBeInTheDocument();
   });
 
+  it("active: points at the plans list, where the live stage-by-stage progress is", () => {
+    // The strip stays static on purpose (FR-308 is an advisory, and the board is on this page);
+    // `/plans` has no board, so polling there cannot contend with dragging. The link is the seam
+    // between the two, and it must exist on both active states.
+    for (const status of ["queued", "running"] as const) {
+      const { unmount } = render(<GenerationStatusStrip generation={tracking(job({ status }))} />);
+      expect(screen.getByRole("link", { name: "Watch progress in Plans" })).toHaveAttribute("href", "/plans");
+      unmount();
+    }
+  });
+
   it("active: Refresh re-reads the row — which is also what delivers a finished job", () => {
     const generation = tracking(job({ status: "queued" }));
     render(<GenerationStatusStrip generation={generation} />);

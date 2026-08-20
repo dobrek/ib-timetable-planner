@@ -44,8 +44,8 @@ access token                role: solver_job_writer
 PostgREST                   set role solver_job_writer   (authenticator holds membership)
         │
         ▼
-Postgres                    GRANT: select on generation_jobs; update on its
-                                   progress COLUMNS only — and nothing else
+Postgres                    GRANT: on generation_jobs COLUMNS only, never the
+                                   table — select on five, update on eleven
                             RLS:   read any job; update only non-terminal ones,
                                    only into a state the solver may declare
 ```
@@ -62,6 +62,13 @@ the container rewrite `snapshot`/`snapshot_hash` (the T0 drift baseline it is ju
 `policy`, `plan_id`, or the `delivery`/`delivered_plan_id` fields the auto-apply path reads. The
 solver may write only what it authors: `status`, `result`, `error`, the timestamps, and the
 stage/checkpoint progress columns.
+
+SELECT is column-scoped too, and to a _different_ list — `id`, `snapshot_hash`, `status`,
+`heartbeat_at`, `stop_requested_at`. The difference is deliberate in both directions: `result`,
+`stages` and `error` are writable and NOT readable (the solver authors that audit record and has no
+business reading it back), while `stop_requested_at` is readable and NOT writable (the app asks for
+the stop; the solver only observes it, and one that could clear its own flag could ignore Stop &
+keep). The last two columns were pre-paid by S-303 for S-304 and S-305; nothing reads them yet.
 
 Files:
 

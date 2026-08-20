@@ -229,8 +229,8 @@ def _dump(snapshot: Snapshot) -> Dump:
     )
 
 
-def _solve_result(*, proven_optimal: bool) -> SolveResult:
-    return SolveResult(mode="full", board=(), stages=(), proven_optimal=proven_optimal)
+def _solve_result(*, proven_optimal: bool, stages: tuple[StageReport, ...] = ()) -> SolveResult:
+    return SolveResult(mode="full", board=(), stages=stages, proven_optimal=proven_optimal)
 
 
 def test_generation_result_omits_lower_bound_instead_of_nulling_it(schema: dict[str, Any]) -> None:
@@ -247,7 +247,12 @@ def test_generation_result_omits_lower_bound_instead_of_nulling_it(schema: dict[
 
 def test_generation_result_of_a_budget_stop_validates(schema: dict[str, Any]) -> None:
     dump = _dump(b.snapshot(dp1=b.cohort(courses=[b.course("a", teachers=["t1"])])))
-    payload = to_generation_result(dump, _solve_result(proven_optimal=False))
+    # A stage the ceiling ended is what makes the run budget-stopped; a not-proven result whose
+    # stages all proved optimal (a fresh checkpoint) carries no `stopReason` at all.
+    ended_by_ceiling = StageReport(
+        tier=2, name="holes", status="FEASIBLE", best=3, bound=1, wall_clock_s=30.0, stopped_by="budget"
+    )
+    payload = to_generation_result(dump, _solve_result(proven_optimal=False, stages=(ended_by_ceiling,)))
 
     assert payload["diagnostics"]["partial"] is True
     assert payload["diagnostics"]["stopReason"] == "budget"

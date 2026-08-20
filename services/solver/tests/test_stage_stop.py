@@ -115,6 +115,18 @@ def test_an_unreachable_target_leaves_the_stage_to_its_budget() -> None:
     assert stage.status in ("OPTIMAL", "FEASIBLE")
 
 
+def test_an_unreachable_target_is_indistinguishable_from_no_target() -> None:
+    # The callback is attached, and it never fires — so the transcript and the board must be the
+    # ones a plain run produces at the same seed and budget. This is the neutrality proof for the
+    # TARGET path; (c) below proves it for the hook path.
+    dump = _dump(_micro_snapshot())
+    targeted = solve_complete(dump, replace(MICRO, targets={TOTAL_SLOTS_TIER: UNREACHABLE}))
+    plain = solve_complete(dump, MICRO)
+
+    assert _projected(targeted.stages) == _projected(plain.stages)
+    assert targeted.board == plain.board
+
+
 # --- (c) neutrality: observing a solve does not change it -----------------------------------------
 
 
@@ -205,7 +217,12 @@ def test_a_checkpoint_shapes_into_a_valid_generation_result_through_the_terminal
     payload = to_generation_result(dump, checkpoint)
     assert set(payload) == {"placements", "diagnostics"}
     assert payload["diagnostics"]["partial"] is True
-    assert payload["diagnostics"]["stopReason"] in ("budget", "target", "cancelled")
+    # `stopReason` says why a run ENDED, so a checkpoint carries it only once some stage has fallen
+    # short of optimality; until then the key is honestly absent.
+    fell_short = any(stage.status != "OPTIMAL" for stage in checkpoint.stages)
+    assert ("stopReason" in payload["diagnostics"]) is fell_short
+    if fell_short:
+        assert payload["diagnostics"]["stopReason"] in ("budget", "target", "cancelled")
 
 
 def test_the_full_staged_ladder_reports_its_tier_one_stage_too() -> None:
@@ -289,6 +306,15 @@ def _report(tier: int, status: str, stopped_by: str | None) -> StageReport:
 def test_stop_reason_is_omitted_entirely_when_the_solve_proved_optimality() -> None:
     dump = _dump(_micro_snapshot())
     payload = to_generation_result(dump, _result(_report(2, "OPTIMAL", None), proven=True))
+    assert "stopReason" not in payload["diagnostics"]
+
+
+def test_a_checkpoint_whose_stages_all_proved_optimal_claims_no_stop_reason() -> None:
+    # A checkpoint is ``proven_optimal=False`` by construction (the ladder is still running), but if
+    # nothing has fallen short yet there is nothing to attribute — "budget" would be a stored lie.
+    dump = _dump(_micro_snapshot())
+    payload = to_generation_result(dump, _result(_report(2, "OPTIMAL", None), _report(3, "OPTIMAL", None)))
+    assert payload["diagnostics"]["partial"] is True
     assert "stopReason" not in payload["diagnostics"]
 
 

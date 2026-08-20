@@ -203,7 +203,9 @@ class JobRowClient:
                     "update was correctly dropped rather than resurrecting it",
                     job_id,
                 )
-        except (SupabaseError, httpx.TransportError) as error:
+        except (SupabaseError, httpx.TransportError, ValueError) as error:
+            # `ValueError` covers a 2xx whose body is not JSON (`response.json()` above) — rare, but
+            # "never raises" has to mean it.
             log.warning("job %s: progress write failed (the solve continues): %s", job_id, error)
 
     def finish(

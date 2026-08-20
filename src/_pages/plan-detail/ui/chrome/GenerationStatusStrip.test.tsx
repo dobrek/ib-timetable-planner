@@ -40,7 +40,10 @@ describe("GenerationStatusStrip", () => {
   it("active: says it is generating, when it started, and that leaving is fine", () => {
     render(<GenerationStatusStrip generation={tracking(job({ status: "running" }))} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(/Generating… started/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Generating… started \d{1,2}:\d{2}/);
+    // The instant travels in `dateTime`; the readable text is the reader's own zone, filled in only
+    // after hydration (jsdom renders as an already-hydrated client) — see `useHydrated`.
+    expect(screen.getByRole("status").querySelector("time")).toHaveAttribute("dateTime", "2026-08-13T07:40:07.000Z");
     expect(screen.getByText(/you can leave the page/)).toBeInTheDocument();
   });
 

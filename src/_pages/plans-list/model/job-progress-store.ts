@@ -36,7 +36,10 @@ export type JobProgressStore = {
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => IndicatorsByPlan;
   getServerSnapshot: () => IndicatorsByPlan;
-  /** Stop the timer and drop the visibility listener. For tests and for a deliberate teardown. */
+  /**
+   * Unsubscribe everyone, which stops the timer and drops the visibility listener. Not one-way: a
+   * later `subscribe` re-arms the store. For tests and for a deliberate teardown.
+   */
   dispose: () => void;
 };
 
@@ -61,7 +64,6 @@ export const createJobProgressStore = (options: JobProgressStoreOptions): JobPro
 
   let snapshot = serverSnapshot;
   let timer: ReturnType<typeof setInterval> | null = null;
-  let disposed = false;
   let inFlight = false;
   const listeners = new Set<() => void>();
 
@@ -76,27 +78,22 @@ export const createJobProgressStore = (options: JobProgressStoreOptions): JobPro
   const tick = async (): Promise<void> => {
     // One request at a time. A tick that outlives the interval (a slow link) must not stack up a
     // queue of identical reads that then all land at once and fight over the snapshot.
-    if (inFlight || disposed) return;
+    if (inFlight || listeners.size === 0) return;
     if (planIds.length === 0 && activeJobIds(snapshot).length === 0) return;
     inFlight = true;
     try {
       const fetched = await fetch({ jobIds: activeJobIds(snapshot), planIds: [...planIds] });
-      // Re-read through `isDisposed()` rather than the flag: `dispose()` can land WHILE this awaits,
-      // and reading the variable directly lets the checker narrow it to the value it had before the
-      // await — the one moment the check exists for.
-      if (!isDisposed()) publish(merge(snapshot, fetched));
+      // The last subscriber can leave WHILE this awaits; a store nobody is watching stays silent.
+      if (listeners.size > 0) publish(merge(snapshot, fetched));
     } catch {
       // Keep the last snapshot; the next tick retries. See the class docstring.
     } finally {
       inFlight = false;
-      if (!isDisposed()) syncTimer();
+      syncTimer();
     }
   };
 
-  const isDisposed = (): boolean => disposed;
-
-  const shouldRun = (): boolean =>
-    !disposed && listeners.size > 0 && isVisible() && [...snapshot.values()].some(isActiveIndicator);
+  const shouldRun = (): boolean => listeners.size > 0 && isVisible() && [...snapshot.values()].some(isActiveIndicator);
 
   const syncTimer = (): void => {
     if (shouldRun() && timer === null) {
@@ -111,29 +108,38 @@ export const createJobProgressStore = (options: JobProgressStoreOptions): JobPro
     // Unconditional on becoming visible — NOT gated on `shouldRun()` — and that is the whole of rule
     // 5. Ticking before re-arming also matters: the author is looking at the badge now, and waiting a
     // full interval to refresh a tab they just returned to is the one delay they would notice.
-    if (isVisible() && listeners.size > 0 && !disposed) void tick();
+    if (isVisible() && listeners.size > 0) void tick();
     syncTimer();
   };
 
-  if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibilityChange);
+  // The DOM listener lives and dies with the subscription — attached by the first subscriber,
+  // detached by the last — exactly as `board-zoom.ts` does with `storage`. Nothing touches the
+  // document at construction time, so creating the store inside a render is side-effect free, and
+  // a mount → cleanup → remount (StrictMode's rehearsal) simply re-arms it.
+  const listen = (): void => {
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibilityChange);
+  };
+  const unlisten = (): void => {
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
+  };
 
   return {
     subscribe: (listener) => {
+      if (listeners.size === 0) listen();
       listeners.add(listener);
       syncTimer();
       return () => {
         listeners.delete(listener);
+        if (listeners.size === 0) unlisten();
         syncTimer();
       };
     },
     getSnapshot: () => snapshot,
     getServerSnapshot: () => serverSnapshot,
     dispose: () => {
-      disposed = true;
+      if (listeners.size > 0) unlisten();
       listeners.clear();
-      if (timer !== null) clearInterval(timer);
-      timer = null;
-      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
+      syncTimer();
     },
   };
 };

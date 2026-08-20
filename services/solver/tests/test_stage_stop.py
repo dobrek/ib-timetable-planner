@@ -152,8 +152,21 @@ def test_stage_events_arrive_as_started_completed_pairs_in_tier_order() -> None:
     assert [e.name for e in started] == [s.name for s in result.stages]
     assert [e.position for e in started] == list(range(1, len(result.stages) + 1))
     assert {e.total for e in seen} == {10}, "Mode A always reports ten stages, whatever it manages"
-    assert all(e.report is None and e.checkpoint is None for e in started)
+    assert all(e.report is None and e.checkpoint is None and e.stages == () for e in started)
     assert [e.report for e in completed] == list(result.stages)
+
+
+def test_every_completed_event_carries_the_whole_transcript_so_far() -> None:
+    # Independent of the checkpoint on purpose: a stage that solved nothing still belongs in the
+    # transcript, and the service writes `stages` from THIS field rather than the checkpoint's copy.
+    dump = _dump(_micro_snapshot())
+    seen: list[StageEvent] = []
+    result = solve_complete(dump, replace(MICRO, hooks=SolveHooks(on_stage=seen.append)))
+    completed = [e for e in seen if e.kind == "completed"]
+
+    assert [len(e.stages) for e in completed] == list(range(1, len(result.stages) + 1))
+    assert all(e.stages[-1] is e.report for e in completed), "the last entry is this stage"
+    assert _projected(completed[-1].stages) == _projected(result.stages)
 
 
 def test_a_checkpoint_accompanies_exactly_the_stages_that_solved() -> None:

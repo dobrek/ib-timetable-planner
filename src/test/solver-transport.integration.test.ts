@@ -7,6 +7,8 @@ import {
   computeSnapshotHash,
   course,
   createSolverTransport,
+  LADDER_TIER_COUNT,
+  parseStoredStages,
   SolverDispatchError,
   type GenerationResult,
   type SolveRequest,
@@ -97,6 +99,26 @@ const POLL_INTERVAL_MS = 250;
       // that skipped them would show up here as an out-of-order board.
       const keys = result.placements.map((p) => [p.cohort, p.courseId, p.day, p.period, p.week] as const);
       expect(keys).toEqual([...keys].sort(comparePlacementKeys));
+
+      // S-303: the row is a progress channel, not just a result slot — and the only proof that the
+      // per-stage writes were actually PERMITTED (real grants, real RLS `running -> running` window)
+      // rather than merely well-formed, which is all `test_service.py`'s mock can tell.
+      const stages = parseStoredStages(row.stages);
+      expect(stages).toHaveLength(LADDER_TIER_COUNT);
+      expect(stages.map((s) => s.tier)).toEqual([...stages.map((s) => s.tier)].sort((a, b) => a - b));
+      expect(stages[0]?.name).toBe("completeness");
+
+      expect(row.checkpoint).not.toBeNull();
+      expect(row.checkpoint_stage_index).not.toBeNull();
+      // The checkpoint went onto the wire through the same shaping path the terminal write uses.
+      const checkpoint = row.checkpoint as GenerationResult;
+      expect(checkpoint.diagnostics.engine).toBe("cp-sat");
+      expect(checkpoint.placements.length).toBeGreaterThan(0);
+
+      // Renewed, not merely set at claim: the claim writes `started_at` and `heartbeat_at` in the
+      // same PATCH, so a heartbeat strictly LATER than `started_at` can only come from a stage event.
+      expect(row.heartbeat_at).not.toBeNull();
+      expect(new Date(row.heartbeat_at ?? 0).getTime()).toBeGreaterThan(new Date(row.started_at ?? 0).getTime());
     },
     SETTLE_TIMEOUT_MS + 30_000,
   );
@@ -169,7 +191,15 @@ const enqueue = async (supabase: SupabaseClient<Database>, planId: string, reque
 
 type JobRow = Pick<
   Database["public"]["Tables"]["generation_jobs"]["Row"],
-  "status" | "started_at" | "finished_at" | "error" | "result"
+  | "status"
+  | "started_at"
+  | "finished_at"
+  | "error"
+  | "result"
+  | "stages"
+  | "checkpoint"
+  | "checkpoint_stage_index"
+  | "heartbeat_at"
 >;
 
 /** Poll to a terminal status with a NARROW projection — a bare select would drag the TOASTed
@@ -181,7 +211,9 @@ const settle = async (supabase: SupabaseClient<Database>, jobId: string): Promis
   for (;;) {
     const { data, error } = await supabase
       .from("generation_jobs")
-      .select("status, started_at, finished_at, error, result")
+      .select(
+        "status, started_at, finished_at, error, result, stages, checkpoint, checkpoint_stage_index, heartbeat_at",
+      )
       .eq("id", jobId)
       .single();
     if (error) throw new Error(`poll: ${error.message}`);

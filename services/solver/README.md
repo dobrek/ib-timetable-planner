@@ -53,6 +53,21 @@ releases the GIL, so `/health` keeps answering through a multi-minute solve — 
 advancing the `generation_jobs` row: `queued → running → succeeded | failed`. **The database row is
 the only status channel.** A duplicate POST is idempotent: 202, and no second solve.
 
+Since S-303 the row advances **per ladder stage**, not just at the two ends. Each stage produces two
+`running → running` writes:
+
+| When | Columns written |
+| --- | --- |
+| a stage starts | `stage_index` (the TIER number now running), `stage_name`, `heartbeat_at` |
+| a stage completes | `stages` (the transcript so far), `heartbeat_at`, and — only when the stage actually solved — `checkpoint` (the incumbent board as a full `GenerationResult`) and `checkpoint_stage_index` |
+
+These writes are **best-effort**: filtered `status=eq.running` so a late one can never resurrect a row
+something else has moved on, and every failure is logged and swallowed rather than costing a solve
+that is otherwise going fine. A stage that found nothing advances `stages` and the heartbeat but
+leaves the checkpoint columns alone — an under-budgeted stage contributed nothing and the row must not
+claim it did. `heartbeat_at` therefore renews per stage event, which is coarse (Mode A alone can run
+300 s between renewals); finer resolution and reclaiming a stale row are S-304's.
+
 ### Trust boundary — read before exposing this service
 
 `POST /jobs/{jobId}/solve` **takes no credential**, and the solve is **not bound to the row**: the
@@ -87,6 +102,7 @@ port is**, not what the handler checks:
 | `SOLVER_WORKERS`             | `8`                               | Pinned for reproducibility — never `0`/auto.                                                      |
 | `SOLVER_MAX_CONCURRENT_JOBS` | `1`                               | Solves allowed at once; further dispatches get a 503. Raise only with the container sized for it. |
 | `SOLVER_LOG_LEVEL`           | `INFO`                            | Below INFO hides the lost-claim line, which the row does not record.                              |
+| `SOLVER_STAGE_TARGETS`       | _empty_                           | `tier=value[,tier=value]`, e.g. `3=95,6=900`. Stops those ladder stages once the objective reaches the value instead of burning the budget; tiers outside 2–10 and malformed entries are dropped with a stderr complaint. Empty = pre-S-303 behaviour exactly. Shipping production values is S-308's. |
 
 Missing Supabase values do not block startup (`/health` must answer on a bare container); the first
 job fails loudly instead. Full credential story: `docs/runbooks/solver-credential.md`.

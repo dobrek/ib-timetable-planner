@@ -1,4 +1,10 @@
-"""The job-row client: httpx against Auth and PostgREST, with exactly three operations.
+"""The job-row client: httpx against Auth and PostgREST, with four operations.
+
+Three of them are the job's spine — sign in, claim, finish — and the fourth, :meth:`JobRowClient.progress`,
+is the one that may fail without consequence. That asymmetry is deliberate and is the reason it is
+best-effort where `finish` retries: the terminal write is the only DURABLE record a solve produces,
+so losing it discards a twenty-minute board, while a lost progress PATCH costs one stale indicator
+for five seconds and the next stage overwrites it.
 
 No Supabase SDK. `docs/runbooks/solver-credential.md` settles that httpx alone is enough, and it
 matters here beyond taste: the SDK would drag a second dependency resolution across the ortools
@@ -165,6 +171,40 @@ class JobRowClient:
         _raise_for_status(response, f"claim job {job_id}")
         rows: list[dict[str, Any]] = response.json()
         return rows[0] if rows else None
+
+    def progress(self, job_id: str, payload: dict[str, Any]) -> None:
+        """Advance the row mid-solve, `running -> running`, and renew the heartbeat. Never raises.
+
+        **Best-effort by contract.** This is called from inside the engine's stage hook, on the
+        thread that is solving: a `SupabaseError` escaping here would kill a solve that is otherwise
+        going perfectly, to report progress nobody is obliged to see. Every failure is therefore
+        logged and swallowed, and there is no retry — the next stage sends a fresher payload than a
+        retry of this one would.
+
+        **A matched-nothing is a WARNING, not a failure.** The `status=eq.running` filter is what
+        makes this write incapable of resurrecting a row somebody else has already moved on — the
+        one that S-304 marks `interrupted`, or that S-305 marks `stopped`. Answering "0 rows" is the
+        filter doing its job, so it must never overwrite and must never raise.
+
+        It sends only the columns it was given, plus `heartbeat_at` — never blanking a column it has
+        nothing to say about — and every one of them sits inside the role's 11-column UPDATE grant.
+        """
+        try:
+            response = self._client.patch(
+                JOBS,
+                params={"id": f"eq.{job_id}", "status": "eq.running", "select": "id"},
+                headers={**self._headers(), "Prefer": "return=representation"},
+                json={**payload, "heartbeat_at": _utc_now()},
+            )
+            _raise_for_status(response, f"record progress for job {job_id}")
+            if not response.json():
+                log.warning(
+                    "job %s: a progress write matched no row — it is no longer `running`, so this "
+                    "update was correctly dropped rather than resurrecting it",
+                    job_id,
+                )
+        except (SupabaseError, httpx.TransportError) as error:
+            log.warning("job %s: progress write failed (the solve continues): %s", job_id, error)
 
     def finish(
         self,

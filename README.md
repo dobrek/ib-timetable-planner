@@ -186,15 +186,17 @@ mise run solver:dev
 The task **refuses to start** without all three. That guard lives in the launcher script (`scripts/solver/dev.sh`), not the service, on purpose: the service itself boots happily unconfigured, because `/health` must answer on a bare container before secrets are wired. On a developer's machine that same tolerance is a trap — uvicorn looks healthy, and every dispatch is refused with a **503** (`solve` refuses work on an unconfigured service, so the row is marked `failed` and the clone deleted rather than left wedged at `queued`) — a loud failure, but one that costs a build and a click each time. A correctly configured start logs its effective settings and the credential check:
 
 ```
-solver service starting: workers=8 max_concurrent_jobs=1 ... credential_configured=True wire_contract=loaded
+solver service starting: workers=8 max_concurrent_jobs=1 stage_targets=<none> ... credential_configured=True wire_contract=loaded
 startup credential check passed: the access token carries role=solver_job_writer
 ```
 
 That second line is a **fail-closed gate**, not decoration: if the Custom Access Token Hook is off, Auth silently issues `role: authenticated`, which reaches every table. The service refuses to start rather than run with it.
 
-Optional: `SOLVER_WORKERS` (default `8`, pinned for reproducibility — never auto), `SOLVER_MAX_CONCURRENT_JOBS` (default `1`; further dispatches get a 503) and `SOLVER_LOG_LEVEL` (default `INFO`).
+Optional: `SOLVER_WORKERS` (default `8`, pinned for reproducibility — never auto), `SOLVER_MAX_CONCURRENT_JOBS` (default `1`; further dispatches get a 503), `SOLVER_LOG_LEVEL` (default `INFO`) and `SOLVER_STAGE_TARGETS` (default empty).
 
-Endpoints: `GET /health` (dependency-free) and `POST /jobs/{jobId}/solve`, which takes an unmodified contract `SolveRequest`, answers **202**, and reports the outcome by advancing the `generation_jobs` row — the database is the only status channel. To exercise the whole chain end to end:
+`SOLVER_STAGE_TARGETS=tier=value[,tier=value]` — e.g. `3=95,6=900` — stops those ladder stages as soon as the objective reaches the value instead of burning the whole budget; the stage records `stoppedBy: "target"`. Tiers outside 2–10 and malformed entries are dropped with a complaint on stderr rather than refusing to start. **Left unset, behaviour is exactly what it was before S-303** — which is why no values ship: measuring the ones worth shipping is S-308's job, and an M-series number must never become a container's budget (see the campaign note below).
+
+Endpoints: `GET /health` (dependency-free) and `POST /jobs/{jobId}/solve`, which takes an unmodified contract `SolveRequest`, answers **202**, and reports the outcome by advancing the `generation_jobs` row — the database is the only status channel. Since S-303 the row advances **per ladder stage**: two `running → running` writes per stage (which tier is running; then the transcript so far plus the incumbent `checkpoint` when the stage solved), each renewing `heartbeat_at`. That is what `/plans` polls to show live progress. To exercise the whole chain end to end:
 
 ```bash
 # the transport alone (queued → running → succeeded), and the full S-301 slice
@@ -259,7 +261,7 @@ Know what it costs before running it:
 
 - **It writes to production.** Generation inserts `generation_jobs` rows, calls `clone_plan` (creating real proposal plans that accumulate), and applies placements on delivery. It is not a smoke test.
 - **Do not let the machine sleep.** The claim CAS filters `status=eq.queued`, so a solve interrupted mid-flight leaves a _production_ row stuck at `running`, unclaimable until S-304 widens it — recovery today is manual SQL against hosted. `caffeinate -i` covers idle sleep, not a closed lid or a flat battery.
-- **Timing measured here is invalid.** M-series cores plus 8 workers against the container's 4 give a 3–5× wall-clock difference; the PRD forbids M-series-derived budgets reaching S-308. Board **quality** is target-defined and hardware-independent, so policy comparison is legitimate — but worker count changes _which_ equally-good board comes back, so a local board is not what production would emit.
+- **Timing measured here is invalid.** M-series cores plus 8 workers against the container's 4 give a 3–5× wall-clock difference; the PRD forbids M-series-derived budgets reaching S-308. Board **quality** is target-defined and hardware-independent, so policy comparison is legitimate — but worker count changes _which_ equally-good board comes back, so a local board is not what production would emit. `SOLVER_STAGE_TARGETS` may be set in the shell for a comparison run and is genuinely useful here — a target is an objective VALUE, so which board a target yields is hardware-independent — but the wall clock it saves is not, and no number measured on this machine may become a shipped budget.
 - **Real names on your machine.** The solver still sees UUIDs only, but the app renders hosted data. Never commit an export.
 
 ## Deployment

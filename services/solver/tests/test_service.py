@@ -110,12 +110,16 @@ class FakeSupabase:
         claimable: bool = True,
         snapshot_hash: str | None = None,
         access_token: str = ACCESS_TOKEN,
+        progress_response: httpx.Response | Exception | None = None,
     ) -> None:
         self.calls: list[RecordedCall] = []
         self.claimable = claimable
         self.snapshot_hash = snapshot_hash
         self.access_token = access_token
         self.sign_in_count = 0
+        #: What a `running -> running` write answers with. A response models the edge failing or the
+        #: row having moved on; an exception models the connection never landing.
+        self.progress_response = progress_response
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self._handle)
@@ -127,6 +131,28 @@ class FakeSupabase:
     def patches(self) -> list[RecordedCall]:
         return [call for call in self.calls if call.method == "PATCH"]
 
+    def claim_patch(self) -> RecordedCall:
+        """The CAS. Read by ROLE — its `status=eq.queued` filter — not by position: since S-303 a
+        run interleaves two progress PATCHes per ladder stage between the claim and the finish, so
+        `patches()[0]`/`[1]` would silently start asserting about a different write."""
+        return self._by_role("eq.queued")
+
+    def progress_patches(self) -> list[RecordedCall]:
+        """The `running -> running` writes, in order."""
+        return [call for call in self.patches() if call.params.get("status") == "eq.running"]
+
+    def finish_patch(self) -> RecordedCall:
+        """The terminal write — the only PATCH that carries no status filter at all, because RLS,
+        not a filter, is what bounds which transitions it may make."""
+        return self._by_role(None)
+
+    def _by_role(self, status_filter: str | None) -> RecordedCall:
+        matched = [call for call in self.patches() if call.params.get("status") == status_filter]
+        assert len(matched) == 1, (
+            f"expected exactly one PATCH with status={status_filter!r}, got {len(matched)}"
+        )
+        return matched[0]
+
     def _handle(self, request: httpx.Request) -> httpx.Response:
         call = RecordedCall(request)
         self.calls.append(call)
@@ -134,6 +160,10 @@ class FakeSupabase:
             self.sign_in_count += 1
             return httpx.Response(200, json={"access_token": self.access_token, "token_type": "bearer"})
         if call.path == "/rest/v1/generation_jobs":
+            if call.params.get("status") == "eq.running" and self.progress_response is not None:
+                if isinstance(self.progress_response, Exception):
+                    raise self.progress_response
+                return self.progress_response
             claiming = call.params.get("status") == "eq.queued"
             row = {"id": JOB_ID, "snapshot_hash": self.snapshot_hash} if claiming else {"id": JOB_ID}
             rows = [row] if (self.claimable or not claiming) else []
@@ -350,7 +380,7 @@ def test_successful_solve_claims_then_writes_the_result() -> None:
 
     _run(_micro_request(), fake)
 
-    claim, finish = fake.patches()
+    claim, finish = fake.claim_patch(), fake.finish_patch()
     assert claim.params["status"] == "eq.queued", "the CAS filter is the durable idempotency guard"
     assert claim.params["id"] == f"eq.{JOB_ID}"
     assert claim.params["select"] == "id,snapshot_hash", (
@@ -403,7 +433,7 @@ def test_the_written_result_is_in_declared_array_order() -> None:
 
     _run(_micro_request(), fake)
 
-    placements = fake.patches()[1].body["result"]["placements"]
+    placements = fake.finish_patch().body["result"]["placements"]
     keys = [(p["cohort"], p["courseId"], p["day"], p["period"], p["week"]) for p in placements]
     assert keys == sorted(keys)
 
@@ -415,7 +445,7 @@ def test_a_warm_start_is_carried_into_the_solve() -> None:
 
     _run(_micro_request(warm_start=True), fake)
 
-    assert fake.patches()[1].body["status"] == "succeeded"
+    assert fake.finish_patch().body["status"] == "succeeded"
 
 
 def test_losing_the_claim_writes_nothing_further(caplog: pytest.LogCaptureFixture) -> None:
@@ -451,6 +481,181 @@ def test_every_solve_requests_clean_mode() -> None:
     assert [config.clean_mode for config in configs] == [True]
 
 
+def test_the_row_advances_stage_by_stage_between_the_claim_and_the_finish() -> None:
+    """The whole point of S-303: the row IS the status channel, so a solve in flight has to be
+    legible from it alone. Two writes per stage — which tier is now running, then what came of it."""
+    fake = FakeSupabase()
+
+    _run(_micro_request(), fake)
+
+    assert [p.params.get("status") for p in fake.patches()] == [
+        "eq.queued",
+        *["eq.running"] * len(fake.progress_patches()),
+        None,
+    ], "claim, then the progress conversation, then exactly one terminal write"
+
+    starts = [p for p in fake.progress_patches() if "stage_index" in p.body]
+    completions = [p for p in fake.progress_patches() if "stages" in p.body]
+    assert len(starts) == len(completions) == 10, "Mode A reports ten stages"
+    assert [p.body["stage_index"] for p in starts] == list(range(1, 11)), "TIER numbers, in order"
+    assert [p.body["stage_name"] for p in starts][0] == "completeness"
+    assert [len(p.body["stages"]) for p in completions] == list(range(1, 11)), "the transcript grows"
+
+
+def test_every_progress_write_is_filtered_projected_and_heartbeats() -> None:
+    fake = FakeSupabase()
+
+    _run(_micro_request(), fake)
+
+    for patch in fake.progress_patches():
+        assert patch.params["id"] == f"eq.{JOB_ID}"
+        assert patch.params["status"] == "eq.running", (
+            "without this filter a late write could resurrect a row S-304/S-305 has already moved on"
+        )
+        assert patch.params["select"] == "id", "never a bare select — `snapshot` is ~124 KB and TOASTed"
+        assert patch.headers["prefer"] == "return=representation", "so a matched-nothing is observable"
+        assert patch.body["heartbeat_at"], "every stage event renews the heartbeat"
+
+
+def test_a_started_write_says_only_which_tier_is_running() -> None:
+    fake = FakeSupabase()
+
+    _run(_micro_request(), fake)
+
+    first = fake.progress_patches()[0]
+    assert set(first.body) == {"stage_index", "stage_name", "heartbeat_at"}, (
+        "a write must never blank a column it has nothing to say about"
+    )
+
+
+def test_a_completed_stage_that_solved_carries_the_incumbent_checkpoint() -> None:
+    fake = FakeSupabase()
+
+    _run(_micro_request(), fake)
+
+    completed = [p for p in fake.progress_patches() if "stages" in p.body]
+    with_checkpoint = [p for p in completed if "checkpoint" in p.body]
+    assert with_checkpoint, "the micro instance solves, so its stages checkpoint"
+    for patch in with_checkpoint:
+        assert set(patch.body["checkpoint"]) == {"placements", "diagnostics"}
+        assert patch.body["checkpoint"]["diagnostics"]["engine"] == "cp-sat"
+        assert patch.body["checkpoint"]["diagnostics"]["partial"] is True, "mid-ladder is never a proof"
+        assert patch.body["checkpoint_stage_index"] == patch.body["stages"][-1]["tier"]
+
+
+def test_a_stage_that_solved_nothing_advances_the_transcript_but_not_the_checkpoint() -> None:
+    """An under-budgeted stage contributed nothing, so the row must not claim it did — `stages` and
+    `heartbeat_at` move, the checkpoint columns are left exactly as the last solved stage set them."""
+    fake = FakeSupabase()
+
+    _run(_infeasible_request(), fake)
+
+    completed = [p for p in fake.progress_patches() if "stages" in p.body]
+    assert completed, "even a failed run reports its one completeness stage"
+    for patch in completed:
+        assert patch.body["stages"][-1]["status"] not in ("OPTIMAL", "FEASIBLE")
+        assert "checkpoint" not in patch.body and "checkpoint_stage_index" not in patch.body
+
+
+def test_a_failing_progress_write_is_logged_and_the_solve_still_succeeds(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Progress is never worth a board. A 503 from the edge is logged and swallowed, with no retry:
+    the next stage sends a fresher payload than a retry of this one would."""
+    fake = FakeSupabase(progress_response=httpx.Response(503, json={"message": "edge unavailable"}))
+
+    with caplog.at_level("WARNING", logger="cpsat_service.supabase"):
+        _run(_micro_request(), fake)
+
+    assert fake.finish_patch().body["status"] == "succeeded"
+    assert any("progress write failed" in record.message for record in caplog.records)
+
+
+def test_a_transport_error_on_a_progress_write_does_not_kill_the_solve() -> None:
+    fake = FakeSupabase(progress_response=httpx.ConnectError("the connection never landed"))
+
+    _run(_micro_request(), fake)
+
+    assert fake.finish_patch().body["status"] == "succeeded"
+
+
+def test_a_progress_write_that_matches_no_row_is_a_warning_not_a_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The filter doing its job: the row was moved out of `running` by someone else, so this write
+    was correctly dropped. Answering "0 rows" must never raise and must never overwrite."""
+    fake = FakeSupabase(progress_response=httpx.Response(200, json=[]))
+
+    with caplog.at_level("WARNING", logger="cpsat_service.supabase"):
+        _run(_micro_request(), fake)
+
+    assert fake.finish_patch().body["status"] == "succeeded"
+    assert any("matched no row" in record.message for record in caplog.records)
+
+
+def test_the_live_solver_handle_reaches_the_registry() -> None:
+    """The S-305 seam, wired but unused: a stop button needs a reference to the solver that is
+    actually searching, and the engine builds its solvers internally."""
+    fake = FakeSupabase()
+    seen: list[Any] = []
+    registry = JobRegistry()
+    registry.register(JOB_ID)
+    original = registry.attach_solver
+
+    def record(job_id: str, solver: Any) -> None:
+        seen.append(solver)
+        original(job_id, solver)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(registry, "attach_solver", record)
+        fake.snapshot_hash = snapshot_hash(parse_snapshot(_micro_request()["snapshot"]))
+        run_job(
+            JOB_ID, _micro_request(), settings=SETTINGS, registry=registry, client_factory=fake.client_factory
+        )
+
+    assert seen, "the registry was never handed a solver"
+    assert all(hasattr(solver, "solve") for solver in seen)
+
+
+def test_configured_stage_targets_reach_the_engine() -> None:
+    """The knob's whole path in one assertion: env -> `Settings.stage_targets` -> `SolveConfig`.
+    Values are S-308's to ship; what S-303 owes is that a configured one actually arrives."""
+    configs: list[SolveConfig] = []
+
+    def record(dump: Dump, config: SolveConfig) -> SolveResult:
+        configs.append(config)
+        return solve_complete(dump, config)
+
+    targeted = replace(SETTINGS, stage_targets={3: 95, 6: 900})
+    fake = FakeSupabase()
+    fake.snapshot_hash = snapshot_hash(parse_snapshot(_micro_request()["snapshot"]))
+    registry = JobRegistry()
+    registry.register(JOB_ID)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", record)
+        run_job(
+            JOB_ID, _micro_request(), settings=targeted, registry=registry, client_factory=fake.client_factory
+        )
+
+    assert [config.targets for config in configs] == [{3: 95, 6: 900}]
+
+
+def test_an_unconfigured_service_leaves_the_engine_exactly_as_it_was() -> None:
+    """The neutrality guarantee at the service boundary: no targets set means no targets passed."""
+    configs: list[SolveConfig] = []
+
+    def record(dump: Dump, config: SolveConfig) -> SolveResult:
+        configs.append(config)
+        return solve_complete(dump, config)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", record)
+        _run(_micro_request(), FakeSupabase())
+
+    assert [config.targets for config in configs] == [{}]
+
+
 def test_a_snapshot_that_is_not_the_enqueued_one_fails_before_solving() -> None:
     """Dispatch is unauthenticated and body-trusting, so the row's digest is what binds a body to the
     job id in its URL. `failed` rather than back to `queued`: the claim already moved the row to
@@ -459,7 +664,7 @@ def test_a_snapshot_that_is_not_the_enqueued_one_fails_before_solving() -> None:
 
     _run(_micro_request(), fake)
 
-    claim, finish = fake.patches()
+    claim, finish = fake.claim_patch(), fake.finish_patch()
     assert claim.body["status"] == "running"
     assert finish.body["status"] == "failed"
     assert "snapshot mismatch" in finish.body["error"]
@@ -474,7 +679,7 @@ def test_a_matching_snapshot_binds_and_proceeds_to_the_solve() -> None:
 
     _run(_micro_request(), fake)
 
-    assert fake.patches()[1].body["status"] == "succeeded"
+    assert fake.finish_patch().body["status"] == "succeeded"
 
 
 def test_infeasible_outcome_fails_the_job_and_still_writes_stages() -> None:
@@ -484,7 +689,7 @@ def test_infeasible_outcome_fails_the_job_and_still_writes_stages() -> None:
 
     _run(_infeasible_request(), fake)
 
-    finish = fake.patches()[1]
+    finish = fake.finish_patch()
     assert finish.body["status"] == "failed"
     assert "infeasible" in finish.body["error"]
     assert finish.body["stages"], "the ladder transcript survives a failure — it is the diagnosis"
@@ -505,7 +710,7 @@ def test_precondition_error_fails_the_job_with_the_authors_message() -> None:
 
     _run({"formatVersion": 1, "snapshot": wire_snapshot(snapshot)}, fake)
 
-    finish = fake.patches()[1]
+    finish = fake.finish_patch()
     assert finish.body["status"] == "failed"
     assert finish.body["error"].startswith("precondition:")
     assert "double-book" in finish.body["error"]

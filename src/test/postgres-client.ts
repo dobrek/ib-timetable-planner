@@ -43,7 +43,7 @@ export type TablePrivilege = (typeof TABLE_PRIVILEGES)[number];
  * accident.
  *
  * Table level is the whole subtlety: `has_table_privilege` does NOT see column-scoped grants.
- * Verified against the local stack — with SELECT granted on three columns of `generation_jobs` and
+ * Verified against the local stack — with SELECT granted on a few columns of `generation_jobs` and
  * revoked table-wide, `has_table_privilege(role, table, 'SELECT')` is **false** while
  * `has_column_privilege(role, table, 'id', 'SELECT')` is **true**. So an empty result here does not
  * mean "unreachable", it means "no table-wide grant" — pair it with

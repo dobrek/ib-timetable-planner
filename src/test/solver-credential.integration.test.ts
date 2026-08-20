@@ -128,7 +128,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     expect(deleted.error?.code).toBe("42501");
   });
 
-  it("cannot read the solve input or the board it produced — SELECT is scoped to three columns", async () => {
+  it("cannot read the solve input or the board it produced — SELECT is column-scoped", async () => {
     // The narrowing S-301 shipped, and the one an attacker holding this credential feels: no plan
     // identity, no snapshot, no board. Note `result`/`stages`/`error` are WRITE-ONLY here — the
     // solver authors them and may not read them back, which is the right posture for an audit record.
@@ -162,7 +162,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
       // so Postgres checks the NEW row against the SELECT policy, and a `status in
       // ('queued','running')` window turns every terminal write into a 42501 — measured, and the
       // reason this slice narrowed by column instead. See the migration's own comment.
-      { policyname: "Solver reads any job row, three columns of it", cmd: "SELECT", qual: "true" },
+      { policyname: "Solver reads any job row, five columns of it", cmd: "SELECT", qual: "true" },
       {
         policyname: "Solver updates non-terminal jobs",
         cmd: "UPDATE",
@@ -189,23 +189,31 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     // `has_table_privilege` answers for TABLE-level grants only and is blind to column grants
     // (see `postgres-client.ts`). So an empty list is the strongest form of this assertion since
     // S-301: the role now reaches `generation_jobs` exclusively through column grants — SELECT on
-    // three columns, UPDATE on eleven — and holds nothing whatsoever table-wide, including the four
+    // five columns, UPDATE on eleven — and holds nothing whatsoever table-wide, including the four
     // verbs Supabase's auto-grant leaves behind elsewhere (TRUNCATE, REFERENCES, TRIGGER, MAINTAIN).
     // Before S-301 this read `["SELECT"]`, because SELECT was the one table-wide grant.
     expect(await heldPrivileges(pg, "solver_job_writer", "public.generation_jobs")).toEqual([]);
     expect(await heldPrivileges(pg, "solver_job_writer", "public.plans")).toEqual([]);
   });
 
-  it("holds SELECT on exactly the three columns the service projects — never on the payload", async () => {
+  it("holds SELECT on exactly the five readable columns — never on the payload", async () => {
     // The whole readable surface, asserted as an exact list rather than a `toContain`: a widened
     // grant has to fail here, and a `toContain` could not see one. `id` + `snapshot_hash` are the
     // claim's projection (`select=id,snapshot_hash`), `status` is what its own `status=eq.queued` CAS
     // filter references. `snapshot` is absent because it never comes from the database at all —
     // F-302's dispatch carries it in the request body.
+    //
+    // `heartbeat_at` and `stop_requested_at` are PRE-PAID by S-303 and read by nothing yet: S-304's
+    // widened claim CAS needs the first in a WHERE, S-305's stop polling needs the second. Granting
+    // them together cost one migration and one edit to this list instead of three of each. Note the
+    // deliberate asymmetry with the UPDATE list below — `stop_requested_at` is readable and NOT
+    // writable, because the app asks for the stop and the solver only ever observes it.
     expect(await heldColumnPrivileges(pg, "solver_job_writer", "public.generation_jobs", "SELECT")).toEqual([
+      "heartbeat_at",
       "id",
       "snapshot_hash",
       "status",
+      "stop_requested_at",
     ]);
   });
 

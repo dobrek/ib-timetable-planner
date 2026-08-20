@@ -797,26 +797,26 @@ hand-off list.
 
 #### Automated
 
-- [x] 3.1 `uv run pytest` green (conversation pins, best-effort cases, settings parser)
-- [x] 3.2 `uv run mypy`, `uv run ruff check`, `mise run solver:check` green
-- [x] 3.3 `solver-transport.integration.test.ts` extended and green (10 stages, checkpoint, checkpoint_stage_index, renewed heartbeat)
+- [x] 3.1 `uv run pytest` green (conversation pins, best-effort cases, settings parser) — 749336e
+- [x] 3.2 `uv run mypy`, `uv run ruff check`, `mise run solver:check` green — 749336e
+- [x] 3.3 `solver-transport.integration.test.ts` extended and green (10 stages, checkpoint, checkpoint_stage_index, renewed heartbeat) — 749336e
 
 #### Manual
 
-- [x] 3.4 Studio shows the row advancing stage by stage during a live dispatch
-- [x] 3.5 `SOLVER_STAGE_TARGETS=3=95` yields an early tier-3 stop with `stoppedBy: target`; malformed value degrades with a stderr complaint
+- [x] 3.4 Studio shows the row advancing stage by stage during a live dispatch — 749336e
+- [x] 3.5 `SOLVER_STAGE_TARGETS=3=95` yields an early tier-3 stop with `stoppedBy: target`; malformed value degrades with a stderr complaint — 749336e
 
 ### Phase 4: Migration — pre-paid SELECT grants
 
 #### Automated
 
-- [ ] 4.1 `supabase db reset` applies; `db diff` clean
-- [ ] 4.2 `solver-credential` + `generation-jobs` integration tests green with the five-column list and renamed policy
-- [ ] 4.3 `uv run pytest tests/test_service.py` still green
+- [x] 4.1 `supabase db reset` applies; `db diff` clean
+- [x] 4.2 `solver-credential` + `generation-jobs` integration tests green with the five-column list and renamed policy
+- [x] 4.3 `uv run pytest tests/test_service.py` still green
 
 #### Manual
 
-- [ ] 4.4 Studio `column_privileges` query lists exactly the five SELECT columns
+- [x] 4.4 Studio `column_privileges` query lists exactly the five SELECT columns
 
 ### Phase 5: App — status read, poll store, plans-list indicator, strip link
 

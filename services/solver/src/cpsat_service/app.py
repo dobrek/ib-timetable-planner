@@ -137,10 +137,11 @@ def _log_startup(current: Settings) -> None:
     `/health` stays green.
     """
     log.info(
-        "solver service starting: workers=%d max_concurrent_jobs=%d log_level=%s machine_email=%s "
-        "supabase_url=%s credential_configured=%s wire_contract=%s",
+        "solver service starting: workers=%d max_concurrent_jobs=%d stage_targets=%s log_level=%s "
+        "machine_email=%s supabase_url=%s credential_configured=%s wire_contract=%s",
         current.workers,
         current.max_concurrent_jobs,
+        dict(sorted(current.stage_targets.items())) or "<none>",
         current.log_level,
         current.machine_email,
         current.supabase_url or "<unset>",

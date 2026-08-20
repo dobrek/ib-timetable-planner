@@ -81,6 +81,11 @@ class StageEvent:
     total: int
     #: The finished stage's report. ``completed`` only.
     report: StageReport | None = None
+    #: The transcript so far, this stage included — the whole run's, not this call's slice of it.
+    #: ``completed`` only, and present whether or not the stage solved: a stage that found nothing
+    #: still belongs in the transcript, and a consumer that stored only the checkpoint's copy would
+    #: silently truncate the record every time a stage came back UNKNOWN.
+    stages: tuple[StageReport, ...] = ()
     #: The incumbent board as a self-contained result, carrying the transcript so far. Present only
     #: on a ``completed`` stage that actually SOLVED — a stage that found nothing has contributed
     #: nothing, and a checkpoint claiming otherwise would be a lie the next slice acts on.
@@ -274,6 +279,7 @@ def _place_maximally(
             position=1,
             total=_FULL_LADDER_STAGES,
             report=report,
+            stages=(report,),
             checkpoint=_checkpoint("full", incumbent, (report,)) if solved else None,
         ),
     )
@@ -324,6 +330,7 @@ def solve_complete(dump: Dump, config: SolveConfig) -> SolveResult:
                 position=1,
                 total=_FULL_LADDER_STAGES,
                 report=feasibility,
+                stages=(feasibility,),
                 checkpoint=_checkpoint("complete", incumbent, (feasibility,)),
             ),
         )
@@ -366,6 +373,7 @@ def solve_complete(dump: Dump, config: SolveConfig) -> SolveResult:
             position=1,
             total=_FULL_LADDER_STAGES,
             report=feasibility,
+            stages=(feasibility,),
         ),
     )
     outcome = "infeasible" if status == cp_model.INFEASIBLE else "unknown"
@@ -600,6 +608,7 @@ def _run_ladder(
                 position=position,
                 total=total,
                 report=report,
+                stages=transcript,
                 checkpoint=_checkpoint(mode, incumbent, transcript) if solved else None,
             ),
         )

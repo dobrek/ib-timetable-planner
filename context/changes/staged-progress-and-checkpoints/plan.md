@@ -785,26 +785,26 @@ hand-off list.
 
 #### Automated
 
-- [x] 2.1 `uv run pytest` green incl. parity exact 10/10 and new stage-stop/hook tests
-- [x] 2.2 Local golden-dump parity test run green
-- [x] 2.3 `uv run mypy` 0 errors; `uv run ruff check` clean
+- [x] 2.1 `uv run pytest` green incl. parity exact 10/10 and new stage-stop/hook tests — 5801b47
+- [x] 2.2 Local golden-dump parity test run green — 5801b47
+- [x] 2.3 `uv run mypy` 0 errors; `uv run ruff check` clean — 5801b47
 
 #### Manual
 
-- [x] 2.4 Seed-fixture run with a tier-6 target ends early with `stoppedBy: target`; no-target timings unchanged
+- [x] 2.4 Seed-fixture run with a tier-6 target ends early with `stoppedBy: target`; no-target timings unchanged — 5801b47
 
 ### Phase 3: Service — progress emission, targets knob, stop seam
 
 #### Automated
 
-- [ ] 3.1 `uv run pytest` green (conversation pins, best-effort cases, settings parser)
-- [ ] 3.2 `uv run mypy`, `uv run ruff check`, `mise run solver:check` green
-- [ ] 3.3 `solver-transport.integration.test.ts` extended and green (10 stages, checkpoint, checkpoint_stage_index, renewed heartbeat)
+- [x] 3.1 `uv run pytest` green (conversation pins, best-effort cases, settings parser)
+- [x] 3.2 `uv run mypy`, `uv run ruff check`, `mise run solver:check` green
+- [x] 3.3 `solver-transport.integration.test.ts` extended and green (10 stages, checkpoint, checkpoint_stage_index, renewed heartbeat)
 
 #### Manual
 
-- [ ] 3.4 Studio shows the row advancing stage by stage during a live dispatch
-- [ ] 3.5 `SOLVER_STAGE_TARGETS=3=95` yields an early tier-3 stop with `stoppedBy: target`; malformed value degrades with a stderr complaint
+- [x] 3.4 Studio shows the row advancing stage by stage during a live dispatch
+- [x] 3.5 `SOLVER_STAGE_TARGETS=3=95` yields an early tier-3 stop with `stoppedBy: target`; malformed value degrades with a stderr complaint
 
 ### Phase 4: Migration — pre-paid SELECT grants
 

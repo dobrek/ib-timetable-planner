@@ -12,6 +12,9 @@
 #   mise run solver:dev
 #   requires: SUPABASE_URL · SUPABASE_KEY · SOLVER_MACHINE_PASSWORD  (refuses without all three)
 #   optional: SOLVER_WORKERS · SOLVER_MAX_CONCURRENT_JOBS · SOLVER_LOG_LEVEL (read by the service)
+#             SOLVER_STAGE_TARGETS=tier=value[,tier=value] (e.g. 3=95,6=900) — stop those ladder
+#             stages once they reach the value instead of burning the budget. Unset = today's
+#             behaviour; shipping VALUES is S-308's, this is the knob that lets you measure them.
 #
 # See README § Running the solver service (dev) and docs/runbooks/solver-credential.md.
 set -eu

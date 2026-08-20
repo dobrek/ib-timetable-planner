@@ -23,6 +23,12 @@ the row: the row stays `queued` and the only signal is a loud service log. That 
 tier-1 dev loop where a human is watching the console, and Phase 5's integration test converts it
 into a poll timeout rather than a green run. S-304's heartbeat is what turns it into a detectable
 state in production.
+
+**Progress is emitted, not polled (S-303).** The engine raises a `StageEvent` on either side of every
+ladder stage and this module turns each into one `running -> running` PATCH, so `heartbeat_at` now
+renews per stage event rather than once at claim. That is coarse — Mode A alone can run 300 s between
+renewals — and deliberately so: finer resolution needs a timer thread, and reclaiming a row whose
+heartbeat went stale needs a widened claim CAS. Both are S-304's.
 """
 
 from __future__ import annotations
@@ -34,7 +40,14 @@ from typing import Any
 
 from cpsat_engine.model import PreconditionError
 from cpsat_engine.schema import Dump, parse_placements, parse_snapshot
-from cpsat_engine.solve import SolveConfig, SolveResult, solve_complete, to_generation_result
+from cpsat_engine.solve import (
+    SolveConfig,
+    SolveHooks,
+    SolveResult,
+    StageEvent,
+    solve_complete,
+    to_generation_result,
+)
 from cpsat_engine.wire import snapshot_hash, wire_result, wire_stage_report
 
 from .registry import JobRegistry
@@ -93,7 +106,7 @@ def run_job(
             log.error("job %s: %s", job_id, mismatch)
             client.finish(job_id, status="failed", error=mismatch)
             return
-        _solve_and_write(job_id, dump, client=client, settings=settings)
+        _solve_and_write(job_id, dump, client=client, settings=settings, registry=registry)
     except PreconditionError as error:
         # The author's pinned board already violates a hard rule — no engine result could ever pass
         # verify. Their data, their message.
@@ -172,12 +185,27 @@ def _snapshot_mismatch(claimed: dict[str, Any], dump: Dump) -> str | None:
     )
 
 
-def _solve_and_write(job_id: str, dump: Dump, *, client: JobRowClient, settings: Settings) -> None:
+def _solve_and_write(
+    job_id: str, dump: Dump, *, client: JobRowClient, settings: Settings, registry: JobRegistry
+) -> None:
     log.info("job %s solving with %d workers", job_id, settings.workers)
     # Clean is the SHIPPED default (FR-302), and it is necessarily solver-side: `SolveRequest` is
     # `additionalProperties: false` and the service deliberately does not read `generation_jobs.policy`,
     # so there is nowhere on the wire for a caller to ask for it. S-307 is where alternatives arrive.
-    result = solve_complete(dump, SolveConfig(workers=settings.workers, log_dir=None, clean_mode=True))
+    config = SolveConfig(
+        workers=settings.workers,
+        log_dir=None,
+        clean_mode=True,
+        targets=settings.stage_targets,
+        hooks=SolveHooks(
+            on_stage=_progress_reporter(job_id, dump, client),
+            on_solver=lambda solver: registry.attach_solver(job_id, solver),
+            # `should_stop` is deliberately NOT wired. The predicate exists and the engine honours
+            # it; what is missing is a SOURCE — reading `stop_requested_at` — and that is S-305's,
+            # along with the button that writes it.
+        ),
+    )
+    result = solve_complete(dump, config)
     stages = [wire_stage_report(stage) for stage in result.stages]
     outcome = result.notes.get("outcome")
 
@@ -197,6 +225,47 @@ def _solve_and_write(job_id: str, dump: Dump, *, client: JobRowClient, settings:
 
     client.finish(job_id, status="failed", error=_outcome_error(result), stages=stages)
     log.warning("job %s failed: outcome=%s", job_id, outcome)
+
+
+def _progress_reporter(job_id: str, dump: Dump, client: JobRowClient) -> Callable[[StageEvent], None]:
+    """Turn stage events into durable row writes — the app's only view of a solve in flight.
+
+    Two payloads, and the split is what makes the row readable at any instant. A `started` says which
+    tier is being worked, so the indicator can name it before there is anything to report about it. A
+    `completed` says what came of it: the transcript so far, and — only when the stage actually
+    solved — the incumbent board. An UNKNOWN stage advances the transcript and the heartbeat but
+    leaves the checkpoint columns untouched, because a stage that found nothing contributed nothing
+    and the row must not claim otherwise.
+
+    The whole body is wrapped: a hook that raises would propagate through the engine (which
+    deliberately does not catch, see `SolveHooks`) and kill a solve that was going fine. Here the
+    answer IS known — progress is never worth a board — so this is where the net goes.
+    """
+
+    def report(event: StageEvent) -> None:
+        try:
+            client.progress(job_id, _progress_payload(dump, event))
+        except Exception:  # noqa: BLE001 — reporting progress must never cost a solve
+            log.exception("job %s: could not build the progress payload for tier %d", job_id, event.tier)
+
+    return report
+
+
+def _progress_payload(dump: Dump, event: StageEvent) -> dict[str, Any]:
+    """The columns one stage event has something to say about, and no others.
+
+    `stage_index` and `checkpoint_stage_index` are TIER numbers — the same identity as
+    `StageReport.tier` — never positions in the `stages` array, which is variable-length and may be
+    sparse. The checkpoint goes onto the wire through `wire_result(to_generation_result(...))`, the
+    SAME path the terminal write uses, so a mid-ladder board and a final one are byte-shaped alike.
+    """
+    if event.kind == "started":
+        return {"stage_index": event.tier, "stage_name": event.name}
+    payload: dict[str, Any] = {"stages": [wire_stage_report(stage) for stage in event.stages]}
+    if event.checkpoint is not None:
+        payload["checkpoint"] = wire_result(to_generation_result(dump, event.checkpoint))
+        payload["checkpoint_stage_index"] = event.tier
+    return payload
 
 
 def _outcome_error(result: SolveResult) -> str:

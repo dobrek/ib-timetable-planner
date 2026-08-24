@@ -61,3 +61,37 @@ crash, not a shutdown) and the row hand-wedged with
 
 The reclaim and the delivery happened in **one** visit, which is the point of running the CAS ahead
 of the delivery branch.
+
+### Tier-3 drill, 2026-08-24 (phases 3 + 5) — the real container in workerd
+
+`mise run solver:tier3`, so dispatch went through the **binding** (`getSolverTransport()` → `env.SOLVER`
+→ `SolverContainer` → `containerFetch`), not a URL. `sleepAfter` was temporarily set to **20s** for
+the run so `onActivityExpired` would actually fire inside a solve; it was restored to `30m` before
+committing (the committed value is unchanged — Phase 6 owns the drop to `10m`).
+
+**Activity renewal (3.6).** Generate on Seed Plan A, then over the following minute:
+
+```
+[solver-container] started
+[solver-container] sleep declined: 1 solve(s) in flight — activity renewed
+[solver-container] sleep declined: 1 solve(s) in flight — activity renewed
+[solver-container] sleep declined: 1 solve(s) in flight — activity renewed
+```
+
+Three consecutive `sleepAfter` expiries, three declines, and the row kept advancing
+(`running`, `heartbeat_at` renewing) throughout — so the probe reached a container that was busy
+solving, which is the fact the whole design turns on. **Pre-S-304 the first of those three would have
+stopped the container mid-solve.**
+
+**SIGTERM (5.4).** `docker kill -s TERM` at `10:30:13.3`; terminal write at `10:30:17.43` — **≈4.1 s**,
+against a 120 s join budget and the platform's 15-minute window. The container then exited
+`exitCode=0 reason=exit` (uvicorn's graceful shutdown ran the lifespan and returned cleanly).
+
+Row: `interrupted`, `checkpoint_stage_index=4`, 4 stages, error naming stage 4 (`teacherHoles`). The
+plan visit delivered **250 placements** onto the clone; the strip read "Partial proposal ready — open"
+/ "Interrupted — kept the board from stage 4 of 10."; Generate was re-enabled.
+
+> The **idle** half of the override (active = 0 → let the container stop) is not proven here — after
+> the SIGTERM there was no live container for the alarm to ask about, and starting one costs a
+> full-length solve. It is covered by the unit test on the parse helper plus the SDK's own default,
+> and Phase 6's criterion 6.4 is where the idle sleep boundary gets measured for real.

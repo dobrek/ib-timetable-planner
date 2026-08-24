@@ -67,10 +67,22 @@ export class SolverContainer extends Container<Env> {
    * `interrupted` with its last checkpoint and is delivered on the author's next visit. The failure
    * mode of the other guess is a container that can never be put to sleep.
    *
+   * **A stopped container is never probed.** `containerFetch` STARTS a container that is not running
+   * (`container.js:867-871`), so asking "are you solving?" on an already-stopped one would resurrect
+   * the very thing the expiry exists to let go — and because the SDK re-arms a full `sleepAfter`
+   * window after this returns, the pair could flap indefinitely. The SDK's own default carries the
+   * same `running` guard (`container.js:750-752`), which is the evidence that this method really
+   * does get called in that state; delegating to it is both the correct behaviour and the cheapest
+   * way to stay in step with it.
+   *
    * `alarm()` is deliberately NOT overridden — the SDK's own alarm drives this check, the schedule
    * dispatch and the `onStop` syncing (`container.js:1513-1516` carries a standing warning).
    */
   override async onActivityExpired(): Promise<void> {
+    if (this.ctx.container?.running !== true) {
+      await super.onActivityExpired();
+      return;
+    }
     const active = await this.countActiveJobs();
     if (active > 0) {
       // eslint-disable-next-line no-console

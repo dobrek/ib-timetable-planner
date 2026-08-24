@@ -725,33 +725,33 @@ solver's RLS windows and both grant allowlists are pinned by
 
 #### Manual
 
-- [ ] 3.6 tier-3 renewal log lines observed during a live solve
+- [x] 3.6 tier-3 renewal log lines observed during a live solve
 
 ### Phase 4: App — fail-forward reclaim + interrupted-checkpoint delivery
 
 #### Automated
 
-- [x] 4.1 `pnpm test` passes (staleness, indicators, view mapping, delivery gate)
-- [x] 4.2 `pnpm check` reports 0 errors
-- [x] 4.3 `pnpm lint` and `pnpm steiger` pass
-- [x] 4.4 `pnpm build` clean
+- [x] 4.1 `pnpm test` passes (staleness, indicators, view mapping, delivery gate) — 3a9ba7c
+- [x] 4.2 `pnpm check` reports 0 errors — 3a9ba7c
+- [x] 4.3 `pnpm lint` and `pnpm steiger` pass — 3a9ba7c
+- [x] 4.4 `pnpm build` clean — 3a9ba7c
 
 #### Manual
 
-- [x] 4.5 hand-wedged row: visit reclaims + delivers checkpoint + strip labels stage + Generate re-enables
-- [x] 4.6 `/plans` hub shows stalled badge before the visit, terminal after
+- [x] 4.5 hand-wedged row: visit reclaims + delivers checkpoint + strip labels stage + Generate re-enables — 3a9ba7c
+- [x] 4.6 `/plans` hub shows stalled badge before the visit, terminal after — 3a9ba7c
 
 ### Phase 5: Local proof — integration coverage + tier-3 SIGTERM drill
 
 #### Automated
 
-- [ ] 5.1 `generation-lifecycle.integration.test.ts` passes against the local stack
-- [ ] 5.2 full integration lane green (solver up)
-- [ ] 5.3 `/verify` passes
+- [x] 5.1 `generation-lifecycle.integration.test.ts` passes against the local stack
+- [x] 5.2 full integration lane green (solver up)
+- [x] 5.3 `/verify` passes
 
 #### Manual
 
-- [ ] 5.4 tier-3 SIGTERM drill passes, evidence recorded in change.md
+- [x] 5.4 tier-3 SIGTERM drill passes, evidence recorded in change.md
 
 ### Phase 6: Production proof — the drill, the numbers, the dividend
 

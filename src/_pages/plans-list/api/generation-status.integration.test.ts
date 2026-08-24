@@ -116,6 +116,11 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   it("never selects the payload columns — a 5-second timer must not drag the snapshot", async () => {
     // `snapshot` is ~124 KB and TOASTed, `result` and `checkpoint` ~35 KB each. Asserting the SHAPE
     // of what comes back is how a widened projection gets caught: an extra column would appear here.
+    //
+    // `stale` is derived, not projected: S-304 added `heartbeat_at` — a scalar timestamp — to the
+    // columns and computes staleness at the mapping edge, so the payloads stay off the wire. This
+    // list is the specification of that, and it must be updated deliberately, never to make a red
+    // test green.
     const [indicator] = await readGenerationJobStatuses(supabase, { jobIds: [activeJobId], planIds: [] });
 
     expect(Object.keys(indicator).sort()).toEqual([
@@ -124,6 +129,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       "planId",
       "stageIndex",
       "stageName",
+      "stale",
       "startedAt",
       "status",
     ]);

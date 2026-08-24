@@ -693,25 +693,25 @@ solver's RLS windows and both grant allowlists are pinned by
 
 #### Automated
 
-- [x] 1.1 `uv run pytest` passes with heartbeat/latch/interrupted tests
-- [x] 1.2 `uv run mypy` (strict, src + tests) reports no errors
-- [x] 1.3 `uv run ruff check` passes
-- [x] 1.4 claim-filter pin `status=eq.queued` unchanged
+- [x] 1.1 `uv run pytest` passes with heartbeat/latch/interrupted tests — 8b85798
+- [x] 1.2 `uv run mypy` (strict, src + tests) reports no errors — 8b85798
+- [x] 1.3 `uv run ruff check` passes — 8b85798
+- [x] 1.4 claim-filter pin `status=eq.queued` unchanged — 8b85798
 
 #### Manual
 
-- [ ] 1.5 tier-1 solve shows ~15 s heartbeat renewals in log + Studio
+- [x] 1.5 tier-1 solve shows ~15 s heartbeat renewals in log + Studio
 
 ### Phase 2: Solver — lifespan shutdown → interrupted
 
 #### Automated
 
-- [ ] 2.1 `uv run pytest` passes with shutdown + `/jobs/active` tests
-- [ ] 2.2 `uv run mypy` and `uv run ruff check` pass
+- [x] 2.1 `uv run pytest` passes with shutdown + `/jobs/active` tests
+- [x] 2.2 `uv run mypy` and `uv run ruff check` pass
 
 #### Manual
 
-- [ ] 2.3 tier-1 Ctrl-C mid-solve → row `interrupted` with checkpoint + stages, exit within budget
+- [x] 2.3 tier-1 Ctrl-C mid-solve → row `interrupted` with checkpoint + stages, exit within budget
 
 ### Phase 3: Worker/DO — activity renewal (sleepAfter stays 30m)
 

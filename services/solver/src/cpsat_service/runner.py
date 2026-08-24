@@ -69,12 +69,16 @@ class StopOutcome:
     cause: str
 
 
+# The reason the lifespan's SIGTERM path records — this slice's only producer, and the vocabulary
+# lives HERE rather than in `app.py` so the producer and the status it maps to cannot drift.
+SHUTDOWN_REASON: Final = "shutdown"
+
 # Keyed by the reason the producer recorded on the registry entry. S-304 ships one producer; S-305's
 # `stop_requested_at` polling adds `"requested" -> stopped` here and nowhere else. An UNRECOGNISED
 # reason falls back to `interrupted` rather than to the success branch: whatever stopped the solve,
 # it was not the ladder finishing.
 STOP_OUTCOMES: Final[dict[str, StopOutcome]] = {
-    "shutdown": StopOutcome(status="interrupted", cause="container shutdown"),
+    SHUTDOWN_REASON: StopOutcome(status="interrupted", cause="container shutdown"),
 }
 FALLBACK_STOP_STATUS: Final = "interrupted"
 

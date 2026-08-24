@@ -14,8 +14,11 @@ request that was simply malformed.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import threading
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -27,11 +30,17 @@ from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
 from .registry import JobRegistry, Registration
-from .runner import start_job
+from .runner import SHUTDOWN_REASON, start_job
 from .settings import Settings, settings
 from .supabase import REQUIRED_ROLE, JobRowClient
 
 log = logging.getLogger("cpsat_service.app")
+
+# How long the shutdown waits for the worker threads to land their terminal writes. Cloudflare grants
+# SIGTERM -> 15 minutes -> SIGKILL, and the worst case here is one terminal write exhausting its
+# retry ladder (~40 s), so 120 s is generous inside the window and still bounded — uvicorn awaits the
+# lifespan shutdown UNBOUNDED, so nothing outside this constant would ever cut a wedged join short.
+SHUTDOWN_JOIN_BUDGET_S: Final = 120.0
 
 # Uvicorn configures ONLY its own `uvicorn.*` loggers and leaves the root logger at WARNING, so
 # without this every `log.info` in this package is silently dropped — including the CAS-loss line,
@@ -51,20 +60,32 @@ SCHEMA_PATH: Final = REPO_ROOT / "contracts" / "generation-wire.schema.json"
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Announce the effective configuration, then prove the credential before serving anything.
+    """Announce the effective configuration and prove the credential; on the way out, stop cleanly.
 
-    Both halves exist because the alternative is silence. `sign_in()` is otherwise LAZY — first
-    called from the worker thread, after the handler has already answered 202 — and `runner._claim`
-    swallows what it raises, so a wrong role would leave the row `queued` forever with one log line
-    as its entire trace. Asserting at boot instead makes the failure visible and self-cleaning:
-    uvicorn exits non-zero on a lifespan error, the port never binds, `startAndWaitForPorts` fails,
-    and the dispatch error already marks the row `failed` and deletes the clone.
+    **Startup.** Both halves exist because the alternative is silence. `sign_in()` is otherwise LAZY
+    — first called from the worker thread, after the handler has already answered 202 — and
+    `runner._claim` swallows what it raises, so a wrong role would leave the row `queued` forever
+    with one log line as its entire trace. Asserting at boot instead makes the failure visible and
+    self-cleaning: uvicorn exits non-zero on a lifespan error, the port never binds,
+    `startAndWaitForPorts` fails, and the dispatch error already marks the row `failed`.
 
     `/health` stays dependency-free on purpose — the check lives here, not in the endpoint.
+
+    **Shutdown (S-304).** This is the ONE reliable hook the platform grants us. Cloudflare sends
+    SIGTERM and waits up to 15 minutes; uvicorn's own graceful shutdown knows about ASGI connections
+    and nothing at all about the `daemon=True` solve threads, so without a body here the interpreter
+    finalizes and CPython kills a running solve at an arbitrary bytecode boundary — S-302 measured
+    the whole sequence completing inside 100 ms. See :func:`_shutdown` for the sequence.
+
+    **Footnote, and it inverts the obvious guess.** A second *SIGINT* sets uvicorn's `force_exit`
+    and skips the lifespan entirely (`server.py:301,344-345`); a second *SIGTERM* does not.
+    Cloudflare sends one SIGTERM, so production is unaffected — the hazard is a tier-1 drill where
+    an impatient second Ctrl-C aborts the very write it was run to observe.
     """
     _log_startup(settings)
     _verify_credential(settings)
     yield
+    await _shutdown(registry)
 
 
 app = FastAPI(title="CP-SAT solver service", version="0.1.0", lifespan=lifespan)
@@ -76,6 +97,18 @@ def health() -> dict[str, str]:
     """Dependency-free on purpose: a platform probe hits this before secrets are wired, and a health
     endpoint that needs the database reports the database's health, not the container's."""
     return {"status": "ok"}
+
+
+@app.get("/jobs/active")
+def active_jobs() -> dict[str, int]:
+    """How many solves are in flight, from the in-process registry alone — no database touch.
+
+    The Durable Object asks this before it lets `sleepAfter` stop the container (S-304's
+    `onActivityExpired` override), so it has to be answerable on a bare container for the same
+    reason `/health` is: an unconfigured container is not solving, and saying so must not require a
+    credential. CP-SAT releases the GIL during search, so a busy solver genuinely does answer.
+    """
+    return {"active": len(registry)}
 
 
 @app.post("/jobs/{job_id}/solve", status_code=status.HTTP_202_ACCEPTED)
@@ -126,6 +159,56 @@ async def solve(job_id: UUID, request: Request) -> dict[str, str]:
         registry.release(key)
         raise
     return {"status": outcome.value, "jobId": key}
+
+
+async def _shutdown(live: JobRegistry) -> None:
+    """Latch every live job, then wait (bounded) for its own worker to write the terminal row.
+
+    **The worker does the writing, not this.** `registry.stop_all` fires each job's stop latch and
+    calls `stop_search()` on the live solver; the engine's ladder then unwinds, `_solve_and_write`
+    reads the latch and PATCHes `interrupted` with the transcript. Routing shutdown through the
+    existing writer is what keeps exactly one writer per row — a second one here would race the
+    worker for the same PATCH.
+
+    The joins run via :func:`asyncio.to_thread` because this body executes on the event loop, and a
+    blocking join here would starve the rest of uvicorn's shutdown sequence.
+
+    A job that misses the budget is logged and abandoned: its row stays `running`, and the app's
+    stale-heartbeat reclaim is the net under it. That is the whole point of building both halves.
+    """
+    threads = live.stop_all(SHUTDOWN_REASON)
+    if not threads:
+        log.info("shutdown: no solve in flight")
+        return
+    log.warning(
+        "shutdown: asked %d solve(s) to stop; waiting up to %.0fs for their terminal writes",
+        len(threads),
+        SHUTDOWN_JOIN_BUDGET_S,
+    )
+    started = time.monotonic()
+    stragglers = await asyncio.to_thread(_join_within, threads, SHUTDOWN_JOIN_BUDGET_S)
+    if stragglers:
+        log.error(
+            "shutdown: %d solve(s) did not finish within %.0fs — their rows stay `running` until the "
+            "app reclaims them on the author's next visit: %s",
+            len(stragglers),
+            SHUTDOWN_JOIN_BUDGET_S,
+            ", ".join(thread.name for thread in stragglers),
+        )
+        return
+    log.info("shutdown: every solve wrote its terminal row in %.1fs", time.monotonic() - started)
+
+
+def _join_within(threads: list[threading.Thread], budget_s: float) -> list[threading.Thread]:
+    """Join each thread against one SHARED deadline, and report whoever is still alive.
+
+    Shared rather than per-thread: `SOLVER_MAX_CONCURRENT_JOBS` can be raised, and a per-thread
+    budget would multiply the wait by the job count — straight past the platform's SIGKILL.
+    """
+    deadline = time.monotonic() + budget_s
+    for thread in threads:
+        thread.join(timeout=max(0.0, deadline - time.monotonic()))
+    return [thread for thread in threads if thread.is_alive()]
 
 
 def _log_startup(current: Settings) -> None:

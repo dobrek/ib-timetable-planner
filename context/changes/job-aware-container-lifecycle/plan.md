@@ -700,28 +700,28 @@ solver's RLS windows and both grant allowlists are pinned by
 
 #### Manual
 
-- [x] 1.5 tier-1 solve shows ~15 s heartbeat renewals in log + Studio
+- [x] 1.5 tier-1 solve shows ~15 s heartbeat renewals in log + Studio — a4ad2d0
 
 ### Phase 2: Solver — lifespan shutdown → interrupted
 
 #### Automated
 
-- [x] 2.1 `uv run pytest` passes with shutdown + `/jobs/active` tests
-- [x] 2.2 `uv run mypy` and `uv run ruff check` pass
+- [x] 2.1 `uv run pytest` passes with shutdown + `/jobs/active` tests — a4ad2d0
+- [x] 2.2 `uv run mypy` and `uv run ruff check` pass — a4ad2d0
 
 #### Manual
 
-- [x] 2.3 tier-1 Ctrl-C mid-solve → row `interrupted` with checkpoint + stages, exit within budget
+- [x] 2.3 tier-1 Ctrl-C mid-solve → row `interrupted` with checkpoint + stages, exit within budget — a4ad2d0
 
 ### Phase 3: Worker/DO — activity renewal (sleepAfter stays 30m)
 
 #### Automated
 
-- [ ] 3.1 `pnpm test` passes including the active-jobs parse-helper test
-- [ ] 3.2 `pnpm check` reports 0 errors
-- [ ] 3.3 `pnpm lint` and `pnpm steiger` pass
-- [ ] 3.4 six-forwarded-keys pin unchanged
-- [ ] 3.5 `pnpm build` clean
+- [x] 3.1 `pnpm test` passes including the active-jobs parse-helper test
+- [x] 3.2 `pnpm check` reports 0 errors
+- [x] 3.3 `pnpm lint` and `pnpm steiger` pass
+- [x] 3.4 six-forwarded-keys pin unchanged
+- [x] 3.5 `pnpm build` clean
 
 #### Manual
 

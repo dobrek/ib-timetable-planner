@@ -315,6 +315,8 @@ At one author and a few solves/day, the need is **durability + visibility**, not
 Confirmed against the `@cloudflare/containers` docs and repo (checked 2026-07-16): the sleep timer is reset by **incoming requests** — and since job status lives in Supabase (not polled through the container), a 20-minute solve with no inbound traffic **can be put to sleep mid-solve**. There is a known issue where the `sleepAfter` alarm fires during long-running operations (cloudflare/containers#162). The platform provides the fix:
 
 - `renewActivityTimeout()` — callable from background work to count it as activity; and/or `keepAlive: true` (30 s heartbeat pings, never auto-timeout — pair with explicit `stop()` when the job ends so scale-to-zero still happens);
+
+  > **Correction (2026-08-24, S-304).** `keepAlive` **does not exist** in `@cloudflare/containers@0.3.7` — grep over `dist/` returns nothing and it is absent from `ContainerOptions`. The two real APIs are `renewActivityTimeout()` and an overridable `onActivityExpired()` (default body: `this.stop()`), and S-304 ships the override. The `#162` citation above is separately stale — that issue was closed 2026-05-12. See `context/changes/job-aware-container-lifecycle/research.md` § 1.
 - `onActivityExpired()` is overridable — guard it so the container only stops when no job is running;
 - On shutdown: SIGTERM, then SIGKILL after **15 minutes** — ample for "persist checkpoint, mark job interrupted".
 

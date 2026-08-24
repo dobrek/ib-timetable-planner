@@ -41,3 +41,23 @@ against a 120 s join budget and the platform's 15-minute window.
 `outcome=complete` in that log line is F1's hole reproduced live: the cancelled Mode-A run really
 does return `complete`, so the pre-S-304 outcome branch would have written **`succeeded`** over an
 interrupted solve. The latch is what caught it.
+
+### Wedged-row drill, 2026-08-24 (phase 4)
+
+`pnpm build && pnpm preview` + local stack + tier-1 solver, driven through the browser as
+`e2e-author@example.test`. Generate on **Seed Plan A**, then at `stage_index=3` /
+`checkpoint_stage_index=2` the solver was **SIGKILLed** (no SIGTERM, so no `interrupted` write — a
+crash, not a shutdown) and the row hand-wedged with
+`update generation_jobs set heartbeat_at = now() - interval '10 minutes'`.
+
+| Step | Observed |
+| --- | --- |
+| `/plans` before the visit | badge **"Generating — stalled, open plan"**, tone `other`, linking to the plan |
+| the plan visit | row `running → interrupted`, `error` naming the last heartbeat instant |
+| delivery, same visit | `delivered_plan_id` set; **250 placements** landed on the proposal clone from the *stage-2* checkpoint |
+| the strip | link **"Partial proposal ready — open"** + "Interrupted — kept the board from stage 2 of 10." |
+| Generate | re-enabled (the partial unique index no longer blocks a terminal row) |
+| `/plans` after | no badge — the row is terminal and drops out of active discovery, same as any finished job on a cold load |
+
+The reclaim and the delivery happened in **one** visit, which is the point of running the CAS ahead
+of the delivery branch.

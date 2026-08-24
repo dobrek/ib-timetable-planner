@@ -18,6 +18,7 @@ import {
   type GeneratorSnapshot,
   type StoredStageReport,
 } from "@/entities/timetable";
+import { reclaimStaleJob } from "./generation-reclaim";
 import { applyGeneratedPlacements } from "./placements";
 
 /**
@@ -38,14 +39,30 @@ import { applyGeneratedPlacements } from "./placements";
  * reports the same delivered state.
  *
  * **Narrow projections are a correctness-adjacent rule here, not an optimisation.** `snapshot` is
- * ~124 KB TOASTed and `result` ~35 KB; the status read touches neither, and the heavy pair is fetched
- * only once a job is known to be succeeded-and-undelivered. Even the clean label short-circuits: a
+ * ~124 KB TOASTed and `result`/`checkpoint` ~35 KB each; the status read touches none of them —
+ * `checkpoint_stage_index is not null` is the free existence proxy for the payload — and the heavy
+ * pair is fetched only once a job is known to be deliverable. Even the clean label short-circuits: a
  * tier-5 `best` of 0 is clean whatever the floor is, so the snapshot is re-read only when a non-zero
  * value genuinely needs the floor to be interpreted.
  *
  * **An unverified board never lands.** A failing verdict marks the job `failed` with the oracle's
  * reasons and removes the orphan clone; nothing partial is ever written, because the apply is one
  * plpgsql transaction.
+ *
+ * **One deliberate exception to "a visit is otherwise a read" (S-304).** Before anything else, a row
+ * that is still `queued`/`running` but has gone quiet past `HEARTBEAT_GRACE_MS` is compare-and-set to
+ * `interrupted` — because the plan visit is exactly where that failure is FELT: the partial unique
+ * index refuses the author's next Generate until the wedged row leaves the active set, and nothing
+ * else in the system sweeps it (no cron, and a `scheduled` handler has no database identity here).
+ * S-301's implementation review rejected a staleness sweep on the grounds that a wrong threshold
+ * fails healthy jobs; what answers that objection is not a better guess but a better cadence — S-304's
+ * 15 s heartbeat makes the five-minute grace twenty consecutive missed beats. See `job-staleness.ts`.
+ *
+ * **An interrupted row is salvage when it has a checkpoint, litter when it does not.** A checkpoint is
+ * a full `GenerationResult` written through the same wire path as `result`, so it delivers through
+ * this file's existing verify → translate → apply chain unchanged; `deriveCleanLabel` already degrades
+ * to `unavailable` for a transcript that never reached tier 5, which is the honest label for a partial
+ * board. Without one there is nothing to deliver, and the clone is swept exactly as a failed job's is.
  */
 export const checkGenerationInput = z.object({ planId: z.uuid() });
 
@@ -63,10 +80,14 @@ export type GenerationJobView = {
   finishedAt: string | null;
   /** `unavailable` until the board is delivered — there is nothing to be clean about before then. */
   cleanLabel: CleanLabel;
+  /** The TIER whose checkpoint an interrupted job kept, or null when it kept nothing. */
+  checkpointStageIndex: number | null;
 };
 
-/** Everything the strip renders, and none of the ~160 KB of payload beside it. */
-const STATUS_COLUMNS = "id,status,proposal_plan_id,delivered_plan_id,stages,error,created_at,finished_at";
+/** Everything the strip renders, and none of the ~160 KB of payload beside it. `heartbeat_at` is the
+ *  staleness clock and `checkpoint_stage_index` the free existence proxy for the ~35 KB checkpoint. */
+const STATUS_COLUMNS =
+  "id,status,proposal_plan_id,delivered_plan_id,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index";
 
 type StatusRow = {
   id: string;
@@ -77,28 +98,53 @@ type StatusRow = {
   error: string | null;
   created_at: string;
   finished_at: string | null;
+  heartbeat_at: string | null;
+  checkpoint_stage_index: number | null;
 };
 
 export const checkGeneration = async (
   supabase: SupabaseClient,
   input: CheckGenerationInput,
 ): Promise<GenerationJobView | null> => {
-  const row = await latestJob(supabase, input.planId);
-  if (!row) return null;
+  const latest = await latestJob(supabase, input.planId);
+  if (!latest) return null;
 
-  if (row.status === "succeeded" && row.delivered_plan_id === null) return deliver(supabase, input.planId, row);
+  // BEFORE the delivery branch, so a crash-wedged row becomes `interrupted` and delivers its
+  // checkpoint in the SAME visit rather than making the author come back a second time.
+  const row = await reclaimIfStale(supabase, latest);
 
-  // A failed job's clone is an orphan: nothing will ever be delivered onto it, and leaving it would
-  // clutter the plans list with a half-made proposal. Guarded twice over — only this job's own
-  // `proposal_plan_id`, and only while nothing has been delivered. `stopped`/`interrupted` are
-  // deliberately NOT swept here: those states belong to S-305/S-304, which will decide whether their
-  // clones are salvage or litter.
-  if (row.status === "failed" && row.delivered_plan_id === null && row.proposal_plan_id !== null) {
+  if (deliverable(row)) return deliver(supabase, input.planId, row);
+
+  // An orphan clone is one nothing will ever be delivered onto, and leaving it clutters the plans
+  // list with a half-made proposal. Guarded twice over — only this job's own `proposal_plan_id`, and
+  // only while nothing has been delivered. S-304 decided the question the old comment here left open:
+  // an `interrupted` clone is SALVAGE when the row carries a checkpoint (handled above) and litter
+  // when it does not. `stopped` is still S-305's to answer.
+  if (sweepable(row) && row.delivered_plan_id === null && row.proposal_plan_id !== null) {
     await deleteOrphanClone(supabase, row.proposal_plan_id);
     return toView({ ...row, proposal_plan_id: null }, { kind: "unavailable" });
   }
 
   return toView(row, await labelOf(supabase, row));
+};
+
+/** A succeeded job, or an interrupted one that kept a board — both undelivered, both deliverable. */
+const deliverable = (row: StatusRow): boolean =>
+  row.delivered_plan_id === null &&
+  (row.status === "succeeded" || (row.status === "interrupted" && row.checkpoint_stage_index !== null));
+
+/** A terminal job with nothing to deliver: its clone can only ever be litter. */
+const sweepable = (row: StatusRow): boolean =>
+  row.status === "failed" || (row.status === "interrupted" && row.checkpoint_stage_index === null);
+
+// --- reclaim ----------------------------------------------------------------------------------
+
+/** The shared CAS, applied to the row this visit just read. See `generation-reclaim.ts`. */
+const reclaimIfStale = async (supabase: SupabaseClient, row: StatusRow): Promise<StatusRow> => {
+  const reclaimed = await reclaimStaleJob(supabase, row);
+  return reclaimed === null
+    ? row
+    : { ...row, status: "interrupted", error: reclaimed.error, finished_at: reclaimed.finishedAt };
 };
 
 // --- delivery ---------------------------------------------------------------------------------
@@ -108,6 +154,10 @@ export const checkGeneration = async (
  * between apply and mark simply re-applies on the next visit, which the region-replace absorbs (it
  * states each cell's complete final content), whereas marking first would strand a proposal plan that
  * was never actually written.
+ *
+ * A succeeded job delivers its `result`; an interrupted one delivers its `checkpoint`. Nothing else
+ * differs — S-303 shaped a checkpoint through `wire_result(to_generation_result(...))`, the exact path
+ * the terminal write uses, precisely so that this chain would not need a second branch.
  */
 const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow): Promise<GenerationJobView> => {
   const proposalPlanId = row.proposal_plan_id;
@@ -117,7 +167,7 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
     return toView({ ...row, status: "failed" }, { kind: "unavailable" });
   }
 
-  const { snapshot, result } = await loadPayload(supabase, row.id);
+  const { snapshot, result } = await loadPayload(supabase, row.id, payloadColumn(row));
 
   // A succeeded job with nothing to place cannot become a proposal: "ready" would link to a board
   // that is just the clone's own pins. Unreachable via the UI (Generate is disabled on a complete
@@ -284,17 +334,26 @@ const latestJob = async (supabase: SupabaseClient, planId: string): Promise<Stat
   return { ...row, stages: parseStoredStages(row.stages) };
 };
 
-/** The heavy pair, fetched ONLY once a job is known to be succeeded-and-undelivered. */
+/** Which column holds the board this job is delivering. `result` stays the succeeded-only one. */
+type PayloadColumn = "result" | "checkpoint";
+
+const payloadColumn = (row: StatusRow): PayloadColumn => (row.status === "interrupted" ? "checkpoint" : "result");
+
+/** The heavy pair, fetched ONLY once a job is known to be deliverable-and-undelivered. */
 const loadPayload = async (
   supabase: SupabaseClient,
   jobId: string,
+  column: PayloadColumn,
 ): Promise<{ snapshot: GeneratorSnapshot; result: GenerationResult }> => {
-  const { data, error } = await supabase.from("generation_jobs").select("snapshot, result").eq("id", jobId).single();
+  const { data, error } = await supabase.from("generation_jobs").select(`snapshot, ${column}`).eq("id", jobId).single();
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to read the solved snapshot: ${error.message}`);
-  if (!data.result) throw new DomainError("INTERNAL_SERVER_ERROR", "The job reports success but carries no result.");
+  const payload = (data as unknown as Record<PayloadColumn, unknown>)[column];
+  if (!payload) {
+    throw new DomainError("INTERNAL_SERVER_ERROR", `The job is deliverable but carries no ${column}.`);
+  }
   return {
-    snapshot: data.snapshot as unknown as GeneratorSnapshot,
-    result: data.result as unknown as GenerationResult,
+    snapshot: (data as unknown as { snapshot: unknown }).snapshot as GeneratorSnapshot,
+    result: payload as GenerationResult,
   };
 };
 
@@ -360,4 +419,5 @@ const toView = (row: StatusRow, cleanLabel: CleanLabel): GenerationJobView => ({
   createdAt: row.created_at,
   finishedAt: row.finished_at,
   cleanLabel,
+  checkpointStageIndex: row.checkpoint_stage_index,
 });

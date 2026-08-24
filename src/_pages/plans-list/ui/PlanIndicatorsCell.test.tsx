@@ -13,6 +13,7 @@ const indicator = (overrides: Partial<GenerationIndicator> = {}): GenerationIndi
   stageIndex: 4,
   stageName: "teacherHoles",
   startedAt: "2026-08-20T14:02:31.000Z",
+  stale: false,
   ...overrides,
 });
 

@@ -20,8 +20,13 @@ import type { ReadGenerationJobStatusesInput } from "../model/schemas";
  * The projection is explicit on both paths. `snapshot` is ~124 KB and TOASTed, `result` and
  * `checkpoint` ~35 KB each: a bare `select()` on a 5-second timer would be a standing transfer of
  * hundreds of kilobytes to render one line of text.
+ *
+ * **`heartbeat_at` earns its place in that projection (S-304), and it changes nothing else.** It is a
+ * scalar, and it is what lets the hub say "stalled" about a job whose container died — the one thing
+ * this poll can honestly contribute to recovery without writing. The reclaim itself belongs to the
+ * plan visit the stalled badge links to, which is also where the dead solve's checkpoint is delivered.
  */
-export const STATUS_COLUMNS = "id, plan_id, status, stage_index, stage_name, created_at";
+export const STATUS_COLUMNS = "id, plan_id, status, stage_index, stage_name, created_at, heartbeat_at";
 
 export const readGenerationJobStatuses = async (
   supabase: SupabaseClient,

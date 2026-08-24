@@ -24,6 +24,7 @@ const trackedJob = (status: GenerationJobView["status"]): GenerationJobView => (
   createdAt: "2026-08-13T07:40:07.000Z",
   finishedAt: null,
   cleanLabel: { kind: "clean" },
+  checkpointStageIndex: null,
 });
 
 describe("GenerateButton", () => {

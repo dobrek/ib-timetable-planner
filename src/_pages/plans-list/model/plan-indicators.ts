@@ -1,6 +1,7 @@
 import {
   isActiveJobStatus,
   isGenerationJobStatus,
+  isStaleActiveJob,
   LADDER_TIER_COUNT,
   tierLabel,
   type GenerationJobStatus,
@@ -30,6 +31,12 @@ export type GenerationIndicator = {
   stageName: string | null;
   /** The job row's `created_at`, as an ISO instant. Formatted at the very edge — see below. */
   startedAt: string;
+  /**
+   * An active job that has gone quiet past `HEARTBEAT_GRACE_MS` (S-304). DISPLAY ONLY — this path
+   * stays a pure read, and the reclaim happens where the failure is felt: the plan visit the stalled
+   * badge links to. Computed at the mapping edge so the loader and the poll agree.
+   */
+  stale: boolean;
 };
 
 /** The columns every read of this indicator projects — the loader's and the poll's, identically.
@@ -43,6 +50,8 @@ export type GenerationJobStatusRow = {
   stage_index: number | null;
   stage_name: string | null;
   created_at: string;
+  /** The staleness clock for a `running` row; null until the solver claims it. */
+  heartbeat_at: string | null;
 };
 
 export type IndicatorTone = "active" | "done" | "failed" | "other";
@@ -65,14 +74,20 @@ export const describeGenerationIndicator = (indicator: GenerationIndicator): Ind
   const openPlan = `/plans/${indicator.planId}`;
   switch (indicator.status) {
     case "queued":
-      return { tone: "active", label: "Queued — started", href: null, startedAt: indicator.startedAt };
+      return indicator.stale
+        ? // Tone `other`, not `failed`: the row still says `queued` and nothing here has written to
+          // it. The href is what makes the badge actionable — opening the plan is what reclaims it.
+          { tone: "other", label: "Queued — stalled, open plan", href: openPlan, startedAt: indicator.startedAt }
+        : { tone: "active", label: "Queued — started", href: null, startedAt: indicator.startedAt };
     case "running":
-      return {
-        tone: "active",
-        label: stageLabel(indicator),
-        href: null,
-        startedAt: indicator.startedAt,
-      };
+      return indicator.stale
+        ? { tone: "other", label: "Generating — stalled, open plan", href: openPlan, startedAt: indicator.startedAt }
+        : {
+            tone: "active",
+            label: stageLabel(indicator),
+            href: null,
+            startedAt: indicator.startedAt,
+          };
     case "succeeded":
       // The href is the SOURCE plan, never the proposal: delivery happens on a visit to the source
       // (`checkGeneration` verifies, translates and applies there), so sending the author straight to
@@ -95,13 +110,20 @@ export const describeGenerationIndicator = (indicator: GenerationIndicator): Ind
  * if the CHECK constraint gains a value ahead of the client, and when it does, omitting one badge is
  * a better answer than rendering an empty cell from a `switch` with no matching branch.
  */
-export const toGenerationIndicators = (rows: readonly GenerationJobStatusRow[]): GenerationIndicator[] =>
+export const toGenerationIndicators = (
+  rows: readonly GenerationJobStatusRow[],
+  nowMs: number = Date.now(),
+): GenerationIndicator[] =>
   rows.flatMap((row) => {
-    const indicator = toGenerationIndicator(row);
+    const indicator = toGenerationIndicator(row, nowMs);
     return indicator === null ? [] : [indicator];
   });
 
-export const toGenerationIndicator = (row: GenerationJobStatusRow): GenerationIndicator | null =>
+/** `now` is injected so staleness stays a pure function of the row plus a clock the test controls. */
+export const toGenerationIndicator = (
+  row: GenerationJobStatusRow,
+  nowMs: number = Date.now(),
+): GenerationIndicator | null =>
   isGenerationJobStatus(row.status)
     ? {
         kind: "generation",
@@ -111,6 +133,7 @@ export const toGenerationIndicator = (row: GenerationJobStatusRow): GenerationIn
         stageIndex: row.stage_index,
         stageName: row.stage_name,
         startedAt: row.created_at,
+        stale: isStaleActiveJob({ ...row, status: row.status }, nowMs),
       }
     : null;
 

@@ -16,10 +16,12 @@ the committed `contracts/fixtures/solve-request.json` so the known-valid body is
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -34,7 +36,7 @@ from cpsat_engine.solve import SolveConfig, SolveResult, StageReport, solve_comp
 from cpsat_engine.wire import snapshot_hash, wire_snapshot
 from cpsat_service import app as app_module
 from cpsat_service.registry import JobRegistry, Registration
-from cpsat_service.runner import run_job
+from cpsat_service.runner import run_job, start_job
 from cpsat_service.settings import Settings
 from cpsat_service.supabase import (
     REQUIRED_ROLE,
@@ -1181,3 +1183,138 @@ def test_startup_logs_the_effective_non_secret_settings(
     assert "wire_contract=loaded" in startup
     assert SETTINGS.machine_password not in startup, "the password must never reach a log line"
     assert SETTINGS.supabase_key not in startup, "nor the key"
+
+
+# --- S-304: the lifespan shutdown, and the question the Durable Object asks ---------------------------
+
+
+def _wait_for(predicate: Callable[[], bool], *, timeout_s: float = 10.0) -> None:
+    """Poll until true. Cheaper and far less flaky than sleeping for a guessed duration."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.01)
+    raise AssertionError(f"the condition was still false after {timeout_s}s")
+
+
+def _stalled_stage() -> StageReport:
+    """A stage that ran out of budget — NOT one attributed to a cancellation. That is the realistic
+    transcript for a `stop_search()` arriving from outside, and the reason the latch is the signal."""
+    return StageReport(
+        tier=4, name="softHits", status="FEASIBLE", best=12, bound=0, wall_clock_s=1.2, stopped_by="budget"
+    )
+
+
+def _solve_until_stopped(_dump: Dump, config: SolveConfig) -> SolveResult:
+    """A stand-in for a long ladder: it does nothing but watch the latch a shutdown fires."""
+    deadline = time.monotonic() + 10.0
+    while time.monotonic() < deadline:
+        if config.hooks.should_stop is not None and config.hooks.should_stop():
+            return SolveResult(
+                mode="complete",
+                board=(),
+                stages=(_stalled_stage(),),
+                proven_optimal=False,
+                notes={"outcome": "complete"},
+            )
+        time.sleep(0.01)
+    raise AssertionError("the shutdown never fired the stop latch")  # pragma: no cover
+
+
+def _threaded_app(monkeypatch: pytest.MonkeyPatch, fake: FakeSupabase) -> None:
+    """Wire the real app so a POST spawns a REAL worker thread against `fake`.
+
+    `start_job`'s `client_factory` default is bound at definition time, so patching the module
+    attribute would not reach it — the handler's own lookup of `start_job` is the seam that does.
+    """
+    fake.snapshot_hash = snapshot_hash(parse_snapshot(_micro_request()["snapshot"]))
+    monkeypatch.setattr(app_module, "settings", SETTINGS)
+    monkeypatch.setattr(app_module, "JobRowClient", fake.client_factory)
+    monkeypatch.setattr(app_module, "registry", JobRegistry(capacity=SETTINGS.max_concurrent_jobs))
+    monkeypatch.setattr(
+        app_module,
+        "start_job",
+        lambda job_id, body, **kwargs: start_job(
+            job_id, body, client_factory=fake.client_factory, **kwargs
+        ),
+    )
+
+
+def test_the_lifespan_shutdown_interrupts_a_live_solve_through_its_own_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The whole SIGTERM chain without a container: a registered job on a real thread, the lifespan's
+    shutdown half, and the row reaching `interrupted` — written by the WORKER, so there is still
+    exactly one writer per row."""
+    fake = FakeSupabase()
+    _threaded_app(monkeypatch, fake)
+    monkeypatch.setattr("cpsat_service.runner.solve_complete", _solve_until_stopped)
+
+    with TestClient(app_module.app) as client:
+        assert client.post(f"/jobs/{JOB_ID}/solve", json=_micro_request()).status_code == 202
+        _wait_for(lambda: any(call.params.get("status") == "eq.queued" for call in fake.patches()))
+        assert client.get("/jobs/active").json() == {"active": 1}
+    # leaving the context manager runs the lifespan's shutdown half
+
+    finish = fake.finish_patch()
+    assert finish.body["status"] == "interrupted"
+    assert "container shutdown" in finish.body["error"]
+    assert "result" not in finish.body
+    assert finish.body["stages"][-1]["stoppedBy"] == "budget", (
+        "no stage reads `cancelled` — the latch, not the transcript, is what decided this"
+    )
+    assert len(app_module.registry) == 0, "the worker released the job on its way out"
+
+
+def test_a_shutdown_with_nothing_in_flight_touches_no_row(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The common case — a deploy while the container is idle — must write nothing at all."""
+    fake = FakeSupabase()
+    _threaded_app(monkeypatch, fake)
+
+    with TestClient(app_module.app) as client:
+        assert client.get("/health").status_code == 200
+
+    assert fake.patches() == []
+
+
+def test_the_shutdown_join_is_bounded_so_a_wedged_worker_cannot_hold_the_container(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A worker that will never finish must cost the budget and no more — the platform's SIGKILL is
+    not something to be discovered. Its row simply stays `running` for the app to reclaim."""
+    registry = JobRegistry()
+    registry.register(JOB_ID)
+    never = threading.Event()
+    thread = threading.Thread(target=never.wait, name=f"solve-{JOB_ID}", daemon=True)
+    thread.start()
+    registry.attach_thread(JOB_ID, thread)
+    monkeypatch.setattr(app_module, "SHUTDOWN_JOIN_BUDGET_S", 0.05)
+
+    started = time.monotonic()
+    with caplog.at_level("ERROR", logger="cpsat_service.app"):
+        asyncio.run(app_module._shutdown(registry))
+    elapsed = time.monotonic() - started
+    never.set()
+
+    assert elapsed < 2.0, "the shutdown must not wait on a worker that will never finish"
+    assert any("did not finish" in record.message for record in caplog.records)
+
+
+def test_jobs_active_reports_the_live_job_count(client: TestClient) -> None:
+    """What the Durable Object's `onActivityExpired` override asks before it lets the sleep proceed."""
+    assert client.get("/jobs/active").json() == {"active": 0}
+
+    app_module.registry.register(JOB_ID)
+
+    assert client.get("/jobs/active").json() == {"active": 1}
+
+
+def test_jobs_active_answers_on_a_bare_container(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same posture as `/health`, and for a sharper reason: an unconfigured container is definitively
+    not solving, so answering that must never require a credential it does not have."""
+    bare = replace(SETTINGS, supabase_url="", supabase_key="", machine_password="")
+    monkeypatch.setattr(app_module, "settings", bare)
+    monkeypatch.setattr(app_module, "registry", JobRegistry(capacity=1))
+
+    assert TestClient(app_module.app).get("/jobs/active").json() == {"active": 0}

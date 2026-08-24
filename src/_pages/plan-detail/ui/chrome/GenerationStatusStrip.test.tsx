@@ -13,6 +13,7 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   createdAt: "2026-08-13T07:40:07.000Z",
   finishedAt: null,
   cleanLabel: { kind: "unavailable" },
+  checkpointStageIndex: null,
   ...over,
 });
 
@@ -109,6 +110,42 @@ describe("GenerationStatusStrip", () => {
     render(<GenerationStatusStrip generation={tracking(job({ status: "succeeded", delivered: false }))} />);
 
     expect(screen.getByRole("status")).toHaveTextContent(/no proposal has been delivered/);
+    expect(screen.getByRole("button", { name: /Refresh/ })).toBeEnabled();
+  });
+
+  it("interrupted with a delivered checkpoint says which stage's board was kept", () => {
+    // The author's decision is "keep this or run it again", and the stage number is what it turns on.
+    const view = job({ status: "interrupted", delivered: true, checkpointStageIndex: 3 });
+    render(<GenerationStatusStrip generation={tracking(view)} />);
+
+    expect(screen.getByRole("link", { name: /Partial proposal ready — open/ })).toHaveAttribute(
+      "href",
+      "/plans/plan-2",
+    );
+    expect(screen.getByText(/kept the board from stage 3 of 10/)).toBeInTheDocument();
+  });
+
+  it("interrupted never claims a clean label it has no transcript for", () => {
+    // A mid-ladder run rarely reaches tier 5, so `describeCleanLabel` would say "unavailable" — true
+    // but useless. The stage summary replaces it rather than sitting beside it.
+    const view = job({
+      status: "interrupted",
+      delivered: true,
+      checkpointStageIndex: 2,
+      cleanLabel: { kind: "clean" },
+    });
+    render(<GenerationStatusStrip generation={tracking(view)} />);
+
+    expect(screen.queryByText(/no lesson sits on a soft-unavailable cell/)).not.toBeInTheDocument();
+  });
+
+  it("interrupted with nothing kept says so plainly, and is advisory rather than an alert", () => {
+    // The platform cut the run short; that is not the author's data being wrong, so no role=alert.
+    const view = job({ status: "interrupted", delivered: false, checkpointStageIndex: null });
+    render(<GenerationStatusStrip generation={tracking(view)} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(/interrupted before any stage finished/);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Refresh/ })).toBeEnabled();
   });
 });

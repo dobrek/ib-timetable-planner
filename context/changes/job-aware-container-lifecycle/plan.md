@@ -717,11 +717,11 @@ solver's RLS windows and both grant allowlists are pinned by
 
 #### Automated
 
-- [x] 3.1 `pnpm test` passes including the active-jobs parse-helper test
-- [x] 3.2 `pnpm check` reports 0 errors
-- [x] 3.3 `pnpm lint` and `pnpm steiger` pass
-- [x] 3.4 six-forwarded-keys pin unchanged
-- [x] 3.5 `pnpm build` clean
+- [x] 3.1 `pnpm test` passes including the active-jobs parse-helper test — 98d3865
+- [x] 3.2 `pnpm check` reports 0 errors — 98d3865
+- [x] 3.3 `pnpm lint` and `pnpm steiger` pass — 98d3865
+- [x] 3.4 six-forwarded-keys pin unchanged — 98d3865
+- [x] 3.5 `pnpm build` clean — 98d3865
 
 #### Manual
 
@@ -731,15 +731,15 @@ solver's RLS windows and both grant allowlists are pinned by
 
 #### Automated
 
-- [ ] 4.1 `pnpm test` passes (staleness, indicators, view mapping, delivery gate)
-- [ ] 4.2 `pnpm check` reports 0 errors
-- [ ] 4.3 `pnpm lint` and `pnpm steiger` pass
-- [ ] 4.4 `pnpm build` clean
+- [x] 4.1 `pnpm test` passes (staleness, indicators, view mapping, delivery gate)
+- [x] 4.2 `pnpm check` reports 0 errors
+- [x] 4.3 `pnpm lint` and `pnpm steiger` pass
+- [x] 4.4 `pnpm build` clean
 
 #### Manual
 
-- [ ] 4.5 hand-wedged row: visit reclaims + delivers checkpoint + strip labels stage + Generate re-enables
-- [ ] 4.6 `/plans` hub shows stalled badge before the visit, terminal after
+- [x] 4.5 hand-wedged row: visit reclaims + delivers checkpoint + strip labels stage + Generate re-enables
+- [x] 4.6 `/plans` hub shows stalled badge before the visit, terminal after
 
 ### Phase 5: Local proof — integration coverage + tier-3 SIGTERM drill
 

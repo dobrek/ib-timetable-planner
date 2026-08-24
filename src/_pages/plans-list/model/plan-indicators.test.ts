@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { HEARTBEAT_GRACE_MS } from "@/entities/timetable";
 import {
   describeGenerationIndicator,
   isActiveIndicator,
@@ -12,6 +13,10 @@ const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 const JOB_ID = "22222222-2222-4222-8222-222222222222";
 const STARTED = "2026-08-20T14:02:31.000Z";
 
+/** A clock a few seconds after `STARTED`, so the default fixture is a healthy, freshly-beating job. */
+const NOW = Date.parse(STARTED) + 8_000;
+const STALE_BEAT = new Date(Date.parse(STARTED) - HEARTBEAT_GRACE_MS).toISOString();
+
 const row = (overrides: Partial<GenerationJobStatusRow> = {}): GenerationJobStatusRow => ({
   id: JOB_ID,
   plan_id: PLAN_ID,
@@ -19,6 +24,7 @@ const row = (overrides: Partial<GenerationJobStatusRow> = {}): GenerationJobStat
   stage_index: 4,
   stage_name: "teacherHoles",
   created_at: STARTED,
+  heartbeat_at: STARTED,
   ...overrides,
 });
 
@@ -30,12 +36,13 @@ const indicator = (overrides: Partial<GenerationIndicator> = {}): GenerationIndi
   stageIndex: 4,
   stageName: "teacherHoles",
   startedAt: STARTED,
+  stale: false,
   ...overrides,
 });
 
 describe("toGenerationIndicator", () => {
   it("maps the projected row onto the indicator the cell renders", () => {
-    expect(toGenerationIndicator(row())).toEqual({
+    expect(toGenerationIndicator(row(), NOW)).toEqual({
       kind: "generation",
       jobId: JOB_ID,
       planId: PLAN_ID,
@@ -43,21 +50,36 @@ describe("toGenerationIndicator", () => {
       stageIndex: 4,
       stageName: "teacherHoles",
       startedAt: STARTED,
+      stale: false,
     });
   });
 
   it("carries a not-yet-started job's null stage through rather than inventing a zero", () => {
-    expect(toGenerationIndicator(row({ status: "queued", stage_index: null, stage_name: null }))).toMatchObject({
+    expect(toGenerationIndicator(row({ status: "queued", stage_index: null, stage_name: null }), NOW)).toMatchObject({
       stageIndex: null,
       stageName: null,
     });
   });
 
+  it("marks a running job whose heartbeat has gone quiet as stale", () => {
+    expect(toGenerationIndicator(row({ heartbeat_at: STALE_BEAT }), NOW)?.stale).toBe(true);
+  });
+
+  it("marks a stranded queued job stale from created_at, which is the only clock it has", () => {
+    expect(
+      toGenerationIndicator(row({ status: "queued", heartbeat_at: null, created_at: STALE_BEAT }), NOW)?.stale,
+    ).toBe(true);
+  });
+
+  it("never marks a terminal job stale", () => {
+    expect(toGenerationIndicator(row({ status: "succeeded", heartbeat_at: STALE_BEAT }), NOW)?.stale).toBe(false);
+  });
+
   it("drops a status this build does not recognise rather than casting it through", () => {
     // The column is CHECK-constrained, not an enum, so Supabase types it `string`; a value added to
     // the constraint ahead of the client must not reach a `switch` with no branch for it.
-    expect(toGenerationIndicator(row({ status: "cancelled" }))).toBeNull();
-    expect(toGenerationIndicators([row(), row({ id: "x", status: "cancelled" })])).toHaveLength(1);
+    expect(toGenerationIndicator(row({ status: "cancelled" }), NOW)).toBeNull();
+    expect(toGenerationIndicators([row(), row({ id: "x", status: "cancelled" })], NOW)).toHaveLength(1);
   });
 });
 
@@ -90,6 +112,32 @@ describe("describeGenerationIndicator", () => {
   it("shows a queued job as queued, with its start time", () => {
     const description = describeGenerationIndicator(indicator({ status: "queued" }));
     expect(description).toMatchObject({ tone: "active", label: "Queued — started", startedAt: STARTED });
+  });
+
+  it("says 'stalled' for a running job that has gone quiet, and offers a way in", () => {
+    // Tone `other`, not `failed`: nothing has been written and the row still says `running`. The href
+    // is the actionable half — opening the plan is what performs the reclaim.
+    expect(describeGenerationIndicator(indicator({ stale: true }))).toEqual({
+      tone: "other",
+      label: "Generating — stalled, open plan",
+      href: `/plans/${PLAN_ID}`,
+      startedAt: STARTED,
+    });
+  });
+
+  it("says 'stalled' for a stranded queued job too — nothing ever claimed it", () => {
+    expect(describeGenerationIndicator(indicator({ status: "queued", stale: true }))).toMatchObject({
+      tone: "other",
+      label: "Queued — stalled, open plan",
+      href: `/plans/${PLAN_ID}`,
+    });
+  });
+
+  it("ignores staleness on a terminal job, which cannot have any", () => {
+    // Belt and braces: the predicate never sets it, and the switch never reads it here.
+    expect(describeGenerationIndicator(indicator({ status: "succeeded", stale: true })).label).toBe(
+      "Finished — open plan",
+    );
   });
 
   it("points a finished job at the SOURCE plan, because delivery happens on a visit there", () => {

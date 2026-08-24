@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { clonePlan, UNIQUE_VIOLATION, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
-import { computeSnapshotHash, type GeneratorSnapshot, type SolverTransport } from "@/entities/timetable";
+import {
+  computeSnapshotHash,
+  isGenerationJobStatus,
+  type GeneratorSnapshot,
+  type SolverTransport,
+} from "@/entities/timetable";
 import { toPlanSnapshot } from "../model/generation/plan-snapshot";
+import { reclaimStaleJob } from "./generation-reclaim";
 import { loadCombinedPlannerData } from "./load";
 
 /**
@@ -13,8 +19,15 @@ import { loadCombinedPlannerData } from "./load";
  * refused dispatch marks the row `failed` and sweeps the clone. What ordering cannot rule out is
  * process death between the insert and the dispatch — a stranded `queued` row nothing was dispatched
  * for, which no later reader can distinguish from a solver that died before claiming, and which wedges
- * this plan's Generate via the partial unique index. That recovery window belongs to S-304's staleness
- * reclaim (recorded in change.md), not to this slice.
+ * this plan's Generate via the partial unique index.
+ *
+ * **S-304 closed that window, on the conflict path only.** The `23505` this function already maps to
+ * `CONFLICT` is exactly where a wedge is felt, so that is where it is answered: read the one row
+ * blocking the index, and if it has gone quiet past the grace, reclaim it to `interrupted` and retry
+ * the insert once. The happy path gains ZERO reads — recovery costs nothing until something is
+ * actually broken. The authoritative reclaim is still the plan visit (`checkGeneration`), which also
+ * delivers the dead solve's checkpoint; this is the backstop for the author who clicks Generate from
+ * the hub without ever loading the plan page.
  *
  * **The snapshot is assembled from the SOURCE plan**, not the clone, and hashed as such. `clone_plan`
  * re-mints every course UUID (measured: 0 of 84 survive), so a clone-assembled snapshot could never
@@ -124,6 +137,7 @@ const createProposalPlan = async (
 const insertJob = async (
   supabase: SupabaseClient,
   row: { planId: string; proposalPlanId: string; snapshot: GeneratorSnapshot; snapshotHash: string },
+  { recover = true }: { recover?: boolean } = {},
 ): Promise<string> => {
   const { data, error } = await supabase
     .from("generation_jobs")
@@ -142,10 +156,44 @@ const insertJob = async (
   // The partial unique index `generation_jobs_active_per_plan` is what makes "one active job per
   // plan" true even when two Workers race the same click — so this is the expected path, not an edge.
   if (error?.code === UNIQUE_VIOLATION) {
+    // Once, and only once. If the retry conflicts again, a genuinely live job won the race and
+    // `CONFLICT` is the truthful answer — retrying further would just spin against a healthy solve.
+    if (recover && (await reclaimBlockingJob(supabase, row.planId))) {
+      return insertJob(supabase, row, { recover: false });
+    }
     throw new DomainError("CONFLICT", "A generation is already running for this plan.");
   }
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to enqueue the generation job: ${error.message}`);
   return data.id;
+};
+
+/**
+ * The one row the partial unique index is blocking on, reclaimed if it has gone quiet. True iff the
+ * insert is now worth retrying.
+ *
+ * The clone handling splits on the same question `checkGeneration` asks. **No checkpoint** means the
+ * dead job kept nothing, so its clone is litter and goes the way a failed job's does. **With a
+ * checkpoint** both the row and the clone are left exactly as they are: that board is salvage, the
+ * normal path (a plan visit) delivers it, and the author is explicitly starting fresh alongside it
+ * rather than instead of it.
+ */
+const reclaimBlockingJob = async (supabase: SupabaseClient, planId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from("generation_jobs")
+    .select("id, status, heartbeat_at, created_at, proposal_plan_id, delivered_plan_id, checkpoint_stage_index")
+    .eq("plan_id", planId)
+    .in("status", ["queued", "running"])
+    .maybeSingle();
+  if (error || data === null) return false;
+  if (!isGenerationJobStatus(data.status)) return false;
+
+  const reclaimed = await reclaimStaleJob(supabase, { ...data, status: data.status });
+  if (reclaimed === null) return false;
+
+  if (data.checkpoint_stage_index === null && data.delivered_plan_id === null && data.proposal_plan_id !== null) {
+    await deleteOrphanClone(supabase, data.proposal_plan_id);
+  }
+  return true;
 };
 
 const dispatch = async (transport: SolverTransport, jobId: string, snapshot: GeneratorSnapshot): Promise<void> => {

@@ -1,5 +1,5 @@
 import { ExternalLink, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
-import { describeCleanLabel } from "@/entities/timetable";
+import { describeCleanLabel, LADDER_TIER_COUNT } from "@/entities/timetable";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
@@ -55,10 +55,17 @@ export default function GenerationStatusStrip({ generation }: Props) {
           href={`/plans/${job.proposalPlanId}`}
           className="text-foreground hover:text-primary inline-flex items-center gap-1.5 font-medium underline underline-offset-2"
         >
-          Proposal ready — open
+          {job.status === "interrupted" ? "Partial proposal ready — open" : "Proposal ready — open"}
           <ExternalLink className="size-3.5" aria-hidden />
         </a>
-        <span className="text-muted-foreground">{describeCleanLabel(job.cleanLabel)}</span>
+        {/* An interrupted run says which stage it got to INSTEAD of a clean label, not beside it: a
+            mid-ladder transcript rarely reaches tier 5, so `describeCleanLabel` would honestly but
+            unhelpfully say "unavailable" where the author wants to know how far the solve got. */}
+        <span className="text-muted-foreground">
+          {job.status === "interrupted"
+            ? interruptedSummary(job.checkpointStageIndex)
+            : describeCleanLabel(job.cleanLabel)}
+        </span>
       </Strip>
     );
   }
@@ -74,8 +81,23 @@ export default function GenerationStatusStrip({ generation }: Props) {
     );
   }
 
-  // `succeeded` but not yet delivered (the check is still in flight), or a `stopped`/`interrupted`
-  // row from a slice that does not exist yet. Say what is true rather than guess.
+  // Interrupted with nothing kept: the container died before a single stage finished, so there is no
+  // board to deliver and the clone has already been swept. Advisory rather than destructive — the run
+  // was cut short by the platform, which is not the author's data being wrong.
+  if (job.status === "interrupted" && job.checkpointStageIndex === null) {
+    return (
+      <Strip>
+        <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+          Generation was interrupted before any stage finished — nothing was kept. Generate again when you are ready.
+        </span>
+        <RefreshButton checking={checking} onRefresh={refresh} />
+      </Strip>
+    );
+  }
+
+  // `succeeded` but not yet delivered (the check is still in flight), or a `stopped` row from a slice
+  // that does not exist yet. Say what is true rather than guess.
   return (
     <Strip>
       <span role="status" className="text-muted-foreground flex items-center gap-1.5">
@@ -113,3 +135,14 @@ const RefreshButton = ({ checking, onRefresh }: { checking: boolean; onRefresh: 
  */
 const formatStarted = (createdAt: string): string =>
   new Date(createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
+/**
+ * How far an interrupted solve got, in the same "stage N of 10" form the hub's progress label uses.
+ *
+ * Naming the stage is the whole point: a partial board is a legitimate result the author may well
+ * keep, and "kept the board from stage 3 of 10" is what tells them whether to keep it or regenerate.
+ */
+const interruptedSummary = (checkpointStageIndex: number | null): string =>
+  checkpointStageIndex === null
+    ? "Interrupted — nothing was kept."
+    : `Interrupted — kept the board from stage ${String(checkpointStageIndex)} of ${String(LADDER_TIER_COUNT)}.`;

@@ -10,9 +10,15 @@ from __future__ import annotations
 
 import pytest
 
-from cpsat_service.settings import DEFAULT_LOG_LEVEL, DEFAULT_WORKERS, load_settings
+from cpsat_service.settings import (
+    DEFAULT_HEARTBEAT_INTERVAL_S,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_WORKERS,
+    load_settings,
+)
 
 TARGETS = "SOLVER_STAGE_TARGETS"
+HEARTBEAT = "SOLVER_HEARTBEAT_INTERVAL_S"
 
 
 def test_stage_targets_are_empty_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -89,3 +95,25 @@ def test_zero_workers_is_refused_because_it_means_auto_to_cp_sat(monkeypatch: py
 def test_an_unknown_log_level_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SOLVER_LOG_LEVEL", "chatty")
     assert load_settings().log_level == DEFAULT_LOG_LEVEL
+
+
+def test_the_heartbeat_interval_defaults_to_fifteen_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The number the app's five-minute reclaim grace is sized against — twenty missed beats.
+    monkeypatch.delenv(HEARTBEAT, raising=False)
+    assert load_settings().heartbeat_interval_s == DEFAULT_HEARTBEAT_INTERVAL_S
+
+
+def test_a_fractional_heartbeat_interval_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(HEARTBEAT, "0.25")
+    assert load_settings().heartbeat_interval_s == 0.25
+
+
+@pytest.mark.parametrize(("value", "complaint"), [("often", "not a number"), ("0", "not positive")])
+def test_a_bad_heartbeat_interval_degrades_rather_than_spinning(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], value: str, complaint: str
+) -> None:
+    # Zero would turn `Event.wait(interval)` into a PostgREST spin loop — a misconfiguration that
+    # costs a row, not a container. Same degrade rule as every other knob here.
+    monkeypatch.setenv(HEARTBEAT, value)
+    assert load_settings().heartbeat_interval_s == DEFAULT_HEARTBEAT_INTERVAL_S
+    assert complaint in capsys.readouterr().err

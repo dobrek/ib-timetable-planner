@@ -693,10 +693,10 @@ solver's RLS windows and both grant allowlists are pinned by
 
 #### Automated
 
-- [ ] 1.1 `uv run pytest` passes with heartbeat/latch/interrupted tests
-- [ ] 1.2 `uv run mypy` (strict, src + tests) reports no errors
-- [ ] 1.3 `uv run ruff check` passes
-- [ ] 1.4 claim-filter pin `status=eq.queued` unchanged
+- [x] 1.1 `uv run pytest` passes with heartbeat/latch/interrupted tests
+- [x] 1.2 `uv run mypy` (strict, src + tests) reports no errors
+- [x] 1.3 `uv run ruff check` passes
+- [x] 1.4 claim-filter pin `status=eq.queued` unchanged
 
 #### Manual
 

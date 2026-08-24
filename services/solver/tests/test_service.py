@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import base64
 import json
+import threading
+import time
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -28,7 +30,7 @@ from fastapi.testclient import TestClient
 
 import builders as b
 from cpsat_engine.schema import Dump, parse_snapshot
-from cpsat_engine.solve import SolveConfig, SolveResult, solve_complete
+from cpsat_engine.solve import SolveConfig, SolveResult, StageReport, solve_complete
 from cpsat_engine.wire import snapshot_hash, wire_snapshot
 from cpsat_service import app as app_module
 from cpsat_service.registry import JobRegistry, Registration
@@ -93,6 +95,10 @@ class RecordedCall:
 class FakeSupabase:
     """An `httpx.MockTransport` standing in for Auth + PostgREST, recording every call.
 
+    **Locked, because since S-304 two threads reach it**: the worker's client and the heartbeat
+    timer's own. Without the lock `sign_in_count` is a lost-update race and the recorded call list
+    interleaves non-deterministically — a flake that would look like a heartbeat bug.
+
     ``claimable`` False models the CAS losing: PostgREST answers 200 with an EMPTY array, which is
     exactly how "no row matched `status=eq.queued`" looks on the wire.
 
@@ -112,6 +118,7 @@ class FakeSupabase:
         access_token: str = ACCESS_TOKEN,
         progress_response: httpx.Response | Exception | None = None,
     ) -> None:
+        self._lock = threading.Lock()
         self.calls: list[RecordedCall] = []
         self.claimable = claimable
         self.snapshot_hash = snapshot_hash
@@ -154,21 +161,22 @@ class FakeSupabase:
         return matched[0]
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
-        call = RecordedCall(request)
-        self.calls.append(call)
-        if call.path == "/auth/v1/token":
-            self.sign_in_count += 1
-            return httpx.Response(200, json={"access_token": self.access_token, "token_type": "bearer"})
-        if call.path == "/rest/v1/generation_jobs":
-            if call.params.get("status") == "eq.running" and self.progress_response is not None:
-                if isinstance(self.progress_response, Exception):
-                    raise self.progress_response
-                return self.progress_response
-            claiming = call.params.get("status") == "eq.queued"
-            row = {"id": JOB_ID, "snapshot_hash": self.snapshot_hash} if claiming else {"id": JOB_ID}
-            rows = [row] if (self.claimable or not claiming) else []
-            return httpx.Response(200, json=rows)
-        return httpx.Response(404, json={"message": f"unexpected path {call.path}"})
+        with self._lock:
+            call = RecordedCall(request)
+            self.calls.append(call)
+            if call.path == "/auth/v1/token":
+                self.sign_in_count += 1
+                return httpx.Response(200, json={"access_token": self.access_token, "token_type": "bearer"})
+            if call.path == "/rest/v1/generation_jobs":
+                if call.params.get("status") == "eq.running" and self.progress_response is not None:
+                    if isinstance(self.progress_response, Exception):
+                        raise self.progress_response
+                    return self.progress_response
+                claiming = call.params.get("status") == "eq.queued"
+                row = {"id": JOB_ID, "snapshot_hash": self.snapshot_hash} if claiming else {"id": JOB_ID}
+                rows = [row] if (self.claimable or not claiming) else []
+                return httpx.Response(200, json=rows)
+            return httpx.Response(404, json={"message": f"unexpected path {call.path}"})
 
 
 # --- fixtures ---------------------------------------------------------------------------------------
@@ -210,16 +218,33 @@ def _infeasible_request() -> dict[str, Any]:
 
 def _run(request: dict[str, Any], fake: FakeSupabase) -> JobRegistry:
     """Run the worker SYNCHRONOUSLY (no thread) so a test asserts on a finished state rather than
-    on a sleep.
+    on a sleep."""
+    registry = JobRegistry()
+    registry.register(JOB_ID)
+    _run_registered(request, fake, registry)
+    return registry
+
+
+def _run_registered(
+    request: dict[str, Any],
+    fake: FakeSupabase,
+    registry: JobRegistry,
+    *,
+    settings: Settings = SETTINGS,
+) -> None:
+    """:func:`_run` against a registry the test still holds — so it can fire the stop latch.
 
     The row's `snapshot_hash` defaults to this request's own digest, matching the app's enqueue: the
     binding is under test in its own two cases, not incidentally in every other one.
     """
     if fake.snapshot_hash is None:
         fake.snapshot_hash = snapshot_hash(parse_snapshot(request["snapshot"]))
+    run_job(JOB_ID, request, settings=settings, registry=registry, client_factory=fake.client_factory)
+
+
+def _registered() -> JobRegistry:
     registry = JobRegistry()
     registry.register(JOB_ID)
-    run_job(JOB_ID, request, settings=SETTINGS, registry=registry, client_factory=fake.client_factory)
     return registry
 
 
@@ -725,15 +750,234 @@ def test_the_registry_releases_the_job_even_when_the_solve_fails() -> None:
     assert len(registry) == 0
 
 
+# --- S-304: the stop latch, the interrupted terminal write, and the heartbeat timer ------------------
+
+
+def _unknown_result(stages: tuple[StageReport, ...] = ()) -> SolveResult:
+    """What Mode A returns when the completeness solve found nothing: an empty board and an
+    `unknown` outcome — the shape the failure branch turns into `failed`."""
+    return SolveResult(
+        mode="complete", board=(), stages=stages, proven_optimal=False, notes={"outcome": "unknown"}
+    )
+
+
+def _unknown_stage() -> StageReport:
+    return StageReport(tier=1, name="completeness", status="UNKNOWN", best=None, bound=None, wall_clock_s=0.4)
+
+
+def test_a_latch_fired_before_the_solve_writes_interrupted_rather_than_succeeded() -> None:
+    """The mis-write S-304 fixes. A cancelled Mode-A run still returns `notes["outcome"] ==
+    "complete"`, so the outcome branch alone would durably record a stopped solve as a finished one —
+    with a `result` the ladder never actually produced."""
+    fake = FakeSupabase()
+    registry = _registered()
+    assert registry.request_stop(JOB_ID, "shutdown") is True
+
+    _run_registered(_micro_request(), fake, registry)
+
+    finish = fake.finish_patch()
+    assert finish.body["status"] == "interrupted"
+    assert "container shutdown" in finish.body["error"]
+    assert "result" not in finish.body, "an interrupted board lives in the checkpoint columns"
+    assert finish.body["stages"], "the transcript survives — it names the last stage that finished"
+
+
+def test_a_stop_during_the_last_stage_is_interrupted_even_though_no_stage_reads_cancelled() -> None:
+    """The first hole a stage scan would fall into. `stoppedBy: "cancelled"` is recorded only when
+    `should_stop` fires at an IMPROVING SOLUTION; a stop landing between stages leaves every report
+    reading `"budget"` or nothing, and a scan would write `succeeded` over an interrupted solve."""
+    fake = FakeSupabase()
+    registry = _registered()
+
+    def solve_then_latch(dump: Dump, config: SolveConfig) -> SolveResult:
+        result = solve_complete(dump, config)
+        registry.request_stop(JOB_ID, "shutdown")  # SIGTERM arriving as the ladder finishes
+        return result
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", solve_then_latch)
+        _run_registered(_micro_request(), fake, registry)
+
+    finish = fake.finish_patch()
+    assert finish.body["status"] == "interrupted"
+    assert not any(stage.get("stoppedBy") == "cancelled" for stage in finish.body["stages"]), (
+        "no stage was attributed to a cancellation — the latch alone is what decided this"
+    )
+
+
+def test_a_stop_before_the_first_feasible_solution_is_interrupted_rather_than_failed() -> None:
+    """The second hole. No solution means `outcome == "unknown"`, which the failure branch turns
+    into `failed` — sweeping the clone and telling the author their snapshot was unsolvable, when in
+    fact the container was being replaced."""
+    fake = FakeSupabase()
+    registry = _registered()
+
+    def latch_then_give_up(_dump: Dump, _config: SolveConfig) -> SolveResult:
+        registry.request_stop(JOB_ID, "shutdown")
+        return _unknown_result((_unknown_stage(),))
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", latch_then_give_up)
+        _run_registered(_micro_request(), fake, registry)
+
+    finish = fake.finish_patch()
+    assert finish.body["status"] == "interrupted"
+    assert "unknown" not in finish.body["error"], "the author must not be told their board is unsolvable"
+    assert "stage 1 (completeness)" in finish.body["error"]
+    assert finish.body["stages"]
+
+
+def test_a_latched_run_with_no_transcript_still_writes_interrupted_and_blanks_nothing() -> None:
+    """The no-checkpoint shape: SIGTERM before the first stage finished. It is still `interrupted`
+    (the app sweeps it exactly like `failed`), and the empty transcript is simply not sent."""
+    fake = FakeSupabase()
+    registry = _registered()
+
+    def latch_immediately(_dump: Dump, _config: SolveConfig) -> SolveResult:
+        registry.request_stop(JOB_ID, "shutdown")
+        return _unknown_result()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", latch_immediately)
+        _run_registered(_micro_request(), fake, registry)
+
+    finish = fake.finish_patch()
+    assert finish.body["status"] == "interrupted"
+    assert "before any stage finished" in finish.body["error"]
+    assert set(finish.body) == {"status", "finished_at", "error"}, (
+        "a write must never blank a column it has nothing to say about"
+    )
+
+
+def test_an_unregistered_run_is_unlatchable_and_takes_todays_path() -> None:
+    """The predicate is wired off the registry ENTRY, so the neutrality guarantee is worth stating:
+    with no entry there is no latch, `should_stop` stays absent, and the solve is byte-for-byte the
+    pre-S-304 one."""
+    fake = FakeSupabase()
+
+    _run_registered(_micro_request(), fake, JobRegistry())
+
+    assert fake.finish_patch().body["status"] == "succeeded"
+
+
+def test_the_stop_latch_reaches_the_engines_should_stop_hook() -> None:
+    """The seam itself, asserted where it is wired rather than inferred from an outcome — the
+    predicate the engine polls has to be the very latch the registry fires."""
+    configs: list[SolveConfig] = []
+    registry = _registered()
+    entry = registry.get(JOB_ID)
+    assert entry is not None
+
+    def record(dump: Dump, config: SolveConfig) -> SolveResult:
+        configs.append(config)
+        return solve_complete(dump, config)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", record)
+        _run_registered(_micro_request(), FakeSupabase(), registry)
+
+    predicate = configs[0].hooks.should_stop
+    assert predicate is not None and predicate() is False
+    entry.stop.set()
+    assert predicate() is True
+
+
+def test_the_first_recorded_stop_reason_wins() -> None:
+    """One latch, two producers (S-305 is the other). A second request arriving mid-shutdown must
+    not rewrite the story of why the solve ended."""
+    registry = _registered()
+
+    registry.request_stop(JOB_ID, "shutdown")
+    registry.request_stop(JOB_ID, "requested")
+
+    entry = registry.get(JOB_ID)
+    assert entry is not None
+    assert entry.stop.is_set() and entry.stop_reason == "shutdown"
+
+
+def test_stop_all_latches_every_live_job_and_hands_back_their_threads() -> None:
+    other = "9c2e7f10-4a3b-4d5e-8f61-0b7c9d2e3a44"
+    registry = _registered()
+    registry.register(other)
+    thread = threading.Thread(target=lambda: None)
+    registry.attach_thread(other, thread)
+
+    threads = registry.stop_all("shutdown")
+
+    assert threads == [thread], "only jobs whose worker thread was attached can be joined"
+    for job_id in (JOB_ID, other):
+        entry = registry.get(job_id)
+        assert entry is not None and entry.stop.is_set()
+
+
+def test_a_solve_that_outlives_the_interval_renews_its_own_heartbeat() -> None:
+    """S-303 renewed `heartbeat_at` per stage event — up to 300 s apart in Mode A. A five-minute
+    reclaim grace is only safe against a cadence measured in seconds, so the timer is the mechanic
+    that makes the app's staleness threshold a fact rather than a guess."""
+    fake = FakeSupabase()
+    registry = _registered()
+
+    def dawdle(dump: Dump, config: SolveConfig) -> SolveResult:
+        time.sleep(0.3)
+        return solve_complete(dump, config)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", dawdle)
+        _run_registered(
+            _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
+        )
+
+    beats = [patch_call for patch_call in fake.progress_patches() if set(patch_call.body) == {"heartbeat_at"}]
+    assert beats, "a solve outliving the interval must renew its own heartbeat"
+    for beat in beats:
+        assert beat.params["id"] == f"eq.{JOB_ID}"
+        assert beat.params["status"] == "eq.running", "a beat must not resurrect a reclaimed row"
+        assert beat.params["select"] == "id", "never a bare select — `snapshot` is ~124 KB and TOASTed"
+    assert fake.finish_patch().body["status"] == "succeeded", "the timer is invisible to the outcome"
+
+
+def test_the_heartbeat_never_beats_before_the_claim_is_won() -> None:
+    """A row this worker does not own must never have its heartbeat renewed — the timer starts after
+    the CAS, not before it."""
+    fake = FakeSupabase(claimable=False)
+    registry = _registered()
+
+    _run_registered(_micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.01))
+
+    assert len(fake.patches()) == 1, "only the failed claim"
+
+
 # --- credential discipline --------------------------------------------------------------------------
 
 
-def test_one_solve_signs_in_once() -> None:
+def test_one_short_solve_signs_in_once() -> None:
+    """The heartbeat's second client (S-304) signs in LAZILY, so a solve that finishes inside one
+    interval still mints exactly one token — see the companion test below for the other half."""
     fake = FakeSupabase()
 
     _run(_micro_request(), fake)
 
     assert fake.sign_in_count == 1, "the token is cached for the whole solve"
+
+
+def test_the_heartbeat_signs_in_on_its_own_client_rather_than_sharing_the_workers() -> None:
+    """`JobRowClient` is deliberately not thread-safe — its token cache is an unlocked
+    check-then-act — so the timer takes a SECOND client from the same factory. Two clients, two
+    lazy password grants, and neither cache is ever touched by two threads."""
+    fake = FakeSupabase()
+    registry = _registered()
+
+    def dawdle(dump: Dump, config: SolveConfig) -> SolveResult:
+        time.sleep(0.15)
+        return solve_complete(dump, config)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", dawdle)
+        _run_registered(
+            _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
+        )
+
+    assert fake.sign_in_count == 2, "one grant for the worker's client, one for the heartbeat's"
 
 
 def test_an_aged_token_is_re_minted_with_the_password_grant_never_a_refresh() -> None:

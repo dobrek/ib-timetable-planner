@@ -45,6 +45,13 @@ DEFAULT_MAX_CONCURRENT_JOBS = 1
 # "loud", so the default level has to make them so.
 DEFAULT_LOG_LEVEL = "INFO"
 
+# How often a running job renews `heartbeat_at` on its row. Fifteen seconds, because the grace the
+# app reclaims a wedged row after is five minutes (`job-staleness.ts`): twenty missed beats is a
+# margin wide enough that no healthy solve is ever mistaken for a dead one, while still making a
+# hard-killed container detectable within seconds rather than the ~300 s a stage-only renewal takes.
+# Not forwarded to the container — it is a default worth changing only in a test.
+DEFAULT_HEARTBEAT_INTERVAL_S = 15.0
+
 # Which ladder tiers `SOLVER_STAGE_TARGETS` may address. Tier 1 is excluded because it is not a
 # minimisation the ladder runs: Mode A's tier 1 is a satisfiability solve with no objective at all,
 # and the full ladder's MAXIMISES, so a "stop at or below" target reads backwards for both.
@@ -70,6 +77,9 @@ class Settings:
     # and empty means exactly today's behaviour: every stage burns its budget. Production VALUES are
     # S-308's to measure and ship; this knob is what makes measuring them possible.
     stage_targets: Mapping[int, int] = field(default_factory=dict)
+    # Seconds between the running job's `heartbeat_at` renewals (S-304). Defaulted so a test can
+    # shrink it to milliseconds and assert on the timer without waiting on the real cadence.
+    heartbeat_interval_s: float = DEFAULT_HEARTBEAT_INTERVAL_S
 
     @property
     def configured(self) -> bool:
@@ -102,6 +112,7 @@ def load_settings() -> Settings:
         max_concurrent_jobs=_positive_int("SOLVER_MAX_CONCURRENT_JOBS", DEFAULT_MAX_CONCURRENT_JOBS),
         log_level=_log_level(),
         stage_targets=_stage_targets(),
+        heartbeat_interval_s=_positive_float("SOLVER_HEARTBEAT_INTERVAL_S", DEFAULT_HEARTBEAT_INTERVAL_S),
     )
 
 
@@ -165,6 +176,26 @@ def _positive_int(name: str, default: int) -> int:
         return default
     if value < 1:
         print(f"{name}={value} is below 1 — falling back to {default}", file=sys.stderr)
+        return default
+    return value
+
+
+def _positive_float(name: str, default: float) -> float:
+    """:func:`_positive_int`'s rule for a duration: degrade, never crash, and never accept zero.
+
+    Zero or negative would turn the heartbeat's `Event.wait(interval)` into a spin loop writing to
+    PostgREST as fast as the network allows — a misconfiguration that costs a row, not a container.
+    """
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        print(f"{name}={raw!r} is not a number — falling back to {default}", file=sys.stderr)
+        return default
+    if value <= 0:
+        print(f"{name}={value} is not positive — falling back to {default}", file=sys.stderr)
         return default
     return value
 

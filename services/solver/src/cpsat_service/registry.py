@@ -9,19 +9,26 @@ otherwise start a second solve on the same row, with two workers interleaving st
 that survives a container restart clearing this map — is the `status=eq.queued` compare-and-set in
 `supabase.py`.
 
-**Since S-303 it is also the stop seam, wired.** Interrupting a running solve requires holding a
-reference to the live `CpSolver`, and the engine constructs solvers internally — so the runner now
-hands each one down through `SolveHooks.on_solver`, and :meth:`JobRegistry.attach_solver` records it.
-Still no stop BEHAVIOUR: nothing reads `stop_requested_at` and nothing calls `stop_search()`. S-305
-adds the source; what exists here is the handle it will reach for.
+**Since S-304 it is also the stop seam, with behaviour.** Interrupting a running solve requires
+holding a reference to the live `CpSolver` (S-303 wired `SolveHooks.on_solver` for exactly that), and
+it requires a LATCH the ladder can see between stages — `stop_search()` alone interrupts one solve
+and the ladder marches into the next tier. :meth:`JobRegistry.request_stop` sets both, under the
+lock, and :meth:`JobRegistry.stop_all` does it for every live job and hands back the threads to join.
+
+One latch, two producers: the lifespan's SIGTERM path fires it with reason `"shutdown"` (S-304), and
+S-305's `stop_requested_at` polling will fire it with its own. The runner maps the reason to the
+terminal status, so adding a producer never means adding a second stop mechanism.
 """
 
 from __future__ import annotations
 
+import logging
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+log = logging.getLogger("cpsat_service.registry")
 
 
 class Registration(Enum):
@@ -41,12 +48,18 @@ class Registration(Enum):
 class JobEntry:
     """One running job. ``solver`` holds the CP-SAT solver currently searching, handed over by the
     runner through the engine's ``on_solver`` hook and overwritten per stage — the latest handle is
-    the live one. It is None before the first stage and after the last, and nothing reads it yet:
-    S-305 is what turns a held handle into a stop."""
+    the live one. It is None before the first stage and after the last.
+
+    ``stop`` is the latch the engine polls through ``SolveHooks.should_stop``; ``stop_reason`` says
+    who fired it, and is what the runner maps to a terminal status. First writer wins — a second
+    producer arriving mid-shutdown must not rewrite the story of why the solve ended.
+    """
 
     job_id: str
     thread: threading.Thread | None = None
     solver: Any = field(default=None)
+    stop: threading.Event = field(default_factory=threading.Event)
+    stop_reason: str | None = None
 
 
 class JobRegistry:
@@ -92,6 +105,32 @@ class JobRegistry:
             if entry is not None:
                 entry.solver = solver
 
+    def request_stop(self, job_id: str, reason: str) -> bool:
+        """Ask one job to stop, recording why. True iff the job was live to be asked.
+
+        The caller does NOT write the row: the worker thread owns the terminal write, and routing
+        every outcome through it is what keeps exactly one writer per job (B12's one-way dependency).
+        """
+        with self._lock:
+            entry = self._entries.get(job_id)
+            if entry is None:
+                return False
+            _latch(entry, reason)
+            return True
+
+    def stop_all(self, reason: str) -> list[threading.Thread]:
+        """Latch every live job and return their worker threads, for the caller to join.
+
+        Joining happens OUTSIDE the lock — deliberately. A worker's `finally` calls
+        :meth:`release`, which takes this same lock, so joining while holding it would deadlock the
+        shutdown against the very threads it is waiting for.
+        """
+        with self._lock:
+            entries = list(self._entries.values())
+            for entry in entries:
+                _latch(entry, reason)
+            return [entry.thread for entry in entries if entry.thread is not None]
+
     def get(self, job_id: str) -> JobEntry | None:
         with self._lock:
             return self._entries.get(job_id)
@@ -105,3 +144,26 @@ class JobRegistry:
     def __len__(self) -> int:
         with self._lock:
             return len(self._entries)
+
+
+def _latch(entry: JobEntry, reason: str) -> None:
+    """Record the reason, fire the latch, then interrupt the live solver — in that order.
+
+    Order matters. A reader that sees ``stop.is_set()`` must already be able to see the reason, so
+    the reason is written first; the event is what publishes it. ``stop_search()`` comes last and is
+    only a *speed-up* — it ends the current solve immediately instead of at the next improving
+    solution — so a solver handle that refuses to be interrupted must not stop the latch from having
+    been set.
+    """
+    if entry.stop_reason is None:
+        entry.stop_reason = reason
+    entry.stop.set()
+    solver = entry.solver
+    if solver is None:
+        return
+    try:
+        solver.stop_search()
+    except Exception:  # noqa: BLE001 — one uncooperative handle must not strand the other jobs
+        log.exception(
+            "job %s: could not interrupt the live solver; the latch is set regardless", entry.job_id
+        )

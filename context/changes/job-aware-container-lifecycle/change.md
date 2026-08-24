@@ -1,9 +1,9 @@
 ---
 change_id: job-aware-container-lifecycle
 title: Job-aware container lifecycle
-status: preparing
+status: plan_reviewed
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-24
 archived_at: null
 ---
 

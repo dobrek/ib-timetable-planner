@@ -51,11 +51,15 @@
       // instance gets SIGTERM and 15 minutes before SIGKILL. 1200 = the PRD's 20-minute job ceiling.
       //
       // **It does not reliably protect an in-flight solve, and must not be read as if it does.**
-      // Dispatch answers 202 and detaches, so no request is in flight while a solve runs and the
-      // platform has no reason to call the instance "active"; and even once SIGTERM lands, uvicorn's
-      // graceful shutdown does not wait for the daemon thread doing the solving. Until S-304 lands
-      // activity renewal and SIGTERM checkpointing, the real guard is the human rule in README
-      // § Deployment: do not merge to `main` while a production solve is running.
+      // "Active" here means HOW LONG THE INSTANCE HAS BEEN CONNECTED TO ITS DURABLE OBJECT, not
+      // whether a request is in flight — so a solving container does count as active, and this
+      // comment's earlier rationale ("dispatch is 202-and-detach, so nothing looks active") was
+      // wrong. The conclusion holds for a different reason: the window runs from CONNECTION START,
+      // so a warm container whose connection age already exceeds 1200 s gets no protection at all,
+      // and a cold-started 20-minute solve loses its protection exactly as it finishes. And once
+      // SIGTERM lands, uvicorn's graceful shutdown does not wait for the daemon thread solving.
+      // S-304 lands the real guards (activity renewal, SIGTERM -> `interrupted`, fail-forward
+      // reclaim); the human rule in README § Deployment is what covers the gap until then.
       //
       // `rollout_step_percentage` is left at its default deliberately — stepping a rollout is
       // meaningless at `max_instances: 1`.

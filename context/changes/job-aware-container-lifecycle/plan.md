@@ -725,7 +725,7 @@ solver's RLS windows and both grant allowlists are pinned by
 
 #### Manual
 
-- [x] 3.6 tier-3 renewal log lines observed during a live solve
+- [x] 3.6 tier-3 renewal log lines observed during a live solve — 564bf6c
 
 ### Phase 4: App — fail-forward reclaim + interrupted-checkpoint delivery
 
@@ -745,13 +745,13 @@ solver's RLS windows and both grant allowlists are pinned by
 
 #### Automated
 
-- [x] 5.1 `generation-lifecycle.integration.test.ts` passes against the local stack
-- [x] 5.2 full integration lane green (solver up)
-- [x] 5.3 `/verify` passes
+- [x] 5.1 `generation-lifecycle.integration.test.ts` passes against the local stack — 564bf6c
+- [x] 5.2 full integration lane green (solver up) — 564bf6c
+- [x] 5.3 `/verify` passes — 564bf6c
 
 #### Manual
 
-- [x] 5.4 tier-3 SIGTERM drill passes, evidence recorded in change.md
+- [x] 5.4 tier-3 SIGTERM drill passes, evidence recorded in change.md — 564bf6c
 
 ### Phase 6: Production proof — the drill, the numbers, the dividend
 

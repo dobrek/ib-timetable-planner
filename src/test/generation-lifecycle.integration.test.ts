@@ -166,6 +166,21 @@ const LONG_DEAD = (): string => new Date(Date.now() - HEARTBEAT_GRACE_MS * 2).to
     expect(await planExists(proposalPlanId)).toBe(false);
   });
 
+  it("reclaims a running row that never recorded a heartbeat at all", async () => {
+    // The predicate calls this stale on sight, but `lt` against NULL is NULL — so the CAS needs the
+    // null said out loud, inside a PostgREST logical tree where `:` and `.` are reserved and the
+    // instant has to be double-quoted. Both of those are easy to get subtly wrong in a way no unit
+    // test can see: the filter would simply match nothing and the row would read "stalled" forever.
+    const { planId } = await tinyPlan("nobeat");
+    const { jobId } = await wedgedJob(planId, { heartbeatAt: null });
+
+    const view = await checkGeneration(supabase, { planId });
+
+    expect(view).toMatchObject({ jobId, status: "interrupted" });
+    expect(view?.error).toMatch(/never recorded/);
+    expect(await jobRow(jobId)).toMatchObject({ status: "interrupted" });
+  });
+
   it("recovers at the enqueue conflict when the author never opened the plan", async () => {
     const { planId } = await tinyPlan("enqueue");
     const { jobId: deadJobId, proposalPlanId: deadClone } = await wedgedJob(planId);

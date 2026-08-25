@@ -1,10 +1,10 @@
 ---
 change_id: job-aware-container-lifecycle
 title: Job-aware container lifecycle
-status: implementing
+status: archived
 created: 2026-08-20
-updated: 2026-08-24
-archived_at: null
+updated: 2026-08-25
+archived_at: 2026-08-25T10:33:30Z
 ---
 
 ## Notes

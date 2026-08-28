@@ -259,7 +259,7 @@ It validates `.envs/prod-solver.vars`, prints a confirmation banner, switches th
 
 Know what it costs before running it:
 
-- **It writes to production.** Generation inserts `generation_jobs` rows, calls `clone_plan` (creating real proposal plans that accumulate), and applies placements on delivery. It is not a smoke test.
+- **It writes to production.** Generation inserts `generation_jobs` rows, calls `clone_plan` (creating real proposal plans that accumulate), and on delivery applies placements **onto the proposal plan** — never onto the source, which a solve does not write to. It is not a smoke test.
 - **Do not let the machine sleep.** The claim CAS filters `status=eq.queued`, so a solve interrupted mid-flight leaves a _production_ row stuck at `running`, unclaimable until S-304 widens it — recovery today is manual SQL against hosted. `caffeinate -i` covers idle sleep, not a closed lid or a flat battery.
 - **Timing measured here is invalid.** M-series cores plus 8 workers against the container's 4 give a 3–5× wall-clock difference; the PRD forbids M-series-derived budgets reaching S-308. Board **quality** is target-defined and hardware-independent, so policy comparison is legitimate — but worker count changes _which_ equally-good board comes back, so a local board is not what production would emit. `SOLVER_STAGE_TARGETS` may be set in the shell for a comparison run and is genuinely useful here — a target is an objective VALUE, so which board a target yields is hardware-independent — but the wall clock it saves is not, and no number measured on this machine may become a shipped budget.
 - **Real names on your machine.** The solver still sees UUIDs only, but the app renders hosted data. Never commit an export.
@@ -327,7 +327,7 @@ pnpm exec wrangler rollback <deployment-id>
 
 - **The container image has no vulnerability scanner.** `verify` runs `pnpm audit` and `solver` runs `uv audit`, but the base image and its OS packages are a third dependency surface with no gate. The base is pinned by tag (`python:3.13-slim`), not by digest, so it also moves under you between builds.
 - **Egress is not restricted.** `@cloudflare/containers` exposes `allowedHosts`/`deniedHosts`; pinning outbound traffic to the Supabase host would be a cheap hardening win and is not done.
-- **Generate has no E2E coverage** — owned by S-306, not closed by this lane.
+- **Generate has no E2E coverage** — owned by S-306, not closed by this lane. <!-- S-306 Phase 5: delete this line when `e2e/specs/generation.spec.ts` and the e2e job's solver land -->
 
 ## CI / CD
 

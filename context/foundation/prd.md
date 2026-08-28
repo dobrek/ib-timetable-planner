@@ -146,11 +146,24 @@ when, working from an existing plan:
    "never worse". Each stage hardens `tier_k <= best_k`, so a later stage can
    never undo an earlier one — but a stage that finds no improvement leaves the
    ranking unchanged, which is a legitimate and common outcome, not a failure.)_
-4. On completion the drift check decides delivery: an **unchanged source is
-   auto-updated** with the oracle-verified result (working clone cleaned up,
-   author notified); a **changed source leaves the result as a new plan** the
-   author reviews on the existing comparison page (with dominance
-   information) and adopts deliberately.
+4. On completion the author is notified and **decides delivery**: they review
+   the oracle-verified board and either merge it into the source or keep it as
+   a separate plan. The drift check **gates and informs** that decision — an
+   unchanged source makes merging a single confirmation; a drifted source is
+   named, and merging is offered only where the board still verifies against
+   the source as it now stands.
+   _(Re-grounded 2026-08-28 with S-306's frame. Was: "the drift check decides
+   delivery — an unchanged source is auto-updated … a changed source leaves the
+   result as a new plan … (with dominance information)". Two premises expired.
+   Auto-apply was introduced at shaping to remove a manual "Apply to source"
+   affordance the prior recommendation had proposed — but the author reports
+   that reviewing every 12–20 minute board before it touches their plan **is the
+   point, not a cost**, so the automation removes a step they want and would
+   fire on the majority of runs (they also report leaving the source untouched
+   during a solve, making the "unchanged" branch the common one). And
+   "dominance information" moved to S-307, which already claims it. The drift
+   check itself survives, demoted from decider to gate-and-advisor, so F-301's
+   frozen hash semantics stand. See `context/changes/drift-decided-delivery/frame.md`.)_
 5. A job survives the author closing the laptop: job state is durable; on
    return the finished proposal is there.
 6. Operationally: merge to main ships app + solver through the one pipeline; a
@@ -222,11 +235,11 @@ calibration campaign, never tuned locally on the M4.
 - **Given** an author on an existing plan with residual unplaced hours
 - **When** they start a CP-SAT job (default clean-mode policy), keep editing
   the source plan freely, and return after the ladder completes
-- **Then** — their edits having drifted the source — the result is delivered
-  as a new plan holding a complete, oracle-verified, quality-optimized board;
-  the source plan is intact including their edits; they compare the two on the
-  existing comparison page (with dominance information) and adopt the result
-  deliberately
+- **Then** — their edits having drifted the source — the result is held as a
+  complete, oracle-verified, quality-optimized board they review before
+  anything is applied; the source plan is intact including their edits; they
+  compare the two on the existing comparison page, are told the source drifted,
+  and either keep the result as a separate plan or merge it deliberately
 
 > Before: generation was a 20-second local greedy draft that left 5–8 h
 > unplaced, ran only while the tab stayed open, and overwrote nothing safely —
@@ -243,17 +256,28 @@ calibration campaign, never tuned locally on the M4.
 > Before: cancelling greedy kept its best-so-far only in browser memory; a
 > long solve had no notion of accrued, keepable progress.
 
-### US-303: Unchanged source is updated automatically
+### US-303: Unchanged source merges in one confirmation
 
 - **Given** a running job whose source plan receives no edits during the solve
-- **When** the job completes
-- **Then** the oracle-verified result is applied atomically to the source plan
-  without further ceremony, the working clone is cleaned up, and the author is
-  notified; had the source drifted, the result would instead have been
-  delivered as a new plan for comparison and deliberate adoption
+- **When** the job completes and the author opens the result
+- **Then** they are told the source is unchanged, so the board they are looking
+  at is exactly the board that was solved for: merging it into the source is a
+  single confirmation with nothing to reconcile, and the atomic RPC applies it
+  in their own request — no ceremony beyond the one act of saying yes; had the
+  source drifted, the drift would be named and merging offered only if the
+  board still verifies against the source as it now stands
 
 > Before: the drift guard existed only in the bench import experiment; there
 > was no automated delivery path at all.
+
+> _Re-grounded 2026-08-28 with S-306's frame._ Was: "Unchanged source is updated
+> automatically … applied atomically to the source plan **without further
+> ceremony**". The story's shape survives — the clean case should be
+> frictionless — but its mechanism does not: the author confirms rather than
+> being informed after the fact. The old Given/When was also unsound, because
+> "receives no edits **during the solve**" did not determine the branch: the
+> drift window ran to whenever delivery actually fired, which is not job
+> completion. Confirmation closes that window at the moment the author acts.
 
 ## Scope of Change
 
@@ -319,28 +343,72 @@ calibration campaign, never tuned locally on the M4.
   > are confusing — authors may believe they kept more progress than they
   > did." Resolution: kept, with a UX obligation added — the stop affordance
   > must name the stage of the board being kept.
-- [new] FR-306: On completion the result is imported onto its plan only after
-  passing the oracle; when review is needed (the drifted case of FR-307), the
-  author reviews the result against the source on the **existing
-  plan-comparison page** (with dominance/quality information) — no new
-  side-by-side surface is built. Priority: must-have.
+- [new] FR-306: A result is imported onto any plan only after passing the
+  oracle. Review happens on **every** delivery (FR-307), and the review surface
+  is the **existing plan-comparison page** — no new side-by-side surface is
+  built. The author reaches it from the completed job, is shown whether the
+  source drifted from the solved snapshot, and concludes there. Priority:
+  must-have.
   > Socrates: Counter-argument **accepted (refined)**: rather than a new
   > side-by-side review UX, reuse the comparison page the product already
   > has. Resolution: FR updated — the existing comparison page is the review
   > surface; dominance info joins it as context.
-- [new] FR-307: On job completion the app detects whether the source plan
-  changed since the solved snapshot (the catalog/board drift guard promoted to
-  production). If **unchanged**, the oracle-verified result is
-  **auto-applied** to the source via the atomic RPC, the working clone is
-  cleaned up, and the author is notified. If **changed**, the result is
-  delivered as a **new plan carrying the solution**, reviewed on the
-  comparison page and adopted deliberately. Priority: must-have.
+  > Re-grounded 2026-08-28 (S-306 frame): **the dominance clause moves to
+  > FR-302/S-307**, which already claims it ("boards are dominance-checked
+  > before presentation"). Three findings. No dominance code exists at any
+  > layer, and the wire contract explicitly excludes the objective tuple it
+  > would need (`contracts/generation-wire.schema.json:180`) — so it is net-new
+  > capability, not reuse. The comparison page is *built* to refuse machine
+  > judgement — "it reports; it never judges", restated in five files and
+  > physically enforced by every metric formatting to a finished string — so
+  > the clause reversed a recorded architectural principle. And the author
+  > reports that what makes them confident is **looking at the board**, not a
+  > ranking, so it is not load-bearing for this decision. Dominance belongs
+  > where competing policies make it bite: S-307. What FR-306 gains instead is
+  > narrower and was missing: a route in from the completed job, and a signal
+  > for snapshot drift — the page's existing drift banner is provably silent on
+  > a source-vs-proposal pair, because it fingerprints the catalog and a
+  > board-only edit does not move it.
+- [new] FR-307: **The author decides delivery, and the drift check gates the
+  decision.** When a job completes the author is notified and reviews the
+  oracle-verified board. They may **merge** it into the source via the atomic
+  RPC, or **keep** it as a separate plan. Before offering merge the app
+  re-derives the source's snapshot digest and compares it to the one recorded
+  at dispatch: **unchanged** → merging is a single confirmation, the board
+  being exactly what was solved for; **changed** → the drift is named, and
+  merge is offered only where the board still passes the oracle against the
+  source as it now stands. Nothing is applied without an author action, so
+  every write runs inside their own authenticated request. Priority: must-have.
   > Socrates: Challenge **accepted (reshaped)**: instead of a manual "Apply
   > to source" affordance, completion-time drift detection decides delivery —
   > unchanged source ⇒ replace (auto-apply); changed source ⇒ the solution
   > stands as a new plan. Locked follow-up: auto-apply with clone cleanup and
   > notification; post-hoc inspection remains available via the comparison
   > page.
+  > **Re-grounded 2026-08-28 (S-306 frame) — the above resolution is retired
+  > and the manual affordance it deleted is restored.** The reshape rested on
+  > the premise that a confirmation step is a cost worth automating away. The
+  > author reports the opposite: reviewing a 12–20 minute board before it
+  > touches their plan **is the point**. They also report leaving the source
+  > untouched during a solve, so the "unchanged" branch is the common one —
+  > meaning auto-apply would have fired on most runs, doing the unwanted thing
+  > on the hot path rather than at an edge. Note what the reshape replaced: the
+  > prior recommendation was a manual "Apply to source" gated by this same
+  > drift check (`context/changes/post-poc-cp-sat-refactoring-plan/research.md:292`),
+  > and the reshape was recorded in one sentence with no stated benefit. The
+  > PRD's own persona line, PSC #5 and the roadmap's north star had continued
+  > to describe author-decides throughout.
+  > **What this buys.** Auto-apply was the sole claimant on the expensive half
+  > of the slice: a session-free **write** identity — refused twice by name
+  > during S-304 as a credential-posture violation — plus the must-have case
+  > for a completion clock, the TOCTOU exposure of re-hashing then blind
+  > region-replacing, and the reason the digest's dropped `isOptional` field is
+  > a safety hole rather than a curiosity. All four collapse to "a machine
+  > writes to the author's live plan with no human in the request", and all
+  > four leave with it. What remains and is *raised* in importance: the review
+  > path is now 100% of runs, and it currently has no route in, no drift signal
+  > on this pair, and no act to conclude with. See
+  > `context/changes/drift-decided-delivery/frame.md`.
 - [new] FR-308: While a job runs, the source plan shows an advisory "proposal
   in progress from <time> state" indicator; one job per source plan is active
   at a time; editing is never blocked. Priority: must-have.
@@ -356,6 +424,20 @@ calibration campaign, never tuned locally on the M4.
   > workflow." Resolution: email joins the FR (was: a later extension);
   > priority stays nice-to-have — the durable job row and auto-apply delivery
   > carry the must-have path.
+  > Re-grounded 2026-08-28 (S-306 frame): the resolution's "auto-apply delivery
+  > carries the must-have path" is retired with FR-307's automation — the
+  > must-have path is now the durable job row plus author-confirmed delivery.
+  > The FR is otherwise **unchanged and its email half gets sharper**: with the
+  > author in the loop on every result, the notification is what tells them a
+  > decision is waiting, so it carries more weight than when delivery could
+  > complete itself. Two consequences for S-310. Its stated dependency on S-306
+  > still holds — S-306 creates the completion/notification event, and that
+  > event must be durable (`generation_jobs.notified_at` exists and is unused)
+  > and channel-agnostic rather than a render, or S-310 has nothing to extend.
+  > But the walk-away case still needs something that fires with no tab open,
+  > and that survives FR-307's retirement as **S-310's** problem, not S-306's —
+  > materially cheaper now, because a notifier needs only a read-only identity
+  > where auto-apply needed a write one.
 
 ### Solver service
 
@@ -403,6 +485,20 @@ calibration campaign, never tuned locally on the M4.
   > is unspecified — client-only verification can't serve headless delivery."
   > Resolution: oracle execution pinned to the server-side job pipeline; the
   > trust boundary is unchanged, its location is now explicit.
+  > Re-grounded 2026-08-28 (S-306 frame): **"headless" was never defined here,
+  > and the two readings it admits are not two implementations of one
+  > requirement.** The *location* clause — the oracle runs server-side, not in
+  > client JS — is the operative one, and S-301 shipped it
+  > (`generation-delivery.ts:185`); this FR is satisfied on that reading and
+  > should not be re-planned. The stronger reading the roadmap drew from it
+  > ("no browser needs to be open") was carrying FR-307's auto-apply, which is
+  > now retired — so the clause "so headless delivery (auto-apply, FR-307) is
+  > verified without a browser open" loses its subject. **Read it as: the
+  > oracle runs in the delivery pipeline rather than the browser, so
+  > verification cannot be bypassed by a client.** A trigger that fires with no
+  > tab open is no longer owed by this FR; the only survivor of that
+  > requirement is FR-309's notifier, which needs a **read-only** identity, not
+  > a write one.
 - [modified] FR-314: CP-SAT is the default Generate path — S-301 shipped it,
   and the greedy Web Worker machinery it orphaned has since been deleted
   (`clean-up-bench-generation`), so the Generate button has no greedy path
@@ -535,13 +631,22 @@ lexicographic order and the teacher/student trade-off dial are selectable.
 Boards are dominance-checked before presentation so a strictly-worse board is
 never offered as the outcome.
 
-**Delivery rule — new: drift decides.** A solve result is meaningful only
-against the exact snapshot it was produced from. The solve always runs
-against a clone — the live plan is never locked. On completion the app
-compares the source plan with the solved snapshot: **unchanged** → the
-oracle-verified result is auto-applied to the source and the working clone is
-cleaned up; **changed** → the result stands as a new plan carrying the
-solution, reviewed on the existing comparison page.
+**Delivery rule — new: the author decides, drift gates.** A solve result is
+meaningful only against the exact snapshot it was produced from. The solve
+never runs against the live plan — the live plan is never locked. On completion
+the author is notified and reviews the oracle-verified board on the existing
+comparison page, then either **merges** it into the source or **keeps** it as a
+separate plan. The drift check runs at that moment, not to decide but to gate
+and inform: **unchanged** → merging is a single confirmation; **changed** → the
+drift is named, and merge is offered only where the board still passes the
+oracle against the source as it now stands. No board reaches a plan except
+through an author action in their own authenticated request.
+
+_(Re-grounded 2026-08-28 with S-306's frame — was "drift decides", with an
+unchanged source auto-applied. See FR-307 for the full reasoning: the author
+reviews every result by preference, so the automation removed a step they want,
+and it was the sole claimant on a session-free write credential the project has
+twice refused.)_
 
 **Job rules — new.** One active job per source plan; stage checkpoints are
 durable; "Stop & keep" adopts the last *completed* stage. The oracle remains
@@ -603,10 +708,30 @@ printable / PDF export; teacher soft preferences and hours-per-week caps.
    deliberately narrow today (Workers Scripts: Edit); verify the exact scopes
    Containers requires against current Cloudflare docs when wiring the deploy
    lane. — Owner: deploy-lane phase.
+4. **When the proposal plan is materialised.** _(Opened 2026-08-28 by S-306's
+   frame; FR-301 still describes cloning at dispatch.)_ The clone has no reader
+   between dispatch and completion — the poll projection omits it, the solver
+   cannot see the column, and the client discards the id — while in that window
+   it is a visible, editable, deletable plan that can destroy a 20-minute solve,
+   and it drives six orphan-deletion call sites. Materialising at **completion**
+   instead would close that window and most of those paths. Two author
+   constraints bound the choice: the proposal must be viewable **as a board**
+   (that is what produces confidence in the merge decision), and a result the
+   author declines should **persist by default** rather than vanish — which
+   together rule out materialising only on "keep", since a plan row is what
+   makes a board viewable and durable today. So the live question is dispatch
+   vs. completion, not dispatch vs. never. Deliberately left open here: it is a
+   mechanism choice with a real counter-argument (a clone made at dispatch is
+   the only durable copy of the display catalog the snapshot omits, so a
+   completion-time clone can fail natural-key translation when the catalog
+   moved). — Owner: S-306 plan phase.
 
 > Resolved during shaping (recorded for traceability): default policy → clean
-> mode (FR-302); plan locking → never, proposal clones (FR-307/308); delivery
-> → drift-decided auto-apply vs new plan (FR-307); Mode-A timeout → fall back
+> mode (FR-302); plan locking → never, proposal clones (FR-307/308); ~~delivery
+> → drift-decided auto-apply vs new plan (FR-307)~~ **[retired 2026-08-28 —
+> delivery → author-decided merge-or-keep, drift gates rather than decides;
+> see FR-307]**; Mode-A timeout → fall back
 > to the background job (Business Logic); snapshot assembly → settle, then
-> clone, then assemble server-side (FR-301); notifications → polling + in-app
+> clone, then assemble server-side (FR-301 — clone *timing* reopened as Open
+> Question 4); notifications → polling + in-app
 > now, email nice-to-have, push recorded as upgrade (FR-304/309).

@@ -1,7 +1,7 @@
 ---
 change_id: drift-decided-delivery
 title: Drift decided delivery
-status: implementing
+status: implemented
 created: 2026-08-25
 updated: 2026-08-28
 archived_at: null
@@ -48,3 +48,16 @@ fold-in.
 **Lineage:** Socrates (auto-apply) → 2026-08-28 first re-ground (author-decided merge-or-keep, from
 `frame.md`) → 2026-08-28 second re-ground (proposal-is-a-plan, from `plan.md`). All three blocks are
 preserved in PRD FR-307.
+
+## Open at hand-off
+
+Two Progress rows stay unchecked because both are observations of a **CI run on a PR**, which does
+not exist yet — neither is code:
+
+- **5.1 the e2e job is green on the PR.** The spec and the job's solver steps are in; the whole
+  local E2E suite (34 tests) passes against a native solver, `generation.spec.ts` in ~16 s.
+- **5.4 the e2e job's duration.** Measurable only against the CI baseline (~426 s). The added work is
+  a cached `uv sync`, a uvicorn boot, and a ~1 s solve.
+
+Both close on the first CI run. One more item is owed at PR time and is not a plan step:
+**issue #103's title and body still describe auto-apply** (the roadmap's next-actions row says so).

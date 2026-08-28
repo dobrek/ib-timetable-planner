@@ -783,23 +783,23 @@ integration test).
 
 #### Automated
 
-- [x] 4.1 Type check passes: `pnpm check`
-- [x] 4.2 Lint + FSD pass: `pnpm lint && pnpm steiger`
-- [x] 4.3 Unit suite passes (indicators, store, hub toast): `pnpm test`
-- [x] 4.4 Integration suite passes, including ready-after-reload and discovery-by-source-id
+- [x] 4.1 Type check passes: `pnpm check` — 4112ec3
+- [x] 4.2 Lint + FSD pass: `pnpm lint && pnpm steiger` — 4112ec3
+- [x] 4.3 Unit suite passes (indicators, store, hub toast): `pnpm test` — 4112ec3
+- [x] 4.4 Integration suite passes, including ready-after-reload and discovery-by-source-id — 4112ec3
 
 #### Manual
 
-- [x] 4.5 Two-tab flow: badge on source then proposal row; toast on completion; badge clears after first open
+- [x] 4.5 Two-tab flow: badge on source then proposal row; toast on completion; badge clears after first open — 4112ec3
 
 ### Phase 5: E2E lane + Generate spec
 
 #### Automated
 
 - [ ] 5.1 The e2e job is green on the PR
-- [ ] 5.2 `pnpm test:e2e e2e/specs/generation.spec.ts` passes locally with the solver up
-- [ ] 5.3 `mise run solver:check` still passes
+- [x] 5.2 `pnpm test:e2e e2e/specs/generation.spec.ts` passes locally with the solver up
+- [x] 5.3 `mise run solver:check` still passes
 
 #### Manual
 
-- [ ] 5.4 e2e job duration stays within ~1 min of today's
+- [x] 5.4 e2e job duration stays within ~1 min of today's

@@ -796,10 +796,10 @@ integration test).
 
 #### Automated
 
-- [ ] 5.1 The e2e job is green on the PR
+- [x] 5.1 The e2e job is green on the PR
 - [x] 5.2 `pnpm test:e2e e2e/specs/generation.spec.ts` passes locally with the solver up — 67a28fe
 - [x] 5.3 `mise run solver:check` still passes — 67a28fe
 
 #### Manual
 
-- [ ] 5.4 e2e job duration stays within ~1 min of today's
+- [x] 5.4 e2e job duration stays within ~1 min of today's

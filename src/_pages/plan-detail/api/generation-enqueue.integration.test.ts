@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { computeSnapshotHash, SolverDispatchError, type SolverTransport } from "@/entities/timetable";
 import { DomainError } from "@/shared/lib/errors";
+import { clonePlan } from "@/shared/api";
 import { createPlan as createFactoryPlan, registerPlan, teardown } from "@/test/factories";
 import { startGeneration, type GenerationDeps } from "./generation-job";
 
@@ -62,6 +63,9 @@ const deps = (transport: SolverTransport | null): GenerationDeps => ({ getTransp
   const planExists = async (id: string): Promise<boolean> =>
     ((await supabase.from("plans").select("id").eq("id", id)).data ?? []).length > 0;
 
+  const pendingOf = async (id: string): Promise<boolean | undefined> =>
+    (await supabase.from("plans").select("pending_proposal").eq("id", id).maybeSingle()).data?.pending_proposal;
+
   /**
    * Proposal clones of ONE source plan, found by the deterministic name `startGeneration` gives them.
    * Scoped that way on purpose: `pnpm test:integration` runs suites in parallel, so a global
@@ -98,7 +102,7 @@ const deps = (transport: SolverTransport | null): GenerationDeps => ({ getTransp
     if (hasEnv) await teardown(supabase);
   });
 
-  it("clones the plan, records a queued job, and dispatches the snapshot it hashed", async () => {
+  it("clones the plan AS PENDING, records a queued job, and dispatches the snapshot it hashed", async () => {
     const { transport, calls } = recordingTransport();
 
     const result = await startGeneration(supabase, { planId }, deps(transport));
@@ -113,8 +117,28 @@ const deps = (transport: SolverTransport | null): GenerationDeps => ({ getTransp
     });
     expect(await planExists(result.proposalPlanId)).toBe(true);
 
+    // S-306: the clone is guarded from its first second. Everything downstream — the pending page,
+    // the seven by-id route guards, the three action guards — keys off this one boolean, so if it
+    // is not set at enqueue the whole guard surface is silently inert.
+    expect(await pendingOf(result.proposalPlanId)).toBe(true);
+
     // The binding the solver checks after claiming: the row's digest IS the dispatched body's.
     expect(calls).toEqual([{ jobId: result.jobId, snapshotHash: job.snapshot_hash }]);
+  });
+
+  it("leaves an ordinary clonePlan un-pending — the hub's Clone dialog shares that RPC", async () => {
+    // The reason `pending_proposal` is a separate update in `startGeneration` rather than an argument
+    // to `clone_plan`: the same RPC backs the hub's Clone dialog, which must keep producing plans the
+    // author can immediately edit. A regression here would freeze every hand-made copy read-only.
+    const source = await seededPlan("hand-cloned");
+    const { id } = await clonePlan(supabase, {
+      sourcePlanId: source.id,
+      name: `Copy of ${source.name}`,
+      includeBoard: false,
+    });
+    registerPlan(id);
+
+    expect(await pendingOf(id)).toBe(false);
   });
 
   it("refuses a second job while one is active, and leaves no orphan clone behind", async () => {

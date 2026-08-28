@@ -740,28 +740,28 @@ integration test).
 
 #### Automated
 
-- [x] 1.1 `pnpm exec prettier --check context/foundation/prd.md context/foundation/roadmap.md README.md` passes
+- [x] 1.1 `pnpm exec prettier --check context/foundation/prd.md context/foundation/roadmap.md README.md` passes — 33f67a1
 
 #### Manual
 
-- [x] 1.2 FR-307 shows three dated blocks in order and the current rule is unambiguous
-- [x] 1.3 Open Question 4 reads as resolved with the chosen mechanism
-- [x] 1.4 No remaining prose says a result is merged or auto-applied to the source
+- [x] 1.2 FR-307 shows three dated blocks in order and the current rule is unambiguous — 33f67a1
+- [x] 1.3 Open Question 4 reads as resolved with the chosen mechanism — 33f67a1
+- [x] 1.4 No remaining prose says a result is merged or auto-applied to the source — 33f67a1
 
 ### Phase 2: Schema + pending lifecycle
 
 #### Automated
 
-- [ ] 2.1 Migration applies cleanly: `pnpm exec supabase db reset`
-- [ ] 2.2 Types regenerate without diff noise beyond the new column
-- [ ] 2.3 Type check passes: `pnpm check`
-- [ ] 2.4 Lint + FSD pass: `pnpm lint && pnpm steiger`
-- [ ] 2.5 Unit suite passes: `pnpm test`
-- [ ] 2.6 Integration suite passes with the solver up
+- [x] 2.1 Migration applies cleanly: `pnpm exec supabase db reset`
+- [x] 2.2 Types regenerate without diff noise beyond the new column
+- [x] 2.3 Type check passes: `pnpm check`
+- [x] 2.4 Lint + FSD pass: `pnpm lint && pnpm steiger`
+- [x] 2.5 Unit suite passes: `pnpm test`
+- [x] 2.6 Integration suite passes with the solver up
 
 #### Manual
 
-- [ ] 2.7 Studio shows the clone pending after Generate and un-pending with `delivery = 'proposal'` after delivery
+- [x] 2.7 Studio shows the clone pending after Generate and un-pending with `delivery = 'proposal'` after delivery
 
 ### Phase 3: Proposal-keyed delivery, the pending page, and the guards
 

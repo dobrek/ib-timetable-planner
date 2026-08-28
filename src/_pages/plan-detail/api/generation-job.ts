@@ -31,9 +31,17 @@ import { loadCombinedPlannerData } from "./load";
  *
  * **The snapshot is assembled from the SOURCE plan**, not the clone, and hashed as such. `clone_plan`
  * re-mints every course UUID (measured: 0 of 84 survive), so a clone-assembled snapshot could never
- * hash equal to a source-assembled one — FR-307's drift check would report drift on every run and
- * S-306's auto-apply could never fire. The clone is the APPLY TARGET, reached at delivery through the
- * natural-key `courseId` translation (`buildCourseIdMap`).
+ * hash equal to a source-assembled one. The clone is the APPLY TARGET, reached at delivery through the
+ * natural-key `courseId` translation (`buildCourseIdMap`). Note `snapshot_hash` is no longer a DRIFT
+ * column — S-306 retired the drift gate along with merge, and the source is never written to — so its
+ * one live reader is the solver's snapshot BINDING check (`cpsat_service/runner.py`).
+ *
+ * **The clone is born PENDING** (S-306). `plans.pending_proposal` is set immediately after
+ * `clone_plan` returns, and every by-id surface and plan action refuses a pending plan — that is what
+ * stops the author editing the apply target out from under a 20-minute solve. The flag is a separate
+ * `update` rather than a `clone_plan` argument on purpose: the hub's Clone dialog shares that RPC and
+ * must keep producing ordinary plans. A clone that cannot be flagged is DELETED rather than left
+ * unflagged; an unflagged clone is exactly the hazard the flag exists to remove.
  *
  * **The transport is injected, never imported.** `getSolverTransport` reads `astro:env/server`, which
  * a `_pages` module may not reach: it is composed in `src/actions/` (outside the FSD graph) and passed
@@ -120,7 +128,8 @@ const assembleSource = async (supabase: SupabaseClient, planId: string): Promise
 };
 
 /** `plans.name` carries no unique constraint, so a generated proposal name is always safe. The clone
- *  keeps its board — the author's pins are the solve's fixed points and must survive onto the target. */
+ *  keeps its board — the author's pins are the solve's fixed points and must survive onto the target.
+ *  It is flagged pending before it is returned, and swept if that flag cannot be written. */
 const createProposalPlan = async (
   supabase: SupabaseClient,
   sourcePlanId: string,
@@ -131,7 +140,17 @@ const createProposalPlan = async (
     name: `Proposal — ${planName}`,
     includeBoard: true,
   });
+  await markPending(supabase, id);
   return id;
+};
+
+/** The one window this closes is between `clone_plan` returning and the guard being true, so it is
+ *  the very next statement — and its failure sweeps rather than proceeds. */
+const markPending = async (supabase: SupabaseClient, proposalPlanId: string): Promise<void> => {
+  const { error } = await supabase.from("plans").update({ pending_proposal: true }).eq("id", proposalPlanId);
+  if (!error) return;
+  await deleteOrphanClone(supabase, proposalPlanId);
+  throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to mark the proposal plan pending: ${error.message}`);
 };
 
 const insertJob = async (

@@ -103,10 +103,13 @@ const acceptingTransport: SolverTransport = {
     (
       await supabase
         .from("generation_jobs")
-        .select("status, delivered_plan_id, proposal_plan_id, error")
+        .select("status, delivered_plan_id, proposal_plan_id, delivery, error")
         .eq("id", jobId)
         .single()
     ).data;
+
+  const pendingOf = async (planId: string): Promise<boolean | undefined> =>
+    (await supabase.from("plans").select("pending_proposal").eq("id", planId).maybeSingle()).data?.pending_proposal;
 
   beforeAll(() => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
@@ -129,7 +132,10 @@ const acceptingTransport: SolverTransport = {
 
     expect(view).toMatchObject({ jobId, status: "succeeded", delivered: true, proposalPlanId });
     expect(view?.cleanLabel).toEqual({ kind: "clean" });
-    expect(await jobRow(jobId)).toMatchObject({ delivered_plan_id: proposalPlanId });
+    // S-306's delivery vocabulary rides in the delivered marker's own CAS, so the pair cannot disagree.
+    expect(await jobRow(jobId)).toMatchObject({ delivered_plan_id: proposalPlanId, delivery: "proposal" });
+    // ...and the proposal has stopped being a job artifact: from here it is an ordinary plan.
+    expect(await pendingOf(proposalPlanId)).toBe(false);
 
     // The board landed on the CLONE, under the clone's own course ids — never the source's.
     const applied = await placementsOn(proposalPlanId);
@@ -226,6 +232,73 @@ const acceptingTransport: SolverTransport = {
     expect((await supabase.from("plans").select("id").eq("id", proposalPlanId)).data).toEqual([]);
   });
 
+  it("delivers a STOPPED job that kept a checkpoint, exactly as an interrupted one", async () => {
+    // S-305 owns the producer of a `stopped` row; S-306 only widens the predicate, because the two
+    // statuses differ solely in WHO halted the run — the author asked, or the platform took the
+    // container away. A checkpoint is written through the same wire path either way.
+    const { planId, dp1CourseId } = await tinyPlan("stopped");
+    const { jobId, proposalPlanId } = await solvedJob(planId, [
+      { cohort: "dp1", courseId: dp1CourseId, day: 3, period: 2, week: "both" },
+    ]);
+    const solved = (await supabase.from("generation_jobs").select("result").eq("id", jobId).single()).data;
+    await supabase
+      .from("generation_jobs")
+      .update({ status: "stopped", result: null, checkpoint: solved?.result, checkpoint_stage_index: 5 })
+      .eq("id", jobId);
+
+    const view = await checkGeneration(supabase, { planId });
+
+    expect(view).toMatchObject({ status: "stopped", delivered: true, proposalPlanId, checkpointStageIndex: 5 });
+    expect(await jobRow(jobId)).toMatchObject({ delivered_plan_id: proposalPlanId, delivery: "proposal" });
+    expect(await pendingOf(proposalPlanId)).toBe(false);
+    expect(await placementsOn(proposalPlanId)).toHaveLength(1);
+  });
+
+  it("sweeps a STOPPED job that kept nothing, exactly as an interrupted one", async () => {
+    const { planId } = await tinyPlan("stopped-empty");
+    const { jobId, proposalPlanId } = await solvedJob(planId, []);
+    await supabase
+      .from("generation_jobs")
+      .update({ status: "stopped", result: null, checkpoint: null, checkpoint_stage_index: null })
+      .eq("id", jobId);
+
+    const view = await checkGeneration(supabase, { planId });
+
+    expect(view).toMatchObject({ status: "stopped", delivered: false, proposalPlanId: null });
+    expect((await supabase.from("plans").select("id").eq("id", proposalPlanId)).data).toEqual([]);
+  });
+
+  it("leaves a DETACHED clone un-pending when translation fails, so it is never stranded read-only", async () => {
+    // The one terminal branch that keeps the clone alive: its catalog diverged from the source's, so
+    // the natural key cannot bridge the two id spaces. The clone carries the very edits that caused
+    // the mismatch, which is why it is detached rather than swept — but detaching it removes the last
+    // job that referenced it, so if delivery did not clear the flag here NOTHING ever would and the
+    // plan would be un-renameable, un-deletable and boardless forever.
+    //
+    // Reached by a service-role write on purpose: since S-306 the app cannot edit a pending plan at
+    // all, so this branch is unreachable through the UI — which makes it exactly the kind of branch
+    // that rots untested.
+    const { planId, dp1CourseId } = await tinyPlan("mismatch");
+    const { jobId, proposalPlanId } = await solvedJob(planId, [
+      { cohort: "dp1", courseId: dp1CourseId, day: 1, period: 1, week: "both" },
+    ]);
+    // The natural key is `(cohort, name, level, groupIndex)`; moving `name` on the clone breaks it.
+    await supabase.from("courses").update({ name: "Renamed behind the guard" }).eq("plan_id", proposalPlanId);
+
+    const view = await checkGeneration(supabase, { planId });
+
+    expect(view).toMatchObject({ status: "failed", delivered: false, proposalPlanId: null });
+    // Read the reason off the ROW, not the view: every `failJob` branch returns the row as it was
+    // read, so the diagnostic is visible from the next visit on — the same shape the oracle-rejection
+    // case above asserts.
+    expect((await jobRow(jobId))?.error).toMatch(/could not be translated/);
+    // Detached, not deleted...
+    expect((await supabase.from("plans").select("id").eq("id", proposalPlanId)).data).toHaveLength(1);
+    // ...and released, so the author can rename or delete it by hand.
+    expect(await pendingOf(proposalPlanId)).toBe(false);
+    expect(await jobRow(jobId)).toMatchObject({ proposal_plan_id: null, delivered_plan_id: null, delivery: null });
+  });
+
   it("reports an active job without touching the proposal", async () => {
     const { planId } = await tinyPlan("active");
     const { proposalPlanId } = await startGeneration(supabase, { planId }, { getTransport: () => acceptingTransport });
@@ -236,6 +309,8 @@ const acceptingTransport: SolverTransport = {
     expect(view).toMatchObject({ status: "queued", delivered: false, proposalPlanId });
     expect(view?.cleanLabel).toEqual({ kind: "unavailable" });
     expect(await placementsOn(proposalPlanId)).toHaveLength(0);
+    // Still guarded: nothing has been delivered, so the clone is still the solve's apply target.
+    expect(await pendingOf(proposalPlanId)).toBe(true);
   });
 
   it("returns null for a plan that has never been generated", async () => {

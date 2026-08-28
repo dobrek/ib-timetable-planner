@@ -489,6 +489,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          pending_proposal: boolean
           slot_grid_preset: string
           updated_at: string
         }
@@ -496,6 +497,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          pending_proposal?: boolean
           slot_grid_preset: string
           updated_at?: string
         }
@@ -503,6 +505,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          pending_proposal?: boolean
           slot_grid_preset?: string
           updated_at?: string
         }
@@ -786,6 +789,7 @@ export type Database = {
         }
         Returns: string
       }
+      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       delete_shelf_bundle: {
         Args: { p_plan_id: string; p_shelf_bundle_id: string }
         Returns: undefined

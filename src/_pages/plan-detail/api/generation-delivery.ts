@@ -25,13 +25,18 @@ import { applyGeneratedPlacements } from "./placements";
  * The delivery half of S-301: read a plan's latest job back, and if it succeeded and has not been
  * delivered, verify the board SERVER-SIDE, translate it into the clone's id space, and apply it.
  *
- * **The trigger is a visit, and the plan says so out loud.** This satisfies FR-313's *location*
- * requirement — the oracle runs server-side in the delivery pipeline, not in a browser — but not its
- * *rationale* ("so headless delivery is verified without a browser open"). Nothing here polls, and
- * S-303 did not add that: it put a status-only poll on the plans list, which never calls this
- * function — running delivery on a timer, from a page the author is not looking at, is exactly what
- * that separation avoids. S-306 adds drift-decided delivery; until then the author's return to the
- * page is the clock.
+ * **The trigger is a visit to EITHER plan.** This satisfies FR-313's *location* requirement — the
+ * oracle runs server-side in the delivery pipeline, not in a browser. Nothing here polls on the hub:
+ * S-303's plans-list poll is status-only and never calls this function, because running delivery on a
+ * timer from a page the author is not looking at is exactly what that separation avoids. S-306 adds
+ * the second key: the proposal plan's own page also reaches this file, and while that plan is pending
+ * it renders progress instead of a board — so it may poll, and the poll may deliver, because delivery
+ * from that page is delivery *to* that page.
+ *
+ * **The board lands on the PROPOSAL, never on the source.** That is the whole of S-306's delivery
+ * rule (PRD FR-307, re-grounded twice on 2026-08-28): there is no merge and no drift gate, so the
+ * author's source plan is never written to by this pipeline. `plans.pending_proposal` marks the clone
+ * un-editable from the moment enqueue creates it until the moment this file clears it.
  *
  * **Idempotent under concurrent invocation**, because two tabs firing the on-visit check is the
  * normal case rather than an edge one. The delivered marker is a compare-and-set
@@ -87,13 +92,16 @@ export type GenerationJobView = {
 /** Everything the strip renders, and none of the ~160 KB of payload beside it. `heartbeat_at` is the
  *  staleness clock and `checkpoint_stage_index` the free existence proxy for the ~35 KB checkpoint. */
 const STATUS_COLUMNS =
-  "id,status,proposal_plan_id,delivered_plan_id,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index";
+  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at";
 
 type StatusRow = {
   id: string;
+  plan_id: string;
   status: GenerationJobStatus;
   proposal_plan_id: string | null;
   delivered_plan_id: string | null;
+  delivery: string | null;
+  notified_at: string | null;
   stages: StoredStageReport[];
   error: string | null;
   created_at: string;
@@ -119,7 +127,8 @@ export const checkGeneration = async (
   // list with a half-made proposal. Guarded twice over — only this job's own `proposal_plan_id`, and
   // only while nothing has been delivered. S-304 decided the question the old comment here left open:
   // an `interrupted` clone is SALVAGE when the row carries a checkpoint (handled above) and litter
-  // when it does not. `stopped` is still S-305's to answer.
+  // when it does not — and S-306 answers `stopped` the same way, since the two differ only in who
+  // halted the run. A swept clone needs no `pending_proposal` clear: the row is gone.
   if (sweepable(row) && row.delivered_plan_id === null && row.proposal_plan_id !== null) {
     await deleteOrphanClone(supabase, row.proposal_plan_id);
     return toView({ ...row, proposal_plan_id: null }, { kind: "unavailable" });
@@ -128,14 +137,24 @@ export const checkGeneration = async (
   return toView(row, await labelOf(supabase, row));
 };
 
-/** A succeeded job, or an interrupted one that kept a board — both undelivered, both deliverable. */
+/**
+ * A succeeded job, or a halted one that kept a board — undelivered in either case.
+ *
+ * `stopped` joins `interrupted` here (S-306) because the two differ only in WHO halted the run: the
+ * author asked, or the container went away. A checkpoint is a checkpoint, written through the same
+ * wire path, and it delivers through the same chain. S-305 owns the PRODUCER of a `stopped` row;
+ * admitting one for delivery is this slice's one-predicate down-payment on it.
+ */
 const deliverable = (row: StatusRow): boolean =>
   row.delivered_plan_id === null &&
-  (row.status === "succeeded" || (row.status === "interrupted" && row.checkpoint_stage_index !== null));
+  (row.status === "succeeded" || (halted(row) && row.checkpoint_stage_index !== null));
 
 /** A terminal job with nothing to deliver: its clone can only ever be litter. */
 const sweepable = (row: StatusRow): boolean =>
-  row.status === "failed" || (row.status === "interrupted" && row.checkpoint_stage_index === null);
+  row.status === "failed" || (halted(row) && row.checkpoint_stage_index === null);
+
+/** Stopped short of the ladder's end — by the author (`stopped`) or by the platform (`interrupted`). */
+const halted = (row: StatusRow): boolean => row.status === "interrupted" || row.status === "stopped";
 
 // --- reclaim ----------------------------------------------------------------------------------
 
@@ -207,9 +226,20 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
     await failJob(supabase, row.id, `the result could not be translated onto the proposal plan: ${reason}`, {
       detachClone: true,
     });
+    // The one terminal branch that leaves a clone ALIVE, so the one that must un-pend it by hand.
+    // Without this the plan is stranded read-only forever: no job references it any more, so nothing
+    // would ever clear the flag. (Near-unreachable since S-306 — the catalog cannot be edited while
+    // pending — but "near" is not "never": a service-role write, or a clone detached by an earlier
+    // failure, can still get here.)
+    await clearPending(supabase, proposalPlanId);
     return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" });
   }
   await applyToProposal(supabase, proposalPlanId, translated);
+  // BETWEEN the apply and the marker, and that ordering is the same argument the marker's own
+  // position rests on. A crash here leaves `delivered_plan_id` null, so the next visit re-enters
+  // `deliver()`, re-applies (the region replace absorbs it) and re-clears — whereas clearing after
+  // the marker would strand a delivered plan read-only if the process died in between.
+  await clearPending(supabase, proposalPlanId);
   await markDelivered(supabase, row.id, proposalPlanId);
 
   return toView(
@@ -337,7 +367,7 @@ const latestJob = async (supabase: SupabaseClient, planId: string): Promise<Stat
 /** Which column holds the board this job is delivering. `result` stays the succeeded-only one. */
 type PayloadColumn = "result" | "checkpoint";
 
-const payloadColumn = (row: StatusRow): PayloadColumn => (row.status === "interrupted" ? "checkpoint" : "result");
+const payloadColumn = (row: StatusRow): PayloadColumn => (halted(row) ? "checkpoint" : "result");
 
 /** The heavy pair, fetched ONLY once a job is known to be deliverable-and-undelivered. */
 const loadPayload = async (
@@ -375,11 +405,27 @@ const labelOf = async (supabase: SupabaseClient, row: StatusRow): Promise<CleanL
   return deriveCleanLabel(row.stages, computePinnedSoftFloor(data.snapshot as unknown as GeneratorSnapshot));
 };
 
+/**
+ * Un-pend the proposal: it stops being a job artifact and becomes an ordinary plan.
+ *
+ * Loud rather than best-effort, unlike `failJob`/`deleteOrphanClone` beside it. A clone left pending
+ * is a plan nobody can rename, clone, delete or open past its progress page — the failure mode is a
+ * permanently stranded row, not a bit of litter — so the caller must hear about it.
+ */
+const clearPending = async (supabase: SupabaseClient, proposalPlanId: string): Promise<void> => {
+  const { error } = await supabase.from("plans").update({ pending_proposal: false }).eq("id", proposalPlanId);
+  if (error) {
+    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to release the proposal plan: ${error.message}`);
+  }
+};
+
 const markDelivered = async (supabase: SupabaseClient, jobId: string, proposalPlanId: string): Promise<void> => {
   // Losing this CAS is not an error: it means another tab delivered the identical verified board.
+  // `delivery` rides along in the SAME update so the pair can never disagree — the vocabulary has
+  // exactly one value (`'proposal'`, checked in the schema) because the source is never a target.
   const { error } = await supabase
     .from("generation_jobs")
-    .update({ delivered_plan_id: proposalPlanId })
+    .update({ delivered_plan_id: proposalPlanId, delivery: "proposal" })
     .eq("id", jobId)
     .is("delivered_plan_id", null);
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to mark the job delivered: ${error.message}`);

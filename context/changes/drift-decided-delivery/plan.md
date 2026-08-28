@@ -740,13 +740,13 @@ integration test).
 
 #### Automated
 
-- [ ] 1.1 `pnpm exec prettier --check context/foundation/prd.md context/foundation/roadmap.md README.md` passes
+- [x] 1.1 `pnpm exec prettier --check context/foundation/prd.md context/foundation/roadmap.md README.md` passes
 
 #### Manual
 
-- [ ] 1.2 FR-307 shows three dated blocks in order and the current rule is unambiguous
-- [ ] 1.3 Open Question 4 reads as resolved with the chosen mechanism
-- [ ] 1.4 No remaining prose says a result is merged or auto-applied to the source
+- [x] 1.2 FR-307 shows three dated blocks in order and the current rule is unambiguous
+- [x] 1.3 Open Question 4 reads as resolved with the chosen mechanism
+- [x] 1.4 No remaining prose says a result is merged or auto-applied to the source
 
 ### Phase 2: Schema + pending lifecycle
 

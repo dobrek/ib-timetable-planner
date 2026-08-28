@@ -121,8 +121,9 @@ no scale change.
 What changes for them is the *generation experience*: instead of a 20-second
 local draft that leaves hours unplaced, they kick off a solve job against a
 snapshot of their plan, keep editing freely (no locking), watch quality accrue
-stage by stage, may stop early and keep the best board so far, and receive a
-complete proposal to compare against and adopt deliberately.
+stage by stage, may stop early and keep the best board so far, and receive the
+complete proposal **as a plan of its own** — to compare against the source and
+then keep, rename or delete.
 
 ## Success Criteria
 
@@ -146,12 +147,12 @@ when, working from an existing plan:
    "never worse". Each stage hardens `tier_k <= best_k`, so a later stage can
    never undo an earlier one — but a stage that finds no improvement leaves the
    ranking unchanged, which is a legitimate and common outcome, not a failure.)_
-4. On completion the author is notified and **decides delivery**: they review
-   the oracle-verified board and either merge it into the source or keep it as
-   a separate plan. The drift check **gates and informs** that decision — an
-   unchanged source makes merging a single confirmation; a drifted source is
-   named, and merging is offered only where the board still verifies against
-   the source as it now stands.
+4. On completion the author is notified, and **the proposal becomes a plan**:
+   the oracle-verified board lands on the clone — pending until that moment,
+   and never on the source. The author opens it, compares it against the source
+   on the existing comparison page if they wish, and then **keeps, renames or
+   deletes** it. Rename and delete are the acts; nothing is merged, and the
+   source plan is never written to.
    _(Re-grounded 2026-08-28 with S-306's frame. Was: "the drift check decides
    delivery — an unchanged source is auto-updated … a changed source leaves the
    result as a new plan … (with dominance information)". Two premises expired.
@@ -164,6 +165,17 @@ when, working from an existing plan:
    "dominance information" moved to S-307, which already claims it. The drift
    check itself survives, demoted from decider to gate-and-advisor, so F-301's
    frozen hash semantics stand. See `context/changes/drift-decided-delivery/frame.md`.)_
+   _(Re-grounded again 2026-08-28, second round, at the author's direction. Was
+   the paragraph immediately above: "decides delivery … either merge it into the
+   source or keep it as a separate plan", with the drift check gating merge.
+   **Merge and the drift gate are retired.** In the author's stated workflow —
+   the source is left alone during a solve — "merge into the source" is exactly
+   equal to "delete the source, rename the proposal", and in the rare drifted
+   case merge was gated to near-unreachability anyway. So the merge branch buys
+   nothing the two acts that already exist do not, while costing a T1 re-hash on
+   every proposal visit, a TOCTOU window, the `isOptional` digest blind spot, a
+   decision panel, and a delivery vocabulary of three values. All of that leaves
+   with it. See `context/changes/drift-decided-delivery/plan.md`.)_
 5. A job survives the author closing the laptop: job state is durable; on
    return the finished proposal is there.
 6. Operationally: merge to main ships app + solver through the one pipeline; a
@@ -235,11 +247,11 @@ calibration campaign, never tuned locally on the M4.
 - **Given** an author on an existing plan with residual unplaced hours
 - **When** they start a CP-SAT job (default clean-mode policy), keep editing
   the source plan freely, and return after the ladder completes
-- **Then** — their edits having drifted the source — the result is held as a
-  complete, oracle-verified, quality-optimized board they review before
-  anything is applied; the source plan is intact including their edits; they
-  compare the two on the existing comparison page, are told the source drifted,
-  and either keep the result as a separate plan or merge it deliberately
+- **Then** the result lands on the proposal plan as a complete,
+  oracle-verified, quality-optimized board they review before deciding
+  anything; the source plan is intact including their edits, because nothing is
+  ever written to it; they compare the two on the existing comparison page and
+  keep, rename or delete the proposal
 
 > Before: generation was a 20-second local greedy draft that left 5–8 h
 > unplaced, ran only while the tab stayed open, and overwrote nothing safely —
@@ -256,16 +268,15 @@ calibration campaign, never tuned locally on the M4.
 > Before: cancelling greedy kept its best-so-far only in browser memory; a
 > long solve had no notion of accrued, keepable progress.
 
-### US-303: Unchanged source merges in one confirmation
+### US-303: A proposal becomes a plan the moment it is delivered
 
-- **Given** a running job whose source plan receives no edits during the solve
-- **When** the job completes and the author opens the result
-- **Then** they are told the source is unchanged, so the board they are looking
-  at is exactly the board that was solved for: merging it into the source is a
-  single confirmation with nothing to reconcile, and the atomic RPC applies it
-  in their own request — no ceremony beyond the one act of saying yes; had the
-  source drifted, the drift would be named and merging offered only if the
-  board still verifies against the source as it now stands
+- **Given** a running job whose proposal plan is listed but pending — openable
+  read-only with live progress, and refused by every edit path
+- **When** the job completes and the author opens the proposal (or the source)
+- **Then** the oracle-verified board is applied onto the proposal in their own
+  authenticated request, the proposal stops being pending and is an ordinary
+  plan from that moment — nameable, editable, comparable, deletable — and the
+  source plan is untouched
 
 > Before: the drift guard existed only in the bench import experiment; there
 > was no automated delivery path at all.
@@ -278,6 +289,13 @@ calibration campaign, never tuned locally on the M4.
 > "receives no edits **during the solve**" did not determine the branch: the
 > drift window ran to whenever delivery actually fired, which is not job
 > completion. Confirmation closes that window at the moment the author acts.
+
+> _Re-grounded again 2026-08-28 (second round)._ Was: "Unchanged source merges
+> in one confirmation". With merge retired (FR-307), there is no confirmation
+> to give and no drift to report on this pair: delivery targets the proposal
+> only, so it needs no gate. What the story now pins is the **pending→plan
+> transition** — the one moment in the flow where a row changes character — and
+> the invariant the whole slice exists to hold: the source is never written to.
 
 ## Scope of Change
 
@@ -346,8 +364,8 @@ calibration campaign, never tuned locally on the M4.
 - [new] FR-306: A result is imported onto any plan only after passing the
   oracle. Review happens on **every** delivery (FR-307), and the review surface
   is the **existing plan-comparison page** — no new side-by-side surface is
-  built. The author reaches it from the completed job, is shown whether the
-  source drifted from the solved snapshot, and concludes there. Priority:
+  built. The author reaches it the way they reach it for any other pair of
+  plans: from the hub, by picking the proposal and its source. Priority:
   must-have.
   > Socrates: Counter-argument **accepted (refined)**: rather than a new
   > side-by-side review UX, reuse the comparison page the product already
@@ -369,16 +387,26 @@ calibration campaign, never tuned locally on the M4.
   > for snapshot drift — the page's existing drift banner is provably silent on
   > a source-vs-proposal pair, because it fingerprints the catalog and a
   > board-only edit does not move it.
-- [new] FR-307: **The author decides delivery, and the drift check gates the
-  decision.** When a job completes the author is notified and reviews the
-  oracle-verified board. They may **merge** it into the source via the atomic
-  RPC, or **keep** it as a separate plan. Before offering merge the app
-  re-derives the source's snapshot digest and compares it to the one recorded
-  at dispatch: **unchanged** → merging is a single confirmation, the board
-  being exactly what was solved for; **changed** → the drift is named, and
-  merge is offered only where the board still passes the oracle against the
-  source as it now stands. Nothing is applied without an author action, so
-  every write runs inside their own authenticated request. Priority: must-have.
+  > Re-grounded again 2026-08-28 (second round): **both additions are dropped.**
+  > With merge retired there is no decision to route into and no gate to inform,
+  > so the drift signal has no consumer — and computing one would cost a full
+  > `loadCombinedPlannerData` (~18 round trips) per proposal visit for a
+  > sentence nobody acts on. The route in is likewise unowed: once the proposal
+  > is an ordinary plan, comparing it to its source is the hub's existing
+  > two-plan flow, unchanged. FR-306's operative content is now exactly its
+  > first sentence — the oracle gates every import — and the fact that review
+  > has a surface at all.
+- [new] FR-307: **The proposal is a plan.** Generate clones the source as
+  `Proposal — <name>` and the clone is **pending**: listed on the hub with a
+  live job badge, openable read-only with progress, and refused by every edit
+  path (rename, clone, delete, and every plan-scoped catalog and view route).
+  When a deliverable result exists, the next visit — to the proposal or to the
+  source — verifies it against the oracle, translates it, applies it **onto the
+  proposal**, and clears the pending flag: from that moment the proposal is an
+  ordinary plan. **The source plan is never written to.** There is no merge and
+  no drift gate; the author keeps, renames or deletes, and both acts already
+  exist. Every write still runs inside the author's own authenticated request.
+  Priority: must-have.
   > Socrates: Challenge **accepted (reshaped)**: instead of a manual "Apply
   > to source" affordance, completion-time drift detection decides delivery —
   > unchanged source ⇒ replace (auto-apply); changed source ⇒ the solution
@@ -409,13 +437,49 @@ calibration campaign, never tuned locally on the M4.
   > path is now 100% of runs, and it currently has no route in, no drift signal
   > on this pair, and no act to conclude with. See
   > `context/changes/drift-decided-delivery/frame.md`.
+  > **Re-grounded again 2026-08-28 (second round, at the author's direction) —
+  > merge and the drift gate are retired in turn, and the FR above replaces
+  > them.** Both blocks above are preserved: the first records auto-apply's
+  > retirement, this one records merge's.
+  > **The equivalence argument.** In the author's stated workflow the source is
+  > left alone during a solve, so at delivery the source is byte-identical to
+  > the snapshot the board was solved for. In that case "merge the proposal into
+  > the source" produces exactly the same two rows as "delete the source, rename
+  > the proposal" — same board, same catalog, one name. Both acts already exist
+  > and are one click each on the hub. In the drifted case merge was gated on
+  > the board re-verifying against the moved source, which for a board-only
+  > drift is nearly always false — so the branch that justified the machinery
+  > was also the branch that would almost never fire.
+  > **What leaves with it.** The T1 re-hash on every proposal visit (an ~18
+  > round-trip `loadCombinedPlannerData`), the TOCTOU window between re-hashing
+  > and a blind region replace, the `isOptional` digest blind spot that made
+  > that window a safety hole rather than a curiosity, a merge/keep/discard
+  > decision panel on the comparison page, three new actions, and a `delivery`
+  > CHECK vocabulary of three values (now one: `'proposal'`).
+  > **What it costs.** There is no fold-in path for the one case merge would
+  > have served honestly: the author edits the source during a 20-minute solve
+  > and wants both sets of changes. They must re-apply those edits to the
+  > proposal by hand, or re-generate. Accepted deliberately — the author reports
+  > not editing during a solve, and a fold-in that only works when nothing
+  > conflicts is not a fold-in.
 - [new] FR-308: While a job runs, the source plan shows an advisory "proposal
-  in progress from <time> state" indicator; one job per source plan is active
-  at a time; editing is never blocked. Priority: must-have.
+  in progress from <time> state" indicator linking to the proposal; one job per
+  source plan is active at a time; editing is never blocked. After a **failed**
+  run the source reports the failure until the next Generate. It shows nothing
+  else: **all other status lives on the proposal row and the proposal's own
+  page** — progress while pending, provenance ("Generated from <source> at
+  <time>") once delivered. Priority: must-have.
   > Socrates: Counter-arguments considered: one-job-per-plan blocks parallel
   > policy runs; advisory-only indicator under-informs. Resolution: stands as
   > written — the single-job limit is the simplest concurrency model and can
   > be lifted later (per-job container instances make parallel runs cheap).
+  > Re-grounded 2026-08-28 (S-306, second round): the split between the two
+  > plans is made explicit. It was previously implicit that the source carried
+  > every status surface, because the proposal had no reader until delivery.
+  > Now that the proposal is listed and openable from its first second, the
+  > result belongs on the row it is about; the source keeps only the advisory
+  > (which is about the source's own state — "your snapshot is out solving")
+  > and a home for failures, which have no proposal left to land on.
 - [new] FR-309: Author is notified on job completion with the result
   information — in-app when the app is open, and by **email** to match the
   "kick it off and walk away" usage of a 20-minute job. Priority: nice-to-have.
@@ -438,6 +502,14 @@ calibration campaign, never tuned locally on the M4.
   > and that survives FR-307's retirement as **S-310's** problem, not S-306's —
   > materially cheaper now, because a notifier needs only a read-only identity
   > where auto-apply needed a write one.
+  > Re-grounded 2026-08-28 (S-306, second round): the FR is unchanged, and
+  > S-306 now names the event concretely. It is a **row transition**, not a
+  > render: `generation_jobs.delivered_plan_id` becoming non-null (the result
+  > exists) with `notified_at` still null (nobody has been told). S-306 gives
+  > `notified_at` its first writer — an in-app view of the delivered proposal —
+  > and reads the pair to keep the hub badge durable across reloads. S-310's
+  > emailer is the second writer of the same column and should skip rows that
+  > already carry a `notified_at`.
 
 ### Solver service
 
@@ -631,22 +703,29 @@ lexicographic order and the teacher/student trade-off dial are selectable.
 Boards are dominance-checked before presentation so a strictly-worse board is
 never offered as the outcome.
 
-**Delivery rule — new: the author decides, drift gates.** A solve result is
-meaningful only against the exact snapshot it was produced from. The solve
-never runs against the live plan — the live plan is never locked. On completion
-the author is notified and reviews the oracle-verified board on the existing
-comparison page, then either **merges** it into the source or **keeps** it as a
-separate plan. The drift check runs at that moment, not to decide but to gate
-and inform: **unchanged** → merging is a single confirmation; **changed** → the
-drift is named, and merge is offered only where the board still passes the
-oracle against the source as it now stands. No board reaches a plan except
-through an author action in their own authenticated request.
+**Delivery rule — new: the proposal is a plan.** A solve result is meaningful
+only against the exact snapshot it was produced from, so the solve never runs
+against the live plan — and the live plan is never locked, nor ever written to.
+The proposal clone exists from dispatch but is **pending** until a deliverable
+result lands on it: listed, openable read-only with progress, refused by every
+edit path. The delivering visit — to the proposal or to the source — verifies
+against the oracle, translates ids, applies the board **onto the proposal**, and
+clears the flag. From that moment the proposal is an ordinary plan and the
+author keeps, renames or deletes it. There is no merge and no drift gate. No
+board reaches a plan except through this pipeline, inside the author's own
+authenticated request.
 
 _(Re-grounded 2026-08-28 with S-306's frame — was "drift decides", with an
 unchanged source auto-applied. See FR-307 for the full reasoning: the author
 reviews every result by preference, so the automation removed a step they want,
 and it was the sole claimant on a session-free write credential the project has
 twice refused.)_
+
+_(Re-grounded again 2026-08-28, second round — was "the author decides, drift
+gates", with merge into the source as one of two outcomes. Merge is retired:
+for the author's no-edit workflow it is exactly equal to delete-source +
+rename-proposal, and in the drifted case it was gated to near-unreachability.
+See FR-307's equivalence argument.)_
 
 **Job rules — new.** One active job per source plan; stage checkpoints are
 durable; "Stop & keep" adopts the last *completed* stage. The oracle remains
@@ -708,30 +787,34 @@ printable / PDF export; teacher soft preferences and hours-per-week caps.
    deliberately narrow today (Workers Scripts: Edit); verify the exact scopes
    Containers requires against current Cloudflare docs when wiring the deploy
    lane. — Owner: deploy-lane phase.
-4. **When the proposal plan is materialised.** _(Opened 2026-08-28 by S-306's
-   frame; FR-301 still describes cloning at dispatch.)_ The clone has no reader
-   between dispatch and completion — the poll projection omits it, the solver
-   cannot see the column, and the client discards the id — while in that window
-   it is a visible, editable, deletable plan that can destroy a 20-minute solve,
-   and it drives six orphan-deletion call sites. Materialising at **completion**
-   instead would close that window and most of those paths. Two author
-   constraints bound the choice: the proposal must be viewable **as a board**
-   (that is what produces confidence in the merge decision), and a result the
-   author declines should **persist by default** rather than vanish — which
-   together rule out materialising only on "keep", since a plan row is what
-   makes a board viewable and durable today. So the live question is dispatch
-   vs. completion, not dispatch vs. never. Deliberately left open here: it is a
-   mechanism choice with a real counter-argument (a clone made at dispatch is
-   the only durable copy of the display catalog the snapshot omits, so a
-   completion-time clone can fail natural-key translation when the catalog
-   moved). — Owner: S-306 plan phase.
+4. ~~**When the proposal plan is materialised.**~~ **RESOLVED 2026-08-28
+   (S-306 plan phase): clone at dispatch, pending until delivered.** _(Opened
+   the same day by S-306's frame.)_ The question was dispatch vs. completion —
+   the clone had no reader between the two (the poll projection omitted it, the
+   solver cannot see the column, the client discarded the id) while being a
+   visible, editable, deletable plan that could destroy a 20-minute solve.
+   **Resolution:** keep cloning at dispatch and give the clone a durable
+   *pending* state (`plans.pending_proposal`, set by enqueue, cleared by
+   delivery). This closes the editable window — the thing that actually made
+   eager materialisation dangerous — without giving up the dispatch clone's
+   unique property: it is the only T0-faithful copy of the **display** catalog,
+   which `generation_jobs.snapshot` omits (no `name`/`level`/`group_index`), so
+   a completion-time clone could fail natural-key translation whenever the
+   catalog moved. It also keeps the tested delivery pipeline (verify →
+   translate → apply → mark) intact and gives the pending row somewhere to show
+   progress. The cost is that a swept clone must be deleted rather than never
+   created — six deletion sites stay, unchanged and already covered.
+   — Owner: S-306 plan phase. **Answered.**
 
 > Resolved during shaping (recorded for traceability): default policy → clean
 > mode (FR-302); plan locking → never, proposal clones (FR-307/308); ~~delivery
-> → drift-decided auto-apply vs new plan (FR-307)~~ **[retired 2026-08-28 —
-> delivery → author-decided merge-or-keep, drift gates rather than decides;
-> see FR-307]**; Mode-A timeout → fall back
+> → drift-decided auto-apply vs new plan (FR-307)~~ ~~[retired 2026-08-28 —
+> delivery → author-decided merge-or-keep, drift gates rather than decides]~~
+> **[retired again 2026-08-28, second round — delivery → the proposal is a
+> plan: the board lands on the pending clone, the source is never written to,
+> and rename/delete are the acts; no merge, no drift gate; see FR-307]**;
+> Mode-A timeout → fall back
 > to the background job (Business Logic); snapshot assembly → settle, then
-> clone, then assemble server-side (FR-301 — clone *timing* reopened as Open
-> Question 4); notifications → polling + in-app
+> clone, then assemble server-side (FR-301 — clone *timing* settled as
+> dispatch-with-pending, Open Question 4); notifications → polling + in-app
 > now, email nice-to-have, push recorded as upgrade (FR-304/309).

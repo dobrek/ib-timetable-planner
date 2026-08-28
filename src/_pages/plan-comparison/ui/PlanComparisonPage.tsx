@@ -73,10 +73,10 @@ function Comparison({ data }: { data: PlanComparisonData }) {
           {/* Named, not swallowed: a shareable URL goes stale, and the reader deserves to know which
               plan is absent from the columns rather than silently comparing fewer plans. */}
           {data.missingPlanIds.length === 1
-            ? "1 plan could not be loaded"
-            : `${String(data.missingPlanIds.length)} plans could not be loaded`}
+            ? "1 plan could not be loaded or is still being generated"
+            : `${String(data.missingPlanIds.length)} plans could not be loaded or are still being generated`}
           {" — "}
-          {data.missingPlanIds.join(", ")}. It may have been deleted.
+          {data.missingPlanIds.join(", ")}. It may have been deleted, or be a proposal whose board has not landed yet.
         </div>
       ) : null}
 

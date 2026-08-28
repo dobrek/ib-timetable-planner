@@ -20,8 +20,20 @@ import { err, ok, type Result } from "@/shared/lib/result";
 import { toPlannerPlacement, type BoardAvailabilityCell, type PlannerPlacement } from "@/entities/timetable";
 import type { CourseInfo } from "@/widgets/timetable-board";
 
-/** Expected absences: missing plan / teacher not in the plan vs. a misconfigured environment. */
-export type TeacherViewError = { kind: "not-found" } | { kind: "unavailable"; message: string };
+/**
+ * Expected absences: missing plan / teacher not in the plan vs. a misconfigured environment — plus
+ * `pending`, which is neither.
+ *
+ * A pending proposal (S-306) EXISTS and is perfectly readable; it is simply the apply target of a
+ * solve that has not finished, so its board is not yet the board. Reporting that as `not-found` would
+ * tell the author their plan is gone. The refusal lives here rather than only in the route because
+ * this is the short-circuit point: it fires after the one plan read and before the cohort catalog,
+ * placements, merges and teacher names this loader would otherwise fetch for a board nobody may see.
+ */
+export type TeacherViewError =
+  | { kind: "not-found" }
+  | { kind: "pending"; planName: string }
+  | { kind: "unavailable"; message: string };
 
 /** The plan's teacher record — the shared `PlanTeacher`, re-aliased so slice consumers keep one import home. */
 export type TeacherSummary = PlanTeacher;
@@ -76,11 +88,12 @@ export const loadTeacherPlanView = async (
 
   const { data: plan, error: planError } = await supabase
     .from("plans")
-    .select("id, name, slot_grid_preset")
+    .select("id, name, slot_grid_preset, pending_proposal")
     .eq("id", planId)
     .maybeSingle();
   if (planError) throw new Error(`Plan lookup failed: ${planError.message}`);
   if (!plan) return err({ kind: "not-found" });
+  if (plan.pending_proposal) return err({ kind: "pending", planName: plan.name });
 
   const teachers = await loadPlanTeachers(supabase, planId);
   const teacher = teachers.find((row) => row.id === teacherId);

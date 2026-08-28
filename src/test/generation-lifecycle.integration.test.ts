@@ -7,7 +7,7 @@ import {
   type GenerationResult,
   type SolverTransport,
 } from "@/entities/timetable";
-import { checkGeneration, startGeneration } from "@/_pages/plan-detail/api";
+import { checkPlan, startGeneration } from "@/_pages/plan-detail/api";
 import { addCourse, addStudentWithChoices, addTeacher, createPlan, registerPlan, teardown } from "@/test/factories";
 
 /**
@@ -16,7 +16,7 @@ import { addCourse, addStudentWithChoices, addTeacher, createPlan, registerPlan,
  * **No solver, on purpose.** Every failure this suite is about happens strictly after the container
  * stopped existing — a hard kill writes nothing, which is the whole point — so the fixture writes the
  * row a dead solve would have left behind and then drives the two recovery paths that exist:
- * `checkGeneration` (the plan visit, authoritative, and the one that also delivers the checkpoint) and
+ * `checkPlan` (the plan visit, authoritative, and the one that also delivers the checkpoint) and
  * `startGeneration`'s `23505` backstop (the author who clicks Generate without opening the plan).
  *
  * **The parts that must be real are real.** The plan, its catalog, the clone and the job's `snapshot`
@@ -131,7 +131,7 @@ const LONG_DEAD = (): string => new Date(Date.now() - HEARTBEAT_GRACE_MS * 2).to
     const { planId, board } = await tinyPlan("deliver");
     const { jobId, proposalPlanId } = await wedgedJob(planId, { checkpoint: board });
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     // One visit did both halves: the CAS runs ahead of the delivery branch precisely so the author
     // does not have to come back a second time to collect a board that was already durable.
@@ -157,7 +157,7 @@ const LONG_DEAD = (): string => new Date(Date.now() - HEARTBEAT_GRACE_MS * 2).to
     const { planId } = await tinyPlan("sweep");
     const { jobId, proposalPlanId } = await wedgedJob(planId);
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ jobId, status: "interrupted", delivered: false, checkpointStageIndex: null });
     // The clone can only ever be litter: nothing will be delivered onto it, and leaving it would put
@@ -174,7 +174,7 @@ const LONG_DEAD = (): string => new Date(Date.now() - HEARTBEAT_GRACE_MS * 2).to
     const { planId } = await tinyPlan("nobeat");
     const { jobId } = await wedgedJob(planId, { heartbeatAt: null });
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ jobId, status: "interrupted" });
     expect(view?.error).toMatch(/never recorded/);
@@ -213,7 +213,7 @@ const LONG_DEAD = (): string => new Date(Date.now() - HEARTBEAT_GRACE_MS * 2).to
     const { jobId } = await wedgedJob(planId, { heartbeatAt: new Date().toISOString() });
 
     // The visit reads and returns; it must not write.
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
     expect(view).toMatchObject({ jobId, status: "running" });
     expect(await jobRow(jobId)).toMatchObject({ status: "running", finished_at: null });
 

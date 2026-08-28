@@ -752,32 +752,32 @@ integration test).
 
 #### Automated
 
-- [x] 2.1 Migration applies cleanly: `pnpm exec supabase db reset`
-- [x] 2.2 Types regenerate without diff noise beyond the new column
-- [x] 2.3 Type check passes: `pnpm check`
-- [x] 2.4 Lint + FSD pass: `pnpm lint && pnpm steiger`
-- [x] 2.5 Unit suite passes: `pnpm test`
-- [x] 2.6 Integration suite passes with the solver up
+- [x] 2.1 Migration applies cleanly: `pnpm exec supabase db reset` — 171bdc5
+- [x] 2.2 Types regenerate without diff noise beyond the new column — 171bdc5
+- [x] 2.3 Type check passes: `pnpm check` — 171bdc5
+- [x] 2.4 Lint + FSD pass: `pnpm lint && pnpm steiger` — 171bdc5
+- [x] 2.5 Unit suite passes: `pnpm test` — 171bdc5
+- [x] 2.6 Integration suite passes with the solver up — 171bdc5
 
 #### Manual
 
-- [x] 2.7 Studio shows the clone pending after Generate and un-pending with `delivery = 'proposal'` after delivery
+- [x] 2.7 Studio shows the clone pending after Generate and un-pending with `delivery = 'proposal'` after delivery — 171bdc5
 
 ### Phase 3: Proposal-keyed delivery, the pending page, and the guards
 
 #### Automated
 
-- [ ] 3.1 Type check passes: `pnpm check`
-- [ ] 3.2 Lint + FSD pass: `pnpm lint && pnpm steiger`
-- [ ] 3.3 Unit suite passes (strip, pending hook, notice): `pnpm test`
-- [ ] 3.4 Integration suite passes, including `checkPlan` (both keys + precedence) and the plan-action guard cases
-- [ ] 3.5 Production build stays clean: `pnpm build`
+- [x] 3.1 Type check passes: `pnpm check`
+- [x] 3.2 Lint + FSD pass: `pnpm lint && pnpm steiger`
+- [x] 3.3 Unit suite passes (strip, pending hook, notice): `pnpm test`
+- [x] 3.4 Integration suite passes, including `checkPlan` (both keys + precedence) and the plan-action guard cases
+- [x] 3.5 Production build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.6 Pending proposal: progress page, catalog notice, rename refused
-- [ ] 3.7 Proposal page delivers itself on completion; strip names the source; source shows nothing
-- [ ] 3.8 Failed solve: source strip reports it; proposal gone from the hub
+- [x] 3.6 Pending proposal: progress page, catalog notice, rename refused
+- [x] 3.7 Proposal page delivers itself on completion; strip names the source; source shows nothing
+- [x] 3.8 Failed solve: source strip reports it; proposal gone from the hub
 
 ### Phase 4: The hub as the notification surface
 

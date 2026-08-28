@@ -10,7 +10,7 @@ import {
   registerPlan,
   teardown,
 } from "@/test/factories";
-import { checkGeneration } from "./generation-delivery";
+import { checkPlan } from "./generation-delivery";
 import { startGeneration } from "./generation-job";
 
 /**
@@ -35,7 +35,7 @@ const acceptingTransport: SolverTransport = {
   checkHealth: () => Promise.resolve(true),
 };
 
-(hasEnv ? describe : describe.skip)("checkGeneration (local Supabase)", () => {
+(hasEnv ? describe : describe.skip)("checkPlan (local Supabase)", () => {
   let supabase: SupabaseClient<Database>;
 
   /** A minimal two-cohort plan: each cohort gets one 1-hour course with a teacher and a student. */
@@ -128,7 +128,7 @@ const acceptingTransport: SolverTransport = {
     ];
     const { jobId, proposalPlanId } = await solvedJob(planId, board);
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ jobId, status: "succeeded", delivered: true, proposalPlanId });
     expect(view?.cleanLabel).toEqual({ kind: "clean" });
@@ -158,8 +158,8 @@ const acceptingTransport: SolverTransport = {
       { cohort: "dp1", courseId: dp1CourseId, day: 1, period: 1, week: "both" },
     ]);
 
-    const first = await checkGeneration(supabase, { planId });
-    const second = await checkGeneration(supabase, { planId });
+    const first = await checkPlan(supabase, { planId });
+    const second = await checkPlan(supabase, { planId });
 
     expect(first?.delivered).toBe(true);
     expect(second).toMatchObject({ delivered: true, proposalPlanId });
@@ -175,9 +175,9 @@ const acceptingTransport: SolverTransport = {
     ]);
 
     const views = await Promise.all([
-      checkGeneration(supabase, { planId }),
-      checkGeneration(supabase, { planId }),
-      checkGeneration(supabase, { planId }),
+      checkPlan(supabase, { planId }),
+      checkPlan(supabase, { planId }),
+      checkPlan(supabase, { planId }),
     ]);
 
     expect(views.every((view) => view?.delivered)).toBe(true);
@@ -208,7 +208,7 @@ const acceptingTransport: SolverTransport = {
       courses.map((courseId) => ({ cohort: "dp1" as const, courseId, day: 1, period: 1, week: "both" as const })),
     );
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ status: "failed", delivered: false, proposalPlanId: null });
     expect(await jobRow(jobId)).toMatchObject({ status: "failed", delivered_plan_id: null });
@@ -225,7 +225,7 @@ const acceptingTransport: SolverTransport = {
       .update({ status: "failed", error: "infeasible: the snapshot admits no complete board" })
       .eq("id", jobId);
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ status: "failed", proposalPlanId: null });
     expect(view?.error).toMatch(/infeasible/);
@@ -246,7 +246,7 @@ const acceptingTransport: SolverTransport = {
       .update({ status: "stopped", result: null, checkpoint: solved?.result, checkpoint_stage_index: 5 })
       .eq("id", jobId);
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ status: "stopped", delivered: true, proposalPlanId, checkpointStageIndex: 5 });
     expect(await jobRow(jobId)).toMatchObject({ delivered_plan_id: proposalPlanId, delivery: "proposal" });
@@ -262,7 +262,7 @@ const acceptingTransport: SolverTransport = {
       .update({ status: "stopped", result: null, checkpoint: null, checkpoint_stage_index: null })
       .eq("id", jobId);
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ status: "stopped", delivered: false, proposalPlanId: null });
     expect((await supabase.from("plans").select("id").eq("id", proposalPlanId)).data).toEqual([]);
@@ -285,7 +285,7 @@ const acceptingTransport: SolverTransport = {
     // The natural key is `(cohort, name, level, groupIndex)`; moving `name` on the clone breaks it.
     await supabase.from("courses").update({ name: "Renamed behind the guard" }).eq("plan_id", proposalPlanId);
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ status: "failed", delivered: false, proposalPlanId: null });
     // Read the reason off the ROW, not the view: every `failJob` branch returns the row as it was
@@ -304,7 +304,7 @@ const acceptingTransport: SolverTransport = {
     const { proposalPlanId } = await startGeneration(supabase, { planId }, { getTransport: () => acceptingTransport });
     registerPlan(proposalPlanId);
 
-    const view = await checkGeneration(supabase, { planId });
+    const view = await checkPlan(supabase, { planId });
 
     expect(view).toMatchObject({ status: "queued", delivered: false, proposalPlanId });
     expect(view?.cleanLabel).toEqual({ kind: "unavailable" });
@@ -313,10 +313,154 @@ const acceptingTransport: SolverTransport = {
     expect(await pendingOf(proposalPlanId)).toBe(true);
   });
 
+  /**
+   * S-306's second key. The same job row is reachable from the source plan and from the proposal, and
+   * the only thing the key decides is the `role` tag — which is what makes the strip tell two
+   * different stories about one row.
+   */
+  describe("keyed by the proposal", () => {
+    it("delivers from a visit to the PROPOSAL, and the source stays untouched", async () => {
+      // The delivering visit no longer has to be to the source. This is what makes the proposal page
+      // able to poll itself into a board: delivery from that page is delivery TO that page.
+      const { planId, dp1CourseId } = await tinyPlan("by-proposal");
+      const { jobId, proposalPlanId } = await solvedJob(planId, [
+        { cohort: "dp1", courseId: dp1CourseId, day: 4, period: 2, week: "both" },
+      ]);
+
+      const view = await checkPlan(supabase, { planId: proposalPlanId });
+
+      expect(view).toMatchObject({ jobId, role: "proposal", delivered: true, sourcePlanId: planId });
+      expect(await jobRow(jobId)).toMatchObject({ delivered_plan_id: proposalPlanId, delivery: "proposal" });
+      expect(await pendingOf(proposalPlanId)).toBe(false);
+      expect(await placementsOn(proposalPlanId)).toHaveLength(1);
+      expect(await placementsOn(planId)).toHaveLength(0);
+    });
+
+    it("reads the source plan's NAME on the proposal role — the strip's provenance line", async () => {
+      const { planId, dp1CourseId } = await tinyPlan("provenance");
+      const { proposalPlanId } = await solvedJob(planId, [
+        { cohort: "dp1", courseId: dp1CourseId, day: 1, period: 1, week: "both" },
+      ]);
+      const sourceName = (await supabase.from("plans").select("name").eq("id", planId).single()).data?.name;
+
+      const view = await checkPlan(supabase, { planId: proposalPlanId });
+
+      expect(view?.sourcePlanName).toBe(sourceName);
+      // ...and NOT read on the source role, where it would be a round trip for a name the page has.
+      expect((await checkPlan(supabase, { planId }))?.sourcePlanName).toBeNull();
+    });
+
+    it("delivers exactly once when both keys are checked concurrently", async () => {
+      // The realistic race: the author has the proposal page open (which polls) and clicks through to
+      // the source. Two entry points, one compare-and-set, one applied board.
+      const { planId, dp1CourseId } = await tinyPlan("both-keys");
+      const { proposalPlanId } = await solvedJob(planId, [
+        { cohort: "dp1", courseId: dp1CourseId, day: 2, period: 2, week: "both" },
+      ]);
+
+      const views = await Promise.all([
+        checkPlan(supabase, { planId }),
+        checkPlan(supabase, { planId: proposalPlanId }),
+        checkPlan(supabase, { planId: proposalPlanId }),
+      ]);
+
+      expect(views.every((view) => view?.delivered)).toBe(true);
+      expect(await placementsOn(proposalPlanId)).toHaveLength(1);
+    });
+
+    it("a plan that is BOTH prefers its own job while it has anything left to do", async () => {
+      // A delivered proposal can itself be generated from, at which point it is the `proposal_plan_id`
+      // of one job and the `plan_id` of another. Precedence: the plan's own job wins while it is
+      // active or undelivered — a live solve the author launched HERE is the most urgent thing this
+      // page can say, and it is the only row with anything to deliver. Its failure outranks
+      // provenance too, by the same rule and for the same reason (FR-308: the source reports its own
+      // failure until the next Generate).
+      const { planId, dp1CourseId } = await tinyPlan("both-roles-own");
+      const { proposalPlanId } = await solvedJob(planId, [
+        { cohort: "dp1", courseId: dp1CourseId, day: 1, period: 1, week: "both" },
+      ]);
+      await checkPlan(supabase, { planId: proposalPlanId });
+
+      const second = await startGeneration(
+        supabase,
+        { planId: proposalPlanId },
+        { getTransport: () => acceptingTransport },
+      );
+      registerPlan(second.proposalPlanId);
+
+      expect(await checkPlan(supabase, { planId: proposalPlanId })).toMatchObject({
+        jobId: second.jobId,
+        role: "source",
+        status: "queued",
+      });
+
+      await supabase
+        .from("generation_jobs")
+        .update({ status: "failed", error: "gave up", finished_at: new Date().toISOString() })
+        .eq("id", second.jobId);
+
+      expect(await checkPlan(supabase, { planId: proposalPlanId })).toMatchObject({
+        jobId: second.jobId,
+        role: "source",
+        status: "failed",
+      });
+    });
+
+    it("...and falls back to its provenance once its own job has delivered", async () => {
+      // The other half of the rule. Once the plan's own job is settled AND delivered it has nothing
+      // left to say here — the result is on ITS proposal — so the row that produced this plan takes
+      // over again and the provenance strip comes back.
+      const { planId, dp1CourseId } = await tinyPlan("both-roles-done");
+      const { proposalPlanId } = await solvedJob(planId, [
+        { cohort: "dp1", courseId: dp1CourseId, day: 1, period: 1, week: "both" },
+      ]);
+      await checkPlan(supabase, { planId: proposalPlanId });
+
+      // Generate FROM the delivered proposal, and let that second job deliver too.
+      const second = await startGeneration(
+        supabase,
+        { planId: proposalPlanId },
+        { getTransport: () => acceptingTransport },
+      );
+      registerPlan(second.proposalPlanId);
+      const cloneCourse = (
+        await supabase.from("courses").select("id").eq("plan_id", proposalPlanId).eq("cohort", "dp1").single()
+      ).data;
+      await supabase
+        .from("generation_jobs")
+        .update({
+          status: "succeeded",
+          result: {
+            placements: [{ cohort: "dp1", courseId: cloneCourse?.id, day: 3, period: 3, week: "both" }],
+            diagnostics: {
+              engine: "cp-sat",
+              elapsedMs: 1,
+              partial: false,
+              provenOptimal: true,
+              cohorts: {
+                dp1: { occupiedSlotsBefore: 0, occupiedSlotsAfter: 1, unplaced: [] },
+                dp2: { occupiedSlotsBefore: 0, occupiedSlotsAfter: 0, unplaced: [] },
+              },
+            },
+          },
+          stages: [{ tier: 5, name: "softHits", status: "OPTIMAL", best: 0, bound: 0, wallClockS: 1 }],
+          finished_at: new Date().toISOString(),
+        })
+        .eq("id", second.jobId);
+      await checkPlan(supabase, { planId: proposalPlanId });
+
+      expect(await checkPlan(supabase, { planId: proposalPlanId })).toMatchObject({
+        role: "proposal",
+        delivered: true,
+        sourcePlanId: planId,
+      });
+    });
+  });
+
   it("returns null for a plan that has never been generated", async () => {
     const planId = await createFactoryPlan(supabase, { name: `Delivery none ${crypto.randomUUID()}` });
 
-    expect(await checkGeneration(supabase, { planId })).toBeNull();
+    expect(await checkPlan(supabase, { planId })).toBeNull();
   });
 });
 

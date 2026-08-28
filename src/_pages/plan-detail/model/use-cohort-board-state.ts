@@ -4,6 +4,7 @@ import {
   type CellCollisions,
   type CrossCohortIndex,
   deriveGenerationDeficits,
+  isActiveJobStatus,
   type LocalPlacement,
   projectFromPlacements,
 } from "@/entities/timetable";
@@ -117,16 +118,22 @@ export function useCombinedBoardState(
       deriveGenerationDeficits(dp2Base.api.placements, dp2Props.catalog, parkedCourseIds(dp2Base.api.parkedBundles)),
     [dp2Base.api.placements, dp2Props.catalog, dp2Base.api.parkedBundles],
   );
-  const disabledReason: GenerationDisabledReason =
-    hasBlocking(dp1Deriv.collisions) || hasBlocking(dp2Deriv.collisions)
-      ? "violations"
-      : dp1Deficits.length === 0 && dp2Deficits.length === 0
-        ? "complete"
-        : null;
   // S-301: Generate enqueues a durable CP-SAT job instead of running the greedy engine in a Web
   // Worker. The snapshot is assembled SERVER-side from the plan's own loader, so nothing is captured
   // at click time here — the click carries only the plan id.
   const generateControls = useGenerationJob({ planId: shared.planId, initialJob: generationJob, busy: combinedBusy });
+  // A live job takes PRECEDENCE over the board-derived reasons (S-306), and the order is the point:
+  // "one active job per plan" is enforced server-side by a partial unique index, so a second click
+  // would come back a `CONFLICT`. Ranking it first means the author reads why they cannot Generate
+  // rather than a stale "Plan is complete" that happens to also be true.
+  const disabledReason: GenerationDisabledReason =
+    generateControls.state.status === "tracking" && isActiveJobStatus(generateControls.state.job.status)
+      ? "generating"
+      : hasBlocking(dp1Deriv.collisions) || hasBlocking(dp2Deriv.collisions)
+        ? "violations"
+        : dp1Deficits.length === 0 && dp2Deficits.length === 0
+          ? "complete"
+          : null;
 
   return {
     dp1: toCohortState(dp1Props, dp1Base, dp1Deriv),
@@ -136,8 +143,9 @@ export function useCombinedBoardState(
   };
 }
 
-/** Why Generate is disabled: blocking violations on either cohort, or nothing left to place. */
-export type GenerationDisabledReason = "violations" | "complete" | null;
+/** Why Generate is disabled: a job is already running, blocking violations on either cohort, or
+ *  nothing left to place. Ranked in that order — see the derivation above. */
+export type GenerationDisabledReason = "generating" | "violations" | "complete" | null;
 
 export type GenerationControls = GenerationJobControls & {
   disabledReason: GenerationDisabledReason;

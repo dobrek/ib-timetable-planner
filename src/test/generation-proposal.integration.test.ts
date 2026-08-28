@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { createSolverTransport } from "@/entities/timetable";
-import { checkGeneration, startGeneration } from "@/_pages/plan-detail/api";
+import { checkPlan, startGeneration } from "@/_pages/plan-detail/api";
 import { addCourse, addStudentWithChoices, addTeacher, createPlan, registerPlan, teardown } from "@/test/factories";
 
 /**
@@ -97,7 +97,7 @@ const POLL_INTERVAL_MS = 250;
       expect(settled.status).toBe("succeeded");
 
       // ...and now the delivery half, which is what a visit would have run.
-      const view = await checkGeneration(admin, { planId });
+      const view = await checkPlan(admin, { planId });
 
       expect(view).toMatchObject({ jobId, status: "succeeded", delivered: true, proposalPlanId });
       // Clean mode is the shipped default and this fixture has no availability at all, so the floor
@@ -118,7 +118,7 @@ const POLL_INTERVAL_MS = 250;
       expect(await placementsOn(admin, planId)).toHaveLength(0);
 
       // Delivery is recorded, so a second visit is a no-op rather than a second apply.
-      const again = await checkGeneration(admin, { planId });
+      const again = await checkPlan(admin, { planId });
       expect(again).toMatchObject({ delivered: true, proposalPlanId });
       expect(await placementsOn(admin, proposalPlanId)).toHaveLength(8);
     },

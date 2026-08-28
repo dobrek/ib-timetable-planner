@@ -1,6 +1,7 @@
 ---
 import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
 import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
+import PendingProposalNotice from "@/app/layouts/PendingProposalNotice.astro";
 import TeacherPlanPage from "@/_pages/teacher-plan-view/ui/TeacherPlanPage";
 import { createClient, isPlanId, loadPlanSummary } from "@/shared/api";
 import { loadTeacherPlanView } from "@/_pages/teacher-plan-view/api";
@@ -15,8 +16,14 @@ const [plan, result] =
     ? await Promise.all([loadPlanSummary(supabase, planId), loadTeacherPlanView(supabase, planId, teacherId)])
     : [null, null];
 
+// S-306: a proposal still being generated is not missing — the loader says `pending` and the page
+// says so too. Its board is the apply target of a running solve, and reading it as final would show
+// the author the clone's pins as if they were the result.
+const pending = result !== null && !result.ok && result.error.kind === "pending" ? result.error : null;
+
 if (!supabase) Astro.response.status = 503;
 else if (!plan) Astro.response.status = 404;
+else if (pending) Astro.response.status = 409;
 // "unavailable" → 503 is defensive-only here: the loader returns it solely for a null
 // client, and this route only calls it when `supabase` is non-null.
 else if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
@@ -29,6 +36,8 @@ const title = data ? `${data.planName} — ${data.teacher.fullName ?? data.teach
   {
     !supabase || (result && !result.ok && result.error.kind === "unavailable") ? (
       <p class="text-muted-foreground text-sm">The teacher schedule is unavailable — Supabase is not configured.</p>
+    ) : pending ? (
+      <PendingProposalNotice planName={pending.planName} planId={planId ?? ""} surface="the teacher schedule" />
     ) : data === null ? (
       <PlanScopedError />
     ) : (

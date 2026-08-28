@@ -5,7 +5,7 @@ import { isStaleActiveJob, stalenessCutoff, type GenerationJobStatus } from "@/e
  * The fail-forward reclaim: move a gone-quiet `queued`/`running` row to `interrupted` so the author is
  * unblocked (S-304).
  *
- * **One writer, two callers.** The plan visit (`checkGeneration`) is the authoritative one — it also
+ * **One writer, two callers.** The plan visit (`checkPlan`) is the authoritative one — it also
  * delivers whatever checkpoint the dead solve left behind. The enqueue path (`startGeneration`) is the
  * backstop for the race the visit cannot cover: an author who clicks Generate before ever loading the
  * plan page hits the partial unique index instead, and that `23505` is where the wedge is felt. Both

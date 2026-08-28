@@ -1,8 +1,9 @@
 ---
 import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
 import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
+import PendingProposalNotice from "@/app/layouts/PendingProposalNotice.astro";
 import CourseCatalog from "@/_pages/courses/ui/CourseCatalog";
-import { createClient, isPlanId, loadPlanSummary } from "@/shared/api";
+import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
 import { loadCatalog } from "@/_pages/courses/api";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
@@ -17,6 +18,10 @@ const [plan, result] =
 if (!supabase) Astro.response.status = 503;
 else if (!plan) Astro.response.status = 404;
 
+// S-306: a proposal whose board has not landed is the apply target of a running solve, so its
+// catalog must not be shown OR edited here — every row on this page is a mutation affordance.
+const pending = plan !== null && isPendingProposal(plan);
+
 const catalog = result?.ok ? result.value : null;
 ---
 
@@ -26,6 +31,8 @@ const catalog = result?.ok ? result.value : null;
       <p class="text-muted-foreground text-sm">Courses are unavailable — Supabase is not configured.</p>
     ) : !plan ? (
       <PlanScopedError />
+    ) : pending ? (
+      <PendingProposalNotice planName={plan.name} planId={plan.id} surface="the course catalog" />
     ) : catalog === null ? (
       <p class="text-muted-foreground text-sm">Courses are unavailable — Supabase is not configured.</p>
     ) : (

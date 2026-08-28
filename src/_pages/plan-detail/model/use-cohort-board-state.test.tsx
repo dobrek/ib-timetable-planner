@@ -8,6 +8,7 @@ import {
   type LocalPlacement,
   placement as buildPlacement,
 } from "@/entities/timetable";
+import type { GenerationJobView } from "../api/generation-delivery";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
 import { indexFromPlacements, useCohortBoardState, useCombinedBoardState } from "./use-cohort-board-state";
 import type { GroupingCourse } from "./grouping/grouping";
@@ -151,6 +152,61 @@ const soloProps = (catalog: GroupingCourse[], placements: LocalPlacement[]): Pla
   catalog,
   crossCohortOccupancy: [],
   parkedBundles: [],
+});
+
+describe("useCombinedBoardState — why Generate is disabled", () => {
+  /**
+   * The ranking, which is the whole content of this derivation (S-306).
+   *
+   * A live job is enforced server-side by a partial unique index, so a second Generate comes back a
+   * `CONFLICT`. Ranking it FIRST means the author reads that reason rather than a board-derived one
+   * that happens to also be true — the previous shape put "Plan is complete" in front of it, which is
+   * the least useful of the three.
+   */
+  const jobView = (status: GenerationJobView["status"]): GenerationJobView => ({
+    jobId: "job-1",
+    status,
+    role: "source",
+    sourcePlanId: "plan-1",
+    sourcePlanName: null,
+    proposalPlanId: "plan-2",
+    delivered: status === "succeeded",
+    error: null,
+    createdAt: "2026-08-28T07:40:07.000Z",
+    finishedAt: null,
+    cleanLabel: { kind: "unavailable" },
+    checkpointStageIndex: null,
+    stageIndex: null,
+    stageName: null,
+  });
+
+  /** dp1 holds two courses that share a teacher in one cell — a BLOCKING violation, so this board
+   *  already has a reason of its own for Generate to be disabled. */
+  const clashingProps = (): PlannerBoardProps => ({
+    ...props("dp1", [buildPlacement("p1", "c1", 1, 1), buildPlacement("p2", "c2", 1, 1)], "c1"),
+    catalog: [course("c1", "shared"), course("c2", "shared")],
+  });
+
+  const reasonWith = (job: GenerationJobView | null) =>
+    renderHook(() => useCombinedBoardState(shared, clashingProps(), props("dp2", [], "c2"), "combined", undefined, job))
+      .result.current.generation.disabledReason;
+
+  it("reports `generating` while a job is active, ahead of the board's own reason", () => {
+    // This fixture has a blocking violation, so `violations` is ALSO true — which is exactly the
+    // collision the ranking exists to resolve.
+    for (const status of ["queued", "running"] as const) {
+      expect(reasonWith(jobView(status))).toBe("generating");
+    }
+  });
+
+  it("falls back to the board's own reason once the job is terminal", () => {
+    // Matching the partial unique index, which covers queued/running only: after delivery or failure
+    // the plan is enqueueable again, and a reason that outlived the job would strand the author.
+    for (const status of ["succeeded", "failed", "interrupted", "stopped"] as const) {
+      expect(reasonWith(jobView(status))).toBe("violations");
+    }
+    expect(reasonWith(null)).toBe("violations");
+  });
 });
 
 describe("useCohortBoardState (single cohort: seed === fresh)", () => {

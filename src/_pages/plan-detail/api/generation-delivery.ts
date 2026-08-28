@@ -8,6 +8,10 @@ import {
   deriveCleanLabel,
   runVerifiedGeneration,
   parseStoredStages,
+  isActiveJobStatus,
+  isDeliverableJob,
+  isHaltedJobStatus,
+  isSweepableJob,
   softHitsAchieved,
   translateCourseIds,
   type CleanLabel,
@@ -69,13 +73,28 @@ import { applyGeneratedPlacements } from "./placements";
  * to `unavailable` for a transcript that never reached tier 5, which is the honest label for a partial
  * board. Without one there is nothing to deliver, and the clone is swept exactly as a failed job's is.
  */
-export const checkGenerationInput = z.object({ planId: z.uuid() });
+export const checkPlanInput = z.object({ planId: z.uuid() });
 
-export type CheckGenerationInput = z.infer<typeof checkGenerationInput>;
+export type CheckPlanInput = z.infer<typeof checkPlanInput>;
+
+/**
+ * Which side of the job the plan being visited is on.
+ *
+ * The same job row is rendered by two different pages with two different stories, so the view has to
+ * say which one it is answering. On the **source** the job is something the author launched and can
+ * leave — an advisory, and a home for failures. On the **proposal** it is what the page IS: progress
+ * while pending, provenance once delivered.
+ */
+export type GenerationJobRole = "source" | "proposal";
 
 export type GenerationJobView = {
   jobId: string;
   status: GenerationJobStatus;
+  role: GenerationJobRole;
+  /** The plan the snapshot was assembled from. Always present — `plan_id` is `not null`. */
+  sourcePlanId: string;
+  /** Read only on the `proposal` role, where the strip needs it for "Generated from <name>". */
+  sourcePlanName: string | null;
   /** Null once a failed job's orphan clone has been removed (`on delete set null` does the rest). */
   proposalPlanId: string | null;
   /** True once the verified board has landed on the proposal plan. */
@@ -87,12 +106,15 @@ export type GenerationJobView = {
   cleanLabel: CleanLabel;
   /** The TIER whose checkpoint an interrupted job kept, or null when it kept nothing. */
   checkpointStageIndex: number | null;
+  /** The TIER now running, 1-based — the pending page's live progress. Null before the first stage. */
+  stageIndex: number | null;
+  stageName: string | null;
 };
 
 /** Everything the strip renders, and none of the ~160 KB of payload beside it. `heartbeat_at` is the
  *  staleness clock and `checkpoint_stage_index` the free existence proxy for the ~35 KB checkpoint. */
 const STATUS_COLUMNS =
-  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at";
+  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at,stage_index,stage_name";
 
 type StatusRow = {
   id: string;
@@ -108,20 +130,71 @@ type StatusRow = {
   finished_at: string | null;
   heartbeat_at: string | null;
   checkpoint_stage_index: number | null;
+  stage_index: number | null;
+  stage_name: string | null;
 };
 
-export const checkGeneration = async (
-  supabase: SupabaseClient,
-  input: CheckGenerationInput,
-): Promise<GenerationJobView | null> => {
-  const latest = await latestJob(supabase, input.planId);
-  if (!latest) return null;
+/**
+ * The visit, whichever plan it is a visit to.
+ *
+ * **One entry point, two keys.** `generation_jobs` names two plans — the `plan_id` it solved from and
+ * the `proposal_plan_id` it solves onto — and both are now pages an author can be standing on. Rather
+ * than two functions racing to deliver the same board, there is one dual-keyed read and one shared
+ * `settle` core; the only thing the key decides is the `role` the view is tagged with, and therefore
+ * which story the strip tells.
+ *
+ * **Two narrow reads, not one `.or(…)`.** A single newest-row query cannot express the precedence
+ * below, because "newest" and "the row this plan is the proposal of" are different questions. Both
+ * reads are by an indexed column (`generation_jobs_plan_idx`, `generation_jobs_proposal_plan_idx`),
+ * project `STATUS_COLUMNS` only, and run concurrently — one round trip in wall-clock terms.
+ *
+ * **Precedence, for the plan that is both.** A delivered proposal can itself be generated FROM, at
+ * which point it is the `proposal_plan_id` of one job and the `plan_id` of another. The rule:
+ *
+ *   1. the plan's own job, when it is active or undelivered — a live solve the author launched here
+ *      is the most urgent thing this page can say, and it is the only one with anything to deliver;
+ *   2. otherwise the job that produced this plan — so a proposal keeps its provenance strip for good,
+ *      rather than losing it the moment the author generates from it;
+ *   3. otherwise the plan's own newest job.
+ *
+ * Returns null when neither key matches — a plan that has never been generated and never was one.
+ */
+export const checkPlan = async (supabase: SupabaseClient, input: CheckPlanInput): Promise<GenerationJobView | null> => {
+  const [asSource, asProposal] = await Promise.all([
+    latestJobBy(supabase, "plan_id", input.planId),
+    latestJobBy(supabase, "proposal_plan_id", input.planId),
+  ]);
 
+  const row = pickJob(asSource, asProposal);
+  if (!row) return null;
+
+  const role: GenerationJobRole = row === asSource ? "source" : "proposal";
+  const view = await settle(supabase, row);
+  return role === "source"
+    ? { ...view, role }
+    : { ...view, role, sourcePlanName: await planName(supabase, view.sourcePlanId) };
+};
+
+/** The precedence in the docblock above, as one expression. */
+const pickJob = (asSource: StatusRow | null, asProposal: StatusRow | null): StatusRow | null => {
+  if (asSource && (isActiveJobStatus(asSource.status) || asSource.delivered_plan_id === null)) return asSource;
+  return asProposal ?? asSource;
+};
+
+/**
+ * Reclaim → deliver | sweep | label: everything that happens to a job row once a visit has found it.
+ *
+ * Extracted from `checkPlan` so the two keys share ONE settle path rather than two that must be kept
+ * in step. It takes no plan id of its own: the source plan is `row.plan_id` by definition, and using
+ * the visited plan's id here would translate course ids against the wrong catalog whenever the visit
+ * came in through the proposal.
+ */
+const settle = async (supabase: SupabaseClient, latest: StatusRow): Promise<GenerationJobView> => {
   // BEFORE the delivery branch, so a crash-wedged row becomes `interrupted` and delivers its
   // checkpoint in the SAME visit rather than making the author come back a second time.
   const row = await reclaimIfStale(supabase, latest);
 
-  if (deliverable(row)) return deliver(supabase, input.planId, row);
+  if (isDeliverableJob(row)) return deliver(supabase, row.plan_id, row);
 
   // An orphan clone is one nothing will ever be delivered onto, and leaving it clutters the plans
   // list with a half-made proposal. Guarded twice over — only this job's own `proposal_plan_id`, and
@@ -129,32 +202,13 @@ export const checkGeneration = async (
   // an `interrupted` clone is SALVAGE when the row carries a checkpoint (handled above) and litter
   // when it does not — and S-306 answers `stopped` the same way, since the two differ only in who
   // halted the run. A swept clone needs no `pending_proposal` clear: the row is gone.
-  if (sweepable(row) && row.delivered_plan_id === null && row.proposal_plan_id !== null) {
+  if (isSweepableJob(row) && row.delivered_plan_id === null && row.proposal_plan_id !== null) {
     await deleteOrphanClone(supabase, row.proposal_plan_id);
     return toView({ ...row, proposal_plan_id: null }, { kind: "unavailable" });
   }
 
   return toView(row, await labelOf(supabase, row));
 };
-
-/**
- * A succeeded job, or a halted one that kept a board — undelivered in either case.
- *
- * `stopped` joins `interrupted` here (S-306) because the two differ only in WHO halted the run: the
- * author asked, or the container went away. A checkpoint is a checkpoint, written through the same
- * wire path, and it delivers through the same chain. S-305 owns the PRODUCER of a `stopped` row;
- * admitting one for delivery is this slice's one-predicate down-payment on it.
- */
-const deliverable = (row: StatusRow): boolean =>
-  row.delivered_plan_id === null &&
-  (row.status === "succeeded" || (halted(row) && row.checkpoint_stage_index !== null));
-
-/** A terminal job with nothing to deliver: its clone can only ever be litter. */
-const sweepable = (row: StatusRow): boolean =>
-  row.status === "failed" || (halted(row) && row.checkpoint_stage_index === null);
-
-/** Stopped short of the ladder's end — by the author (`stopped`) or by the platform (`interrupted`). */
-const halted = (row: StatusRow): boolean => row.status === "interrupted" || row.status === "stopped";
 
 // --- reclaim ----------------------------------------------------------------------------------
 
@@ -346,11 +400,15 @@ const rowKey = (row: { cohort: Cohort; courseId: string; day: number; period: nu
 
 // --- row access -------------------------------------------------------------------------------
 
-const latestJob = async (supabase: SupabaseClient, planId: string): Promise<StatusRow | null> => {
+const latestJobBy = async (
+  supabase: SupabaseClient,
+  column: "plan_id" | "proposal_plan_id",
+  planId: string,
+): Promise<StatusRow | null> => {
   const { data, error } = await supabase
     .from("generation_jobs")
     .select(STATUS_COLUMNS)
-    .eq("plan_id", planId)
+    .eq(column, planId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -367,7 +425,7 @@ const latestJob = async (supabase: SupabaseClient, planId: string): Promise<Stat
 /** Which column holds the board this job is delivering. `result` stays the succeeded-only one. */
 type PayloadColumn = "result" | "checkpoint";
 
-const payloadColumn = (row: StatusRow): PayloadColumn => (halted(row) ? "checkpoint" : "result");
+const payloadColumn = (row: StatusRow): PayloadColumn => (isHaltedJobStatus(row.status) ? "checkpoint" : "result");
 
 /** The heavy pair, fetched ONLY once a job is known to be deliverable-and-undelivered. */
 const loadPayload = async (
@@ -447,18 +505,32 @@ const failJob = async (
     })
     .eq("id", jobId);
   // eslint-disable-next-line no-console
-  if (error) console.error(`[checkGeneration] could not mark job ${jobId} failed:`, error.message);
+  if (error) console.error(`[checkPlan] could not mark job ${jobId} failed:`, error.message);
 };
 
 const deleteOrphanClone = async (supabase: SupabaseClient, proposalPlanId: string): Promise<void> => {
   const { error } = await supabase.from("plans").delete().eq("id", proposalPlanId);
   // eslint-disable-next-line no-console
-  if (error) console.error(`[checkGeneration] could not delete orphan clone ${proposalPlanId}:`, error.message);
+  if (error) console.error(`[checkPlan] could not delete orphan clone ${proposalPlanId}:`, error.message);
 };
 
+/** The source plan's display name, for the proposal strip's "Generated from <name>" provenance. */
+const planName = async (supabase: SupabaseClient, planId: string): Promise<string | null> => {
+  const { data } = await supabase.from("plans").select("name").eq("id", planId).maybeSingle();
+  return data?.name ?? null;
+};
+
+/**
+ * `role` defaults to `source` and `checkPlan` overrides it, because every path INSIDE this file
+ * describes the job from the source's point of view — it is the source's snapshot, the source's
+ * catalog the ids translate from. Only the entry point knows which page asked.
+ */
 const toView = (row: StatusRow, cleanLabel: CleanLabel): GenerationJobView => ({
   jobId: row.id,
   status: row.status,
+  role: "source",
+  sourcePlanId: row.plan_id,
+  sourcePlanName: null,
   proposalPlanId: row.proposal_plan_id,
   delivered: row.delivered_plan_id !== null,
   error: row.error,
@@ -466,4 +538,6 @@ const toView = (row: StatusRow, cleanLabel: CleanLabel): GenerationJobView => ({
   finishedAt: row.finished_at,
   cleanLabel,
   checkpointStageIndex: row.checkpoint_stage_index,
+  stageIndex: row.stage_index,
+  stageName: row.stage_name,
 });

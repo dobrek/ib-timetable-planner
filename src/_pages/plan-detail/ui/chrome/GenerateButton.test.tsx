@@ -25,6 +25,11 @@ const trackedJob = (status: GenerationJobView["status"]): GenerationJobView => (
   finishedAt: null,
   cleanLabel: { kind: "clean" },
   checkpointStageIndex: null,
+  role: "source",
+  sourcePlanId: "plan-1",
+  sourcePlanName: null,
+  stageIndex: null,
+  stageName: null,
 });
 
 describe("GenerateButton", () => {
@@ -70,7 +75,19 @@ describe("GenerateButton", () => {
   it("a LIVE job disables the button — one active job per plan", () => {
     // The database enforces this with a partial unique index; the button says so before the author
     // spends a click discovering it.
-    render(<GenerateButton generation={controls({ state: { status: "tracking", job: trackedJob("running") } })} />);
+    //
+    // The DERIVATION moved to `use-cohort-board-state` with S-306 (so a live job can outrank the
+    // board-derived reasons); what this pins is the button's half of the contract — that
+    // `disabledReason: "generating"` disables it and names why. The derivation itself is pinned in
+    // `use-cohort-board-state.test.ts`.
+    render(
+      <GenerateButton
+        generation={controls({
+          state: { status: "tracking", job: trackedJob("running") },
+          disabledReason: "generating",
+        })}
+      />,
+    );
 
     const button = screen.getByRole("button", { name: "Generate plan" });
     expect(button).toBeDisabled();

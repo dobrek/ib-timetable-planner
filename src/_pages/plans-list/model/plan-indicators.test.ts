@@ -11,6 +11,7 @@ import {
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 const JOB_ID = "22222222-2222-4222-8222-222222222222";
+const PROPOSAL_ID = "44444444-4444-4444-8444-444444444444";
 const STARTED = "2026-08-20T14:02:31.000Z";
 
 /** A clock a few seconds after `STARTED`, so the default fixture is a healthy, freshly-beating job. */
@@ -20,6 +21,8 @@ const STALE_BEAT = new Date(Date.parse(STARTED) - HEARTBEAT_GRACE_MS).toISOStrin
 const row = (overrides: Partial<GenerationJobStatusRow> = {}): GenerationJobStatusRow => ({
   id: JOB_ID,
   plan_id: PLAN_ID,
+  proposal_plan_id: PROPOSAL_ID,
+  delivered_plan_id: null,
   status: "running",
   stage_index: 4,
   stage_name: "teacherHoles",
@@ -32,6 +35,8 @@ const indicator = (overrides: Partial<GenerationIndicator> = {}): GenerationIndi
   kind: "generation",
   jobId: JOB_ID,
   planId: PLAN_ID,
+  proposalPlanId: PROPOSAL_ID,
+  delivered: false,
   status: "running",
   stageIndex: 4,
   stageName: "teacherHoles",
@@ -46,6 +51,8 @@ describe("toGenerationIndicator", () => {
       kind: "generation",
       jobId: JOB_ID,
       planId: PLAN_ID,
+      proposalPlanId: PROPOSAL_ID,
+      delivered: false,
       status: "running",
       stageIndex: 4,
       stageName: "teacherHoles",
@@ -84,11 +91,14 @@ describe("toGenerationIndicator", () => {
 });
 
 describe("describeGenerationIndicator", () => {
-  it("names the tier and the position while a stage is running", () => {
+  it("names the tier and the position while a stage is running, and points at the PROPOSAL", () => {
+    // The href used to be null here: before S-306 the clone had no reader, so there was nowhere to
+    // send the author mid-solve. It is now a listed plan that renders its own progress, so the badge
+    // is a link from the first second.
     expect(describeGenerationIndicator(indicator())).toEqual({
       tone: "active",
       label: "Generating — stage 4 of 10 · teacher holes",
-      href: null,
+      href: `/plans/${PROPOSAL_ID}`,
       startedAt: STARTED,
     });
   });
@@ -136,20 +146,35 @@ describe("describeGenerationIndicator", () => {
   it("ignores staleness on a terminal job, which cannot have any", () => {
     // Belt and braces: the predicate never sets it, and the switch never reads it here.
     expect(describeGenerationIndicator(indicator({ status: "succeeded", stale: true })).label).toBe(
-      "Finished — open plan",
+      "Finished — open to deliver",
     );
   });
 
-  it("points a finished job at the SOURCE plan, because delivery happens on a visit there", () => {
-    expect(describeGenerationIndicator(indicator({ status: "succeeded" }))).toEqual({
+  it("points a DELIVERED job at the proposal, which is now an ordinary plan", () => {
+    // Replaces "points a finished job at the SOURCE plan, because delivery happens on a visit there"
+    // (S-301). Both halves of that reason expired: `checkPlan` is dual-keyed, so a visit to the
+    // proposal delivers, and the board is on the proposal — the source is never written to.
+    expect(describeGenerationIndicator(indicator({ status: "succeeded", delivered: true }))).toEqual({
       tone: "done",
-      label: "Finished — open plan",
-      href: `/plans/${PLAN_ID}`,
+      label: "Ready — open",
+      href: `/plans/${PROPOSAL_ID}`,
       startedAt: null,
     });
   });
 
-  it("offers a failed job the same way in, so the strip can say what went wrong", () => {
+  it("tells an UNDELIVERED finished job apart, in the delete guard's own words", () => {
+    // "open to deliver" is exactly what `assertNotPending` refuses a delete with, so the badge and
+    // the refusal say the same thing.
+    expect(describeGenerationIndicator(indicator({ status: "succeeded", delivered: false }))).toMatchObject({
+      tone: "done",
+      label: "Finished — open to deliver",
+      href: `/plans/${PROPOSAL_ID}`,
+    });
+  });
+
+  it("offers a failed job a way into the SOURCE, where the diagnostic lives", () => {
+    // The one terminal state that keeps the old destination: a failed job's clone has been swept, so
+    // there is no proposal to open, and FR-308 puts the failure on the source's strip.
     expect(describeGenerationIndicator(indicator({ status: "failed" }))).toMatchObject({
       tone: "failed",
       label: "Failed — open plan",
@@ -157,11 +182,26 @@ describe("describeGenerationIndicator", () => {
     });
   });
 
-  it.each([
-    ["stopped" as const, "Stopped"],
-    ["interrupted" as const, "Interrupted"],
-  ])("names %s plainly rather than guessing at it", (status, label) => {
-    expect(describeGenerationIndicator(indicator({ status }))).toMatchObject({ tone: "other", label });
+  it.each([["stopped" as const], ["interrupted" as const]])(
+    "treats %s exactly as succeeded — the question is whether a board landed",
+    (status) => {
+      expect(describeGenerationIndicator(indicator({ status, delivered: true }))).toMatchObject({
+        tone: "done",
+        label: "Ready — open",
+        href: `/plans/${PROPOSAL_ID}`,
+      });
+      expect(describeGenerationIndicator(indicator({ status, delivered: false })).label).toBe(
+        "Finished — open to deliver",
+      );
+    },
+  );
+
+  it("falls back to the source when the proposal is gone", () => {
+    // `proposal_plan_id` is `on delete set null`, so a swept or hand-deleted clone leaves the badge
+    // with nowhere else to point.
+    expect(describeGenerationIndicator(indicator({ status: "succeeded", proposalPlanId: null })).href).toBe(
+      `/plans/${PLAN_ID}`,
+    );
   });
 
   it("never pre-formats the start time — the cell renders it, to avoid a hydration mismatch", () => {

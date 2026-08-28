@@ -57,16 +57,23 @@ function IndicatorBadge({ description, hydrated }: { description: IndicatorDescr
     </>
   );
 
+  // `role="status"` rides on the ACTIVE badge whether or not it links, which needs saying because
+  // S-306 changed the shape underneath it: an active badge used to have no href (there was nowhere to
+  // send the author mid-solve) and the role sat on the non-link branch alone. Now that it points at
+  // the proposal, keeping it there would have silently dropped the live region — the one thing on
+  // this page assistive tech is meant to hear about unprompted.
+  const liveRegion = active ? { role: "status" as const } : {};
+
   if (href === null) {
     return (
-      <Badge variant={VARIANTS[tone]} {...(active ? { role: "status" } : {})}>
+      <Badge variant={VARIANTS[tone]} {...liveRegion}>
         {content}
       </Badge>
     );
   }
   return (
     <Badge variant={VARIANTS[tone]} asChild>
-      <a href={href} className="underline-offset-2 hover:underline">
+      <a href={href} className="underline-offset-2 hover:underline" {...liveRegion}>
         {content}
       </a>
     </Badge>

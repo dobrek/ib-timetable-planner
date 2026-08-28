@@ -767,30 +767,30 @@ integration test).
 
 #### Automated
 
-- [x] 3.1 Type check passes: `pnpm check`
-- [x] 3.2 Lint + FSD pass: `pnpm lint && pnpm steiger`
-- [x] 3.3 Unit suite passes (strip, pending hook, notice): `pnpm test`
-- [x] 3.4 Integration suite passes, including `checkPlan` (both keys + precedence) and the plan-action guard cases
-- [x] 3.5 Production build stays clean: `pnpm build`
+- [x] 3.1 Type check passes: `pnpm check` — 6f406fa
+- [x] 3.2 Lint + FSD pass: `pnpm lint && pnpm steiger` — 6f406fa
+- [x] 3.3 Unit suite passes (strip, pending hook, notice): `pnpm test` — 6f406fa
+- [x] 3.4 Integration suite passes, including `checkPlan` (both keys + precedence) and the plan-action guard cases — 6f406fa
+- [x] 3.5 Production build stays clean: `pnpm build` — 6f406fa
 
 #### Manual
 
-- [x] 3.6 Pending proposal: progress page, catalog notice, rename refused
-- [x] 3.7 Proposal page delivers itself on completion; strip names the source; source shows nothing
-- [x] 3.8 Failed solve: source strip reports it; proposal gone from the hub
+- [x] 3.6 Pending proposal: progress page, catalog notice, rename refused — 6f406fa
+- [x] 3.7 Proposal page delivers itself on completion; strip names the source; source shows nothing — 6f406fa
+- [x] 3.8 Failed solve: source strip reports it; proposal gone from the hub — 6f406fa
 
 ### Phase 4: The hub as the notification surface
 
 #### Automated
 
-- [ ] 4.1 Type check passes: `pnpm check`
-- [ ] 4.2 Lint + FSD pass: `pnpm lint && pnpm steiger`
-- [ ] 4.3 Unit suite passes (indicators, store, hub toast): `pnpm test`
-- [ ] 4.4 Integration suite passes, including ready-after-reload and discovery-by-source-id
+- [x] 4.1 Type check passes: `pnpm check`
+- [x] 4.2 Lint + FSD pass: `pnpm lint && pnpm steiger`
+- [x] 4.3 Unit suite passes (indicators, store, hub toast): `pnpm test`
+- [x] 4.4 Integration suite passes, including ready-after-reload and discovery-by-source-id
 
 #### Manual
 
-- [ ] 4.5 Two-tab flow: badge on source then proposal row; toast on completion; badge clears after first open
+- [x] 4.5 Two-tab flow: badge on source then proposal row; toast on completion; badge clears after first open
 
 ### Phase 5: E2E lane + Generate spec
 

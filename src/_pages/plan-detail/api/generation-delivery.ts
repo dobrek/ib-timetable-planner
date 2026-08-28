@@ -170,9 +170,42 @@ export const checkPlan = async (supabase: SupabaseClient, input: CheckPlanInput)
 
   const role: GenerationJobRole = row === asSource ? "source" : "proposal";
   const view = await settle(supabase, row);
-  return role === "source"
-    ? { ...view, role }
-    : { ...view, role, sourcePlanName: await planName(supabase, view.sourcePlanId) };
+  if (role === "source") return { ...view, role };
+
+  // Looking at the delivered proposal IS the notification (FR-309), so this visit is what stamps it.
+  await markNotified(supabase, view, row.notified_at);
+  return { ...view, role, sourcePlanName: await planName(supabase, view.sourcePlanId) };
+};
+
+/**
+ * Stamp `notified_at` the first time the author actually looks at a delivered proposal.
+ *
+ * **The event this closes is a row transition, not a render** — `delivered_plan_id is not null and
+ * notified_at is null` means "there is a result and nobody has been told". The hub reads that pair
+ * to keep "Ready — open" on the badge across reloads; without a writer the badge would never clear.
+ * S-310's emailer is the intended SECOND writer and must skip rows that already carry a value.
+ *
+ * Only on the PROPOSAL role, and deliberately: the author has to have opened the plan the board
+ * landed on for the announcement to have been made. Visiting the source tells them nothing about it —
+ * the source's strip says nothing at all once a job is delivered.
+ *
+ * A plain update, not a CAS. Two tabs racing this write the same fact a few milliseconds apart, and a
+ * later instant overwriting an earlier one is harmless: the only reader asks whether it is null.
+ */
+const markNotified = async (
+  supabase: SupabaseClient,
+  view: GenerationJobView,
+  notifiedAt: string | null,
+): Promise<void> => {
+  if (!view.delivered || notifiedAt !== null) return;
+  const { error } = await supabase
+    .from("generation_jobs")
+    .update({ notified_at: new Date().toISOString() })
+    .eq("id", view.jobId);
+  // Best-effort: failing to record the announcement must not fail the visit that made it. The badge
+  // simply stays up until the next visit succeeds.
+  // eslint-disable-next-line no-console
+  if (error) console.error(`[checkPlan] could not stamp notified_at on job ${view.jobId}:`, error.message);
 };
 
 /** The precedence in the docblock above, as one expression. */

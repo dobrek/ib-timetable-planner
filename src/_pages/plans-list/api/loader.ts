@@ -1,6 +1,6 @@
 import { unwrapMany, type SupabaseClient } from "@/shared/api";
-import { toGenerationIndicators, type PlanIndicator } from "../model/plan-indicators";
-import { STATUS_COLUMNS } from "./generation-status";
+import type { PlanIndicator } from "../model/plan-indicators";
+import { surfacedJobsFor } from "./generation-status";
 
 /**
  * One hub row: identity + display fields, plus the entity counts the delete
@@ -43,9 +43,11 @@ const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
     "Plans lookup failed",
   );
 
-  // ONE query for the whole page, not one per plan: the `generation_jobs_active_per_plan` partial
-  // unique index guarantees at most one active job per plan, so this returns ≤ rows.length rows.
-  const active = await fetchActiveIndicators(
+  // ONE query for the whole page, not one per plan. Its filter is `surfacedJobsFor` — the SAME
+  // builder the poll's discovery read uses, so the first paint and the first tick cannot disagree
+  // about which rows deserve a badge. (This used to inline a duplicate of that query, which is
+  // exactly the drift S-306's wider filter would have caused.)
+  const surfaced = await surfacedJobsFor(
     client,
     rows.map((row) => row.id),
   );
@@ -58,34 +60,27 @@ const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
       slotGridPreset: row.slot_grid_preset,
       updatedAt: row.updated_at,
       counts: await fetchCounts(client, row.id),
-      indicators: active.get(row.id) ?? [],
+      indicators: indicatorsOn(surfaced, row.id),
     })),
   );
 };
 
 /**
- * The active generation job per plan, as the indicators the hub renders and the poll store starts
- * from.
+ * The indicators that belong on THIS row.
  *
- * The projection is `STATUS_COLUMNS` — shared with the poll read so the two can never drift — and it
- * is narrow as a correctness rule rather than an optimisation on this table: `snapshot` is ~124 KB
- * and TOASTed, `result` ~35 KB and `checkpoint` ~35 KB, so a bare `select()` would drag hundreds of
- * kilobytes per row into a page that shows one line of text.
+ * A job names two plans, and the badge belongs on the proposal — that is the row it is about. It
+ * falls back to the source only when the proposal row is not on this page at all, which on the SSR
+ * path means the clone has been swept (`proposal_plan_id` is null); the loader always fetches the
+ * whole page, so a live proposal is always here. `PlansHub` runs the same rule against the LIVE
+ * snapshot, where the fallback does real work: a job discovered mid-poll may name a proposal row this
+ * page has never loaded.
  */
-const fetchActiveIndicators = async (
-  client: SupabaseClient,
-  planIds: string[],
-): Promise<Map<string, PlanIndicator[]>> => {
-  if (planIds.length === 0) return new Map();
-  const jobs = unwrapMany(
-    await client
-      .from("generation_jobs")
-      .select(STATUS_COLUMNS)
-      .in("status", ["queued", "running"])
-      .in("plan_id", planIds),
-    "Generation activity lookup failed",
+const indicatorsOn = (surfaced: readonly PlanIndicator[], planId: string): PlanIndicator[] => {
+  const onProposal = surfaced.filter((indicator) => indicator.proposalPlanId === planId);
+  if (onProposal.length > 0) return onProposal;
+  return surfaced.filter(
+    (indicator) => indicator.planId === planId && (indicator.proposalPlanId === null || indicator.status === "failed"),
   );
-  return new Map(toGenerationIndicators(jobs).map((indicator) => [indicator.planId, [indicator]]));
 };
 
 const fetchCounts = async (client: SupabaseClient, planId: string): Promise<PlanCounts> => {

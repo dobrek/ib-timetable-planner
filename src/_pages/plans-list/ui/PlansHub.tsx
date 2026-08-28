@@ -1,5 +1,6 @@
 import { Copy, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Button,
   Checkbox,
@@ -19,6 +20,7 @@ import type { PlanRow } from "../api/loader";
 import type { IndicatorsByPlan } from "../model/job-progress-store";
 import type { PlanIndicator } from "../model/plan-indicators";
 import { useGenerationIndicators } from "../model/use-generation-indicators";
+import { announcementsFor } from "../model/generation-toasts";
 import { canCompare, compareHref, EMPTY_SELECTION, toggleAllSelection, toggleId } from "../model/plan-selection";
 import ClonePlanDialog from "./ClonePlanDialog";
 import PlanIndicatorsCell from "./PlanIndicatorsCell";
@@ -60,6 +62,7 @@ export default function PlansHub({ plans }: Props) {
     plans.flatMap((plan) => plan.indicators),
     planIds,
   );
+  useGenerationAnnouncements(liveIndicators, plans);
   const allSelected = planIds.length > 0 && planIds.every((id) => selectedIds.has(id));
   const someSelected = planIds.some((id) => selectedIds.has(id));
   const headerState: boolean | "indeterminate" = allSelected ? true : someSelected ? "indeterminate" : false;
@@ -153,7 +156,7 @@ export default function PlansHub({ plans }: Props) {
                     <TableCell className="text-muted-foreground">{plan.slotGridPreset}</TableCell>
                     <TableCell className="text-muted-foreground">{plan.updatedAt.slice(0, 10)}</TableCell>
                     <TableCell>
-                      <PlanIndicatorsCell indicators={indicatorsFor(plan, liveIndicators)} />
+                      <PlanIndicatorsCell indicators={indicatorsFor(plan, liveIndicators, planIds)} />
                     </TableCell>
                     <TableCell className="text-right">
                       <PlanRowActions
@@ -189,11 +192,76 @@ export default function PlansHub({ plans }: Props) {
   );
 }
 
-/** The store's live view of a plan wins; the SSR'd indicators are what a plan it has never spoken
- *  about still shows. */
-const indicatorsFor = (plan: PlanRow, live: IndicatorsByPlan): readonly PlanIndicator[] => {
-  const indicator = live.get(plan.id);
-  return indicator === undefined ? plan.indicators : [indicator];
+/**
+ * Announce a job that finished while the hub was open — FR-309's in-app half.
+ *
+ * **An effect is the right shape here, and it is compliant.** React 19's
+ * `react-hooks/set-state-in-effect` rule (which is why the poll itself is an external store rather
+ * than an effect) forbids calling `setState` from an effect; `toast()` is not `setState` — it pushes
+ * onto sonner's own store, outside this island's render — so nothing here can loop or re-render the
+ * grid. What the effect genuinely needs is a *previous* value to diff against, and a ref is the
+ * standard way to hold one.
+ *
+ * The diff itself is pure and lives in `generation-toasts.ts`, so the rule about WHAT counts as an
+ * event (active → terminal, once) is tested without a DOM.
+ */
+const useGenerationAnnouncements = (live: IndicatorsByPlan, plans: readonly PlanRow[]): void => {
+  const previous = useRef<IndicatorsByPlan>(live);
+
+  useEffect(() => {
+    const nameOf = (planId: string) => plans.find((plan) => plan.id === planId)?.name;
+    for (const { tone, title, description, href } of announcementsFor(previous.current, live, nameOf)) {
+      const notify = tone === "error" ? toast.error : toast.success;
+      notify(title, {
+        description,
+        action:
+          href === null
+            ? undefined
+            : {
+                label: "Open",
+                onClick: () => {
+                  window.location.assign(href);
+                },
+              },
+      });
+    }
+    previous.current = live;
+  }, [live, plans]);
+};
+
+/**
+ * Which live indicator belongs on this row, and the fallback when the store has nothing to say.
+ *
+ * **The badge belongs on the proposal**, because that is the plan it is about (S-306) — so a row is
+ * matched first against every indicator's `proposalPlanId`. The source-row match is the fallback, and
+ * it exists for a hole this shape opens rather than as a preference: a job started on a plan page
+ * creates a proposal row an already-open hub has never loaded, and until the author reloads, the
+ * source row is the only place the badge can appear at all. Once the proposal row IS on the page it
+ * wins, so the badge does not render twice.
+ *
+ * A `failed` job keeps the source row too, whatever the page holds: its clone has been swept, and the
+ * failure belongs where the diagnostic is (FR-308).
+ *
+ * The store's snapshot is keyed by SOURCE plan, so both matches scan its values — at most a few
+ * entries, once per row, on a page capped at 200 plans.
+ */
+const indicatorsFor = (plan: PlanRow, live: IndicatorsByPlan, planIds: readonly string[]): readonly PlanIndicator[] => {
+  const all = [...live.values()];
+  if (all.length === 0) return plan.indicators;
+
+  const onProposal = all.filter((indicator) => indicator.proposalPlanId === plan.id);
+  if (onProposal.length > 0) return onProposal;
+
+  const onSource = all.filter(
+    (indicator) =>
+      indicator.planId === plan.id &&
+      (indicator.status === "failed" ||
+        indicator.proposalPlanId === null ||
+        !planIds.includes(indicator.proposalPlanId)),
+  );
+  // Only fall back to the SSR'd set when the store has never mentioned this plan at all — otherwise
+  // an indicator the store deliberately moved to another row would come back from the server copy.
+  return onSource.length > 0 || all.some((indicator) => indicator.planId === plan.id) ? onSource : plan.indicators;
 };
 
 function PlanRowActions({

@@ -17,11 +17,11 @@ import { isActiveIndicator, type GenerationIndicator } from "./plan-indicators";
  *   3. **Only while the tab is visible.** A backgrounded tab left open overnight would otherwise
  *      poll ~12 times a minute forever. Returning to it ticks IMMEDIATELY, so the badge is fresh by
  *      the time the author has finished looking at it.
- *   4. **Terminal indicators are remembered.** A job that finishes stays in the snapshot as
- *      "Finished — open plan" rather than vanishing, because a badge that disappears reads as a
- *      failure. The memory is in-RAM only: after a reload the SSR loader fetches active jobs alone,
- *      so a finished job leaves no trace on the hub. That is deliberate — the plan page's strip is
- *      where a completed run is accounted for, and it delivers.
+ *   4. **Terminal indicators are remembered.** A job that finishes stays in the snapshot rather than
+ *      vanishing, because a badge that disappears reads as a failure. Since S-306 this memory is a
+ *      cache rather than the only record: the SSR loader and the discovery read both return
+ *      terminal-undelivered and delivered-but-unannounced rows, so a reload no longer erases a ready
+ *      proposal — it stays badged until the author opens it once, which is what stamps `notified_at`.
  *   5. **Becoming visible always DISCOVERS, even when nothing is active.** Rule 1 alone would leave
  *      the realistic two-tab flow broken: a hub tab open while Generate was pressed on a plan page
  *      knows no job id, has nothing active, and so would never start a timer — showing nothing at all
@@ -151,8 +151,13 @@ const indexByPlan = (indicators: readonly GenerationIndicator[]): IndicatorsByPl
  * The fetched rows over the remembered ones, keyed by plan.
  *
  * Fetched wins on a collision — it is strictly newer — and a plan the fetch did not mention keeps
- * what it had, which is what makes terminal memory work: once a job goes terminal it stops being
- * returned by the discovery read, and only the memory keeps "Finished — open plan" on screen.
+ * what it had, which is what makes terminal memory work.
+ *
+ * S-306 demoted that memory from the only record to a cache. The discovery read now also returns
+ * terminal-undelivered and delivered-but-unannounced rows, so "Ready — open" is a ROW state that
+ * survives a reload; this in-RAM memory is what keeps the badge on screen between the moment a job
+ * goes terminal and the next tick that re-reads it. Rule 4 in the class docstring is amended
+ * accordingly.
  */
 const merge = (current: IndicatorsByPlan, fetched: readonly GenerationIndicator[]): IndicatorsByPlan =>
   new Map([...current, ...indexByPlan(fetched)]);
@@ -170,7 +175,13 @@ const sameIndicators = (a: IndicatorsByPlan, b: IndicatorsByPlan): boolean => {
       left.jobId !== right.jobId ||
       left.status !== right.status ||
       left.stageIndex !== right.stageIndex ||
-      left.stageName !== right.stageName
+      left.stageName !== right.stageName ||
+      // S-306: `delivered` is the difference between "Finished — open to deliver" and "Ready — open",
+      // and a job can cross it without its status changing — a `succeeded` row stays `succeeded` while
+      // some other tab's visit lands the board. Omitting it here would freeze the badge on the older
+      // of the two labels for as long as the hub stayed open.
+      left.delivered !== right.delivered ||
+      left.proposalPlanId !== right.proposalPlanId
     ) {
       return false;
     }

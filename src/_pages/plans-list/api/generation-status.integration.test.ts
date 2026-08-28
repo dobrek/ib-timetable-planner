@@ -26,6 +26,8 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   let quietPlanId: string;
   let activeJobId: string;
   let terminalJobId: string;
+  let activeProposalId: string;
+  let readyProposalId: string;
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
@@ -33,14 +35,28 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
     activePlanId = await createFactoryPlan(supabase, { name: "Hub Indicator — active" });
     quietPlanId = await createFactoryPlan(supabase, { name: "Hub Indicator — quiet" });
+    // Stand-in proposal rows. They are plans in their own right (that is the whole of S-306), so a
+    // plain factory plan is exactly what `clone_plan` would have produced for these purposes.
+    activeProposalId = await createFactoryPlan(supabase, { name: "Proposal — Hub Indicator active" });
+    readyProposalId = await createFactoryPlan(supabase, { name: "Proposal — Hub Indicator ready" });
 
-    // A finished job FIRST, so the active one below is the only row the partial index sees.
-    terminalJobId = await enqueue(supabase, activePlanId, { status: "succeeded", finished_at: nowIso() });
+    // A finished job FIRST, so the active one below is the only row the partial index sees. It is
+    // DELIVERED and already announced, which is what keeps it off the hub — the case the
+    // `notified_at` backfill exists for.
+    terminalJobId = await enqueue(supabase, activePlanId, {
+      status: "succeeded",
+      finished_at: nowIso(),
+      proposal_plan_id: readyProposalId,
+      delivered_plan_id: readyProposalId,
+      delivery: "proposal",
+      notified_at: nowIso(),
+    });
     activeJobId = await enqueue(supabase, activePlanId, {
       status: "running",
       started_at: nowIso(),
       stage_index: 4,
       stage_name: "teacherHoles",
+      proposal_plan_id: activeProposalId,
     });
   });
 
@@ -48,28 +64,80 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     await teardown(supabase);
   });
 
-  it("attaches the active job to its plan, and nothing to a quiet one", async () => {
+  it("attaches the active job to the PROPOSAL row, not the source, and nothing to a quiet plan", async () => {
+    // S-306: the badge belongs on the row it is about. Both plans are on this page, so the proposal
+    // wins and the source shows nothing — otherwise the same job would badge twice.
     const result = await loadPlans(supabase);
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
 
-    const active = result.plans.find((plan) => plan.id === activePlanId);
-    const quiet = result.plans.find((plan) => plan.id === quietPlanId);
+    const byId = (id: string) => result.plans.find((plan) => plan.id === id);
 
-    expect(active?.indicators).toHaveLength(1);
-    expect(active?.indicators[0]).toMatchObject({
+    expect(byId(activeProposalId)?.indicators).toHaveLength(1);
+    expect(byId(activeProposalId)?.indicators[0]).toMatchObject({
       kind: "generation",
       jobId: activeJobId,
       planId: activePlanId,
+      proposalPlanId: activeProposalId,
+      delivered: false,
       status: "running",
       stageIndex: 4,
       stageName: "teacherHoles",
     });
     // `created_at` comes from the database, so pin that it parses rather than what it says.
-    expect(Number.isNaN(Date.parse(active?.indicators[0]?.startedAt ?? ""))).toBe(false);
-    // The succeeded job on the same plan is deliberately absent: the SSR read is active-only, so a
-    // finished run leaves no trace on the hub after a reload. The plan page's strip owns that.
-    expect(quiet?.indicators).toEqual([]);
+    expect(Number.isNaN(Date.parse(byId(activeProposalId)?.indicators[0]?.startedAt ?? ""))).toBe(false);
+    expect(byId(activePlanId)?.indicators).toEqual([]);
+    expect(byId(quietPlanId)?.indicators).toEqual([]);
+  });
+
+  it("leaves a delivered-and-ANNOUNCED job off the hub entirely", async () => {
+    // The other half of the durable-badge rule: "Ready — open" survives a reload only until the
+    // author opens the proposal once, which is what stamps `notified_at`. This job carries one.
+    const result = await loadPlans(supabase);
+    if (result.kind !== "ok") return;
+
+    expect(result.plans.find((plan) => plan.id === readyProposalId)?.indicators).toEqual([]);
+  });
+
+  it("keeps a READY proposal badged across a reload until it has been announced", async () => {
+    // The reload is what this proves: before S-306 terminal memory lived only in the poll store's
+    // RAM, so a refresh erased "Ready". Now the SSR loader itself returns the row.
+    const plan = await createFactoryPlan(supabase, { name: "Hub Indicator — ready source" });
+    const proposal = await createFactoryPlan(supabase, { name: "Proposal — Hub Indicator ready source" });
+    await enqueue(supabase, plan, {
+      status: "succeeded",
+      finished_at: nowIso(),
+      proposal_plan_id: proposal,
+      delivered_plan_id: proposal,
+      delivery: "proposal",
+    });
+
+    const result = await loadPlans(supabase);
+    if (result.kind !== "ok") return;
+
+    expect(result.plans.find((row) => row.id === proposal)?.indicators[0]).toMatchObject({
+      delivered: true,
+      proposalPlanId: proposal,
+      status: "succeeded",
+    });
+  });
+
+  it("keeps a terminal-but-UNDELIVERED job badged, so a ready board is never silent", async () => {
+    const plan = await createFactoryPlan(supabase, { name: "Hub Indicator — undelivered source" });
+    const proposal = await createFactoryPlan(supabase, { name: "Proposal — Hub Indicator undelivered" });
+    await enqueue(supabase, plan, {
+      status: "succeeded",
+      finished_at: nowIso(),
+      proposal_plan_id: proposal,
+    });
+
+    const result = await loadPlans(supabase);
+    if (result.kind !== "ok") return;
+
+    expect(result.plans.find((row) => row.id === proposal)?.indicators[0]).toMatchObject({
+      delivered: false,
+      status: "succeeded",
+    });
   });
 
   it("cannot attach two indicators to one plan, because the database refuses the second job", async () => {
@@ -93,11 +161,20 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(indicators.map((indicator) => indicator.status).sort()).toEqual(["running", "succeeded"]);
   });
 
-  it("discovers an active job from a plan id alone — the two-tab flow", async () => {
+  it("discovers an active job from the SOURCE plan id alone — the two-tab flow", async () => {
+    // The hole S-306 opens: a job started on a plan page creates a proposal row the already-open hub
+    // has never loaded, so the discovery read has to match on the id the hub DOES know.
     const indicators = await readGenerationJobStatuses(supabase, { jobIds: [], planIds: [activePlanId] });
 
     expect(indicators).toHaveLength(1);
     expect(indicators[0]).toMatchObject({ jobId: activeJobId, status: "running", stageIndex: 4 });
+  });
+
+  it("discovers the same job from the PROPOSAL plan id, once that row is on the page", async () => {
+    const indicators = await readGenerationJobStatuses(supabase, { jobIds: [], planIds: [activeProposalId] });
+
+    expect(indicators).toHaveLength(1);
+    expect(indicators[0]).toMatchObject({ jobId: activeJobId, proposalPlanId: activeProposalId });
   });
 
   it("returns one entry when both paths name the same row", async () => {
@@ -124,9 +201,11 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     const [indicator] = await readGenerationJobStatuses(supabase, { jobIds: [activeJobId], planIds: [] });
 
     expect(Object.keys(indicator).sort()).toEqual([
+      "delivered",
       "jobId",
       "kind",
       "planId",
+      "proposalPlanId",
       "stageIndex",
       "stageName",
       "stale",

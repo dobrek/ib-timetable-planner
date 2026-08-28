@@ -13,9 +13,10 @@ import type { ReadGenerationJobStatusesInput } from "../model/schemas";
  *
  * **Two ways in, because the author has two tabs.** `jobIds` refreshes what the caller already knows
  * about — the common tick. `planIds` DISCOVERS: a hub left open when Generate was pressed on a plan
- * page has no job id to ask about, and without this it would show nothing until a reload. The
- * discovery read is active-only; the refresh read is not, because a terminal row is precisely how the
- * poll learns a job ended.
+ * page has no job id to ask about, and without this it would show nothing until a reload. The refresh
+ * read is unfiltered by status, because a terminal row is precisely how the poll learns a job ended;
+ * the discovery read is `surfacedJobsFor`, whose filter S-306 widened from active-only to "anything
+ * this page should be badging" — see that function.
  *
  * The projection is explicit on both paths. `snapshot` is ~124 KB and TOASTed, `result` and
  * `checkpoint` ~35 KB each: a bare `select()` on a 5-second timer would be a standing transfer of
@@ -26,7 +27,8 @@ import type { ReadGenerationJobStatusesInput } from "../model/schemas";
  * this poll can honestly contribute to recovery without writing. The reclaim itself belongs to the
  * plan visit the stalled badge links to, which is also where the dead solve's checkpoint is delivered.
  */
-export const STATUS_COLUMNS = "id, plan_id, status, stage_index, stage_name, created_at, heartbeat_at";
+export const STATUS_COLUMNS =
+  "id, plan_id, proposal_plan_id, delivered_plan_id, status, stage_index, stage_name, created_at, heartbeat_at";
 
 export const readGenerationJobStatuses = async (
   supabase: SupabaseClient,
@@ -34,7 +36,7 @@ export const readGenerationJobStatuses = async (
 ): Promise<GenerationIndicator[]> => {
   const [byJob, byPlan] = await Promise.all([
     refreshKnown(supabase, input.jobIds),
-    discoverActive(supabase, input.planIds),
+    surfacedJobsFor(supabase, input.planIds),
   ]);
   return dedupeByJobId([...byJob, ...byPlan]);
 };
@@ -50,16 +52,42 @@ const refreshKnown = async (supabase: SupabaseClient, jobIds: string[]): Promise
   );
 };
 
-/** Any job that has since STARTED on these plans. At most one per plan, by the partial unique index. */
-const discoverActive = async (supabase: SupabaseClient, planIds: string[]): Promise<GenerationIndicator[]> => {
+/**
+ * Every job these plans should be showing a badge for — the ONE definition of "surfaced", shared by
+ * the SSR loader and by the poll's discovery read so the first paint and the first tick cannot
+ * disagree about which rows exist.
+ *
+ * Three kinds of row qualify, and each answers a different question the author has:
+ *
+ *   1. **Active** (`queued`/`running`) — a solve is happening. The original member.
+ *   2. **Terminal but undelivered** — a board is waiting for a visit to land it. Without this the
+ *      badge would vanish the instant the solver finished, and the author would have no signal that
+ *      anything is ready until they happened to open a plan.
+ *   3. **Delivered but not yet announced** (`notified_at is null`) — this is what makes "Ready — open"
+ *      survive a reload. Before S-306 terminal memory lived only in the poll store's RAM, so a
+ *      refresh erased it; now it is a row state, and `checkPlan` stamps `notified_at` the first time
+ *      the author actually looks at the delivered proposal.
+ *
+ * Matched on `plan_id` OR `proposal_plan_id`: the hub knows the ids of the rows ON THE PAGE, and a
+ * job's badge may belong to either of its two plans depending on which of them the page is showing.
+ */
+export const surfacedJobsFor = async (
+  supabase: SupabaseClient,
+  planIds: readonly string[],
+): Promise<GenerationIndicator[]> => {
   if (planIds.length === 0) return [];
+  const ids = `(${planIds.join(",")})`;
   return toGenerationIndicators(
     unwrapMany(
       await supabase
         .from("generation_jobs")
         .select(STATUS_COLUMNS)
-        .in("status", ["queued", "running"])
-        .in("plan_id", planIds),
+        .or(`plan_id.in.${ids},proposal_plan_id.in.${ids}`)
+        .or(
+          "status.in.(queued,running)," +
+            "and(delivered_plan_id.is.null,status.in.(succeeded,interrupted,stopped))," +
+            "and(delivered_plan_id.not.is.null,notified_at.is.null)",
+        ),
       "Generation activity lookup failed",
     ),
   );

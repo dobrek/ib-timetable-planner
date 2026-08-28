@@ -59,5 +59,6 @@ preserved in PRD FR-307.
 - **5.4 the e2e job's duration.** 444 s against the ~426 s baseline — +18 s for the solver boot,
   inside the ~1 min budget. README's critical-path figure is trued up to the measured number.
 
-One item is still owed and is not a plan step: **issue #103's title and body still describe
-auto-apply**. The PR says `Closes #103`, so it should be retitled before the merge lands.
+**Issue #103 was retitled and rewritten on 2026-08-28** — it described the retired auto-apply model.
+It now mirrors the roadmap's S-306 entry and records both re-groundings, so the issue the PR closes
+says what was actually built. Nothing further is owed at hand-off.

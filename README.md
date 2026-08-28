@@ -209,6 +209,20 @@ SOLVER_URL=http://127.0.0.1:8000 pnpm test:integration src/test/generation-propo
 > are two suites that dispatch and vitest runs files in parallel: start the service with
 > `SOLVER_MAX_CONCURRENT_JOBS=2` (what CI does) or the loser of the race gets a correct-but-unhelpful 503. Both fixtures solve in about a second.
 
+The **E2E** suite needs a solver too, since S-306: `e2e/specs/generation.spec.ts` presses Generate and
+waits for the board to land on the proposal plan. Locally that means `mise run solver:dev` up and
+`SOLVER_URL` in `.envs/local.vars` — it already is, so `pnpm env:local` is the whole setup:
+
+```bash
+mise run solver:dev                            # in one shell, per the env trio above
+pnpm test:e2e e2e/specs/generation.spec.ts     # in another
+```
+
+Without a solver the spec fails at the Generate click rather than skipping — the dispatch is refused
+as "not configured", which is the honest outcome for a lane whose entire subject is that dispatch.
+The `SOLVER_URL` value reaches the preview through `.dev.vars`, so a **rebuild** is required after
+switching profiles (the standing `.dev.vars` rule — see [Environment Profiles](#environment-profiles)).
+
 ### Tier 2 — the container image
 
 Proves the **image**, which the native process cannot: that the Dockerfile reproduces the repo layout `app.py`'s `parents[4]` anchor needs, that uvicorn binds `0.0.0.0` rather than loopback, and that the result is `linux/amd64` (`wrangler containers push` rejects anything else).
@@ -327,7 +341,6 @@ pnpm exec wrangler rollback <deployment-id>
 
 - **The container image has no vulnerability scanner.** `verify` runs `pnpm audit` and `solver` runs `uv audit`, but the base image and its OS packages are a third dependency surface with no gate. The base is pinned by tag (`python:3.13-slim`), not by digest, so it also moves under you between builds.
 - **Egress is not restricted.** `@cloudflare/containers` exposes `allowedHosts`/`deniedHosts`; pinning outbound traffic to the Supabase host would be a cheap hardening win and is not done.
-- **Generate has no E2E coverage** — owned by S-306, not closed by this lane. <!-- S-306 Phase 5: delete this line when `e2e/specs/generation.spec.ts` and the e2e job's solver land -->
 
 ## CI / CD
 
@@ -335,11 +348,11 @@ GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on 
 
 1. **`verify` job** — `shellcheck scripts/solver` → `astro sync` → `check` → `lint` → `steiger` → `pnpm audit --audit-level=high` → `test` → `build`
 2. **`integration` job** — boots a trimmed local Supabase stack, provisions the solver machine user with a per-run password, launches the CP-SAT service (with `SOLVER_MAX_CONCURRENT_JOBS=2`, sized to the worker cap below) and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` — which includes both solver-touching suites: the `queued → running → succeeded` proof-of-life, and the full S-301 chain from Generate to a verified board on the proposal plan
-3. **`e2e` job** — boots the stack + workerd preview, runs the Playwright suite (`pnpm test:e2e`)
+3. **`e2e` job** — boots the stack, provisions the solver machine user and starts the **native** CP-SAT service (same recipe as `integration`, `SOLVER_MAX_CONCURRENT_JOBS` left at 1), writes `.dev.vars` **including `SOLVER_URL`** — before the build that snapshots it — then boots the workerd preview and runs the Playwright suite (`pnpm test:e2e`). The solver is what lets `generation.spec.ts` press Generate and drive the result to a board; without `SOLVER_URL` the preview would pick the container binding instead and need Docker for no extra coverage
 4. **`solver` job** — from `services/solver`: `uv sync --locked` → `ruff check` → `mypy` (strict, src + tests) → `pytest` → `uv audit`
 5. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` + `solver` all pass: applies pending migrations (`supabase db push`), checks the Docker daemon, then builds and pushes the solver container image and ships the Worker + container via `cloudflare/wrangler-action@v4`
 
-**No path filters anywhere in this workflow**, and that is deliberate rather than an oversight. The four test jobs carry no `needs:` between them, so they run in parallel and the critical path is `e2e` at ~426 s; the `solver` job is 44 s, so filtering it saves billed minutes and zero wall clock — while requiring a rewrite of `deploy`'s `if:` gate that would switch off the implicit success check on all four needs at once, on the only job that touches production. The accepted cost is that the image build runs on every merge, doc-only merges included. If that becomes a problem the lever is GitHub Actions Docker layer caching (`cache-from`/`cache-to: type=gha`), **never** path filters.
+**No path filters anywhere in this workflow**, and that is deliberate rather than an oversight. The four test jobs carry no `needs:` between them, so they run in parallel and the critical path is `e2e` at ~426 s (plus the solver boot S-306 added — `uv sync` is cached and the generation fixture solves in ~1 s); the `solver` job is 44 s, so filtering it saves billed minutes and zero wall clock — while requiring a rewrite of `deploy`'s `if:` gate that would switch off the implicit success check on all four needs at once, on the only job that touches production. The accepted cost is that the image build runs on every merge, doc-only merges included. If that becomes a problem the lever is GitHub Actions Docker layer caching (`cache-from`/`cache-to: type=gha`), **never** path filters.
 
 Required **GitHub repository** secrets — exactly the four the `deploy` job reads:
 

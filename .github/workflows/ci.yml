@@ -154,11 +154,19 @@ jobs:
         run: cat "$RUNNER_TEMP/solver.log"
 
   # Stays Docker-free even though the Worker now declares a container: `dev.enable_containers: false`
-  # in `wrangler.jsonc` means `astro preview` never builds or starts an image. The `SOLVER` binding
-  # object still exists in the preview, so `getSolverTransport()` returns a BINDING transport here
-  # rather than `null` — harmless, because no spec presses Generate (S-306 owns that coverage). If an
-  # E2E for Generate is ever added, it needs a solver: either `SOLVER_URL` in the `.dev.vars` written
-  # below (pointing at a native service, as the `integration` job does) or a real container.
+  # in `wrangler.jsonc` means `astro preview` never builds or starts an image.
+  #
+  # **This lane has a solver since S-306**, because `generation.spec.ts` presses Generate and drives
+  # the result all the way to a board. It is the same NATIVE service the `integration` job runs — not
+  # a container — reached through `SOLVER_URL`, which is what makes `getSolverTransport()` prefer a
+  # URL over the `SOLVER` binding the preview also exposes. (Without it the binding transport would be
+  # chosen and every dispatch would need a real container: Docker in this lane, for no extra
+  # coverage — the binding path is what `mise run solver:tier3` exists to prove.)
+  #
+  # `SOLVER_URL` must be in `.dev.vars` BEFORE the build, never merely exported: `astro build`
+  # snapshots that file into `dist/server/`, and both `astro preview` and `wrangler dev` read the
+  # copy. That is the recorded `.dev.vars` lesson, and the ordering below is load-bearing because of
+  # it — the write step runs before `pnpm test:e2e`, whose `webServer` does the build.
   e2e:
     name: "E2E tests"
     runs-on: ubuntu-latest
@@ -169,12 +177,59 @@ jobs:
         with:
           export-anon-key: "true"
 
+      # --- the CP-SAT solver service, so a spec can press Generate (S-306) ----------------------
+      # The same recipe the `integration` job runs, and for the same reasons — see the long comments
+      # there. One difference: `SOLVER_MAX_CONCURRENT_JOBS` stays at the service default of 1,
+      # because exactly one spec dispatches and Playwright's projects are sequenced behind the
+      # `setup` project rather than racing it.
+      - name: Provision the solver machine user
+        run: |
+          SOLVER_MACHINE_PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::$SOLVER_MACHINE_PASSWORD"
+          echo "SOLVER_MACHINE_PASSWORD=$SOLVER_MACHINE_PASSWORD" >> "$GITHUB_ENV"
+          SOLVER_MACHINE_PASSWORD="$SOLVER_MACHINE_PASSWORD" node scripts/provision-solver-user.mjs
+
+      # Same EXACT pin caveat as the `solver` and `integration` jobs: astral-sh/setup-uv publishes
+      # moving major tags only up to v7, so `@v9` does not resolve. `version` pins the RESOLVER and
+      # must move with `mise.toml`'s `uv = "..."`.
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: "0.12.3"
+          working-directory: services/solver
+      - run: uv sync --locked
+        working-directory: services/solver
+
+      - name: Start the solver service
+        working-directory: services/solver
+        env:
+          SOLVER_MAX_CONCURRENT_JOBS: "1"
+        run: |
+          uv run uvicorn cpsat_service.app:app --port 8000 > "$RUNNER_TEMP/solver.log" 2>&1 &
+          SOLVER_PID=$!
+          for _ in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8000/health > /dev/null; then
+              echo "solver service is up"
+              exit 0
+            fi
+            if ! kill -0 "$SOLVER_PID" 2>/dev/null; then
+              echo "solver service died during startup"; cat "$RUNNER_TEMP/solver.log"; exit 1
+            fi
+            sleep 1
+          done
+          echo "solver service never answered /health"; cat "$RUNNER_TEMP/solver.log"; exit 1
+
       # The workerd preview reads SUPABASE_URL/SUPABASE_KEY from `.dev.vars`, NOT from
       # `webServer.env` — and the CI stack mints its own anon key that won't match the
       # fixed local publishable key, so we must write `.dev.vars` from the minted keys
       # before the server boots. Unquoted KEY=value, matching `pnpm env:local` output.
+      #
+      # `SOLVER_URL` joins them for the same reason and with the same urgency: the build below
+      # snapshots this file, so a value exported into the shell instead would reach the Worker as
+      # nothing at all and every Generate would fail with "not configured".
       - name: Write .dev.vars for the workerd preview
-        run: printf 'SUPABASE_URL=%s\nSUPABASE_KEY=%s\n' "$SUPABASE_URL" "$SUPABASE_KEY" > .dev.vars
+        run: |
+          printf 'SUPABASE_URL=%s\nSUPABASE_KEY=%s\nSOLVER_URL=%s\n' \
+            "$SUPABASE_URL" "$SUPABASE_KEY" "http://127.0.0.1:8000" > .dev.vars
 
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
@@ -182,6 +237,12 @@ jobs:
       # `pretest:e2e` provisions the author (URL + service-role from $GITHUB_ENV) and
       # `test:e2e`'s webServer runs `pnpm build && pnpm preview` on real workerd.
       - run: pnpm test:e2e
+
+      # Same reason as the integration job's: a solver that died mid-suite would otherwise present
+      # only as a Playwright timeout with nothing to read.
+      - name: Solver service log
+        if: failure()
+        run: cat "$RUNNER_TEMP/solver.log"
 
       - name: Upload Playwright report
         if: failure()

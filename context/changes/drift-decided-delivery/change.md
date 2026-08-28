@@ -49,15 +49,15 @@ fold-in.
 `frame.md`) → 2026-08-28 second re-ground (proposal-is-a-plan, from `plan.md`). All three blocks are
 preserved in PRD FR-307.
 
+
 ## Open at hand-off
 
-Two Progress rows stay unchecked because both are observations of a **CI run on a PR**, which does
-not exist yet — neither is code:
+**Resolved 2026-08-28 on PR #120** (run 33212606151, all four test jobs green):
 
-- **5.1 the e2e job is green on the PR.** The spec and the job's solver steps are in; the whole
-  local E2E suite (34 tests) passes against a native solver, `generation.spec.ts` in ~16 s.
-- **5.4 the e2e job's duration.** Measurable only against the CI baseline (~426 s). The added work is
-  a cached `uv sync`, a uvicorn boot, and a ~1 s solve.
+- **5.1 the e2e job is green.** It boots the native solver and `generation.spec.ts` drives Generate
+  through to a delivered board.
+- **5.4 the e2e job's duration.** 444 s against the ~426 s baseline — +18 s for the solver boot,
+  inside the ~1 min budget. README's critical-path figure is trued up to the measured number.
 
-Both close on the first CI run. One more item is owed at PR time and is not a plan step:
-**issue #103's title and body still describe auto-apply** (the roadmap's next-actions row says so).
+One item is still owed and is not a plan step: **issue #103's title and body still describe
+auto-apply**. The PR says `Closes #103`, so it should be retitled before the merge lands.

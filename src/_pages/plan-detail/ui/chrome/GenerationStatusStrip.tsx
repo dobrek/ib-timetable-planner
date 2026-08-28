@@ -1,7 +1,8 @@
 import { ExternalLink, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
-import { describeCleanLabel, LADDER_TIER_COUNT } from "@/entities/timetable";
+import { describeCleanLabel, isHaltedJobStatus, LADDER_TIER_COUNT } from "@/entities/timetable";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
+import type { GenerationJobView } from "../../api/generation-delivery";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 
 type Props = {
@@ -9,19 +10,33 @@ type Props = {
 };
 
 /**
- * The generation job's whole visible life, in one strip: active, delivered, or failed.
+ * The generation job's whole visible life, in one strip — and since S-306, TWO strips, because the
+ * job now has two pages and they owe the author different things.
  *
  * It exists because the work outlives the page. A CP-SAT solve runs for ~12 minutes on a server, so
  * there is no in-page progress to render and no engine to interrogate — only a durable row, and this
- * is the author's window onto it. Refresh re-reads that row, and on a job that has succeeded the
- * re-read is also what DELIVERS it (verify → translate → apply, server-side).
+ * is the author's window onto it. Refresh re-reads that row, and on a job with a deliverable board
+ * the re-read is also what DELIVERS it (verify → translate → apply, server-side).
  *
- * **Static by design, and it stays that way.** This strip is FR-308's advisory — status plus a start
- * time, SSR'd from the page's frontmatter — and S-303 deliberately did NOT make it live. Stage-by-
- * stage progress lives on the plans list instead, behind the "Watch progress in Plans" link below,
- * because `/plans` has no board on it: polling can never contend with dragging there, which is
- * FR-312 satisfied structurally rather than by a memoization argument. Nothing in this island loops,
- * and nothing should start. A cancel button is still S-305's.
+ * **The split, and why the source loses most of what it used to say.** The board lands on the
+ * PROPOSAL, never on the source (FR-307), and the proposal is a plan of its own the author can open
+ * from the first second. So:
+ *
+ *   * On the **source** the job is something that is happening elsewhere. While it runs, one advisory
+ *     line (FR-308) pointing at the proposal; if it failed, the reason, because a failed job has no
+ *     proposal left to carry it. Once it delivers, **nothing** — the result is not on this plan and a
+ *     "ready" banner here would be an invitation to look for it in the wrong place.
+ *   * On the **proposal**, once delivered, provenance: what this board was generated from and when,
+ *     plus the quality label. A proposal's whole identity is that it came from somewhere.
+ *
+ * The pending proposal has no strip at all — it has `PendingProposalPage`, which IS the strip.
+ *
+ * **Static by design, and it stays that way.** This is FR-308's advisory — status plus a start time,
+ * SSR'd from the page's frontmatter — and S-303 deliberately did NOT make it live. Stage-by-stage
+ * progress lives on the plans list and on the proposal's own page, both of which have no board, so
+ * polling can never contend with dragging there: FR-312 satisfied structurally rather than by a
+ * memoization argument. Nothing in this island loops, and nothing should start. A cancel button is
+ * still S-305's.
  *
  * Semantic theme tokens only — no palette-named or arbitrary colours, so the whole light/dark theme
  * stays drivable from `global.css`.
@@ -32,40 +47,32 @@ export default function GenerationStatusStrip({ generation }: Props) {
   if (state.status !== "tracking") return null;
   const { job } = state;
 
+  if (job.role === "proposal") return <ProposalStrip job={job} hydrated={hydrated} />;
+
   if (job.status === "queued" || job.status === "running") {
     return (
       <Strip>
         <span role="status" className="text-muted-foreground flex items-center gap-1.5">
           <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          Generating… started <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time>
+          Generating a proposal from the{" "}
+          <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time> state
         </span>
+        {/* Always present while active: the clone is created before the job row exists, and only a
+            terminal branch ever detaches or sweeps it. */}
+        {job.proposalPlanId && (
+          <a
+            href={`/plans/${job.proposalPlanId}`}
+            className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
+          >
+            Open proposal
+            <ExternalLink className="size-3.5" aria-hidden />
+          </a>
+        )}
         <RefreshButton checking={checking} onRefresh={refresh} />
         <a href="/plans" className="text-foreground hover:text-primary font-medium underline underline-offset-2">
           Watch progress in Plans
         </a>
         <span className="text-muted-foreground/80">This runs for several minutes — you can leave the page.</span>
-      </Strip>
-    );
-  }
-
-  if (job.delivered && job.proposalPlanId) {
-    return (
-      <Strip>
-        <a
-          href={`/plans/${job.proposalPlanId}`}
-          className="text-foreground hover:text-primary inline-flex items-center gap-1.5 font-medium underline underline-offset-2"
-        >
-          {job.status === "interrupted" ? "Partial proposal ready — open" : "Proposal ready — open"}
-          <ExternalLink className="size-3.5" aria-hidden />
-        </a>
-        {/* An interrupted run says which stage it got to INSTEAD of a clean label, not beside it: a
-            mid-ladder transcript rarely reaches tier 5, so `describeCleanLabel` would honestly but
-            unhelpfully say "unavailable" where the author wants to know how far the solve got. */}
-        <span className="text-muted-foreground">
-          {job.status === "interrupted"
-            ? interruptedSummary(job.checkpointStageIndex)
-            : describeCleanLabel(job.cleanLabel)}
-        </span>
       </Strip>
     );
   }
@@ -77,37 +84,61 @@ export default function GenerationStatusStrip({ generation }: Props) {
           <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
           Generation failed{job.error ? `: ${job.error}` : "."}
         </span>
+        <RefreshButton checking={checking} onRefresh={refresh} />
       </Strip>
     );
   }
 
-  // Interrupted with nothing kept: the container died before a single stage finished, so there is no
-  // board to deliver and the clone has already been swept. Advisory rather than destructive — the run
-  // was cut short by the platform, which is not the author's data being wrong.
-  if (job.status === "interrupted" && job.checkpointStageIndex === null) {
+  // Halted with nothing kept: the container died (or the author stopped it) before a single stage
+  // finished, so there is no board to deliver and the clone has already been swept. Advisory rather
+  // than destructive — the run was cut short, which is not the author's data being wrong.
+  if (isHaltedJobStatus(job.status) && job.checkpointStageIndex === null) {
     return (
       <Strip>
         <span role="status" className="text-muted-foreground flex items-center gap-1.5">
           <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-          Generation was interrupted before any stage finished — nothing was kept. Generate again when you are ready.
+          Generation stopped before any stage finished — nothing was kept. Generate again when you are ready.
         </span>
         <RefreshButton checking={checking} onRefresh={refresh} />
       </Strip>
     );
   }
 
-  // `succeeded` but not yet delivered (the check is still in flight), or a `stopped` row from a slice
-  // that does not exist yet. Say what is true rather than guess.
+  // Delivered, or terminal-with-a-board that the check is still landing. Either way the result is on
+  // the PROPOSAL and not here, so the source says nothing at all — see the split above.
+  return null;
+}
+
+/**
+ * The delivered proposal's own line: where this board came from, and how good it is.
+ *
+ * The provenance link is the only route back to the source, and it matters more than it looks: a
+ * proposal is named `Proposal — <source>` only until the author renames it, after which nothing else
+ * on the page records which plan it was solved from.
+ */
+const ProposalStrip = ({ job, hydrated }: { job: GenerationJobView; hydrated: boolean }) => {
+  if (!job.delivered) return null;
   return (
     <Strip>
-      <span role="status" className="text-muted-foreground flex items-center gap-1.5">
-        {checking && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
-        Generation {job.status} — no proposal has been delivered.
+      <span className="text-muted-foreground">
+        Generated from{" "}
+        <a
+          href={`/plans/${job.sourcePlanId}`}
+          className="text-foreground hover:text-primary font-medium underline underline-offset-2"
+        >
+          {job.sourcePlanName ?? "the source plan"}
+        </a>{" "}
+        at <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time>
       </span>
-      <RefreshButton checking={checking} onRefresh={refresh} />
+      {/* A halted run says which stage it got to INSTEAD of a clean label, not beside it: a mid-ladder
+          transcript rarely reaches tier 5, so `describeCleanLabel` would honestly but unhelpfully say
+          "unavailable" where the author wants to know how far the solve got. */}
+      <span className="text-muted-foreground">
+        {isHaltedJobStatus(job.status) ? haltedSummary(job.checkpointStageIndex) : describeCleanLabel(job.cleanLabel)}
+      </span>
     </Strip>
   );
-}
+};
 
 const Strip = ({ children, tone }: { children: React.ReactNode; tone?: "destructive" }) => (
   <div
@@ -137,12 +168,12 @@ const formatStarted = (createdAt: string): string =>
   new Date(createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
 /**
- * How far an interrupted solve got, in the same "stage N of 10" form the hub's progress label uses.
+ * How far a halted solve got, in the same "stage N of 10" form the hub's progress label uses.
  *
  * Naming the stage is the whole point: a partial board is a legitimate result the author may well
  * keep, and "kept the board from stage 3 of 10" is what tells them whether to keep it or regenerate.
  */
-const interruptedSummary = (checkpointStageIndex: number | null): string =>
+const haltedSummary = (checkpointStageIndex: number | null): string =>
   checkpointStageIndex === null
-    ? "Interrupted — nothing was kept."
-    : `Interrupted — kept the board from stage ${String(checkpointStageIndex)} of ${String(LADDER_TIER_COUNT)}.`;
+    ? "Stopped — nothing was kept."
+    : `Stopped early — kept the board from stage ${String(checkpointStageIndex)} of ${String(LADDER_TIER_COUNT)}.`;

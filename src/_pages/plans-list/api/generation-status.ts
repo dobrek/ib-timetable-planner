@@ -5,7 +5,7 @@ import type { ReadGenerationJobStatusesInput } from "../model/schemas";
 /**
  * A status-only read of `generation_jobs` — the hub's poll, and nothing more.
  *
- * **It never delivers.** `checkGeneration` (plan-detail) is not a passive read: on a succeeded,
+ * **It never delivers.** `checkPlan` (plan-detail) is not a passive read: on a succeeded,
  * undelivered job it verifies the board server-side, translates it into the clone's id space and
  * applies it. Polling THAT from a hub tab would run delivery on a schedule, from a page the author
  * is not even looking at, and race every other open tab doing the same. This function reads six

@@ -13,10 +13,13 @@ export function startGeneration(planId: string): Promise<{
 }
 
 /**
- * Read this plan's latest job back — and, when it succeeded and has not been delivered, DELIVER it:
- * the verify → translate → apply pass runs inside this call, server-side. Null when the plan has
- * never been generated. Safe to call concurrently; the delivered marker is a compare-and-set.
+ * Read this plan's job back — and, when it has a deliverable board, DELIVER it: the verify →
+ * translate → apply pass runs inside this call, server-side.
+ *
+ * Dual-keyed (S-306): `planId` may be the job's SOURCE plan or its PROPOSAL plan, and the returned
+ * view is tagged with which. Null when the plan is neither. Safe to call concurrently — the delivered
+ * marker is a compare-and-set, so two tabs racing the same board deliver it once.
  */
-export function checkGeneration(planId: string): Promise<GenerationJobView | null> {
-  return callActionData(actions.checkGeneration, { planId });
+export function checkPlan(planId: string): Promise<GenerationJobView | null> {
+  return callActionData(actions.checkPlan, { planId });
 }

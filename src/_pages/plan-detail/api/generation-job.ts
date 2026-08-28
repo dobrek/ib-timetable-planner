@@ -25,7 +25,7 @@ import { loadCombinedPlannerData } from "./load";
  * `CONFLICT` is exactly where a wedge is felt, so that is where it is answered: read the one row
  * blocking the index, and if it has gone quiet past the grace, reclaim it to `interrupted` and retry
  * the insert once. The happy path gains ZERO reads — recovery costs nothing until something is
- * actually broken. The authoritative reclaim is still the plan visit (`checkGeneration`), which also
+ * actually broken. The authoritative reclaim is still the plan visit (`checkPlan`), which also
  * delivers the dead solve's checkpoint; this is the backstop for the author who clicks Generate from
  * the hub without ever loading the plan page.
  *
@@ -190,7 +190,7 @@ const insertJob = async (
  * The one row the partial unique index is blocking on, reclaimed if it has gone quiet. True iff the
  * insert is now worth retrying.
  *
- * The clone handling splits on the same question `checkGeneration` asks. **No checkpoint** means the
+ * The clone handling splits on the same question `checkPlan` asks. **No checkpoint** means the
  * dead job kept nothing, so its clone is litter and goes the way a failed job's does. **With a
  * checkpoint** both the row and the clone are left exactly as they are: that board is salvage, the
  * normal path (a plan visit) delivers it, and the author is explicitly starting fresh alongside it

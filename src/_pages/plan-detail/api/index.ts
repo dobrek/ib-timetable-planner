@@ -8,6 +8,6 @@ export { isGroupingStale } from "./staleness";
 export { placementActions } from "./placement-actions";
 export { createGenerationActions } from "./generation-actions";
 export { startGeneration, startGenerationInput, type GenerationDeps } from "./generation-job";
-export { checkGeneration, checkGenerationInput, type GenerationJobView } from "./generation-delivery";
+export { checkPlan, checkPlanInput, type GenerationJobRole, type GenerationJobView } from "./generation-delivery";
 export { shelfActions } from "./shelf-actions";
 export { groupingActions } from "./grouping-actions";

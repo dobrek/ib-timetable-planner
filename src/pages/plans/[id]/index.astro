@@ -1,9 +1,11 @@
 ---
 import SidebarLayout from "@/app/layouts/SidebarLayout.astro";
+import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
 import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
-import { createClient } from "@/shared/api";
-import { checkGeneration, loadCombinedPlannerData, type GenerationJobView } from "@/_pages/plan-detail/api";
+import PendingProposalPage from "@/_pages/plan-detail/ui/PendingProposalPage";
+import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
+import { checkPlan, loadCombinedPlannerData, type GenerationJobView } from "@/_pages/plan-detail/api";
 import { boardSurfaceSchema } from "@/_pages/plan-detail/lib/board-surface";
 import { COOKIE_NAME, parsePaletteCollapsed } from "@/_pages/plan-detail/lib/palette-collapsed";
 import { COOKIE_NAME as PALETTE_COHORT_COOKIE, parsePaletteCohort } from "@/_pages/plan-detail/lib/palette-cohort";
@@ -12,31 +14,54 @@ const supabase = createClient(Astro.request.headers, Astro.cookies);
 // `?focus=` selects the surface — dp1 / dp2 / combined; missing/garbage coerces to combined (the
 // default landing — "combined is the board"). Both cohorts always load (one loader for every mode).
 const focus = boardSurfaceSchema.parse(Astro.url.searchParams.get("focus"));
-const result = await loadCombinedPlannerData(supabase, Astro.params.id);
-if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
+const planId = isPlanId(Astro.params.id) ? Astro.params.id : undefined;
+
+/*
+ * The plans row FIRST, then the generation check, then — only if this is not a pending proposal —
+ * the board (S-306).
+ *
+ * That ordering is the whole shape of this route, and it is a reversal of S-301's. The on-visit check
+ * (FR-313) used to run AFTER the board load, on the argument that it writes only to the proposal
+ * clone so the board above it could not be stale. It now runs BEFORE, because the visit may BE the
+ * proposal's: on that path the check is what turns this page from a progress panel into a board, and
+ * `loadCombinedPlannerData` must not run for a plan the check is about to fill in — or, worse, for a
+ * plan the check is about to sweep.
+ *
+ * The cost on the ordinary board visit is one narrow by-primary-key read, added to an ~18-round-trip
+ * load. The check itself stays what it was: a narrow status read until a row is actually deliverable.
+ *
+ * Never fatal. A delivery failure must not take the board down with it, so it degrades to "no job"
+ * and the author can hit Refresh.
+ */
+const summary = supabase ? await loadPlanSummary(supabase, planId) : null;
+
+let generationJob: GenerationJobView | null = null;
+if (supabase && summary) {
+  generationJob = await checkPlan(supabase, { planId: summary.id }).catch((error: unknown): null => {
+    // eslint-disable-next-line no-console -- the server log is the only trace a delivery failed
+    console.error("[plans/:id] generation check failed:", error);
+    return null;
+  });
+}
+
+// Re-read ONLY when the row arrived pending: the check may have just cleared the flag (it delivered),
+// or deleted the plan outright (a terminal job with nothing to deliver sweeps its clone). Nothing can
+// make a non-pending plan pending, so the ordinary board visit skips this second read entirely.
+const settled =
+  supabase && summary && isPendingProposal(summary) ? await loadPlanSummary(supabase, summary.id) : summary;
+const pending = settled !== null && isPendingProposal(settled);
+
+// A pending proposal has no board to load, and a swept one has no plan at all.
+const result = supabase && settled && !pending ? await loadCombinedPlannerData(supabase, planId) : null;
+if (!supabase) Astro.response.status = 503;
+else if (settled === null) Astro.response.status = 404;
+else if (result && !result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
+
+// Narrowed once, so the markup below reads as three states rather than re-deriving the union twice.
+const boardError = result !== null && !result.ok ? result.error : null;
 
 // Read the per-device palette-collapse pref server-side so the island can seed flash-free
 // initial state (a client-only read would render expanded for one frame then snap shut).
-// The on-visit generation check (S-301, FR-313). It runs HERE, in the page render, because that is
-// literally what "on visit" means — and because a mount effect that fetched and set state would both
-// cost a round-trip and flash an empty strip. When the plan's latest job has succeeded and nothing
-// has been delivered yet, this call is what verifies the board server-side and applies it to the
-// proposal plan; otherwise it is a narrow status read. Never fatal: a delivery failure must not take
-// the board down with it, so it degrades to "no job" and the author can hit Refresh.
-//
-// Ordering note: it runs AFTER the board load and writes only to the proposal CLONE, so the board
-// rendered below cannot be stale because of it.
-let generationJob: GenerationJobView | null = null;
-if (result.ok && supabase) {
-  generationJob = await checkGeneration(supabase, { planId: result.value.shared.planId }).catch(
-    (error: unknown): null => {
-      // eslint-disable-next-line no-console -- the server log is the only trace a delivery failed
-      console.error("[plans/:id] generation check failed:", error);
-      return null;
-    },
-  );
-}
-
 const paletteCollapsed = parsePaletteCollapsed(Astro.cookies.get(COOKIE_NAME)?.value);
 // Same rationale for the combined-mode palette cohort: seeding from the cookie keeps the selection
 // across the full-document refresh a stale-grouping recompute triggers (else it snaps back to dp1).
@@ -44,7 +69,15 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
 ---
 
 {
-  result.ok ? (
+  settled === null ? (
+    <SidebarLayout title="Plan not found">
+      <PlanScopedError />
+    </SidebarLayout>
+  ) : pending ? (
+    <SidebarLayout title={`${settled.name} — generating`} plan={{ id: settled.id, name: settled.name }}>
+      <PendingProposalPage planName={settled.name} planId={settled.id} job={generationJob} client:load />
+    </SidebarLayout>
+  ) : result?.ok ? (
     <SidebarLayout
       title={result.value.planName}
       plan={{ id: result.value.shared.planId, name: result.value.planName }}
@@ -63,10 +96,10 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
       />
     </SidebarLayout>
   ) : (
-    <SidebarLayout title={result.error.kind === "not-found" ? "Plan not found" : "Unavailable"}>
+    <SidebarLayout title={boardError?.kind === "not-found" ? "Plan not found" : "Unavailable"}>
       <PlanDetailError
-        kind={result.error.kind}
-        message={result.error.kind === "unavailable" ? result.error.message : undefined}
+        kind={boardError?.kind ?? "unavailable"}
+        message={boardError?.kind === "unavailable" ? boardError.message : undefined}
       />
     </SidebarLayout>
   )

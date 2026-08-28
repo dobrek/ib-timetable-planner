@@ -1,5 +1,5 @@
 import { defineDomainAction } from "@/shared/lib/actions";
-import { checkGeneration, checkGenerationInput } from "./generation-delivery";
+import { checkPlan, checkPlanInput } from "./generation-delivery";
 import { startGeneration, startGenerationInput, type GenerationDeps } from "./generation-job";
 
 /**
@@ -22,6 +22,7 @@ export const createGenerationActions = (deps: GenerationDeps) => ({
     run: (supabase, input) => startGeneration(supabase, input, deps),
   }),
   // No injected dependency: delivery never talks to the solver. It reads the row the solver already
-  // wrote, and everything after that is the database and the pure oracle.
-  checkGeneration: defineDomainAction({ input: checkGenerationInput, run: checkGeneration }),
+  // wrote, and everything after that is the database and the pure oracle. Dual-keyed since S-306:
+  // the same action answers a visit to the source plan and a visit to the proposal.
+  checkPlan: defineDomainAction({ input: checkPlanInput, run: checkPlan }),
 });

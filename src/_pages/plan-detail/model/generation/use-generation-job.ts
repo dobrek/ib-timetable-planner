@@ -1,9 +1,6 @@
 import { useState } from "react";
 import type { GenerationJobView } from "../../api/generation-delivery";
-import {
-  checkGeneration as checkGenerationAction,
-  startGeneration as startGenerationAction,
-} from "../../api/generation-client";
+import { checkPlan as checkPlanAction, startGeneration as startGenerationAction } from "../../api/generation-client";
 
 /**
  * The CP-SAT generation job's client-side lifecycle — the hook behind the Generate button (S-301).
@@ -16,7 +13,7 @@ import {
  * a closed tab (S-305 gives it a real server-side stop path).
  *
  * **The on-visit check is NOT here — it already happened.** `src/pages/plans/[id]/index.astro` runs
- * `checkGeneration` in the page render and seeds `initialJob`, which means the visit itself is the
+ * `checkPlan` in the page render and seeds `initialJob`, which means the visit itself is the
  * trigger: no client round-trip, no frame of empty strip, and no fetch-and-set-state effect (which
  * React 19's rules reject and the React Compiler refuses to optimize around). This hook only handles
  * what the author does AFTER the page exists — launching, and asking again.
@@ -61,7 +58,7 @@ export function useGenerationJob({
   initialJob,
   busy,
   start = startGenerationAction,
-  check = checkGenerationAction,
+  check = checkPlanAction,
 }: UseGenerationJobDeps): GenerationJobControls {
   const [state, setState] = useState<GenerationJobState>(
     initialJob ? { status: "tracking", job: initialJob } : { status: "idle" },

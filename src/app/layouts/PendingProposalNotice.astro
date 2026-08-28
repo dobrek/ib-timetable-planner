@@ -1,0 +1,37 @@
+---
+/**
+ * What a plan-scoped page shows instead of itself when the plan is a proposal still being generated
+ * (S-306).
+ *
+ * The sibling of `PlanScopedError.astro`, and deliberately shaped like it: a plain server-rendered
+ * block with no island, because these routes have nothing to render and nothing to poll — the one
+ * page that keeps itself current is the proposal's own, which this links to.
+ *
+ * A pending proposal is a real `plans` row from the moment Generate is pressed, so every by-id
+ * surface can reach it. It has a catalog and a board (the clone carries the author's pins), but both
+ * are the apply target of a solve that may still be running: editing either kills the delivery. So
+ * the answer is "not yet", not "not found".
+ */
+type Props = {
+  planName: string;
+  planId: string;
+  /** What this route would have shown — "Courses", "the student schedule", … */
+  surface: string;
+};
+
+const { planName, planId, surface } = Astro.props;
+---
+
+<div class="py-16 text-center">
+  <h1 class="text-foreground text-2xl font-semibold tracking-tight">Still generating</h1>
+  <p class="text-muted-foreground mx-auto mt-2 max-w-prose text-sm">
+    <span class="text-foreground font-medium">{planName}</span> is a proposal whose board has not landed yet, so {
+      surface
+    } cannot be shown or edited — a solve is still using it as its target.
+  </p>
+  <p class="mt-4 text-sm">
+    <a href={`/plans/${planId}`} class="text-foreground underline underline-offset-2">Watch its progress</a>
+    <span class="text-muted-foreground mx-2">·</span>
+    <a href="/plans" class="text-muted-foreground hover:text-foreground underline underline-offset-2">Back to Plans</a>
+  </p>
+</div>

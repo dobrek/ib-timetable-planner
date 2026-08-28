@@ -131,12 +131,27 @@ const fetchPlan = async (
   supabase: SupabaseClient,
   planId: string,
 ): Promise<{ id: string; name: string; slot_grid_preset: string }> => {
-  const { data, error } = await supabase.from("plans").select("id, name, slot_grid_preset").eq("id", planId).single();
+  const { data, error } = await supabase
+    .from("plans")
+    .select("id, name, slot_grid_preset, pending_proposal")
+    .eq("id", planId)
+    .single();
   if (error) {
     throw new Error(
       `Plan ${planId} not found in this database (${error.message}). ` +
         `Plans are addressed by id, never by name — restore the snapshot or pass a different id.`,
     );
+  }
+  // S-306: a proposal whose board has not landed is not a comparable plan. Its board is the clone's
+  // pins, not the solve's result, so every metric on the page would describe a state that is about to
+  // be replaced — a worse failure than an absence, because the numbers would look finished.
+  //
+  // A THROW rather than a new result variant, deliberately: `loadComparison` settles each plan
+  // independently and names the ones that did not load, so this lands in `missingPlanIds` and the page
+  // already has somewhere to say it (the copy there names generation explicitly). It also keeps this
+  // function's signature pinned, which `bench/` depends on.
+  if (data.pending_proposal) {
+    throw new Error(`Plan ${planId} is a proposal that is still being generated, so it cannot be compared yet.`);
   }
   return data;
 };

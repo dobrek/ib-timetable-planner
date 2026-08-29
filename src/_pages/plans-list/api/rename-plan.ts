@@ -12,11 +12,23 @@ type PlanRecord = Database["public"]["Tables"]["plans"]["Row"];
  * board lands is the one act that would make an in-flight solve's target unrecognisable. Renaming is
  * how the author KEEPS a delivered proposal — that is the whole act — so it is not lost, only
  * deferred by the length of the solve.
+ *
+ * The update filters on the flag as well, so a clone that becomes pending between the guard's read
+ * and the write (the ms between `clone_plan` and `markPending` in enqueue) is refused, not renamed.
  */
 export const renamePlan = async (supabase: SupabaseClient, input: RenamePlanInput): Promise<PlanRecord> => {
   await assertNotPending(supabase, input.id);
-  return unwrapRow(await supabase.from("plans").update({ name: input.name }).eq("id", input.id).select().single(), {
-    notFound: "Plan not found.",
-    failure: "Failed to rename plan",
-  });
+  return unwrapRow(
+    await supabase
+      .from("plans")
+      .update({ name: input.name })
+      .eq("id", input.id)
+      .eq("pending_proposal", false)
+      .select()
+      .single(),
+    {
+      notFound: "Plan not found, or it just became a pending proposal.",
+      failure: "Failed to rename plan",
+    },
+  );
 };

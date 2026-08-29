@@ -1,9 +1,9 @@
 ---
 change_id: drift-decided-delivery
 title: Drift decided delivery
-status: implemented
+status: impl_reviewed
 created: 2026-08-25
-updated: 2026-08-28
+updated: 2026-08-29
 archived_at: null
 ---
 

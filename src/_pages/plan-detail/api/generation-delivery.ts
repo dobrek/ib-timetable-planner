@@ -310,15 +310,20 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
     // the clone (it carries the very edits that caused the mismatch): detaching it is what protects
     // it from the failed-job orphan sweep above.
     const reason = cause instanceof Error ? cause.message : String(cause);
-    await failJob(supabase, row.id, `the result could not be translated onto the proposal plan: ${reason}`, {
-      detachClone: true,
-    });
     // The one terminal branch that leaves a clone ALIVE, so the one that must un-pend it by hand.
     // Without this the plan is stranded read-only forever: no job references it any more, so nothing
     // would ever clear the flag. (Near-unreachable since S-306 — the catalog cannot be edited while
     // pending — but "near" is not "never": a service-role write, or a clone detached by an earlier
     // failure, can still get here.)
+    //
+    // Un-pend BEFORE detaching. Once `proposal_plan_id` is null no visit can find this plan's job
+    // again, so a crash between the two writes would strand it read-only with no retry. Cleared first,
+    // a crash leaves the job still deliverable: the next visit re-enters, re-hits the same mismatch
+    // and detaches — the same asymmetric-crash argument the clear-before-mark ordering below rests on.
     await clearPending(supabase, proposalPlanId);
+    await failJob(supabase, row.id, `the result could not be translated onto the proposal plan: ${reason}`, {
+      detachClone: true,
+    });
     return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" });
   }
   await applyToProposal(supabase, proposalPlanId, translated);

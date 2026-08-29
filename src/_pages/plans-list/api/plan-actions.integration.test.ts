@@ -278,6 +278,16 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       expect(await planExists(sourceId)).toBe(true);
     });
 
+    it("refuses to delete the SOURCE plan while its result is ready but undelivered", async () => {
+      // `plan_id` is `on delete cascade`: deleting the source here would take the finished job row —
+      // and the only copy of its `result` — with it, and leave the clone pending with no job at all.
+      const { sourceId, proposalId } = await makeProposal("delete-source-ready");
+      await jobFor(sourceId, proposalId, { status: "succeeded", finished_at: new Date().toISOString() });
+
+      await expect(deletePlan(supabase, { id: sourceId })).rejects.toThrow(/open the proposal to deliver it first/i);
+      expect(await planExists(sourceId)).toBe(true);
+    });
+
     it("ALLOWS deleting the source once its job is terminal", async () => {
       const { sourceId, proposalId } = await makeProposal("delete-source-done");
       await jobFor(sourceId, proposalId, { status: "failed", finished_at: new Date().toISOString() });

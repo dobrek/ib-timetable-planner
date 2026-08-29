@@ -1,6 +1,7 @@
 ---
 import SidebarLayout from "@/app/layouts/SidebarLayout.astro";
 import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
+import SweptProposalNotice from "@/app/layouts/SweptProposalNotice.astro";
 import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import PendingProposalPage from "@/_pages/plan-detail/ui/PendingProposalPage";
@@ -50,11 +51,17 @@ if (supabase && summary) {
 const settled =
   supabase && summary && isPendingProposal(summary) ? await loadPlanSummary(supabase, summary.id) : summary;
 const pending = settled !== null && isPendingProposal(settled);
+// The row arrived pending and left the check gone: this visit swept a failed job's clone. The job row
+// survives the sweep (role-tagged, source named), so the page can say so instead of "not found".
+const swept =
+  summary && isPendingProposal(summary) && settled === null && generationJob?.role === "proposal"
+    ? generationJob
+    : null;
 
 // A pending proposal has no board to load, and a swept one has no plan at all.
 const result = supabase && settled && !pending ? await loadCombinedPlannerData(supabase, planId) : null;
 if (!supabase) Astro.response.status = 503;
-else if (settled === null) Astro.response.status = 404;
+else if (settled === null && !swept) Astro.response.status = 404;
 else if (result && !result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
 
 // Narrowed once, so the markup below reads as three states rather than re-deriving the union twice.
@@ -70,8 +77,17 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
 
 {
   settled === null ? (
-    <SidebarLayout title="Plan not found">
-      <PlanScopedError />
+    <SidebarLayout title={swept ? "Proposal removed" : "Plan not found"}>
+      {swept ? (
+        <SweptProposalNotice
+          planName={summary?.name ?? "This proposal"}
+          sourcePlanId={swept.sourcePlanId}
+          sourcePlanName={swept.sourcePlanName}
+          error={swept.error}
+        />
+      ) : (
+        <PlanScopedError />
+      )}
     </SidebarLayout>
   ) : pending ? (
     <SidebarLayout title={`${settled.name} — generating`} plan={{ id: settled.id, name: settled.name }}>

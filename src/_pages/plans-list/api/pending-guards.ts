@@ -61,17 +61,30 @@ export const assertNotPending = async (
  *
  * A *stale* active job does not block: reclaim already treats it as dead, and the author must be able
  * to clean up after a container that never came back.
+ *
+ * A DELIVERABLE-but-undelivered job blocks too, for the same cascade reason with a worse outcome: the
+ * solve is finished, its `result` lives only on the job row, and deleting the source would take that
+ * row with it — a 20-minute board gone silently, and a clone left pending that no job references.
+ * "Open the proposal to deliver it first" is one click, and the same rule the proposal side applies.
  */
 export const assertNoActiveJob = async (supabase: SupabaseClient, planId: string): Promise<void> => {
   const jobs = await jobsWhere(supabase, "plan_id", planId);
-  const live = jobs.find((job) => isActiveJobStatus(job.status) && !isStaleActiveJob(job, Date.now()));
-  if (!live) return;
+  const nowMs = Date.now();
+  const live = jobs.find((job) => isActiveJobStatus(job.status) && !isStaleActiveJob(job, nowMs));
+  const ready = live ? null : jobs.find(isDeliverableJob);
+  const blocking = live ?? ready;
+  if (!blocking) return;
 
-  const proposalName = live.proposal_plan_id === null ? null : (await readPlan(supabase, live.proposal_plan_id))?.name;
+  const proposalName =
+    blocking.proposal_plan_id === null ? null : (await readPlan(supabase, blocking.proposal_plan_id))?.name;
+  const into = proposalName ? ` into "${proposalName}"` : "";
   throw new DomainError(
     "CONFLICT",
-    `A generation is running for this plan${proposalName ? ` into "${proposalName}"` : ""}. ` +
-      `Wait for it to finish — deleting the plan now would end the solve and strand the proposal.`,
+    live
+      ? `A generation is running for this plan${into}. ` +
+          `Wait for it to finish — deleting the plan now would end the solve and strand the proposal.`
+      : `A generated board for this plan${into} is ready but not yet delivered. ` +
+          `Open the proposal to deliver it first — deleting the plan now would discard the solve.`,
   );
 };
 

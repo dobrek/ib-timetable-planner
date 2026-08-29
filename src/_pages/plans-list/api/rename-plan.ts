@@ -14,7 +14,9 @@ type PlanRecord = Database["public"]["Tables"]["plans"]["Row"];
  * deferred by the length of the solve.
  *
  * The update filters on the flag as well, so a clone that becomes pending between the guard's read
- * and the write (the ms between `clone_plan` and `markPending` in enqueue) is refused, not renamed.
+ * and the write (the ms between `clone_plan` and `markPending` in enqueue) is refused, not renamed —
+ * it surfaces as "Plan not found.", the verbatim message the action boundary pins, which is the
+ * honest answer for a plan that just stopped being renameable.
  */
 export const renamePlan = async (supabase: SupabaseClient, input: RenamePlanInput): Promise<PlanRecord> => {
   await assertNotPending(supabase, input.id);
@@ -27,7 +29,7 @@ export const renamePlan = async (supabase: SupabaseClient, input: RenamePlanInpu
       .select()
       .single(),
     {
-      notFound: "Plan not found, or it just became a pending proposal.",
+      notFound: "Plan not found.",
       failure: "Failed to rename plan",
     },
   );

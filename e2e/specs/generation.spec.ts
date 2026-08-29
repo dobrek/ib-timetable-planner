@@ -79,8 +79,14 @@ test.describe("generation", () => {
     await expect(page.getByRole("heading", { name: proposalName, level: 1 })).toBeVisible();
     // Whichever of the two honest states is on screen: the pending panel's live status, or — when
     // the click lost the race to a ~1 s solve — the delivered board. Asserts the panel whenever it
-    // exists, which a bare heading check never did.
-    await expect(page.getByRole("status", { name: /Generating/ }).or(dp1Chip.first())).toBeVisible();
+    // exists, which a bare heading check never did. (`role="status"` takes no name from its content,
+    // so the text is matched with `hasText`, not `name`; the timeout is the board's headroom.)
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: /Generating/ })
+        .or(dp1Chip.first()),
+    ).toBeVisible({ timeout: 120_000 });
 
     // --- 4. It becomes the board on its own ---------------------------------------------------
     // The pending page polls `checkPlan` and navigates when a board lands; the fixture solves in

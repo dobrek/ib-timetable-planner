@@ -1,10 +1,10 @@
 ---
 change_id: drift-decided-delivery
 title: Drift decided delivery
-status: impl_reviewed
+status: archived
 created: 2026-08-25
 updated: 2026-08-29
-archived_at: null
+archived_at: 2026-08-29T06:14:53Z
 ---
 
 ## Notes

@@ -54,7 +54,7 @@ Gates run locally: prettier ✅ · migration applied + `database.types.ts` in sy
 - **Location**: src/_pages/plans-list/api/rename-plan.ts:17-18
 - **Detail**: `assertNotPending` reads the flag, then the update runs unconditionally. Window is the ms between `clone_plan` and `markPending`.
 - **Fix**: `.update({name}).eq("id", id).eq("pending_proposal", false)`, map 0 rows to the same CONFLICT. Clone stays (RPC, no CAS) — note in docblock.
-- **Decision**: FIXED — rename update filters on `pending_proposal = false`; clone documented as check-then-act (RPC)
+- **Decision**: FIXED — rename update filters on `pending_proposal = false` (message stays the verbatim "Plan not found." the action boundary pins); clone documented as check-then-act (RPC)
 
 ### F4 — Pending status code differs between routes
 
@@ -104,7 +104,7 @@ Gates run locally: prettier ✅ · migration applied + `database.types.ts` in sy
 - **Location**: e2e/specs/generation.spec.ts:73-78
 - **Detail**: The ~1 s fixture may already be delivered by click time; the pending panel has unit coverage only. Also: `checkPlan` uses two parallel reads instead of one `.or()` — justified in its docblock, no action.
 - **Fix**: Accept, or an either/or assertion (pending status OR board).
-- **Decision**: FIXED — either/or assertion (pending status OR board) added; verified by CI's e2e job
+- **Decision**: FIXED — either/or assertion (pending status OR board) added; first CI run caught `role=status` taking no name from content → `hasText` + 120 s headroom
 
 ### F9 — FR-313 still says "(auto-apply, FR-307)"
 

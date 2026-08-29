@@ -13,6 +13,10 @@ import { assertNotPending } from "./pending-guards";
  *
  * Copying a proposal mid-solve would produce a plan whose board is the clone's pins rather than the
  * result, and it would read as a snapshot of something that does not exist yet.
+ *
+ * Check-then-act, knowingly: `clone_plan` is an RPC, so the guard cannot ride on the write the way
+ * `renamePlan`'s does. The window is the ms between `clone_plan` and `markPending` in enqueue, and the
+ * worst case is a copy of an unflagged clone — an ordinary plan with stale pins, not a broken solve.
  */
 export const clonePlanGuarded = async (supabase: SupabaseClient, input: ClonePlanInput): Promise<{ id: string }> => {
   await assertNotPending(supabase, input.sourcePlanId);

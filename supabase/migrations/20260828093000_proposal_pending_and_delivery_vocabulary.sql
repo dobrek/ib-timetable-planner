@@ -78,3 +78,16 @@ update generation_jobs
    set notified_at = now()
  where delivered_plan_id is not null
    and notified_at is null;
+
+-- Clones in flight at deploy time: flag them, or the exact hazard the column closes — an editable
+-- clone under a live or ready solve — survives until each one's first visit. A halted row with no
+-- checkpoint is flagged too; its next visit sweeps it, and a swept clone needs no clear.
+update plans
+   set pending_proposal = true
+ where id in (
+   select proposal_plan_id
+     from generation_jobs
+    where proposal_plan_id is not null
+      and delivered_plan_id is null
+      and status in ('queued', 'running', 'succeeded', 'interrupted', 'stopped')
+ );

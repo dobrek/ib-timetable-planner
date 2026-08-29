@@ -551,7 +551,7 @@ calibration campaign, never tuned locally on the M4.
   database only through oracle verification, apply-time re-verify, and the
   atomic `apply_generated_placements` RPC; the oracle runs **server-side in
   the job delivery pipeline** (the relocated `runVerifiedGeneration` seam), so
-  headless delivery (auto-apply, FR-307) is verified without a browser open.
+  headless delivery (onto the proposal plan, FR-307) is verified without a browser open.
   Priority: must-have.
   > Socrates: Counter-argument **accepted (pinned)**: "where the oracle runs
   > is unspecified — client-only verification can't serve headless delivery."

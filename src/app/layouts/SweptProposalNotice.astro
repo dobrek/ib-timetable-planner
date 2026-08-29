@@ -1,0 +1,37 @@
+---
+/**
+ * What the proposal's own page shows when the visit that opened it is the visit that removed it
+ * (S-306).
+ *
+ * A failed solve's clone is swept by the NEXT `checkPlan` — and when the author reaches the proposal
+ * from a hub tab that still lists it, that check runs inside this very request. The plans row is
+ * gone by the time the page renders, but the job row is not, so the page can still say what happened
+ * and where the failure is reported: on the source plan's strip. "Plan not found" would be true and
+ * useless.
+ *
+ * The sibling of `PendingProposalNotice.astro`, shaped like it: a plain server-rendered block.
+ */
+type Props = {
+  planName: string;
+  sourcePlanId: string;
+  sourcePlanName: string | null;
+  error: string | null;
+};
+
+const { planName, sourcePlanId, sourcePlanName, error } = Astro.props;
+---
+
+<div class="py-16 text-center">
+  <h1 class="text-foreground text-2xl font-semibold tracking-tight">Proposal removed</h1>
+  <p class="text-muted-foreground mx-auto mt-2 max-w-prose text-sm">
+    <span class="text-foreground font-medium">{planName}</span> was a proposal whose generation ended without a board, so
+    it has been removed.{error ? ` ${error}` : ""}
+  </p>
+  <p class="mt-4 text-sm">
+    <a href={`/plans/${sourcePlanId}`} class="text-foreground underline underline-offset-2">
+      Open {sourcePlanName ?? "the source plan"}
+    </a>
+    <span class="text-muted-foreground mx-2">·</span>
+    <a href="/plans" class="text-muted-foreground hover:text-foreground underline underline-offset-2">Back to Plans</a>
+  </p>
+</div>

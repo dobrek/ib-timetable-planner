@@ -73,14 +73,18 @@ test.describe("generation", () => {
     // --- 3. Open the proposal: progress, not a board ------------------------------------------
     // A ready proposal delivers on the visit, so this may already be the board by the time the click
     // lands — the assertion is therefore "one of the two honest states", not "pending".
+    const dp1Chip = page.getByRole("button", { name: new RegExp(`^${display(dp1Course)}`) });
     await proposalRow.getByRole("link", { name: proposalName }).click();
     await page.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { name: proposalName, level: 1 })).toBeVisible();
+    // Whichever of the two honest states is on screen: the pending panel's live status, or — when
+    // the click lost the race to a ~1 s solve — the delivered board. Asserts the panel whenever it
+    // exists, which a bare heading check never did.
+    await expect(page.getByRole("status", { name: /Generating/ }).or(dp1Chip.first())).toBeVisible();
 
     // --- 4. It becomes the board on its own ---------------------------------------------------
     // The pending page polls `checkPlan` and navigates when a board lands; the fixture solves in
     // ~1 s, so the generous timeout is headroom for a loaded runner, not an expectation.
-    const dp1Chip = page.getByRole("button", { name: new RegExp(`^${display(dp1Course)}`) });
     await expect(dp1Chip.first()).toBeVisible({ timeout: 120_000 });
 
     // The provenance strip: what this board came from, which is the proposal's whole identity.

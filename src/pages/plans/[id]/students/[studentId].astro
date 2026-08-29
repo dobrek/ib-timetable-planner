@@ -23,10 +23,10 @@ const pending = result !== null && !result.ok && result.error.kind === "pending"
 
 if (!supabase) Astro.response.status = 503;
 else if (!plan) Astro.response.status = 404;
-else if (pending) Astro.response.status = 409;
-// "unavailable" → 503 is defensive-only here: the loader returns it solely for a null
-// client, and this route only calls it when `supabase` is non-null.
-else if (!result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
+// A pending proposal answers 200 with the notice — the page exists and says "not yet" — the same
+// as the catalog routes. "unavailable" → 503 is defensive-only here: the loader returns it solely
+// for a null client, and this route only calls it when `supabase` is non-null.
+else if (!result.ok && !pending) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
 
 const data = result?.ok && plan ? result.value : null;
 const title = data ? `${data.planName} — ${data.student.fullName}` : "Student schedule";

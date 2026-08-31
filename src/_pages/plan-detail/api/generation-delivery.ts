@@ -17,6 +17,7 @@ import {
   type CleanLabel,
   type CourseIdentityIndex,
   type GeneratedPlacement,
+  type GenerationJobDelivery,
   type GenerationJobStatus,
   type GenerationResult,
   type GeneratorSnapshot,
@@ -533,7 +534,7 @@ const markDelivered = async (supabase: SupabaseClient, jobId: string, proposalPl
   // exactly one value (`'proposal'`, checked in the schema) because the source is never a target.
   const { error } = await supabase
     .from("generation_jobs")
-    .update({ delivered_plan_id: proposalPlanId, delivery: "proposal" })
+    .update({ delivered_plan_id: proposalPlanId, delivery: "proposal" satisfies GenerationJobDelivery })
     .eq("id", jobId)
     .is("delivered_plan_id", null);
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to mark the job delivered: ${error.message}`);

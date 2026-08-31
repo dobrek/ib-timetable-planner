@@ -1,7 +1,7 @@
 ---
 change_id: generation-deletion-integrity
 title: Deleting a plan must not corrupt its generation job's state
-status: implementing
+status: implemented
 created: 2026-08-31
 updated: 2026-08-31
 archived_at: null

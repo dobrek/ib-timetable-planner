@@ -404,11 +404,11 @@ repo's "no production data to preserve yet" stance.
 
 #### Automated
 
-- [x] 2.1 New integration suite passes: `pnpm test:integration` (local Supabase running)
-- [x] 2.2 Types, lint, structure clean: `pnpm check`, `pnpm lint`, `pnpm steiger`
-- [x] 2.3 Build stays clean: `pnpm build`
+- [x] 2.1 New integration suite passes: `pnpm test:integration` (local Supabase running) — 2389776
+- [x] 2.2 Types, lint, structure clean: `pnpm check`, `pnpm lint`, `pnpm steiger` — 2389776
+- [x] 2.3 Build stays clean: `pnpm build` — 2389776
 
 #### Manual
 
-- [x] 2.4 Stranded orphan (stale job + source delete) renders as an ordinary board on visit
-- [x] 2.5 A just-generated pending proposal still shows the progress page (release did not fire early)
+- [x] 2.4 Stranded orphan (stale job + source delete) renders as an ordinary board on visit — 2389776
+- [x] 2.5 A just-generated pending proposal still shows the progress page (release did not fire early) — 2389776

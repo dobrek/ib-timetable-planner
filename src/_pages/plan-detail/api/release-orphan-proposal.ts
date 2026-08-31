@@ -5,10 +5,13 @@ import { stalenessCutoff } from "@/entities/timetable";
 /**
  * Un-pend a proposal plan that no job row references any more — the stranded orphan's way out.
  *
- * **Precondition: the caller has established that no job names this plan.** This function does not
- * check; it is called from the plan route on the one path where `checkPlan` returned null *cleanly*
- * (neither key matched), which is exactly that fact. A thrown check is a different null and must not
- * reach here — a database that could not answer is not evidence that nothing references the plan.
+ * **Precondition: the caller has established that no job names this plan.** The plan route calls it
+ * on the one path where `checkPlan` returned null *cleanly* (neither key matched), which is exactly
+ * that fact. A thrown check is a different null and must not reach here — a database that could not
+ * answer is not evidence that nothing references the plan. As defence in depth the function also
+ * re-checks the `proposal_plan_id` key itself before writing: it is exported through the slice
+ * barrel, and no future caller may be able to un-pend a mid-solve clone (only the proposal key is
+ * checked — a job naming the plan as *source* is unharmed by un-pending).
  *
  * **Why the orphan exists at all.** `generation_jobs.plan_id` is `on delete cascade`, and
  * `assertNoActiveJob` deliberately lets a *stale* active job through — a container that vanished must
@@ -33,6 +36,16 @@ import { stalenessCutoff } from "@/entities/timetable";
  * chooses to soften it — a failed release renders today's pending panel, never a 500.
  */
 export const releaseOrphanProposal = async (supabase: SupabaseClient, planId: string): Promise<void> => {
+  const { data: referencingJobs, error: lookupError } = await supabase
+    .from("generation_jobs")
+    .select("id")
+    .eq("proposal_plan_id", planId)
+    .limit(1);
+  if (lookupError) {
+    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to release the stranded proposal: ${lookupError.message}`);
+  }
+  if (referencingJobs.length > 0) return;
+
   const { error } = await supabase
     .from("plans")
     .update({ pending_proposal: false })

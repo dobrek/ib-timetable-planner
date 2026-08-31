@@ -105,7 +105,9 @@ export const assertNoActiveJob = async (supabase: SupabaseClient, planId: string
  * `failed` with "the proposal plan no longer exists" — so deleting a ready proposal would show the
  * author a red failure on the source plan's strip and an error toast on the hub, for a deletion they
  * asked for. Refusing with "open it to deliver first" costs one click and tells the truth. Once
- * delivered the plan is no longer pending, so this guard is not consulted at all.
+ * delivered the plan is no longer pending, so this guard is not consulted at all — and unlike the
+ * sentence this echoes (retracted in `job-delivery.ts`, it hid D2), the claim holds here: it rests
+ * on the `pending_proposal` flag, which no `on delete set null` FK can quietly flip back.
  */
 const proposalIsReleasable = async (supabase: SupabaseClient, proposalPlanId: string): Promise<boolean> => {
   const jobs = await jobsWhere(supabase, "proposal_plan_id", proposalPlanId);

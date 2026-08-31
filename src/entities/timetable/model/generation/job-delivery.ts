@@ -25,10 +25,18 @@ import type { GenerationJobStatus } from "./job-status";
  * A cross-`_pages` import is a steiger error, so "share it" means "lift it to the entity" — and the
  * predicates are pure functions of a row shape, which is exactly what belongs here.
  */
+/** The delivery vocabulary — exactly one value, checked in the schema: the source is never a
+ *  target. WRITERS must use this type (`"proposal" satisfies GenerationJobDelivery`) so a typo'd
+ *  write cannot compile. Read-side row types stay `string | null` on purpose: the predicates treat
+ *  ANY non-null as "has delivered" — fail-safe for a value this build does not recognise — and
+ *  narrowing them would force casts at every select boundary, against the drop-never-cast rule. */
+export type GenerationJobDelivery = "proposal";
+
 export type DeliverableJobRow = {
   status: GenerationJobStatus;
   delivered_plan_id: string | null;
-  /** The delivery vocabulary (`'proposal'`, or null while nothing has landed). The fact half of
+  /** The delivery vocabulary (`'proposal'`, or null while nothing has landed) — see
+   *  {@link GenerationJobDelivery} for why this reads wide. The fact half of
    *  `delivered_plan_id`, and the half that survives the proposal plan being deleted. */
   delivery: string | null;
   /** The tier whose checkpoint a halted job kept. Null when it kept nothing — the free existence

@@ -66,6 +66,10 @@ export const assertNotPending = async (
  * solve is finished, its `result` lives only on the job row, and deleting the source would take that
  * row with it — a 20-minute board gone silently, and a clone left pending that no job references.
  * "Open the proposal to deliver it first" is one click, and the same rule the proposal side applies.
+ *
+ * *Undelivered* is `isDeliverableJob`'s business, and since it consults `delivery` this guard no
+ * longer refuses on a job that DID deliver into a proposal the author has since deleted — which used
+ * to be a dead end, since the refusal named a plan that no longer exists.
  */
 export const assertNoActiveJob = async (supabase: SupabaseClient, planId: string): Promise<void> => {
   const jobs = await jobsWhere(supabase, "plan_id", planId);
@@ -117,6 +121,9 @@ type GuardJobRow = {
   status: GenerationJobStatus;
   proposal_plan_id: string | null;
   delivered_plan_id: string | null;
+  /** The durable half of "did this job deliver?" — `delivered_plan_id` is `on delete set null` and
+   *  this is not, so the two disagree exactly when a delivered proposal has since been deleted. */
+  delivery: string | null;
   checkpoint_stage_index: number | null;
   heartbeat_at: string | null;
   created_at: string;
@@ -133,7 +140,7 @@ const jobsWhere = async (
 ): Promise<GuardJobRow[]> => {
   const { data, error } = await supabase
     .from("generation_jobs")
-    .select("status, proposal_plan_id, delivered_plan_id, checkpoint_stage_index, heartbeat_at, created_at")
+    .select("status, proposal_plan_id, delivered_plan_id, delivery, checkpoint_stage_index, heartbeat_at, created_at")
     .eq(column, planId);
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Generation job lookup failed: ${error.message}`);
   return data.flatMap((row) => (isGenerationJobStatus(row.status) ? [{ ...row, status: row.status }] : []));

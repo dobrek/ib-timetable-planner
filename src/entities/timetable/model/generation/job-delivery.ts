@@ -13,27 +13,46 @@ import type { GenerationJobStatus } from "./job-status";
  * strand a deletable plan or let a deliverable one be deleted, and neither would be visible until it
  * happened to someone.
  *
+ * **The delivered case is the same failure, and it is why `delivery` is here.** The paragraph above
+ * used to close with "once delivered the plan is no longer pending, so this guard is not consulted at
+ * all" — scope, stated as safety. It was neither: `delivered_plan_id` is ALSO `on delete set null`, so
+ * deleting a proposal that already delivered nulls the pointer, makes the row deliverable again, and
+ * the source plan's next visit fails a solve that worked. `delivery` is the durable half of that fact
+ * — written by `markDelivered` in the SAME statement as the pointer, and a plain vocabulary column no
+ * foreign key can reach — so "has this ever delivered?" is asked of `delivery`, and only "where did it
+ * land?" of `delivered_plan_id`.
+ *
  * A cross-`_pages` import is a steiger error, so "share it" means "lift it to the entity" — and the
  * predicates are pure functions of a row shape, which is exactly what belongs here.
  */
 export type DeliverableJobRow = {
   status: GenerationJobStatus;
   delivered_plan_id: string | null;
+  /** The delivery vocabulary (`'proposal'`, or null while nothing has landed). The fact half of
+   *  `delivered_plan_id`, and the half that survives the proposal plan being deleted. */
+  delivery: string | null;
   /** The tier whose checkpoint a halted job kept. Null when it kept nothing — the free existence
    *  proxy for the ~35 KB `checkpoint` column, so neither caller has to read it. */
   checkpoint_stage_index: number | null;
 };
 
 /**
- * A succeeded job, or a halted one that kept a board — undelivered in either case.
+ * A succeeded job, or a halted one that kept a board — undelivered in either case, and never
+ * delivered before.
  *
  * `stopped` sits beside `interrupted` because the two differ only in WHO halted the run: the author
  * asked, or the platform took the container away. A checkpoint is a checkpoint, written through the
  * same wire path, and it delivers through the same chain. S-305 owns the PRODUCER of a `stopped` row;
  * admitting one for delivery is S-306's one-predicate down-payment on it.
+ *
+ * Both null checks are load-bearing and they ask different questions. `delivered_plan_id === null`
+ * is "is there still somewhere to deliver to" — a live pointer means the board is already there.
+ * `delivery === null` is "has this row ever delivered at all", which is the only one of the two that
+ * survives the proposal's deletion. A job may be re-delivered exactly never.
  */
 export const isDeliverableJob = (row: DeliverableJobRow): boolean =>
   row.delivered_plan_id === null &&
+  row.delivery === null &&
   (row.status === "succeeded" || (isHaltedJobStatus(row.status) && row.checkpoint_stage_index !== null));
 
 /** A terminal job with nothing to deliver: its clone can only ever be litter. */

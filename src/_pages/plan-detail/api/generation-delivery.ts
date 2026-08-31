@@ -152,7 +152,11 @@ type StatusRow = {
  * which point it is the `proposal_plan_id` of one job and the `plan_id` of another. The rule:
  *
  *   1. the plan's own job, when it is active or undelivered — a live solve the author launched here
- *      is the most urgent thing this page can say, and it is the only one with anything to deliver;
+ *      is the most urgent thing this page can say, and it is the only one with anything to deliver.
+ *      *Undelivered* is asked of BOTH markers: `delivered_plan_id` can be re-nulled by its
+ *      `on delete set null` FK when the proposal is deleted, and a row that outranked its provenance
+ *      on that basis alone would permanently hide an A→B→C chain's "generated from A" strip.
+ *      `delivery` is the durable fact and it settles the tie;
  *   2. otherwise the job that produced this plan — so a proposal keeps its provenance strip for good,
  *      rather than losing it the moment the author generates from it;
  *   3. otherwise the plan's own newest job.
@@ -210,7 +214,8 @@ const markNotified = async (
 
 /** The precedence in the docblock above, as one expression. */
 const pickJob = (asSource: StatusRow | null, asProposal: StatusRow | null): StatusRow | null => {
-  if (asSource && (isActiveJobStatus(asSource.status) || asSource.delivered_plan_id === null)) return asSource;
+  const undelivered = asSource !== null && asSource.delivered_plan_id === null && asSource.delivery === null;
+  if (asSource && (isActiveJobStatus(asSource.status) || undelivered)) return asSource;
   return asProposal ?? asSource;
 };
 
@@ -269,8 +274,15 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
   const proposalPlanId = row.proposal_plan_id;
   if (proposalPlanId === null) {
     // The clone is gone — deleted by hand, or nulled by `on delete set null`. Nowhere to deliver to.
-    await failJob(supabase, row.id, "the proposal plan no longer exists, so the result cannot be delivered");
-    return toView({ ...row, status: "failed" }, { kind: "unavailable" });
+    // Reachable only for a job that never delivered: `isDeliverableJob` consults `delivery`, so the
+    // deleted proposal of a job that DID deliver never gets here.
+    //
+    // The reason is hoisted because the view is built from the row as it was READ, before `failJob`
+    // wrote — so spreading `row` alone would render a bare "Generation failed." on the one visit that
+    // caused the failure, and the explanation only from the next visit on.
+    const reason = "the proposal plan no longer exists, so the result cannot be delivered";
+    await failJob(supabase, row.id, reason);
+    return toView({ ...row, status: "failed", error: reason }, { kind: "unavailable" });
   }
 
   const { snapshot, result } = await loadPayload(supabase, row.id, payloadColumn(row));

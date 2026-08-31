@@ -140,6 +140,33 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     });
   });
 
+  it("leaves a DELIVERED-then-DELETED job off the hub, on both read paths", async () => {
+    // The badge surface reads the raw columns rather than the delivery predicate, so it is a consumer
+    // of its own. `delivered_plan_id` is `on delete set null`: once the author deletes the proposal
+    // the board landed on, the row reads as "finished, undelivered" and would badge the SOURCE
+    // "Finished — open to deliver" forever, for a board thrown away on purpose. `delivery` survives.
+    const plan = await createFactoryPlan(supabase, { name: "Hub Indicator — deleted proposal source" });
+    const proposal = await createFactoryPlan(supabase, { name: "Proposal — Hub Indicator deleted" });
+    const jobId = await enqueue(supabase, plan, {
+      status: "succeeded",
+      finished_at: nowIso(),
+      proposal_plan_id: proposal,
+      delivered_plan_id: proposal,
+      delivery: "proposal",
+    });
+    await supabase.from("plans").delete().eq("id", proposal);
+
+    // The DISCOVERY read: the filter drops it, so a fresh load and the poll's plan-id path agree.
+    expect(await readGenerationJobStatuses(supabase, { jobIds: [], planIds: [plan] })).toEqual([]);
+    // The REFRESH read: unfiltered by design, so the drop has to happen again at the mapping edge —
+    // this is what clears a hub tab that was already open when the deletion happened.
+    expect(await readGenerationJobStatuses(supabase, { jobIds: [jobId], planIds: [] })).toEqual([]);
+
+    const result = await loadPlans(supabase);
+    if (result.kind !== "ok") return;
+    expect(result.plans.find((row) => row.id === plan)?.indicators).toEqual([]);
+  });
+
   it("cannot attach two indicators to one plan, because the database refuses the second job", async () => {
     // `generation_jobs_active_per_plan` is what makes the loader's one-query design safe — not any
     // check in the loader itself, which simply keys a Map by plan id.

@@ -26,9 +26,16 @@ import type { ReadGenerationJobStatusesInput } from "../model/schemas";
  * scalar, and it is what lets the hub say "stalled" about a job whose container died — the one thing
  * this poll can honestly contribute to recovery without writing. The reclaim itself belongs to the
  * plan visit the stalled badge links to, which is also where the dead solve's checkpoint is delivered.
+ *
+ * **`delivery` earns its place the same way, and for a sharper reason.** `delivered_plan_id` is
+ * `on delete set null`, so deleting a delivered proposal re-nulls it and the row starts reading as
+ * "finished, nothing landed yet" — a "Finished — open to deliver" badge on the SOURCE, forever, for a
+ * board the author deliberately threw away. `delivery` is the fact the FK cannot reach, so both read
+ * paths consult it: this filter drops the row, and `toGenerationIndicator` drops it again at the
+ * mapping edge for the refresh path, which is unfiltered by design.
  */
 export const STATUS_COLUMNS =
-  "id, plan_id, proposal_plan_id, delivered_plan_id, status, stage_index, stage_name, created_at, heartbeat_at";
+  "id, plan_id, proposal_plan_id, delivered_plan_id, delivery, status, stage_index, stage_name, created_at, heartbeat_at";
 
 export const readGenerationJobStatuses = async (
   supabase: SupabaseClient,
@@ -62,7 +69,9 @@ const refreshKnown = async (supabase: SupabaseClient, jobIds: string[]): Promise
  *   1. **Active** (`queued`/`running`) — a solve is happening. The original member.
  *   2. **Terminal but undelivered** — a board is waiting for a visit to land it. Without this the
  *      badge would vanish the instant the solver finished, and the author would have no signal that
- *      anything is ready until they happened to open a plan.
+ *      anything is ready until they happened to open a plan. *Undelivered* needs BOTH null checks:
+ *      a delivered proposal that was then deleted has `delivered_plan_id` back to null and is not
+ *      waiting for anything, so `delivery.is.null` is what keeps it off this list.
  *   3. **Delivered but not yet announced** (`notified_at is null`) — this is what makes "Ready — open"
  *      survive a reload. Before S-306 terminal memory lived only in the poll store's RAM, so a
  *      refresh erased it; now it is a row state, and `checkPlan` stamps `notified_at` the first time
@@ -85,7 +94,7 @@ export const surfacedJobsFor = async (
         .or(`plan_id.in.${ids},proposal_plan_id.in.${ids}`)
         .or(
           "status.in.(queued,running)," +
-            "and(delivered_plan_id.is.null,status.in.(succeeded,interrupted,stopped))," +
+            "and(delivered_plan_id.is.null,delivery.is.null,status.in.(succeeded,interrupted,stopped))," +
             "and(delivered_plan_id.not.is.null,notified_at.is.null)",
         ),
       "Generation activity lookup failed",

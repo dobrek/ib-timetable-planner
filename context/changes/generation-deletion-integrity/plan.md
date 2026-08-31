@@ -389,16 +389,16 @@ repo's "no production data to preserve yet" stance.
 
 #### Automated
 
-- [ ] 1.1 Unit suite passes: `pnpm test`
-- [ ] 1.2 New + existing integration cases pass: `pnpm test:integration` (local Supabase running)
-- [ ] 1.3 Types, lint, structure clean: `pnpm check`, `pnpm lint`, `pnpm steiger`
-- [ ] 1.4 Build stays clean: `pnpm build`
+- [x] 1.1 Unit suite passes: `pnpm test`
+- [x] 1.2 New + existing integration cases pass: `pnpm test:integration` (local Supabase running)
+- [x] 1.3 Types, lint, structure clean: `pnpm check`, `pnpm lint`, `pnpm steiger`
+- [x] 1.4 Build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 1.5 Generate → deliver → delete proposal: source shows no strip and no failure, on first visit and after refresh
-- [ ] 1.6 Source plan deletable afterwards without the "deliver it first" refusal
-- [ ] 1.7 Hub shows no badge for the source after its delivered proposal is deleted, including an already-open tab
+- [x] 1.5 Generate → deliver → delete proposal: source shows no strip and no failure, on first visit and after refresh
+- [x] 1.6 Source plan deletable afterwards without the "deliver it first" refusal
+- [x] 1.7 Hub shows no badge for the source after its delivered proposal is deleted, including an already-open tab
 
 ### Phase 2: Orphan release — lazy, on visit
 

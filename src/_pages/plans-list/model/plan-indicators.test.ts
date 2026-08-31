@@ -23,6 +23,7 @@ const row = (overrides: Partial<GenerationJobStatusRow> = {}): GenerationJobStat
   plan_id: PLAN_ID,
   proposal_plan_id: PROPOSAL_ID,
   delivered_plan_id: null,
+  delivery: null,
   status: "running",
   stage_index: 4,
   stage_name: "teacherHoles",
@@ -87,6 +88,31 @@ describe("toGenerationIndicator", () => {
     // the constraint ahead of the client must not reach a `switch` with no branch for it.
     expect(toGenerationIndicator(row({ status: "cancelled" }), NOW)).toBeNull();
     expect(toGenerationIndicators([row(), row({ id: "x", status: "cancelled" })], NOW)).toHaveLength(1);
+  });
+
+  it("drops a job that delivered into a proposal the author has since deleted", () => {
+    // `delivered_plan_id` is `on delete set null` and `delivery` is not, so this pair is the exact
+    // signature of the deletion. Read through the pointer alone the row looks "finished, undelivered"
+    // and badges the SOURCE "Finished — open to deliver" forever, for a board that is gone by request.
+    const deletedProposal = row({ status: "succeeded", delivered_plan_id: null, delivery: "proposal" });
+    expect(toGenerationIndicator(deletedProposal, NOW)).toBeNull();
+    // ...on the refresh path too, which is unfiltered by design: an open hub tab tracking this job id
+    // stops badging on its next tick rather than waiting for a reload.
+    expect(toGenerationIndicators([row(), deletedProposal], NOW)).toHaveLength(1);
+  });
+
+  it("drops the same shape on a halted job, which delivers a checkpoint by the same chain", () => {
+    for (const status of ["interrupted", "stopped"] as const) {
+      expect(toGenerationIndicator(row({ status, delivered_plan_id: null, delivery: "proposal" }), NOW)).toBeNull();
+    }
+  });
+
+  it("keeps a DELIVERED job whose proposal is still there — that is 'Ready — open' material", () => {
+    // The drop is on the PAIR, never on `delivery` alone. A delivered, un-announced row is the whole
+    // reason the badge survives a reload.
+    expect(
+      toGenerationIndicator(row({ status: "succeeded", delivered_plan_id: PROPOSAL_ID, delivery: "proposal" }), NOW),
+    ).toMatchObject({ delivered: true, status: "succeeded" });
   });
 });
 

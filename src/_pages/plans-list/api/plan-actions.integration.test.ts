@@ -288,6 +288,28 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       expect(await planExists(sourceId)).toBe(true);
     });
 
+    it("ALLOWS deleting the SOURCE after its delivered proposal has been deleted", async () => {
+      // `delivered_plan_id` is `on delete set null` too, so deleting a proposal the board already
+      // landed on re-nulls the pointer — and read through that pointer alone the row is "finished but
+      // undelivered", which the guard above refuses with "open the proposal to deliver it first". A
+      // dead end: the proposal it names no longer exists. `delivery` is the fact the FK cannot reach,
+      // and `isDeliverableJob` consults it, so this refusal no longer fires.
+      const { sourceId, proposalId } = await makeProposal("delete-source-proposal-gone");
+      await jobFor(sourceId, proposalId, {
+        status: "succeeded",
+        finished_at: new Date().toISOString(),
+        delivered_plan_id: proposalId,
+        delivery: "proposal",
+      });
+      // Delivery is what clears the flag, and it is why the delete below is unguarded.
+      await supabase.from("plans").update({ pending_proposal: false }).eq("id", proposalId);
+
+      await deletePlan(supabase, { id: proposalId });
+      await deletePlan(supabase, { id: sourceId });
+
+      expect(await planExists(sourceId)).toBe(false);
+    });
+
     it("ALLOWS deleting the source once its job is terminal", async () => {
       const { sourceId, proposalId } = await makeProposal("delete-source-done");
       await jobFor(sourceId, proposalId, { status: "failed", finished_at: new Date().toISOString() });

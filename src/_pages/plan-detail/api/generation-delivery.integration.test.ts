@@ -299,6 +299,123 @@ const acceptingTransport: SolverTransport = {
     expect(await jobRow(jobId)).toMatchObject({ proposal_plan_id: null, delivered_plan_id: null, delivery: null });
   });
 
+  /**
+   * The deletion aftermath. `delivered_plan_id` is `on delete set null`, so deleting a proposal the
+   * board already landed on re-nulls the pointer — and read through that pointer alone the row is
+   * indistinguishable from "finished, nothing delivered yet". `delivery` is the fact the FK cannot
+   * reach, and these cases are what pin that the predicates ask it.
+   */
+  describe("after the delivered proposal is deleted", () => {
+    it("leaves the job SUCCEEDED and the source silent — no failure the author never caused", async () => {
+      const { planId, dp1CourseId } = await tinyPlan("deleted-proposal");
+      const { jobId, proposalPlanId } = await solvedJob(planId, [
+        { cohort: "dp1", courseId: dp1CourseId, day: 1, period: 1, week: "both" },
+      ]);
+      expect((await checkPlan(supabase, { planId }))?.delivered).toBe(true);
+
+      // The author rejects the proposal and deletes it. Permitted, and nothing warns — it is no
+      // longer pending, so neither delete guard is even consulted.
+      await supabase.from("plans").delete().eq("id", proposalPlanId);
+
+      const view = await checkPlan(supabase, { planId });
+
+      // Untouched: the FK took the pointer, not the fact, and nothing re-entered delivery.
+      expect(await jobRow(jobId)).toMatchObject({
+        status: "succeeded",
+        delivery: "proposal",
+        delivered_plan_id: null,
+        error: null,
+      });
+      // Source role, non-failed — which is the strip's `return null` branch: once a job has delivered
+      // the source says nothing at all, and that stays true after the proposal is gone.
+      expect(view).toMatchObject({ jobId, role: "source", status: "succeeded" });
+      expect(view?.error).toBeNull();
+    });
+
+    it("stays that way on every later visit — the fix is as sticky as the defect was", async () => {
+      const { planId, dp1CourseId } = await tinyPlan("deleted-proposal-twice");
+      const { jobId, proposalPlanId } = await solvedJob(planId, [
+        { cohort: "dp1", courseId: dp1CourseId, day: 2, period: 1, week: "both" },
+      ]);
+      await checkPlan(supabase, { planId });
+      await supabase.from("plans").delete().eq("id", proposalPlanId);
+
+      const views = [
+        await checkPlan(supabase, { planId }),
+        await checkPlan(supabase, { planId }),
+        await checkPlan(supabase, { planId }),
+      ];
+
+      expect(views.every((view) => view?.status === "succeeded")).toBe(true);
+      expect(await jobRow(jobId)).toMatchObject({ status: "succeeded", delivery: "proposal" });
+    });
+
+    it("keeps a chained proposal's provenance: A→B→C, with C deleted, still says B came from A", async () => {
+      // The precedence half of the same fix. B's OWN job (B→C) has a nulled `delivered_plan_id`
+      // again, so on the pointer alone it would outrank the job that produced B — permanently hiding
+      // B's "Generated from A" strip for a proposal the author deliberately threw away.
+      const { planId, dp1CourseId } = await tinyPlan("chain");
+      const { proposalPlanId: bPlanId } = await solvedJob(planId, [
+        { cohort: "dp1", courseId: dp1CourseId, day: 1, period: 1, week: "both" },
+      ]);
+      await checkPlan(supabase, { planId: bPlanId });
+
+      const second = await startGeneration(supabase, { planId: bPlanId }, { getTransport: () => acceptingTransport });
+      registerPlan(second.proposalPlanId);
+      const cloneCourse = (
+        await supabase.from("courses").select("id").eq("plan_id", bPlanId).eq("cohort", "dp1").single()
+      ).data;
+      await supabase
+        .from("generation_jobs")
+        .update({
+          status: "succeeded",
+          result: {
+            placements: [{ cohort: "dp1", courseId: cloneCourse?.id, day: 3, period: 3, week: "both" }],
+            diagnostics: {
+              engine: "cp-sat",
+              elapsedMs: 1,
+              partial: false,
+              provenOptimal: true,
+              cohorts: {
+                dp1: { occupiedSlotsBefore: 0, occupiedSlotsAfter: 1, unplaced: [] },
+                dp2: { occupiedSlotsBefore: 0, occupiedSlotsAfter: 0, unplaced: [] },
+              },
+            },
+          },
+          stages: [{ tier: 5, name: "softHits", status: "OPTIMAL", best: 0, bound: 0, wallClockS: 1 }],
+          finished_at: new Date().toISOString(),
+        })
+        .eq("id", second.jobId);
+      await checkPlan(supabase, { planId: bPlanId });
+
+      await supabase.from("plans").delete().eq("id", second.proposalPlanId);
+
+      expect(await checkPlan(supabase, { planId: bPlanId })).toMatchObject({
+        role: "proposal",
+        delivered: true,
+        sourcePlanId: planId,
+      });
+    });
+  });
+
+  it("reports WHY on the same visit that fails an undelivered job whose clone vanished", async () => {
+    // Still reachable, and still correct: a job that never delivered has a board with nowhere to go.
+    // What changed is that the view no longer renders a bare "Generation failed." on the one visit
+    // that caused it — the reason used to appear only from the NEXT visit, because the view is built
+    // from the row as it was read, before `failJob` wrote.
+    const { planId, dp1CourseId } = await tinyPlan("clone-vanished");
+    const { jobId, proposalPlanId } = await solvedJob(planId, [
+      { cohort: "dp1", courseId: dp1CourseId, day: 5, period: 1, week: "both" },
+    ]);
+    await supabase.from("plans").delete().eq("id", proposalPlanId);
+
+    const view = await checkPlan(supabase, { planId });
+
+    expect(view).toMatchObject({ status: "failed", delivered: false, proposalPlanId: null });
+    expect(view?.error).toMatch(/no longer exists/);
+    expect((await jobRow(jobId))?.error).toMatch(/no longer exists/);
+  });
+
   it("reports an active job without touching the proposal", async () => {
     const { planId } = await tinyPlan("active");
     const { proposalPlanId } = await startGeneration(supabase, { planId }, { getTransport: () => acceptingTransport });

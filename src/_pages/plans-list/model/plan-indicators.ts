@@ -63,6 +63,9 @@ export type GenerationJobStatusRow = {
   plan_id: string;
   proposal_plan_id: string | null;
   delivered_plan_id: string | null;
+  /** The delivery vocabulary. Read only to tell "never delivered" from "delivered into a proposal
+   *  that has since been deleted" — the two look identical through `delivered_plan_id` alone. */
+  delivery: string | null;
   status: string;
   stage_index: number | null;
   stage_name: string | null;
@@ -135,6 +138,15 @@ export const describeGenerationIndicator = (indicator: GenerationIndicator): Ind
  * A row whose status this build does not recognise is dropped rather than cast. That can only happen
  * if the CHECK constraint gains a value ahead of the client, and when it does, omitting one badge is
  * a better answer than rendering an empty cell from a `switch` with no matching branch.
+ *
+ * **A delivered-then-deleted row is dropped by the same rule.** `delivery` set with
+ * `delivered_plan_id` null is the signature of "this board landed, and the author then deleted the
+ * proposal it landed on" — `delivered_plan_id` is `on delete set null`, `delivery` is not. There is
+ * no honest badge for it: the board is gone by request, so the row has nothing left to invite. The
+ * drop belongs HERE and not only in `surfacedJobsFor`, because the poll's refresh path is unfiltered
+ * by design — a hub tab already tracking the job id would otherwise keep badging it until a reload.
+ * Never drop on `delivery` alone: a delivered row whose pointer is still live and whose
+ * `notified_at` is null is legitimate "Ready — open" material.
  */
 export const toGenerationIndicators = (
   rows: readonly GenerationJobStatusRow[],
@@ -150,7 +162,7 @@ export const toGenerationIndicator = (
   row: GenerationJobStatusRow,
   nowMs: number = Date.now(),
 ): GenerationIndicator | null =>
-  isGenerationJobStatus(row.status)
+  isGenerationJobStatus(row.status) && !isDeliveredThenDeleted(row)
     ? {
         kind: "generation",
         jobId: row.id,
@@ -166,6 +178,10 @@ export const toGenerationIndicator = (
     : null;
 
 export const isActiveIndicator = (indicator: PlanIndicator): boolean => isActiveJobStatus(indicator.status);
+
+/** Delivered once (`delivery`), with the pointer since nulled by the proposal's deletion. */
+const isDeliveredThenDeleted = (row: GenerationJobStatusRow): boolean =>
+  row.delivery !== null && row.delivered_plan_id === null;
 
 /**
  * "Generating — stage 4 of 10 · teacher holes", or "Generating — starting" before the first stage.

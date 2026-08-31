@@ -6,7 +6,12 @@ import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import PendingProposalPage from "@/_pages/plan-detail/ui/PendingProposalPage";
 import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
-import { checkPlan, loadCombinedPlannerData, type GenerationJobView } from "@/_pages/plan-detail/api";
+import {
+  checkPlan,
+  loadCombinedPlannerData,
+  releaseOrphanProposal,
+  type GenerationJobView,
+} from "@/_pages/plan-detail/api";
 import { boardSurfaceSchema } from "@/_pages/plan-detail/lib/board-surface";
 import { COOKIE_NAME, parsePaletteCollapsed } from "@/_pages/plan-detail/lib/palette-collapsed";
 import { COOKIE_NAME as PALETTE_COHORT_COOKIE, parsePaletteCohort } from "@/_pages/plan-detail/lib/palette-cohort";
@@ -36,18 +41,39 @@ const planId = isPlanId(Astro.params.id) ? Astro.params.id : undefined;
  */
 const summary = supabase ? await loadPlanSummary(supabase, planId) : null;
 
-let generationJob: GenerationJobView | null = null;
-if (supabase && summary) {
-  generationJob = await checkPlan(supabase, { planId: summary.id }).catch((error: unknown): null => {
-    // eslint-disable-next-line no-console -- the server log is the only trace a delivery failed
-    console.error("[plans/:id] generation check failed:", error);
-    return null;
+// A null job means two different things, and the orphan release below turns on which: "neither key
+// matched, so no job references this plan" is a FACT, while "the check threw and we degraded" is an
+// absence of information. Only the first licenses a write, so the outcome carries both — a mutated
+// flag would not, since the assignment lives inside the catch closure.
+const checked: { job: GenerationJobView | null; failed: boolean } =
+  supabase && summary
+    ? await checkPlan(supabase, { planId: summary.id })
+        .then((job) => ({ job, failed: false }))
+        .catch((error: unknown) => {
+          // eslint-disable-next-line no-console -- the server log is the only trace a delivery failed
+          console.error("[plans/:id] generation check failed:", error);
+          return { job: null, failed: true };
+        })
+    : { job: null, failed: false };
+const generationJob = checked.job;
+
+// A pending proposal no job references is STRANDED: `plan_id` cascades, so deleting the source of a
+// stale solve took the job row and left nothing that could ever clear this flag. Un-pend it, so the
+// plan becomes ordinary and renders the board it already holds. Guarded by the plan's own age inside
+// the UPDATE, because "pending with no job" is also the transient mid-enqueue state — see
+// `releaseOrphanProposal`. Best-effort here, exactly like the check above: a failed release renders
+// today's pending panel rather than taking the page down.
+if (supabase && summary && isPendingProposal(summary) && generationJob === null && !checked.failed) {
+  await releaseOrphanProposal(supabase, summary.id).catch((error: unknown) => {
+    // eslint-disable-next-line no-console -- the server log is the only trace a release failed
+    console.error("[plans/:id] orphan proposal release failed:", error);
   });
 }
 
 // Re-read ONLY when the row arrived pending: the check may have just cleared the flag (it delivered),
-// or deleted the plan outright (a terminal job with nothing to deliver sweeps its clone). Nothing can
-// make a non-pending plan pending, so the ordinary board visit skips this second read entirely.
+// or deleted the plan outright (a terminal job with nothing to deliver sweeps its clone) — or the
+// release above just un-pended a stranded orphan. Nothing can make a non-pending plan pending, so the
+// ordinary board visit skips this second read entirely.
 const settled =
   supabase && summary && isPendingProposal(summary) ? await loadPlanSummary(supabase, summary.id) : summary;
 const pending = settled !== null && isPendingProposal(settled);

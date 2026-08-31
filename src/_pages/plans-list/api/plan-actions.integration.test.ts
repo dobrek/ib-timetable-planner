@@ -288,6 +288,26 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       expect(await planExists(sourceId)).toBe(true);
     });
 
+    it("ALLOWS deleting the SOURCE plan whose job has gone stale, cascading the job row away", async () => {
+      // The mirror of the stale-PROPOSAL case above, and unpinned until now. Reclaim already treats a
+      // job quiet past the grace as dead, so this guard must too — otherwise a container that vanished
+      // would leave the source undeletable forever. The cost is the strand this change's Phase 2
+      // heals: `plan_id` cascades, so the job row goes and the clone is left pending with nothing that
+      // could ever clear the flag. `releaseOrphanProposal` is what rescues it on the next visit; see
+      // `plan-detail/api/release-orphan-proposal.integration.test.ts` for the other half.
+      const { sourceId, proposalId } = await makeProposal("delete-source-stale");
+      const longAgo = new Date(Date.now() - 60 * 60_000).toISOString();
+      await jobFor(sourceId, proposalId, { status: "running", heartbeat_at: longAgo, created_at: longAgo });
+
+      await deletePlan(supabase, { id: sourceId });
+
+      expect(await planExists(sourceId)).toBe(false);
+      expect((await supabase.from("generation_jobs").select("id").eq("proposal_plan_id", proposalId)).data).toEqual([]);
+      // Still pending, and now job-less: the orphan, exactly as the route will find it.
+      const clone = await supabase.from("plans").select("pending_proposal").eq("id", proposalId).single();
+      expect(clone.data?.pending_proposal).toBe(true);
+    });
+
     it("ALLOWS deleting the SOURCE after its delivered proposal has been deleted", async () => {
       // `delivered_plan_id` is `on delete set null` too, so deleting a proposal the board already
       // landed on re-nulls the pointer — and read through that pointer alone the row is "finished but

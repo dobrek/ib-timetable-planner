@@ -595,9 +595,9 @@ README rule — the deploy replaces the container).
 
 #### Automated
 
-- [x] 4.1 Grep gate: no remaining future-tense "S-305" claims outside `supabase/migrations/` and archives
-- [x] 4.2 Full local gate green via `/verify`
+- [x] 4.1 Grep gate: no remaining future-tense "S-305" claims outside `supabase/migrations/` and archives — cc902b4
+- [x] 4.2 Full local gate green via `/verify` — cc902b4
 
 #### Manual
 
-- [x] 4.3 FR-305 + roadmap S-305 read true against shipped behaviour
+- [x] 4.3 FR-305 + roadmap S-305 read true against shipped behaviour — cc902b4

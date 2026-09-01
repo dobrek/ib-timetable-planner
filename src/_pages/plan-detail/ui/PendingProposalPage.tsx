@@ -1,9 +1,10 @@
-import { ArrowUpRight, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, CircleStop, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 import { isActiveJobStatus, LADDER_TIER_COUNT, tierLabel } from "@/entities/timetable";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../api/generation-delivery";
 import { usePendingProposal } from "../model/generation/use-pending-proposal";
+import StopAndKeep from "./StopAndKeep";
 
 type Props = {
   planName: string;
@@ -25,6 +26,11 @@ type Props = {
  * route ran server-side; on the tick that finds a deliverable board, the delivery happens inside that
  * call and the page navigates to the same URL, which now renders the board. See
  * `use-pending-proposal.ts` for why this island is allowed to poll where the board island is not.
+ *
+ * **And since S-305 it is where a solve is stopped.** The affordance lives here rather than on the
+ * hub because this is the one page that already knows how far the ladder has got — naming the stage
+ * whose checkpoint would be kept is the decision the author is actually taking, and the hub's badge
+ * would have to grow a projection and a dialog to say the same thing.
  *
  * Semantic theme tokens only — no palette-named or arbitrary colours.
  */
@@ -53,6 +59,19 @@ export default function PendingProposalPage({ planName, planId, job: initialJob 
             Started <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time>. This runs
             for several minutes — the board appears here on its own, and you can leave the page.
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <StopAndKeep job={job} />
+          </div>
+        </Panel>
+      ) : job.status === "stopped" ? (
+        // The author's own act, so not the destructive panel. A stopped row WITH a checkpoint never
+        // reaches here — it is deliverable, so the tick that finds it delivers and navigates to the
+        // board — which makes this branch precisely the stopped-before-any-stage case.
+        <Panel>
+          <span role="status" className="text-foreground flex items-start gap-2">
+            <CircleStop className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>You stopped this generation before any stage finished — nothing was kept.</span>
+          </span>
         </Panel>
       ) : (
         <Panel tone="destructive">

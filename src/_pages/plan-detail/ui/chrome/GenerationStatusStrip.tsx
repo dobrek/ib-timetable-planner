@@ -35,8 +35,8 @@ type Props = {
  * SSR'd from the page's frontmatter — and S-303 deliberately did NOT make it live. Stage-by-stage
  * progress lives on the plans list and on the proposal's own page, both of which have no board, so
  * polling can never contend with dragging there: FR-312 satisfied structurally rather than by a
- * memoization argument. Nothing in this island loops, and nothing should start. A cancel button is
- * still S-305's.
+ * memoization argument. Nothing in this island loops, and nothing should start. The stop affordance
+ * (S-305) lives on the proposal's own page for the same reason progress does — see `StopAndKeep`.
  *
  * Semantic theme tokens only — no palette-named or arbitrary colours, so the whole light/dark theme
  * stays drivable from `global.css`.
@@ -89,15 +89,15 @@ export default function GenerationStatusStrip({ generation }: Props) {
     );
   }
 
-  // Halted with nothing kept: the container died (or the author stopped it) before a single stage
-  // finished, so there is no board to deliver and the clone has already been swept. Advisory rather
-  // than destructive — the run was cut short, which is not the author's data being wrong.
+  // Halted with nothing kept: the container died, or the author stopped it, before a single stage
+  // finished — so there is no board to deliver and the clone has already been swept. Advisory rather
+  // than destructive: the run was cut short, which is not the author's data being wrong.
   if (isHaltedJobStatus(job.status) && job.checkpointStageIndex === null) {
     return (
       <Strip>
         <span role="status" className="text-muted-foreground flex items-center gap-1.5">
           <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-          Generation stopped before any stage finished — nothing was kept. Generate again when you are ready.
+          {haltedSummary(job)} Generate again when you are ready.
         </span>
         <RefreshButton checking={checking} onRefresh={refresh} />
       </Strip>
@@ -134,7 +134,7 @@ const ProposalStrip = ({ job, hydrated }: { job: GenerationJobView; hydrated: bo
           transcript rarely reaches tier 5, so `describeCleanLabel` would honestly but unhelpfully say
           "unavailable" where the author wants to know how far the solve got. */}
       <span className="text-muted-foreground">
-        {isHaltedJobStatus(job.status) ? haltedSummary(job.checkpointStageIndex) : describeCleanLabel(job.cleanLabel)}
+        {isHaltedJobStatus(job.status) ? haltedSummary(job) : describeCleanLabel(job.cleanLabel)}
       </span>
     </Strip>
   );
@@ -168,12 +168,24 @@ const formatStarted = (createdAt: string): string =>
   new Date(createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
 /**
- * How far a halted solve got, in the same "stage N of 10" form the hub's progress label uses.
+ * How far a halted solve got, in the same "stage N of 10" form the hub's progress label uses — and
+ * WHO halted it.
  *
- * Naming the stage is the whole point: a partial board is a legitimate result the author may well
+ * Naming the stage is half the point: a partial board is a legitimate result the author may well
  * keep, and "kept the board from stage 3 of 10" is what tells them whether to keep it or regenerate.
+ *
+ * Naming the agent is the other half, and it is what S-305 makes necessary. `stopped` and
+ * `interrupted` were one vocabulary here while only one of them had a producer; now that the author
+ * can stop a solve, reading "Stopped" over a run the PLATFORM killed would attribute their own act to
+ * them wrongly — and reading it over a run they did stop would say nothing about it at all.
  */
-const haltedSummary = (checkpointStageIndex: number | null): string =>
-  checkpointStageIndex === null
-    ? "Stopped — nothing was kept."
-    : `Stopped early — kept the board from stage ${String(checkpointStageIndex)} of ${String(LADDER_TIER_COUNT)}.`;
+const haltedSummary = (job: GenerationJobView): string => {
+  const authored = job.status === "stopped";
+  if (job.checkpointStageIndex === null) {
+    return authored
+      ? "You stopped this generation — nothing was kept."
+      : "Generation was interrupted before any stage finished — nothing was kept.";
+  }
+  const kept = `kept the board from stage ${String(job.checkpointStageIndex)} of ${String(LADDER_TIER_COUNT)}.`;
+  return authored ? `Stopped early — ${kept}` : `Interrupted — ${kept}`;
+};

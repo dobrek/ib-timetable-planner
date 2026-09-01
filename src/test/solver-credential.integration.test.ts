@@ -203,11 +203,13 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     // filter references. `snapshot` is absent because it never comes from the database at all —
     // F-302's dispatch carries it in the request body.
     //
-    // `heartbeat_at` and `stop_requested_at` are PRE-PAID by S-303 and read by nothing yet: S-304's
-    // widened claim CAS needs the first in a WHERE, S-305's stop polling needs the second. Granting
-    // them together cost one migration and one edit to this list instead of three of each. Note the
-    // deliberate asymmetry with the UPDATE list below — `stop_requested_at` is readable and NOT
-    // writable, because the app asks for the stop and the solver only ever observes it.
+    // `heartbeat_at` and `stop_requested_at` were PRE-PAID by S-303 and are both read now:
+    // `heartbeat_at` by S-304's staleness clock, `stop_requested_at` by S-305's stop poll — which
+    // rides the heartbeat's own `return=representation` projection rather than costing a request of
+    // its own. Granting them together cost one migration and one edit to this list instead of three
+    // of each. Note the deliberate asymmetry with the UPDATE list below — `stop_requested_at` is
+    // readable and NOT writable, because the app asks for the stop and the solver only ever
+    // observes it.
     expect(await heldColumnPrivileges(pg, "solver_job_writer", "public.generation_jobs", "SELECT")).toEqual([
       "heartbeat_at",
       "id",

@@ -354,9 +354,18 @@ calibration campaign, never tuned locally on the M4.
   > container WebSocket forwarding — is recorded as the acknowledged upgrade
   > if polling UX disappoints. Routed to the Forward block.
 - [new] FR-305: Author can stop a running job and keep the best checkpointed
-  board ("Stop & keep"), mirroring the greedy path's existing cancel
-  semantics; the affordance states exactly what will be kept — the last
-  *completed* stage's board, not the in-flight stage. Priority: must-have.
+  board ("Stop & keep"): the request is written to the job row, the solver
+  observes it and halts, and the last *completed* stage's checkpoint is
+  delivered onto the proposal clone through the ordinary delivery chain. The
+  affordance states exactly what will be kept — that stage's board, not the
+  in-flight stage — and that stopping is not immediate. Priority: must-have.
+  > Shipped 2026-09-01 (S-305). The original wording said "mirroring the greedy
+  > path's existing cancel semantics"; S-301 deleted that affordance, so the
+  > semantics are restated here from the checkpoint model instead. A stop is a
+  > REQUEST, not a signal: the solver reads `stop_requested_at` on its next
+  > heartbeat (≤ 15 s) and then unwinds the ladder stage in flight, so the
+  > terminal row lands minutes later. A job stopped before any stage completed
+  > keeps nothing, and says so before the author confirms.
   > Socrates: Counter-argument **accepted (refined)**: "mid-stage semantics
   > are confusing — authors may believe they kept more progress than they
   > did." Resolution: kept, with a UX obligation added — the stop affordance

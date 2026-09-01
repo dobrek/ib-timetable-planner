@@ -94,9 +94,11 @@ export type GenerationDiagnostics = {
    *  **Required on the wire** — CP-SAT always emits it. */
   provenOptimal?: boolean;
   /** Why the solve ended: `budget` (a ceiling ended at least one non-optimal stage), `target` (every
-   *  non-optimal stage stopped at its configured target), `cancelled` (Stop & keep, S-305),
-   *  `interrupted` (the job never finished, S-304), or `stagnation` (complete zero-hole board, no
-   *  improvement window). Additive/optional; UI may ignore it.
+   *  non-optimal stage stopped at its configured target), `cancelled` (a stop predicate ended a
+   *  stage — Stop & keep, S-305), `interrupted` (the job never finished, S-304), or `stagnation`
+   *  (complete zero-hole board, no improvement window). Additive/optional; UI may ignore it —
+   *  and the job's terminal STATUS is keyed off the stop latch, never off this field, because an
+   *  externally interrupted stage records `budget` or nothing at all.
    *  **Narrower on the wire**: the contract allows `budget | target | cancelled | interrupted` —
    *  `stagnation` is a greedy-only reason and greedy never crosses the wire. */
   stopReason?: "budget" | "target" | "stagnation" | "cancelled" | "interrupted";

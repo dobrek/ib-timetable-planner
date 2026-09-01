@@ -1,7 +1,7 @@
 ---
 change_id: extract-share-polling-store
 title: Hub-badge eviction, then the shared polling-store factory (F6)
-status: implementing
+status: implemented
 created: 2026-08-31
 updated: 2026-09-01
 archived_at: null

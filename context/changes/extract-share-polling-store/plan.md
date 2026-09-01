@@ -237,13 +237,13 @@ None — no schema, no wire contract, no config. Rollback is `git revert` of eit
 
 #### Automated
 
-- [x] 2.1 Factory suite green (`pnpm test src/shared/lib/polling-store/polling-store.test.ts`)
-- [x] 2.2 Both slice suites green with zero test-file edits in commit 2
-- [x] 2.3 Full gates green (`pnpm test`, `pnpm lint`, `pnpm check`, `pnpm build`)
-- [x] 2.4 `pnpm steiger` clean at 15 `shared/lib` children
-- [x] 2.5 `setInterval` in exactly one non-test file under `src/`
+- [x] 2.1 Factory suite green (`pnpm test src/shared/lib/polling-store/polling-store.test.ts`) — a0e164c
+- [x] 2.2 Both slice suites green with zero test-file edits in commit 2 — a0e164c
+- [x] 2.3 Full gates green (`pnpm test`, `pnpm lint`, `pnpm check`, `pnpm build`) — a0e164c
+- [x] 2.4 `pnpm steiger` clean at 15 `shared/lib` children — a0e164c
+- [x] 2.5 `setInterval` in exactly one non-test file under `src/` — a0e164c
 
 #### Manual
 
-- [x] 2.6 Readability gate passed (or phase 2 closed WONTFIX and commit 2 dropped)
-- [x] 2.7 Preview smoke: badge lifecycle + pending-page delivery unchanged
+- [x] 2.6 Readability gate passed (or phase 2 closed WONTFIX and commit 2 dropped) — a0e164c
+- [x] 2.7 Preview smoke: badge lifecycle + pending-page delivery unchanged — a0e164c

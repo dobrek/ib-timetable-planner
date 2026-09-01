@@ -28,7 +28,12 @@ const indicator = (overrides: Partial<GenerationIndicator> = {}): GenerationIndi
   ...overrides,
 });
 
-/** A fetcher that answers from a queue and records what it was asked for. */
+/**
+ * A fetcher that answers from a queue and records what it was asked for.
+ *
+ * The store REPLACES its snapshot with each answer, so an exhausted queue means "everything is
+ * gone", not "nothing changed" — every test's queue must cover the ticks it drives.
+ */
 const scriptedFetcher = (...responses: GenerationIndicator[][]) => {
   const calls: { jobIds: string[]; planIds: string[] }[] = [];
   const queue = [...responses];
@@ -70,7 +75,7 @@ describe("createJobProgressStore", () => {
   });
 
   it("polls only once something is subscribed", async () => {
-    const { fetch, calls } = scriptedFetcher();
+    const { fetch, calls } = scriptedFetcher([indicator()]);
     const store = createJobProgressStore({ initial: [indicator()], planIds: [PLAN_A], fetch, intervalMs: 5000 });
 
     await advance(20_000);
@@ -107,7 +112,9 @@ describe("createJobProgressStore", () => {
   });
 
   it("keeps the snapshot's identity stable when nothing changed", async () => {
-    const { fetch } = scriptedFetcher([indicator()], [indicator()]);
+    // Three answers for the three ticks 15 s buys: the subject of this test is "nothing changed",
+    // so the fetcher has to keep saying so. An exhausted queue would be an eviction, not a no-op.
+    const { fetch } = scriptedFetcher([indicator()], [indicator()], [indicator()]);
     const store = createJobProgressStore({ initial: [indicator()], planIds: [PLAN_A], fetch, intervalMs: 5000 });
     const notified = vi.fn();
     store.subscribe(notified);
@@ -136,7 +143,9 @@ describe("createJobProgressStore", () => {
   });
 
   it("remembers a terminal job instead of letting its badge vanish", async () => {
-    const { fetch } = scriptedFetcher([indicator({ status: "succeeded" })], []);
+    // Rule 4: the badge outlives the solve because the ROW does, and the refresh re-read it. The
+    // memory is the server's, not the store's — see the eviction cases below for the other half.
+    const { fetch } = scriptedFetcher([indicator({ status: "succeeded" })]);
     const store = createJobProgressStore({ initial: [indicator()], planIds: [PLAN_A], fetch, intervalMs: 5000 });
     store.subscribe(() => undefined);
 
@@ -146,8 +155,8 @@ describe("createJobProgressStore", () => {
     store.dispose();
   });
 
-  it("asks about the active jobs it knows AND the plans it might not", async () => {
-    const { fetch, calls } = scriptedFetcher([]);
+  it("asks about every job it remembers AND the plans it might not", async () => {
+    const { fetch, calls } = scriptedFetcher([indicator()]);
     const store = createJobProgressStore({
       initial: [indicator()],
       planIds: [PLAN_A, PLAN_B],
@@ -161,6 +170,39 @@ describe("createJobProgressStore", () => {
     // The planIds half is the two-tab flow: a hub open while Generate was pressed on a plan page has
     // no job id to refresh, so discovery is the only way it ever learns.
     expect(calls[0]).toEqual({ jobIds: [JOB_A], planIds: [PLAN_A, PLAN_B] });
+    store.dispose();
+  });
+
+  it("keeps asking about a job that has already gone terminal", async () => {
+    // The request half of eviction. `refreshKnown` is unfiltered by status, so a terminal row that
+    // still exists always comes back — and a terminal job the store stopped asking about could never
+    // be found missing, which is why the old active-only refresh made the stale badge unfixable.
+    const succeeded = indicator({ status: "succeeded" });
+    const { fetch, calls } = scriptedFetcher([succeeded]);
+    const store = createJobProgressStore({ initial: [succeeded], planIds: [PLAN_A], fetch, intervalMs: 5000 });
+    store.subscribe(() => undefined);
+
+    // Terminal-only, so no timer runs (rule 1) — the visibility path is the tick.
+    setVisibility("hidden");
+    setVisibility("visible");
+    await advance(0);
+
+    expect(calls[0]).toEqual({ jobIds: [JOB_A], planIds: [PLAN_A] });
+    store.dispose();
+  });
+
+  it("asks nothing when it has neither a plan to discover through nor a job to re-confirm", async () => {
+    // The bail. A hub with no plans on the page and an empty snapshot has no question to ask, so it
+    // must not spend a request asking it — not even on the unconditional visibility tick of rule 5.
+    const { fetch, calls } = scriptedFetcher();
+    const store = createJobProgressStore({ initial: [], planIds: [], fetch, intervalMs: 5000 });
+    store.subscribe(() => undefined);
+
+    setVisibility("hidden");
+    setVisibility("visible");
+    await advance(60_000);
+
+    expect(calls).toHaveLength(0);
     store.dispose();
   });
 
@@ -259,6 +301,59 @@ describe("createJobProgressStore", () => {
     await advance(60_000);
 
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("server-confirmed memory", () => {
+  it("evicts a remembered TERMINAL badge once the server stops returning its row", async () => {
+    // The stale "Ready — open" shape. The author opened the proposal and then deleted it from its own
+    // page, so `delivered_plan_id` went back to null while `delivery` stayed set — the mapping edge
+    // drops the row, and the answer simply omits it. Under union-merge the badge stayed on screen
+    // forever, linking to a plan that no longer exists.
+    const delivered = indicator({ status: "succeeded", delivered: true });
+    const { fetch } = scriptedFetcher([]);
+    const store = createJobProgressStore({ initial: [delivered], planIds: [PLAN_A], fetch, intervalMs: 5000 });
+    store.subscribe(() => undefined);
+
+    setVisibility("hidden");
+    setVisibility("visible");
+    await advance(0);
+
+    expect(store.getSnapshot().has(PLAN_A)).toBe(false);
+    store.dispose();
+  });
+
+  it("evicts a remembered ACTIVE badge whose row vanished, and stops polling", async () => {
+    // The forever-poll shape: the source plan was deleted mid-solve, so the job row cascaded away
+    // with it. The badge kept saying "Generating", which kept `shouldRun()` true, which kept a
+    // request going out every five seconds for as long as the tab stayed open.
+    const { fetch, calls } = scriptedFetcher([]);
+    const store = createJobProgressStore({ initial: [indicator()], planIds: [], fetch, intervalMs: 5000 });
+    store.subscribe(() => undefined);
+
+    await advance(5000);
+    expect(store.getSnapshot().size).toBe(0);
+
+    await advance(60_000);
+    expect(calls, "nothing left to watch, so nothing left to ask").toHaveLength(1);
+    store.dispose();
+  });
+
+  it("keeps a terminal badge for as long as the row keeps coming back", async () => {
+    // The other side of the same coin: replacing the snapshot wholesale is only safe because the
+    // refresh is status-unfiltered, so a row that still exists is in every answer.
+    const succeeded = indicator({ status: "succeeded" });
+    const { fetch } = scriptedFetcher([succeeded], [succeeded]);
+    const store = createJobProgressStore({ initial: [indicator()], planIds: [PLAN_A], fetch, intervalMs: 5000 });
+    store.subscribe(() => undefined);
+
+    await advance(5000);
+    setVisibility("hidden");
+    setVisibility("visible");
+    await advance(0);
+
+    expect(store.getSnapshot().get(PLAN_A)).toMatchObject({ status: "succeeded" });
+    store.dispose();
   });
 });
 

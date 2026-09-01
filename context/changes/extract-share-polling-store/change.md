@@ -1,7 +1,7 @@
 ---
 change_id: extract-share-polling-store
 title: Hub-badge eviction, then the shared polling-store factory (F6)
-status: planned
+status: implementing
 created: 2026-08-31
 updated: 2026-09-01
 archived_at: null
@@ -28,3 +28,12 @@ Scoped 2026-09-01 for planning: **two phases — the eviction fix first, then F6
 note is PARKED (own change later); Q2 was decided in passing — acknowledged hides the strip
 entirely, which means that change must re-ground FR-308 rather than re-word it. See the
 "Decisions 2026-09-01" section in `research.md`.
+
+Phase 1 adaptation 2026-09-01 (found at the manual gate, in preview): the store-side eviction was
+correct and polling stopped, but the badge stayed on screen. `PlansHub.indicatorsFor` fell back to the
+row's SSR'd `plan.indicators` whenever the live snapshot had nothing for that row — which under
+union-merge was unreachable and under replace semantics resurrects the badge the poll just evicted, on
+the very next render. Since the store is SEEDED from exactly those indicators, the fallback could
+never add anything anyway. Phase 1 therefore also extracts the helper to
+`model/row-indicators.ts` (`indicatorsForRow`, pure + unit-tested) with both `plan.indicators`
+fallbacks removed, so the poll's snapshot is the single input to what each row renders.

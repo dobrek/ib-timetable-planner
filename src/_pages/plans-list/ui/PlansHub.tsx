@@ -18,8 +18,8 @@ import {
 } from "@/shared/ui";
 import type { PlanRow } from "../api/loader";
 import type { IndicatorsByPlan } from "../model/job-progress-store";
-import type { PlanIndicator } from "../model/plan-indicators";
 import { useGenerationIndicators } from "../model/use-generation-indicators";
+import { indicatorsForRow } from "../model/row-indicators";
 import { announcementsFor } from "../model/generation-toasts";
 import { canCompare, compareHref, EMPTY_SELECTION, toggleAllSelection, toggleId } from "../model/plan-selection";
 import ClonePlanDialog from "./ClonePlanDialog";
@@ -56,8 +56,9 @@ export default function PlansHub({ plans }: Props) {
 
   const planIds = plans.map((plan) => plan.id);
   // Seeded from the SSR'd indicators, so the first paint already shows a running job; the store then
-  // keeps them current while one is active. `plan.indicators` stays the fallback for a plan the store
-  // has never had anything to say about.
+  // keeps them current — and is the ONLY input to what each row renders. `plan.indicators` is the
+  // seed and nothing else: keeping it as a per-row fallback would resurrect a badge the poll had just
+  // evicted, which is rule 4 of the store (server-confirmed memory) repealed at the render layer.
   const liveIndicators = useGenerationIndicators(
     plans.flatMap((plan) => plan.indicators),
     planIds,
@@ -156,7 +157,7 @@ export default function PlansHub({ plans }: Props) {
                     <TableCell className="text-muted-foreground">{plan.slotGridPreset}</TableCell>
                     <TableCell className="text-muted-foreground">{plan.updatedAt.slice(0, 10)}</TableCell>
                     <TableCell>
-                      <PlanIndicatorsCell indicators={indicatorsFor(plan, liveIndicators, planIds)} />
+                      <PlanIndicatorsCell indicators={indicatorsForRow(plan.id, liveIndicators, planIds)} />
                     </TableCell>
                     <TableCell className="text-right">
                       <PlanRowActions
@@ -227,41 +228,6 @@ const useGenerationAnnouncements = (live: IndicatorsByPlan, plans: readonly Plan
     }
     previous.current = live;
   }, [live, plans]);
-};
-
-/**
- * Which live indicator belongs on this row, and the fallback when the store has nothing to say.
- *
- * **The badge belongs on the proposal**, because that is the plan it is about (S-306) — so a row is
- * matched first against every indicator's `proposalPlanId`. The source-row match is the fallback, and
- * it exists for a hole this shape opens rather than as a preference: a job started on a plan page
- * creates a proposal row an already-open hub has never loaded, and until the author reloads, the
- * source row is the only place the badge can appear at all. Once the proposal row IS on the page it
- * wins, so the badge does not render twice.
- *
- * A `failed` job keeps the source row too, whatever the page holds: its clone has been swept, and the
- * failure belongs where the diagnostic is (FR-308).
- *
- * The store's snapshot is keyed by SOURCE plan, so both matches scan its values — at most a few
- * entries, once per row, on a page capped at 200 plans.
- */
-const indicatorsFor = (plan: PlanRow, live: IndicatorsByPlan, planIds: readonly string[]): readonly PlanIndicator[] => {
-  const all = [...live.values()];
-  if (all.length === 0) return plan.indicators;
-
-  const onProposal = all.filter((indicator) => indicator.proposalPlanId === plan.id);
-  if (onProposal.length > 0) return onProposal;
-
-  const onSource = all.filter(
-    (indicator) =>
-      indicator.planId === plan.id &&
-      (indicator.status === "failed" ||
-        indicator.proposalPlanId === null ||
-        !planIds.includes(indicator.proposalPlanId)),
-  );
-  // Only fall back to the SSR'd set when the store has never mentioned this plan at all — otherwise
-  // an indicator the store deliberately moved to another row would come back from the server copy.
-  return onSource.length > 0 || all.some((indicator) => indicator.planId === plan.id) ? onSource : plan.indicators;
 };
 
 function PlanRowActions({

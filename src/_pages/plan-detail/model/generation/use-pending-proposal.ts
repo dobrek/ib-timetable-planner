@@ -1,6 +1,6 @@
 import { useState, useSyncExternalStore } from "react";
-import { isActiveJobStatus } from "@/entities/timetable";
-import { createPollingStore, type PollingStore } from "@/shared/lib/polling-store";
+import { isActiveJobStatus, type CleanLabel } from "@/entities/timetable";
+import { createPollingStore, DEFAULT_POLL_INTERVAL_MS, type PollingStore } from "@/shared/lib/polling-store";
 import { checkPlan as checkPlanAction } from "../../api/generation-client";
 import type { GenerationJobView } from "../../api/generation-delivery";
 
@@ -51,7 +51,7 @@ export type PendingProposalStoreOptions = {
   intervalMs?: number;
 };
 
-export const PENDING_POLL_INTERVAL_MS = 5000;
+export const PENDING_POLL_INTERVAL_MS = DEFAULT_POLL_INTERVAL_MS;
 
 export const createPendingProposalStore = (options: PendingProposalStoreOptions): PendingProposalStore => {
   const {
@@ -125,6 +125,17 @@ const sameView = (a: GenerationJobView | null, b: GenerationJobView | null): boo
     a.stageIndex === b.stageIndex &&
     a.stageName === b.stageName &&
     a.error === b.error &&
-    a.proposalPlanId === b.proposalPlanId
+    a.proposalPlanId === b.proposalPlanId &&
+    a.finishedAt === b.finishedAt &&
+    a.checkpointStageIndex === b.checkpointStageIndex &&
+    sameCleanLabel(a.cleanLabel, b.cleanLabel)
   );
+};
+
+/** Structural, because `deriveCleanLabel` builds a fresh object every tick — `===` would never hold. */
+const sameCleanLabel = (a: CleanLabel, b: CleanLabel): boolean => {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "clean-at-floor" && b.kind === "clean-at-floor") return a.pinnedHours === b.pinnedHours;
+  if (a.kind === "not-clean" && b.kind === "not-clean") return a.softHits === b.softHits && a.floor === b.floor;
+  return true;
 };

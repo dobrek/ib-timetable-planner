@@ -557,17 +557,25 @@ def _run_ladder(
     ladder's maximal-placement stage — and it is what makes ``position``/``total`` and each
     checkpoint's ``stages`` describe the WHOLE run rather than this call's slice of it.
 
-    A stage that ends ``cancelled`` ends the ladder. Without that break the stop would cascade: every
-    remaining tier would start, its callback would fire on the first (hinted) solution, and the run
-    would record a row and burn a solve per tier for a decision already taken. A cancellation landing
-    in the microseconds BETWEEN two stages is caught by the next stage's first solution instead, so
-    at most one extra short solve is ever spent on it — cheaper than polling the predicate here.
+    A stage that ends ``cancelled`` ends the ladder, and the predicate is asked again before each
+    stage starts. The break alone is not enough: without the loop-top check a stop would cascade
+    (every remaining tier starting and burning a solve for a decision already taken) whenever the
+    interrupted stage ended without a ``cancelled`` attribution — ``stop_search()`` records nothing
+    when no improving solution follows it, so an UNKNOWN stage would hand the stop to the next
+    stage's budget.
     """
     indices = tuple(tier_indices)
     total = len(preceding) + len(indices)
     stages: list[StageReport] = []
     proven = True
     for offset, idx in enumerate(indices):
+        # The latch may have fired without a `cancelled` attribution — `stop_search()` interrupting
+        # a stage that then reports `budget` or nothing (no improving solution followed it). Ask the
+        # predicate before starting another stage rather than spending a solve to find out. The
+        # tiers a stop skips were never proved, whatever the stages that did run managed.
+        if config.hooks.should_stop is not None and config.hooks.should_stop():
+            proven = False
+            break
         tier = objective.tiers[idx]
         position = len(preceding) + offset + 1
         if idx == 2:  # about to minimise totalSlots — inject the clique cut for completed cohorts

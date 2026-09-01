@@ -225,9 +225,11 @@ class JobRowClient:
                 return None
             row: dict[str, Any] = body[0]
             return row
-        except (SupabaseError, httpx.TransportError, ValueError) as error:
-            # `ValueError` covers a 2xx whose body is not JSON (`response.json()` above) — rare, but
-            # "never raises" has to mean it.
+        except Exception as error:  # noqa: BLE001 — the contract IS the breadth
+            # Deliberately everything: `_headers()` re-mints the token in here, so beyond the wire
+            # errors this can surface a malformed Auth body (KeyError/TypeError), a failed role
+            # assertion (RoleClaimError), or a 2xx whose body is not JSON (ValueError) — and
+            # "never raises" has to mean all of it. The solving thread is on the other side.
             log.warning("job %s: progress write failed (the solve continues): %s", job_id, error)
             return None
 

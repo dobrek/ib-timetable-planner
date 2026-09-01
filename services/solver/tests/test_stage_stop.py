@@ -429,12 +429,11 @@ def test_a_stop_from_another_thread_ends_a_live_solve_well_inside_its_budget() -
     )
     stage = _stage(result.stages, LIVE_STOP_TIER)
     assert stage.wall_clock_s < LIVE_STAGE_BUDGET_S, "the interrupted stage did not burn its budget"
-    # At most ONE stage past the stop, which is exactly what `_run_ladder` documents: `stop_search()`
-    # ends the live search without any attribution (no improving solution followed the interrupt), so
-    # the ladder's `cancelled` break is taken by the NEXT stage's first hinted solution instead. That
-    # extra solve is short — it is hinted with the incumbent — and it is the whole cost of not polling
-    # the predicate between stages.
-    assert result.stages[-1].tier <= LIVE_STOP_TIER + 1, "the ladder ends where the stop landed"
+    # NO stage starts past the stop, which is exactly what `_run_ladder` documents: `stop_search()`
+    # may end the live search without any attribution (no improving solution followed the interrupt),
+    # so the ladder asks the predicate again at the top of each iteration rather than spending the
+    # next stage's first hinted solution to find out.
+    assert result.stages[-1].tier == LIVE_STOP_TIER, "the ladder ends where the stop landed"
     assert len(result.stages) < 10
 
 

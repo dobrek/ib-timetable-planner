@@ -565,31 +565,31 @@ README rule — the deploy replaces the container).
 
 #### Manual
 
-- [ ] 1.5 SQL-flagged live solve lands `stopped` with the new error text within one heartbeat + stage tail
+- [x] 1.5 SQL-flagged live solve lands `stopped` with the new error text within one heartbeat + stage tail
 
 ### Phase 2: App — the stop write path
 
 #### Automated
 
-- [x] 2.1 Unit suite green: `pnpm test`
-- [x] 2.2 New integration suite green: `pnpm test:integration src/_pages/plan-detail/api/generation-stop.integration.test.ts`
-- [x] 2.3 Existing delivery + credential pins stay green
-- [x] 2.4 Types and lint: `pnpm check` and `pnpm lint`
+- [x] 2.1 Unit suite green: `pnpm test` — 8d70f87
+- [x] 2.2 New integration suite green: `pnpm test:integration src/_pages/plan-detail/api/generation-stop.integration.test.ts` — 8d70f87
+- [x] 2.3 Existing delivery + credential pins stay green — 8d70f87
+- [x] 2.4 Types and lint: `pnpm check` and `pnpm lint` — 8d70f87
 
 ### Phase 3: UI — the affordance and the vocabulary
 
 #### Automated
 
-- [ ] 3.1 Types, lint, structure, build: `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build`
-- [ ] 3.2 Unit suite green: `pnpm test`
-- [ ] 3.3 Generation E2E stays green: `pnpm test:e2e e2e/specs/generation.spec.ts`
+- [x] 3.1 Types, lint, structure, build: `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build`
+- [x] 3.2 Unit suite green: `pnpm test`
+- [x] 3.3 Generation E2E stays green: `pnpm test:e2e e2e/specs/generation.spec.ts`
 
 #### Manual
 
-- [ ] 3.4 End-to-end stop mid-run: confirm names the stage, "Stopping…" shows, checkpoint board delivered, strip reads "Stopped early — kept the board from stage k of 10"
-- [ ] 3.5 Stop while queued/no stage: confirm says nothing kept; neutral terminal state; clone swept
-- [ ] 3.6 Stop racing completion delivers the full board with no error
-- [ ] 3.7 Both themes: semantic tokens only on the new dialog/button/panels
+- [x] 3.4 End-to-end stop mid-run: confirm names the stage, "Stopping…" shows, checkpoint board delivered, strip reads "Stopped early — kept the board from stage k of 10"
+- [x] 3.5 Stop while queued/no stage: confirm says nothing kept; neutral terminal state; clone swept
+- [x] 3.6 Stop racing completion delivers the full board with no error
+- [x] 3.7 Both themes: semantic tokens only on the new dialog/button/panels
 
 ### Phase 4: Docs & drift sweep
 

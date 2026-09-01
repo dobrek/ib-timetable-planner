@@ -77,7 +77,9 @@ const acceptingTransport: SolverTransport = {
         .single()
     ).data;
 
-  const setStatus = async (jobId: string, patch: Record<string, unknown>): Promise<void> => {
+  type JobUpdate = Database["public"]["Tables"]["generation_jobs"]["Update"];
+
+  const setStatus = async (jobId: string, patch: JobUpdate): Promise<void> => {
     const { error } = await supabase.from("generation_jobs").update(patch).eq("id", jobId);
     if (error) throw new Error(`setStatus: ${error.message}`);
   };

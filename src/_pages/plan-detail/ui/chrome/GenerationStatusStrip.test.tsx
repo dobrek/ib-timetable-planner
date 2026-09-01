@@ -130,13 +130,17 @@ describe("GenerationStatusStrip", () => {
     });
 
     it("halted with nothing kept says so plainly, and is advisory rather than an alert", () => {
-      // The platform cut the run short (or the author did); that is not the author's data being
-      // wrong, so no role=alert. `stopped` reads the same as `interrupted` — S-306 made them one case.
-      for (const status of ["interrupted", "stopped"] as const) {
+      // The run was cut short; that is not the author's data being wrong, so no role=alert. The two
+      // halted statuses split their WORDING (S-305) while sharing this branch and its tone.
+      for (const [status, expected] of [
+        ["interrupted", /Generation was interrupted before any stage finished/],
+        ["stopped", /You stopped this generation/],
+      ] as const) {
         const view = job({ status, delivered: false, checkpointStageIndex: null });
         const { unmount } = render(<GenerationStatusStrip generation={tracking(view)} />);
 
-        expect(screen.getByRole("status")).toHaveTextContent(/stopped before any stage finished/);
+        expect(screen.getByRole("status")).toHaveTextContent(expected);
+        expect(screen.getByRole("status")).toHaveTextContent(/nothing was kept. Generate again when you are ready./);
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
         unmount();
       }
@@ -184,6 +188,22 @@ describe("GenerationStatusStrip", () => {
 
       expect(screen.getByText(/kept the board from stage 3 of 10/)).toBeInTheDocument();
       expect(screen.queryByText(/no lesson sits on a soft-unavailable cell/)).not.toBeInTheDocument();
+    });
+
+    it("distinguishes the author stopping the run from the platform interrupting it", () => {
+      // S-305 gives `stopped` a producer, so the two statuses stop being interchangeable here: one is
+      // something the author did on purpose, the other something that happened to them. Saying
+      // "Stopped" over both would attribute the platform's act to the author.
+      for (const [status, expected] of [
+        ["stopped", "Stopped early — kept the board from stage 4 of 10."],
+        ["interrupted", "Interrupted — kept the board from stage 4 of 10."],
+      ] as const) {
+        const view = proposal({ status, checkpointStageIndex: 4 });
+        const { unmount } = render(<GenerationStatusStrip generation={tracking(view)} />);
+
+        expect(screen.getByText(expected)).toBeInTheDocument();
+        unmount();
+      }
     });
 
     it("renders nothing before the board has landed — that page is the pending panel, not a strip", () => {

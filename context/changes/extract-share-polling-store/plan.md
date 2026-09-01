@@ -224,26 +224,26 @@ None — no schema, no wire contract, no config. Rollback is `git revert` of eit
 
 #### Automated
 
-- [x] 1.1 Hub store suite green (`pnpm test src/_pages/plans-list/model/job-progress-store.test.ts`)
-- [x] 1.2 Full unit suite green (`pnpm test`)
-- [x] 1.3 Lint and types green (`pnpm lint`, `pnpm check`)
-- [x] 1.4 `merge` deleted from `job-progress-store.ts`
+- [x] 1.1 Hub store suite green (`pnpm test src/_pages/plans-list/model/job-progress-store.test.ts`) — 8686c1e
+- [x] 1.2 Full unit suite green (`pnpm test`) — 8686c1e
+- [x] 1.3 Lint and types green (`pnpm lint`, `pnpm check`) — 8686c1e
+- [x] 1.4 `merge` deleted from `job-progress-store.ts` — 8686c1e
 
 #### Manual
 
-- [x] 1.5 Two-surface repro verified in preview: badge evicts, polling stops
+- [x] 1.5 Two-surface repro verified in preview: badge evicts, polling stops — 8686c1e
 
 ### Phase 2: F6 — the shared polling-store factory
 
 #### Automated
 
-- [ ] 2.1 Factory suite green (`pnpm test src/shared/lib/polling-store/polling-store.test.ts`)
-- [ ] 2.2 Both slice suites green with zero test-file edits in commit 2
-- [ ] 2.3 Full gates green (`pnpm test`, `pnpm lint`, `pnpm check`, `pnpm build`)
-- [ ] 2.4 `pnpm steiger` clean at 15 `shared/lib` children
-- [ ] 2.5 `setInterval` in exactly one non-test file under `src/`
+- [x] 2.1 Factory suite green (`pnpm test src/shared/lib/polling-store/polling-store.test.ts`)
+- [x] 2.2 Both slice suites green with zero test-file edits in commit 2
+- [x] 2.3 Full gates green (`pnpm test`, `pnpm lint`, `pnpm check`, `pnpm build`)
+- [x] 2.4 `pnpm steiger` clean at 15 `shared/lib` children
+- [x] 2.5 `setInterval` in exactly one non-test file under `src/`
 
 #### Manual
 
-- [ ] 2.6 Readability gate passed (or phase 2 closed WONTFIX and commit 2 dropped)
-- [ ] 2.7 Preview smoke: badge lifecycle + pending-page delivery unchanged
+- [x] 2.6 Readability gate passed (or phase 2 closed WONTFIX and commit 2 dropped)
+- [x] 2.7 Preview smoke: badge lifecycle + pending-page delivery unchanged

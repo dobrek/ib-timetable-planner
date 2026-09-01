@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from "react";
 import { isActiveJobStatus } from "@/entities/timetable";
+import { createPollingStore, type PollingStore } from "@/shared/lib/polling-store";
 import { checkPlan as checkPlanAction } from "../../api/generation-client";
 import type { GenerationJobView } from "../../api/generation-delivery";
 
@@ -20,11 +21,13 @@ import type { GenerationJobView } from "../../api/generation-delivery";
  * the delivering read — rather than the hub's status-only one, and on the tick that delivers it
  * navigates so the board renders through the normal SSR path. No client-side board bootstrap.
  *
- * **Shape copied from `plans-list/model/job-progress-store.ts`, for the reason recorded there.**
- * React 19's `react-hooks/set-state-in-effect` rule rules out fetch-in-an-effect-then-setState, and
- * the React Compiler memoizes this island like every other. So the mutable thing lives outside React
- * and `useSyncExternalStore` subscribes to it; nothing here calls `setState`. This store is smaller
- * than the hub's because the problem is: one job, one plan, no discovery, no terminal memory.
+ * **Lifecycle shared with `plans-list/model/job-progress-store.ts`, in
+ * `@/shared/lib/polling-store`.** React 19's `react-hooks/set-state-in-effect` rule rules out
+ * fetch-in-an-effect-then-setState, and the React Compiler memoizes this island like every other. So
+ * the mutable thing lives outside React and `useSyncExternalStore` subscribes to it; nothing here
+ * calls `setState`. The timer, the single in-flight read, the visibility listener and the
+ * equality-gated publish are the factory's; what stays here is the part that is about ONE job on one
+ * plan — no discovery, no terminal memory, and a delivery that navigates.
  *
  * Three rules govern when it reads:
  *
@@ -36,13 +39,7 @@ import type { GenerationJobView } from "../../api/generation-delivery";
  *   3. **A failed read keeps the last snapshot** and lets the next tick retry. The page is an
  *      advisory; a red banner every time Wi-Fi blinks would be worse than a stale stage number.
  */
-export type PendingProposalStore = {
-  subscribe: (listener: () => void) => () => void;
-  getSnapshot: () => GenerationJobView | null;
-  getServerSnapshot: () => GenerationJobView | null;
-  /** Unsubscribe everyone, stopping the timer and dropping the visibility listener. Re-armable. */
-  dispose: () => void;
-};
+export type PendingProposalStore = PollingStore<GenerationJobView | null>;
 
 export type PendingProposalStoreOptions = {
   planId: string;
@@ -65,85 +62,28 @@ export const createPendingProposalStore = (options: PendingProposalStoreOptions)
     intervalMs = PENDING_POLL_INTERVAL_MS,
   } = options;
 
-  let snapshot = initial;
-  let timer: ReturnType<typeof setInterval> | null = null;
-  let inFlight = false;
   // Once, and only once. The navigation is asynchronous, so a second tick could otherwise land while
-  // the browser is still tearing the page down and fire it again.
+  // the browser is still tearing the page down and fire it again. It is a closure rather than an
+  // option because it is this page's policy, not the lifecycle's — the factory has no idea what
+  // "announced" means, and gains nothing from learning.
   let announced = false;
-  const listeners = new Set<() => void>();
 
-  const publish = (next: GenerationJobView | null): void => {
-    if (sameView(snapshot, next)) return;
-    snapshot = next;
-    for (const listener of listeners) listener();
-  };
-
-  const tick = async (): Promise<void> => {
-    // One request at a time: a tick that outlives the interval must not stack up identical
-    // deliveries that then all land at once.
-    if (inFlight || listeners.size === 0) return;
-    inFlight = true;
-    try {
-      const view = await check(planId);
-      if (listeners.size > 0) publish(view);
-      if (view?.delivered === true && !announced) {
-        announced = true;
-        onDelivered();
-      }
-    } catch {
-      // Keep the last snapshot; the next tick retries. See rule 3.
-    } finally {
-      inFlight = false;
-      syncTimer();
-    }
-  };
-
-  const shouldRun = (): boolean =>
-    listeners.size > 0 && isVisible() && !announced && snapshot !== null && isActiveJobStatus(snapshot.status);
-
-  const syncTimer = (): void => {
-    if (shouldRun() && timer === null) {
-      timer = setInterval(() => void tick(), intervalMs);
-    } else if (!shouldRun() && timer !== null) {
-      clearInterval(timer);
-      timer = null;
-    }
-  };
-
-  const onVisibilityChange = (): void => {
-    if (isVisible() && listeners.size > 0 && !announced) void tick();
-    syncTimer();
-  };
-
-  // The DOM listener lives and dies with the subscription, so constructing the store inside a render
-  // is side-effect free and a StrictMode mount → cleanup → remount simply re-arms it.
-  const listen = (): void => {
-    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibilityChange);
-  };
-  const unlisten = (): void => {
-    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
-  };
-
-  return {
-    subscribe: (listener) => {
-      if (listeners.size === 0) listen();
-      listeners.add(listener);
-      syncTimer();
-      return () => {
-        listeners.delete(listener);
-        if (listeners.size === 0) unlisten();
-        syncTimer();
-      };
+  return createPollingStore<GenerationJobView | null>({
+    initial,
+    isEqual: sameView,
+    read: () => check(planId),
+    isActive: (snapshot) => !announced && snapshot !== null && isActiveJobStatus(snapshot.status),
+    // AFTER the publish and outside the listeners guard, both deliberately: the delivery already
+    // happened server-side inside `check`, so a subscriber leaving mid-flight is a reason to publish
+    // nothing and never a reason to skip the navigation. See the factory's `afterTick` contract.
+    afterTick: (next) => {
+      if (next?.delivered !== true || announced) return;
+      announced = true;
+      onDelivered();
     },
-    getSnapshot: () => snapshot,
-    getServerSnapshot: () => initial,
-    dispose: () => {
-      if (listeners.size > 0) unlisten();
-      listeners.clear();
-      syncTimer();
-    },
-  };
+    tickOnVisible: () => !announced,
+    intervalMs,
+  });
 };
 
 /**
@@ -188,5 +128,3 @@ const sameView = (a: GenerationJobView | null, b: GenerationJobView | null): boo
     a.proposalPlanId === b.proposalPlanId
   );
 };
-
-const isVisible = (): boolean => typeof document === "undefined" || document.visibilityState === "visible";

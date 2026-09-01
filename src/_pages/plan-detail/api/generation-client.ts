@@ -1,5 +1,6 @@
 import { actions } from "astro:actions";
 import type { GenerationJobView } from "./generation-delivery";
+import type { StopGenerationResult } from "./generation-stop";
 import { callActionData } from "./call-action";
 
 /** Enqueue a CP-SAT generation job for this plan. Resolves once the solver has ACCEPTED the dispatch
@@ -22,4 +23,21 @@ export function startGeneration(planId: string): Promise<{
  */
 export function checkPlan(planId: string): Promise<GenerationJobView | null> {
   return callActionData(actions.checkPlan, { planId });
+}
+
+/**
+ * Ask a running generation to stop and keep whatever the ladder has already checkpointed (S-305).
+ *
+ * **It resolves when the REQUEST is durable, not when the job has stopped.** A queued job is
+ * terminalised on the spot (`stopped`), but a running one is only asked: the solver notices the flag
+ * on its next heartbeat — within ~15 s — and then has to unwind the ladder stage that is in flight,
+ * which is budgeted in minutes. So the honest window between this promise resolving and a terminal
+ * row is "a few minutes", and the caller must not present it as immediate.
+ *
+ * `already-finished` is a race the author wins, not an error: the solve landed first, so they get
+ * the whole board. The polled snapshot is what narrates all three outcomes; this call only has to
+ * surface a genuine failure.
+ */
+export function stopGeneration(jobId: string): Promise<StopGenerationResult> {
+  return callActionData(actions.stopGeneration, { jobId });
 }

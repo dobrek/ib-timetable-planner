@@ -115,7 +115,12 @@ const reloadIntoBoard = (): void => {
 };
 
 /** Field-by-field: the action returns a fresh object every tick, and identity is the contract
- *  `useSyncExternalStore` enforces — a new object each time would re-render the island forever. */
+ *  `useSyncExternalStore` enforces — a new object each time would re-render the island forever.
+ *
+ *  **Every field the page renders must be named here, in the same commit that adds it.** A field the
+ *  projection carries but this gate ignores changes silently: the store sees "same view", publishes
+ *  nothing, and the UI that depends on it never updates. `stopRequestedAt` is exactly such a field —
+ *  it is what flips the button to "Stopping…" while status, stage and error all stay put. */
 const sameView = (a: GenerationJobView | null, b: GenerationJobView | null): boolean => {
   if (a === null || b === null) return a === b;
   return (
@@ -128,6 +133,7 @@ const sameView = (a: GenerationJobView | null, b: GenerationJobView | null): boo
     a.proposalPlanId === b.proposalPlanId &&
     a.finishedAt === b.finishedAt &&
     a.checkpointStageIndex === b.checkpointStageIndex &&
+    a.stopRequestedAt === b.stopRequestedAt &&
     sameCleanLabel(a.cleanLabel, b.cleanLabel)
   );
 };

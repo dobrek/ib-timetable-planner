@@ -30,6 +30,7 @@ const trackedJob = (status: GenerationJobView["status"]): GenerationJobView => (
   sourcePlanName: null,
   stageIndex: null,
   stageName: null,
+  stopRequestedAt: null,
 });
 
 describe("GenerateButton", () => {

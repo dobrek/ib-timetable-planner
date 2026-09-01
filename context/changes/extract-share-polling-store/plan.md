@@ -224,14 +224,14 @@ None — no schema, no wire contract, no config. Rollback is `git revert` of eit
 
 #### Automated
 
-- [ ] 1.1 Hub store suite green (`pnpm test src/_pages/plans-list/model/job-progress-store.test.ts`)
-- [ ] 1.2 Full unit suite green (`pnpm test`)
-- [ ] 1.3 Lint and types green (`pnpm lint`, `pnpm check`)
-- [ ] 1.4 `merge` deleted from `job-progress-store.ts`
+- [x] 1.1 Hub store suite green (`pnpm test src/_pages/plans-list/model/job-progress-store.test.ts`)
+- [x] 1.2 Full unit suite green (`pnpm test`)
+- [x] 1.3 Lint and types green (`pnpm lint`, `pnpm check`)
+- [x] 1.4 `merge` deleted from `job-progress-store.ts`
 
 #### Manual
 
-- [ ] 1.5 Two-surface repro verified in preview: badge evicts, polling stops
+- [x] 1.5 Two-surface repro verified in preview: badge evicts, polling stops
 
 ### Phase 2: F6 — the shared polling-store factory
 

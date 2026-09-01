@@ -17,11 +17,17 @@ import { isActiveIndicator, type GenerationIndicator } from "./plan-indicators";
  *   3. **Only while the tab is visible.** A backgrounded tab left open overnight would otherwise
  *      poll ~12 times a minute forever. Returning to it ticks IMMEDIATELY, so the badge is fresh by
  *      the time the author has finished looking at it.
- *   4. **Terminal indicators are remembered.** A job that finishes stays in the snapshot rather than
- *      vanishing, because a badge that disappears reads as a failure. Since S-306 this memory is a
- *      cache rather than the only record: the SSR loader and the discovery read both return
- *      terminal-undelivered and delivered-but-unannounced rows, so a reload no longer erases a ready
- *      proposal — it stays badged until the author opens it once, which is what stamps `notified_at`.
+ *   4. **Terminal indicators are remembered — for exactly as long as their row still exists.** A job
+ *      that finishes stays in the snapshot rather than vanishing, because a badge that disappears the
+ *      instant a solve ends reads as a failure. Since S-306 that memory is a ROW state rather than
+ *      RAM: the SSR loader and the discovery read both return terminal-undelivered and
+ *      delivered-but-unannounced rows, so a reload no longer erases a ready proposal — it stays
+ *      badged until the author opens it once, which is what stamps `notified_at`. The poll is held to
+ *      the same standard: it re-reads EVERY remembered job, terminal ones included, and the answer
+ *      REPLACES the snapshot. So memory is server-confirmed — a badge survives because its row still
+ *      exists and the refresh re-read it, and a row the server no longer returns (cascaded away with
+ *      a deleted source, or dropped at the mapping edge as delivered-then-deleted) takes its badge
+ *      with it on the next tick rather than freezing on screen forever.
  *   5. **Becoming visible always DISCOVERS, even when nothing is active.** Rule 1 alone would leave
  *      the realistic two-tab flow broken: a hub tab open while Generate was pressed on a plan page
  *      knows no job id, has nothing active, and so would never start a timer — showing nothing at all
@@ -79,12 +85,17 @@ export const createJobProgressStore = (options: JobProgressStoreOptions): JobPro
     // One request at a time. A tick that outlives the interval (a slow link) must not stack up a
     // queue of identical reads that then all land at once and fight over the snapshot.
     if (inFlight || listeners.size === 0) return;
-    if (planIds.length === 0 && activeJobIds(snapshot).length === 0) return;
+    // Nothing to ask about: no plans to discover through and nothing remembered to re-confirm.
+    if (planIds.length === 0 && snapshot.size === 0) return;
     inFlight = true;
     try {
-      const fetched = await fetch({ jobIds: activeJobIds(snapshot), planIds: [...planIds] });
+      // EVERY remembered job, not just the active ones. A terminal entry that is never queried can
+      // never be missing from an answer, and absence from the answer is the only evidence rule 4 has
+      // that a row is gone. `refreshKnown` is unfiltered by status, so a row that still exists always
+      // comes back — which is what makes replacing the snapshot wholesale safe for terminal memory.
+      const fetched = await fetch({ jobIds: rememberedJobIds(snapshot), planIds: [...planIds] });
       // The last subscriber can leave WHILE this awaits; a store nobody is watching stays silent.
-      if (listeners.size > 0) publish(merge(snapshot, fetched));
+      if (listeners.size > 0) publish(indexByPlan(fetched));
     } catch {
       // Keep the last snapshot; the next tick retries. See the class docstring.
     } finally {
@@ -148,22 +159,14 @@ const indexByPlan = (indicators: readonly GenerationIndicator[]): IndicatorsByPl
   new Map(indicators.map((indicator) => [indicator.planId, indicator]));
 
 /**
- * The fetched rows over the remembered ones, keyed by plan.
+ * Every job the snapshot is holding a badge for — active or terminal.
  *
- * Fetched wins on a collision — it is strictly newer — and a plan the fetch did not mention keeps
- * what it had, which is what makes terminal memory work.
- *
- * S-306 demoted that memory from the only record to a cache. The discovery read now also returns
- * terminal-undelivered and delivered-but-unannounced rows, so "Ready — open" is a ROW state that
- * survives a reload; this in-RAM memory is what keeps the badge on screen between the moment a job
- * goes terminal and the next tick that re-reads it. Rule 4 in the class docstring is amended
- * accordingly.
+ * Widening this past the active ones is what makes rule 4's eviction possible at all: the refresh is
+ * the only question the store ever asks about a job it already knows, so a job it stops asking about
+ * can never be found to have disappeared.
  */
-const merge = (current: IndicatorsByPlan, fetched: readonly GenerationIndicator[]): IndicatorsByPlan =>
-  new Map([...current, ...indexByPlan(fetched)]);
-
-const activeJobIds = (snapshot: IndicatorsByPlan): string[] =>
-  [...snapshot.values()].filter(isActiveIndicator).map((indicator) => indicator.jobId);
+const rememberedJobIds = (snapshot: IndicatorsByPlan): string[] =>
+  [...snapshot.values()].map((indicator) => indicator.jobId);
 
 /** Field-by-field, because a new Map with equal contents is a different object every tick. */
 const sameIndicators = (a: IndicatorsByPlan, b: IndicatorsByPlan): boolean => {

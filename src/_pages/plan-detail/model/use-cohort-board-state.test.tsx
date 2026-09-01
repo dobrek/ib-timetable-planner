@@ -178,6 +178,7 @@ describe("useCombinedBoardState — why Generate is disabled", () => {
     checkpointStageIndex: null,
     stageIndex: null,
     stageName: null,
+    stopRequestedAt: null,
   });
 
   /** dp1 holds two courses that share a teacher in one cell — a BLOCKING violation, so this board

@@ -24,6 +24,7 @@ const view = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   checkpointStageIndex: null,
   stageIndex: 3,
   stageName: "teacherHoles",
+  stopRequestedAt: null,
   ...over,
 });
 

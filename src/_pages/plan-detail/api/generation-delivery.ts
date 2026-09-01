@@ -110,12 +110,17 @@ export type GenerationJobView = {
   /** The TIER now running, 1-based — the pending page's live progress. Null before the first stage. */
   stageIndex: number | null;
   stageName: string | null;
+  /** When the author asked this job to stop (S-305), or null. Non-null on a still-active row is the
+   *  "Stopping…" state: the request is durable and the solver has not finished reacting to it. */
+  stopRequestedAt: string | null;
 };
 
 /** Everything the strip renders, and none of the ~160 KB of payload beside it. `heartbeat_at` is the
- *  staleness clock and `checkpoint_stage_index` the free existence proxy for the ~35 KB checkpoint. */
+ *  staleness clock, `checkpoint_stage_index` the free existence proxy for the ~35 KB checkpoint, and
+ *  `stop_requested_at` one narrow scalar that lets the pending page render "Stopping…" across ticks
+ *  and reloads rather than from a client-side memory a refresh would lose. */
 const STATUS_COLUMNS =
-  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at,stage_index,stage_name";
+  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at,stage_index,stage_name,stop_requested_at";
 
 type StatusRow = {
   id: string;
@@ -133,6 +138,7 @@ type StatusRow = {
   checkpoint_stage_index: number | null;
   stage_index: number | null;
   stage_name: string | null;
+  stop_requested_at: string | null;
 };
 
 /**
@@ -591,4 +597,5 @@ const toView = (row: StatusRow, cleanLabel: CleanLabel): GenerationJobView => ({
   checkpointStageIndex: row.checkpoint_stage_index,
   stageIndex: row.stage_index,
   stageName: row.stage_name,
+  stopRequestedAt: row.stop_requested_at,
 });

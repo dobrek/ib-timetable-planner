@@ -558,10 +558,10 @@ README rule — the deploy replaces the container).
 
 #### Automated
 
-- [x] 1.1 Full solver suite green: `cd services/solver && uv run pytest`
-- [x] 1.2 New wrapper-level test passes: flag observed via heartbeat → terminal `stopped` write with stages, no result
-- [x] 1.3 New live-solve test passes: `request_stop` interrupts a real CP-SAT solve promptly; incumbent checkpoint survives
-- [x] 1.4 Strict typing and lint green: `uv run mypy` and `uv run ruff check`
+- [x] 1.1 Full solver suite green: `cd services/solver && uv run pytest` — 2e702b6
+- [x] 1.2 New wrapper-level test passes: flag observed via heartbeat → terminal `stopped` write with stages, no result — 2e702b6
+- [x] 1.3 New live-solve test passes: `request_stop` interrupts a real CP-SAT solve promptly; incumbent checkpoint survives — 2e702b6
+- [x] 1.4 Strict typing and lint green: `uv run mypy` and `uv run ruff check` — 2e702b6
 
 #### Manual
 
@@ -571,10 +571,10 @@ README rule — the deploy replaces the container).
 
 #### Automated
 
-- [ ] 2.1 Unit suite green: `pnpm test`
-- [ ] 2.2 New integration suite green: `pnpm test:integration src/_pages/plan-detail/api/generation-stop.integration.test.ts`
-- [ ] 2.3 Existing delivery + credential pins stay green
-- [ ] 2.4 Types and lint: `pnpm check` and `pnpm lint`
+- [x] 2.1 Unit suite green: `pnpm test`
+- [x] 2.2 New integration suite green: `pnpm test:integration src/_pages/plan-detail/api/generation-stop.integration.test.ts`
+- [x] 2.3 Existing delivery + credential pins stay green
+- [x] 2.4 Types and lint: `pnpm check` and `pnpm lint`
 
 ### Phase 3: UI — the affordance and the vocabulary
 

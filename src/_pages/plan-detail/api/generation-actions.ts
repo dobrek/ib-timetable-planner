@@ -1,6 +1,7 @@
 import { defineDomainAction } from "@/shared/lib/actions";
 import { checkPlan, checkPlanInput } from "./generation-delivery";
 import { startGeneration, startGenerationInput, type GenerationDeps } from "./generation-job";
+import { stopGeneration, stopGenerationInput } from "./generation-stop";
 
 /**
  * The generation actions, as a FACTORY rather than a constant.
@@ -25,4 +26,8 @@ export const createGenerationActions = (deps: GenerationDeps) => ({
   // wrote, and everything after that is the database and the pure oracle. Dual-keyed since S-306:
   // the same action answers a visit to the source plan and a visit to the proposal.
   checkPlan: defineDomainAction({ input: checkPlanInput, run: checkPlan }),
+  // Nor does stopping (S-305): it writes a flag on the row and the solver's own heartbeat reads it.
+  // Routing the stop through the database rather than through the transport is what makes it work
+  // from a closed tab, and what keeps the app free of any dependency on reaching the container.
+  stopGeneration: defineDomainAction({ input: stopGenerationInput, run: stopGeneration }),
 });

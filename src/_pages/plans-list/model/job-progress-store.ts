@@ -1,3 +1,4 @@
+import { createPollingStore, type PollingStore } from "@/shared/lib/polling-store";
 import { isActiveIndicator, type GenerationIndicator } from "./plan-indicators";
 
 /**
@@ -9,10 +10,15 @@ import { isActiveIndicator, type GenerationIndicator } from "./plan-indicators";
  * repo's answer is the one `board-zoom.ts` already uses: keep the mutable thing OUTSIDE React, and
  * let `useSyncExternalStore` subscribe to it. Nothing here calls `setState`.
  *
+ * **The lifecycle itself is `@/shared/lib/polling-store`.** The timer, the single in-flight read, the
+ * visibility listener and the equality-gated publish are shared with the pending proposal page's
+ * ticker — the same ~55 lines, grown twice. What stays here is the part that is about generation
+ * badges, which is the four options below plus the rules they encode.
+ *
  * Five rules govern when it reads, and each exists for a reason worth stating:
  *
  *   1. **Only while something is active.** An idle hub — the overwhelming common case — issues no
- *      requests at all. When the last active job goes terminal the timer stops itself.
+ *      requests at all. When the last active job goes terminal the timer stops itself. (`isActive`.)
  *   2. **Only while subscribed.** No subscriber means no visible hub, so nothing to update.
  *   3. **Only while the tab is visible.** A backgrounded tab left open overnight would otherwise
  *      poll ~12 times a minute forever. Returning to it ticks IMMEDIATELY, so the badge is fresh by
@@ -27,27 +33,20 @@ import { isActiveIndicator, type GenerationIndicator } from "./plan-indicators";
  *      REPLACES the snapshot. So memory is server-confirmed — a badge survives because its row still
  *      exists and the refresh re-read it, and a row the server no longer returns (cascaded away with
  *      a deleted source, or dropped at the mapping edge as delivered-then-deleted) takes its badge
- *      with it on the next tick rather than freezing on screen forever.
+ *      with it on the next tick rather than freezing on screen forever. `PlansHub` renders strictly
+ *      from this snapshot for the same reason — see `row-indicators.ts`.
  *   5. **Becoming visible always DISCOVERS, even when nothing is active.** Rule 1 alone would leave
  *      the realistic two-tab flow broken: a hub tab open while Generate was pressed on a plan page
  *      knows no job id, has nothing active, and so would never start a timer — showing nothing at all
  *      until a reload. So a tab returning to the foreground makes one read keyed by the page's PLAN
- *      ids. One request per tab-focus; rule 1 still holds for the 5-second timer.
+ *      ids. One request per tab-focus; rule 1 still holds for the 5-second timer. This is the
+ *      factory's UNGATED default for `tickOnVisible`, which is why no override is passed.
  *
  * A failed fetch keeps the last snapshot and lets the next tick retry. There is no error state in
  * the UI: the badge is an advisory, and a red cell every time a laptop's Wi-Fi blinks would be worse
  * than a label that is five seconds stale.
  */
-export type JobProgressStore = {
-  subscribe: (listener: () => void) => () => void;
-  getSnapshot: () => IndicatorsByPlan;
-  getServerSnapshot: () => IndicatorsByPlan;
-  /**
-   * Unsubscribe everyone, which stops the timer and drops the visibility listener. Not one-way: a
-   * later `subscribe` re-arms the store. For tests and for a deliberate teardown.
-   */
-  dispose: () => void;
-};
+export type JobProgressStore = PollingStore<IndicatorsByPlan>;
 
 export type IndicatorsByPlan = ReadonlyMap<string, GenerationIndicator>;
 
@@ -66,105 +65,38 @@ export const DEFAULT_POLL_INTERVAL_MS = 5000;
 
 export const createJobProgressStore = (options: JobProgressStoreOptions): JobProgressStore => {
   const { initial, planIds, fetch, intervalMs = DEFAULT_POLL_INTERVAL_MS } = options;
-  const serverSnapshot: IndicatorsByPlan = indexByPlan(initial);
 
-  let snapshot = serverSnapshot;
-  let timer: ReturnType<typeof setInterval> | null = null;
-  let inFlight = false;
-  const listeners = new Set<() => void>();
+  return createPollingStore<IndicatorsByPlan>({
+    initial: indexByPlan(initial),
+    isEqual: sameIndicators,
+    read: (current) => refresh(current, planIds, fetch),
+    isActive: (snapshot) => [...snapshot.values()].some(isActiveIndicator),
+    intervalMs,
+  });
+};
 
-  const publish = (next: IndicatorsByPlan): void => {
-    // Identity is the contract `useSyncExternalStore` enforces: returning a fresh Map every tick
-    // would re-render the hub five times a minute and, worse, loop if the render read it again.
-    if (sameIndicators(snapshot, next)) return;
-    snapshot = next;
-    for (const listener of listeners) listener();
-  };
-
-  const tick = async (): Promise<void> => {
-    // One request at a time. A tick that outlives the interval (a slow link) must not stack up a
-    // queue of identical reads that then all land at once and fight over the snapshot.
-    if (inFlight || listeners.size === 0) return;
-    // Nothing to ask about: no plans to discover through and nothing remembered to re-confirm.
-    if (planIds.length === 0 && snapshot.size === 0) return;
-    inFlight = true;
-    try {
-      // EVERY remembered job, not just the active ones. A terminal entry that is never queried can
-      // never be missing from an answer, and absence from the answer is the only evidence rule 4 has
-      // that a row is gone. `refreshKnown` is unfiltered by status, so a row that still exists always
-      // comes back — which is what makes replacing the snapshot wholesale safe for terminal memory.
-      const fetched = await fetch({ jobIds: rememberedJobIds(snapshot), planIds: [...planIds] });
-      // The last subscriber can leave WHILE this awaits; a store nobody is watching stays silent.
-      if (listeners.size > 0) publish(indexByPlan(fetched));
-    } catch {
-      // Keep the last snapshot; the next tick retries. See the class docstring.
-    } finally {
-      inFlight = false;
-      syncTimer();
-    }
-  };
-
-  const shouldRun = (): boolean => listeners.size > 0 && isVisible() && [...snapshot.values()].some(isActiveIndicator);
-
-  const syncTimer = (): void => {
-    if (shouldRun() && timer === null) {
-      timer = setInterval(() => void tick(), intervalMs);
-    } else if (!shouldRun() && timer !== null) {
-      clearInterval(timer);
-      timer = null;
-    }
-  };
-
-  const onVisibilityChange = (): void => {
-    // Unconditional on becoming visible — NOT gated on `shouldRun()` — and that is the whole of rule
-    // 5. Ticking before re-arming also matters: the author is looking at the badge now, and waiting a
-    // full interval to refresh a tab they just returned to is the one delay they would notice.
-    if (isVisible() && listeners.size > 0) void tick();
-    syncTimer();
-  };
-
-  // The DOM listener lives and dies with the subscription — attached by the first subscriber,
-  // detached by the last — exactly as `board-zoom.ts` does with `storage`. Nothing touches the
-  // document at construction time, so creating the store inside a render is side-effect free, and
-  // a mount → cleanup → remount (StrictMode's rehearsal) simply re-arms it.
-  const listen = (): void => {
-    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibilityChange);
-  };
-  const unlisten = (): void => {
-    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
-  };
-
-  return {
-    subscribe: (listener) => {
-      if (listeners.size === 0) listen();
-      listeners.add(listener);
-      syncTimer();
-      return () => {
-        listeners.delete(listener);
-        if (listeners.size === 0) unlisten();
-        syncTimer();
-      };
-    },
-    getSnapshot: () => snapshot,
-    getServerSnapshot: () => serverSnapshot,
-    dispose: () => {
-      if (listeners.size > 0) unlisten();
-      listeners.clear();
-      syncTimer();
-    },
-  };
+/**
+ * One tick's question, and the whole of rule 4's answer.
+ *
+ * It asks about EVERY remembered job, not just the active ones: a terminal entry that is never
+ * queried can never be missing from an answer, and absence from the answer is the only evidence this
+ * store has that a row is gone. `refreshKnown` is unfiltered by status, so a row that still exists
+ * always comes back — which is what makes returning the response as the WHOLE next snapshot safe for
+ * terminal memory, and makes eviction fall out of it for free.
+ */
+const refresh = async (
+  current: IndicatorsByPlan,
+  planIds: readonly string[],
+  fetch: JobProgressFetcher,
+): Promise<IndicatorsByPlan> => {
+  // Nothing to ask about: no plans to discover through and nothing remembered to re-confirm.
+  if (planIds.length === 0 && current.size === 0) return current;
+  return indexByPlan(await fetch({ jobIds: rememberedJobIds(current), planIds: [...planIds] }));
 };
 
 const indexByPlan = (indicators: readonly GenerationIndicator[]): IndicatorsByPlan =>
   new Map(indicators.map((indicator) => [indicator.planId, indicator]));
 
-/**
- * Every job the snapshot is holding a badge for — active or terminal.
- *
- * Widening this past the active ones is what makes rule 4's eviction possible at all: the refresh is
- * the only question the store ever asks about a job it already knows, so a job it stops asking about
- * can never be found to have disappeared.
- */
 const rememberedJobIds = (snapshot: IndicatorsByPlan): string[] =>
   [...snapshot.values()].map((indicator) => indicator.jobId);
 
@@ -191,5 +123,3 @@ const sameIndicators = (a: IndicatorsByPlan, b: IndicatorsByPlan): boolean => {
   }
   return true;
 };
-
-const isVisible = (): boolean => typeof document === "undefined" || document.visibilityState === "visible";

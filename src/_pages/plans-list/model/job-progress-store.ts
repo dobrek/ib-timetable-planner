@@ -1,4 +1,4 @@
-import { createPollingStore, type PollingStore } from "@/shared/lib/polling-store";
+import { createPollingStore, DEFAULT_POLL_INTERVAL_MS, type PollingStore } from "@/shared/lib/polling-store";
 import { isActiveIndicator, type GenerationIndicator } from "./plan-indicators";
 
 /**
@@ -39,8 +39,9 @@ import { isActiveIndicator, type GenerationIndicator } from "./plan-indicators";
  *      the realistic two-tab flow broken: a hub tab open while Generate was pressed on a plan page
  *      knows no job id, has nothing active, and so would never start a timer — showing nothing at all
  *      until a reload. So a tab returning to the foreground makes one read keyed by the page's PLAN
- *      ids. One request per tab-focus; rule 1 still holds for the 5-second timer. This is the
- *      factory's UNGATED default for `tickOnVisible`, which is why no override is passed.
+ *      ids. At most one request per tab-focus (a focus landing while a read is already in flight is
+ *      skipped); rule 1 still holds for the 5-second timer. This is the factory's UNGATED default
+ *      for `tickOnVisible`, which is why no override is passed.
  *
  * A failed fetch keeps the last snapshot and lets the next tick retry. There is no error state in
  * the UI: the badge is an advisory, and a red cell every time a laptop's Wi-Fi blinks would be worse
@@ -61,7 +62,7 @@ export type JobProgressStoreOptions = {
   intervalMs?: number;
 };
 
-export const DEFAULT_POLL_INTERVAL_MS = 5000;
+export { DEFAULT_POLL_INTERVAL_MS };
 
 export const createJobProgressStore = (options: JobProgressStoreOptions): JobProgressStore => {
   const { initial, planIds, fetch, intervalMs = DEFAULT_POLL_INTERVAL_MS } = options;
@@ -83,6 +84,10 @@ export const createJobProgressStore = (options: JobProgressStoreOptions): JobPro
  * store has that a row is gone. `refreshKnown` is unfiltered by status, so a row that still exists
  * always comes back — which is what makes returning the response as the WHOLE next snapshot safe for
  * terminal memory, and makes eviction fall out of it for free.
+ *
+ * An empty answer is authoritative because an unauthenticated call THROWS rather than filters:
+ * middleware is deny-by-default, so an expired session rejects the action (snapshot kept, rule 3)
+ * instead of returning 200-with-nothing and evicting every badge.
  */
 const refresh = async (
   current: IndicatorsByPlan,
@@ -94,6 +99,13 @@ const refresh = async (
   return indexByPlan(await fetch({ jobIds: rememberedJobIds(current), planIds: [...planIds] }));
 };
 
+/**
+ * ASSUMPTION: one job per source plan. The server only guards against concurrent ACTIVE jobs
+ * (generation-job.ts:183), so "terminal-undelivered Ready + newly started running" on the same
+ * source is legal — and this Map keeps only the last row, dropping the Ready badge for the whole
+ * second run. Rekeying by jobId (plus a per-row display policy) is queued in
+ * follow-ups/review-fixes.md.
+ */
 const indexByPlan = (indicators: readonly GenerationIndicator[]): IndicatorsByPlan =>
   new Map(indicators.map((indicator) => [indicator.planId, indicator]));
 

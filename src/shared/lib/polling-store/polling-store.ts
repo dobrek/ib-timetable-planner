@@ -162,7 +162,7 @@ export const createPollingStore = <T>(options: PollingStoreOptions<T>): PollingS
   };
 };
 
-const DEFAULT_POLL_INTERVAL_MS = 5000;
+export const DEFAULT_POLL_INTERVAL_MS = 5000;
 
 const always = (): boolean => true;
 

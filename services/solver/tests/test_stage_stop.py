@@ -9,15 +9,23 @@ Stages are compared through :func:`_projected`, never by board equality: ``wall_
 every run and a time-budgeted CP-SAT search is not bit-reproducible, so only the decision-carrying
 fields are stable enough to assert. The micro instance at ``workers=1`` is stable in exactly those
 fields — verified by repetition, which is why it is the fixture for every neutrality claim.
+
+Section (h) is the one exception to "micro instance, no I/O, no threads": Stop & keep's immediate
+half is ``CpSolver.stop_search()`` called from ANOTHER thread against a search that is genuinely
+running, and no amount of faking proves that. It rides the seed fixture because the micro instance
+finishes before a second thread could reach it.
 """
 
+import threading
+import time
 from collections.abc import Iterable
 from dataclasses import replace
+from pathlib import Path
 
 from ortools.sat.python import cp_model
 
 import builders as b
-from cpsat_engine.schema import Dump, Placement, Snapshot
+from cpsat_engine.schema import Dump, Placement, Snapshot, load_dump
 from cpsat_engine.solve import (
     SolveConfig,
     SolveHooks,
@@ -29,6 +37,7 @@ from cpsat_engine.solve import (
     solve_staged,
     to_generation_result,
 )
+from cpsat_service.registry import JobRegistry
 
 # Tier 3 (totalSlots) is the ladder rung the micro instance reliably ends at a SOLUTION rather than a
 # proof: tiers 2, 4, 5 and 6 reach 0 and prove it, so their solution callback may never fire at all.
@@ -342,3 +351,141 @@ def test_a_stage_with_nothing_to_attribute_counts_as_budget() -> None:
     dump = _dump(_micro_snapshot())
     stages = (_report(2, "FEASIBLE", "target"), _report(3, "UNKNOWN", None))
     assert to_generation_result(dump, _result(*stages))["diagnostics"]["stopReason"] == "budget"
+
+
+# --- (h) the live stop: `request_stop` fired from another thread against a real solve --------------
+#
+# The C3 hole this closes. Every stop test above (and every SIGTERM test in `test_service.py`) latches
+# around a FAKE solve: the latch is read after the fact, so `stop_search()` — the half that actually
+# interrupts a search in flight — was wired and never exercised. This is the only test in the repo
+# that fires it against live CP-SAT.
+
+SEED_FIXTURE = Path(__file__).parent / "fixtures" / "seed-plan-a.json"
+LIVE_JOB_ID = "7b3c1d90-5e42-4a18-9f06-1c8d7e2b4a35"
+
+# Deliberately generous: the assertion is that the stop lands in a small fraction of it. The seed's
+# tier-3 stage burns a budget this size without proving anything, so an un-stopped run of this same
+# config could not possibly finish inside the ceiling below — that gap IS the assertion.
+LIVE_STAGE_BUDGET_S = 60.0
+LIVE_CEILING_S = 25.0
+
+# Tier 3 (totalSlots) is the first ladder rung the seed reliably ends at a SOLUTION rather than a
+# proof, so the solver is genuinely searching when the stop arrives. Same reasoning as TOTAL_SLOTS_TIER
+# above, applied to a real instance.
+LIVE_STOP_TIER = TOTAL_SLOTS_TIER
+
+# Long enough that the stop lands inside `solver.solve()` rather than in the microseconds before it —
+# `on_solver` fires immediately BEFORE the call, so without this the test could pass by latching a
+# handle that had not started.
+LIVE_SETTLE_S = 0.5
+
+
+def test_a_stop_from_another_thread_ends_a_live_solve_well_inside_its_budget() -> None:
+    registry = JobRegistry()
+    registry.register(LIVE_JOB_ID)
+    entry = registry.get(LIVE_JOB_ID)
+    assert entry is not None
+
+    dump = load_dump(SEED_FIXTURE)
+    searching = threading.Event()
+    tier = {"current": 0}
+
+    def on_stage(event: StageEvent) -> None:
+        if event.kind == "started":
+            tier["current"] = event.tier
+
+    def on_solver(solver: cp_model.CpSolver) -> None:
+        registry.attach_solver(LIVE_JOB_ID, solver)
+        if tier["current"] == LIVE_STOP_TIER:
+            searching.set()
+
+    def stop_it() -> None:
+        if not searching.wait(LIVE_CEILING_S):
+            return
+        time.sleep(LIVE_SETTLE_S)
+        registry.request_stop(LIVE_JOB_ID, "requested")
+
+    stopper = threading.Thread(target=stop_it, name="stopper", daemon=True)
+    stopper.start()
+
+    config = SolveConfig(
+        mode_a_budget_s=LIVE_STAGE_BUDGET_S,
+        stage_budget_s=LIVE_STAGE_BUDGET_S,
+        # The shipped default. `workers=1` makes every seed ladder stage UNKNOWN, which would make
+        # this a test of a solve that finds nothing rather than one that is interrupted.
+        workers=8,
+        hooks=SolveHooks(on_stage=on_stage, on_solver=on_solver, should_stop=entry.stop.is_set),
+    )
+    started_at = time.monotonic()
+    result = solve_complete(dump, config)
+    elapsed = time.monotonic() - started_at
+    stopper.join(timeout=LIVE_CEILING_S)
+
+    assert searching.is_set(), "the stop was never fired — tier 3 never attached a solver"
+    assert entry.stop.is_set() and entry.stop_reason == "requested"
+    assert elapsed < LIVE_CEILING_S, (
+        f"a stop must end a live solve promptly; took {elapsed:.1f}s against a "
+        f"{LIVE_STAGE_BUDGET_S}s per-stage budget"
+    )
+    stage = _stage(result.stages, LIVE_STOP_TIER)
+    assert stage.wall_clock_s < LIVE_STAGE_BUDGET_S, "the interrupted stage did not burn its budget"
+    # At most ONE stage past the stop, which is exactly what `_run_ladder` documents: `stop_search()`
+    # ends the live search without any attribution (no improving solution followed the interrupt), so
+    # the ladder's `cancelled` break is taken by the NEXT stage's first hinted solution instead. That
+    # extra solve is short — it is hinted with the incumbent — and it is the whole cost of not polling
+    # the predicate between stages.
+    assert result.stages[-1].tier <= LIVE_STOP_TIER + 1, "the ladder ends where the stop landed"
+    assert len(result.stages) < 10
+
+
+def test_the_board_a_live_stop_leaves_behind_is_the_one_that_gets_kept() -> None:
+    """The "keep" half. `stop_search()` ending a search mid-flight must not cost the incumbent: the
+    board `solve_complete` returns is the last hardened one, and the checkpoint the service already
+    wrote for the previous stage is that same board."""
+    registry = JobRegistry()
+    registry.register(LIVE_JOB_ID)
+    entry = registry.get(LIVE_JOB_ID)
+    assert entry is not None
+
+    dump = load_dump(SEED_FIXTURE)
+    checkpoints: list[SolveResult] = []
+    searching = threading.Event()
+    tier = {"current": 0}
+
+    def on_stage(event: StageEvent) -> None:
+        if event.kind == "started":
+            tier["current"] = event.tier
+        elif event.checkpoint is not None:
+            checkpoints.append(event.checkpoint)
+
+    def on_solver(solver: cp_model.CpSolver) -> None:
+        registry.attach_solver(LIVE_JOB_ID, solver)
+        if tier["current"] == LIVE_STOP_TIER:
+            searching.set()
+
+    def stop_it() -> None:
+        if not searching.wait(LIVE_CEILING_S):
+            return
+        time.sleep(LIVE_SETTLE_S)
+        registry.request_stop(LIVE_JOB_ID, "requested")
+
+    stopper = threading.Thread(target=stop_it, name="stopper", daemon=True)
+    stopper.start()
+
+    result = solve_complete(
+        dump,
+        SolveConfig(
+            mode_a_budget_s=LIVE_STAGE_BUDGET_S,
+            stage_budget_s=LIVE_STAGE_BUDGET_S,
+            workers=8,
+            hooks=SolveHooks(on_stage=on_stage, on_solver=on_solver, should_stop=entry.stop.is_set),
+        ),
+    )
+    stopper.join(timeout=LIVE_CEILING_S)
+
+    assert searching.is_set(), "the stop was never fired — tier 3 never attached a solver"
+    assert result.board, "Stop & keep is only Stop & keep if the incumbent survives the interrupt"
+    assert checkpoints, "at least one stage completed before the stop, so there is something to keep"
+    assert checkpoints[-1].board, "the checkpoint the service wrote carries a board, not an empty one"
+    payload = to_generation_result(dump, checkpoints[-1])
+    assert payload["placements"], "and it shapes into a deliverable result through the terminal path"

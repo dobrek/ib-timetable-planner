@@ -16,8 +16,9 @@ and the ladder marches into the next tier. :meth:`JobRegistry.request_stop` sets
 lock, and :meth:`JobRegistry.stop_all` does it for every live job and hands back the threads to join.
 
 One latch, two producers: the lifespan's SIGTERM path fires it with reason `"shutdown"` (S-304), and
-S-305's `stop_requested_at` polling will fire it with its own. The runner maps the reason to the
-terminal status, so adding a producer never means adding a second stop mechanism.
+the heartbeat's `stop_requested_at` poll fires it with `"requested"` (S-305). The runner maps the
+reason to the terminal status — `interrupted` and `stopped` respectively — so the second producer
+cost a key in `STOP_OUTCOMES` and no second stop mechanism.
 """
 
 from __future__ import annotations

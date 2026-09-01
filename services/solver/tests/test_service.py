@@ -119,6 +119,7 @@ class FakeSupabase:
         snapshot_hash: str | None = None,
         access_token: str = ACCESS_TOKEN,
         progress_response: httpx.Response | Exception | None = None,
+        stop_requested_after: int | None = None,
     ) -> None:
         self._lock = threading.Lock()
         self.calls: list[RecordedCall] = []
@@ -129,6 +130,11 @@ class FakeSupabase:
         #: What a `running -> running` write answers with. A response models the edge failing or the
         #: row having moved on; an exception models the connection never landing.
         self.progress_response = progress_response
+        #: How many `running -> running` writes answer a null `stop_requested_at` before the column
+        #: comes back set — the author pressing Stop & keep mid-solve, seen from the wire. None
+        #: leaves it null forever, which is every other test in this file.
+        self.stop_requested_after = stop_requested_after
+        self.progress_count = 0
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self._handle)
@@ -175,10 +181,19 @@ class FakeSupabase:
                         raise self.progress_response
                     return self.progress_response
                 claiming = call.params.get("status") == "eq.queued"
-                row = {"id": JOB_ID, "snapshot_hash": self.snapshot_hash} if claiming else {"id": JOB_ID}
+                claimed = {"id": JOB_ID, "snapshot_hash": self.snapshot_hash}
+                row = claimed if claiming else self._progress_row()
                 rows = [row] if (self.claimable or not claiming) else []
                 return httpx.Response(200, json=rows)
             return httpx.Response(404, json={"message": f"unexpected path {call.path}"})
+
+    def _progress_row(self) -> dict[str, Any]:
+        """What a `running -> running` write reads back: the widened projection, with the stop flag
+        appearing once the configured number of writes has gone by. Called under `_handle`'s lock,
+        which is what makes the counter safe against the heartbeat thread."""
+        self.progress_count += 1
+        requested = self.stop_requested_after is not None and self.progress_count > self.stop_requested_after
+        return {"id": JOB_ID, "stop_requested_at": "2026-09-01T12:00:00+00:00" if requested else None}
 
 
 # --- fixtures ---------------------------------------------------------------------------------------
@@ -539,8 +554,13 @@ def test_every_progress_write_is_filtered_projected_and_heartbeats() -> None:
         assert patch.params["status"] == "eq.running", (
             "without this filter a late write could resurrect a row S-304/S-305 has already moved on"
         )
-        assert patch.params["select"] == "id", "never a bare select — `snapshot` is ~124 KB and TOASTed"
-        assert patch.headers["prefer"] == "return=representation", "so a matched-nothing is observable"
+        assert patch.params["select"] == "id,stop_requested_at", (
+            "never a bare select — `snapshot` is ~124 KB and TOASTed — and the stop flag rides this "
+            "projection rather than costing a second request (S-305)"
+        )
+        assert patch.headers["prefer"] == "return=representation", (
+            "so a matched-nothing is observable, and so the stop flag comes back at all"
+        )
         assert patch.body["heartbeat_at"], "every stage event renews the heartbeat"
 
 
@@ -621,8 +641,9 @@ def test_a_progress_write_that_matches_no_row_is_a_warning_not_a_failure(
 
 
 def test_the_live_solver_handle_reaches_the_registry() -> None:
-    """The S-305 seam, wired but unused: a stop button needs a reference to the solver that is
-    actually searching, and the engine builds its solvers internally."""
+    """The stop seam: interrupting a live search needs a reference to the solver that is actually
+    searching, and the engine builds its solvers internally. Both producers reach it through the
+    registry — SIGTERM (S-304) and the author's stop request (S-305)."""
     fake = FakeSupabase()
     seen: list[Any] = []
     registry = JobRegistry()
@@ -885,8 +906,9 @@ def test_the_stop_latch_reaches_the_engines_should_stop_hook() -> None:
 
 
 def test_the_first_recorded_stop_reason_wins() -> None:
-    """One latch, two producers (S-305 is the other). A second request arriving mid-shutdown must
-    not rewrite the story of why the solve ended."""
+    """One latch, two producers — SIGTERM (S-304) and the author's stop request (S-305). A second
+    request arriving mid-shutdown must not rewrite the story of why the solve ended: the row lands
+    `interrupted`, because that is what actually ended it."""
     registry = _registered()
 
     registry.request_stop(JOB_ID, "shutdown")
@@ -934,7 +956,7 @@ def test_a_solve_that_outlives_the_interval_renews_its_own_heartbeat() -> None:
     for beat in beats:
         assert beat.params["id"] == f"eq.{JOB_ID}"
         assert beat.params["status"] == "eq.running", "a beat must not resurrect a reclaimed row"
-        assert beat.params["select"] == "id", "never a bare select — `snapshot` is ~124 KB and TOASTed"
+        assert beat.params["select"] == "id,stop_requested_at", "the beat is also the stop poll"
     assert fake.finish_patch().body["status"] == "succeeded", "the timer is invisible to the outcome"
 
 
@@ -947,6 +969,138 @@ def test_the_heartbeat_never_beats_before_the_claim_is_won() -> None:
     _run_registered(_micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.01))
 
     assert len(fake.patches()) == 1, "only the failed claim"
+
+
+# --- S-305: the author's stop request, observed on the heartbeat's own round trip --------------------
+
+
+def test_a_stop_request_observed_by_the_heartbeat_ends_the_job_as_stopped() -> None:
+    """The producer, end to end at the wrapper level.
+
+    The flag rides the beat's OWN `return=representation` projection — no second request, no second
+    thread, no second grant — the timer fires the latch, and the WORKER writes the terminal row. The
+    timer never writes a status itself, which is what keeps exactly one writer per job.
+    """
+    fake = FakeSupabase(stop_requested_after=0)
+    registry = _registered()
+    reasons: list[str | None] = []
+
+    def solve_until_latched(_dump: Dump, _config: SolveConfig) -> SolveResult:
+        entry = registry.get(JOB_ID)
+        assert entry is not None
+        assert entry.stop.wait(5.0), "the heartbeat never observed the flag"
+        reasons.append(entry.stop_reason)
+        return _unknown_result((_unknown_stage(),))
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", solve_until_latched)
+        _run_registered(
+            _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
+        )
+
+    assert reasons == ["requested"], "the reason recorded is what keys the terminal status"
+    finish = fake.finish_patch()
+    assert finish.body["status"] == "stopped"
+    assert finish.body["error"].startswith("stopped by the author:"), (
+        "a `stopped` row must not open with `interrupted by` — they are sibling statuses with "
+        "different meanings, and this string reaches the author verbatim"
+    )
+    assert "stage 1 (completeness)" in finish.body["error"], "the author is told which stage is kept"
+    assert "result" not in finish.body, "a stopped board lives in the checkpoint columns"
+    assert finish.body["stages"], "the transcript survives — it names the last stage that finished"
+
+
+def test_the_heartbeat_latches_at_most_once_however_many_beats_see_the_flag() -> None:
+    """The row stays `running` until the worker's terminal write, so every beat after the first sees
+    the same flag. `request_stop` is idempotent, but re-interrupting a solver that is already winding
+    down is noise — the timer remembers that it has fired."""
+    fake = FakeSupabase(stop_requested_after=0)
+    registry = _registered()
+    asked: list[str] = []
+    original = registry.request_stop
+
+    def record(job_id: str, reason: str) -> bool:
+        asked.append(reason)
+        return original(job_id, reason)
+
+    def solve_through_several_beats(_dump: Dump, _config: SolveConfig) -> SolveResult:
+        time.sleep(0.25)
+        return _unknown_result((_unknown_stage(),))
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(registry, "request_stop", record)
+        patch.setattr("cpsat_service.runner.solve_complete", solve_through_several_beats)
+        _run_registered(
+            _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
+        )
+
+    beats = [call for call in fake.progress_patches() if set(call.body) == {"heartbeat_at"}]
+    assert len(beats) > 1, "the solve outlived several intervals, so several beats saw the same flag"
+    assert asked == ["requested"], "fired once, not once per beat"
+
+
+def test_a_null_stop_flag_is_simply_a_heartbeat() -> None:
+    """The neutrality half: every other test in this file leaves the column null, and none of them
+    latches. Stated once explicitly so the poll cannot start firing on absence."""
+    fake = FakeSupabase()
+    registry = _registered()
+
+    def dawdle(dump: Dump, config: SolveConfig) -> SolveResult:
+        time.sleep(0.15)
+        return solve_complete(dump, config)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", dawdle)
+        _run_registered(
+            _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
+        )
+
+    assert fake.finish_patch().body["status"] == "succeeded"
+
+
+def test_the_solver_never_writes_the_stop_flag_it_only_observes_it() -> None:
+    """The grant-layer asymmetry, restated where it is cheap to check: `stop_requested_at` is
+    SELECT-granted and deliberately NOT UPDATE-granted, so a solver that could clear its own stop
+    flag would be able to ignore Stop & keep. No write this worker makes may name the column."""
+    fake = FakeSupabase(stop_requested_after=0)
+
+    _run(_micro_request(), fake)
+
+    for patch_call in fake.patches():
+        assert "stop_requested_at" not in patch_call.body
+
+
+def test_a_progress_write_with_an_unexpected_body_shape_answers_none_rather_than_raising() -> None:
+    """The widened return value must not widen the ways `progress` can escape: it is called from the
+    solving thread, so a malformed 2xx has to degrade to "nothing to observe"."""
+    fake = FakeSupabase(progress_response=httpx.Response(200, json={"message": "not an array"}))
+
+    _run(_micro_request(), fake)
+
+    assert fake.finish_patch().body["status"] == "succeeded", "a bad body cannot cost a solve"
+
+
+def test_stop_search_reaches_the_attached_handle_when_the_flag_is_observed() -> None:
+    """The registry's half of the latch, pinned on a recording handle rather than inferred: the
+    immediate interrupt is `stop_search()` on the solver that is searching right now, and the
+    live-solve proof of it is `test_stage_stop.py`'s."""
+
+    class RecordingSolver:
+        def __init__(self) -> None:
+            self.stopped = 0
+
+        def stop_search(self) -> None:
+            self.stopped += 1
+
+    registry = _registered()
+    solver = RecordingSolver()
+    registry.attach_solver(JOB_ID, solver)
+
+    assert registry.request_stop(JOB_ID, "requested") is True
+
+    entry = registry.get(JOB_ID)
+    assert entry is not None and entry.stop_reason == "requested"
+    assert solver.stopped == 1
 
 
 # --- credential discipline --------------------------------------------------------------------------

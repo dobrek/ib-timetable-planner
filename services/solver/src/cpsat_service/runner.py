@@ -8,9 +8,11 @@ solve does not raise: `solve_complete` returns `board=()` with `notes["outcome"]
 `infeasible` or `unknown`. Branching on exceptions here would silently write `succeeded` over an
 empty board. The five shapes:
 
-    stop latch fired        -> interrupted (S-304), `error` naming the reason and the last stage,
-                               `stages` written, NO `result` — the board lives in the already-durable
-                               `checkpoint` columns. Checked FIRST: it outranks the transcript
+    stop latch fired        -> interrupted (S-304's SIGTERM) or stopped (S-305's author request),
+                               keyed by the reason the producer recorded; `error` naming the cause
+                               and the last stage, `stages` written, NO `result` — the board lives in
+                               the already-durable `checkpoint` columns. Checked FIRST: it outranks
+                               the transcript
     outcome == "complete"   -> succeeded, `result` + `stages`
     infeasible / unknown    -> failed, `error` naming the outcome, `stages` STILL written
     PreconditionError       -> failed — a client-data failure (the pins already violate a hard
@@ -33,6 +35,11 @@ state in production.
 dedicated timer thread now renews `heartbeat_at` every `settings.heartbeat_interval_s`, on a SECOND
 `JobRowClient` (`JobRowClient` is not thread-safe by design). Death is therefore detectable in
 seconds, which is what makes the app's five-minute reclaim grace safe rather than a guess.
+
+**And the beat is the stop poll (S-305).** `progress` reads its own matched row back, so widening
+that projection by `stop_requested_at` turned every beat into an observation of the author's stop
+request at no extra cost. The timer only ever fires the latch; the worker thread still owns the
+terminal write, so "the latch is the signal, never the transcript" holds for both producers.
 """
 
 from __future__ import annotations
@@ -69,16 +76,21 @@ class StopOutcome:
     cause: str
 
 
-# The reason the lifespan's SIGTERM path records — this slice's only producer, and the vocabulary
-# lives HERE rather than in `app.py` so the producer and the status it maps to cannot drift.
+# The reason the lifespan's SIGTERM path records (S-304), and the vocabulary lives HERE rather than
+# in `app.py` so the producer and the status it maps to cannot drift.
 SHUTDOWN_REASON: Final = "shutdown"
 
-# Keyed by the reason the producer recorded on the registry entry. S-304 ships one producer; S-305's
-# `stop_requested_at` polling adds `"requested" -> stopped` here and nowhere else. An UNRECOGNISED
-# reason falls back to `interrupted` rather than to the success branch: whatever stopped the solve,
-# it was not the ladder finishing.
+# The reason the heartbeat's `stop_requested_at` poll records (S-305). Same latch, same runner path;
+# the only thing a second producer adds is a second key in the map below.
+REQUESTED_REASON: Final = "requested"
+
+# Keyed by the reason the producer recorded on the registry entry. Two producers, two rows: the
+# platform taking the container away (`interrupted`) and the author asking for the run to end
+# (`stopped`). An UNRECOGNISED reason falls back to `interrupted` rather than to the success branch:
+# whatever stopped the solve, it was not the ladder finishing.
 STOP_OUTCOMES: Final[dict[str, StopOutcome]] = {
     SHUTDOWN_REASON: StopOutcome(status="interrupted", cause="container shutdown"),
+    REQUESTED_REASON: StopOutcome(status="stopped", cause="the author"),
 }
 FALLBACK_STOP_STATUS: Final = "interrupted"
 
@@ -133,8 +145,14 @@ def run_job(
         # Only AFTER the claim: a row this worker does not own must never have its heartbeat
         # renewed — that is precisely the write `progress`'s `status=eq.running` filter exists to
         # drop, and starting the timer earlier would make the drop the only thing standing between
-        # a lost CAS and a resurrected row.
-        heartbeat = _Heartbeat(job_id, client_factory(settings), settings.heartbeat_interval_s)
+        # a lost CAS and a resurrected row. The same argument covers the stop poll it now carries:
+        # a flag on somebody else's row is not this worker's to act on.
+        heartbeat = _Heartbeat(
+            job_id,
+            client_factory(settings),
+            settings.heartbeat_interval_s,
+            request_stop=lambda: registry.request_stop(job_id, REQUESTED_REASON),
+        )
         heartbeat.start()
         dump = build_dump(request)
         mismatch = _snapshot_mismatch(claimed, dump)
@@ -356,11 +374,18 @@ def _stop_error(stop: StopOutcome, result: SolveResult) -> str:
 
     Which stage matters to the author, because it is the stage whose checkpoint they are about to be
     delivered: `checkpoint_stage_index` and this sentence must tell the same story.
+
+    **The leading word is DERIVED from the status, never hardcoded.** This string reaches the author
+    verbatim through `GenerationJobView.error`, and `stopped` and `interrupted` are sibling statuses
+    with different meanings — a `stopped` row opening with "interrupted by" would tell the author the
+    platform took their solve away when in fact they asked for it. Deriving it also keeps S-304's
+    rendering byte-identical: `interrupted` + "container shutdown" still reads
+    "interrupted by container shutdown: …".
     """
     last = result.stages[-1] if result.stages else None
     where = f"after stage {last.tier} ({last.name})" if last is not None else "before any stage finished"
     return (
-        f"interrupted by {stop.cause}: the solve was stopped {where} — the board kept is the last "
+        f"{stop.status} by {stop.cause}: the solve was stopped {where} — the board kept is the last "
         "completed stage's checkpoint, not a finished ladder"
     )
 
@@ -386,11 +411,24 @@ def _write_failure(client: JobRowClient | None, job_id: str, error: str) -> None
 
 
 class _Heartbeat:
-    """A timer thread that renews `heartbeat_at` while a solve is in flight, and nothing else.
+    """A timer thread that renews `heartbeat_at` while a solve is in flight — and, since S-305, the
+    cadence at which `stop_requested_at` is observed.
 
     An EMPTY progress payload is a pure heartbeat: :meth:`JobRowClient.progress` adds `heartbeat_at`
     to whatever it is handed, is filtered `status=eq.running`, and never raises — so a beat cannot
     resurrect a row the app has already reclaimed, and cannot cost a solve.
+
+    **The stop poll is the beat's RETURN VALUE, not a second request.** `progress` already reads the
+    matched row back (`return=representation`), so widening its projection by one scalar column made
+    every beat a stop poll for free: no extra request, no extra thread, no extra grant. When a beat
+    comes back carrying a non-null `stop_requested_at`, this thread fires the latch through the
+    callback it was constructed with — and never writes a status itself. The worker thread owns the
+    terminal write, which is what keeps exactly one writer per job.
+
+    **It fires at most once.** The row stays `running` until the worker's terminal write lands, so
+    the flag keeps coming back on every subsequent beat while the ladder winds down.
+    `JobRegistry.request_stop` is idempotent, but re-invoking `stop_search()` every 15 s on a solve
+    that is already ending is noise, so the thread remembers that it has fired.
 
     It holds its OWN client, from the same factory. `JobRowClient` is documented not thread-safe
     (its token cache is an unlocked check-then-act), and the alternative — sharing the worker's —
@@ -398,10 +436,21 @@ class _Heartbeat:
     lazily, so a solve that finishes inside one interval never mints a second token at all.
     """
 
-    def __init__(self, job_id: str, client: JobRowClient, interval_s: float) -> None:
+    def __init__(
+        self,
+        job_id: str,
+        client: JobRowClient,
+        interval_s: float,
+        request_stop: Callable[[], bool] | None = None,
+    ) -> None:
         self._job_id = job_id
         self._client = client
         self._interval_s = interval_s
+        # A callback rather than the registry itself: the timer needs exactly one verb, and closing
+        # over it at the construction site keeps `_Heartbeat` free of any knowledge of `JobRegistry`.
+        # Optional so a test can build a pure heartbeat.
+        self._request_stop = request_stop
+        self._stop_fired = False
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._beat, name=f"heartbeat-{job_id}", daemon=True)
 
@@ -430,6 +479,22 @@ class _Heartbeat:
         immediate instead of costing up to a full interval."""
         while not self._stop.wait(self._interval_s):
             try:
-                self._client.progress(self._job_id, {})
+                self._observe(self._client.progress(self._job_id, {}))
             except Exception:  # noqa: BLE001 — the watchdog must never be what kills the solve
                 log.exception("job %s: heartbeat write failed", self._job_id)
+
+    def _observe(self, row: dict[str, Any] | None) -> None:
+        """Fire the latch the first time a beat comes back with the author's stop request on it.
+
+        `None` is every uninteresting case at once — the write failed, or matched no row because the
+        job is already terminal — and none of them is something to stop.
+        """
+        if self._stop_fired or self._request_stop is None:
+            return
+        if row is None or row.get("stop_requested_at") is None:
+            return
+        self._stop_fired = True
+        log.info(
+            "job %s: the author asked for a stop — latching; the worker writes the outcome", self._job_id
+        )
+        self._request_stop()

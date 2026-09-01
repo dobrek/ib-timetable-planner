@@ -113,7 +113,8 @@ class SolveHooks:
     #: it decides, it does not act. Returning true ends the current stage and the ladder. It must
     #: also be TOTAL: the propagation rule above is for the worker-thread hooks, whereas this one
     #: runs inside OR-tools' solution callback, where a raise surfaces through the pybind layer in a
-    #: way the engine does not define. Wrap it before wiring it (S-305).
+    #: way the engine does not define. Wrap it before wiring it — the service satisfies that by
+    #: passing `threading.Event.is_set`, which is atomic, lock-free and total.
     should_stop: Callable[[], bool] | None = None
 
 
@@ -764,8 +765,9 @@ class _StageStop(cp_model.CpSolverSolutionCallback):
     :class:`StageEvent`.
 
     It also only ever runs at an IMPROVING SOLUTION, which is why it is a backstop rather than a stop
-    button: a stage that finds nothing is never asked. S-305's immediate stop is the live solver
-    handle from :attr:`SolveHooks.on_solver`, not this predicate.
+    button: a stage that finds nothing is never asked. Stop & keep's immediate half is the live
+    solver handle from :attr:`SolveHooks.on_solver` — the service's registry calls ``stop_search()``
+    on it — and this predicate is what then ends the LADDER rather than just the current stage.
     """
 
     def __init__(self, target: int | None, should_stop: Callable[[], bool] | None) -> None:

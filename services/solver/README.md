@@ -28,7 +28,7 @@ services/solver/
     app.py                  GET /health, POST /jobs/{jobId}/solve
     runner.py               background worker: claim → solve → write the outcome
     supabase.py             httpx job-row client (no SDK, no privileged key)
-    registry.py             in-process job map: dedupe guard + the live solver handle (S-305 stops it)
+    registry.py             in-process job map: dedupe guard + the stop latch and live solver handle
     settings.py             the container's environment
   tests/
     fixtures/seed-plan-a.json   committed, PII-free (from the CSV-seeded catalog)

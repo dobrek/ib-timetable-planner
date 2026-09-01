@@ -558,10 +558,10 @@ README rule — the deploy replaces the container).
 
 #### Automated
 
-- [ ] 1.1 Full solver suite green: `cd services/solver && uv run pytest`
-- [ ] 1.2 New wrapper-level test passes: flag observed via heartbeat → terminal `stopped` write with stages, no result
-- [ ] 1.3 New live-solve test passes: `request_stop` interrupts a real CP-SAT solve promptly; incumbent checkpoint survives
-- [ ] 1.4 Strict typing and lint green: `uv run mypy` and `uv run ruff check`
+- [x] 1.1 Full solver suite green: `cd services/solver && uv run pytest`
+- [x] 1.2 New wrapper-level test passes: flag observed via heartbeat → terminal `stopped` write with stages, no result
+- [x] 1.3 New live-solve test passes: `request_stop` interrupts a real CP-SAT solve promptly; incumbent checkpoint survives
+- [x] 1.4 Strict typing and lint green: `uv run mypy` and `uv run ruff check`
 
 #### Manual
 

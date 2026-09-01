@@ -172,41 +172,64 @@ class JobRowClient:
         rows: list[dict[str, Any]] = response.json()
         return rows[0] if rows else None
 
-    def progress(self, job_id: str, payload: dict[str, Any]) -> None:
-        """Advance the row mid-solve, `running -> running`, and renew the heartbeat. Never raises.
+    def progress(self, job_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Advance the row mid-solve, `running -> running`, renew the heartbeat, and READ THE ROW
+        BACK. Never raises.
 
         **Best-effort by contract.** This is called from inside the engine's stage hook, on the
         thread that is solving: a `SupabaseError` escaping here would kill a solve that is otherwise
         going perfectly, to report progress nobody is obliged to see. Every failure is therefore
         logged and swallowed, and there is no retry — the next stage sends a fresher payload than a
-        retry of this one would.
+        retry of this one would. The same applies to the return value: a failure answers `None`
+        rather than raising, and a malformed body degrades to `None` too.
 
         **A matched-nothing is a WARNING, not a failure.** The `status=eq.running` filter is what
         makes this write incapable of resurrecting a row somebody else has already moved on — the
         one that S-304 marks `interrupted`, or that S-305 marks `stopped`. Answering "0 rows" is the
-        filter doing its job, so it must never overwrite and must never raise.
+        filter doing its job, so it must never overwrite and must never raise. It answers `None`
+        here, which is also what a terminal row looks like to the stop poll: nothing to observe.
+
+        **The projection carries `stop_requested_at`, and that is the whole of S-305's poll.** The
+        write already asks for `return=representation` to make the affected-row count observable, so
+        naming one extra scalar column costs no request, no thread and no grant — the role's SELECT
+        is column-scoped to exactly `id, status, snapshot_hash, heartbeat_at, stop_requested_at`
+        (migration 20260820075348), and this projection names two of them. The caller decides what
+        to do with the flag; `_Heartbeat` fires the stop latch, and the stage reporter ignores it.
 
         It sends only the columns it was given, plus `heartbeat_at` — never blanking a column it has
         nothing to say about — and every one of them sits inside the role's 11-column UPDATE grant.
+        `stop_requested_at` is deliberately NOT among them: the app writes the stop request and the
+        solver only ever observes it.
         """
         try:
             response = self._client.patch(
                 JOBS,
-                params={"id": f"eq.{job_id}", "status": "eq.running", "select": "id"},
+                params={"id": f"eq.{job_id}", "status": "eq.running", "select": "id,stop_requested_at"},
                 headers={**self._headers(), "Prefer": "return=representation"},
                 json={**payload, "heartbeat_at": _utc_now()},
             )
             _raise_for_status(response, f"record progress for job {job_id}")
-            if not response.json():
+            body: Any = response.json()
+            if not body:
                 log.warning(
                     "job %s: a progress write matched no row — it is no longer `running`, so this "
                     "update was correctly dropped rather than resurrecting it",
                     job_id,
                 )
+                return None
+            # Shape-checked rather than cast: a 2xx whose body is JSON but not the array of objects
+            # PostgREST promises must degrade to `None`, not hand the stop poll something it will
+            # subscript. Widening the return value must not widen the ways this can escape.
+            if not isinstance(body, list) or not isinstance(body[0], dict):
+                log.warning("job %s: a progress write answered an unexpected body shape", job_id)
+                return None
+            row: dict[str, Any] = body[0]
+            return row
         except (SupabaseError, httpx.TransportError, ValueError) as error:
             # `ValueError` covers a 2xx whose body is not JSON (`response.json()` above) — rare, but
             # "never raises" has to mean it.
             log.warning("job %s: progress write failed (the solve continues): %s", job_id, error)
+            return None
 
     def finish(
         self,

@@ -7,9 +7,9 @@ repository: ib-timetable-planner
 topic: "F6 polling-store extraction feasibility, and the proposal provenance note's lifecycle"
 tags: [research, codebase, polling-store, generation, proposal, provenance, shared-lib]
 status: complete
-last_updated: 2026-08-31
+last_updated: 2026-09-01
 last_updated_by: Dobromir Kropielnicki
-last_updated_note: "Deletion defects split out to `generation-deletion-integrity`; D1 downgraded to correct behaviour; open questions 1/3/4/5/7 resolved"
+last_updated_note: "Impact check after `generation-deletion-integrity` shipped and archived — F6 unaffected, three provenance findings narrowed, Q3 largely closed, one new residual defect on the hub badge; then Q2 decided and this change scoped to eviction-then-F6"
 ---
 
 # Research: shared polling store + proposal provenance lifecycle
@@ -30,7 +30,7 @@ Two halves, scoped into one change:
 Persistence model for any acknowledgement was to be researched both ways (DB vs per-device) with a recommendation.
 
 > **Scope note (2026-08-31).** The deletion-integrity defects this research uncovered were split into
-> their own change, `context/changes/generation-deletion-integrity/`, since they share no code with
+> their own change, `context/archive/2026-08-31-generation-deletion-integrity/`, since they share no code with
 > either the polling store or the provenance note. What remains here is F6 plus the note's lifecycle.
 
 ## Summary
@@ -43,7 +43,7 @@ Persistence model for any acknowledgement was to be researched both ways (DB vs 
 
 **The one surviving reference to a deleted source is the clone's NAME** — `generation-job.ts:140` sets `Proposal — ${planName}` on the `plans` row, which outlives everything else. It is a stale reference, visible on the hub and in the page heading, and it is also — usefully — the informational residue that a denormalised provenance column would have provided, freely editable by the author (`rename-plan.ts` refuses renames only while *pending*). No change proposed.
 
-**Two genuine deletion defects were found and are now a separate change.** Deleting a *delivered proposal* flips its `succeeded` job to `failed` (confirmed by reproduction), and deleting a *stale-running source* strands the clone permanently pending. Both live in `context/changes/generation-deletion-integrity/` — they share no code with the polling store or the note, and an acknowledgement would not have fixed either: acknowledgement controls *visibility*, those are *referential integrity*, and the worse of the two fires on the **source** plan, which never renders the note at all.
+**Two genuine deletion defects were found and became a separate change — shipped and archived 2026-08-31.** Deleting a *delivered proposal* flips its `succeeded` job to `failed` (confirmed by reproduction), and deleting a *stale-running source* strands the clone permanently pending. Both live in `context/archive/2026-08-31-generation-deletion-integrity/` — they share no code with the polling store or the note, and an acknowledgement would not have fixed either: acknowledgement controls *visibility*, those are *referential integrity*, and the worse of the two fires on the **source** plan, which never renders the note at all.
 
 **Recommended persistence: a new `generation_jobs.provenance_acked_at timestamptz`** — not `localStorage`, and not a reuse of `notified_at`. It costs one migration with **zero** GRANT/RLS/SQL-function changes, rides the existing `STATUS_COLUMNS` projection at no extra query, and dies with its subject via the same cascade (so no orphaned flag can exist).
 
@@ -136,7 +136,7 @@ So the author's observation is exactly right, and understated: the note has no d
 ### 3. Deletion, as far as the note is concerned
 
 Full analysis, the confirmed reproduction and the fixes now live in
-`context/changes/generation-deletion-integrity/research.md`. What matters *here* is only what the
+`context/archive/2026-08-31-generation-deletion-integrity/research.md`. What matters *here* is only what the
 note's design has to assume:
 
 ```sql
@@ -223,7 +223,7 @@ What remains in this change is two independent pieces: the note's acknowledgemen
 
 **Explicitly not doing:** denormalising the source name to keep provenance alive after the source is deleted. The link is navigational, the target is gone, and the clone's own name already carries the informational residue.
 
-**Sequenced elsewhere:** the two deletion defects are `context/changes/generation-deletion-integrity/`. They touch `generation-delivery.ts`, `job-delivery.ts` and `pending-guards.ts` — no overlap with either item above — so the two changes are independent and can land in either order.
+**Sequenced elsewhere (now DONE — shipped and archived 2026-08-31, see the follow-up section):** the two deletion defects were `context/archive/2026-08-31-generation-deletion-integrity/`. They touch `generation-delivery.ts`, `job-delivery.ts` and `pending-guards.ts` — no overlap with either item above — so the two changes are independent and can land in either order.
 
 ## Code References
 
@@ -281,7 +281,7 @@ Permalink base: `https://github.com/dobrek/ib-timetable-planner/blob/ff609de271e
 
 ## Related Research
 
-- `context/changes/generation-deletion-integrity/research.md` — **split out of this document.** The two deletion defects, the confirmed D2 reproduction, and the FK fact/link conflation in full.
+- `context/archive/2026-08-31-generation-deletion-integrity/research.md` — **split out of this document.** The two deletion defects, the confirmed D2 reproduction, and the FK fact/link conflation in full.
 - `context/archive/2026-08-25-drift-decided-delivery/research.md` — §5 (falsified in place by `frame.md:87-89`), open questions 8 (proposal retention) and the `notified_at` "no writer, no reader" note at `:394`.
 - `context/archive/2026-08-19-staged-progress-and-checkpoints/research.md` — the poll-location decision, in full.
 - `context/archive/2026-08-10-solver-contract-and-jobs-schema/research.md:200` — `notified_at`'s origin as an S-310 forward reservation.
@@ -292,11 +292,217 @@ Permalink base: `https://github.com/dobrek/ib-timetable-planner/blob/ff609de271e
 
 - **~~Q1 — should provenance survive the source's deletion?~~ NO.** The link is navigational, FR-307 makes a delivered proposal an ordinary plan, and `pending-guards.ts:95-98` already treats an orphaned clone as disposable. The clone's name carries the informational residue. Denormalisation dropped; D1 downgraded to correct behaviour. (Note: storing provenance *on the job* could never have worked — that row cascades away with the source. Only a column on the surviving `plans` row would have, and it is not wanted.)
 - **~~Q3 — per-job or per-plan acknowledgement?~~ PER-JOB**, and it is forced. `generation_jobs_active_per_plan` means every Generate creates a new row, so a regeneration should produce fresh provenance; putting the column on `generation_jobs` makes it per-job by construction.
-- **~~Q4 (D2 fix shape)~~ and ~~Q5 (test placement)~~ — moved** to `context/changes/generation-deletion-integrity/research.md` along with the defects themselves. Both were resolved there: a predicate change with no migration, and integration tests rather than a new E2E spec.
+- **~~Q4 (D2 fix shape)~~ and ~~Q5 (test placement)~~ — moved** to `context/archive/2026-08-31-generation-deletion-integrity/research.md` along with the defects themselves. Both were resolved there: a predicate change with no migration, and integration tests rather than a new E2E spec.
 - **~~Q7 — should F6 leave room for the five localStorage clones?~~ NO — unrelated.** They share only the listeners-Set + `subscribe`/`getSnapshot` skeleton; they have no timer, no async, no `inFlight` and no visibility handling. F6's entire subject is absent from all five. A shared base would be a thinner `createExternalStore` — a different refactor, already tracked separately as `ui-conventions.md` adoption-trigger 3.
 
 **Still open:**
 
-1. **Q2 — what does "acknowledged" hide?** The strip entirely, or only its link and chrome? FR-308's substance survives a collapsed affordance; it does not survive nothing at all. Sub-question: is the note's job one-time orientation (dismissible) or standing attribution (not)?
-2. **Q6 — what closes F6 as WONTFIX, and who decides?** §1.5 proposes post-rebase readability of `job-progress-store.ts`, which is a judgement rather than a metric. May be a manufactured question — "just do it" is a legitimate answer for queued review work.
+1. **~~Q2 — what does "acknowledged" hide?~~ THE STRIP ENTIRELY** (decided 2026-09-01). Not a collapsed affordance — acknowledged means the proposal page is visually an ordinary plan. Two consequences the note's plan must carry: FR-308 needs **re-grounding, not re-wording** (this is the one option its substance does not survive — see §5, and contrast FR-311/FR-313 which were re-worded in place); and the clone's `Proposal — <source>` name becomes the **only** surviving record of provenance for an acknowledged plan, which retroactively raises the stakes on the "no change proposed" verdict about that name in the Summary. §4.2's `provenance_acked_at` recommendation is unaffected — a persisted dismissal still needs the column.
+2. **Q6 — what closes F6 as WONTFIX, and who decides?** *(de-risked 2026-09-01: the eviction fix is now phase 1 and ships independently, so a WONTFIX on the extraction costs nothing but the extraction.)* §1.5 proposes post-rebase readability of `job-progress-store.ts`, which is a judgement rather than a metric. May be a manufactured question — "just do it" is a legitimate answer for queued review work.
 3. **Does the acknowledgement need to distinguish "dismissed" from "outranked"?** `pickJob` can hide the note because a newer job exists (§3.3). If the author later deletes that newer job's proposal, the note returns — dismissed or not. Whether a stamped `provenance_acked_at` should survive that round trip is a design decision, not a code one.
+
+---
+
+## Follow-up Research 2026-09-01T10:57:06+02:00 — impact of `generation-deletion-integrity`
+
+**Git commit**: `1ab083079596127d96f38f7d2c453ba188a11474` · **Branch**: `main`
+
+**Trigger**: "the change *drift-decided-delivery* has been just implemented and archived — check if
+this affected our research."
+
+**First, the identity.** `drift-decided-delivery` was archived on **2026-08-29** at `ff609de` — the
+exact commit this document already pins, so it was fully accounted for when the research was written.
+The change that shipped *after* it is **`generation-deletion-integrity`** (`48f723b`…`1ab0830`,
+archived `2026-08-31T21:04:41Z`, now `context/archive/2026-08-31-generation-deletion-integrity/`) —
+the very defects §3 split out of this document. Everything below is about that one.
+
+### Verdict in one line
+
+**The F6 half is untouched and every finding in §1 still verifies exactly. The provenance half moved:
+three statements are now narrower, Open Question 3 is largely closed, one new by-design "no note" path
+exists, and the shipped change left one residual defect that belongs to *this* change because its fix
+is a `merge`-semantics change.**
+
+### 1. F6 — re-verified, nothing moved
+
+Neither store was touched (`git diff ff609de..HEAD` lists no `job-progress-store.ts` and no
+`use-pending-proposal.ts`). Re-verified at `1ab0830`:
+
+- `job-progress-store.ts:61-145` and `use-pending-proposal.ts:59-147` — same ranges, same bodies. The
+  **D1-D9 table, the 4-required + 3-optional surface, and both corrections in §1.4 stand as written.**
+- `job-progress-store.test.ts:167` / `:266` still pin the ungated visibility tick (D8).
+- `setInterval` — still **exactly two** non-test sites in `src/`; `visibilitychange` — still two.
+  `use-generation-job.ts:24-26` is still the deliberate non-consumer. **§1.3 "no third consumer" holds.**
+- `src/shared/lib` — still **14** children. The 15-child `fsd/shared-lib-grouping` ceiling and its
+  "last free slot" arithmetic in §1.4 are unchanged.
+
+**One thing F6 must now carry that it did not before.** D6 ("Publish input — `merge(snapshot, fetched)`,
+terminal memory") stopped being a neutral dedup detail. The shipped change added a *drop* at the
+indicator mapping edge whose intended effect depends on merge semantics that do not deliver it — see §5.
+Whatever `read: (current: T) => Promise<T>` seam F6 lands, it has to be able to express **eviction**,
+not just union, or it freezes today's bug into the shared factory.
+
+### 2. `pickJob` changed — §2 bullet 1 and §3 item 3 are now narrower
+
+`pickJob` is at **`generation-delivery.ts:217`** (was `:212-215`) and its test is now two conditions:
+
+```ts
+const undelivered = asSource !== null && asSource.delivered_plan_id === null && asSource.delivery === null;
+if (asSource && (isActiveJobStatus(asSource.status) || undelivered)) return asSource;
+```
+
+- **Fixed:** the sub-case where a *delivered* newer job's proposal was deleted re-nulled
+  `delivered_plan_id`, made the newer row read as "undelivered", and permanently hid an A→B→C chain's
+  "Generated from A" strip. `delivery` is durable, so that route is closed and pinned by a new A→B→C
+  integration case.
+- **Unchanged:** a newer job that ends `failed`, or halts with no checkpoint, still leaves `delivery`
+  null and still outranks the provenance **permanently**. §2's bullet is right about the mechanism and
+  now wrong about one of its two causes.
+
+### 3. Open Question 3 is largely closed
+
+Q3 asked whether an acknowledgement must distinguish "dismissed" from "outranked", on the premise that
+*"if the author later deletes that newer job's proposal, the note returns — dismissed or not."*
+
+That deletion round-trip no longer moves the note at all: `delivery` survives the FK, so precedence is
+now stable across the proposal's deletion. (For the record the premise was also inverted — under the
+pre-`1ab0830` code, deleting the newer proposal *hid* the note rather than returning it, which is
+exactly the bug that was fixed.) **What survives of Q3** is only the failed-newer-job case, where the
+note is hidden permanently and no acknowledgement flag is involved either way. That is a much weaker
+version of the question and probably does not gate the design.
+
+### 4. A new, by-design "no note" path — `releaseOrphanProposal`
+
+§2 listed four ways the note stops rendering. There is now a fifth, and unlike the detach branch it is
+reachable through an ordinary flow:
+
+- **`src/_pages/plan-detail/api/release-orphan-proposal.ts`** (new, barrel-exported at `api/index.ts:12`),
+  called from **`src/pages/plans/[id]/index.astro:60-66`** on the one path where `checkPlan` returned
+  null *cleanly*. It lazily un-pends a proposal clone that no job row references, guarded by
+  `stalenessCutoff` on the plan's own `created_at` and by a defensive `proposal_plan_id` re-check.
+
+So deleting the source of a **stale-running** solve now leaves a former proposal that is an ordinary,
+editable, board-carrying plan with **no job row and therefore no provenance at all** — silently, by
+decision (`plan.md:87` "No notice on orphan release"). Previously it was a permanently-pending page.
+
+**Consequence for the acknowledgement UI:** "there is no note because there is no job" is now a normal
+resting state reachable by two ordinary flows, not an anomaly. A dismiss affordance must not imply the
+note was ever there. It does **not** change §4.2's storage recommendation — an ack on a row that does
+not exist cannot be orphaned.
+
+### 5. NEW RESIDUAL DEFECT — the mapping-edge drop does not heal the open hub tab
+
+The shipped change added, at `plan-indicators.ts:161-183`, a drop of the delivered-then-deleted shape
+(`delivery !== null && delivered_plan_id === null`). Its plan and its docblock both claim the drop
+*"heals `refreshKnown`, which is unfiltered by design: an already-open hub tab tracking the jobId stops
+badging on its next tick, no reload needed"* (`plan.md:212-216`; `plan-indicators.ts:145-148`). **It does
+not, and `merge` is the reason.**
+
+`merge` is union-biased by design — *"a plan the fetch did not mention keeps what it had, which is what
+makes terminal memory work"* (`job-progress-store.ts:150-163`):
+
+```ts
+const merge = (current, fetched) => new Map([...current, ...indexByPlan(fetched)]);
+```
+
+Dropping a row at `toGenerationIndicator` removes it from `fetched`; it does **not** remove the
+remembered entry keyed by the same source plan. Both read paths now filter the row out
+(`surfacedJobsFor` at `generation-status.ts:98`, the mapping edge at `plan-indicators.ts:161`), so the
+tab is told *nothing* about that job ever again and rule 4 keeps the last badge forever. Two orderings,
+both stale, one worse:
+
+| Ordering | What the open tab shows | Extra damage |
+|---|---|---|
+| Job goes terminal, tab ticks once, *then* the proposal is deleted | **"Ready — open"**, `href` = `/plans/<deleted proposal>` | a live link to a plan that no longer exists |
+| The proposal is deleted before the tab's next tick | **"Generating — stage N"**, frozen | the snapshot never learns the job went terminal, so `shouldRun()` stays true and the tab polls every 5 s **forever** |
+
+**Scope is narrow but real.** A delete performed on the hub itself is safe: `useConfirmAction` calls
+`refreshPage()` → `navigate()` (`shared/lib/forms/refresh-page.ts`), and no island in `src/` uses
+`transition:persist`, so `PlansHub` remounts and the store is rebuilt from fresh SSR. The defect needs a
+**second surface** — a delete from the plan-detail page, or a second hub tab.
+
+**It is this change's to fix, not a re-opening of the archived one.** The server-side half of the fix
+shipped and is correct; what is left is a `merge`/eviction semantics question in `job-progress-store.ts`
+— the exact file F6 rewrites, and the exact seam (D6) F6 has to parameterise. Fixing it inside F6 costs
+nothing extra; fixing it separately means touching `merge` twice.
+
+**Note the irony worth recording**: §"Summary" concluded the author's *"link to non-existing things"*
+premise **does not hold**, and for the provenance note that remains true — `plan_id` cascades, link and
+row die together. It turns out to hold, narrowly, for a *different* surface (the hub badge, in RAM, in
+an already-open tab), and it was introduced the day after this research was written.
+
+### 6. Facts and citations that moved
+
+| §  | Cited as | Now | Status |
+|----|----------|-----|--------|
+| §2, §3.3, Code References | `generation-delivery.ts:212-215` (`pickJob`) | `:217` | moved **and changed** — see §2 above |
+| §4.1, Code References | `generation-delivery.ts:195-209` (`markNotified`) | `:200` | moved only; §4.1's analysis is unchanged |
+| §4.2 | `generation-delivery.ts:114-115` (`STATUS_COLUMNS`) | `:117` | moved only; still the projection `provenance_acked_at` would ride |
+| §2 | `generation-delivery.ts:309-327` (detach branch) | `:316-341` | moved only |
+| §2, §4.1 | `generation-status.ts:89` (`notified_at` reader) | `:98` | moved; the third `.or` arm is byte-identical, §4.1 stands |
+| Summary, Q1 | `pending-guards.ts:95-98` (orphan clone disposable) | `:99-102` | moved; and the orphan is now *usable*, not only disposable (§4) |
+| §3, Code References | `job-delivery.ts:35-37` (`isDeliverableJob`) | `:61-64` | moved **and changed** — now also requires `delivery === null` |
+| Code References | `plan-indicators.ts:104-129` (`describeGenerationIndicator`) | `:107-129` | moved only |
+| §3, Code References | `generation-delivery.integration.test.ts:371-405` | shifted (+117 lines in the file) | the "failure outranks provenance too" pin still exists |
+| Code References | `plan-actions.integration.test.ts:291-296` | shifted (+42 lines) | still present |
+| §1.4, §5 | `src/shared/lib` at 14 of 15 | unchanged | ✓ |
+| §5 | `e2e/specs/generation.spec.ts` coupling | unchanged | ✓ file not touched |
+| §4.2 | solver grant / `solver-credential.integration.test.ts:211-217` | unchanged | ✓ no migration shipped |
+
+### 7. What did **not** change, and is worth stating
+
+- **§4.2's `provenance_acked_at` recommendation stands in full.** No migration landed;
+  `delivery` was already a column (`20260810200122_generation_jobs.sql:94`, vocabulary added by
+  `20260828093000`) and already in both `STATUS_COLUMNS` projections. Zero GRANT/RLS work, one column
+  on the existing projection, cascade alignment — all unchanged.
+- **§4.1 (`notified_at` is the wrong lever) is unchanged** — still one writer, one reader.
+- **§4.3 (localStorage is the wrong storage class) is unchanged.**
+- **§5's FR-308 constraint is unchanged**, and so is the "degrade, not delete" conclusion.
+- **The clone's NAME as the surviving residue is unchanged** — and the archived change leaned on the
+  same argument to justify a silent orphan release (`plan.md:87`).
+
+### 8. One insight to restate rather than repeat
+
+Architecture Insight #1 said *"`delivered_plan_id` conflates a fact with a link… `delivery` is the fact
+that actually survives."* That is no longer an observation — it is **shipped and enforced**:
+`isDeliverableJob`, `pickJob`, `surfacedJobsFor` and `toGenerationIndicator` all consult `delivery`, and
+`GenerationJobDelivery` (`job-delivery.ts:33`) is a write-side vocabulary type. That gives §4.2 a fresh
+in-table precedent for "a column recording a fact no foreign key can reach" — which is exactly the shape
+`provenance_acked_at` would be.
+
+### Open Questions after this pass
+
+1. **~~Q3~~ — largely closed** (§3). Only the failed-newer-job case survives, and it involves no ack flag.
+2. **NEW Q8 — how should the poll evict?** The hub store has no way to say "this job is gone, forget it".
+   Candidates: a tombstone in the fetcher's return, a `read` that returns the *whole* next snapshot
+   (which D6's proposed `read: (current: T) => Promise<T>` seam already permits), or keeping the row and
+   giving it a badge-less terminal shape. **This is the design call that decides whether F6's seam is
+   union or replace**, so it should be answered *inside* F6 rather than before it.
+3. **Q2 (what "acknowledged" hides) and Q6 (F6's WONTFIX gate) are untouched** by this change.
+
+---
+
+## Decisions 2026-09-01 — scope for the plan
+
+Settled with the author after the impact check above. These are inputs to `/10x-plan`, not findings.
+
+**1. This change is now `eviction fix → F6`, two phases, in that order.** The provenance note is
+**parked** — it is a separate piece with no shared file (per the Recommendation section), and parking
+it keeps a day-old regression off a UX decision's critical path.
+
+- **Phase 1 — eviction, in place.** Fix `merge` in today's `job-progress-store.ts:162` so a remembered
+  entry whose job was refreshed and deliberately omitted is dropped rather than kept. Ships on its own,
+  gated on nothing. Answers Q8 for the *current* store; the answer then becomes phase 2's constraint.
+- **Phase 2 — F6, behind §1.5's readability gate.** The shared factory's `read`/merge seam (D6) must
+  **preserve phase 1's semantics**, which turns Q8 from an open design question into an acceptance
+  criterion. If the gate fails, phase 2 closes WONTFIX and phase 1 still stands.
+
+The ordering is deliberate: the alternative (fold eviction into the D6 seam) is cheaper *if* F6 ships,
+but makes a shipped regression hostage to an abandon gate the research itself recommends keeping.
+
+**2. Q2 is decided — acknowledged hides the strip entirely.** See Open Questions above. Not in this
+change's scope; recorded so the note's plan starts from a settled premise and re-grounds FR-308
+rather than re-wording it.
+
+**3. Q6 is not a blocker.** "Just do it, with post-rebase readability as a phase-2 success criterion"
+is the answer. Phase 1 makes the gate cheap to honour.

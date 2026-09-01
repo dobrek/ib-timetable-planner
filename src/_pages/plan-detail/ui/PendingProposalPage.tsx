@@ -49,6 +49,17 @@ export default function PendingProposalPage({ planName, planId, job: initialJob 
             This proposal is still being generated. Its status could not be read just now — refresh to try again.
           </span>
         </Panel>
+      ) : job.delivered ? (
+        // The tick that delivers publishes its snapshot before it navigates (the polling store's
+        // `publish` → `afterTick` order), so a delivered row renders here for the reload's
+        // round-trip. Without this branch that flash lands in a terminal panel whose copy is
+        // wrong — a stopped row with a kept board would read "nothing was kept".
+        <Panel>
+          <span role="status" className="text-foreground flex items-center gap-2 font-medium">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            Board ready — opening…
+          </span>
+        </Panel>
       ) : isActiveJobStatus(job.status) ? (
         <Panel>
           <span role="status" className="text-foreground flex items-center gap-2 font-medium">
@@ -65,8 +76,9 @@ export default function PendingProposalPage({ planName, planId, job: initialJob 
         </Panel>
       ) : job.status === "stopped" ? (
         // The author's own act, so not the destructive panel. A stopped row WITH a checkpoint never
-        // reaches here — it is deliverable, so the tick that finds it delivers and navigates to the
-        // board — which makes this branch precisely the stopped-before-any-stage case.
+        // rests here — it is deliverable, and the delivering tick's flash is caught by the
+        // `delivered` branch above — which makes this branch precisely the stopped-before-any-stage
+        // case.
         <Panel>
           <span role="status" className="text-foreground flex items-start gap-2">
             <CircleStop className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />

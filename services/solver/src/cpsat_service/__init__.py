@@ -12,8 +12,8 @@ The shape, and why each piece exists:
     runner.py     the background worker: sign in -> compare-and-set claim -> solve -> final write.
     supabase.py   an httpx client with four operations, holding no privileged key: sign in, claim,
                   the best-effort per-stage progress write, and the retried terminal write.
-    registry.py   the in-process job map. Doubles as the duplicate-POST guard and holds the live
-                  solver handle S-305 will stop.
+    registry.py   the in-process job map. Doubles as the duplicate-POST guard and holds the
+                  latch plus the live solver handle a stop interrupts (S-304, S-305).
     settings.py   the container's environment, read once.
 
 Execution model (research R5): 202 + a background thread + the database row as the ONLY status

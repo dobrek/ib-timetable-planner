@@ -1,7 +1,7 @@
 ---
 change_id: stop-and-keep
 title: Stop and keep
-status: plan_reviewed
+status: implementing
 created: 2026-09-01
 updated: 2026-09-01
 archived_at: null

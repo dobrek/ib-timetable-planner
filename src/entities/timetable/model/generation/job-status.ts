@@ -13,9 +13,10 @@
  * that has no branch for it.
  *
  * The active/terminal split below is what every consumer actually asks: is this job still going, or
- * is it over? `stopped` and `interrupted` have no producer yet (S-305 and S-304 own them), but they
- * are terminal by construction — nothing will advance a row out of either — so treating them as such
- * today is correct rather than provisional.
+ * is it over? All six now have producers — `interrupted` from S-304 (a SIGTERM'd container, or the
+ * app's staleness reclaim) and `stopped` from S-305 (the author asking) — and both are terminal by
+ * construction: nothing advances a row out of either. The two are deliberately distinct statuses
+ * rather than one halted state, because who ended the run is what the copy has to say.
  */
 export const GENERATION_JOB_STATUSES = ["queued", "running", "succeeded", "failed", "stopped", "interrupted"] as const;
 

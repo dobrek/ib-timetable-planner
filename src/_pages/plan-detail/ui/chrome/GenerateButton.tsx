@@ -16,7 +16,8 @@ type Props = {
  * The button's job ENDS at dispatch (S-301). It used to own a whole ~20 s greedy solve — elapsed vs
  * budget, "Stop & keep" — and none of that survives the move to a server-side job that runs for
  * ~12 minutes and outlives the page. What the job does next is the status strip's story, read back
- * from `generation_jobs`; a stop path that works from a closed tab is S-305's.
+ * from `generation_jobs`; and Stop & keep came back as a row write on the proposal's own page
+ * (S-305, `StopAndKeep`), which is what makes it work from a closed tab.
  */
 export default function GenerateButton({ generation }: Props) {
   const { state, error, disabledReason, busy, launch } = generation;

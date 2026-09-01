@@ -233,9 +233,10 @@ const acceptingTransport: SolverTransport = {
   });
 
   it("delivers a STOPPED job that kept a checkpoint, exactly as an interrupted one", async () => {
-    // S-305 owns the producer of a `stopped` row; S-306 only widens the predicate, because the two
-    // statuses differ solely in WHO halted the run — the author asked, or the platform took the
-    // container away. A checkpoint is written through the same wire path either way.
+    // The two statuses differ solely in WHO halted the run — the author asked (S-305), or the
+    // platform took the container away (S-304) — and a checkpoint is written through the same wire
+    // path either way. `generation-stop.integration.test.ts` drives the producer; this pins the
+    // delivery it feeds.
     const { planId, dp1CourseId } = await tinyPlan("stopped");
     const { jobId, proposalPlanId } = await solvedJob(planId, [
       { cohort: "dp1", courseId: dp1CourseId, day: 3, period: 2, week: "both" },

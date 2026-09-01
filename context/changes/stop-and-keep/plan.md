@@ -565,7 +565,7 @@ README rule — the deploy replaces the container).
 
 #### Manual
 
-- [x] 1.5 SQL-flagged live solve lands `stopped` with the new error text within one heartbeat + stage tail
+- [x] 1.5 SQL-flagged live solve lands `stopped` with the new error text within one heartbeat + stage tail — 8c45b4f
 
 ### Phase 2: App — the stop write path
 
@@ -580,24 +580,24 @@ README rule — the deploy replaces the container).
 
 #### Automated
 
-- [x] 3.1 Types, lint, structure, build: `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build`
-- [x] 3.2 Unit suite green: `pnpm test`
-- [x] 3.3 Generation E2E stays green: `pnpm test:e2e e2e/specs/generation.spec.ts`
+- [x] 3.1 Types, lint, structure, build: `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` — 8c45b4f
+- [x] 3.2 Unit suite green: `pnpm test` — 8c45b4f
+- [x] 3.3 Generation E2E stays green: `pnpm test:e2e e2e/specs/generation.spec.ts` — 8c45b4f
 
 #### Manual
 
-- [x] 3.4 End-to-end stop mid-run: confirm names the stage, "Stopping…" shows, checkpoint board delivered, strip reads "Stopped early — kept the board from stage k of 10"
-- [x] 3.5 Stop while queued/no stage: confirm says nothing kept; neutral terminal state; clone swept
-- [x] 3.6 Stop racing completion delivers the full board with no error
-- [x] 3.7 Both themes: semantic tokens only on the new dialog/button/panels
+- [x] 3.4 End-to-end stop mid-run: confirm names the stage, "Stopping…" shows, checkpoint board delivered, strip reads "Stopped early — kept the board from stage k of 10" — 8c45b4f
+- [x] 3.5 Stop while queued/no stage: confirm says nothing kept; neutral terminal state; clone swept — 8c45b4f
+- [x] 3.6 Stop racing completion delivers the full board with no error — 8c45b4f
+- [x] 3.7 Both themes: semantic tokens only on the new dialog/button/panels — 8c45b4f
 
 ### Phase 4: Docs & drift sweep
 
 #### Automated
 
-- [ ] 4.1 Grep gate: no remaining future-tense "S-305" claims outside `supabase/migrations/` and archives
-- [ ] 4.2 Full local gate green via `/verify`
+- [x] 4.1 Grep gate: no remaining future-tense "S-305" claims outside `supabase/migrations/` and archives
+- [x] 4.2 Full local gate green via `/verify`
 
 #### Manual
 
-- [ ] 4.3 FR-305 + roadmap S-305 read true against shipped behaviour
+- [x] 4.3 FR-305 + roadmap S-305 read true against shipped behaviour

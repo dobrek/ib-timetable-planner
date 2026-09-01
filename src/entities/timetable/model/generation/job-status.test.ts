@@ -8,9 +8,9 @@ describe("job status guards", () => {
     expect(ALL.filter(isActiveJobStatus)).toEqual(["queued", "running"]);
   });
 
-  it("treats every other status as terminal, including the two with no producer yet", () => {
-    // `stopped` (S-305) and `interrupted` (S-304) are terminal by construction: nothing advances a
-    // row out of either, so a poll that stops on them today is right rather than provisional.
+  it("treats every other status as terminal, including the two halted ones", () => {
+    // `stopped` (the author asked, S-305) and `interrupted` (the platform took the container away,
+    // S-304) are terminal by construction: nothing advances a row out of either.
     expect(ALL.filter(isTerminalJobStatus)).toEqual(["succeeded", "failed", "stopped", "interrupted"]);
   });
 

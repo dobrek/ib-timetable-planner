@@ -49,9 +49,9 @@ export type DeliverableJobRow = {
  * delivered before.
  *
  * `stopped` sits beside `interrupted` because the two differ only in WHO halted the run: the author
- * asked, or the platform took the container away. A checkpoint is a checkpoint, written through the
- * same wire path, and it delivers through the same chain. S-305 owns the PRODUCER of a `stopped` row;
- * admitting one for delivery is S-306's one-predicate down-payment on it.
+ * asked (S-305), or the platform took the container away (S-304). A checkpoint is a checkpoint,
+ * written through the same wire path, and it delivers through the same chain — which is why S-305
+ * needed no delivery change at all, only a producer.
  *
  * Both null checks are load-bearing and they ask different questions. `delivered_plan_id === null`
  * is "is there still somewhere to deliver to" — a live pointer means the board is already there.

@@ -180,22 +180,31 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 ### S-305: Stop & keep
 
-- **Outcome:** Author can stop a running job and keep the best checkpointed board ("Stop & keep"), mirroring the greedy path's existing cancel semantics; the affordance states exactly what will be kept — the last _completed_ stage's board, not the in-flight stage — and the kept board is delivered onto the proposal clone rather than discarded.
+- **Outcome:** Author can stop a running job and keep the best checkpointed board ("Stop & keep"); the affordance states exactly what will be kept — the last _completed_ stage's board, not the in-flight stage — and the kept board is delivered onto the proposal clone rather than discarded.
 - **Change ID:** stop-and-keep
 - **PRD refs:** FR-305, US-302
 - **Prerequisites:** S-303
-- **Inherited from S-303 (2026-08-20):** the stop SEAM exists and is tested, so this slice adds a
+- **Inherited from S-303 (2026-08-20):** the stop SEAM existed and was tested, so this slice added a
   *source* rather than a mechanism. `SolveHooks.should_stop` is honoured by the engine's solution
-  callback (a stage it ends records `stoppedBy: "cancelled"`, and the ladder breaks out rather than
-  cascading through the remaining tiers); `registry.attach_solver` now holds the live `CpSolver` for
-  an immediate `stop_search()`; `stopReason: "cancelled"` and per-stage `stoppedBy` are already in
-  contract; and `stop_requested_at` is readable by the solver role but deliberately **not** writable
-  by it. What is missing is the button, the write, and the predicate that polls the column.
+  callback; `registry.attach_solver` holds the live `CpSolver` for an immediate `stop_search()`;
+  `stopReason: "cancelled"` and per-stage `stoppedBy` were already in contract; and
+  `stop_requested_at` is readable by the solver role but deliberately **not** writable by it. What
+  was missing was the button, the write, and the poll.
+- **As shipped (2026-09-01):** the poll rides the S-304 heartbeat — `progress` projects
+  `id,stop_requested_at` on the round trip it already makes — and fires the SAME latch SIGTERM does,
+  with reason `"requested"`, which the runner maps to a `stopped` row. **The latch is the signal, not
+  the transcript** (S-304's rule): `stoppedBy: "cancelled"` is recorded only when the solution
+  callback fires, so an externally interrupted stage often reads `"budget"` or nothing at all, and
+  the terminal status is keyed off the latch alone. The ladder's own break is likewise a
+  best-effort speed-up rather than the mechanism.
+- **Honest latency:** a stop is a request, not an interrupt. Worst case is the heartbeat interval
+  (≤ 15 s) plus the tail of the stage in flight plus at most one further short hinted stage — minutes,
+  not seconds, which is what the affordance's copy says and why no measured number is quoted.
 - **Parallel with:** S-304, S-306, S-307, S-310
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Thin on mechanism (the checkpoints already exist from S-303) but load-bearing on UX honesty — the Socrates-added obligation that the stop affordance names the stage being kept guards against authors believing they kept more progress than they did. Part of the "proposal flow ships" precondition for retirement (S-309), since greedy's cancel affordance can't be deleted before its replacement exists.
-- **Status:** proposed
+- **Status:** done
 
 ### S-306: The proposal is a plan
 

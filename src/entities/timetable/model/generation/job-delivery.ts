@@ -39,7 +39,7 @@ export type DeliverableJobRow = {
    *  {@link GenerationJobDelivery} for why this reads wide. The fact half of
    *  `delivered_plan_id`, and the half that survives the proposal plan being deleted. */
   delivery: string | null;
-  /** The tier whose checkpoint a halted job kept. Null when it kept nothing — the free existence
+  /** The ladder position whose checkpoint a halted job kept. Null when it kept nothing — the free existence
    *  proxy for the ~35 KB `checkpoint` column, so neither caller has to read it. */
   checkpoint_stage_index: number | null;
 };

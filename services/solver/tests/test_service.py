@@ -37,7 +37,7 @@ from cpsat_engine.solve import SolveConfig, SolveResult, StageReport, solve_comp
 from cpsat_engine.wire import snapshot_hash, wire_snapshot
 from cpsat_service import app as app_module
 from cpsat_service.registry import JobRegistry, Registration
-from cpsat_service.runner import run_job, start_job
+from cpsat_service.runner import STOP_OUTCOMES, _stop_error, run_job, start_job
 from cpsat_service.settings import Settings
 from cpsat_service.supabase import (
     REQUIRED_ROLE,
@@ -917,6 +917,47 @@ def test_a_latched_run_with_no_transcript_still_writes_interrupted_and_blanks_no
     assert set(finish.body) == {"status", "finished_at", "error"}, (
         "a write must never blank a column it has nothing to say about"
     )
+
+
+def _stage(position: int, name: str, best: int | None) -> StageReport:
+    return StageReport(
+        tier=position,
+        name=name,
+        status="FEASIBLE" if best is not None else "UNKNOWN",
+        best=best,
+        bound=best,
+        wall_clock_s=0.1,
+    )
+
+
+@pytest.mark.parametrize(
+    ("stages", "expected"),
+    [
+        ((), "before any stage finished — nothing was kept"),
+        ((_stage(1, "completeness", None),), "during stage 1 (completeness) — no board had been found"),
+        (
+            (_stage(1, "completeness", 0), _stage(2, "holes", 3)),
+            "after stage 2 (holes) — the board kept is that stage's checkpoint, not a finished ladder",
+        ),
+        (
+            (_stage(1, "completeness", 0), _stage(2, "holes", 3), _stage(3, "studentHoles", None)),
+            "during stage 3 (studentHoles) — the board kept is stage 2 (holes)'s checkpoint, "
+            "not a finished ladder",
+        ),
+    ],
+    ids=["no-transcript", "unknown-only", "kept-is-last", "unknown-tail"],
+)
+def test_the_stop_sentence_names_the_stage_whose_checkpoint_was_kept(
+    stages: tuple[StageReport, ...], expected: str
+) -> None:
+    """`checkpoint_stage_index` and this sentence must tell the same story (S-307 plan, Phase 2 §3).
+    `_run_ladder` reports a stage that ended UNKNOWN too, but only a stage with a solution writes the
+    checkpoint column — so when a stop lands mid-stage with no incumbent, the transcript is one
+    longer than the kept position, and the sentence has to name the kept stage on its own."""
+    error = _stop_error(STOP_OUTCOMES["requested"], _unknown_result(stages))
+
+    assert error.startswith("stopped by the author: the solve was stopped ")
+    assert expected in error
 
 
 def test_an_unregistered_run_is_unlatchable_and_takes_todays_path() -> None:

@@ -866,3 +866,10 @@ policy.
 #### Manual
 
 - [x] 5.3 Roadmap S-307 entry reads correctly against the shipped diff; `change.md` notes are complete — 1127eb4
+
+### Epilogue (2026-09-02, impl-review)
+
+- `bd047a4` revised the three consequence sentences in `GenerateButton.tsx` after `0ce6e10` marked the change implemented; the copy stays within Phase 4 §2's discipline (consequences only, no ranking, no numbers — the copy test now also bans engine vocabulary). Recorded here so Progress is not a commit behind on a tested contract.
+- 3.4 was verified through the dialog's default selection (after `059af53`), not the one-click button the row describes; the outcome (`policy = {"preset":"clean"}` on the row) is the same.
+- Phase 5 §1 also touched `src/_pages/plans-list/model/plan-indicators.ts` (doc comment: `stageIndex` is a ladder position, not a tier) — one of the four "stage N of 10" readers the plan names, omitted from the §1 list.
+- Review fixes (see `reviews/impl-review.md`): `_stop_error` names the kept checkpoint's stage separately from the stage the stop landed in; `roadmap.md:290` and `job-delivery.ts:42` re-worded.

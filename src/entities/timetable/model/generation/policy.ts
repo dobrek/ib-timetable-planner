@@ -25,7 +25,7 @@ export const solvePolicySchema = z.strictObject({ preset: z.enum(SOLVE_POLICY_PR
 export type SolvePolicy = z.infer<typeof solvePolicySchema>;
 
 /** The service default (FR-302): a clean board is required unless the author opts out. */
-export const DEFAULT_SOLVE_POLICY: SolvePolicy = { preset: "clean" };
+export const DEFAULT_SOLVE_POLICY = { preset: "clean" } as const satisfies SolvePolicy;
 
 /**
  * Read the `generation_jobs.policy` audit column tolerantly.

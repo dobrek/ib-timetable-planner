@@ -386,12 +386,16 @@ def _stop_outcome(entry: JobEntry | None) -> StopOutcome | None:
 
 
 def _stop_error(stop: StopOutcome, result: SolveResult) -> str:
-    """Name the cause and the last stage that finished — the transcript's one remaining job here.
+    """Name the cause, the stage the stop landed in, and — when it differs — the stage whose checkpoint
+    was kept. The transcript's one remaining job here.
 
     Which stage matters to the author, because it is the stage whose checkpoint they are about to be
-    delivered: `checkpoint_stage_index` and this sentence must tell the same story — so the number
-    here is the ladder POSITION (the transcript's length), the same count that column carries, and
-    the name in brackets is what identifies the tier.
+    delivered: `checkpoint_stage_index` and this sentence must tell the same story. Every number here
+    is a ladder POSITION (an index into the transcript), the same count that column carries, and the
+    name in brackets is what identifies the tier. The two can differ: `_run_ladder` reports a stage
+    that ended UNKNOWN (a stop landing mid-stage with no incumbent) as well, but only a stage with a
+    solution writes `checkpoint_stage_index` — so the sentence names the kept stage separately rather
+    than letting the transcript's length impersonate it.
 
     **The leading word is DERIVED from the status, never hardcoded.** This string reaches the author
     verbatim through `GenerationJobView.error`, and `stopped` and `interrupted` are sibling statuses
@@ -400,14 +404,24 @@ def _stop_error(stop: StopOutcome, result: SolveResult) -> str:
     rendering byte-identical: `interrupted` + "container shutdown" still reads
     "interrupted by container shutdown: …".
     """
-    last = result.stages[-1] if result.stages else None
-    where = (
-        f"after stage {len(result.stages)} ({last.name})" if last is not None else "before any stage finished"
-    )
-    return (
-        f"{stop.status} by {stop.cause}: the solve was stopped {where} — the board kept is the last "
-        "completed stage's checkpoint, not a finished ladder"
-    )
+    ended = len(result.stages)
+    solved = (position for position, stage in enumerate(result.stages, 1) if stage.best is not None)
+    kept = max(solved, default=0)
+    if ended == 0:
+        story = "before any stage finished — nothing was kept"
+    elif kept == ended:
+        story = f"after stage {ended} ({result.stages[-1].name}) — the board kept is that stage's checkpoint"
+    elif kept == 0:
+        story = (
+            f"during stage {ended} ({result.stages[-1].name}) — no board had been found, so nothing was kept"
+        )
+    else:
+        story = (
+            f"during stage {ended} ({result.stages[-1].name}) — the board kept is stage {kept} "
+            f"({result.stages[kept - 1].name})'s checkpoint"
+        )
+    finished = ", not a finished ladder" if kept else ""
+    return f"{stop.status} by {stop.cause}: the solve was stopped {story}{finished}"
 
 
 def _outcome_error(result: SolveResult) -> str:

@@ -860,9 +860,9 @@ policy.
 
 #### Automated
 
-- [x] 5.1 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` green; `mise run solver:check` clean
-- [x] 5.2 `/verify` (the full local CI mirror) green
+- [x] 5.1 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` green; `mise run solver:check` clean — 1127eb4
+- [x] 5.2 `/verify` (the full local CI mirror) green — 1127eb4
 
 #### Manual
 
-- [x] 5.3 Roadmap S-307 entry reads correctly against the shipped diff; `change.md` notes are complete
+- [x] 5.3 Roadmap S-307 entry reads correctly against the shipped diff; `change.md` notes are complete — 1127eb4

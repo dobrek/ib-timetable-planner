@@ -385,6 +385,17 @@ def test_wrong_format_version_is_rejected(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_an_unknown_policy_preset_is_rejected_at_the_boundary(client: TestClient) -> None:
+    """S-307: the schema's enum is the gate, so a preset the engine has no table entry for never
+    reaches `resolve_policy` — the 422 names the path rather than a 500 naming a `KeyError`."""
+    request = {**_micro_request(), "policy": {"preset": "fastest"}}
+
+    response = client.post(f"/jobs/{JOB_ID}/solve", json=request)
+
+    assert response.status_code == 422
+    assert any("preset" in error for error in response.json()["detail"]["errors"])
+
+
 def test_non_uuid_job_id_never_reaches_the_handler(client: TestClient) -> None:
     assert client.post("/jobs/not-a-uuid/solve", json=_micro_request()).status_code == 422
 

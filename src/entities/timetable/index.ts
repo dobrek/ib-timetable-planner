@@ -23,6 +23,7 @@ export * from "./model/generation/auto-park";
 export * from "./model/generation/course-map";
 export * from "./model/generation/soft-floor";
 export * from "./model/generation/clean-label";
+export * from "./model/generation/policy";
 export * from "./model/generation/job-status";
 export * from "./model/generation/job-staleness";
 export * from "./model/generation/job-delivery";

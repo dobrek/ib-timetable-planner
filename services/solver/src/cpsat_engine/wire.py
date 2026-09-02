@@ -119,8 +119,11 @@ def canonical_solve_request_json(request: dict[str, Any]) -> str:
     so the envelope reuses the ONE snapshot-side sort implementation instead of growing a second that
     can drift from it; ``warmStart`` takes the same declared order as a result's ``placements``.
 
-    ``warmStart`` is omitted when the key is absent and preserved when it is an empty list — absent
-    and empty are different states, and only the first one is "no warm start".
+    Both optional envelope keys are omitted when absent and passed through when present.
+    ``warmStart`` is preserved when it is an empty list — absent and empty are different states, and
+    only the first one is "no warm start". ``policy`` (S-307) is copied as the ``{"preset": ...}``
+    object it arrives as; an absent key means the service default (clean), which is resolved by
+    ``policy.resolve_policy`` and never written back onto the wire.
     """
     wire: dict[str, Any] = {
         "formatVersion": request["formatVersion"],
@@ -128,6 +131,8 @@ def canonical_solve_request_json(request: dict[str, Any]) -> str:
     }
     if "warmStart" in request:
         wire["warmStart"] = sorted(request["warmStart"], key=_by_wire_placement)
+    if "policy" in request:
+        wire["policy"] = {"preset": request["policy"]["preset"]}
     return canonical_json(wire)
 
 

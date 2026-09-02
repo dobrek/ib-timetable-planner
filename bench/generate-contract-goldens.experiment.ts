@@ -6,6 +6,7 @@ import {
   canonicalizeResult,
   canonicalizeSnapshot,
   canonicalizeSolveRequest,
+  DEFAULT_SOLVE_POLICY,
   type GenerationResult,
   type GeneratorSnapshot,
 } from "@/entities/timetable";
@@ -29,9 +30,9 @@ import { readJson } from "./read-json";
  *     regeneration produces a different (equally legal) board. Regenerate only for a `formatVersion`
  *     bump — see `contracts/README.md` §Regeneration for the exact command line.
  *   • the solve-request golden is DERIVED from the other two — that same snapshot as `snapshot`, and
- *     the result's board as `warmStart` (so the optional key is exercised rather than merely
- *     declared). No second CP-SAT run: given the same RESULT it reproduces byte-identically, which
- *     is a criterion of its own in the plan.
+ *     the result's board as `warmStart`, plus the default `policy` (so BOTH optional envelope keys are
+ *     exercised rather than merely declared). No second CP-SAT run: given the same RESULT it
+ *     reproduces byte-identically, which is a criterion of its own in the plan.
  *
  * The `*.experiment.ts` suffix keeps this file out of the `pnpm test` glob and gives it the bench
  * experiment runner (vitest + env-var args + `it.runIf`), matching `export-snapshot.experiment.ts`.
@@ -69,7 +70,12 @@ describe("contract goldens", () => {
       write("generation-result.json", canonicalizeResult(result)),
       write(
         "solve-request.json",
-        canonicalizeSolveRequest({ formatVersion: 1, snapshot, warmStart: result.placements }),
+        canonicalizeSolveRequest({
+          formatVersion: 1,
+          snapshot,
+          warmStart: result.placements,
+          policy: DEFAULT_SOLVE_POLICY,
+        }),
       ),
     ];
 

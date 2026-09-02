@@ -7,6 +7,7 @@ import type {
   GeneratorCohortSnapshot,
   GeneratorSnapshot,
 } from "./types";
+import type { SolvePolicy } from "./policy";
 import type { PlannerPlacement } from "../placement";
 
 /**
@@ -58,6 +59,8 @@ export type SolveRequest = {
   snapshot: WireSnapshot;
   /** An incumbent board to hint the solver with. Omitted when absent — never `null`. */
   warmStart?: GeneratedPlacement[];
+  /** The author's solve policy (S-307). Omitted when the caller wants the service default (clean) — never `null`. */
+  policy?: SolvePolicy;
 };
 
 /**
@@ -150,12 +153,15 @@ const toWireCohort = (cohort: WireCohortSnapshot): WireCohortSnapshot => ({
 
 const toWirePin = ({ courseId, day, period, week }: WirePin): WirePin => ({ courseId, day, period, week });
 
-const toWireSolveRequest = ({ formatVersion, snapshot, warmStart }: SolveRequest): SolveRequest => ({
+const toWireSolveRequest = ({ formatVersion, snapshot, warmStart, policy }: SolveRequest): SolveRequest => ({
   formatVersion,
   snapshot: toWireSnapshot(snapshot),
   // Omit-when-absent stated at the projection rather than left to `canonicalStringify` dropping an
   // `undefined`: an EMPTY warm start is a present value and must survive as `[]`.
   ...(warmStart === undefined ? {} : { warmStart: [...warmStart].map(toWirePlacement).sort(byWirePlacement) }),
+  // Re-projected field by field, like every other wire object: a widened in-app policy type must be
+  // narrowed HERE, not carried through by a spread the schema's `additionalProperties: false` would refuse.
+  ...(policy === undefined ? {} : { policy: { preset: policy.preset } }),
 });
 
 const toWireResult = (result: GenerationResult): GenerationResult => ({

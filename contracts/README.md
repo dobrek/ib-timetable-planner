@@ -154,6 +154,13 @@ were **not** regenerated (they are byte-identical across the change; the parity 
 is the worked example of the paragraph above: a widened enum on values no existing peer emits, and a
 new optional key, do not bump.
 
+**2026-09 (S-307).** `SolveRequest` gained the optional `policy` object (`{ preset: "clean" |
+"canonical" | "student-first" }`) — additive-and-optional, so `formatVersion` stays at `1`. Unlike
+S-303 the solve-request golden **was** regenerated, because the fixture doctrine below says every
+optional envelope key is exercised by the fixture; the snapshot and result goldens are byte-identical
+across the change (the solve-request golden is derived from them, so only it moved). An absent
+`policy` means the service default (`clean`) and is never written back onto the wire.
+
 
 ## Fixtures
 
@@ -162,10 +169,10 @@ new optional key, do not bump.
 seed dump (5 days × 10 periods, 39 + 42 courses, 238 placements).
 
 The third one is **derived from the other two** — that same snapshot as `snapshot`, the result's
-board as `warmStart` — so it needs no CP-SAT run of its own and regenerates deterministically. It
-carries a non-empty `warmStart` on purpose: that is the envelope's only optional key, and a fixture
-without it would leave the omit-when-absent rule (the one most likely to drift between the two
-canonicalizers) ungated. Both suites assert it.
+board as `warmStart`, plus the default `policy` — so it needs no CP-SAT run of its own and regenerates
+deterministically. It carries a non-empty `warmStart` and a `policy` on purpose: those are the
+envelope's two optional keys, and a fixture without them would leave the omit-when-absent rule (the
+one most likely to drift between the two canonicalizers) ungated. Both suites assert both.
 
 **Fixture rule: UUIDs only, no names.** Same posture `.gitignore:84-94` pins for the dump itself —
 golden data is production-derived and display text must never be committable. `contract-parity.test.ts`

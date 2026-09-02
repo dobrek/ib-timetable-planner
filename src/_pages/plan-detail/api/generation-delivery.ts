@@ -107,9 +107,12 @@ export type GenerationJobView = {
   finishedAt: string | null;
   /** `unavailable` until the board is delivered — there is nothing to be clean about before then. */
   cleanLabel: CleanLabel;
-  /** The TIER whose checkpoint an interrupted job kept, or null when it kept nothing. */
+  /** The ladder POSITION (1-based, "stage N of 10") whose checkpoint a halted job kept, or null when
+   *  it kept nothing. A position, not a tier, since S-307: under a permuted policy the two differ, and
+   *  the count the author reads must never run backwards. Tier identity lives in `stages[].tier`. */
   checkpointStageIndex: number | null;
-  /** The TIER now running, 1-based — the pending page's live progress. Null before the first stage. */
+  /** The ladder POSITION now running, 1-based — the pending page's live progress. Null before the
+   *  first stage. Same rule as above: a position, never a tier. */
   stageIndex: number | null;
   stageName: string | null;
   /** When the author asked this job to stop (S-305), or null. Non-null on a still-active row is the

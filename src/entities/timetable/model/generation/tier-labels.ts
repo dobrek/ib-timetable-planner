@@ -17,8 +17,11 @@ export const tierLabel = (name: string): string => TIER_LABELS[name] ?? name;
  * It is `solve_complete`'s ladder length (tier 1 completeness plus tiers 2–10), and that is exact
  * because `solve_complete` is the **only** mode the app dispatches: `POST /jobs/{id}/solve` runs Mode
  * A, full stop. `solve_repair` emits two stages and `solve_staged` ten, but neither is reachable from
- * the app. If S-307 ever dispatches repair, this constant stops being a constant and the denominator
- * moves onto the job row beside `stage_index`.
+ * the app. S-307's solve policies PERMUTE the ladder's visit order and never shrink or grow it
+ * (`SolveConfig.ladder` is validated as a permutation), so the constant holds under every policy;
+ * the numerator beside it, `stage_index`, is the ladder position, so "stage N of 10" counts upward
+ * whichever tier sits at position N. If a policy ever dispatched a subset ladder, this constant would
+ * stop being a constant and the denominator would move onto the job row beside `stage_index`.
  */
 export const LADDER_TIER_COUNT = 10;
 

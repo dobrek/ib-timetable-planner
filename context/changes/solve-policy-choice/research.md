@@ -492,6 +492,15 @@ Plus the in-code docs S-307 itself invalidates: `GenerateButton.tsx:9-13` ("zero
 click"), `generation-job.ts:168-170`, `runner.py:253-260`, `test_service.py:509-512`, and README's
 hosted-campaign section.
 
+**Correction, 2026-09-02 (plan-review F1, resolved in Phase 2 §3).** C5 above read `stage_index` as
+the ladder *position*; it was in fact written as the **tier** (`runner.py:341-347`, "TIER numbers …
+never positions", and the four readers printed it verbatim). Under a permuted ladder that would have
+made the hub count 1, 2, 6, 3, 4 … — the counter running backwards — and C5's "stage 4 of 10 ·
+teacher holes will name a different tier" sentence was that positional misreading. The runner now
+writes `stage_index` / `checkpoint_stage_index` from `StageEvent.position`; tier identity stays in
+`stages[].tier`, where the clean label reads it. Canonical rows are byte-identical (position equals
+tier), and the four readers survive unchanged.
+
 ### 9. Recommended scope for S-307
 
 | # | Item | Size | Notes |

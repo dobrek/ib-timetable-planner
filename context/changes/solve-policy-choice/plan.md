@@ -838,31 +838,31 @@ policy.
 
 #### Manual
 
-- [x] 3.4 A job launched from the button shows `policy = {"preset":"clean"}` on its row
+- [x] 3.4 A job launched from the button shows `policy = {"preset":"clean"}` on its row — 059af53
 
 ### Phase 4: UI — the launch dialog and the vocabulary
 
 #### Automated
 
-- [x] 4.1 `pnpm test` green — `GenerateButton.test.tsx`, `GenerationStatusStrip.test.tsx`, hook tests
-- [x] 4.2 `pnpm test:e2e e2e/specs/generation.spec.ts` green against a preview with `SOLVER_URL` and a tier-1 solver up
-- [x] 4.3 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 4.1 `pnpm test` green — `GenerateButton.test.tsx`, `GenerationStatusStrip.test.tsx`, hook tests — 059af53
+- [x] 4.2 `pnpm test:e2e e2e/specs/generation.spec.ts` green against a preview with `SOLVER_URL` and a tier-1 solver up — 059af53
+- [x] 4.3 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger`, `pnpm build` clean — 059af53
 
 #### Manual
 
-- [x] 4.4 Tier-1 loop: Generate under `student-first`; hub reads "stage 3 of 10 · student holes"; provenance line names the policy
-- [x] 4.5 Generate again on the same source: the dialog opens with `student-first` pre-selected
-- [x] 4.6 A disable reason arriving while the dialog is open disables confirm and shows its text
-- [x] 4.7 Keyboard-only and VoiceOver pass over the dialog
-- [x] 4.8 Semantic tokens only in the new markup
+- [x] 4.4 Tier-1 loop: Generate under `student-first`; hub reads "stage 3 of 10 · student holes"; provenance line names the policy — 059af53
+- [x] 4.5 Generate again on the same source: the dialog opens with `student-first` pre-selected — 059af53
+- [x] 4.6 A disable reason arriving while the dialog is open disables confirm and shows its text — 059af53
+- [x] 4.7 Keyboard-only and VoiceOver pass over the dialog — 059af53
+- [x] 4.8 Semantic tokens only in the new markup — 059af53
 
 ### Phase 5: Close-out — in-code docs and the recorded decision
 
 #### Automated
 
-- [ ] 5.1 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` green; `mise run solver:check` clean
-- [ ] 5.2 `/verify` (the full local CI mirror) green
+- [x] 5.1 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` green; `mise run solver:check` clean
+- [x] 5.2 `/verify` (the full local CI mirror) green
 
 #### Manual
 
-- [ ] 5.3 Roadmap S-307 entry reads correctly against the shipped diff; `change.md` notes are complete
+- [x] 5.3 Roadmap S-307 entry reads correctly against the shipped diff; `change.md` notes are complete

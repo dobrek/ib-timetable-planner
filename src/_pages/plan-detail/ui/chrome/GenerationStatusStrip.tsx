@@ -1,5 +1,5 @@
 import { ExternalLink, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
-import { describeCleanLabel, isHaltedJobStatus, LADDER_TIER_COUNT } from "@/entities/timetable";
+import { describeCleanLabel, isHaltedJobStatus, LADDER_TIER_COUNT, policyLabel } from "@/entities/timetable";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../../api/generation-delivery";
@@ -114,7 +114,9 @@ export default function GenerationStatusStrip({ generation }: Props) {
  *
  * The provenance link is the only route back to the source, and it matters more than it looks: a
  * proposal is named `Proposal — <source>` only until the author renames it, after which nothing else
- * on the page records which plan it was solved from.
+ * on the page records which plan it was solved from. The policy noun beside it (S-307) is the ONE
+ * surface that shows the policy afterwards — the hub and the pending page do not — because two
+ * proposals from the same source differ in nothing else the author can see.
  */
 const ProposalStrip = ({ job, hydrated }: { job: GenerationJobView; hydrated: boolean }) => {
   if (!job.delivered) return null;
@@ -128,7 +130,8 @@ const ProposalStrip = ({ job, hydrated }: { job: GenerationJobView; hydrated: bo
         >
           {job.sourcePlanName ?? "the source plan"}
         </a>{" "}
-        at <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time>
+        at <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time> ·{" "}
+        {policyLabel(job.policy.preset)} policy
       </span>
       {/* A halted run says which stage it got to INSTEAD of a clean label, not beside it: a mid-ladder
           transcript rarely reaches tier 5, so `describeCleanLabel` would honestly but unhelpfully say

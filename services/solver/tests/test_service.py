@@ -31,6 +31,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import builders as b
+from cpsat_engine.policy import DEFAULT_PRESET, PRESETS
 from cpsat_engine.schema import Dump, parse_snapshot
 from cpsat_engine.solve import SolveConfig, SolveResult, StageReport, solve_complete
 from cpsat_engine.wire import snapshot_hash, wire_snapshot
@@ -211,8 +212,10 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     return TestClient(app_module.app)
 
 
-def _micro_request(*, warm_start: bool = False) -> dict[str, Any]:
-    """A two-course, one-teacher snapshot: complete-able, and solved in milliseconds."""
+def _micro_request(*, warm_start: bool = False, policy: str | None = None) -> dict[str, Any]:
+    """A two-course, one-teacher snapshot: complete-able, and solved in milliseconds.
+
+    No `policy` by default — the absent key IS the service-default path most of this file pins."""
     snapshot = b.snapshot(
         dp1=b.cohort(courses=[b.course("a", teachers=["T1"], students=["s1"], hours=1)]),
         dp2=b.cohort(courses=[b.course("d", teachers=["T2"], students=["s2"], hours=1)]),
@@ -220,6 +223,8 @@ def _micro_request(*, warm_start: bool = False) -> dict[str, Any]:
     request: dict[str, Any] = {"formatVersion": 1, "snapshot": wire_snapshot(snapshot)}
     if warm_start:
         request["warmStart"] = [{"cohort": "dp1", "courseId": "a", "day": 1, "period": 1, "week": "both"}]
+    if policy is not None:
+        request["policy"] = {"preset": policy}
     return request
 
 
@@ -517,10 +522,12 @@ def test_losing_the_claim_writes_nothing_further(caplog: pytest.LogCaptureFixtur
     assert any("not claimable" in record.message for record in caplog.records)
 
 
-def test_every_solve_requests_clean_mode() -> None:
-    """FR-302's shipped default, and it can only be asserted HERE: `SolveRequest` has nowhere to
-    carry a policy and the service deliberately never reads `generation_jobs.policy`, so the runner's
-    own `SolveConfig` is the entire decision."""
+@pytest.mark.parametrize("preset", [None, "clean", "canonical", "student-first"])
+def test_the_request_policy_becomes_the_solve_config(preset: str | None) -> None:
+    """The wrapper-level proof of S-307: the preset named on the wire is the `(clean_mode, ladder)`
+    the engine is handed, resolved through the ONE table both transports share (`policy.PRESETS`).
+    An absent key is FR-302's shipped default, clean — the service never reads
+    `generation_jobs.policy`, so the runner's own `SolveConfig` is the entire decision."""
     configs: list[SolveConfig] = []
 
     def record(dump: Dump, config: SolveConfig) -> SolveResult:
@@ -529,9 +536,16 @@ def test_every_solve_requests_clean_mode() -> None:
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", record)
-        _run(_micro_request(), FakeSupabase())
+        _run(_micro_request(policy=preset), FakeSupabase())
 
-    assert [config.clean_mode for config in configs] == [True]
+    expected = PRESETS[preset or DEFAULT_PRESET]
+    assert [(config.clean_mode, config.ladder) for config in configs] == [
+        (expected.clean_mode, expected.ladder)
+    ]
+
+
+def test_the_default_preset_is_clean() -> None:
+    assert DEFAULT_PRESET == "clean"
 
 
 def test_the_row_advances_stage_by_stage_between_the_claim_and_the_finish() -> None:
@@ -550,9 +564,31 @@ def test_the_row_advances_stage_by_stage_between_the_claim_and_the_finish() -> N
     starts = [p for p in fake.progress_patches() if "stage_index" in p.body]
     completions = [p for p in fake.progress_patches() if "stages" in p.body]
     assert len(starts) == len(completions) == 10, "Mode A reports ten stages"
-    assert [p.body["stage_index"] for p in starts] == list(range(1, 11)), "TIER numbers, in order"
+    assert [p.body["stage_index"] for p in starts] == list(range(1, 11)), "ladder positions, in order"
     assert [p.body["stage_name"] for p in starts][0] == "completeness"
     assert [len(p.body["stages"]) for p in completions] == list(range(1, 11)), "the transcript grows"
+
+
+def test_under_student_first_the_counter_still_climbs_while_the_names_follow_the_policy() -> None:
+    """The pin that "stage N of 10" never runs backwards: `stage_index` is the ladder POSITION, so a
+    permuted policy changes which name sits at each position and nothing else. Written as tier
+    numbers the same run would read 1, 2, 6, 3, 4 … and the hub would show the solve going back."""
+    fake = FakeSupabase()
+
+    _run(_micro_request(policy="student-first"), fake)
+
+    starts = [p for p in fake.progress_patches() if "stage_index" in p.body]
+    completions = [p for p in fake.progress_patches() if "stages" in p.body]
+    assert [p.body["stage_index"] for p in starts] == list(range(1, 11))
+    assert [p.body["stage_name"] for p in starts][:3] == ["completeness", "holes", "studentHoles"]
+    for patch in completions:
+        if "checkpoint_stage_index" in patch.body:
+            assert patch.body["checkpoint_stage_index"] == len(patch.body["stages"]), (
+                "the checkpoint's index is its position — the same count the sentence in `error` uses"
+            )
+    assert [s["tier"] for s in completions[-1].body["stages"]][:3] == [1, 2, 6], (
+        "tier identity is untouched — it lives in stages[].tier, where the clean label reads it"
+    )
 
 
 def test_every_progress_write_is_filtered_projected_and_heartbeats() -> None:
@@ -598,7 +634,7 @@ def test_a_completed_stage_that_solved_carries_the_incumbent_checkpoint() -> Non
         assert set(patch.body["checkpoint"]) == {"placements", "diagnostics"}
         assert patch.body["checkpoint"]["diagnostics"]["engine"] == "cp-sat"
         assert patch.body["checkpoint"]["diagnostics"]["partial"] is True, "mid-ladder is never a proof"
-        assert patch.body["checkpoint_stage_index"] == patch.body["stages"][-1]["tier"]
+        assert patch.body["checkpoint_stage_index"] == len(patch.body["stages"]), "a position, not a tier"
 
 
 def test_a_stage_that_solved_nothing_advances_the_transcript_but_not_the_checkpoint() -> None:
@@ -1400,9 +1436,7 @@ def _threaded_app(monkeypatch: pytest.MonkeyPatch, fake: FakeSupabase) -> None:
     monkeypatch.setattr(
         app_module,
         "start_job",
-        lambda job_id, body, **kwargs: start_job(
-            job_id, body, client_factory=fake.client_factory, **kwargs
-        ),
+        lambda job_id, body, **kwargs: start_job(job_id, body, client_factory=fake.client_factory, **kwargs),
     )
 
 

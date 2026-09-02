@@ -18,6 +18,7 @@ from typing import Any
 
 from .explain import explain_infeasibility
 from .model import PreconditionError
+from .policy import PRESETS
 from .schema import Dump, load_dump
 from .solve import (
     SolveConfig,
@@ -114,6 +115,7 @@ def _print_summary(args: argparse.Namespace, result: SolveResult) -> None:
 
 
 def _config(args: argparse.Namespace) -> SolveConfig:
+    policy = PRESETS[args.policy]
     return SolveConfig(
         stage_budget_s=args.stage_budget,
         mode_a_budget_s=args.mode_a_budget,
@@ -122,12 +124,15 @@ def _config(args: argparse.Namespace) -> SolveConfig:
         workers=args.workers,
         hops=args.hops,
         log_dir=_log_dir(args.output),
+        clean_mode=policy.clean_mode,
+        ladder=policy.ladder,
     )
 
 
 def _config_echo(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "mode": args.mode,
+        "policy": args.policy,
         "stageBudgetS": args.stage_budget,
         "modeABudgetS": args.mode_a_budget,
         "repairBudgetS": args.repair_budget,
@@ -163,6 +168,19 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--workers", type=int, default=0, help="0 = auto (CP-SAT picks)")
     parser.add_argument("--hops", type=int, default=1, help="repair neighbourhood radius")
+    # Defaults to CANONICAL — clean off, canonical ladder — which is byte-for-byte what this CLI did
+    # before it had the flag, so the recorded goldens' recipe still reproduces. The HTTP service's
+    # default is the opposite (`clean`, FR-302's shipped default); the two are stated side by side
+    # here so nobody reads the CLI's output as what production would emit.
+    parser.add_argument(
+        "--policy",
+        choices=sorted(PRESETS),
+        default="canonical",
+        help=(
+            "solve policy preset (default: canonical — today's CLI behaviour; NOTE the service "
+            "defaults to clean). student-first reproduces the POC frontier's trade-off"
+        ),
+    )
     return parser.parse_args(argv)
 
 

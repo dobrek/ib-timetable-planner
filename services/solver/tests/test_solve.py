@@ -7,10 +7,13 @@ the one seed test rides the fast completeness path.
 from collections.abc import Iterable
 from pathlib import Path
 
+import pytest
+
 import builders as b
 from cpsat_engine.schema import BIWEEKLY, WEEK_A, WEEK_B, Dump, Placement, Snapshot, load_dump
 from cpsat_engine.solve import (
     SolveConfig,
+    SolveHooks,
     evaluate_board,
     solve_complete,
     solve_repair,
@@ -68,6 +71,76 @@ def test_full_ladder_is_monotonic_and_complete() -> None:
     for stage in result.stages:
         if stage.best is not None:  # a solved stage hardened tier_k <= best_k; the final board obeys it
             assert scored[stage.tier - 1] <= stage.best, (stage.name, scored[stage.tier - 1], stage.best)
+
+
+# --- the ladder's visit order is configuration (S-307) --------------------------------------------
+#
+# Pinned on the TRANSCRIPT, never on the board: at several workers same-policy variance rivals
+# between-policy variance, so which board comes back is not evidence of which order was walked.
+
+STUDENT_FIRST = (1, 5, 2, 3, 4, 6, 7, 8, 9)
+
+
+def test_a_permuted_ladder_is_walked_in_that_order_with_positions_counting_upward() -> None:
+    events: list[tuple[int, int, str]] = []
+    config = SolveConfig(
+        mode_a_budget_s=5.0,
+        stage_budget_s=2.0,
+        ladder=STUDENT_FIRST,
+        hooks=SolveHooks(
+            on_stage=lambda e: events.append((e.position, e.tier, e.name)) if e.kind == "started" else None
+        ),
+    )
+
+    result = solve_complete(_dump(_micro_snapshot()), config)
+
+    assert [stage.name for stage in result.stages] == [
+        "completeness",
+        "holes",
+        "studentHoles",
+        "totalSlots",
+        "teacherHoles",
+        "softHits",
+        "doublesDeficit",
+        "lateStarts",
+        "fridayTail",
+        "goldenBandDistance",
+    ]
+    assert [position for position, _tier, _name in events] == list(range(1, 11)), (
+        "positions never run backwards"
+    )
+    assert [tier for _position, tier, _name in events] == [1, *(idx + 1 for idx in STUDENT_FIRST)], (
+        "tier identity follows the ladder"
+    )
+
+
+@pytest.mark.parametrize(
+    "ladder",
+    [(1, 2, 3), (1, 1, 2, 3, 4, 5, 6, 7, 8), (1, 2, 3, 4, 5, 6, 7, 8, 10), (0, 1, 2, 3, 4, 5, 6, 7, 8)],
+    ids=["a subset", "a duplicate", "an out-of-range index", "tier 1 in the ladder"],
+)
+def test_a_ladder_that_is_not_a_permutation_is_refused_at_construction(ladder: tuple[int, ...]) -> None:
+    with pytest.raises(ValueError, match="permutation"):
+        SolveConfig(ladder=ladder)
+
+
+def test_the_default_ladder_is_canonical_and_unset() -> None:
+    """`None`, not a copy of the canonical tuple: the default has to stay visibly "no policy", so a
+    runner that forgot to pass one is distinguishable from one that chose canonical."""
+    assert SolveConfig().ladder is None
+
+
+def test_the_ladder_does_not_leak_into_repair() -> None:
+    """`solve_repair` builds its own two-stage config; a policy on the outer config must not reach it."""
+    snap = _micro_snapshot()
+    greedy = [
+        Placement("dp1", "BB", 1, 1, "both"),
+        Placement("dp1", "CC", 1, 1, "both"),
+        Placement("dp2", "D", 1, 1, "both"),
+    ]
+    result = solve_repair(_dump(snap, greedy), SolveConfig(repair_budget_s=3.0, ladder=STUDENT_FIRST))
+
+    assert [stage.name for stage in result.stages] == ["unplacedTotal", "teacherHoles"]
 
 
 # --- Mode A: completeness is SAT on the seed ------------------------------------------------------

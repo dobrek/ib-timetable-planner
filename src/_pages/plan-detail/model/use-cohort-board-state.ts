@@ -120,7 +120,7 @@ export function useCombinedBoardState(
   );
   // S-301: Generate enqueues a durable CP-SAT job instead of running the greedy engine in a Web
   // Worker. The snapshot is assembled SERVER-side from the plan's own loader, so nothing is captured
-  // at click time here — the click carries only the plan id.
+  // at click time here — the launch carries only the plan id and the author's solve policy (S-307).
   const generateControls = useGenerationJob({ planId: shared.planId, initialJob: generationJob, busy: combinedBusy });
   // A live job takes PRECEDENCE over the board-derived reasons (S-306), and the order is the point:
   // "one active job per plan" is enforced server-side by a partial unique index, so a second click

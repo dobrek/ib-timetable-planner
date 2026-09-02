@@ -40,8 +40,9 @@ export type GenerationIndicator = {
   /** True once the verified board has landed. Separates "Ready — open" from "open to deliver". */
   delivered: boolean;
   status: GenerationJobStatus;
-  /** The TIER now running, 1-based. Null before the solver has claimed and started a stage — and on
-   *  every row written before S-303, which filled `stages` only at the end. */
+  /** The ladder POSITION now running, 1-based ("stage N of 10"; a position, never a tier, since S-307
+   *  permutes the visit order). Null before the solver has claimed and started a stage — and on every
+   *  row written before S-303, which filled `stages` only at the end. */
   stageIndex: number | null;
   stageName: string | null;
   /** The job row's `created_at`, as an ISO instant. Formatted at the very edge — see below. */

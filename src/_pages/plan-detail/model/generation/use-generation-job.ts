@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { SolvePolicy } from "@/entities/timetable";
 import type { GenerationJobView } from "../../api/generation-delivery";
 import { checkPlan as checkPlanAction, startGeneration as startGenerationAction } from "../../api/generation-client";
 
@@ -42,7 +43,7 @@ export type UseGenerationJobDeps = {
   /** True while other board writes are unsettled — Generate participates in the same gating. */
   busy: boolean;
   /** Injectable for tests; default to the Astro Action clients. */
-  start?: (planId: string) => Promise<GenerationJob>;
+  start?: (planId: string, policy: SolvePolicy) => Promise<GenerationJob>;
   check?: (planId: string) => Promise<GenerationJobView | null>;
 };
 
@@ -51,7 +52,8 @@ export type GenerationJobControls = {
   error: string | null;
   /** True while a check/delivery round-trip is in flight — the strip's Refresh shows it. */
   checking: boolean;
-  launch: () => void;
+  /** Enqueue under the author's chosen policy (S-307) — the dialog's confirm is the caller. */
+  launch: (policy: SolvePolicy) => void;
   refresh: () => void;
 };
 
@@ -84,13 +86,13 @@ export function useGenerationJob({
     }
   }
 
-  function launch() {
+  function launch(policy: SolvePolicy) {
     // The same guard the greedy hook used: an unsettled board would be hashed mid-write, and the
     // snapshot the solver is judged against has to be a state that actually exists.
     if (busy || state.status === "launching") return;
     setError(null);
     setState({ status: "launching" });
-    void start(planId).then(
+    void start(planId, policy).then(
       // Read the row straight back rather than synthesising a view from the launch result: one shape
       // for the strip, and `createdAt` comes from the database rather than the browser clock.
       () => runCheck(),

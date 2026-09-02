@@ -7,6 +7,7 @@ import {
   computePinnedSoftFloor,
   deriveCleanLabel,
   runVerifiedGeneration,
+  parseStoredPolicy,
   parseStoredStages,
   isActiveJobStatus,
   isDeliverableJob,
@@ -21,6 +22,7 @@ import {
   type GenerationJobStatus,
   type GenerationResult,
   type GeneratorSnapshot,
+  type SolvePolicy,
   type StoredStageReport,
 } from "@/entities/timetable";
 import { reclaimStaleJob } from "./generation-reclaim";
@@ -113,6 +115,9 @@ export type GenerationJobView = {
   /** When the author asked this job to stop (S-305), or null. Non-null on a still-active row is the
    *  "Stopping…" state: the request is durable and the solver has not finished reacting to it. */
   stopRequestedAt: string | null;
+  /** The solve policy this job ran under (S-307) — the picker's seed and the provenance line's noun.
+   *  Legacy rows (`{ clean: true }`) read as clean, which is what every one of them was solved as. */
+  policy: SolvePolicy;
 };
 
 /** Everything the strip renders, and none of the ~160 KB of payload beside it. `heartbeat_at` is the
@@ -120,7 +125,7 @@ export type GenerationJobView = {
  *  `stop_requested_at` one narrow scalar that lets the pending page render "Stopping…" across ticks
  *  and reloads rather than from a client-side memory a refresh would lose. */
 const STATUS_COLUMNS =
-  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at,stage_index,stage_name,stop_requested_at";
+  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at,stage_index,stage_name,stop_requested_at,policy";
 
 type StatusRow = {
   id: string;
@@ -139,6 +144,7 @@ type StatusRow = {
   stage_index: number | null;
   stage_name: string | null;
   stop_requested_at: string | null;
+  policy: SolvePolicy;
 };
 
 /**
@@ -355,7 +361,7 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
 
   return toView(
     { ...row, delivered_plan_id: proposalPlanId },
-    deriveCleanLabel(row.stages, computePinnedSoftFloor(snapshot)),
+    deriveCleanLabel(row.stages, computePinnedSoftFloor(snapshot), row.policy),
   );
 };
 
@@ -471,12 +477,13 @@ const latestJobBy = async (
     .maybeSingle();
   if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to read the generation job: ${error.message}`);
   if (data === null) return null;
-  // `stages` is the one column here that arrives as untyped jsonb, so it is parsed rather than cast:
-  // a malformed transcript degrades the clean label to `unavailable` instead of feeding
-  // `deriveCleanLabel` a shape it will read a confident wrong number out of. Everything else in
-  // STATUS_COLUMNS is a scalar the check constraints already pin.
-  const row = data as unknown as Omit<StatusRow, "stages"> & { stages: unknown };
-  return { ...row, stages: parseStoredStages(row.stages) };
+  // `stages` and `policy` are the two columns here that arrive as untyped jsonb, so they are parsed
+  // rather than cast: a malformed transcript degrades the clean label to `unavailable` instead of
+  // feeding `deriveCleanLabel` a shape it will read a confident wrong number out of, and a legacy or
+  // malformed policy reads as the clean default every pre-S-307 row was solved under. Everything else
+  // in STATUS_COLUMNS is a scalar the check constraints already pin.
+  const row = data as unknown as Omit<StatusRow, "stages" | "policy"> & { stages: unknown; policy: unknown };
+  return { ...row, stages: parseStoredStages(row.stages), policy: parseStoredPolicy(row.policy) };
 };
 
 /** Which column holds the board this job is delivering. `result` stays the succeeded-only one. */
@@ -517,7 +524,11 @@ const labelOf = async (supabase: SupabaseClient, row: StatusRow): Promise<CleanL
 
   const { data, error } = await supabase.from("generation_jobs").select("snapshot").eq("id", row.id).single();
   if (error) return { kind: "unavailable" };
-  return deriveCleanLabel(row.stages, computePinnedSoftFloor(data.snapshot as unknown as GeneratorSnapshot));
+  return deriveCleanLabel(
+    row.stages,
+    computePinnedSoftFloor(data.snapshot as unknown as GeneratorSnapshot),
+    row.policy,
+  );
 };
 
 /**
@@ -598,4 +609,5 @@ const toView = (row: StatusRow, cleanLabel: CleanLabel): GenerationJobView => ({
   stageIndex: row.stage_index,
   stageName: row.stage_name,
   stopRequestedAt: row.stop_requested_at,
+  policy: row.policy,
 });

@@ -134,6 +134,7 @@ const sameView = (a: GenerationJobView | null, b: GenerationJobView | null): boo
     a.finishedAt === b.finishedAt &&
     a.checkpointStageIndex === b.checkpointStageIndex &&
     a.stopRequestedAt === b.stopRequestedAt &&
+    a.policy.preset === b.policy.preset &&
     sameCleanLabel(a.cleanLabel, b.cleanLabel)
   );
 };
@@ -142,6 +143,8 @@ const sameView = (a: GenerationJobView | null, b: GenerationJobView | null): boo
 const sameCleanLabel = (a: CleanLabel, b: CleanLabel): boolean => {
   if (a.kind !== b.kind) return false;
   if (a.kind === "clean-at-floor" && b.kind === "clean-at-floor") return a.pinnedHours === b.pinnedHours;
-  if (a.kind === "not-clean" && b.kind === "not-clean") return a.softHits === b.softHits && a.floor === b.floor;
+  if (a.kind === "not-clean" && b.kind === "not-clean") {
+    return a.softHits === b.softHits && a.floor === b.floor && a.cleanRequested === b.cleanRequested;
+  }
   return true;
 };

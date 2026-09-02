@@ -819,22 +819,22 @@ policy.
 
 #### Automated
 
-- [x] 2.1 `mise run solver:test` green — `test_policy.py`, `test_cli.py`, the new `test_solve.py` and `test_service.py` cases included
-- [x] 2.2 `test_objective.py` unchanged and green — the parity suite stays exact 10/10
-- [x] 2.3 `mise run solver:check` clean (ruff, mypy --strict over `src/` and `tests/`, shellcheck)
-- [x] 2.4 `pnpm test:integration src/test/solver-transport.integration.test.ts` green with a tier-1 solver up
+- [x] 2.1 `mise run solver:test` green — `test_policy.py`, `test_cli.py`, the new `test_solve.py` and `test_service.py` cases included — 8ebd639
+- [x] 2.2 `test_objective.py` unchanged and green — the parity suite stays exact 10/10 — 8ebd639
+- [x] 2.3 `mise run solver:check` clean (ruff, mypy --strict over `src/` and `tests/`, shellcheck) — 8ebd639
+- [x] 2.4 `pnpm test:integration src/test/solver-transport.integration.test.ts` green with a tier-1 solver up — 8ebd639
 
 #### Manual
 
-- [x] 2.5 `cpsat … --mode complete --policy student-first` prints stages in student-first order and the sidecar echoes the policy
+- [x] 2.5 `cpsat … --mode complete --policy student-first` prints stages in student-first order and the sidecar echoes the policy — 8ebd639
 
 ### Phase 3: App — one validated value, three destinations
 
 #### Automated
 
-- [ ] 3.1 `pnpm test` green — `clean-label.test.ts`, `policy.test.ts`, `use-pending-proposal.test.ts`, delivery/enqueue unit paths
-- [ ] 3.2 `pnpm test:integration` green with a tier-1 solver up, including the student-first chain assertion
-- [ ] 3.3 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger` clean
+- [x] 3.1 `pnpm test` green — `clean-label.test.ts`, `policy.test.ts`, `use-pending-proposal.test.ts`, delivery/enqueue unit paths
+- [x] 3.2 `pnpm test:integration` green with a tier-1 solver up, including the student-first chain assertion
+- [x] 3.3 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger` clean
 
 #### Manual
 

@@ -1,4 +1,5 @@
 import { Loader2, Wand2 } from "lucide-react";
+import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
 import { Button } from "@/shared/ui";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 
@@ -45,7 +46,9 @@ export default function GenerateButton({ generation }: Props) {
         variant="ghost"
         size="sm"
         className="h-8 gap-1.5"
-        onClick={launch}
+        onClick={() => {
+          launch(DEFAULT_SOLVE_POLICY);
+        }}
         disabled={launching || disabledTitle !== null}
         title={disabledTitle ?? "Generate placements for all remaining courses"}
         aria-label="Generate plan"

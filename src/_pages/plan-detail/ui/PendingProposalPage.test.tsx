@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
 import type { GenerationJobView } from "../api/generation-delivery";
 import PendingProposalPage from "./PendingProposalPage";
 
@@ -26,6 +27,7 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageIndex: 4,
   stageName: "teacherHoles",
   stopRequestedAt: null,
+  policy: DEFAULT_SOLVE_POLICY,
   ...over,
 });
 

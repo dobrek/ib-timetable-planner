@@ -162,6 +162,20 @@ describe("GenerationStatusStrip", () => {
       expect(screen.getByText(/Generated from/)).toBeInTheDocument();
     });
 
+    it("names the policy the board was solved under — the one surface that shows it afterwards", () => {
+      const view = proposal({ cleanLabel: { kind: "clean" }, policy: { preset: "student-first" } });
+      render(<GenerationStatusStrip generation={tracking(view)} />);
+
+      expect(screen.getByText(/· student-first policy/)).toBeInTheDocument();
+    });
+
+    it("says why a not-clean board is not clean in the policy's own terms", () => {
+      const view = proposal({ cleanLabel: { kind: "not-clean", softHits: 3, floor: 1, cleanRequested: false } });
+      render(<GenerationStatusStrip generation={tracking(view)} />);
+
+      expect(screen.getByText(/The canonical order policy does not require a clean board/)).toBeInTheDocument();
+    });
+
     it("states the clean label beside the provenance", () => {
       render(<GenerationStatusStrip generation={tracking(proposal({ cleanLabel: { kind: "clean" } }))} />);
 

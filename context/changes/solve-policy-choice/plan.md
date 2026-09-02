@@ -832,29 +832,29 @@ policy.
 
 #### Automated
 
-- [x] 3.1 `pnpm test` green — `clean-label.test.ts`, `policy.test.ts`, `use-pending-proposal.test.ts`, delivery/enqueue unit paths
-- [x] 3.2 `pnpm test:integration` green with a tier-1 solver up, including the student-first chain assertion
-- [x] 3.3 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger` clean
+- [x] 3.1 `pnpm test` green — `clean-label.test.ts`, `policy.test.ts`, `use-pending-proposal.test.ts`, delivery/enqueue unit paths — 5d0bd1f
+- [x] 3.2 `pnpm test:integration` green with a tier-1 solver up, including the student-first chain assertion — 5d0bd1f
+- [x] 3.3 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger` clean — 5d0bd1f
 
 #### Manual
 
-- [ ] 3.4 A job launched from the button shows `policy = {"preset":"clean"}` on its row
+- [x] 3.4 A job launched from the button shows `policy = {"preset":"clean"}` on its row
 
 ### Phase 4: UI — the launch dialog and the vocabulary
 
 #### Automated
 
-- [ ] 4.1 `pnpm test` green — `GenerateButton.test.tsx`, `GenerationStatusStrip.test.tsx`, hook tests
-- [ ] 4.2 `pnpm test:e2e e2e/specs/generation.spec.ts` green against a preview with `SOLVER_URL` and a tier-1 solver up
-- [ ] 4.3 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 4.1 `pnpm test` green — `GenerateButton.test.tsx`, `GenerationStatusStrip.test.tsx`, hook tests
+- [x] 4.2 `pnpm test:e2e e2e/specs/generation.spec.ts` green against a preview with `SOLVER_URL` and a tier-1 solver up
+- [x] 4.3 `pnpm check` 0 errors; `pnpm lint`, `pnpm steiger`, `pnpm build` clean
 
 #### Manual
 
-- [ ] 4.4 Tier-1 loop: Generate under `student-first`; hub reads "stage 3 of 10 · student holes"; provenance line names the policy
-- [ ] 4.5 Generate again on the same source: the dialog opens with `student-first` pre-selected
-- [ ] 4.6 A disable reason arriving while the dialog is open disables confirm and shows its text
-- [ ] 4.7 Keyboard-only and VoiceOver pass over the dialog
-- [ ] 4.8 Semantic tokens only in the new markup
+- [x] 4.4 Tier-1 loop: Generate under `student-first`; hub reads "stage 3 of 10 · student holes"; provenance line names the policy
+- [x] 4.5 Generate again on the same source: the dialog opens with `student-first` pre-selected
+- [x] 4.6 A disable reason arriving while the dialog is open disables confirm and shows its text
+- [x] 4.7 Keyboard-only and VoiceOver pass over the dialog
+- [x] 4.8 Semantic tokens only in the new markup
 
 ### Phase 5: Close-out — in-code docs and the recorded decision
 

@@ -50,6 +50,12 @@ test.describe("generation", () => {
     await expect(generate).toBeEnabled();
     await generate.click();
 
+    // S-307: the click opens the confirm dialog rather than launching. A plan with no previous job
+    // pre-selects the shipped default, and the confirm names the policy it is about to run.
+    const dialog = page.getByRole("alertdialog");
+    await expect(dialog.getByRole("radio", { name: "clean" })).toHaveAttribute("aria-checked", "true");
+    await dialog.getByRole("button", { name: /^Generate — / }).click();
+
     // FR-308's advisory, and the proposal link that S-306 added to it: the clone is openable from
     // its first second, so the advisory is a route rather than a dead sentence.
     const strip = page.locator("[data-slot='generation-status-strip']");

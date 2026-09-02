@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
 import type { GenerationJobView } from "../../api/generation-delivery";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 import GenerationStatusStrip from "./GenerationStatusStrip";
@@ -26,6 +27,7 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageIndex: null,
   stageName: null,
   stopRequestedAt: null,
+  policy: DEFAULT_SOLVE_POLICY,
   ...over,
 });
 

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
-import { computeSnapshotHash, SolverDispatchError, type SolverTransport } from "@/entities/timetable";
+import { computeSnapshotHash, SolverDispatchError, type SolvePolicy, type SolverTransport } from "@/entities/timetable";
 import { DomainError } from "@/shared/lib/errors";
 import { clonePlan } from "@/shared/api";
 import { createPlan as createFactoryPlan, registerPlan, teardown } from "@/test/factories";
@@ -24,16 +24,17 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
-type Dispatched = { jobId: string; snapshotHash: string };
+type Dispatched = { jobId: string; snapshotHash: string; policy: SolvePolicy | undefined };
 
-/** Records what it was asked to dispatch, so the test can assert the body was the hashed snapshot. */
+/** Records what it was asked to dispatch, so the test can assert the body was the hashed snapshot
+ *  and carried the policy the row was written with. */
 const recordingTransport = (): { transport: SolverTransport; calls: Dispatched[] } => {
   const calls: Dispatched[] = [];
   return {
     calls,
     transport: {
       dispatchSolveJob: async (jobId, request) => {
-        calls.push({ jobId, snapshotHash: await computeSnapshotHash(request.snapshot) });
+        calls.push({ jobId, snapshotHash: await computeSnapshotHash(request.snapshot), policy: request.policy });
       },
       checkHealth: () => Promise.resolve(true),
     },
@@ -113,7 +114,8 @@ const deps = (transport: SolverTransport | null): GenerationDeps => ({ getTransp
       id: result.jobId,
       status: "queued",
       proposal_plan_id: result.proposalPlanId,
-      policy: { clean: true },
+      // The S-307 default: a caller that names no policy gets clean, on the row and on the wire.
+      policy: { preset: "clean" },
     });
     expect(await planExists(result.proposalPlanId)).toBe(true);
 
@@ -123,7 +125,26 @@ const deps = (transport: SolverTransport | null): GenerationDeps => ({ getTransp
     expect(await pendingOf(result.proposalPlanId)).toBe(true);
 
     // The binding the solver checks after claiming: the row's digest IS the dispatched body's.
-    expect(calls).toEqual([{ jobId: result.jobId, snapshotHash: job.snapshot_hash }]);
+    expect(calls).toEqual([{ jobId: result.jobId, snapshotHash: job.snapshot_hash, policy: { preset: "clean" } }]);
+  });
+
+  it("writes the chosen policy to the row and the wire from the one validated value", async () => {
+    // F-302's "two copies that can disagree" objection, answered on the record: both copies come from
+    // `input.policy` at one call site, so this asserts they are the IDENTICAL object, not two equal-ish ones.
+    const source = await seededPlan("student-first");
+    const { transport, calls } = recordingTransport();
+
+    const result = await startGeneration(
+      supabase,
+      { planId: source.id, policy: { preset: "student-first" } },
+      deps(transport),
+    );
+    registerPlan(result.proposalPlanId);
+
+    const [job] = await jobsFor(source.id);
+    expect(job.policy).toEqual({ preset: "student-first" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].policy).toEqual(job.policy);
   });
 
   it("leaves an ordinary clonePlan un-pending — the hub's Clone dialog shares that RPC", async () => {

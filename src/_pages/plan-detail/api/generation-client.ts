@@ -1,16 +1,21 @@
 import { actions } from "astro:actions";
+import type { SolvePolicy } from "@/entities/timetable";
 import type { GenerationJobView } from "./generation-delivery";
 import type { StopGenerationResult } from "./generation-stop";
 import { callActionData } from "./call-action";
 
-/** Enqueue a CP-SAT generation job for this plan. Resolves once the solver has ACCEPTED the dispatch
- *  (202); the solve itself lands minutes later on `generation_jobs`, and the strip reports it. */
-export function startGeneration(planId: string): Promise<{
+/** Enqueue a CP-SAT generation job for this plan under the author's chosen policy (S-307). Resolves
+ *  once the solver has ACCEPTED the dispatch (202); the solve itself lands minutes later on
+ *  `generation_jobs`, and the strip reports it. */
+export function startGeneration(
+  planId: string,
+  policy: SolvePolicy,
+): Promise<{
   jobId: string;
   proposalPlanId: string;
   autoParked: { cohort: string; courseId: string; hoursParked: number }[];
 }> {
-  return callActionData(actions.startGeneration, { planId });
+  return callActionData(actions.startGeneration, { planId, policy });
 }
 
 /**

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
 import type { GenerationJobView } from "../../api/generation-delivery";
 import { createPendingProposalStore } from "./use-pending-proposal";
 
@@ -25,6 +26,7 @@ const view = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageIndex: 3,
   stageName: "teacherHoles",
   stopRequestedAt: null,
+  policy: DEFAULT_SOLVE_POLICY,
   ...over,
 });
 
@@ -124,6 +126,30 @@ describe("createPendingProposalStore", () => {
     expect(listener).not.toHaveBeenCalled();
 
     check.mockResolvedValue(view({ stageIndex: 7 }));
+    await vi.advanceTimersByTimeAsync(INTERVAL);
+
+    expect(listener).toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it.each([
+    ["the policy preset", view({ policy: { preset: "student-first" } })],
+    [
+      "cleanRequested on a not-clean label",
+      view({ cleanLabel: { kind: "not-clean", softHits: 3, floor: 1, cleanRequested: false } }),
+    ],
+  ])("notices a change to %s — every rendered field is named in the gate", async (_field, next) => {
+    // The documented rule: a field the projection carries but the gate ignores changes silently.
+    const listener = vi.fn();
+    const base = view({ cleanLabel: { kind: "not-clean", softHits: 3, floor: 1, cleanRequested: true } });
+    const check = vi.fn().mockResolvedValue(base);
+    const store = createPendingProposalStore({ planId: "plan-2", initial: base, check, onDelivered: vi.fn() });
+    store.subscribe(listener);
+
+    await vi.advanceTimersByTimeAsync(INTERVAL);
+    expect(listener).not.toHaveBeenCalled();
+
+    check.mockResolvedValue({ ...base, ...next });
     await vi.advanceTimersByTimeAsync(INTERVAL);
 
     expect(listener).toHaveBeenCalled();

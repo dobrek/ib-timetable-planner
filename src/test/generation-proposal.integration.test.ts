@@ -81,10 +81,12 @@ const POLL_INTERVAL_MS = 250;
     async () => {
       if (!SOLVER_URL) throw new Error("unreachable: gated above");
 
-      // The exact call the Generate button makes, through the exact transport production uses.
+      // The exact call the Generate button makes, through the exact transport production uses — under
+      // `student-first`, because this is the ONE test that proves app → wire → engine agree on the
+      // policy: the row's transcript below is what the solver actually walked.
       const { jobId, proposalPlanId } = await startGeneration(
         admin,
-        { planId },
+        { planId, policy: { preset: "student-first" } },
         { getTransport: () => createSolverTransport(SOLVER_URL) },
       );
       registerPlan(proposalPlanId);
@@ -96,13 +98,22 @@ const POLL_INTERVAL_MS = 250;
       expect(settled.error).toBeNull();
       expect(settled.status).toBe("succeeded");
 
+      // S-307: the ladder was walked in the policy's order. `holes` then `studentHoles` at positions
+      // 2 and 3 is the student-first signature (canonical would put `totalSlots` third); stage 1 is
+      // completeness under either. Asserted on the transcript, never the board — at 8 workers
+      // same-policy variance rivals between-policy variance, so the board is not evidence.
+      const stages = (settled.stages ?? []) as { name: string }[];
+      expect(stages.slice(0, 3).map((stage) => stage.name)).toEqual(["completeness", "holes", "studentHoles"]);
+
       // ...and now the delivery half, which is what a visit would have run.
       const view = await checkPlan(admin, { planId });
 
       expect(view).toMatchObject({ jobId, status: "succeeded", delivered: true, proposalPlanId });
-      // Clean mode is the shipped default and this fixture has no availability at all, so the floor
-      // is 0 and the strict FR-302 reading applies.
+      // student-first holds soft hits at the floor like clean does, and this fixture has no availability
+      // at all, so the floor is 0 and the strict FR-302 reading applies. The view also carries the
+      // policy the row was written with — the picker's seed and the provenance line's noun.
       expect(view?.cleanLabel).toEqual({ kind: "clean" });
+      expect(view?.policy).toEqual({ preset: "student-first" });
 
       // The proposal carries a COMPLETE board: 4 courses x 2 hours, all placed.
       const applied = await placementsOn(admin, proposalPlanId);
@@ -132,15 +143,20 @@ const placementsOn = async (supabase: SupabaseClient<Database>, planId: string) 
 const coursesOn = async (supabase: SupabaseClient<Database>, planId: string) =>
   (await supabase.from("courses").select("id").eq("plan_id", planId)).data ?? [];
 
-type JobRow = Pick<Database["public"]["Tables"]["generation_jobs"]["Row"], "status" | "error">;
+type JobRow = Pick<Database["public"]["Tables"]["generation_jobs"]["Row"], "status" | "error" | "stages">;
 
-/** Poll to terminal with a NARROW projection — a bare select would drag the TOASTed snapshot per tick. */
+/** Poll to terminal with a NARROW projection — a bare select would drag the TOASTed snapshot per tick.
+ *  `stages` rides along (a few hundred bytes) because the transcript is the policy assertion's evidence. */
 const settle = async (supabase: SupabaseClient<Database>, jobId: string): Promise<JobRow> => {
   const deadline = Date.now() + SETTLE_TIMEOUT_MS;
   const seen: string[] = [];
 
   for (;;) {
-    const { data, error } = await supabase.from("generation_jobs").select("status, error").eq("id", jobId).single();
+    const { data, error } = await supabase
+      .from("generation_jobs")
+      .select("status, error, stages")
+      .eq("id", jobId)
+      .single();
     if (error) throw new Error(`poll: ${error.message}`);
     if (seen.at(-1) !== data.status) seen.push(data.status);
 

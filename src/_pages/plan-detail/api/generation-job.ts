@@ -3,8 +3,11 @@ import { clonePlan, UNIQUE_VIOLATION, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 import {
   computeSnapshotHash,
+  DEFAULT_SOLVE_POLICY,
   isGenerationJobStatus,
+  solvePolicySchema,
   type GeneratorSnapshot,
+  type SolvePolicy,
   type SolverTransport,
 } from "@/entities/timetable";
 import { toPlanSnapshot } from "../model/generation/plan-snapshot";
@@ -53,9 +56,18 @@ export type GenerationDeps = {
   getTransport: () => SolverTransport | null;
 };
 
-export const startGenerationInput = z.object({ planId: z.uuid() });
+/**
+ * `policy` defaults so every existing caller stays valid; the launch dialog (S-307) is the one that
+ * sends a non-default. Its schema is the SAME object the form uses — one vocabulary, validated once.
+ */
+export const startGenerationInput = z.object({
+  planId: z.uuid(),
+  policy: solvePolicySchema.default(DEFAULT_SOLVE_POLICY),
+});
 
-export type StartGenerationInput = z.infer<typeof startGenerationInput>;
+/** The INPUT side of the schema: `policy` is optional to callers and defaulted here, so the action
+ *  (which parses through Zod) and a direct caller (which does not) resolve it the same way. */
+export type StartGenerationInput = z.input<typeof startGenerationInput>;
 
 export type StartGenerationResult = {
   jobId: string;
@@ -79,6 +91,8 @@ export const startGeneration = async (
     );
   }
 
+  // Resolved ONCE, here, and then written to the row and the wire below from this one value.
+  const policy = input.policy ?? DEFAULT_SOLVE_POLICY;
   const { snapshot, snapshotHash, planName, autoParked } = await assembleSource(supabase, input.planId);
   const proposalPlanId = await createProposalPlan(supabase, input.planId, planName);
 
@@ -87,12 +101,13 @@ export const startGeneration = async (
     proposalPlanId,
     snapshot,
     snapshotHash,
+    policy,
   }).catch(async (error: unknown) => {
     await deleteOrphanClone(supabase, proposalPlanId);
     throw error;
   });
 
-  await dispatch(transport, jobId, snapshot).catch(async (error: unknown) => {
+  await dispatch(transport, jobId, snapshot, policy).catch(async (error: unknown) => {
     // The row exists and is `queued`, so it must reach a terminal state here — nothing else will
     // ever look at it. Marking `failed` before deleting the clone keeps the two consistent even if
     // the delete fails.
@@ -155,7 +170,13 @@ const markPending = async (supabase: SupabaseClient, proposalPlanId: string): Pr
 
 const insertJob = async (
   supabase: SupabaseClient,
-  row: { planId: string; proposalPlanId: string; snapshot: GeneratorSnapshot; snapshotHash: string },
+  row: {
+    planId: string;
+    proposalPlanId: string;
+    snapshot: GeneratorSnapshot;
+    snapshotHash: string;
+    policy: SolvePolicy;
+  },
   { recover = true }: { recover?: boolean } = {},
 ): Promise<string> => {
   const { data, error } = await supabase
@@ -165,9 +186,11 @@ const insertJob = async (
       proposal_plan_id: row.proposalPlanId,
       snapshot: row.snapshot,
       snapshot_hash: row.snapshotHash,
-      // A minimal audit descriptor, deliberately not a policy vocabulary: clean mode is the solver's
-      // shipped default and the service never reads this column (F-302). S-307 owns what goes here.
-      policy: { clean: true },
+      // THE INVARIANT (S-307, answering F-302's "two copies that can disagree"): this column and the
+      // dispatched `SolveRequest.policy` are both written from the one Zod-validated `policy` value
+      // `startGeneration` resolved — at that call site and nowhere else. The service never reads the
+      // column; the app never reads the body. Nothing else may write either.
+      policy: row.policy,
     })
     .select("id")
     .single();
@@ -215,8 +238,13 @@ const reclaimBlockingJob = async (supabase: SupabaseClient, planId: string): Pro
   return true;
 };
 
-const dispatch = async (transport: SolverTransport, jobId: string, snapshot: GeneratorSnapshot): Promise<void> => {
-  await transport.dispatchSolveJob(jobId, { formatVersion: 1, snapshot });
+const dispatch = async (
+  transport: SolverTransport,
+  jobId: string,
+  snapshot: GeneratorSnapshot,
+  policy: SolvePolicy,
+): Promise<void> => {
+  await transport.dispatchSolveJob(jobId, { formatVersion: 1, snapshot, policy });
 };
 
 /** Best-effort: the caller is already throwing the real failure, and a row left `queued` is worse

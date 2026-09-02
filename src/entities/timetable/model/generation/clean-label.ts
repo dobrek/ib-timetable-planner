@@ -20,13 +20,19 @@
  * and possibly sparse (a single completeness report on infeasible/unknown, tiers 1 and 4 only in
  * repair mode). A missing entry, or one with no `best`, yields `unavailable` rather than a throw or a
  * confident wrong number — the board is still deliverable, its cleanliness merely unknown.
+ *
+ * Since S-307 the `not-clean` outcome also knows whether a clean board was REQUESTED: under the
+ * `canonical` policy soft hits are an ordinary objective tier, so a not-clean board is the policy
+ * doing what it said rather than a fallback having fired. The sentence has to say which — "no clean
+ * board was possible" is a claim about the catalog, and it would be false for a run that never asked.
  */
+import { policyLabel, type SolvePolicy } from "./policy";
 import type { StoredStageReport } from "./stage-report";
 
 export type CleanLabel =
   | { kind: "clean" }
   | { kind: "clean-at-floor"; pinnedHours: number }
-  | { kind: "not-clean"; softHits: number; floor: number }
+  | { kind: "not-clean"; softHits: number; floor: number; cleanRequested: boolean }
   | { kind: "unavailable" };
 
 const SOFT_HITS_TIER = 5;
@@ -41,7 +47,11 @@ const SOFT_HITS_TIER = 5;
 export const softHitsAchieved = (stages: readonly StoredStageReport[]): number | undefined =>
   stages.find((stage) => stage.tier === SOFT_HITS_TIER)?.best;
 
-export const deriveCleanLabel = (stages: readonly StoredStageReport[], floor: number): CleanLabel => {
+export const deriveCleanLabel = (
+  stages: readonly StoredStageReport[],
+  floor: number,
+  policy: SolvePolicy,
+): CleanLabel => {
   const achieved = softHitsAchieved(stages);
   if (achieved === undefined) return { kind: "unavailable" };
   if (achieved === 0) return { kind: "clean" };
@@ -50,8 +60,11 @@ export const deriveCleanLabel = (stages: readonly StoredStageReport[], floor: nu
   // clean-at-floor degrades gracefully — the alternative would be calling a board that added
   // nothing "not clean" on the strength of our own miscount.
   if (achieved <= floor) return { kind: "clean-at-floor", pinnedHours: achieved };
-  return { kind: "not-clean", softHits: achieved, floor };
+  return { kind: "not-clean", softHits: achieved, floor, cleanRequested: requestsClean(policy) };
 };
+
+/** `clean` and `student-first` both hold soft hits at the floor; only `canonical` lets them float. */
+export const requestsClean = (policy: SolvePolicy): boolean => policy.preset !== "canonical";
 
 /** The author-facing sentence. Kept beside the derivation so the wording and the branches cannot
  *  drift apart, and so both are covered by the same unit tests. */
@@ -62,10 +75,16 @@ export const describeCleanLabel = (label: CleanLabel): string => {
     case "clean-at-floor":
       return `Clean — ${pluralHours(label.pinnedHours)} remain on soft cells. Unpin them and regenerate to go fully clean.`;
     case "not-clean":
-      return `Not clean — ${String(label.softHits)} hours sit on soft cells (${String(label.floor)} of them pinned). No clean board was possible for this catalog.`;
+      return `Not clean — ${String(label.softHits)} hours sit on soft cells (${String(label.floor)} of them pinned). ${notCleanReason(label.cleanRequested)}`;
     case "unavailable":
       return "Cleanliness could not be determined for this run.";
   }
 };
 
 const pluralHours = (count: number): string => `${String(count)} pinned hour${count === 1 ? "" : "s"}`;
+
+/** Requested and missed is a fact about the catalog; not requested is a fact about the policy. */
+const notCleanReason = (cleanRequested: boolean): string =>
+  cleanRequested
+    ? "No clean board was possible for this catalog."
+    : `The ${policyLabel("canonical")} policy does not require a clean board.`;

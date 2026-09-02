@@ -11,6 +11,7 @@ import {
   computeSnapshotHash,
   course,
   placement,
+  SOLVE_POLICY_PRESETS,
   storedStageReportSchema,
   type GenerationResult,
   type SolveRequest,
@@ -97,12 +98,36 @@ describe("contract goldens", () => {
     expect(canonicalizeSolveRequest(readJson<SolveRequest>(SOLVE_REQUEST_GOLDEN))).toBe(readText(SOLVE_REQUEST_GOLDEN));
   });
 
-  it("exercises the envelope's one optional key rather than only its required half", () => {
-    // A `warmStart`-less fixture would leave omit-vs-present — the rule most likely to drift between
-    // the two canonicalizers — completely ungated.
+  it("exercises the envelope's optional keys rather than only its required half", () => {
+    // A fixture without `warmStart` / `policy` would leave omit-vs-present — the rule most likely to
+    // drift between the two canonicalizers — completely ungated.
     const request = readJson<SolveRequest>(SOLVE_REQUEST_GOLDEN);
     expect(request.formatVersion).toBe(1);
     expect(request.warmStart?.length).toBeGreaterThan(0);
+    expect(request.policy).toEqual({ preset: "clean" });
+  });
+
+  it("omits `policy` from the canonical form when the request carries none", () => {
+    // Absent means "the service default" and must stay absent — a canonicalizer that filled it in
+    // would make the app's body disagree with the schema's stated omit-never-null rule.
+    const { policy: _policy, ...withoutPolicy } = readJson<SolveRequest>(SOLVE_REQUEST_GOLDEN);
+    expect(canonicalizeSolveRequest(withoutPolicy)).not.toContain('"policy"');
+  });
+
+  it("rejects a policy preset outside the contract's enum at policy/preset", () => {
+    const request = { ...readJson<SolveRequest>(SOLVE_REQUEST_GOLDEN), policy: { preset: "fastest" } };
+    expect(errorsOf(validateSolveRequest, request)).toEqual([
+      "/policy/preset must be equal to one of the allowed values",
+    ]);
+  });
+
+  it("declares exactly the presets the TS vocabulary knows", () => {
+    // Pinned as data: the TS enum is a projection of the schema, and the Python `PRESETS` table is
+    // held against the same list from its side, so the three cannot drift apart silently.
+    const schema = readJson<{
+      $defs: { SolveRequest: { properties: { policy: { properties: { preset: { enum: string[] } } } } } };
+    }>(SCHEMA_PATH);
+    expect(schema.$defs.SolveRequest.properties.policy.properties.preset.enum).toEqual([...SOLVE_POLICY_PRESETS]);
   });
 
   it("stores every golden already in the declared array order", () => {

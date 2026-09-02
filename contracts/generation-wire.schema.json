@@ -231,6 +231,15 @@
           "description": "An optional incumbent board to hint the solver with. Same shape as a result's placements.",
           "type": "array",
           "items": { "$ref": "#/$defs/GeneratedPlacement" }
+        },
+        "policy": {
+          "description": "The solve policy the author chose (S-307, FR-302). OMITTED — never null — when the caller wants the service default, which is `clean`. `clean`: the canonical tier order with soft hits held at the pinned floor (a hard constraint, falling back to unconstrained only when infeasible). `canonical`: the canonical tier order with soft hits as an ordinary objective tier — a clean board is not required. `student-first`: soft hits held at the floor, and the ladder visits student holes before total slots and teacher holes. Presets resolve to engine configuration on the solver side; tier indices never cross the wire.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["preset"],
+          "properties": {
+            "preset": { "type": "string", "enum": ["clean", "canonical", "student-first"] }
+          }
         }
       }
     }

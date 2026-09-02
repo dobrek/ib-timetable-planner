@@ -111,11 +111,39 @@ def test_solve_request_golden_round_trips_to_identical_canonical_bytes() -> None
 
 
 def test_solve_request_golden_exercises_the_optional_warm_start() -> None:
-    """The golden is worth little if it only covers the required half of the envelope: ``warmStart``
-    is the one optional key, so a fixture without it would leave the omit-vs-present rule ungated."""
+    """The golden is worth little if it only covers the required half of the envelope: a fixture
+    without the optional keys would leave the omit-vs-present rule ungated."""
     payload = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
     assert payload["formatVersion"] == 1
     assert payload["warmStart"], "the fixture must carry a non-empty warm start"
+
+
+def test_solve_request_golden_exercises_the_optional_policy() -> None:
+    """The S-307 sibling of the warm-start pin: the envelope's second optional key is on the fixture."""
+    payload = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
+    assert payload["policy"] == {"preset": "clean"}
+
+
+def test_canonical_solve_request_omits_policy_when_absent() -> None:
+    """Absent means "the service default" and must stay absent on the wire — resolving it is the
+    runner's job (``policy.resolve_policy``), never the canonicalizer's."""
+    payload = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
+    del payload["policy"]
+    assert '"policy"' not in canonical_solve_request_json(payload)
+
+
+def test_a_policy_preset_outside_the_enum_fails_at_policy_preset(schema: dict[str, Any]) -> None:
+    payload = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
+    payload["policy"] = {"preset": "fastest"}
+    errors = _errors(_validator(schema, "SolveRequest"), payload)
+    assert len(errors) == 1 and errors[0].startswith("['policy', 'preset']")
+
+
+def test_the_policy_presets_are_exactly_the_three_the_wire_declares(schema: dict[str, Any]) -> None:
+    # Pinned as data, like the stop-reason enum: the engine's `PRESETS` table (test_policy.py) and
+    # the TS vocabulary (contract-parity.test.ts) are both held against this list.
+    preset = schema["$defs"]["SolveRequest"]["properties"]["policy"]["properties"]["preset"]
+    assert preset["enum"] == ["clean", "canonical", "student-first"]
 
 
 def test_snapshot_golden_digests_to_the_recorded_cross_language_hash() -> None:

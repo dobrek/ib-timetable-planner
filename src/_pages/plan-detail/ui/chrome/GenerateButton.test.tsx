@@ -161,15 +161,15 @@ describe("GenerateButton — the dialog", () => {
     render(<GenerateButton generation={controls()} />);
     openDialog();
 
-    expect(screen.getByText(/Keeps every generated lesson off soft-unavailable cells/)).toBeInTheDocument();
+    expect(screen.getByText(/no new lesson lands on a period they would rather not teach/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate — clean" })).toBeInTheDocument();
 
     fireEvent.click(radio("canonical order"));
-    expect(screen.getByText(/may place lessons on soft cells when that improves an earlier tier/)).toBeInTheDocument();
+    expect(screen.getByText(/may be scheduled on a Friday afternoon they would rather keep free/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate — canonical order" })).toBeInTheDocument();
 
     fireEvent.click(radio("student-first"));
-    expect(screen.getByText(/closes students' free periods before compacting the day/)).toBeInTheDocument();
+    expect(screen.getByText(/removes free periods from students' timetables/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate — student-first" })).toBeInTheDocument();
   });
 
@@ -182,6 +182,9 @@ describe("GenerateButton — the dialog", () => {
       const copy = dialog.textContent;
       expect(copy).not.toMatch(/\d/);
       expect(copy).not.toMatch(/\b(better|best|worse|faster|slower|recommended)\b/i);
+      // And in the author's vocabulary — the engine's stays in the engine.
+      expect(copy).not.toMatch(/\b(tier|ladder|canonical order the|soft cell)/i);
+      expect(copy).toMatch(/In practice,/);
     }
   });
 

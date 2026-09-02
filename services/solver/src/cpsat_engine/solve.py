@@ -118,6 +118,15 @@ class SolveHooks:
     should_stop: Callable[[], bool] | None = None
 
 
+# Mode A and the full staged ladder both report TEN stages: one tier-1 stage (completeness, or
+# maximal placement) followed by tiers 2-10. The app's `LADDER_TIER_COUNT` is this same number — it
+# is the denominator in "stage 4 of 10" — so the two must move together if a tier is ever added.
+# A policy (S-307) may PERMUTE this visit order but never shrink or grow it — `SolveConfig.ladder`
+# is validated as a permutation — which is what keeps the count invariant under every policy.
+_LADDER_TIER_INDICES = tuple(range(1, 10))
+_FULL_LADDER_STAGES = 1 + len(_LADDER_TIER_INDICES)
+
+
 @dataclass(frozen=True)
 class SolveConfig:
     """Stage budgets, determinism knobs, and the repair neighbourhood radius — CLI-fed."""
@@ -142,13 +151,22 @@ class SolveConfig:
     targets: Mapping[int, int] = field(default_factory=dict)
     # Read only through `_run_solver` and the ladder, for the same insulation reason.
     hooks: SolveHooks = field(default_factory=SolveHooks)
+    # The ladder's VISIT ORDER for tiers 2-10, as 0-based indices into `objective.tiers` (S-307's
+    # policy presets, `policy.py`). None is the canonical order — byte-for-byte today's transcript.
+    # Read by `solve_staged` and `solve_complete` ALONE, for the same insulation reason as
+    # `clean_mode`: `parity()` and `evaluate_board()` take no config, so the 10/10 objective-parity
+    # gate cannot see it by construction. It permutes only the order the ladder walks; it must never
+    # reorder `build_objective`'s tuple, which every positional index and the gate itself key on.
+    # `solve_repair` builds its own config and passes its own sparse `(0, 3)`, so it cannot leak there.
+    ladder: tuple[int, ...] | None = None
 
-
-# Mode A and the full staged ladder both report TEN stages: one tier-1 stage (completeness, or
-# maximal placement) followed by tiers 2-10. The app's `LADDER_TIER_COUNT` is this same number — it
-# is the denominator in "stage 4 of 10" — so the two must move together if a tier is ever added.
-_LADDER_TIER_INDICES = tuple(range(1, 10))
-_FULL_LADDER_STAGES = 1 + len(_LADDER_TIER_INDICES)
+    def __post_init__(self) -> None:
+        # A permutation and nothing else: a subset or a repeat would change the stage COUNT, which
+        # the app's `LADDER_TIER_COUNT` and every "stage N of 10" surface hold constant.
+        if self.ladder is not None and sorted(self.ladder) != list(_LADDER_TIER_INDICES):
+            raise ValueError(
+                f"ladder must be a permutation of {_LADDER_TIER_INDICES}, got {tuple(self.ladder)}"
+            )
 
 
 # --- Phase 3: encoding-parity gate ----------------------------------------------------------------
@@ -237,7 +255,7 @@ def solve_staged(dump: Dump, config: SolveConfig) -> SolveResult:
     tier1, incumbent = _place_maximally(bundle, config, _greedy_board(dump))
     objective = build_objective(bundle)
     stages, board, proven = _run_ladder(
-        bundle, objective, dump, config, _LADDER_TIER_INDICES, incumbent, mode="full", preceding=(tier1,)
+        bundle, objective, dump, config, _ladder(config), incumbent, mode="full", preceding=(tier1,)
     )
     return SolveResult(
         mode="full", board=board, stages=(tier1, *stages), proven_optimal=proven and tier1.status == "OPTIMAL"
@@ -355,7 +373,7 @@ def solve_complete(dump: Dump, config: SolveConfig) -> SolveResult:
             objective,
             dump,
             config,
-            _LADDER_TIER_INDICES,
+            _ladder(config),
             incumbent,
             mode="complete",
             preceding=(feasibility,),
@@ -448,9 +466,7 @@ def solve_repair(dump: Dump, config: SolveConfig) -> SolveResult:
         targets=config.targets,
         hooks=config.hooks,
     )
-    stages, board, proven = _run_ladder(
-        bundle, objective, dump, repair_config, (0, 3), greedy, mode="repair"
-    )
+    stages, board, proven = _run_ladder(bundle, objective, dump, repair_config, (0, 3), greedy, mode="repair")
     return SolveResult(
         mode="repair",
         board=board,
@@ -633,6 +649,11 @@ def _run_ladder(
         if stopped_by == "cancelled":
             break
     return tuple(stages), _generated(incumbent), proven
+
+
+def _ladder(config: SolveConfig) -> tuple[int, ...]:
+    """The visit order the two staged solvers walk: the policy's, or canonical when none was set."""
+    return _LADDER_TIER_INDICES if config.ladder is None else config.ladder
 
 
 def _emit(config: SolveConfig, event: StageEvent) -> None:

@@ -20,8 +20,10 @@ empty board. The five shapes:
     snapshot mismatch       -> failed BEFORE any solve, `error` naming both digests: the body is
                                not the snapshot this job id was enqueued with (S-301's binding)
 
-Every solve requests CLEAN mode — the FR-302 shipped default, solver-side because the frozen
-`SolveRequest` has nowhere to carry a policy.
+**The policy comes off the wire (S-307).** `SolveRequest.policy` names a preset, `policy.py`
+resolves it to `(clean_mode, ladder)`, and that is the whole of the runner's `SolveConfig` decision;
+an absent key is the FR-302 shipped default, clean. The service never reads `generation_jobs.policy`
+— the app writes that column and the body from one validated value, so the two cannot disagree.
 
 **Accepted silent-failure surface (F-302).** If sign-in fails the worker cannot write anything to
 the row: the row stays `queued` and the only signal is a loud service log. That is tolerable for a
@@ -51,6 +53,7 @@ from dataclasses import dataclass
 from typing import Any, Final
 
 from cpsat_engine.model import PreconditionError
+from cpsat_engine.policy import Policy, resolve_policy
 from cpsat_engine.schema import Dump, parse_placements, parse_snapshot
 from cpsat_engine.solve import (
     SolveConfig,
@@ -67,6 +70,7 @@ from .settings import Settings
 from .supabase import JobRowClient
 
 log = logging.getLogger("cpsat_service.runner")
+
 
 @dataclass(frozen=True)
 class StopOutcome:
@@ -162,7 +166,9 @@ def run_job(
             log.error("job %s: %s", job_id, mismatch)
             client.finish(job_id, status="failed", error=mismatch)
             return
-        _solve_and_write(job_id, dump, client=client, settings=settings, registry=registry)
+        _solve_and_write(
+            job_id, dump, resolve_policy(request), client=client, settings=settings, registry=registry
+        )
     except PreconditionError as error:
         # The author's pinned board already violates a hard rule — no engine result could ever pass
         # verify. Their data, their message.
@@ -247,17 +253,24 @@ def _snapshot_mismatch(claimed: dict[str, Any], dump: Dump) -> str | None:
 
 
 def _solve_and_write(
-    job_id: str, dump: Dump, *, client: JobRowClient, settings: Settings, registry: JobRegistry
+    job_id: str,
+    dump: Dump,
+    policy: Policy,
+    *,
+    client: JobRowClient,
+    settings: Settings,
+    registry: JobRegistry,
 ) -> None:
-    log.info("job %s solving with %d workers", job_id, settings.workers)
+    log.info("job %s solving with %d workers under the %s policy", job_id, settings.workers, policy.preset)
     entry = registry.get(job_id)
-    # Clean is the SHIPPED default (FR-302), and it is necessarily solver-side: `SolveRequest` is
-    # `additionalProperties: false` and the service deliberately does not read `generation_jobs.policy`,
-    # so there is nowhere on the wire for a caller to ask for it. S-307 is where alternatives arrive.
+    # The request's policy IS the configuration (S-307): `clean_mode` and the ladder's visit order
+    # both come from the one preset the app validated, and nothing here overrides either. Clean is
+    # what an absent key resolves to (`policy.DEFAULT_PRESET`) — the FR-302 shipped default.
     config = SolveConfig(
         workers=settings.workers,
         log_dir=None,
-        clean_mode=True,
+        clean_mode=policy.clean_mode,
+        ladder=policy.ladder,
         targets=settings.stage_targets,
         hooks=SolveHooks(
             on_stage=_progress_reporter(job_id, dump, client),
@@ -338,17 +351,20 @@ def _progress_reporter(job_id: str, dump: Dump, client: JobRowClient) -> Callabl
 def _progress_payload(dump: Dump, event: StageEvent) -> dict[str, Any]:
     """The columns one stage event has something to say about, and no others.
 
-    `stage_index` and `checkpoint_stage_index` are TIER numbers — the same identity as
-    `StageReport.tier` — never positions in the `stages` array, which is variable-length and may be
-    sparse. The checkpoint goes onto the wire through `wire_result(to_generation_result(...))`, the
-    SAME path the terminal write uses, so a mid-ladder board and a final one are byte-shaped alike.
+    `stage_index` and `checkpoint_stage_index` are ladder POSITIONS — `StageEvent.position`, the
+    human count the app's "stage N of 10" surfaces print — never tier numbers. Under the canonical
+    ladder the two coincide; under a permuted one (S-307's student-first) only the position counts
+    upward, and a counter that ran 2, 6, 3, 4 … would read as the solve going backwards. Tier
+    IDENTITY stays where identity is read: `stages[].tier`, which the clean label keys on. The
+    checkpoint goes onto the wire through `wire_result(to_generation_result(...))`, the SAME path the
+    terminal write uses, so a mid-ladder board and a final one are byte-shaped alike.
     """
     if event.kind == "started":
-        return {"stage_index": event.tier, "stage_name": event.name}
+        return {"stage_index": event.position, "stage_name": event.name}
     payload: dict[str, Any] = {"stages": [wire_stage_report(stage) for stage in event.stages]}
     if event.checkpoint is not None:
         payload["checkpoint"] = wire_result(to_generation_result(dump, event.checkpoint))
-        payload["checkpoint_stage_index"] = event.tier
+        payload["checkpoint_stage_index"] = event.position
     return payload
 
 
@@ -373,7 +389,9 @@ def _stop_error(stop: StopOutcome, result: SolveResult) -> str:
     """Name the cause and the last stage that finished — the transcript's one remaining job here.
 
     Which stage matters to the author, because it is the stage whose checkpoint they are about to be
-    delivered: `checkpoint_stage_index` and this sentence must tell the same story.
+    delivered: `checkpoint_stage_index` and this sentence must tell the same story — so the number
+    here is the ladder POSITION (the transcript's length), the same count that column carries, and
+    the name in brackets is what identifies the tier.
 
     **The leading word is DERIVED from the status, never hardcoded.** This string reaches the author
     verbatim through `GenerationJobView.error`, and `stopped` and `interrupted` are sibling statuses
@@ -383,7 +401,9 @@ def _stop_error(stop: StopOutcome, result: SolveResult) -> str:
     "interrupted by container shutdown: …".
     """
     last = result.stages[-1] if result.stages else None
-    where = f"after stage {last.tier} ({last.name})" if last is not None else "before any stage finished"
+    where = (
+        f"after stage {len(result.stages)} ({last.name})" if last is not None else "before any stage finished"
+    )
     return (
         f"{stop.status} by {stop.cause}: the solve was stopped {where} — the board kept is the last "
         "completed stage's checkpoint, not a finished ladder"

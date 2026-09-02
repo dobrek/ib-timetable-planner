@@ -805,28 +805,28 @@ policy.
 
 #### Automated
 
-- [x] 1.1 `pnpm test bench/contract-parity.test.ts` green, including the new policy tests
-- [x] 1.2 `mise run solver:test` green, including `test_contract.py`'s new policy tests and the 422 pin
-- [x] 1.3 `git diff --stat contracts/fixtures` shows only `solve-request.json` changed
-- [x] 1.4 `pnpm check` reports 0 errors; `pnpm lint`, `pnpm steiger` clean
-- [x] 1.5 `mise run solver:check` clean (ruff + mypy --strict)
+- [x] 1.1 `pnpm test bench/contract-parity.test.ts` green, including the new policy tests — b3b8f57
+- [x] 1.2 `mise run solver:test` green, including `test_contract.py`'s new policy tests and the 422 pin — b3b8f57
+- [x] 1.3 `git diff --stat contracts/fixtures` shows only `solve-request.json` changed — b3b8f57
+- [x] 1.4 `pnpm check` reports 0 errors; `pnpm lint`, `pnpm steiger` clean — b3b8f57
+- [x] 1.5 `mise run solver:check` clean (ruff + mypy --strict) — b3b8f57
 
 #### Manual
 
-- [x] 1.6 `contracts/README.md` versioning paragraph reads correctly against the diff
+- [x] 1.6 `contracts/README.md` versioning paragraph reads correctly against the diff — b3b8f57
 
 ### Phase 2: Engine + service + CLI — presets become configuration
 
 #### Automated
 
-- [ ] 2.1 `mise run solver:test` green — `test_policy.py`, `test_cli.py`, the new `test_solve.py` and `test_service.py` cases included
-- [ ] 2.2 `test_objective.py` unchanged and green — the parity suite stays exact 10/10
-- [ ] 2.3 `mise run solver:check` clean (ruff, mypy --strict over `src/` and `tests/`, shellcheck)
-- [ ] 2.4 `pnpm test:integration src/test/solver-transport.integration.test.ts` green with a tier-1 solver up
+- [x] 2.1 `mise run solver:test` green — `test_policy.py`, `test_cli.py`, the new `test_solve.py` and `test_service.py` cases included
+- [x] 2.2 `test_objective.py` unchanged and green — the parity suite stays exact 10/10
+- [x] 2.3 `mise run solver:check` clean (ruff, mypy --strict over `src/` and `tests/`, shellcheck)
+- [x] 2.4 `pnpm test:integration src/test/solver-transport.integration.test.ts` green with a tier-1 solver up
 
 #### Manual
 
-- [ ] 2.5 `cpsat … --mode complete --policy student-first` prints stages in student-first order and the sidecar echoes the policy
+- [x] 2.5 `cpsat … --mode complete --policy student-first` prints stages in student-first order and the sidecar echoes the policy
 
 ### Phase 3: App — one validated value, three destinations
 

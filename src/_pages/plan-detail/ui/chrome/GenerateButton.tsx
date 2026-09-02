@@ -164,17 +164,18 @@ export default function GenerateButton({ generation }: Props) {
 }
 
 /**
- * One consequence per option — what the board WILL and WILL NOT do — and nothing else. No option is
- * called better, faster or cleaner than another, and no number appears: the copy is a description of
- * a mechanism the author is choosing, not a recommendation.
+ * One consequence per option — what the timetable WILL and WILL NOT do, in the author's words rather
+ * than the engine's (no tiers, no ladder, no "soft cells"), each closed by a concrete "in practice"
+ * example. No option is called better, faster or cleaner than another, and no number appears: the
+ * copy describes a mechanism the author is choosing, never a recommendation.
  */
 const POLICY_CONSEQUENCE: Record<SolvePolicyPreset, string> = {
   clean:
-    "Keeps every generated lesson off soft-unavailable cells beyond the ones your pins already occupy — relaxing that only if no such board exists — and then works through the quality tiers in the canonical order.",
+    'Treats a teacher\'s soft unavailability as a rule: no new lesson lands on a period they would rather not teach, beyond any you pinned there yourself. If that leaves no complete timetable, the rule is dropped for this run. In practice, a teacher who marked Friday afternoons as "would rather not" keeps them free, even at the cost of a less compact week.',
   canonical:
-    "Works through the quality tiers in the canonical order with soft-unavailable cells treated as one tier among them, so the board may place lessons on soft cells when that improves an earlier tier.",
+    "Treats a teacher's soft unavailability as a preference, weighed only after every course is placed, gaps in the day are closed and the timetable is kept compact. In practice, a teacher may be scheduled on a Friday afternoon they would rather keep free when that makes the week tighter or closes a gap.",
   "student-first":
-    "Keeps soft-unavailable cells as the clean policy does, and closes students' free periods before compacting the day or closing teachers' gaps — so days may run longer and teachers may see more gaps.",
+    "Keeps the same soft-unavailability rule as clean, and looks after students' days before teachers': it removes free periods from students' timetables before compacting the week or closing teachers' gaps. In practice, a student may get an unbroken run of lessons while a teacher is left with a free period between classes, or the day runs later.",
 };
 
 const isPreset = (value: string): value is SolvePolicyPreset =>

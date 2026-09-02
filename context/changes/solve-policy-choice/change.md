@@ -1,7 +1,7 @@
 ---
 change_id: solve-policy-choice
 title: Solve policy choice
-status: implementing
+status: implemented
 created: 2026-09-02
 updated: 2026-09-02
 archived_at: null

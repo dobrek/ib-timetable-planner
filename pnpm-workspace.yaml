@@ -14,8 +14,10 @@ overrides:
   "yaml@>=2.0.0 <2.9.0": ^2.9.0
   "js-yaml@>=4.0.0 <4.2.0": ^4.2.0
   "undici@>=7.0.0 <7.29.0": ^7.29.0
-  "fast-uri@>=3.0.0 <3.1.5": ^3.1.5
+  "fast-uri@>=3.0.0 <3.1.7": ^3.1.7
   "postcss@>=8.0.0 <8.5.26": ^8.5.26
   "postcss-selector-parser@>=7.0.0 <7.1.5": ^7.1.5
   "svgo@>=4.0.0 <4.0.2": ^4.0.2
   "sharp@>=0.34.5 <0.35.3": ^0.35.3
+minimumReleaseAgeExclude:
+  - fast-uri@3.1.7

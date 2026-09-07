@@ -427,7 +427,7 @@ No schema change. Phase 1 rolls the container once (image change); the campaign'
 
 #### Manual
 
-- [ ] 1.4 `mise run solver:dev` with `SOLVER_STAGE_BUDGET_S=5` logs the value and budget-stopped stages report `wallClockS ≈ 5`; without it, `engine-default` and ≈ 120
+- [x] 1.4 `mise run solver:dev` with `SOLVER_STAGE_BUDGET_S=5` logs the value and budget-stopped stages report `wallClockS ≈ 5`; without it, `engine-default` and ≈ 120 — 0ca3f07
 - [ ] 1.5 Merged on an idle container; deployed startup log shows `stage_budget_s=120 mode_a_budget_s=300 stage_targets=<none>`
 
 ### Phase 2: Extraction — `pnpm analyze:jobs`

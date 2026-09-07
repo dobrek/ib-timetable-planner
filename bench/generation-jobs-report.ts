@@ -7,9 +7,9 @@ import type { StoredStageReport } from "@/entities/timetable";
  *
  * It reports; it never judges. There is no verdict here and no threshold on `best` — which budget
  * ships is a product call made against a ledger, not something a formatter gets to imply. The one
- * flag it does raise is arithmetic, not opinion: when the row's own clock exceeds the transcript's
- * by more than a Mode A budget, a solve happened that the transcript cannot show (see
- * :func:`formatJobReport`).
+ * flag it does raise is arithmetic, not opinion: when a succeeded row's own clock exceeds the
+ * transcript's by more than fixed overhead, a solve may have happened that the transcript cannot
+ * show (see :func:`formatJobReport`).
  */
 export type JobReport = {
   readonly id: string;
@@ -24,12 +24,18 @@ export type JobReport = {
 /**
  * One job as the ledger pastes it: the clocks, then a row per completed ladder stage.
  *
- * **The two clocks are printed side by side deliberately.** `finished_at − started_at` is what the
- * author waited; `Σ wallClockS` is what the transcript accounts for. They differ by the fixed
- * overheads — sign-in, snapshot parse, the terminal write — and by one thing that is not overhead:
- * the clean-mode infeasibility fallback re-solves Mode A, and only the second solve's time reaches
- * the tier-1 transcript. So a gap wider than a whole Mode A budget is the fingerprint of a solve
- * that ran and left no row of its own, and `modeABudgetS` is the threshold that names it.
+ * **The two clocks are printed side by side deliberately, with their difference.** `finished_at −
+ * started_at` is what the author waited; `Σ wallClockS` is what the transcript accounts for. They
+ * differ by the fixed overheads — sign-in, snapshot parse, the terminal write — and by one thing
+ * that is not overhead: the clean-mode infeasibility fallback re-solves Mode A, and only the second
+ * solve's time reaches the tier-1 transcript. That hidden solve is BOUNDED by the Mode A budget,
+ * never equal to it — the fallback fires only on a proven INFEASIBLE, which by definition returned
+ * before the deadline — so the fingerprint is a gap wider than overhead alone, not wider than a
+ * budget. `modeABudgetS` names the bound in the flag; `OVERHEAD_ALLOWANCE_S` is the threshold.
+ *
+ * Only a `succeeded` row is flagged. A reclaimed, cancelled or failed row's clock measures the
+ * outage or the author's patience, not a solve, and a flag that blamed the fallback for those would
+ * put a wrong cause in the ledger.
  */
 export const formatJobReport = (job: JobReport, modeABudgetS: number): string =>
   [
@@ -66,26 +72,36 @@ export const formatTierSummary = (jobs: readonly JobReport[]): string => {
 
 type TierGroup = { readonly tier: number; readonly name: string; readonly stages: readonly StoredStageReport[] };
 
+/**
+ * What a solve costs outside its stages: sign-in, snapshot parse, model build, the terminal write.
+ * Locally that is a few seconds; 30 s leaves the container room to be slower. A guess until Phase 3
+ * records the production figure — revisit it then, against the campaign's own unaccounted column.
+ */
+const OVERHEAD_ALLOWANCE_S = 30;
+
 const clockLine = (job: JobReport): string => {
   const elapsed = elapsedSeconds(job);
   const accounted = stageSeconds(job.stages);
   const wall = elapsed === null ? "—" : `${minutes(elapsed)} min`;
-  return `end-to-end ${wall} · Σ wallClockS ${minutes(accounted)} min`;
+  const unaccounted = elapsed === null ? "—" : `${(elapsed - accounted).toFixed(1)} s`;
+  return `end-to-end ${wall} · Σ wallClockS ${minutes(accounted)} min · unaccounted ${unaccounted}`;
 };
 
 /**
  * The flag, and nothing when there is nothing to flag — a formatter that always printed a line about
- * the fallback would train the reader to skip it.
+ * the fallback would train the reader to skip it. The number itself is always on the clock line.
  */
 const unaccountedLines = (job: JobReport, modeABudgetS: number): string[] => {
+  if (job.status !== "succeeded") return [];
   const elapsed = elapsedSeconds(job);
   if (elapsed === null) return [];
   const unaccounted = elapsed - stageSeconds(job.stages);
-  if (unaccounted <= modeABudgetS) return [];
+  if (unaccounted <= OVERHEAD_ALLOWANCE_S) return [];
   return [
-    `! ${unaccounted.toFixed(1)} s unaccounted for — more than the ${modeABudgetS} s Mode A budget.`,
-    "  A solve ran that the transcript cannot show; the clean-mode infeasibility fallback is the",
-    "  known cause (it re-solves Mode A and only the second solve reaches the tier-1 stage report).",
+    `! ${unaccounted.toFixed(1)} s unaccounted for — more than the ${OVERHEAD_ALLOWANCE_S} s of fixed overhead.`,
+    "  A solve may have run that the transcript cannot show: the clean-mode infeasibility fallback",
+    `  re-solves Mode A after a proven INFEASIBLE, costing less than the ${modeABudgetS} s Mode A budget,`,
+    "  and only the second solve reaches the tier-1 stage report.",
   ];
 };
 

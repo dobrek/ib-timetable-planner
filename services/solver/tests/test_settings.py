@@ -110,7 +110,15 @@ def test_a_fractional_heartbeat_interval_is_accepted(monkeypatch: pytest.MonkeyP
     assert load_settings().heartbeat_interval_s == 0.25
 
 
-@pytest.mark.parametrize(("value", "complaint"), [("often", "not a number"), ("0", "not positive")])
+@pytest.mark.parametrize(
+    ("value", "complaint"),
+    [
+        ("often", "not a number"),
+        ("0", "not a finite positive"),
+        ("inf", "not a finite"),
+        ("nan", "not a finite"),
+    ],
+)
 def test_a_bad_heartbeat_interval_degrades_rather_than_spinning(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], value: str, complaint: str
 ) -> None:
@@ -149,13 +157,22 @@ def test_a_fractional_budget_is_accepted(monkeypatch: pytest.MonkeyPatch, name: 
 
 
 @pytest.mark.parametrize("name", BUDGETS)
-@pytest.mark.parametrize(("value", "complaint"), [("soon", "not a number"), ("0", "not positive")])
+@pytest.mark.parametrize(
+    ("value", "complaint"),
+    [
+        ("soon", "not a number"),
+        ("0", "not a finite positive"),
+        ("inf", "not a finite"),
+        ("nan", "not a finite"),
+    ],
+)
 def test_a_bad_budget_degrades_to_the_engine_default_with_a_complaint(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], name: str, value: str, complaint: str
 ) -> None:
     # Same rule as every other knob: a container that refuses to start over a mistyped budget fails a
     # health probe that would otherwise have passed. Zero would ask CP-SAT for a stage with no time
-    # at all, which is a configuration mistake, never an intent.
+    # at all, which is a configuration mistake, never an intent. `inf` and `nan` parse as floats and
+    # pass a plain `<= 0` check — an unbounded or undefined stage is the same mistake in disguise.
     monkeypatch.setenv(name, value)
 
     assert _budget(load_settings(), name) is None

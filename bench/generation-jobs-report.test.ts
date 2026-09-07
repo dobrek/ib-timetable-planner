@@ -50,27 +50,40 @@ describe("formatJobReport", () => {
     expect(report).toContain("120.04");
   });
 
-  it("prints both clocks — what the author waited and what the transcript accounts for", () => {
+  it("prints both clocks and their difference — the ledger's 'did the fallback fire' column", () => {
     // 10 minutes on the row against 0.71 + 120.04 s of stages: the difference is the whole point of
     // showing them together, because the row records neither budgets nor worker count.
-    expect(formatJobReport(job(), 300)).toContain("end-to-end 10.00 min · Σ wallClockS 2.01 min");
+    expect(formatJobReport(job(), 300)).toContain("end-to-end 10.00 min · Σ wallClockS 2.01 min · unaccounted 479.3 s");
   });
 
-  it("flags time no stage accounts for once it exceeds a whole Mode A budget", () => {
+  it("flags time no stage accounts for once it exceeds fixed overhead, naming the Mode A bound", () => {
     // The clean-mode infeasibility fallback re-solves Mode A and only the second solve reaches the
-    // tier-1 report, so this gap is the only trace the row keeps of it.
-    // 8 minutes on the row against 120.75 s of transcript leaves 359 s nothing accounts for.
-    const report = formatJobReport(job({ finishedAt: "2026-08-18T10:08:00.000Z" }), 300);
+    // tier-1 report, so this gap is the only trace the row keeps of it. The hidden solve is shorter
+    // than a Mode A budget (it fires only on a PROVEN infeasible), so the threshold must be overhead,
+    // not the budget — a budget-sized threshold could never be crossed by the cause it names.
+    // 2:40 on the row against 120.75 s of transcript leaves 39.3 s nothing accounts for.
+    const report = formatJobReport(job({ finishedAt: "2026-08-18T10:02:40.000Z" }), 300);
 
-    expect(report).toContain("s unaccounted for");
+    expect(report).toContain("39.3 s unaccounted for");
     expect(report).toContain("clean-mode infeasibility fallback");
+    expect(report).toContain("less than the 300 s Mode A budget");
   });
 
   it("stays silent when the gap is ordinary overhead rather than a hidden solve", () => {
     // Sign-in, snapshot parse and the terminal write always cost something. A flag that fired on
-    // those would train the reader to skip the one case that matters.
-    const report = formatJobReport(job({ finishedAt: "2026-08-18T10:04:00.000Z" }), 300);
+    // those would train the reader to skip the one case that matters. 2:20 leaves a 19.3 s gap.
+    const report = formatJobReport(job({ finishedAt: "2026-08-18T10:02:20.000Z" }), 300);
 
+    expect(report).toContain("unaccounted 19.3 s");
+    expect(report).not.toContain("unaccounted for");
+  });
+
+  it("never blames the fallback for a row that did not succeed", () => {
+    // A reclaimed, cancelled or failed row's clock measures the outage, not a solve: 20 minutes on
+    // an interrupted row is S-304's reclaim stamping finished_at, and the flag must not misattribute it.
+    const report = formatJobReport(job({ status: "interrupted", finishedAt: "2026-08-18T10:20:00.000Z" }), 300);
+
+    expect(report).toContain("unaccounted 1079.3 s");
     expect(report).not.toContain("unaccounted for");
   });
 

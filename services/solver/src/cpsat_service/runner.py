@@ -49,7 +49,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Final
 
 from cpsat_engine.model import PreconditionError
@@ -266,7 +266,7 @@ def _solve_and_write(
     # The request's policy IS the configuration (S-307): `clean_mode` and the ladder's visit order
     # both come from the one preset the app validated, and nothing here overrides either. Clean is
     # what an absent key resolves to (`policy.DEFAULT_PRESET`) — the FR-302 shipped default.
-    config = SolveConfig(
+    base = SolveConfig(
         workers=settings.workers,
         log_dir=None,
         clean_mode=policy.clean_mode,
@@ -283,6 +283,7 @@ def _solve_and_write(
             should_stop=None if entry is None else entry.stop.is_set,
         ),
     )
+    config = _with_budgets(base, settings)
     result = solve_complete(dump, config)
     stages = [wire_stage_report(stage) for stage in result.stages]
     outcome = result.notes.get("outcome")
@@ -322,6 +323,26 @@ def _solve_and_write(
 
     client.finish(job_id, status="failed", error=_outcome_error(result), stages=stages)
     log.warning("job %s failed: outcome=%s", job_id, outcome)
+
+
+def _with_budgets(config: SolveConfig, settings: Settings) -> SolveConfig:
+    """Apply the deployment's time allowances — and only the ones it actually set (S-308).
+
+    An unset budget is NOT a number this module may supply. `SolveConfig`'s dataclass literals are
+    the single source of truth (`settings.py` deliberately never repeats them), so "unconfigured"
+    has to mean "the field is left exactly as the engine built it" — the same neutrality
+    `SOLVER_STAGE_TARGETS` ships under, and what makes a container with no budget env vars solve
+    byte-for-byte as it did before the knob existed.
+
+    `repair_budget_s` is deliberately absent: Mode B is unreachable from the app (the wire carries no
+    `warmStart`), so a knob for it would be configuration nothing can exercise.
+    """
+    budgeted = config
+    if settings.stage_budget_s is not None:
+        budgeted = replace(budgeted, stage_budget_s=settings.stage_budget_s)
+    if settings.mode_a_budget_s is not None:
+        budgeted = replace(budgeted, mode_a_budget_s=settings.mode_a_budget_s)
+    return budgeted
 
 
 def _progress_reporter(job_id: str, dump: Dump, client: JobRowClient) -> Callable[[StageEvent], None]:

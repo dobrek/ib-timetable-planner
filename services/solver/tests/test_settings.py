@@ -14,11 +14,13 @@ from cpsat_service.settings import (
     DEFAULT_HEARTBEAT_INTERVAL_S,
     DEFAULT_LOG_LEVEL,
     DEFAULT_WORKERS,
+    Settings,
     load_settings,
 )
 
 TARGETS = "SOLVER_STAGE_TARGETS"
 HEARTBEAT = "SOLVER_HEARTBEAT_INTERVAL_S"
+BUDGETS = ("SOLVER_STAGE_BUDGET_S", "SOLVER_MODE_A_BUDGET_S")
 
 
 def test_stage_targets_are_empty_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -117,3 +119,55 @@ def test_a_bad_heartbeat_interval_degrades_rather_than_spinning(
     monkeypatch.setenv(HEARTBEAT, value)
     assert load_settings().heartbeat_interval_s == DEFAULT_HEARTBEAT_INTERVAL_S
     assert complaint in capsys.readouterr().err
+
+
+# --- the ladder's time allowances (S-308) ---------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", BUDGETS)
+def test_a_budget_is_unset_by_default_so_the_engine_keeps_its_own(
+    monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    # `None` is the whole neutrality guarantee: it is not zero and not a number this module knows,
+    # so `runner.py` leaves the `SolveConfig` field untouched and an unconfigured container solves
+    # byte-for-byte as it did before the knob existed.
+    monkeypatch.delenv(name, raising=False)
+    assert _budget(load_settings(), name) is None
+
+
+@pytest.mark.parametrize("name", BUDGETS)
+def test_a_configured_budget_parses_as_seconds(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    monkeypatch.setenv(name, "5")
+    assert _budget(load_settings(), name) == 5.0
+
+
+@pytest.mark.parametrize("name", BUDGETS)
+def test_a_fractional_budget_is_accepted(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    # Sub-second budgets are what keeps the wrapper tests fast; nothing here is integer-only.
+    monkeypatch.setenv(name, "0.25")
+    assert _budget(load_settings(), name) == 0.25
+
+
+@pytest.mark.parametrize("name", BUDGETS)
+@pytest.mark.parametrize(("value", "complaint"), [("soon", "not a number"), ("0", "not positive")])
+def test_a_bad_budget_degrades_to_the_engine_default_with_a_complaint(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], name: str, value: str, complaint: str
+) -> None:
+    # Same rule as every other knob: a container that refuses to start over a mistyped budget fails a
+    # health probe that would otherwise have passed. Zero would ask CP-SAT for a stage with no time
+    # at all, which is a configuration mistake, never an intent.
+    monkeypatch.setenv(name, value)
+
+    assert _budget(load_settings(), name) is None
+    complaints = capsys.readouterr().err
+    assert complaint in complaints
+    assert "the engine default" in complaints, "the complaint must not invent a number to fall back to"
+
+
+def _budget(settings: Settings, name: str) -> float | None:
+    """The `Settings` field the env var `name` feeds — so one parametrised test covers both knobs."""
+    fields = {
+        "SOLVER_STAGE_BUDGET_S": settings.stage_budget_s,
+        "SOLVER_MODE_A_BUDGET_S": settings.mode_a_budget_s,
+    }
+    return fields[name]

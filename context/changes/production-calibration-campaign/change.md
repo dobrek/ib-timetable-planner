@@ -1,9 +1,9 @@
 ---
 change_id: production-calibration-campaign
 title: Production calibration campaign
-status: planned
+status: implementing
 created: 2026-09-03
-updated: 2026-09-04
+updated: 2026-09-07
 archived_at: null
 ---
 

@@ -421,9 +421,9 @@ No schema change. Phase 1 rolls the container once (image change); the campaign'
 
 #### Automated
 
-- [ ] 1.1 `mise run solver:check` and `mise run solver:test` green (new settings + wrapper tests included)
-- [ ] 1.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test` green; the widened pin test lists nine keys
-- [ ] 1.3 `pnpm build` clean; `mise run solver:image:build` + `mise run solver:image:smoke` pass
+- [x] 1.1 `mise run solver:check` and `mise run solver:test` green (new settings + wrapper tests included)
+- [x] 1.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test` green; the widened pin test lists nine keys
+- [x] 1.3 `pnpm build` clean; `mise run solver:image:build` + `mise run solver:image:smoke` pass
 
 #### Manual
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { CONTAINER_WORKERS, solverContainerEnvVars } from "./solver-container-env";
+import {
+  CONTAINER_MODE_A_BUDGET_S,
+  CONTAINER_STAGE_BUDGET_S,
+  CONTAINER_STAGE_TARGETS,
+  CONTAINER_WORKERS,
+  solverContainerEnvVars,
+} from "./solver-container-env";
 
 describe("solverContainerEnvVars", () => {
   it("forwards the credential trio the container signs in with", () => {
@@ -59,12 +65,38 @@ describe("solverContainerEnvVars", () => {
     expect(Object.values(vars).every((value) => typeof value === "string")).toBe(true);
   });
 
-  it("forwards nothing beyond the six documented keys", () => {
-    // A stray key here is a privilege leak into a component that only ever sees UUIDs.
+  it("sends the ladder's time allowances explicitly rather than letting the engine default win", () => {
+    // Not because the numbers differ from the engine's — today they do not — but because the
+    // container's startup line can only prove which cell a calibration run used if the Worker
+    // actually sent the values. An absent key logs `<engine-default>`, which is a fine default and
+    // a useless record.
+    expect(solverContainerEnvVars({})).toMatchObject({
+      SOLVER_STAGE_BUDGET_S: CONTAINER_STAGE_BUDGET_S,
+      SOLVER_MODE_A_BUDGET_S: CONTAINER_MODE_A_BUDGET_S,
+    });
+    expect(CONTAINER_STAGE_BUDGET_S).toBe("120");
+    expect(CONTAINER_MODE_A_BUDGET_S).toBe("300");
+  });
+
+  it("forwards the stage-target key empty — the machinery, without a catalog-specific value", () => {
+    // A target is an objective value, so it belongs to a catalog and a season, not to a deployment
+    // constant. Forwarding it empty is exactly today's behaviour (`settings.py` reads "" as no
+    // targets, with no complaint) while making a future season's tuning a one-line diff.
+    expect(solverContainerEnvVars({}).SOLVER_STAGE_TARGETS).toBe("");
+    expect(CONTAINER_STAGE_TARGETS).toBe("");
+  });
+
+  it("forwards nothing beyond the nine documented keys", () => {
+    // A stray key here is a privilege leak into a component that only ever sees UUIDs. The three
+    // S-308 added are tuning values — a duration, a duration, and an objective bound — so they
+    // widen what the container can be TOLD, never what it can reach.
     expect(Object.keys(solverContainerEnvVars({})).sort()).toEqual([
       "SOLVER_LOG_LEVEL",
       "SOLVER_MACHINE_PASSWORD",
       "SOLVER_MAX_CONCURRENT_JOBS",
+      "SOLVER_MODE_A_BUDGET_S",
+      "SOLVER_STAGE_BUDGET_S",
+      "SOLVER_STAGE_TARGETS",
       "SOLVER_WORKERS",
       "SUPABASE_KEY",
       "SUPABASE_URL",

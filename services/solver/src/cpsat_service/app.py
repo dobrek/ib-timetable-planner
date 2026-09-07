@@ -218,19 +218,37 @@ def _log_startup(current: Settings) -> None:
     set rather than what `settings.py` defaults to, and the line that catches the `contracts/` trap
     at boot instead of at the first 500: a wrong image layout leaves the validator None while
     `/health` stays green.
+
+    Since S-308 it also names the ladder's time allowances, because the job row records neither: a
+    calibration run's only other fingerprint is the `wallClockS` of its budget-stopped stages. An
+    unset budget prints `<engine-default>` rather than a number — this module does not know the
+    engine's literals and must not appear to (see :func:`_budget`).
     """
     log.info(
-        "solver service starting: workers=%d max_concurrent_jobs=%d stage_targets=%s log_level=%s "
+        "solver service starting: workers=%d max_concurrent_jobs=%d stage_targets=%s "
+        "stage_budget_s=%s mode_a_budget_s=%s log_level=%s "
         "machine_email=%s supabase_url=%s credential_configured=%s wire_contract=%s",
         current.workers,
         current.max_concurrent_jobs,
         dict(sorted(current.stage_targets.items())) or "<none>",
+        _budget(current.stage_budget_s),
+        _budget(current.mode_a_budget_s),
         current.log_level,
         current.machine_email,
         current.supabase_url or "<unset>",
         current.configured,
         "loaded" if _SOLVE_REQUEST_VALIDATOR is not None else f"UNREADABLE at {SCHEMA_PATH}",
     )
+
+
+def _budget(seconds: float | None) -> str:
+    """A configured allowance, or the words that stand in for one nobody configured.
+
+    Never the engine's literal: printing 120 here would put the number in a third place, and the
+    campaign reads this line to tell a container that was TOLD 120 from one that merely fell through
+    to it — which is the whole difference between a measured cell and a guess.
+    """
+    return "<engine-default>" if seconds is None else f"{seconds:g}"
 
 
 def _verify_credential(current: Settings) -> None:

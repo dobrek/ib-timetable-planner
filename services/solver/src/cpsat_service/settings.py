@@ -20,6 +20,7 @@ to start over `SOLVER_WORKERS=eight` fails a health probe that would otherwise h
 from __future__ import annotations
 
 import logging
+import math
 import os
 import sys
 from collections.abc import Mapping
@@ -34,8 +35,9 @@ DEFAULT_WORKERS = 8
 
 # How many solves may run at once. One, because one solve already claims `DEFAULT_WORKERS` CP-SAT
 # workers for as long as the tier ladder runs (~23 minutes at the engine's default budgets — 300 s of
-# Mode A plus 9 × 120 s, or ~28 when the clean-mode infeasibility fallback spends a second Mode A
-# budget the tier-1 transcript never shows): a second concurrent solve does not halve the wall clock,
+# Mode A plus 9 × 120 s, or up to ~28 when the clean-mode infeasibility fallback re-solves Mode A — a
+# second solve bounded by that budget, which the tier-1 transcript never shows): a second concurrent
+# solve does not halve the wall clock,
 # it doubles both and starves `/health` — whose
 # answerability under load is the whole argument for running the solve on a plain thread. Raise it
 # per deployment when the container is sized for it; the cap exists so a burst of dispatches is
@@ -224,8 +226,8 @@ def _read_positive_float(name: str, fallback: str) -> float | None:
     except ValueError:
         print(f"{name}={raw!r} is not a number — falling back to {fallback}", file=sys.stderr)
         return None
-    if value <= 0:
-        print(f"{name}={value} is not positive — falling back to {fallback}", file=sys.stderr)
+    if value <= 0 or not math.isfinite(value):
+        print(f"{name}={value} is not a finite positive number — falling back to {fallback}", file=sys.stderr)
         return None
     return value
 

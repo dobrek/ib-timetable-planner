@@ -13,6 +13,12 @@ import { createLocalSupabase } from "./local-supabase";
  *   ANALYZE_SOURCE_PLAN=<plan-id> pnpm analyze:jobs
  *   ANALYZE_JOBS=<job-id>,<job-id> pnpm analyze:jobs
  *   ANALYZE_ALLOW_REMOTE=1 ANALYZE_JOBS=… pnpm analyze:jobs      # against the hosted project
+ *   ANALYZE_MODE_A_BUDGET_S=600 ANALYZE_JOBS=… pnpm analyze:jobs  # rows solved under another Mode A
+ *
+ * The row records neither its budgets nor its worker count, so the Mode A bound the flag names
+ * defaults to the Worker's CURRENT constant and is printed at the top of the report: a row solved
+ * under an earlier cell is re-read with `ANALYZE_MODE_A_BUDGET_S` set to that cell's value, and the
+ * header makes a ledger paste say which bound it was read against.
  *
  * **Read-only by construction.** The only statement it issues is a `select`, and the hosted host is
  * refused unless `ANALYZE_ALLOW_REMOTE=1` is passed explicitly — the same deliberate override
@@ -55,13 +61,21 @@ describe("generation job analysis", () => {
 
   it.runIf(ready)("prints the per-stage transcript of each job and the per-tier summary", async () => {
     const jobs = await loadJobs();
+    const modeABudgetS = modeABudget(process.env.ANALYZE_MODE_A_BUDGET_S);
 
-    for (const job of jobs) console.log(`\n${formatJobReport(job, Number(CONTAINER_MODE_A_BUDGET_S))}`);
+    console.log(`\nMode A bound named by the flag: ${modeABudgetS} s (ANALYZE_MODE_A_BUDGET_S to override)`);
+    for (const job of jobs) console.log(`\n${formatJobReport(job, modeABudgetS)}`);
     console.log(`\n${formatTierSummary(jobs)}`);
 
     expect(jobs.length).toBeGreaterThan(0);
   });
 });
+
+/** The override wins when it is a positive number; anything else falls back to the Worker constant. */
+const modeABudget = (raw: string | undefined): number => {
+  const parsed = Number(raw);
+  return raw !== undefined && Number.isFinite(parsed) && parsed > 0 ? parsed : Number(CONTAINER_MODE_A_BUDGET_S);
+};
 
 const loadJobs = async (): Promise<JobReport[]> => {
   const supabase = createLocalSupabase({ allowRemote: process.env.ANALYZE_ALLOW_REMOTE === "1" });

@@ -434,8 +434,8 @@ No schema change. Phase 1 rolls the container once (image change); the campaign'
 
 #### Automated
 
-- [x] 2.1 `pnpm test` green including the new report test
-- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger` green
+- [x] 2.1 `pnpm test` green including the new report test — 968aece
+- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger` green — 968aece
 
 #### Manual
 

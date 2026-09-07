@@ -14,7 +14,12 @@
 #   optional: SOLVER_WORKERS · SOLVER_MAX_CONCURRENT_JOBS · SOLVER_LOG_LEVEL (read by the service)
 #             SOLVER_STAGE_TARGETS=tier=value[,tier=value] (e.g. 3=95,6=900) — stop those ladder
 #             stages once they reach the value instead of burning the budget. Unset = today's
-#             behaviour; shipping VALUES is S-308's, this is the knob that lets you measure them.
+#             behaviour; no VALUES ship, because a target belongs to a catalog and a season.
+#             SOLVER_STAGE_BUDGET_S · SOLVER_MODE_A_BUDGET_S — seconds per ladder stage, and for the
+#             Mode A completeness solve. Unset means the engine's own default (the literals live in
+#             SolveConfig, `cpsat_engine/solve.py`, and are not repeated anywhere else); production
+#             sets both from src/solver-container-env.ts. A small SOLVER_STAGE_BUDGET_S is the
+#             cheapest way to watch a whole ladder locally.
 #
 # See README § Running the solver service (dev) and docs/runbooks/solver-credential.md.
 set -eu

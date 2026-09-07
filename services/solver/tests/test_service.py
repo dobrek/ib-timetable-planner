@@ -751,6 +751,53 @@ def test_an_unconfigured_service_leaves_the_engine_exactly_as_it_was() -> None:
     assert [config.targets for config in configs] == [{}]
 
 
+def test_configured_budgets_reach_the_engine() -> None:
+    """The other half of the same path (S-308): env -> `Settings` -> `SolveConfig`, for the two time
+    allowances the campaign varies. The VALUES are the deployment's; what the service owes is that a
+    configured one actually arrives at the ladder rather than being read and dropped."""
+    configs: list[SolveConfig] = []
+
+    def record(dump: Dump, config: SolveConfig) -> SolveResult:
+        configs.append(config)
+        return solve_complete(dump, config)
+
+    budgeted = replace(SETTINGS, stage_budget_s=0.25, mode_a_budget_s=0.5)
+    fake = FakeSupabase()
+    fake.snapshot_hash = snapshot_hash(parse_snapshot(_micro_request()["snapshot"]))
+    registry = JobRegistry()
+    registry.register(JOB_ID)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", record)
+        run_job(
+            JOB_ID, _micro_request(), settings=budgeted, registry=registry, client_factory=fake.client_factory
+        )
+
+    assert [(config.stage_budget_s, config.mode_a_budget_s) for config in configs] == [(0.25, 0.5)]
+
+
+def test_an_unset_budget_leaves_the_engine_literal_exactly_as_it_was() -> None:
+    """The neutrality guarantee for budgets: the service must never SUPPLY a number it was not given.
+
+    `SolveConfig`'s dataclass literals are the single source of truth — `settings.py` does not repeat
+    them and neither does this assertion, which reads them off a default-constructed config. A
+    container with no budget env vars therefore solves byte-for-byte as it did before the knob."""
+    engine = SolveConfig()
+    configs: list[SolveConfig] = []
+
+    def record(dump: Dump, config: SolveConfig) -> SolveResult:
+        configs.append(config)
+        return solve_complete(dump, config)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("cpsat_service.runner.solve_complete", record)
+        _run(_micro_request(), FakeSupabase())
+
+    assert [(config.stage_budget_s, config.mode_a_budget_s) for config in configs] == [
+        (engine.stage_budget_s, engine.mode_a_budget_s)
+    ]
+
+
 def test_a_snapshot_that_is_not_the_enqueued_one_fails_before_solving() -> None:
     """Dispatch is unauthenticated and body-trusting, so the row's digest is what binds a body to the
     job id in its URL. `failed` rather than back to `queued`: the claim already moved the row to
@@ -1423,8 +1470,29 @@ def test_startup_logs_the_effective_non_secret_settings(
     )
     assert f"workers={SETTINGS.workers}" in startup
     assert "wire_contract=loaded" in startup
+    # Words, not numbers: an unset budget must not print the engine's literal, or the line could no
+    # longer tell a container that was TOLD 120 from one that merely fell through to it.
+    assert "stage_budget_s=<engine-default> mode_a_budget_s=<engine-default>" in startup
     assert SETTINGS.machine_password not in startup, "the password must never reach a log line"
     assert SETTINGS.supabase_key not in startup, "nor the key"
+
+
+def test_startup_names_the_budgets_a_deployment_configured(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A calibration run's only fingerprint besides `wallClockS`: the job row records neither budget,
+    so this line is what attributes a production solve to the cell it was run under."""
+    fake = FakeSupabase()
+    monkeypatch.setattr(app_module, "settings", replace(SETTINGS, stage_budget_s=60.0, mode_a_budget_s=300.0))
+    monkeypatch.setattr(app_module, "JobRowClient", fake.client_factory)
+
+    with caplog.at_level("INFO", logger="cpsat_service.app"), TestClient(app_module.app):
+        pass
+
+    startup = next(
+        record.getMessage() for record in caplog.records if "solver service starting" in record.message
+    )
+    assert "stage_budget_s=60 mode_a_budget_s=300" in startup
 
 
 # --- S-304: the lifespan shutdown, and the question the Durable Object asks ---------------------------

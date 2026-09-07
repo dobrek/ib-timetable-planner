@@ -1,7 +1,8 @@
 """The container's environment, read once at import.
 
 Exactly the three values `docs/runbooks/solver-credential.md` says the container holds — project
-URL, PUBLISHABLE key, machine password — plus two knobs with defaults. **No secret key, no
+URL, PUBLISHABLE key, machine password — plus the tuning knobs, every one of them defaulted so an
+unset environment is a fully working one. **No secret key, no
 service-role key, no JWT signing secret, ever**: a secret key cannot be scoped to a table or a role,
 so handing one to the solver would give a component that only ever sees UUIDs a full read of every
 student and teacher name in the database.
@@ -32,8 +33,10 @@ DEFAULT_MACHINE_EMAIL = "solver@ib-timetable-planner.dev"
 DEFAULT_WORKERS = 8
 
 # How many solves may run at once. One, because one solve already claims `DEFAULT_WORKERS` CP-SAT
-# workers for as long as the tier ladder runs (~21 minutes at the engine's default budgets): a second
-# concurrent solve does not halve the wall clock, it doubles both and starves `/health` — whose
+# workers for as long as the tier ladder runs (~23 minutes at the engine's default budgets — 300 s of
+# Mode A plus 9 × 120 s, or ~28 when the clean-mode infeasibility fallback spends a second Mode A
+# budget the tier-1 transcript never shows): a second concurrent solve does not halve the wall clock,
+# it doubles both and starves `/health` — whose
 # answerability under load is the whole argument for running the solve on a plain thread. Raise it
 # per deployment when the container is sized for it; the cap exists so a burst of dispatches is
 # REFUSED (503) rather than silently accepted and then thrashed.
@@ -80,6 +83,14 @@ class Settings:
     # Seconds between the running job's `heartbeat_at` renewals (S-304). Defaulted so a test can
     # shrink it to milliseconds and assert on the timer without waiting on the real cadence.
     heartbeat_interval_s: float = DEFAULT_HEARTBEAT_INTERVAL_S
+    # The ladder's time allowances, per stage and for Mode A (S-308). `None` is not "zero" and not a
+    # number this module knows — it means "whatever `SolveConfig` defaults to", and `runner.py`
+    # honours it by not passing the field at all. The literals stay in the engine, their single
+    # source of truth; repeating them here would create a second one that drifts silently. Unlike
+    # `stage_targets`, these are WALL CLOCK and therefore hardware-dependent: the values production
+    # runs under are pinned on the Worker side (`src/solver-container-env.ts`) and measured there.
+    stage_budget_s: float | None = None
+    mode_a_budget_s: float | None = None
 
     @property
     def configured(self) -> bool:
@@ -113,6 +124,8 @@ def load_settings() -> Settings:
         log_level=_log_level(),
         stage_targets=_stage_targets(),
         heartbeat_interval_s=_positive_float("SOLVER_HEARTBEAT_INTERVAL_S", DEFAULT_HEARTBEAT_INTERVAL_S),
+        stage_budget_s=_optional_positive_float("SOLVER_STAGE_BUDGET_S"),
+        mode_a_budget_s=_optional_positive_float("SOLVER_MODE_A_BUDGET_S"),
     )
 
 
@@ -186,17 +199,34 @@ def _positive_float(name: str, default: float) -> float:
     Zero or negative would turn the heartbeat's `Event.wait(interval)` into a spin loop writing to
     PostgREST as fast as the network allows — a misconfiguration that costs a row, not a container.
     """
+    parsed = _read_positive_float(name, str(default))
+    return default if parsed is None else parsed
+
+
+def _optional_positive_float(name: str) -> float | None:
+    """The same rule where ABSENCE carries a meaning of its own: `None` says "the engine's default".
+
+    A budget this module cannot name is a budget it cannot drift from. `runner.py` reads `None` as
+    "do not pass the field", so an unconfigured container solves byte-for-byte as it did before the
+    knob existed — the same neutrality guarantee `SOLVER_STAGE_TARGETS` ships under.
+    """
+    return _read_positive_float(name, "the engine default")
+
+
+def _read_positive_float(name: str, fallback: str) -> float | None:
+    """Parse a positive duration; `None` for unset, malformed, or non-positive — the latter two with
+    a complaint naming `fallback`, whatever the caller is about to use instead."""
     raw = os.environ.get(name)
     if raw is None:
-        return default
+        return None
     try:
         value = float(raw)
     except ValueError:
-        print(f"{name}={raw!r} is not a number — falling back to {default}", file=sys.stderr)
-        return default
+        print(f"{name}={raw!r} is not a number — falling back to {fallback}", file=sys.stderr)
+        return None
     if value <= 0:
-        print(f"{name}={value} is not positive — falling back to {default}", file=sys.stderr)
-        return default
+        print(f"{name}={value} is not positive — falling back to {fallback}", file=sys.stderr)
+        return None
     return value
 
 

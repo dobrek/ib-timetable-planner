@@ -348,7 +348,7 @@ jobs:
           docker buildx version
 
       # wranglerVersion pins the action's installed Wrangler to the repo's devDependency
-      # (package.json `^4.102.0` → lockfile 4.102.0) so CI deploys with the version the app
+      # (package.json `4.130.0` → lockfile 4.130.0) so CI deploys with the version the app
       # is built against. Keep in lockstep with the `wrangler` devDependency on bumps.
       #
       # One command, three side effects since S-302: it uploads the Worker, and it builds and pushes
@@ -375,4 +375,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
-          wranglerVersion: "4.102.0"
+          wranglerVersion: "4.130.0"

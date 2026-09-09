@@ -33,7 +33,7 @@ dev = [
   # drives itself through httpx2 and warns (soon: fails) when only httpx 0.x is present. The service
   # deliberately stays on `httpx`, which is the client the runbook settled on and the one the
   # ortools pins were verified against — this dependency buys the test harness, nothing else.
-  "httpx2>=2",
+  "httpx2>=2.12",
   # jsonschema ships no inline types; without this stub package `--strict` reports the whole
   # contract test module as untyped rather than checking it.
   "types-jsonschema>=4",

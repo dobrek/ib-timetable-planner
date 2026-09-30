@@ -779,16 +779,16 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 
 #### Automated
 
-- [x] 2.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean
-- [x] 2.2 `mise run solver:check` green, including shellcheck on the edited `tier3.sh`
-- [x] 2.3 The nine-key pin test still lists exactly nine keys
+- [x] 2.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean — 27d9cb9
+- [x] 2.2 `mise run solver:check` green, including shellcheck on the edited `tier3.sh` — 27d9cb9
+- [x] 2.3 The nine-key pin test still lists exactly nine keys — 27d9cb9
 
 #### Manual
 
-- [x] 2.4 Under tier 3 with `CALIBRATION_STAGE_BUDGET_S=5`, the startup line and the row's `solver_config` both show 5
-- [x] 2.5 `GET` on the route reports `running: false` before a Generate and `running: true` during one
-- [x] 2.6 `stop-if-idle` answers `busy` during a solve and stops the container after it
-- [x] 2.7 The route answers 404 with the allowlist unset, and 403 for an account outside it
+- [x] 2.4 Under tier 3 with `CALIBRATION_STAGE_BUDGET_S=5`, the startup line and the row's `solver_config` both show 5 — 27d9cb9
+- [x] 2.5 `GET` on the route reports `running: false` before a Generate and `running: true` during one — 27d9cb9
+- [x] 2.6 `stop-if-idle` answers `busy` during a solve and stops the container after it — 27d9cb9
+- [x] 2.7 The route answers 404 with the allowlist unset, and 403 for an account outside it — 27d9cb9
 - [ ] 2.8 Merged to `main` with no job active on production, and the `Deploy` job finished green
 
 ### Phase 3: Analyzer extensions

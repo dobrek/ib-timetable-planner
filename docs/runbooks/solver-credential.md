@@ -45,7 +45,7 @@ PostgREST                   set role solver_job_writer   (authenticator holds me
         │
         ▼
 Postgres                    GRANT: on generation_jobs COLUMNS only, never the
-                                   table — select on five, update on eleven
+                                   table — select on five, update on twelve
                             RLS:   read any job; update only non-terminal ones,
                                    only into a state the solver may declare
 ```

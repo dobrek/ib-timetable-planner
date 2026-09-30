@@ -120,6 +120,7 @@ class FakeSupabase:
         snapshot_hash: str | None = None,
         access_token: str = ACCESS_TOKEN,
         progress_response: httpx.Response | Exception | None = None,
+        solver_config_response: httpx.Response | None = None,
         stop_requested_after: int | None = None,
     ) -> None:
         self._lock = threading.Lock()
@@ -131,6 +132,9 @@ class FakeSupabase:
         #: What a `running -> running` write answers with. A response models the edge failing or the
         #: row having moved on; an exception models the connection never landing.
         self.progress_response = progress_response
+        #: What a `running -> running` write CARRYING `solver_config` answers with — the column
+        #: rejected (a missing grant, a schema without the column) while every other write lands.
+        self.solver_config_response = solver_config_response
         #: How many `running -> running` writes answer a null `stop_requested_at` before the column
         #: comes back set — the author pressing Stop & keep mid-solve, seen from the wire. None
         #: leaves it null forever, which is every other test in this file.
@@ -157,6 +161,10 @@ class FakeSupabase:
         """The `running -> running` writes, in order."""
         return [call for call in self.patches() if call.params.get("status") == "eq.running"]
 
+    def config_patches(self) -> list[RecordedCall]:
+        """The progress writes that record the run's configuration, in order."""
+        return [call for call in self.progress_patches() if "solver_config" in call.body]
+
     def finish_patch(self) -> RecordedCall:
         """The terminal write — the only PATCH that carries no status filter at all, because RLS,
         not a filter, is what bounds which transitions it may make."""
@@ -177,6 +185,9 @@ class FakeSupabase:
                 self.sign_in_count += 1
                 return httpx.Response(200, json={"access_token": self.access_token, "token_type": "bearer"})
             if call.path == "/rest/v1/generation_jobs":
+                carries_config = isinstance(call.body, dict) and "solver_config" in call.body
+                if carries_config and self.solver_config_response is not None:
+                    return self.solver_config_response
                 if call.params.get("status") == "eq.running" and self.progress_response is not None:
                     if isinstance(self.progress_response, Exception):
                         raise self.progress_response
@@ -461,7 +472,7 @@ def test_successful_solve_claims_then_writes_the_result() -> None:
 
 
 def test_every_written_column_is_inside_the_grant() -> None:
-    """The role holds UPDATE on exactly 11 columns; anything else is a `42501` at runtime. Cheaper
+    """The role holds UPDATE on exactly 12 columns; anything else is a `42501` at runtime. Cheaper
     to pin the payload here than to discover it against the live stack."""
     granted = {
         "status",
@@ -475,6 +486,7 @@ def test_every_written_column_is_inside_the_grant() -> None:
         "stages",
         "checkpoint",
         "checkpoint_stage_index",
+        "solver_config",
     }
     fake = FakeSupabase()
 
@@ -616,7 +628,7 @@ def test_a_started_write_says_only_which_tier_is_running() -> None:
 
     _run(_micro_request(), fake)
 
-    first = fake.progress_patches()[0]
+    first = next(p for p in fake.progress_patches() if "stage_index" in p.body)
     assert set(first.body) == {"stage_index", "stage_name", "heartbeat_at"}, (
         "a write must never blank a column it has nothing to say about"
     )
@@ -796,6 +808,111 @@ def test_an_unset_budget_leaves_the_engine_literal_exactly_as_it_was() -> None:
     assert [(config.stage_budget_s, config.mode_a_budget_s) for config in configs] == [
         (engine.stage_budget_s, engine.mode_a_budget_s)
     ]
+
+
+# --- the run record: the row says what solved it ------------------------------------------------------
+
+
+def test_the_run_record_is_written_before_the_first_stage_with_the_effective_values() -> None:
+    """Attribution as a fact on the row: the record lands after the claim and before the ladder's
+    first `started`, so a row that has begun solving already says what it is solving under. The
+    numbers are the ENGINE's — read off a default `SolveConfig` here, never restated."""
+    engine = SolveConfig()
+    fake = FakeSupabase()
+
+    _run(_micro_request(), fake)
+
+    progress = fake.progress_patches()
+    assert "solver_config" in progress[0].body, "the record precedes every stage report"
+    assert set(progress[0].body) == {"solver_config", "heartbeat_at"}, (
+        "a write must never blank a column it has nothing to say about"
+    )
+    record = progress[0].body["solver_config"]
+    assert record["version"] == 1
+    assert record["workers"] == SETTINGS.workers
+    assert record["stageBudgetS"] == engine.stage_budget_s
+    assert record["modeABudgetS"] == engine.mode_a_budget_s
+    assert record["seed"] == engine.seed
+    assert record["targets"] == {}
+    assert record["preset"] == DEFAULT_PRESET
+    assert record["cleanMode"] is PRESETS[DEFAULT_PRESET].clean_mode
+    assert set(record["host"]) == {"machine", "cpuCount", "ortools"}
+    assert record["host"]["machine"], "the fingerprint that tells a laptop from the container"
+    assert "cleanFallback" not in record, "only the solve can say whether the fallback fired"
+
+
+def test_an_unset_budget_reads_engine_default_and_a_configured_one_reads_configured() -> None:
+    """The difference between a measured cell and a guess: a container TOLD 120 and one that fell
+    through to 120 solve alike, and only the source flag can tell them apart."""
+    unset, configured = FakeSupabase(), FakeSupabase()
+
+    _run(_micro_request(), unset)
+    _run_registered(
+        _micro_request(), configured, _registered(), settings=replace(SETTINGS, stage_budget_s=5.0)
+    )
+
+    assert unset.config_patches()[0].body["solver_config"]["budgetSource"] == {
+        "stage": "engine-default",
+        "modeA": "engine-default",
+    }
+    record = configured.config_patches()[0].body["solver_config"]
+    assert record["budgetSource"] == {"stage": "configured", "modeA": "engine-default"}
+    assert record["stageBudgetS"] == 5.0
+
+
+def test_configured_targets_are_recorded_with_their_tiers() -> None:
+    fake = FakeSupabase()
+
+    targeted = replace(SETTINGS, stage_targets={6: 900, 3: 95})
+
+    _run_registered(_micro_request(), fake, _registered(), settings=targeted)
+
+    assert fake.config_patches()[0].body["solver_config"]["targets"] == {"3": 95, "6": 900}
+
+
+def test_the_last_progress_write_before_the_terminal_write_says_whether_the_fallback_fired() -> None:
+    """The second record, under the clean default: the whole object again, now with `cleanFallback`,
+    and still before `finish` — the terminal write must never carry a column it could lose the board
+    over."""
+    fake = FakeSupabase()
+
+    _run(_micro_request(), fake)
+
+    progress = fake.progress_patches()
+    last = progress[-1].body["solver_config"]
+    assert last["cleanFallback"] is False, "the micro instance is clean-satisfiable"
+    assert {key: value for key, value in last.items() if key != "cleanFallback"} == (
+        fake.config_patches()[0].body["solver_config"]
+    ), "the second write rewrites the whole object; only the fallback is new"
+    assert "solver_config" not in fake.finish_patch().body
+
+
+def test_a_policy_without_clean_mode_records_once_and_never_names_the_fallback() -> None:
+    fake = FakeSupabase()
+
+    _run(_micro_request(policy="canonical"), fake)
+
+    records = [patch.body["solver_config"] for patch in fake.config_patches()]
+    assert len(records) == 1, "nothing new to say after the solve, so nothing is rewritten"
+    assert records[0]["cleanMode"] is False
+    assert "cleanFallback" not in records[0]
+
+
+def test_a_rejected_run_record_leaves_the_solve_succeeding(caplog: pytest.LogCaptureFixture) -> None:
+    """The placement argument, pinned: a column the database refuses — a missing grant, a schema
+    without the column — costs the record and nothing else. In the claim it would have wedged the
+    row at `queued`; in `finish` it would have lost the board."""
+    rejected = httpx.Response(
+        400, json={"code": "PGRST204", "message": "Could not find the 'solver_config' column"}
+    )
+    fake = FakeSupabase(solver_config_response=rejected)
+
+    with caplog.at_level("WARNING", logger="cpsat_service.supabase"):
+        _run(_micro_request(), fake)
+
+    assert fake.config_patches(), "the write was attempted"
+    assert fake.finish_patch().body["status"] == "succeeded"
+    assert any("progress write failed" in record.message for record in caplog.records)
 
 
 def test_a_snapshot_that_is_not_the_enqueued_one_fails_before_solving() -> None:

@@ -763,16 +763,16 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 
 #### Automated
 
-- [ ] 1.1 `pnpm exec supabase db reset` applies every migration cleanly
-- [ ] 1.2 `mise run solver:check` and `mise run solver:test` green, objective parity at exactly 10/10
-- [ ] 1.3 `pnpm test:integration` green for `solver-credential` and `solver-transport` with the solver running
-- [ ] 1.4 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean
-- [ ] 1.5 `mise run solver:image:build` and `mise run solver:image:smoke` pass
+- [x] 1.1 `pnpm exec supabase db reset` applies every migration cleanly
+- [x] 1.2 `mise run solver:check` and `mise run solver:test` green, objective parity at exactly 10/10
+- [x] 1.3 `pnpm test:integration` green for `solver-credential` and `solver-transport` with the solver running
+- [x] 1.4 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean
+- [x] 1.5 `mise run solver:image:build` and `mise run solver:image:smoke` pass
 
 #### Manual
 
-- [ ] 1.6 A local Generate leaves a row whose `solver_config` names the local solver's workers, budgets and host
-- [ ] 1.7 `budgetSource.stage` reads `engine-default` when unset and `configured` when set to 5
+- [x] 1.6 A local Generate leaves a row whose `solver_config` names the local solver's workers, budgets and host
+- [x] 1.7 `budgetSource.stage` reads `engine-default` when unset and `configured` when set to 5
 - [ ] 1.8 Merged to `main` with no job active on production, and the `Deploy` job finished green
 
 ### Phase 2: Worker control surface

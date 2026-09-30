@@ -9,8 +9,9 @@
  * no `Request`, no `Response`, no `Headers`, no `fetch`. That is what keeps `pnpm check` at 0/0.
  *
  * Consumers: `src/worker.ts` (the Worker entry), `src/solver-container.ts` (the container's Durable
- * Object) and `src/entities/timetable/api/solver-config.ts` (the transport selector). Nothing else
- * should need Workers types; if a fourth consumer appears, ask whether it belongs at the edge.
+ * Object), `src/entities/timetable/api/solver-config.ts` (the transport selector) and its sibling
+ * `solver-container-control.ts` (the operator route's binding access, 2026-09). Nothing else should
+ * need Workers types; if another consumer appears, ask whether it belongs at the edge.
  *
  * The models below are **minimal, not complete**. Each is trimmed to the surface we actually call,
  * and says so where the simplification is load-bearing.
@@ -44,6 +45,16 @@ declare namespace Cloudflare {
      *  differs from the Worker's: under local `wrangler dev` the Worker reaches the stack at
      *  `127.0.0.1`, which inside the container is the container. See `solver-container-env.ts`. */
     SOLVER_SUPABASE_URL?: string;
+    /** **Campaign-only, and normally unset** (2026-09, S-308's calibration automation). Each replaces
+     *  one pinned tuning constant at the container's next cold start, so production may diverge from
+     *  `main` while one is set. Read through `effectiveTuning` in `solver-container-env.ts`, which
+     *  ignores a malformed or out-of-range value. */
+    CALIBRATION_WORKERS?: string;
+    CALIBRATION_STAGE_BUDGET_S?: string;
+    CALIBRATION_MODE_A_BUDGET_S?: string;
+    /** Comma-separated emails allowed to use `/api/solver/container`. Unset or empty allows nobody,
+     *  and the route then answers 404 to everyone. */
+    SOLVER_OPS_ALLOWED_EMAILS?: string;
   }
 }
 

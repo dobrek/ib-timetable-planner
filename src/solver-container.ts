@@ -1,6 +1,7 @@
 import { Container, type StopParams } from "@cloudflare/containers";
-import { ACTIVE_JOBS_URL, ACTIVE_PROBE_TIMEOUT_MS, readActiveJobCount } from "./solver-container-active";
-import { solverContainerEnvVars } from "./solver-container-env";
+import { ACTIVE_JOBS_URL, ACTIVE_PROBE_TIMEOUT_MS, readActiveJobCountOrNull } from "./solver-container-active";
+import { effectiveTuning, solverContainerEnvVars } from "./solver-container-env";
+import { decideStop, type SolverContainerStatus, type StopIfIdleResult } from "./solver-container-ops";
 
 /**
  * The Durable Object that fronts the CP-SAT solver container.
@@ -107,8 +108,58 @@ export class SolverContainer extends Container<Env> {
     return error;
   }
 
-  /** The probe, with every unreadable answer collapsed to 0 — see `solver-container-active.ts`. */
+  /**
+   * **The operator's read (RPC, 2026-09).** Whether the container is running, the SDK's recorded state,
+   * the tuning the next cold start would receive, and the deployed `sleepAfter`.
+   *
+   * It never calls `containerFetch`: that would START a stopped container and renew its activity,
+   * turning a question into a cold start. `getState()` reads Durable Object storage only. Calling this
+   * still constructs the Durable Object, which re-arms the SDK's sleep timer — so nothing may call it
+   * while an idle-sleep boundary is being measured.
+   */
+  async status(): Promise<SolverContainerStatus> {
+    const state = await this.getState();
+    const status: SolverContainerStatus = {
+      running: this.ctx.container?.running === true,
+      state: state.status,
+      lastChange: state.lastChange,
+      effectiveTuning: effectiveTuning(this.env),
+      sleepAfter: this.sleepAfter,
+    };
+    // eslint-disable-next-line no-console
+    console.log(
+      `[solver-container] status: running=${status.running} state=${status.state} ` +
+        `overridden=${status.effectiveTuning.overridden.join(",") || "none"}`,
+    );
+    return status;
+  }
+
+  /**
+   * **The operator's stop (RPC, 2026-09), and only when idle.** A campaign forces a cold start with
+   * this, because a secret change leaves a warm container solving under the old values until it next
+   * boots. The decision is `decideStop`'s, and it is stricter than the sleep path's: a probe that
+   * cannot tell refuses the stop rather than risking a live solve. A stopped container is never
+   * probed, for the reason `onActivityExpired` gives.
+   *
+   * The stop is the SDK's graceful SIGTERM, so a solve that started between the probe and the signal
+   * still takes S-304's interrupted-with-checkpoint path rather than being lost.
+   */
+  async stopIfIdle(): Promise<StopIfIdleResult> {
+    const running = this.ctx.container?.running === true;
+    const outcome = decideStop(running, running ? await this.probeActiveJobs() : null);
+    // eslint-disable-next-line no-console
+    console.log(`[solver-container] stop-if-idle: ${outcome}`);
+    if (outcome === "stop") await this.stop();
+    return { outcome };
+  }
+
+  /** The sleep path's reading: every unreadable answer is 0 — see `solver-container-active.ts`. */
   private async countActiveJobs(): Promise<number> {
+    return (await this.probeActiveJobs()) ?? 0;
+  }
+
+  /** The probe itself, with "could not tell" kept as `null` so each caller decides what it means. */
+  private async probeActiveJobs(): Promise<number | null> {
     try {
       const response = await this.containerFetch(ACTIVE_JOBS_URL, {
         signal: AbortSignal.timeout(ACTIVE_PROBE_TIMEOUT_MS),
@@ -116,13 +167,13 @@ export class SolverContainer extends Container<Env> {
       if (!response.ok) {
         // eslint-disable-next-line no-console
         console.log(`[solver-container] active-jobs probe answered HTTP ${response.status}`);
-        return 0;
+        return null;
       }
-      return readActiveJobCount(await response.text());
+      return readActiveJobCountOrNull(await response.text());
     } catch (error) {
       // eslint-disable-next-line no-console
       console.log("[solver-container] active-jobs probe failed", error);
-      return 0;
+      return null;
     }
   }
 }

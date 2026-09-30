@@ -251,13 +251,14 @@ mise run solver:tier3          # TIER3_PORT=8790 to move it off :8787
 
 It rewrites `.dev.vars`, rebuilds, then runs `wrangler dev --enable-containers`. **That order is load-bearing** — see the rebuild note under [Environment Profiles](#environment-profiles). Ctrl-C restores `pnpm env:local`. Generate on a local plan, and the POST appears in the container's `docker logs`.
 
-Three edits go into `.dev.vars`, all before the build — because **`wrangler dev` builds the Worker's `env` from that file, not from your shell**, and `SolverContainer` can only forward what the Worker actually holds:
+Up to four edits go into `.dev.vars`, all before the build — because **`wrangler dev` builds the Worker's `env` from that file, not from your shell**, and `SolverContainer` can only forward what the Worker actually holds:
 
 - **`SOLVER_URL` removed**, so `getSolverTransport()` falls through to the binding. This is the point of the tier.
 - **`SOLVER_SUPABASE_URL` added**, pointing at `host.docker.internal`. The Worker and the container need _different_ Supabase URLs: the Worker runs on the host and reaches the stack at `127.0.0.1`, which inside the container is the container's own loopback — every request refused, the startup check kills the process, and `startAndWaitForPorts` times out 45 s later.
 - **`SOLVER_MACHINE_PASSWORD` added** from your shell. In production this is a Worker secret (`wrangler secret put`); locally it has nowhere else to come from.
+- **The campaign's control-surface keys added, when your shell sets them** — `CALIBRATION_WORKERS`, `CALIBRATION_STAGE_BUDGET_S`, `CALIBRATION_MODE_A_BUDGET_S`, `SOLVER_OPS_ALLOWED_EMAILS` — so the cell overrides and `/api/solver/container` can be rehearsed against a real container (e.g. `CALIBRATION_STAGE_BUDGET_S=5 SOLVER_OPS_ALLOWED_EMAILS=you@example.test mise run solver:tier3`).
 
-The last two are inert in production — no such Worker secret exists there. Both are dropped again by the exit trap's `pnpm env:local`.
+The last three are inert in production unless a calibration campaign sets them there on purpose. All are dropped again by the exit trap's `pnpm env:local`.
 
 > **The failure this prevents.** Without the password the container still starts: `settings.py` lets an unconfigured service boot so `/health` answers on a bare container, and the credential check _skips itself_. The container then refuses every dispatch with a **503** — the job is marked `failed` and the clone deleted — so tier 3 proves nothing. (Until 2026-08-18 the unconfigured service _accepted_ the job and the row wedged at `queued`; `solve` now refuses work when unconfigured.) The same applies in production if the Worker is missing the `SOLVER_MACHINE_PASSWORD` secret — which is why setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md), not a formality.
 
@@ -315,13 +316,19 @@ The same flag is the only way to make `--dry-run` Docker-free: a plain `wrangler
 
 Production secrets are stored on the Worker via `pnpm exec wrangler secret put`:
 
-| Worker secret             | Used by                                                                   |
-| ------------------------- | ------------------------------------------------------------------------- |
-| `SUPABASE_URL`            | the Worker, and forwarded to the container                                |
-| `SUPABASE_KEY`            | the Worker (publishable), and forwarded to the container                  |
-| `SOLVER_MACHINE_PASSWORD` | **the container only** — the Worker is a courier and never uses it itself |
+| Worker secret                 | Used by                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `SUPABASE_URL`                | the Worker, and forwarded to the container                                |
+| `SUPABASE_KEY`                | the Worker (publishable), and forwarded to the container                  |
+| `SOLVER_MACHINE_PASSWORD`     | **the container only** — the Worker is a courier and never uses it itself |
+| `CALIBRATION_WORKERS`         | **campaign-only, normally unset** — overrides `CONTAINER_WORKERS`         |
+| `CALIBRATION_STAGE_BUDGET_S`  | **campaign-only, normally unset** — overrides `CONTAINER_STAGE_BUDGET_S`  |
+| `CALIBRATION_MODE_A_BUDGET_S` | **campaign-only, normally unset** — overrides `CONTAINER_MODE_A_BUDGET_S` |
+| `SOLVER_OPS_ALLOWED_EMAILS`   | **campaign-only, normally unset** — who may call `/api/solver/container`  |
 
 > The Worker gains no new privilege by carrying the third one: a Cloudflare container cannot read Worker secrets on its own (there is no `containers[].configuration.secrets`), so `SolverContainer` reads them and passes them down through `envVars`. **If `SOLVER_MACHINE_PASSWORD` is missing, every generation fails** — the container still boots (`/health` must answer on a bare container, so its credential check skips itself) but `solve` refuses work with a 503, so the row is marked `failed` and the clone deleted. Loud, but every Generate fails until the secret is set — setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
+
+> **While a `CALIBRATION_*` secret is set, production is not what `main` says.** The overrides exist so S-308's calibration campaign can switch a cell in seconds without a merge (a merge rolls the container). `src/solver-container-env.ts` still pins the production defaults, and an override outside its bounds is ignored. To see what is live: `GET /api/solver/container` as an allowlisted operator reports `effectiveTuning.overridden`, and every job row's `solver_config` records the values that actually solved it. The campaign runner deletes the overrides when it parks or cleans up; if one outlives the campaign, `pnpm exec wrangler secret delete <name>` removes it. With `SOLVER_OPS_ALLOWED_EMAILS` unset, the route answers 404 to everyone.
 
 ### Rollback
 

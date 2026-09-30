@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readActiveJobCount } from "./solver-container-active";
+import { readActiveJobCount, readActiveJobCountOrNull } from "./solver-container-active";
 
 /**
  * The stay-awake decision, pinned as a pure function. The `onActivityExpired` override around it is
@@ -39,5 +39,32 @@ describe("readActiveJobCount", () => {
     // Nothing legitimate sends one; the point is that the caller compares against 0 and never has to
     // reason about what `1.5 > 0` means downstream.
     expect(readActiveJobCount('{"active":1.9}')).toBe(1);
+  });
+});
+
+/**
+ * The stop decision's reader: the same body, but "could not tell" stays distinguishable from "idle".
+ * An operator stop on a misread answer is a deliberate kill of a live solve, so nothing unreadable may
+ * come back as 0 here.
+ */
+describe("readActiveJobCountOrNull", () => {
+  it("reads a live solve and an idle container exactly as the sleep path does", () => {
+    expect(readActiveJobCountOrNull('{"active":1}')).toBe(1);
+    expect(readActiveJobCountOrNull('{"active":0}')).toBe(0);
+    expect(readActiveJobCountOrNull('{"active":1.9}')).toBe(1);
+  });
+
+  it.each([
+    ["non-JSON", "not json at all"],
+    ["an empty body", ""],
+    ["HTML from a proxy", "<html>502</html>"],
+    ["a missing field", "{}"],
+    ["a null field", '{"active":null}'],
+    ["a stringified count", '{"active":"1"}'],
+    ["a JSON array", "[1]"],
+    ["a bare number", "3"],
+    ["a negative count", '{"active":-1}'],
+  ])("answers null for %s — could not tell is not idle", (_why, body) => {
+    expect(readActiveJobCountOrNull(body)).toBeNull();
   });
 });

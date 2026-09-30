@@ -369,10 +369,14 @@ jobs:
       # If the daemon is ever unreachable from the action, the documented fallback is
       # `preCommands: pnpm exec wrangler containers build -p -t …` — do not pre-build in a separate
       # step, which would decouple the image from the config wrangler deploys against.
+      #
+      # `--message` stamps each Worker version with the commit it was built from, so
+      # `wrangler deployments list` maps every live version to a SHA — and an out-of-band deploy
+      # (a manual `wrangler deploy`, a secret change) shows up as the one version that carries none.
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy --message "${{ github.sha }}"
           wranglerVersion: "4.130.0"

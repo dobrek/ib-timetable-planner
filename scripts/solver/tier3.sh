@@ -77,8 +77,8 @@ trap 'exit 143' TERM
 #      production they are Worker secrets the campaign runner sets and removes; here, as with the
 #      password, `.dev.vars` is the only way the Worker can see them.
 #
-# Keys 2-4 are inert in production unless the campaign sets them there on purpose. All are written
-# to `.dev.vars` (gitignored) and dropped again by the trap's `pnpm env:local`; the build's copy under
+# Key 2 has no production counterpart, and the keys in 4 exist there only while a campaign sets
+# them; key 3 is a required production Worker secret. All are written to `.dev.vars` (gitignored) and dropped again by the trap's `pnpm env:local`; the build's copy under
 # `dist/server/` is gitignored too and is overwritten by the next build.
 #
 # **The ordering is load-bearing**: `astro build` snapshots the root `.dev.vars` into

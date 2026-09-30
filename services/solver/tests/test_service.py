@@ -898,6 +898,21 @@ def test_a_policy_without_clean_mode_records_once_and_never_names_the_fallback()
     assert "cleanFallback" not in records[0]
 
 
+def test_a_latched_run_records_once_so_nothing_queues_ahead_of_its_terminal_write() -> None:
+    """A stop's terminal write runs against the shutdown's join budget. The fallback rewrite would put
+    a whole progress round trip ahead of it, for a fact a stopped ladder may only half-know."""
+    fake = FakeSupabase()
+    registry = _registered()
+    assert registry.request_stop(JOB_ID, "shutdown") is True
+
+    _run_registered(_micro_request(), fake, registry)
+
+    records = [patch.body["solver_config"] for patch in fake.config_patches()]
+    assert len(records) == 1, "the pre-solve record only"
+    assert "cleanFallback" not in records[0]
+    assert fake.finish_patch().body["status"] == "interrupted"
+
+
 def test_a_rejected_run_record_leaves_the_solve_succeeding(caplog: pytest.LogCaptureFixture) -> None:
     """The placement argument, pinned: a column the database refuses — a missing grant, a schema
     without the column — costs the record and nothing else. In the claim it would have wedged the

@@ -15,7 +15,8 @@
  * constants without a merge, so a campaign cell is a `wrangler secret bulk` rather than a deploy that
  * rolls the container. The constants stay the visible production default; an override is visible in
  * `SolverContainer.status()` (`effectiveTuning.overridden`) and in every job row's `solver_config`,
- * and the campaign runner removes the secrets when it parks or cleans up.
+ * and removing them is the campaign runner's park and cleanup (planned: Phase 4 of
+ * `automate-production-calibration-campaign`); until it exists, `wrangler secret delete` does it.
  */
 export type SolverContainerEnv = {
   readonly SUPABASE_URL?: string;
@@ -68,7 +69,8 @@ type Bounds = { readonly min: number; readonly max: number; readonly integer: bo
 /**
  * What an override may say. Outside these it is ignored and the constant wins — a typo in a secret
  * must degrade to the production default, never to a container told to solve with 0 workers or a
- * day-long stage. The campaign runner validates Cell D against the same table before it sets a secret.
+ * day-long stage. The campaign runner (planned) is to validate Cell D against the same table before
+ * it sets a secret.
  *
  * Workers stop at 16: the container is `standard-4`, and past that CP-SAT is timesharing a handful of
  * vCPU. A stage stops at 30 minutes, past the whole ladder's UI ceiling; Mode A at an hour.

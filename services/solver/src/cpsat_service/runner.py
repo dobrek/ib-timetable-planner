@@ -302,14 +302,16 @@ def _solve_and_write(
     # handed, and it must be on the row before a twenty-minute solve rather than after it.
     _write_run_record(client, job_id, config, settings, policy)
     result = solve_complete(dump, config)
-    if result.clean_fallback is not None:
+    stop = _stop_outcome(entry)
+    if stop is None and result.clean_fallback is not None:
         # The one fact only the solve can supply. The whole object is rewritten rather than patched
-        # into, because a jsonb column is replaced by a PATCH, never merged.
+        # into, because a jsonb column is replaced by a PATCH, never merged. Not under a stop: the
+        # terminal write below then runs against the shutdown's join budget, and this would queue a
+        # whole progress round trip ahead of it for a fact a stopped ladder may only half-know.
         _write_run_record(client, job_id, config, settings, policy, clean_fallback=result.clean_fallback)
     stages = [wire_stage_report(stage) for stage in result.stages]
     outcome = result.notes.get("outcome")
 
-    stop = _stop_outcome(entry)
     if stop is not None:
         # The LATCH is the signal, not the transcript. `stoppedBy: "cancelled"` is recorded only
         # when `should_stop` fires at an improving solution, so an external `stop_search()` reads
@@ -440,7 +442,9 @@ def _write_run_record(
     """Best-effort, like every stage report: the record is worth a row, never a board.
 
     `progress` already swallows every failure of the write itself; the net here also covers building
-    the record, because this runs on the solving thread and nothing on it may cost the solve.
+    the record, because this runs on the solving thread and nothing on it may cost the solve. The host
+    fingerprint is the exception: `_HOST` is read at import, outside this net, which is safe only
+    because nothing in `_host_fingerprint` can raise.
     """
     try:
         record = run_record(config, settings, policy, clean_fallback=clean_fallback)

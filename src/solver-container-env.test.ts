@@ -4,6 +4,8 @@ import {
   CONTAINER_STAGE_BUDGET_S,
   CONTAINER_STAGE_TARGETS,
   CONTAINER_WORKERS,
+  effectiveTuning,
+  isValidCalibrationValue,
   solverContainerEnvVars,
 } from "./solver-container-env";
 
@@ -101,5 +103,90 @@ describe("solverContainerEnvVars", () => {
       "SUPABASE_KEY",
       "SUPABASE_URL",
     ]);
+  });
+});
+
+describe("calibration overrides", () => {
+  it("lets each CALIBRATION_* secret replace its pinned constant", () => {
+    const vars = solverContainerEnvVars({
+      CALIBRATION_WORKERS: "8",
+      CALIBRATION_STAGE_BUDGET_S: "240",
+      CALIBRATION_MODE_A_BUDGET_S: "600",
+    });
+    expect(vars).toMatchObject({
+      SOLVER_WORKERS: "8",
+      SOLVER_STAGE_BUDGET_S: "240",
+      SOLVER_MODE_A_BUDGET_S: "600",
+    });
+  });
+
+  it("reports which keys an override set, and only those", () => {
+    expect(effectiveTuning({ CALIBRATION_STAGE_BUDGET_S: "60" })).toEqual({
+      workers: 4,
+      stageBudgetS: 60,
+      modeABudgetS: 300,
+      stageTargets: "",
+      overridden: ["CALIBRATION_STAGE_BUDGET_S"],
+    });
+    expect(effectiveTuning({}).overridden).toEqual([]);
+  });
+
+  it("reads an empty or whitespace secret as unset, not as an override", () => {
+    // `wrangler secret bulk` cannot store "no value", so a parked key may linger as "".
+    const tuning = effectiveTuning({ CALIBRATION_WORKERS: "", CALIBRATION_STAGE_BUDGET_S: "  " });
+    expect(tuning.workers).toBe(Number(CONTAINER_WORKERS));
+    expect(tuning.stageBudgetS).toBe(Number(CONTAINER_STAGE_BUDGET_S));
+    expect(tuning.overridden).toEqual([]);
+  });
+
+  it("falls back to the constant on a malformed value", () => {
+    for (const raw of ["abc", "120s", "-60", "1e2", "0x10", "Infinity", "NaN"]) {
+      const tuning = effectiveTuning({ CALIBRATION_STAGE_BUDGET_S: raw });
+      expect(tuning.stageBudgetS, raw).toBe(Number(CONTAINER_STAGE_BUDGET_S));
+      expect(tuning.overridden, raw).toEqual([]);
+    }
+  });
+
+  it("falls back to the constant on an out-of-range value", () => {
+    expect(effectiveTuning({ CALIBRATION_WORKERS: "0" }).workers).toBe(Number(CONTAINER_WORKERS));
+    expect(effectiveTuning({ CALIBRATION_WORKERS: "17" }).workers).toBe(Number(CONTAINER_WORKERS));
+    expect(effectiveTuning({ CALIBRATION_STAGE_BUDGET_S: "0" }).stageBudgetS).toBe(Number(CONTAINER_STAGE_BUDGET_S));
+    expect(effectiveTuning({ CALIBRATION_STAGE_BUDGET_S: "1801" }).stageBudgetS).toBe(Number(CONTAINER_STAGE_BUDGET_S));
+    expect(effectiveTuning({ CALIBRATION_MODE_A_BUDGET_S: "3601" }).modeABudgetS).toBe(
+      Number(CONTAINER_MODE_A_BUDGET_S),
+    );
+  });
+
+  it("requires a whole number of workers but accepts a fractional budget", () => {
+    expect(effectiveTuning({ CALIBRATION_WORKERS: "4.5" }).overridden).toEqual([]);
+    expect(effectiveTuning({ CALIBRATION_STAGE_BUDGET_S: "7.5" }).stageBudgetS).toBe(7.5);
+  });
+
+  it("trims a well-formed value rather than refusing it", () => {
+    expect(effectiveTuning({ CALIBRATION_WORKERS: " 8 " }).workers).toBe(8);
+  });
+
+  it("never overrides the stage targets — a campaign measures budgets, not bounds", () => {
+    const vars = solverContainerEnvVars({ CALIBRATION_STAGE_BUDGET_S: "60" });
+    expect(vars.SOLVER_STAGE_TARGETS).toBe(CONTAINER_STAGE_TARGETS);
+  });
+
+  it("changes values, never keys — the nine-key set holds under a full override", () => {
+    const vars = solverContainerEnvVars({
+      CALIBRATION_WORKERS: "8",
+      CALIBRATION_STAGE_BUDGET_S: "60",
+      CALIBRATION_MODE_A_BUDGET_S: "300",
+    });
+    expect(Object.keys(vars).sort()).toEqual(Object.keys(solverContainerEnvVars({})).sort());
+  });
+});
+
+describe("isValidCalibrationValue", () => {
+  it("applies the same bounds the Worker applies", () => {
+    expect(isValidCalibrationValue("CALIBRATION_WORKERS", 8)).toBe(true);
+    expect(isValidCalibrationValue("CALIBRATION_WORKERS", 8.5)).toBe(false);
+    expect(isValidCalibrationValue("CALIBRATION_STAGE_BUDGET_S", 5)).toBe(true);
+    expect(isValidCalibrationValue("CALIBRATION_STAGE_BUDGET_S", 0)).toBe(false);
+    expect(isValidCalibrationValue("CALIBRATION_MODE_A_BUDGET_S", Number.NaN)).toBe(false);
   });
 });

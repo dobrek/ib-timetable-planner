@@ -23,7 +23,9 @@ set -eu
 # die <line>...
 #   Each argument is printed as its own stderr line, then exit 1. This is `wait_for_health`'s exit
 #   path; the moved guards keep their own verbatim `echo … >&2; exit 1` blocks so their remediation
-#   prose stays at the call site — do not retrofit them onto this.
+#   prose stays at the call site — do not retrofit them onto this. A helper that applies one guard
+#   to several values (tier3.sh's `append_literal`) may end in `die`, provided each call site still
+#   passes its remediation line.
 die() {
   for line in "$@"; do
     echo "$line" >&2

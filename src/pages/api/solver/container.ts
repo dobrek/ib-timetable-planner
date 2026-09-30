@@ -5,7 +5,7 @@ import { handleSolverContainerRoute, type SolverContainerRouteDeps } from "@/sol
 /**
  * The operator's control surface for the solver container — wiring only; every decision is in
  * `src/solver-container-route.ts`. Behind the deny-by-default middleware plus an explicit allowlist
- * (`SOLVER_OPS_ALLOWED_EMAILS`), and invisible when that allowlist is unset.
+ * (`SOLVER_OPS_ALLOWED_EMAILS`), answering 404 while that allowlist is unset.
  */
 export const GET: APIRoute = (context) =>
   handleSolverContainerRoute({ method: "GET", contentType: null, body: undefined }, deps(context.locals.user));

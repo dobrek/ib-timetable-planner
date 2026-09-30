@@ -2,7 +2,7 @@
  * Whether the solver container's operator allowlist is closed, and if not, whether it names `email`.
  *
  * - `closed`: `SOLVER_OPS_ALLOWED_EMAILS` is unset or empty. Deny-by-default, like the middleware:
- *   nobody may operate, and a route guarded by this should not admit that it exists.
+ *   nobody may operate, and a route guarded by this answers as though it were not found.
  * - `denied`: the list names someone, but not this address.
  * - `allowed`: the list names this address.
  *

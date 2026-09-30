@@ -39,7 +39,7 @@ const stop: SolverContainerRouteRequest = {
 };
 
 describe("handleSolverContainerRoute", () => {
-  it("is invisible (404) to a signed-in account when the allowlist is unset or empty", async () => {
+  it("answers 404 to a signed-in account when the allowlist is unset or empty", async () => {
     for (const allowlist of [undefined, "", " , "]) {
       const ops = control();
       const response = await handleSolverContainerRoute(get, deps({ allowlist, control: ops }));
@@ -89,6 +89,20 @@ describe("handleSolverContainerRoute", () => {
       expect(response.status, JSON.stringify(body)).toBe(400);
       expect(ops.stopIfIdle).not.toHaveBeenCalled();
     }
+  });
+
+  it("answers 503 as JSON when the container call itself fails", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    for (const request of [get, stop]) {
+      const ops = control();
+      ops.status.mockRejectedValue(new Error("Durable Object reset"));
+      ops.stopIfIdle.mockRejectedValue(new Error("Durable Object reset"));
+      const response = await handleSolverContainerRoute(request, deps({ control: ops }));
+      expect(response.status, request.method).toBe(503);
+      expect(await response.json()).toMatchObject({ retryable: true });
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    }
+    quiet.mockRestore();
   });
 
   it("refuses a stop that is not sent as JSON (415) — a cross-site form cannot reach it", async () => {

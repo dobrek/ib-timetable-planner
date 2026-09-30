@@ -144,6 +144,8 @@ Record shape, camelCase to match `stages`:
 
 `settings.py` must not repeat an engine literal: the effective number comes from the dataclass, the source flag from `Settings`.
 
+> **Addendum (impl-review, 2026-09-30):** the second write happens only when the solve reports a fallback fact (`result.clean_fallback is not None`, i.e. under `cleanMode`). A policy without clean mode gets one write, because the second would be byte-identical. Pinned by `test_a_policy_without_clean_mode_records_once_and_never_names_the_fallback`.
+
 #### 5. Engine surface for the fallback
 
 **File**: `services/solver/src/cpsat_engine/solve.py`
@@ -261,6 +263,8 @@ The "nothing beyond the nine documented keys" pin stays at nine: overrides chang
 **Intent**: Decide who may operate the container, deny-by-default.
 
 **Contract**: A pure predicate over an email and the raw secret value. An unset or empty secret allows nobody. Comparison is case-insensitive on the trimmed address.
+
+> **Addendum (impl-review, 2026-09-30):** shipped at the top level as `src/solver-container-allowlist.ts` (+ test), not in `src/shared/lib/ops-allowlist/`. Its only consumer is the top-level route handler (§7), so it joins the rest of the container wiring rather than opening a `shared/lib` folder with no FSD consumer. The predicate became a three-way `checkOpsAccess(email, allowlist) → "closed" | "denied" | "allowed"`, because the route answers an unset list (404) and an unlisted account (403) differently. Semantics are unchanged: empty allows nobody, and addresses are compared trimmed and case-insensitively. The secret is read by `getSolverOpsAllowlist()` in `src/entities/timetable/api/solver-container-control.ts`, beside the binding access (§5), because that is the module allowed to read `cloudflare:workers`. Trade-off accepted: the top-level `solver-container-*` family is not structure-checked by `steiger`.
 
 #### 7. The route
 

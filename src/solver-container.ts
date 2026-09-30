@@ -141,8 +141,11 @@ export class SolverContainer extends Container<Env> {
    * cannot tell refuses the stop rather than risking a live solve. A stopped container is never
    * probed, for the reason `onActivityExpired` gives.
    *
-   * The stop is the SDK's graceful SIGTERM, so a solve that started between the probe and the signal
-   * still takes S-304's interrupted-with-checkpoint path rather than being lost.
+   * The stop is the SDK's graceful SIGTERM, and awaiting the probe opens the input gate, so a dispatch
+   * can still land between the probe and the signal. That solve takes S-304's interrupted path: the
+   * row is never left wedged, but a solve stopped before its first stage has no checkpoint and
+   * delivers no board. The window is the probe's round trip; the campaign closes it by never
+   * stopping while a job is active on any plan.
    */
   async stopIfIdle(): Promise<StopIfIdleResult> {
     const running = this.ctx.container?.running === true;

@@ -8,6 +8,7 @@ import {
   course,
   createSolverTransport,
   LADDER_TIER_COUNT,
+  parseStoredSolverConfig,
   parseStoredStages,
   SolverDispatchError,
   type GenerationResult,
@@ -119,6 +120,14 @@ const POLL_INTERVAL_MS = 250;
       // same PATCH, so a heartbeat strictly LATER than `started_at` can only come from a stage event.
       expect(row.heartbeat_at).not.toBeNull();
       expect(new Date(row.heartbeat_at ?? 0).getTime()).toBeGreaterThan(new Date(row.started_at ?? 0).getTime());
+
+      // The row says what solved it — and only a real database proves the grant permits the write:
+      // the solver records it best-effort, so a refused column would leave the solve green and this
+      // null, which is exactly the failure a mock cannot show.
+      expect(row.solver_config).not.toBeNull();
+      const solverConfig = parseStoredSolverConfig(row.solver_config);
+      expect(solverConfig).not.toBeNull();
+      expect(solverConfig?.cleanFallback).toBe(false);
     },
     SETTLE_TIMEOUT_MS + 30_000,
   );
@@ -200,6 +209,7 @@ type JobRow = Pick<
   | "checkpoint"
   | "checkpoint_stage_index"
   | "heartbeat_at"
+  | "solver_config"
 >;
 
 /** Poll to a terminal status with a NARROW projection — a bare select would drag the TOASTed
@@ -212,7 +222,7 @@ const settle = async (supabase: SupabaseClient<Database>, jobId: string): Promis
     const { data, error } = await supabase
       .from("generation_jobs")
       .select(
-        "status, started_at, finished_at, error, result, stages, checkpoint, checkpoint_stage_index, heartbeat_at",
+        "status, started_at, finished_at, error, result, stages, checkpoint, checkpoint_stage_index, heartbeat_at, solver_config",
       )
       .eq("id", jobId)
       .single();

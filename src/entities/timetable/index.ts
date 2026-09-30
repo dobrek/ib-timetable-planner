@@ -28,6 +28,7 @@ export * from "./model/generation/job-status";
 export * from "./model/generation/job-staleness";
 export * from "./model/generation/job-delivery";
 export * from "./model/generation/stage-report";
+export * from "./model/generation/stored-solver-config";
 export * from "./model/generation/tier-labels";
 export * from "./model/generation/verify";
 export * from "./model/generation/occupied-slots";

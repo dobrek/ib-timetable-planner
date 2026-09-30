@@ -58,6 +58,16 @@ class SolveResult:
     def elapsed_s(self) -> float:
         return sum(s.wall_clock_s for s in self.stages)
 
+    @property
+    def clean_fallback(self) -> bool | None:
+        """Whether Mode A dropped the clean floor and re-solved feasibility — None when the run was
+        not a clean-mode one, so there was no floor to drop.
+
+        The typed door onto `notes["clean_fallback"]`, which stays where `solve_complete` puts it: a
+        caller asking this question should not have to know the notes key, nor trust its type."""
+        value = self.notes.get("clean_fallback")
+        return value if isinstance(value, bool) else None
+
 
 @dataclass(frozen=True)
 class StageEvent:

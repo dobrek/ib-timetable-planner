@@ -22,7 +22,7 @@ Two operational rules from the runbook are encoded here rather than merely docum
   time. Every call below names its columns.
 
 Known failure codes, surfaced verbatim in the raised message so a log line is diagnosable:
-`42501` = wrote outside the 11-column grant, `23514` = a status the CHECK constraint rejects.
+`42501` = wrote outside the 12-column grant, `23514` = a status the CHECK constraint rejects.
 """
 
 from __future__ import annotations
@@ -197,7 +197,7 @@ class JobRowClient:
         to do with the flag; `_Heartbeat` fires the stop latch, and the stage reporter ignores it.
 
         It sends only the columns it was given, plus `heartbeat_at` — never blanking a column it has
-        nothing to say about — and every one of them sits inside the role's 11-column UPDATE grant.
+        nothing to say about — and every one of them sits inside the role's 12-column UPDATE grant.
         `stop_requested_at` is deliberately NOT among them: the app writes the stop request and the
         solver only ever observes it.
         """

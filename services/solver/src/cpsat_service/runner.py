@@ -42,14 +42,24 @@ seconds, which is what makes the app's five-minute reclaim grace safe rather tha
 that projection by `stop_requested_at` turned every beat into an observation of the author's stop
 request at no extra cost. The timer only ever fires the latch; the worker thread still owns the
 terminal write, so "the latch is the signal, never the transcript" holds for both producers.
+
+**The row says what solved it (S-308 campaign).** `generation_jobs.solver_config` records the
+EFFECTIVE configuration — read off the built `SolveConfig`, never re-derived — plus whether each
+budget was configured or fell through to the engine, and a host fingerprint. It is written through
+`progress`, the one write that may fail without consequence, and nowhere else: in the claim a
+rejected column is swallowed and the row wedges at `queued`; in `finish` it is terminal and the
+board is lost.
 """
 
 from __future__ import annotations
 
 import logging
+import os
+import platform
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from importlib import metadata
 from typing import Any, Final
 
 from cpsat_engine.model import PreconditionError
@@ -102,6 +112,10 @@ FALLBACK_STOP_STATUS: Final = "interrupted"
 # the client's 30 s HTTP timeout, so a beat in flight lands rather than being abandoned — and
 # bounded, because a wedged timer must never hold the terminal write hostage.
 HEARTBEAT_JOIN_TIMEOUT_S: Final = 35.0
+
+# The shape `generation_jobs.solver_config` carries. A reader rejects a version it does not know
+# (`parseStoredSolverConfig`), so a change to the keys below is a bump here, not a silent drift.
+SOLVER_CONFIG_VERSION: Final = 1
 
 
 def start_job(
@@ -284,7 +298,14 @@ def _solve_and_write(
         ),
     )
     config = _with_budgets(base, settings)
+    # After the budgets, before the solve: the record must describe the config the engine is
+    # handed, and it must be on the row before a twenty-minute solve rather than after it.
+    _write_run_record(client, job_id, config, settings, policy)
     result = solve_complete(dump, config)
+    if result.clean_fallback is not None:
+        # The one fact only the solve can supply. The whole object is rewritten rather than patched
+        # into, because a jsonb column is replaced by a PATCH, never merged.
+        _write_run_record(client, job_id, config, settings, policy, clean_fallback=result.clean_fallback)
     stages = [wire_stage_report(stage) for stage in result.stages]
     outcome = result.notes.get("outcome")
 
@@ -343,6 +364,89 @@ def _with_budgets(config: SolveConfig, settings: Settings) -> SolveConfig:
     if settings.mode_a_budget_s is not None:
         budgeted = replace(budgeted, mode_a_budget_s=settings.mode_a_budget_s)
     return budgeted
+
+
+def run_record(
+    config: SolveConfig,
+    settings: Settings,
+    policy: Policy,
+    *,
+    clean_fallback: bool | None = None,
+) -> dict[str, Any]:
+    """The `solver_config` value for one run: what the engine was actually handed.
+
+    Every number comes off the BUILT `SolveConfig`, so an unset budget reads as the engine's own
+    literal without this module ever naming it — `settings.py` does not repeat the literals and
+    neither does this. Whether a budget was configured is a separate fact, and it comes from
+    `Settings`: a container that was TOLD 120 and one that fell through to 120 solve alike, but only
+    the first is a measured campaign cell.
+
+    `cleanFallback` is present only when the caller has it — after the solve, and only under a
+    clean-mode policy, where there was a floor to drop.
+    """
+    record: dict[str, Any] = {
+        "version": SOLVER_CONFIG_VERSION,
+        "workers": config.workers,
+        "stageBudgetS": config.stage_budget_s,
+        "modeABudgetS": config.mode_a_budget_s,
+        "seed": config.seed,
+        "budgetSource": {
+            "stage": _budget_source(settings.stage_budget_s),
+            "modeA": _budget_source(settings.mode_a_budget_s),
+        },
+        # JSON object keys are strings; the reader maps them back to tier numbers.
+        "targets": {str(tier): value for tier, value in sorted(config.targets.items())},
+        "preset": policy.preset,
+        "cleanMode": policy.clean_mode,
+        "host": _HOST,
+    }
+    if clean_fallback is not None:
+        record["cleanFallback"] = clean_fallback
+    return record
+
+
+def _budget_source(configured: float | None) -> str:
+    return "engine-default" if configured is None else "configured"
+
+
+def _host_fingerprint() -> dict[str, Any]:
+    """Enough to tell the deployed container from a laptop solving against the same database.
+
+    `cpuCount` is whatever the VM reports (null if it will not say); it is a fingerprint, compared
+    against what the first production run observed, not a claim about the instance type. The ortools
+    version comes from the installed distribution's metadata, which is typed and needs no import of
+    the solver's own internals.
+    """
+    try:
+        ortools = metadata.version("ortools")
+    except metadata.PackageNotFoundError:
+        ortools = "unknown"
+    return {"machine": platform.machine(), "cpuCount": os.cpu_count(), "ortools": ortools}
+
+
+# Read once: none of it changes for the life of the process, and it keeps `run_record` pure.
+_HOST: Final = _host_fingerprint()
+
+
+def _write_run_record(
+    client: JobRowClient,
+    job_id: str,
+    config: SolveConfig,
+    settings: Settings,
+    policy: Policy,
+    *,
+    clean_fallback: bool | None = None,
+) -> None:
+    """Best-effort, like every stage report: the record is worth a row, never a board.
+
+    `progress` already swallows every failure of the write itself; the net here also covers building
+    the record, because this runs on the solving thread and nothing on it may cost the solve.
+    """
+    try:
+        record = run_record(config, settings, policy, clean_fallback=clean_fallback)
+        client.progress(job_id, {"solver_config": record})
+    except Exception:  # noqa: BLE001 — recording the configuration must never cost a solve
+        log.exception("job %s: could not record the run's configuration (the solve continues)", job_id)
 
 
 def _progress_reporter(job_id: str, dump: Dump, client: JobRowClient) -> Callable[[StageEvent], None]:

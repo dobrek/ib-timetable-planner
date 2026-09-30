@@ -189,7 +189,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     // `has_table_privilege` answers for TABLE-level grants only and is blind to column grants
     // (see `postgres-client.ts`). So an empty list is the strongest form of this assertion since
     // S-301: the role now reaches `generation_jobs` exclusively through column grants — SELECT on
-    // five columns, UPDATE on eleven — and holds nothing whatsoever table-wide, including the four
+    // five columns, UPDATE on twelve — and holds nothing whatsoever table-wide, including the four
     // verbs Supabase's auto-grant leaves behind elsewhere (TRUNCATE, REFERENCES, TRIGGER, MAINTAIN).
     // Before S-301 this read `["SELECT"]`, because SELECT was the one table-wide grant.
     expect(await heldPrivileges(pg, "solver_job_writer", "public.generation_jobs")).toEqual([]);
@@ -230,6 +230,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
       "finished_at",
       "heartbeat_at",
       "result",
+      "solver_config",
       "stage_index",
       "stage_name",
       "stages",
@@ -237,11 +238,13 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
       "status",
     ]);
 
-    // The two lists are deliberately DIFFERENT, and the difference is the point: `result`, `stages`
-    // and `error` are writable and not readable. The solver authors that audit record; it has no
-    // business reading it back, and `snapshot`/`snapshot_hash` stay unwritable either way.
+    // The two lists are deliberately DIFFERENT, and the difference is the point: `result`, `stages`,
+    // `error` and `solver_config` are writable and not readable. The solver authors that audit record;
+    // it has no business reading it back, and `snapshot`/`snapshot_hash` stay unwritable either way.
+    // `solver_config` joined the list in 2026-09 (S-308's campaign automation): the row records the
+    // configuration that solved it, and the solver writes it best-effort through `progress`.
     const readable = await heldColumnPrivileges(pg, "solver_job_writer", "public.generation_jobs", "SELECT");
-    for (const written of ["result", "stages", "error"]) expect(readable).not.toContain(written);
+    for (const written of ["result", "stages", "error", "solver_config"]) expect(readable).not.toContain(written);
   });
 
   it("has no BYPASSRLS attribute — the policies above are load-bearing", async () => {

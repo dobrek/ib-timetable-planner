@@ -100,13 +100,14 @@ wrangler.jsonc      # Cloudflare Workers configuration
 
 ## Environment Profiles
 
-The project uses three profiles across two Supabase targets — **local** (default for development) and **hosted**. Profile files live in `.envs/`, which is gitignored, so each is per-machine:
+The project uses three profiles across two Supabase targets — **local** (default for development) and **hosted**. Profile files live in `.envs/`, which is gitignored, so each is per-machine; the fourth file there, `campaign.vars`, is the calibration campaign runner's own and is not a profile:
 
-| File                     | Database | `SOLVER_URL` | What it is for                                          |
-| ------------------------ | -------- | ------------ | ------------------------------------------------------- |
-| `.envs/local.vars`       | local    | set          | the default dev loop                                    |
-| `.envs/prod.vars`        | hosted   | **unset**    | read-only smoke against hosted                          |
-| `.envs/prod-solver.vars` | hosted   | set          | the [hosted-solve campaign](#the-hosted-solve-campaign) |
+| File                     | Database          | `SOLVER_URL` | What it is for                                                                                             |
+| ------------------------ | ----------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
+| `.envs/local.vars`       | local             | set          | the default dev loop                                                                                       |
+| `.envs/prod.vars`        | hosted            | **unset**    | read-only smoke against hosted                                                                             |
+| `.envs/prod-solver.vars` | hosted            | set          | the [hosted-solve campaign](#the-hosted-solve-campaign)                                                    |
+| `.envs/campaign.vars`    | hosted (or local) | —            | the [calibration campaign runner](#the-calibration-campaign-runner) — **no `pnpm env:*` script copies it** |
 
 Swap with a single command:
 
@@ -283,6 +284,17 @@ Know what it costs before running it:
 - **Timing measured here is invalid.** M-series cores plus 8 workers against the container's 4 give a 3–5× wall-clock difference; the PRD forbids M-series-derived budgets reaching S-308. Board **quality** is target-defined and hardware-independent, so policy comparison is legitimate — but worker count changes _which_ equally-good board comes back, so a local board is not what production would emit. `SOLVER_STAGE_TARGETS` may be set in the shell for a comparison run and is genuinely useful here — a target is an objective VALUE, so which board a target yields is hardware-independent — but the wall clock it saves is not, and no number measured on this machine may become a shipped budget.
 - **Real names on your machine.** The solver still sees UUIDs only, but the app renders hosted data. Never commit an export.
 
+### The calibration campaign runner
+
+S-308's production calibration campaign — the cell grid, the lifecycle drill, the renewal observation and the cleanup — runs from one resumable command:
+
+```bash
+mise run solver:campaign -- status     # journal only; safe at any moment
+mise run solver:campaign -- run        # prompts before writing to production
+```
+
+It reads `.envs/campaign.vars` (never copied by a `pnpm env:*` script), drives production only through the app's own actions, switches cells through `CALIBRATION_*` Worker secrets, and keeps a write-ahead journal under `.campaign/` (gitignored) so a closed lid costs nothing. `CAMPAIGN_TARGET=local` in the same file rehearses every path against the local stack. The two-day schedule, the setup it needs (a dedicated account, the operator allowlist, an observability API token) and halt recovery are in [`docs/runbooks/calibration-campaign.md`](docs/runbooks/calibration-campaign.md).
+
 ## Deployment
 
 The app deploys to **Cloudflare Workers**. The full deployment plan is in [`context/deployment/deploy-plan.md`](context/deployment/deploy-plan.md).
@@ -328,7 +340,7 @@ Production secrets are stored on the Worker via `pnpm exec wrangler secret put`:
 
 > The Worker gains no new privilege by carrying the third one: a Cloudflare container cannot read Worker secrets on its own (there is no `containers[].configuration.secrets`), so `SolverContainer` reads them and passes them down through `envVars`. **If `SOLVER_MACHINE_PASSWORD` is missing, every generation fails** — the container still boots (`/health` must answer on a bare container, so its credential check skips itself) but `solve` refuses work with a 503, so the row is marked `failed` and the clone deleted. Loud, but every Generate fails until the secret is set — setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
 
-> **While a `CALIBRATION_*` secret is set, production is not what `main` says.** The overrides exist so S-308's calibration campaign can switch a cell in seconds without a merge (a merge rolls the container). `src/solver-container-env.ts` still pins the production defaults, and an override outside its bounds is ignored. To see what is live: `GET /api/solver/container` as an allowlisted operator reports `effectiveTuning.overridden`, and every job row's `solver_config` records the values that actually solved it. The campaign runner (planned: Phase 4 of `automate-production-calibration-campaign`) is to delete the overrides when it parks or cleans up; until then, and whenever one outlives the campaign, `pnpm exec wrangler secret delete <name>` removes it. With `SOLVER_OPS_ALLOWED_EMAILS` unset, the route answers 404 to everyone.
+> **While a `CALIBRATION_*` secret is set, production is not what `main` says.** The overrides exist so S-308's calibration campaign can switch a cell in seconds without a merge (a merge rolls the container). `src/solver-container-env.ts` still pins the production defaults, and an override outside its bounds is ignored. To see what is live: `GET /api/solver/container` as an allowlisted operator reports `effectiveTuning.overridden`, and every job row's `solver_config` records the values that actually solved it. The campaign runner (`mise run solver:campaign -- park` / `cleanup`, [runbook](docs/runbooks/calibration-campaign.md)) deletes the overrides when it parks or cleans up; whenever one outlives the campaign, `pnpm exec wrangler secret delete <name>` removes it. With `SOLVER_OPS_ALLOWED_EMAILS` unset, the route answers 404 to everyone.
 
 ### Rollback
 

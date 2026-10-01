@@ -777,7 +777,7 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 
 - [x] 1.6 A local Generate leaves a row whose `solver_config` names the local solver's workers, budgets and host — 8876160
 - [x] 1.7 `budgetSource.stage` reads `engine-default` when unset and `configured` when set to 5 — 8876160
-- [ ] 1.8 Merged to `main` with no job active on production, and the `Deploy` job finished green
+- [x] 1.8 Merged to `main` with no job active on production, and the `Deploy` job finished green
 
 ### Phase 2: Worker control surface
 
@@ -793,7 +793,7 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 - [x] 2.5 `GET` on the route reports `running: false` before a Generate and `running: true` during one — 27d9cb9
 - [x] 2.6 `stop-if-idle` answers `busy` during a solve and stops the container after it — 27d9cb9
 - [x] 2.7 The route answers 404 with the allowlist unset, and 403 for an account outside it — 27d9cb9
-- [ ] 2.8 Merged to `main` with no job active on production, and the `Deploy` job finished green
+- [x] 2.8 Merged to `main` with no job active on production, and the `Deploy` job finished green
 
 ### Phase 3: Analyzer extensions
 
@@ -829,25 +829,25 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 
 #### Automated
 
-- [x] 5.1 `pnpm test` green, including the line parsers, drill sequencing and lifecycle-number tests
-- [x] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` clean
+- [x] 5.1 `pnpm test` green, including the line parsers, drill sequencing and lifecycle-number tests — e979664
+- [x] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` clean — e979664
 
 #### Manual
 
-- [x] 5.3 The spike's four findings are recorded in `change.md` with the date
-- [x] 5.4 `verify-startup` prints the deployed container's most recent startup line
-- [x] 5.5 The line parsers' fixtures are real captured lines containing job ids and no names
+- [x] 5.3 The spike's four findings are recorded in `change.md` with the date — e979664
+- [x] 5.4 `verify-startup` prints the deployed container's most recent startup line — e979664
+- [x] 5.5 The line parsers' fixtures are real captured lines containing job ids and no names — e979664
 
 ### Phase 6: Rehearsal and handoff
 
 #### Automated
 
-- [ ] 6.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean
-- [ ] 6.2 `mise run solver:check` and `mise run solver:test` green
+- [x] 6.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean
+- [x] 6.2 `mise run solver:check` and `mise run solver:test` green
 
 #### Manual
 
-- [ ] 6.3 The local rehearsal completed every path in the table, and its summary is in `change.md`
-- [ ] 6.4 After the rehearsal's `cleanup`, the local database holds no calibration plan, proposal or job row
-- [ ] 6.5 The runbook's setup section was followed once from a clean state and produced a working `status`
-- [ ] 6.6 Every amendment to S-308 is dated and leaves the original text readable
+- [x] 6.3 The local rehearsal completed every path in the table, and its summary is in `change.md`
+- [x] 6.4 After the rehearsal's `cleanup`, the local database holds no calibration plan, proposal or job row
+- [x] 6.5 The runbook's setup section was followed once from a clean state and produced a working `status`
+- [x] 6.6 Every amendment to S-308 is dated and leaves the original text readable

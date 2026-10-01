@@ -49,6 +49,8 @@ Budgets and the (empty) target key are pinned Worker constants forwarded to the 
 | 5. Ship & true up | Constants, UI ceiling, grace period, prose, verdict, baseline, cleanup | Prose drift — every number must cite the ledger |
 
 **Prerequisites:** Workers Paid already covers Containers — the campaign is ≈ $1.5–2.5 of overage, no plan or limit change (change.md 2026-09-04); hosted hook enabled and machine user provisioned (done in S-302); `wrangler tail` and Cloudflare container log access; `.env.test.local` with hosted service-role key for Phase 2/4 reads; a real current plan to clone.
+
+> **Amendment (2026-10-01, `automate-production-calibration-campaign`):** **the hosted service-role key must never go in `.env.test.local`.** That file feeds `pnpm test:integration`, whose factories write and have no local-host guard, so a hosted key there points the integration lane's writes at production. The campaign runner reads it from `.envs/campaign.vars` and passes it to its `pnpm analyze:jobs` subprocess only. Reading the container's logs also needs an API token with Account → Workers Observability: Edit, because the `wrangler` login is refused there.
 **Estimated effort:** ~2 sessions of code (Phases 1–2, 5), plus ~3–4 hours of serial production solving spread over several days (Phases 3–4).
 
 ## Open Risks & Assumptions

@@ -813,30 +813,30 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 
 #### Automated
 
-- [x] 4.1 `pnpm install --frozen-lockfile` succeeds with `devalue` as a direct devDependency
-- [x] 4.2 `pnpm test` green, including the definition, next-step, journal and client tests
-- [x] 4.3 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
-- [x] 4.4 `mise run solver:check` green, including shellcheck and the `set -eu` check on `campaign.sh`
+- [x] 4.1 `pnpm install --frozen-lockfile` succeeds with `devalue` as a direct devDependency — 853eeb8
+- [x] 4.2 `pnpm test` green, including the definition, next-step, journal and client tests — 853eeb8
+- [x] 4.3 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean — 853eeb8
+- [x] 4.4 `mise run solver:check` green, including shellcheck and the `set -eu` check on `campaign.sh` — 853eeb8
 
 #### Manual
 
-- [x] 4.5 With `.envs/campaign.vars` missing a key, the launcher refuses before printing the banner
-- [x] 4.6 Against the local stack, `setup` creates the campaign plan and prints its remaining hours
-- [x] 4.7 `status` on a fresh journal, run through bare `node bench/campaign/main.ts` rather than vitest, prints the full grid as pending with a time estimate
-- [x] 4.8 No file under `.campaign/` appears in `git status`
+- [x] 4.5 With `.envs/campaign.vars` missing a key, the launcher refuses before printing the banner — 853eeb8
+- [x] 4.6 Against the local stack, `setup` creates the campaign plan and prints its remaining hours — 853eeb8
+- [x] 4.7 `status` on a fresh journal, run through bare `node bench/campaign/main.ts` rather than vitest, prints the full grid as pending with a time estimate — 853eeb8
+- [x] 4.8 No file under `.campaign/` appears in `git status` — 853eeb8
 
 ### Phase 5: Lifecycle commands
 
 #### Automated
 
-- [ ] 5.1 `pnpm test` green, including the line parsers, drill sequencing and lifecycle-number tests
-- [ ] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` clean
+- [x] 5.1 `pnpm test` green, including the line parsers, drill sequencing and lifecycle-number tests
+- [x] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` clean
 
 #### Manual
 
-- [ ] 5.3 The spike's four findings are recorded in `change.md` with the date
-- [ ] 5.4 `verify-startup` prints the deployed container's most recent startup line
-- [ ] 5.5 The line parsers' fixtures are real captured lines containing job ids and no names
+- [x] 5.3 The spike's four findings are recorded in `change.md` with the date
+- [x] 5.4 `verify-startup` prints the deployed container's most recent startup line
+- [x] 5.5 The line parsers' fixtures are real captured lines containing job ids and no names
 
 ### Phase 6: Rehearsal and handoff
 

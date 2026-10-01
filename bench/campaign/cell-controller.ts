@@ -44,6 +44,8 @@ export type ControllerStatus = {
   readonly running: boolean;
   readonly tuning: CellTuning;
   readonly overridden: readonly string[];
+  /** The deployed class's `sleepAfter` — what the renewal command checks; null locally. */
+  readonly sleepAfter: string | number | null;
 };
 
 /** How long a secret change may take to show in `status()` before the runner halts instead. */
@@ -71,6 +73,7 @@ export const createProductionController = ({
         modeABudgetS: status.effectiveTuning.modeABudgetS,
       },
       overridden: status.effectiveTuning.overridden,
+      sleepAfter: status.sleepAfter,
     };
   };
 
@@ -160,6 +163,7 @@ export const createLocalController = ({
         running: alive(pid) || (await answersHealth(solverUrl)),
         tuning: desired ?? MAIN_CELL.tuning,
         overridden: desired === null ? [] : [...CALIBRATION_KEYS],
+        sleepAfter: null,
       };
     },
     applyCell: (tuning) => {

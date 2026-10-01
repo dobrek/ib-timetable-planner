@@ -58,7 +58,7 @@ export const describeAction = (action: JournalAction): string => {
     case "setup":
       return `set up "${action.name}" from ${action.sourcePlanId}`;
     case "apply-cell":
-      return `apply cell ${action.cell} (${cellKeyOf(action.tuning)})`;
+      return `apply cell ${action.cell} (${cellKeyOf(action.tuning)})${action.duringSolve === true ? " under the running solve" : ""}`;
     case "park":
       return "park the override";
     case "stop-container":

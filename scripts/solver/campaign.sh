@@ -38,6 +38,8 @@ if [ ! -f "$profile" ]; then
   echo "  CAMPAIGN_SOURCE_PLAN_ID=<the plan to clone, with its board>" >&2
   echo "  ANALYZER_SUPABASE_URL=https://<project-ref>.supabase.co" >&2
   echo "  ANALYZER_SERVICE_ROLE_KEY=<service-role key — reads only, analyzer subprocess only>" >&2
+  echo "  CLOUDFLARE_OBSERVABILITY_TOKEN=<API token: Account → Workers Observability: Edit>   # verify-startup, drill, renewal" >&2
+  echo "  CLOUDFLARE_ACCOUNT_ID=<account id>" >&2
   echo "  # CAMPAIGN_TARGET=local also needs LOCAL_SOLVER_SUPABASE_URL, LOCAL_SOLVER_SUPABASE_KEY," >&2
   echo "  # LOCAL_SOLVER_MACHINE_PASSWORD for the native solver it starts" >&2
   echo >&2
@@ -72,10 +74,12 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 
-# Commands that touch the app or Cloudflare. `status`, `set-cell` and `resume` only read or append to
-# the journal, so they skip the production checks and the prompt.
+# Commands that touch the app or Cloudflare. `status`, `set-cell`, `resume` and `verify-startup` only
+# read (the journal, or the logs) or append to the journal, so they skip the production checks and the
+# prompt. `drill` and `renewal` also need CLOUDFLARE_OBSERVABILITY_TOKEN and CLOUDFLARE_ACCOUNT_ID —
+# an API token with Account → Workers Observability: Edit; the wrangler login cannot read the logs.
 case "$command" in
-  setup | run | run-one | park | cleanup) writes=yes ;;
+  setup | run | run-one | park | cleanup | drill | renewal) writes=yes ;;
   *) writes=no ;;
 esac
 
@@ -131,7 +135,7 @@ ANALYZER_SUPABASE_URL=$(profile_value ANALYZER_SUPABASE_URL)
 ANALYZER_SERVICE_ROLE_KEY=$(profile_value ANALYZER_SERVICE_ROLE_KEY)
 export CAMPAIGN_TARGET CAMPAIGN_BASE_URL CAMPAIGN_EMAIL CAMPAIGN_PASSWORD CAMPAIGN_SOURCE_PLAN_ID
 export ANALYZER_SUPABASE_URL ANALYZER_SERVICE_ROLE_KEY
-for key in CAMPAIGN_NAME CAMPAIGN_LEDGER_COPY LOCAL_SOLVER_URL LOCAL_SOLVER_SUPABASE_URL LOCAL_SOLVER_SUPABASE_KEY LOCAL_SOLVER_MACHINE_PASSWORD; do
+for key in CAMPAIGN_NAME CAMPAIGN_LEDGER_COPY LOCAL_SOLVER_URL LOCAL_SOLVER_SUPABASE_URL LOCAL_SOLVER_SUPABASE_KEY LOCAL_SOLVER_MACHINE_PASSWORD CLOUDFLARE_OBSERVABILITY_TOKEN CLOUDFLARE_ACCOUNT_ID; do
   value=$(profile_value "$key")
   if [ -n "$value" ]; then
     export "$key=$value"
@@ -146,7 +150,7 @@ done
 # `caffeinate -i -w $$` keeps the machine awake for exactly the runner's lifetime ($$ is the runner's
 # pid once `exec` replaces this shell). A background job here ignores Ctrl-C, so it lives until the
 # runner exits. It cannot survive a closed lid — the journal is what survives that.
-if [ "$(uname)" = "Darwin" ] && { [ "$command" = "run" ] || [ "$command" = "run-one" ] || [ "$command" = "cleanup" ]; }; then
+if [ "$(uname)" = "Darwin" ] && { [ "$command" = "run" ] || [ "$command" = "run-one" ] || [ "$command" = "cleanup" ] || [ "$command" = "drill" ] || [ "$command" = "renewal" ]; }; then
   caffeinate -i -w $$ &
 fi
 exec node bench/campaign/main.ts "$@"

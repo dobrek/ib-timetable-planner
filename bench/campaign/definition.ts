@@ -19,8 +19,11 @@ import {
  */
 export type GridCellKey = "A" | "B" | "C" | "D";
 
-/** `main` is the cell `run-one` measures: whatever `main`'s constants are, with no override. */
-export type CampaignCellKey = GridCellKey | "main";
+/**
+ * `main` is the cell `run-one` measures: whatever `main`'s constants are, with no override. `drill` is
+ * the lifecycle drill's own solve: Cell C's tuning, deliberately interrupted, and never a grid slot.
+ */
+export type CampaignCellKey = GridCellKey | "main" | "drill";
 
 export type CampaignCell = { readonly key: CampaignCellKey; readonly tuning: CellTuning };
 
@@ -66,8 +69,12 @@ export const gridFor = (target: CampaignTarget, cellD: CellTuning | null): Campa
   ...(cellD === null ? [] : [{ key: "D" as const, tuning: cellD }]),
 ];
 
-export const cellByKey = (grid: readonly CampaignCell[], key: CampaignCellKey): CampaignCell | undefined =>
-  key === "main" ? MAIN_CELL : grid.find((cell) => cell.key === key);
+export const cellByKey = (grid: readonly CampaignCell[], key: CampaignCellKey): CampaignCell | undefined => {
+  if (key === "main") return MAIN_CELL;
+  // The drill solves under the 240 s cell: long enough that a deploy lands mid-ladder (research §7).
+  if (key === "drill") return grid.find((cell) => cell.key === "C");
+  return grid.find((cell) => cell.key === key);
+};
 
 /**
  * Why a proposed Cell D would be refused, or nothing. The Worker applies an override only inside these

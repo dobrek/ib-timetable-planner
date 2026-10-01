@@ -19,7 +19,13 @@ import type { CampaignCellKey, CampaignTarget } from "./definition.ts";
  */
 export type JournalAction =
   | { readonly kind: "setup"; readonly target: CampaignTarget; readonly sourcePlanId: string; readonly name: string }
-  | { readonly kind: "apply-cell"; readonly cell: CampaignCellKey; readonly tuning: CellTuning }
+  | {
+      readonly kind: "apply-cell";
+      readonly cell: CampaignCellKey;
+      readonly tuning: CellTuning;
+      /** The drill's step 9: change the secret UNDER a running solve, to observe whether it survives. */
+      readonly duringSolve?: boolean;
+    }
   | { readonly kind: "park" }
   | { readonly kind: "stop-container" }
   | { readonly kind: "await-stopped" }
@@ -66,7 +72,20 @@ export type JournalEntry =
       readonly at: string;
       readonly key: "secret-change-during-solve";
       readonly disturbed: boolean;
-    };
+    }
+  | { readonly type: "drill"; readonly at: string; readonly fact: DrillFact };
+
+/** What the attended drill established, step by step (Phase 5 §4). Ids and numbers only. */
+export type DrillFact =
+  /** The drill solve reached a checkpoint at this ladder position — the moment to deploy. */
+  | { readonly kind: "checkpoint"; readonly position: number }
+  /** The image-changing local deploy went out, as this Worker version. */
+  | { readonly kind: "deployed"; readonly commit: string; readonly version: string }
+  /** The shutdown pair, read from the container's lines. */
+  | { readonly kind: "shutdown"; readonly askedAt: number | null; readonly writtenSeconds: number | null }
+  /** The proposal page rendered the halted-board label for this position. */
+  | { readonly kind: "label"; readonly position: number; readonly found: boolean }
+  | { readonly kind: "push-printed"; readonly commit: string };
 
 /** One dispatched run (or one failed attempt to dispatch it), as the journal tells it. */
 export type Attempt = {
@@ -114,6 +133,7 @@ export type CampaignState = {
   /** The first host a recorded production row reported — what later runs must match. */
   readonly firstHost: HostFingerprint | null;
   readonly cleanedUp: { readonly delivered: readonly string[]; readonly deleted: readonly string[] };
+  readonly drillFacts: readonly DrillFact[];
 };
 
 export const EMPTY_STATE: CampaignState = {
@@ -131,6 +151,7 @@ export const EMPTY_STATE: CampaignState = {
   secretChangeDisturbsSolve: null,
   firstHost: null,
   cleanedUp: { delivered: [], deleted: [] },
+  drillFacts: [],
 };
 
 /** Everything the runner knows, from the journal alone. Pure. */
@@ -189,6 +210,8 @@ const apply = (state: CampaignState, entry: JournalEntry): CampaignState => {
       return { ...state, resumedAt: entry.at, stopRefused: null };
     case "observation":
       return { ...state, secretChangeDisturbsSolve: entry.disturbed };
+    case "drill":
+      return { ...state, drillFacts: [...state.drillFacts, entry.fact] };
   }
 };
 

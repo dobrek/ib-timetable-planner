@@ -34,3 +34,16 @@ export type HostFingerprint = { readonly machine: string; readonly cpuCount: num
 
 /** `x86_64/4` — enough to tell the deployed container from a laptop solving against the same database. */
 export const hostKeyOf = ({ machine, cpuCount }: HostFingerprint): string => `${machine}/${cpuCount ?? "?"}`;
+
+/**
+ * Whether a host matches what the caller expects: `x86_64/4` exactly, or `x86_64/*` for any CPU count.
+ *
+ * The wildcard exists for the campaign's first production run, before anyone has seen the
+ * container's CPU count: the architecture is already known (Cloudflare runs only `linux/amd64`
+ * images), so a laptop solving against hosted data is caught from the first run on, and the count
+ * is pinned from the first row that reports it.
+ */
+export const hostMatches = (pattern: string, host: HostFingerprint): boolean => {
+  const [machine, cpus] = pattern.split("/");
+  return machine === host.machine && (cpus === "*" || cpus === String(host.cpuCount ?? "?"));
+};

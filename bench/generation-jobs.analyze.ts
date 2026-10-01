@@ -54,7 +54,7 @@ import { createLocalSupabase } from "./local-supabase";
  *
  * The ledger's validity rules read three more: ANALYZE_CELLS=<job>:<cell>,… (the cell each job was
  * dispatched under; the only attribution a legacy row has), ANALYZE_REQUIRE_SOLVER_CONFIG=1 (a row
- * that cannot say what solved it does not count), and ANALYZE_EXPECT_HOST=<machine>/<cpus>. Pass the
+ * that cannot say what solved it does not count), and ANALYZE_EXPECT_HOST=<machine>/<cpus> (or <machine>/* for any count). Pass the
  * same three on every extraction: a merge keeps the fresh row, so the latest call's rules win.
  *
  * **Read-only by construction.** Every statement it issues is a `select`, and the hosted host is

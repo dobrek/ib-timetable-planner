@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StoredStageReport } from "@/entities/timetable";
+import type { StoredSolverConfig, StoredStageReport } from "@/entities/timetable";
 import { formatJobReport, formatTierSummary, type JobReport } from "./generation-jobs-report";
 
 /**
@@ -36,6 +36,21 @@ const job = (overrides: Partial<JobReport> = {}): JobReport => ({
     }),
     stage(),
   ],
+  solverConfig: null,
+  ...overrides,
+});
+
+const solverConfig = (overrides: Partial<StoredSolverConfig> = {}): StoredSolverConfig => ({
+  version: 1,
+  workers: 4,
+  stageBudgetS: 120,
+  modeABudgetS: 240,
+  seed: 0,
+  budgetSource: { stage: "configured", modeA: "engine-default" },
+  targets: {},
+  preset: "clean",
+  cleanMode: true,
+  host: { machine: "x86_64", cpuCount: 4, ortools: "9.12.4544" },
   ...overrides,
 });
 
@@ -96,6 +111,47 @@ describe("formatJobReport", () => {
 
   it("reports an empty transcript as empty instead of printing a headerless table", () => {
     expect(formatJobReport(job({ stages: [] }), 300)).toContain("(no stages recorded)");
+  });
+
+  it("prints the configuration the row says solved it, naming where each budget came from", () => {
+    const report = formatJobReport(job({ solverConfig: solverConfig() }), 300);
+
+    expect(report).toContain(
+      "config   4 workers · stage 120 s (configured) · Mode A 240 s (engine default) · targets none · host x86_64/4",
+    );
+  });
+
+  it("states a recorded fallback instead of guessing at it, even across a wide gap", () => {
+    // The same 39.3 s gap the heuristic flags on a legacy row: once the solver has written the
+    // answer, a guess beside it is only noise — and a wrong one when the answer is "no".
+    const gap = { finishedAt: "2026-08-18T10:02:40.000Z" };
+
+    const quiet = formatJobReport(job({ ...gap, solverConfig: solverConfig({ cleanFallback: false }) }), 300);
+    const fired = formatJobReport(job({ ...gap, solverConfig: solverConfig({ cleanFallback: true }) }), 300);
+
+    expect(quiet).toContain("clean fallback: did not fire (recorded by the solver)");
+    expect(quiet).not.toContain("unaccounted for");
+    expect(fired).toContain("clean fallback: fired (recorded by the solver)");
+    expect(fired).not.toContain("unaccounted for");
+  });
+
+  it("says nothing about the fallback for a policy that cannot fire it", () => {
+    const report = formatJobReport(
+      job({ finishedAt: "2026-08-18T10:02:40.000Z", solverConfig: solverConfig({ cleanMode: false }) }),
+      300,
+    );
+
+    expect(report).not.toContain("clean fallback");
+    expect(report).not.toContain("unaccounted for");
+  });
+
+  it("keeps the heuristic for a clean-mode row whose closing record never landed, against its own Mode A", () => {
+    // The second record write is best-effort, so its absence is "unknown", not "did not fire" — and
+    // the row's own budget (240 s) is a better bound than the Worker's current constant (300 s).
+    const report = formatJobReport(job({ finishedAt: "2026-08-18T10:02:40.000Z", solverConfig: solverConfig() }), 300);
+
+    expect(report).toContain("39.3 s unaccounted for");
+    expect(report).toContain("less than the 240 s Mode A budget");
   });
 });
 

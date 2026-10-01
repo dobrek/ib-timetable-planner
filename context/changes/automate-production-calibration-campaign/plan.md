@@ -799,15 +799,15 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 
 #### Automated
 
-- [ ] 3.1 `pnpm test` green, including the ledger, matrix and baseline tests
-- [ ] 3.2 `pnpm check`, `pnpm lint`, `pnpm steiger` clean
+- [x] 3.1 `pnpm test` green, including the ledger, matrix and baseline tests
+- [x] 3.2 `pnpm check`, `pnpm lint`, `pnpm steiger` clean
 
 #### Manual
 
-- [ ] 3.3 The ledger mode writes a JSON row with a cell key and a 10-tuple for a fresh local job
-- [ ] 3.4 Running the ledger mode twice on the same job produces one row
-- [ ] 3.5 The active guard blocks on a live local job and reports nothing once it is terminal
-- [ ] 3.6 No output line contains a course, student or teacher name
+- [x] 3.3 The ledger mode writes a JSON row with a cell key and a 10-tuple for a fresh local job
+- [x] 3.4 Running the ledger mode twice on the same job produces one row
+- [x] 3.5 The active guard blocks on a live local job and reports nothing once it is terminal
+- [x] 3.6 No output line contains a course, student or teacher name
 
 ### Phase 4: Campaign runner
 

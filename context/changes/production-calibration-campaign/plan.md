@@ -61,6 +61,13 @@ Budget knobs follow the `SOLVER_WORKERS` pattern exactly: env in `settings.py`, 
 
 **Debug & observability.** Production evidence comes from two channels: `wrangler tail` for `[solver-container]` lines (cold start, "sleep declined", stopped), and the Cloudflare `containers` log dataset for the service's own lines (the startup line, `solving with N workers`, `succeeded`). The ledger records both timestamps plus the job id; `pnpm analyze:jobs` supplies the rest from the row.
 
+> **Amendment (2026-10-01, `automate-production-calibration-campaign`):** three premises in the paragraphs above did not survive research, and the campaign now runs through `mise run solver:campaign` (runbook: `docs/runbooks/calibration-campaign.md`).
+
+- **Cells switch by Worker-secret override, not by merge.** Every CI deploy rolls the container, Worker-only diffs included, because the image build is not byte-reproducible on fresh runners. Also, 5 of the last 8 pushes to `main` failed before `deploy`. A cell is now one `wrangler secret bulk` of the three `CALIBRATION_*` keys, which takes seconds and does not roll the container. It is followed by `stop-if-idle` and a `running: false` check, so the next dispatch cold-starts under the cell.
+- **Production diverges from `main` while an override is live.** `GET /api/solver/container` reports which keys are overridden.
+- **The startup line can only be confirmed after dispatch,** because the cold start happens on dispatch. The row's own `solver_config` is the attribution, and a mismatch excludes the run.
+- **Observability is the Workers Observability Telemetry API, not `wrangler tail`.** It needs an API token with Account → Workers Observability: Edit (the `wrangler` login is refused). Container stdout is `$metadata.type = cf-container`, and a line becomes queryable 15–36 s after it is logged (spike findings, this change's `change.md`, 2026-10-01).
+
 ## Phase 1: Knobs — budgets become configuration, targets reach the container
 
 ### Overview
@@ -196,6 +203,8 @@ Run the production drills S-304 planned and never ran, claim the `sleepAfter: 10
 
 **Contract**: One plan; its id recorded in the ledger. All Phase 3 and Phase 4 jobs dispatch from it. Deleted in Phase 5.
 
+> **Amendment (2026-10-01, `automate-production-calibration-campaign`):** the runner's `setup` clones the plan **with its board** (author's decision, 2026-09-29). The campaign therefore measures an everyday fill-the-gaps solve, and is **not comparable with S-302's full-catalog run** (248 placements from an empty board). `setup` prints the hours left to place, and refuses a plan with none.
+
 #### 2. Deploy-during-solve drill
 
 **File**: — (operational; evidence into `change.md`)
@@ -204,6 +213,10 @@ Run the production drills S-304 planned and never ran, claim the `sleepAfter: 10
 
 **Contract**: Run once, on purpose, on the campaign plan only. Evidence: `wrangler tail` excerpts, container log timestamps, SIGTERM→`interrupted` latency, stage reached.
 
+> **Amendment (2026-10-01, `automate-production-calibration-campaign`):** the drill runs as the runner's attended `drill` command, on the **240 s cell**, triggered by a **local `wrangler deploy`** of an image-changing commit. A 120 s ladder (~16 min) ends before a CI deploy (~9.5 min) plus the 1200 s rollout grace can land, so the drill as first written could not interrupt anything.
+
+The command deploys once a checkpoint exists at position 3 or later. It then confirms `interrupted` with the checkpoint, reads the SIGTERM shutdown pair from telemetry, delivers the proposal, and checks the proposal page for the halted-board label. The self-heal dispatch that follows is Cell C run 1. While that run solves, the command switches the secret to Cell A, without a stop, and records whether the solve survives.
+
 #### 3. Lower `sleepAfter` and prove renewal
 
 **File**: `src/solver-container.ts`
@@ -211,6 +224,8 @@ Run the production drills S-304 planned and never ran, claim the `sleepAfter: 10
 **Intent**: `sleepAfter = "10m"`; rewrite the docblock from the stopgap apology to the renewal invariant (activity expiry is a question the container answers, not a stop). Deploy (Worker-only), run a full solve on the campaign plan, confirm from `wrangler tail` that the "sleep declined … activity renewed" line fires at least once during the solve and the job succeeds; then that the idle container stops roughly 10 minutes after the solve ends.
 
 **Contract**: One-line config change plus docblock. This solve is **campaign cell 120 s / 4 workers, run 1**; its job id goes in the ledger.
+
+> **Amendment (2026-10-01, `automate-production-calibration-campaign`):** the observation is the runner's `renewal` command. It refuses unless the deployed class reports `sleepAfter = "10m"`, runs Cell A run 1 through the ordinary cell sequence, and then reads only the logs, because a control-route call would push the stop out by a full `sleepAfter`. It requires a `sleep declined` line during the solve, a `succeeded` row, and the `idle at sleepAfter` and `stopped:` pair afterwards. It then prints the five numbers below as a dated block for this `change.md`. The idle boundary runs from the last request, not the solve's end: the 2026-10-01 probe stopped 30 min 0.24 s after its dispatch.
 
 #### 4. Record the production numbers
 
@@ -260,6 +275,12 @@ Measure marginal quality per extra minute per tier at three stage budgets on 4 w
 
 **Intent**: Make every run attributable. Before a cell: previous job terminal, container asleep (10 min after the last job), merge the constant edit, wait for deploy, dispatch, confirm the startup log line shows the cell's values, record the job id. After each run: extract, paste the per-tier table, note anything the row cannot say (cold start, whether the clean fallback fired).
 
+> **Amendment (2026-10-01, `automate-production-calibration-campaign`):** the protocol is runner-driven (`mise run solver:campaign -- run`), and nothing in it is by hand:
+- **Each cell:** no active job on any plan, `secret bulk`, `status()` agrees, `stop-if-idle`, `running: false`.
+- **Each run:** no active job on the campaign plan, dispatch, wait for terminal, deliver, record.
+- **The ledger:** `pnpm analyze:jobs` ledger mode merges each job into `.campaign/ledger.json`, with the cell taken from the row's own `solver_config`. That covers the cold start (queue → claim) and whether the clean fallback fired, which are now facts on the row rather than notes.
+- **A run that does not count** (failed, interrupted, wrong cell, no `solver_config`, wrong host) is retried once after a fresh stop. A second bad outcome halts. After Cell C the runner parks the override and pauses for the Cell D choice.
+
 **Contract**: Ledger columns — cell (stage budget · Mode A budget · workers) · run # · job id · started · finished · end-to-end min · Σ wallClockS · per-tier `best`/`bound`/`status`/`stoppedBy`. Twelve rows minimum.
 
 #### 2. Cells, in order
@@ -288,6 +309,8 @@ Measure marginal quality per extra minute per tier at three stage budgets on 4 w
 #### Automated Verification:
 
 - CI green on every cell merge
+
+> **Amendment (2026-10-01, `automate-production-calibration-campaign`):** cells are not merges, so "CI green on every cell merge" no longer applies. The cell switch's success is `status()` reporting the cell's tuning, and each run's `solver_config` matching it.
 - `pnpm test` green (the pin test tracks each constant edit)
 
 #### Manual Verification:
@@ -359,6 +382,15 @@ Land the chosen constants, cut the UI's "several minutes" to one measured ceilin
 **File**: — (operational)
 
 **Intent**: Delete the campaign plan and every proposal it produced through the UI's delete path (S-306/`generation-deletion-integrity` cascades jobs), so production holds no calibration residue.
+
+> **Amendment (2026-10-01, `automate-production-calibration-campaign`):** the order is strict, and the runner's `cleanup` enforces it. Deleting the campaign plan cascades every job row the ledger was read from, but it does **not** delete the proposals (`on delete set null`). So:
+1. Extract the ledger and commit the merged JSON as this folder's `ledger.json`. It is ids and numbers only, and once the rows are gone it is the only complete record. `cleanup` refuses until the copy holds every dispatched job.
+2. Deliver every proposal.
+3. Delete each proposal by id; they share a name.
+4. Delete the campaign plan.
+5. Remove the `CALIBRATION_*` overrides.
+
+Delete the `SOLVER_OPS_ALLOWED_EMAILS` secret and the observability token afterwards (runbook).
 
 **Contract**: Recorded in the ledger's closing line with the count deleted.
 

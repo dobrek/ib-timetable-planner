@@ -88,3 +88,13 @@ run = "sh {{config_root}}/scripts/solver/tier3.sh"
 description = "Hosted-solve campaign: local app + NATIVE solver against the HOSTED database (writes to production)"
 dir = "{{config_root}}"
 run = "sh {{config_root}}/scripts/solver/hosted.sh"
+
+# --- the calibration campaign (S-308, automated) ----------------------------------------------------
+# A resumable Node runner (bench/campaign/main.ts) behind a fail-closed launcher. Commands follow `--`:
+# `mise run solver:campaign -- status | setup | run | set-cell D … | run-one | park | resume | cleanup`.
+# See docs/runbooks/calibration-campaign.md.
+
+[tasks."solver:campaign"]
+description = "Calibration campaign runner: drives S-308's cell grid from .envs/campaign.vars (production writes, or a local rehearsal)"
+dir = "{{config_root}}"
+run = "sh {{config_root}}/scripts/solver/campaign.sh"

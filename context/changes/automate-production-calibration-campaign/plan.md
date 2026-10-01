@@ -799,31 +799,31 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 
 #### Automated
 
-- [x] 3.1 `pnpm test` green, including the ledger, matrix and baseline tests
-- [x] 3.2 `pnpm check`, `pnpm lint`, `pnpm steiger` clean
+- [x] 3.1 `pnpm test` green, including the ledger, matrix and baseline tests — 1267a6c
+- [x] 3.2 `pnpm check`, `pnpm lint`, `pnpm steiger` clean — 1267a6c
 
 #### Manual
 
-- [x] 3.3 The ledger mode writes a JSON row with a cell key and a 10-tuple for a fresh local job
-- [x] 3.4 Running the ledger mode twice on the same job produces one row
-- [x] 3.5 The active guard blocks on a live local job and reports nothing once it is terminal
-- [x] 3.6 No output line contains a course, student or teacher name
+- [x] 3.3 The ledger mode writes a JSON row with a cell key and a 10-tuple for a fresh local job — 1267a6c
+- [x] 3.4 Running the ledger mode twice on the same job produces one row — 1267a6c
+- [x] 3.5 The active guard blocks on a live local job and reports nothing once it is terminal — 1267a6c
+- [x] 3.6 No output line contains a course, student or teacher name — 1267a6c
 
 ### Phase 4: Campaign runner
 
 #### Automated
 
-- [ ] 4.1 `pnpm install --frozen-lockfile` succeeds with `devalue` as a direct devDependency
-- [ ] 4.2 `pnpm test` green, including the definition, next-step, journal and client tests
-- [ ] 4.3 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
-- [ ] 4.4 `mise run solver:check` green, including shellcheck and the `set -eu` check on `campaign.sh`
+- [x] 4.1 `pnpm install --frozen-lockfile` succeeds with `devalue` as a direct devDependency
+- [x] 4.2 `pnpm test` green, including the definition, next-step, journal and client tests
+- [x] 4.3 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm build` clean
+- [x] 4.4 `mise run solver:check` green, including shellcheck and the `set -eu` check on `campaign.sh`
 
 #### Manual
 
-- [ ] 4.5 With `.envs/campaign.vars` missing a key, the launcher refuses before printing the banner
-- [ ] 4.6 Against the local stack, `setup` creates the campaign plan and prints its remaining hours
-- [ ] 4.7 `status` on a fresh journal, run through bare `node bench/campaign/main.ts` rather than vitest, prints the full grid as pending with a time estimate
-- [ ] 4.8 No file under `.campaign/` appears in `git status`
+- [x] 4.5 With `.envs/campaign.vars` missing a key, the launcher refuses before printing the banner
+- [x] 4.6 Against the local stack, `setup` creates the campaign plan and prints its remaining hours
+- [x] 4.7 `status` on a fresh journal, run through bare `node bench/campaign/main.ts` rather than vitest, prints the full grid as pending with a time estimate
+- [x] 4.8 No file under `.campaign/` appears in `git status`
 
 ### Phase 5: Lifecycle commands
 

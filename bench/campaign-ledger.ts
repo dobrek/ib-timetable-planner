@@ -7,7 +7,7 @@ import {
   type GenerationResult,
   type GeneratorSnapshot,
 } from "@/entities/timetable";
-import { cellKeyOf, hostKeyOf } from "./campaign-cell";
+import { cellKeyOf, hostKeyOf, hostMatches } from "./campaign-cell";
 import {
   fallbackFactOf,
   groupByTier,
@@ -55,7 +55,7 @@ export type LedgerExpectations = {
   /** Exclude a row with no `solver_config` even when `cells` names its cell — every campaign row is
    *  written by a solver that records one, so its absence is a fault, not a legacy. */
   readonly requireSolverConfig: boolean;
-  /** `machine/cpuCount` the solving host must match (`hostKeyOf`); null accepts any host. */
+  /** `machine/cpuCount`, or `machine/*`, the solving host must match (`hostMatches`); null accepts any. */
   readonly host: string | null;
 };
 
@@ -259,9 +259,12 @@ const exclusionOf = (job: LoadedJob, derived: Derived, expectations: LedgerExpec
   if (derived.expectedCell !== null && derived.cell !== derived.expectedCell) {
     return `wrong cell: dispatched under ${derived.expectedCell}, solved under ${derived.cell ?? "—"}`;
   }
-  if (expectations.host !== null && job.solverConfig !== null) {
-    const host = hostKeyOf(job.solverConfig.host);
-    if (host !== expectations.host) return `wrong host: ${host}, expected ${expectations.host}`;
+  if (
+    expectations.host !== null &&
+    job.solverConfig !== null &&
+    !hostMatches(expectations.host, job.solverConfig.host)
+  ) {
+    return `wrong host: ${hostKeyOf(job.solverConfig.host)}, expected ${expectations.host}`;
   }
   return null;
 };

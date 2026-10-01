@@ -163,6 +163,17 @@ describe("toLedgerRow", () => {
 
     expect(row.excluded).toBe("wrong host: arm64/10, expected x86_64/4");
   });
+
+  it("accepts any CPU count under a wildcard, but never another architecture", () => {
+    expect(toLedgerRow(job(), expectations({ host: "x86_64/*" }), TUPLE).excluded).toBeNull();
+    expect(
+      toLedgerRow(
+        job({ solverConfig: solverConfig({ host: { machine: "arm64", cpuCount: 10, ortools: "9.12.4544" } }) }),
+        expectations({ host: "x86_64/*" }),
+        TUPLE,
+      ).excluded,
+    ).toBe("wrong host: arm64/10, expected x86_64/*");
+  });
 });
 
 describe("mergeLedger", () => {

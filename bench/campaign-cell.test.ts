@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellKeyOf, hostKeyOf } from "./campaign-cell";
+import { cellKeyOf, hostKeyOf, hostMatches } from "./campaign-cell";
 
 /** The analyzer and the runner must spell a cell identically, or no run would ever count. */
 describe("cellKeyOf", () => {
@@ -22,5 +22,19 @@ describe("hostKeyOf", () => {
   it("names the architecture and the CPU count, or ? when the platform did not say", () => {
     expect(hostKeyOf({ machine: "x86_64", cpuCount: 4 })).toBe("x86_64/4");
     expect(hostKeyOf({ machine: "arm64", cpuCount: null })).toBe("arm64/?");
+  });
+});
+
+describe("hostMatches", () => {
+  const container = { machine: "x86_64", cpuCount: 4 };
+
+  it("matches an exact fingerprint, or any CPU count under a wildcard", () => {
+    expect(hostMatches("x86_64/4", container)).toBe(true);
+    expect(hostMatches("x86_64/*", container)).toBe(true);
+  });
+
+  it("refuses another architecture or another count — a laptop against hosted data", () => {
+    expect(hostMatches("x86_64/*", { machine: "arm64", cpuCount: 11 })).toBe(false);
+    expect(hostMatches("x86_64/4", { machine: "x86_64", cpuCount: 8 })).toBe(false);
   });
 });

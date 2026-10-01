@@ -70,6 +70,12 @@ lefthook-local.yml
 # pii scrub artifacts (contain real names — never commit)
 /pii-scrub/
 
+# calibration campaign runner state: the journal, the working ledger, secret-bulk files, raw telemetry and
+# the local rehearsal's solver log (never commit). The one deliberate exception lives OUTSIDE this
+# directory: the merged ledger, ids and numbers only, which `cleanup` requires to have been copied to
+# context/changes/production-calibration-campaign/ledger.json before it deletes the rows it came from.
+/.campaign/
+
 # gold-plan snapshots dumped from production (real names + real timetable — never commit)
 /data/golden-plan*.sql
 

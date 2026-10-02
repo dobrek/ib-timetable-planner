@@ -1,5 +1,5 @@
 /* eslint-disable no-console -- the printed report IS this runner's product (bench precedent). */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -20,6 +20,7 @@ import {
   formatLedgerMarkdown,
   mergeLedger,
   parseCellMapping,
+  parseVersionMapping,
   parseLedgerFile,
   serializeLedger,
   toLedgerRow,
@@ -50,12 +51,16 @@ import { createLocalSupabase } from "./local-supabase";
  *                                         ANALYZE_BASELINE_CELL=<cell>, the S-309 baseline
  *   ANALYZE_ACTIVE=1                      every queued/running row on ANY plan: blocking or stale
  *   ANALYZE_JOB_PREFIX=<prefix>           the one full job id a recorded prefix names
- *   ANALYZE_REMAINING_HOURS=<plan-id>     the hours a Generate on that plan would hand the solver
+ *   ANALYZE_REMAINING_HOURS=<plan-id>     the hours a Generate on that plan would hand the solver; with
+ *                                         ANALYZE_EXPECT_PLAN_NAME=<name>, also whether the plan bears
+ *                                         that name (a boolean: the name itself is never printed)
  *
  * The ledger's validity rules read three more: ANALYZE_CELLS=<job>:<cell>,… (the cell each job was
  * dispatched under; the only attribution a legacy row has), ANALYZE_REQUIRE_SOLVER_CONFIG=1 (a row
  * that cannot say what solved it does not count), and ANALYZE_EXPECT_HOST=<machine>/<cpus> (or <machine>/* for any count). Pass the
  * same three on every extraction: a merge keeps the fresh row, so the latest call's rules win.
+ * ANALYZE_VERSIONS={"<job>":{"dispatch":"…","terminal":"…"}} carries the runner's Worker versions into
+ * the ledger, so a stray deploy outlives the journal; a later extraction without it keeps them.
  *
  * **Read-only by construction.** Every statement it issues is a `select`, and the hosted host is
  * refused unless `ANALYZE_ALLOW_REMOTE=1` is passed explicitly — the same deliberate override
@@ -86,6 +91,7 @@ const TUPLES = env("ANALYZE_TUPLES") === "1";
 const ACTIVE = env("ANALYZE_ACTIVE") === "1";
 const JOB_PREFIX = env("ANALYZE_JOB_PREFIX");
 const REMAINING_PLAN = env("ANALYZE_REMAINING_HOURS");
+const EXPECT_PLAN_NAME = env("ANALYZE_EXPECT_PLAN_NAME");
 
 const USAGE =
   "Skipping job analysis. Usage: ANALYZE_SOURCE_PLAN=<plan-id> pnpm analyze:jobs " +
@@ -142,7 +148,9 @@ describe("generation job analysis", () => {
       );
 
       mkdirSync(dirname(LEDGER_PATH), { recursive: true });
-      writeFileSync(LEDGER_PATH, serializeLedger(ledger));
+      // Temp file, then rename: a write cut short must never leave a torn ledger every later merge rejects.
+      writeFileSync(`${LEDGER_PATH}.tmp`, serializeLedger(ledger));
+      renameSync(`${LEDGER_PATH}.tmp`, LEDGER_PATH);
 
       console.log(`\n${formatLedgerMarkdown(ledger)}`);
       console.log(`\n${formatCampaignMatrix(ledger)}`);
@@ -191,9 +199,11 @@ describe("generation job analysis", () => {
   });
 
   it.runIf(credentials && REMAINING_PLAN.length > 0)("prints the hours a Generate would hand the solver", async () => {
-    const unplacedHours = remainingHoursOf((await loadPlanAnalysis(client(), REMAINING_PLAN)).input);
+    const plan = await loadPlanAnalysis(client(), REMAINING_PLAN);
+    const unplacedHours = remainingHoursOf(plan.input);
+    const nameMatches = EXPECT_PLAN_NAME.length > 0 ? plan.name === EXPECT_PLAN_NAME : null;
 
-    console.log(formatAnalyzerLine({ kind: "remaining-hours", planId: REMAINING_PLAN, unplacedHours }));
+    console.log(formatAnalyzerLine({ kind: "remaining-hours", planId: REMAINING_PLAN, unplacedHours, nameMatches }));
 
     expect(unplacedHours).toBeGreaterThanOrEqual(0);
   });
@@ -209,6 +219,7 @@ const ledgerExpectations = (): LedgerExpectations => ({
   cells: parseCellMapping(env("ANALYZE_CELLS")),
   requireSolverConfig: env("ANALYZE_REQUIRE_SOLVER_CONFIG") === "1",
   host: env("ANALYZE_EXPECT_HOST") || null,
+  versions: parseVersionMapping(env("ANALYZE_VERSIONS")),
 });
 
 /** The service-role reader: local only, unless `ANALYZE_ALLOW_REMOTE=1` says otherwise out loud. */

@@ -5,7 +5,14 @@ import {
   CONTAINER_STAGE_BUDGET_S,
   CONTAINER_WORKERS,
 } from "../../src/solver-container-env.ts";
-import { cellTuningProblems, estimateRunSeconds, gridFor, MAIN_CELL, RUNS_PER_CELL } from "./definition.ts";
+import {
+  baseUrlProblems,
+  cellTuningProblems,
+  estimateRunSeconds,
+  gridFor,
+  MAIN_CELL,
+  RUNS_PER_CELL,
+} from "./definition.ts";
 
 /** S-308's grid, and the bounds Cell D must respect to be applied at all. */
 describe("the campaign grid", () => {
@@ -63,5 +70,30 @@ describe("estimateRunSeconds", () => {
       expected: 9 * 120 + 60,
       worst: 300 + 9 * 120 + 120,
     });
+  });
+});
+
+describe("baseUrlProblems", () => {
+  it("accepts a loopback app for a rehearsal and the deployed https app for production", () => {
+    expect(baseUrlProblems("local", "http://localhost:4321")).toEqual([]);
+    expect(baseUrlProblems("local", "http://127.0.0.1:4321")).toEqual([]);
+    expect(baseUrlProblems("production", "https://ib-timetable-planner.dobromir-kropielnicki.workers.dev")).toEqual([]);
+  });
+
+  it("refuses a rehearsal pointed at a hosted app, which would clone real data", () => {
+    expect(baseUrlProblems("local", "https://ib-timetable-planner.dobromir-kropielnicki.workers.dev")).toHaveLength(1);
+    // Userinfo is not the host: this URL reaches example.com.
+    expect(baseUrlProblems("local", "http://127.0.0.1:4321@example.com")).toHaveLength(1);
+  });
+
+  it("refuses production pointed at a laptop, or over plain http", () => {
+    expect(baseUrlProblems("production", "https://localhost:4321")).toHaveLength(1);
+    expect(baseUrlProblems("production", "http://ib-timetable-planner.dobromir-kropielnicki.workers.dev")).toHaveLength(
+      1,
+    );
+  });
+
+  it("refuses something that is not a URL", () => {
+    expect(baseUrlProblems("production", "workers.dev")).toHaveLength(1);
   });
 });

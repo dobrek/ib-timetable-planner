@@ -1,13 +1,13 @@
-import { spawn, execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import type { CellTuning, HostFingerprint } from "../campaign-cell.ts";
 import type { SolverContainerStatus, StopIfIdleResult, StopOutcome } from "../../src/solver-container-ops.ts";
 import type { CalibrationKey } from "../../src/solver-container-env.ts";
 import { CALIBRATION_KEYS } from "../../src/solver-container-env.ts";
 import { MAIN_CELL } from "./definition.ts";
 import type { AppClient } from "./http-client.ts";
+import { childEnv, run } from "./process-lifetime.ts";
 
 /**
  * Everything production-specific the runner reasons from, behind one interface — so the local
@@ -234,11 +234,6 @@ type Deployment = {
 
 type LocalSolverState = { readonly desired: CellTuning | null; readonly pid: number | null };
 
-const execFileAsync = promisify(execFile);
-
-const run = async (command: string, args: readonly string[]): Promise<string> =>
-  (await execFileAsync(command, [...args], { maxBuffer: 10 * 1024 * 1024 })).stdout;
-
 const solverTuningEnv = (tuning: CellTuning): Record<string, string> => ({
   SOLVER_WORKERS: String(tuning.workers),
   SOLVER_STAGE_BUDGET_S: String(tuning.stageBudgetS),
@@ -250,7 +245,7 @@ const startSolver = (stateDir: string, env: Record<string, string>): number => {
   mkdirSync(stateDir, { recursive: true });
   const log = openSync(join(stateDir, "local-solver.log"), "a");
   const child = spawn("sh", ["scripts/solver/dev.sh"], {
-    env: { ...process.env, ...env },
+    env: { ...childEnv(), ...env },
     detached: true,
     stdio: ["ignore", log, log],
   });

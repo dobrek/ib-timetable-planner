@@ -57,7 +57,16 @@ export type LedgerExpectations = {
   readonly requireSolverConfig: boolean;
   /** `machine/cpuCount`, or `machine/*`, the solving host must match (`hostMatches`); null accepts any. */
   readonly host: string | null;
+  /** Job id → the live Worker version at dispatch and at terminal, from the runner's journal. */
+  readonly versions: ReadonlyMap<string, WorkerVersions>;
 };
+
+/**
+ * The deployed Worker version when a job was dispatched and when it ended. A difference is a fact, not
+ * a verdict: every `secret bulk` mints a version too (the drill's step 9 does it on purpose), so a
+ * change means "read the journal", while a stray deploy shows up here once the journal is gone.
+ */
+export type WorkerVersions = { readonly dispatch: string; readonly terminal: string | null };
 
 export const ERROR_KINDS = [
   "precondition",
@@ -91,6 +100,8 @@ const clocksSchema = z.object({
   unaccountedS: z.number().nullable(),
 });
 
+const workerVersionsSchema = z.object({ dispatch: z.string(), terminal: z.string().nullable() });
+
 export const ledgerRowSchema = z.object({
   jobId: z.string(),
   planId: z.string(),
@@ -111,6 +122,8 @@ export const ledgerRowSchema = z.object({
   stages: z.array(storedStageReportSchema),
   /** The exact 10-tuple of the board a succeeded job delivered, scored with `scoreCandidate`. */
   deliveredObjective: z.array(z.int()).length(10).nullable(),
+  /** `WorkerVersions`, or null when no runner supplied them (a human extraction, an older ledger). */
+  workerVersions: workerVersionsSchema.nullable().default(null),
 });
 
 export type LedgerRow = z.infer<typeof ledgerRowSchema>;
@@ -154,6 +167,7 @@ export const toLedgerRow = (
     solverConfig: job.solverConfig,
     stages: [...job.stages],
     deliveredObjective: deliveredObjective === null ? null : [...deliveredObjective],
+    workerVersions: expectations.versions.get(job.id) ?? null,
   };
 };
 
@@ -162,6 +176,7 @@ export const toLedgerRow = (
  * row, and an extraction of a few jobs never drops the others. The fresh row wins (a job's status
  * moves until it is terminal), except that a delivered tuple once computed is kept: a succeeded
  * job's board does not change, and an extraction that skipped the heavy read should not erase it.
+ * Worker versions are kept the same way, so a human re-extraction cannot erase the runner's record.
  *
  * Ordered by creation time, then runs numbered within each cell.
  */
@@ -171,6 +186,7 @@ export const mergeLedger = (existing: readonly LedgerRow[], fresh: readonly Ledg
   const updated = fresh.map((row) => ({
     ...row,
     deliveredObjective: row.deliveredObjective ?? previous.get(row.jobId)?.deliveredObjective ?? null,
+    workerVersions: row.workerVersions ?? previous.get(row.jobId)?.workerVersions ?? null,
   }));
   return numberRuns(byCreation([...existing.filter((row) => !freshIds.has(row.jobId)), ...updated]));
 };
@@ -193,6 +209,10 @@ export const parseCellMapping = (raw: string): Map<string, string> =>
         return [jobId, cell] as const;
       }),
   );
+
+/** `{"<job>":{"dispatch":"…","terminal":"…"}}` — JSON, because a split deployment's version has commas. */
+export const parseVersionMapping = (raw: string): Map<string, WorkerVersions> =>
+  new Map(raw.trim() === "" ? [] : Object.entries(z.record(z.string(), workerVersionsSchema).parse(JSON.parse(raw))));
 
 export const parseLedgerFile = (text: string): LedgerRow[] =>
   z.object({ version: z.literal(1), rows: z.array(ledgerRowSchema) }).parse(JSON.parse(text)).rows;
@@ -224,6 +244,7 @@ export const formatLedgerMarkdown = (rows: readonly LedgerRow[]): string => {
         "Σ wallClockS min",
         "unaccounted s",
         "clean fallback",
+        "worker version",
         "delivered tuple",
       ],
       rows.map(runCells),
@@ -334,8 +355,15 @@ const runCells = (row: LedgerRow): string[] => [
   (row.clocks.stageSumS / 60).toFixed(2),
   fixedOrDash(row.clocks.unaccountedS, 1),
   fallbackFactOf(row.solverConfig),
+  versionCell(row.workerVersions),
   row.deliveredObjective === null ? "—" : `[${row.deliveredObjective.join(",")}]`,
 ];
+
+const versionCell = (versions: WorkerVersions | null): string => {
+  if (versions === null) return "—";
+  if (versions.terminal === null) return "pending";
+  return versions.terminal === versions.dispatch ? "same" : "changed";
+};
 
 const tierCell = (row: LedgerRow, tier: number): string => {
   const stage = row.stages.find((candidate) => candidate.tier === tier);

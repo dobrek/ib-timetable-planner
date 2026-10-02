@@ -767,32 +767,32 @@ One additive, nullable column; existing rows stay null and read as legacy. Phase
 
 #### Automated
 
-- [x] 1.1 `pnpm exec supabase db reset` applies every migration cleanly — 8876160
-- [x] 1.2 `mise run solver:check` and `mise run solver:test` green, objective parity at exactly 10/10 — 8876160
-- [x] 1.3 `pnpm test:integration` green for `solver-credential` and `solver-transport` with the solver running — 8876160
-- [x] 1.4 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean — 8876160
-- [x] 1.5 `mise run solver:image:build` and `mise run solver:image:smoke` pass — 8876160
+- [x] 1.1 `pnpm exec supabase db reset` applies every migration cleanly — 8fe5d30
+- [x] 1.2 `mise run solver:check` and `mise run solver:test` green, objective parity at exactly 10/10 — 8fe5d30
+- [x] 1.3 `pnpm test:integration` green for `solver-credential` and `solver-transport` with the solver running — 8fe5d30
+- [x] 1.4 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean — 8fe5d30
+- [x] 1.5 `mise run solver:image:build` and `mise run solver:image:smoke` pass — 8fe5d30
 
 #### Manual
 
-- [x] 1.6 A local Generate leaves a row whose `solver_config` names the local solver's workers, budgets and host — 8876160
-- [x] 1.7 `budgetSource.stage` reads `engine-default` when unset and `configured` when set to 5 — 8876160
+- [x] 1.6 A local Generate leaves a row whose `solver_config` names the local solver's workers, budgets and host — 8fe5d30
+- [x] 1.7 `budgetSource.stage` reads `engine-default` when unset and `configured` when set to 5 — 8fe5d30
 - [x] 1.8 Merged to `main` with no job active on production, and the `Deploy` job finished green — dc8001e
 
 ### Phase 2: Worker control surface
 
 #### Automated
 
-- [x] 2.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean — 27d9cb9
-- [x] 2.2 `mise run solver:check` green, including shellcheck on the edited `tier3.sh` — 27d9cb9
-- [x] 2.3 The nine-key pin test still lists exactly nine keys — 27d9cb9
+- [x] 2.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean — 33c539d
+- [x] 2.2 `mise run solver:check` green, including shellcheck on the edited `tier3.sh` — 33c539d
+- [x] 2.3 The nine-key pin test still lists exactly nine keys — 33c539d
 
 #### Manual
 
-- [x] 2.4 Under tier 3 with `CALIBRATION_STAGE_BUDGET_S=5`, the startup line and the row's `solver_config` both show 5 — 27d9cb9
-- [x] 2.5 `GET` on the route reports `running: false` before a Generate and `running: true` during one — 27d9cb9
-- [x] 2.6 `stop-if-idle` answers `busy` during a solve and stops the container after it — 27d9cb9
-- [x] 2.7 The route answers 404 with the allowlist unset, and 403 for an account outside it — 27d9cb9
+- [x] 2.4 Under tier 3 with `CALIBRATION_STAGE_BUDGET_S=5`, the startup line and the row's `solver_config` both show 5 — 33c539d
+- [x] 2.5 `GET` on the route reports `running: false` before a Generate and `running: true` during one — 33c539d
+- [x] 2.6 `stop-if-idle` answers `busy` during a solve and stops the container after it — 33c539d
+- [x] 2.7 The route answers 404 with the allowlist unset, and 403 for an account outside it — 33c539d
 - [x] 2.8 Merged to `main` with no job active on production, and the `Deploy` job finished green — dc8001e
 
 ### Phase 3: Analyzer extensions

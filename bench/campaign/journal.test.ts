@@ -49,6 +49,16 @@ describe("the journal file", () => {
     expect(readJournal(path)).toEqual([intent(1)]);
   });
 
+  it("writes the next entry after a torn line, not onto it, so nothing after the crash is lost", () => {
+    const path = scratch();
+    writeFileSync(path, `${JSON.stringify(intent(1))}\n{"type":"outcome","seq":1,"at":"2026-`);
+
+    appendEntry(path, intent(2));
+    appendEntry(path, intent(3));
+
+    expect(readJournal(path)).toEqual([intent(1), intent(2), intent(3)]);
+  });
+
   it("refuses a corrupt line anywhere else", () => {
     expect(() => parseJournal(`not json\n${JSON.stringify(intent(1))}\n`)).toThrow(/journal line 1 is unreadable/);
   });

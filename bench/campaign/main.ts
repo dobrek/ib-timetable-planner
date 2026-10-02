@@ -4,13 +4,15 @@ import { createInterface } from "node:readline/promises";
 import { cellKeyOf } from "../campaign-cell.ts";
 import type { CellTuning } from "../campaign-cell.ts";
 import { createAnalyzerClient } from "./analyzer-client.ts";
+import type { PlanFacts } from "./analyzer-client.ts";
 import { createLocalController, createProductionController } from "./cell-controller.ts";
-import { cellTuningProblems, gridFor } from "./definition.ts";
+import { baseUrlProblems, cellTuningProblems, gridFor } from "./definition.ts";
 import { createAppClient } from "./http-client.ts";
 import { readJournal, replay } from "./journal.ts";
 import type { CampaignState, JournalAction } from "./journal.ts";
 import { drill, renewal, verifyStartup } from "./lifecycle.ts";
 import { cleanupStep, gridComplete, nextStep } from "./next-step.ts";
+import { stopSignal } from "./process-lifetime.ts";
 import {
   cellsOf,
   missingFrom,
@@ -19,8 +21,9 @@ import {
   record,
   requireEnv,
   runLoop,
-  safeToChangeSecrets,
+  safeToPark,
   sleep,
+  versionsOf,
 } from "./runner.ts";
 import type { Context, RunnerConfig } from "./runner.ts";
 import { describeAction, describeStep, formatStatus } from "./status-report.ts";
@@ -127,7 +130,7 @@ const setup = async (context: Context, state: CampaignState, args: readonly stri
     name: campaign.name,
     includeBoard: true,
   });
-  const remainingHours = await analyzer.remainingHours(id);
+  const { unplacedHours: remainingHours } = await analyzer.remainingHours(id);
   if (remainingHours === 0) {
     await client.action("deletePlan", { id });
     record(config, { type: "outcome", seq, at: now(), result: { kind: "setup-refused", remainingHours } });
@@ -151,10 +154,12 @@ const reconcileSetup = async (
   action: Extract<JournalAction, { kind: "setup" }>,
   args: readonly string[],
 ): Promise<number> => {
-  const { config, analyzer } = context;
+  const { config } = context;
   const [flag = "", planId = ""] = args;
   if (flag === "--adopt" && planId !== "") {
-    const remainingHours = await analyzer.remainingHours(planId);
+    const facts = await verifyCampaignClone(context, planId, action);
+    if (facts === null) return 1;
+    const remainingHours = facts.unplacedHours;
     record(config, {
       type: "outcome",
       seq,
@@ -226,7 +231,7 @@ const parkNow = async (context: Context, state: CampaignState): Promise<number> 
     console.error(`"${describeAction(state.pending.action)}" was interrupted — \`run\` reconciles it first`);
     return 1;
   }
-  if (!(await safeToChangeSecrets(context, state))) return 1;
+  if (!(await safeToPark(context, state))) return 1;
   await perform(context, state, { kind: "park" }, state.pending);
   return 0;
 };
@@ -235,6 +240,11 @@ const cleanup = async (context: Context, state: CampaignState): Promise<number> 
   const { config, analyzer } = context;
   const setupState = state.setup;
   if (setupState === null) return 1;
+  // Cleanup replays an open intent first; only its own may be replayed — never a dispatch or a cell.
+  if (state.pending !== null && !CLEANUP_ACTIONS.includes(state.pending.action.kind)) {
+    console.error(`"${describeAction(state.pending.action)}" was interrupted — \`run\` reconciles it first`);
+    return 1;
+  }
   const dispatched = state.attempts.map((attempt) => attempt.jobId).filter((id): id is string => id !== null);
   // Once the campaign plan is gone its rows are gone too; the checks below already passed back then.
   if (!state.cleanedUp.deleted.includes(setupState.campaignPlanId) && dispatched.length > 0) {
@@ -243,6 +253,7 @@ const cleanup = async (context: Context, state: CampaignState): Promise<number> 
       jobIds: dispatched,
       cells: cellsOf(state),
       expectedHost: context.controller.expectedHost(state.firstHost),
+      versions: versionsOf(state),
     });
     const missing = missingFrom(config.ledgerPath, dispatched);
     if (missing.length > 0) {
@@ -259,11 +270,17 @@ const cleanup = async (context: Context, state: CampaignState): Promise<number> 
       return 1;
     }
   }
+  if (
+    !state.cleanedUp.deleted.includes(setupState.campaignPlanId) &&
+    (await verifyCampaignClone(context, setupState.campaignPlanId, setupState)) === null
+  )
+    return 1;
   const proposals = new Set(state.attempts.map((attempt) => attempt.proposalPlanId).filter((id) => id !== null)).size;
   if (
     !(await confirm(
-      `Type 'delete' to deliver and delete ${proposals} proposal(s), then campaign plan ${setupState.campaignPlanId}: `,
+      `Type 'delete' to deliver and delete ${proposals} proposal(s), then campaign plan ${setupState.campaignPlanId} "${setupState.name}": `,
       "delete",
+      config.target,
     ))
   ) {
     console.error("aborted — nothing was deleted");
@@ -272,8 +289,32 @@ const cleanup = async (context: Context, state: CampaignState): Promise<number> 
   return runLoop(context, cleanupStep, "cleanup complete — no campaign plan, proposal or override remains");
 };
 
-const confirm = async (prompt: string, word: string): Promise<boolean> => {
-  if (process.env.CAMPAIGN_CLEANUP_CONFIRM === word) return true;
+/**
+ * `cleanup` deletes the campaign plan by id, and the account may delete any plan — so the id must name
+ * this setup's clone: never the source plan, and bearing exactly the name the setup gave it. Returns
+ * the plan's facts when it does, null (said out loud) when it does not.
+ */
+const verifyCampaignClone = async (
+  { analyzer }: Context,
+  planId: string,
+  setup: { readonly sourcePlanId: string; readonly name: string },
+): Promise<PlanFacts | null> => {
+  if (planId === setup.sourcePlanId) {
+    console.error(`refused — ${planId} is the SOURCE plan, which \`cleanup\` would delete`);
+    return null;
+  }
+  const facts = await analyzer.remainingHours(planId, setup.name);
+  if (facts.nameMatches === true) return facts;
+  console.error(`refused — plan ${planId} is not named "${setup.name}", so it is not this campaign's clone`);
+  return null;
+};
+
+/** The actions `cleanupStep` itself journals — the only open intents `cleanup` may replay. */
+const CLEANUP_ACTIONS: readonly JournalAction["kind"][] = ["cleanup-deliver", "delete-plan", "park"];
+
+/** A typed confirmation. `CAMPAIGN_CLEANUP_CONFIRM` answers it for a rehearsal only — never for production. */
+const confirm = async (prompt: string, word: string, target: RunnerConfig["target"]): Promise<boolean> => {
+  if (target === "local" && process.env.CAMPAIGN_CLEANUP_CONFIRM === word) return true;
   const readline = createInterface({ input: process.stdin, output: process.stdout });
   try {
     return (await readline.question(prompt)).trim() === word;
@@ -315,6 +356,8 @@ const connect = async (config: RunnerConfig): Promise<Context> => {
       ? ["LOCAL_SOLVER_SUPABASE_URL", "LOCAL_SOLVER_SUPABASE_KEY", "LOCAL_SOLVER_MACHINE_PASSWORD"]
       : []),
   ]);
+  const urlProblems = baseUrlProblems(config.target, env.CAMPAIGN_BASE_URL);
+  if (urlProblems.length > 0) throw new Error(`refused before any request — ${urlProblems.join("; ")}`);
   const client = createAppClient({
     baseUrl: env.CAMPAIGN_BASE_URL,
     email: env.CAMPAIGN_EMAIL,
@@ -351,22 +394,6 @@ const connect = async (config: RunnerConfig): Promise<Context> => {
     stop: stopSignal(),
     pollMs: config.target === "production" ? 30_000 : 5_000,
   };
-};
-
-/** First Ctrl-C (or SIGTERM): finish the step, then stop. Second: exit at once, parking nothing. */
-const stopSignal = (): AbortSignal => {
-  const controller = new AbortController();
-  const onSignal = (): void => {
-    if (controller.signal.aborted) {
-      console.log("\nexiting now — nothing parked; `status` shows any live override");
-      process.exit(130);
-    }
-    console.log("\nstopping after this step (Ctrl-C again to exit at once)");
-    controller.abort();
-  };
-  process.on("SIGINT", onSignal);
-  process.on("SIGTERM", onSignal);
-  return controller.signal;
 };
 
 main(process.argv.slice(2)).then(

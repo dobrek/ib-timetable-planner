@@ -91,7 +91,8 @@ run = "sh {{config_root}}/scripts/solver/hosted.sh"
 
 # --- the calibration campaign (S-308, automated) ----------------------------------------------------
 # A resumable Node runner (bench/campaign/main.ts) behind a fail-closed launcher. Commands follow `--`:
-# `mise run solver:campaign -- status | setup | run | set-cell D … | run-one | park | resume | cleanup`.
+# `mise run solver:campaign -- status | setup | run | set-cell D … | run-one | park | resume | cleanup`,
+# and S-308 Phase 3's attended `verify-startup | drill | renewal`.
 # See docs/runbooks/calibration-campaign.md.
 
 [tasks."solver:campaign"]

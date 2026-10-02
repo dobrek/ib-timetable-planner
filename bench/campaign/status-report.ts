@@ -2,6 +2,7 @@ import { cellKeyOf } from "../campaign-cell.ts";
 import type { CampaignCell, CampaignTarget } from "./definition.ts";
 import { estimateRunSeconds, gridFor, MAIN_CELL, RUNS_PER_CELL } from "./definition.ts";
 import type { Attempt, CampaignState, JournalAction } from "./journal.ts";
+import { workerVersionChanged } from "./journal.ts";
 import type { Step } from "./next-step.ts";
 import { nextStep } from "./next-step.ts";
 
@@ -20,7 +21,7 @@ export const formatStatus = (state: CampaignState, fallbackTarget: CampaignTarge
       : [
           `plan     ${state.setup.campaignPlanId} "${state.setup.name}", cloned from ${state.setup.sourcePlanId} with ${state.setup.remainingHours} h to place`,
         ]),
-    `override ${state.override === null ? "none (the next cold start gets main's constants)" : `cell ${state.override.cell} since ${state.override.since} (${elapsed(state.override.since, nowMs)} ago)`}`,
+    `override ${overrideLabel(state, nowMs)}`,
     ...(state.pending === null
       ? []
       : [
@@ -34,6 +35,7 @@ export const formatStatus = (state: CampaignState, fallbackTarget: CampaignTarge
       : []),
     "",
     ...excludedLines(state.attempts),
+    ...versionChangedLines(state.attempts),
     remainingLine(state, grid),
   ].join("\n");
 };
@@ -82,6 +84,16 @@ export const describeAction = (action: JournalAction): string => {
 
 // --- lines ----------------------------------------------------------------------------------------
 
+/** The journal's override — or, while an apply is open, the one its `secret bulk` may already have set. */
+const overrideLabel = (state: CampaignState, nowMs: number): string => {
+  const open = state.pending?.action;
+  if (open?.kind === "apply-cell")
+    return `POSSIBLY cell ${open.cell} — its apply was interrupted; \`run\` reconciles it`;
+  return state.override === null
+    ? "none (the next cold start gets main's constants)"
+    : `cell ${state.override.cell} since ${state.override.since} (${elapsed(state.override.since, nowMs)} ago)`;
+};
+
 const gridLines = (state: CampaignState, grid: readonly CampaignCell[]): string[] =>
   grid.map((cell) => {
     const slots = Array.from({ length: cell.key === "main" ? state.runOneRequests : RUNS_PER_CELL }, (_, index) =>
@@ -109,6 +121,21 @@ const excludedLines = (attempts: readonly Attempt[]): string[] => {
         ...excluded.map(
           (attempt) =>
             `  ${attempt.cell} run ${attempt.slot} attempt ${attempt.attempt} (${attempt.jobId ?? "no job"}): ${attempt.verdict?.reason ?? "?"}`,
+        ),
+        "",
+      ];
+};
+
+/** A secret change explains a version change (the drill's step 9 is one); anything else is a stray deploy. */
+const versionChangedLines = (attempts: readonly Attempt[]): string[] => {
+  const changed = attempts.filter(workerVersionChanged);
+  return changed.length === 0
+    ? []
+    : [
+        "Worker version changed during:",
+        ...changed.map(
+          (attempt) =>
+            `  ${attempt.cell} run ${attempt.slot} attempt ${attempt.attempt} (${attempt.jobId ?? "no job"}): ${attempt.dispatchVersion} → ${attempt.terminal?.version ?? "?"}`,
         ),
         "",
       ];

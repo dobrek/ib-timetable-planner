@@ -109,6 +109,9 @@ LOCAL_SOLVER_MACHINE_PASSWORD=<the local solver machine user's password>
 
 A journal is bound to the target it was set up with. To switch, move `.campaign/` aside.
 
+For a scripted rehearsal, `CAMPAIGN_CLEANUP_CONFIRM=delete` answers `cleanup`'s typed confirmation. It is
+ignored when `CAMPAIGN_TARGET=production`: a production cleanup always asks.
+
 ---
 
 ## The merge freeze

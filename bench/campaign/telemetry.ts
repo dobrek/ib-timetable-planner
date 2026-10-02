@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { HttpCallError, isTransient } from "./http-client.ts";
 import type { TelemetryLine } from "./telemetry-lines.ts";
 
 /**
@@ -43,6 +44,8 @@ export type TelemetryClientOptions = {
   /** Where raw responses are kept — `.campaign/telemetry/`. */
   readonly rawDir: string;
   readonly fetch?: typeof fetch;
+  /** Pause before retrying a 5xx or a network failure. */
+  readonly retryDelayMs?: number;
 };
 
 /** The most events one query returns; a lifecycle window holds far fewer of the lines asked for. */
@@ -53,8 +56,19 @@ export const createTelemetryClient = ({
   token,
   rawDir,
   fetch: fetchImpl = fetch,
+  retryDelayMs = 5_000,
 }: TelemetryClientOptions): TelemetryClient => {
-  const one = async (query: TelemetryQuery): Promise<TelemetryLine[]> => {
+  // A long observation polls for many minutes; one 5xx from the API must not end it.
+  const one = async (query: TelemetryQuery, retriesLeft = TRANSIENT_RETRIES): Promise<TelemetryLine[]> => {
+    try {
+      return await queryOnce(query);
+    } catch (error) {
+      if (retriesLeft === 0 || !isTransient(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      return one(query, retriesLeft - 1);
+    }
+  };
+  const queryOnce = async (query: TelemetryQuery): Promise<TelemetryLine[]> => {
     const response = await fetchImpl(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/observability/telemetry/query`,
       {
@@ -90,6 +104,8 @@ export const queryWindows = (fromMs: number, toMs: number): { fromMs: number; to
 
 const MAX_WINDOW_MS = 48 * 60 * 60 * 1000;
 
+const TRANSIENT_RETRIES = 3;
+
 /** The query body for one source and window — the spike's filters, nothing assumed. */
 export const telemetryRequest = ({ source, fromMs, toMs, contains }: TelemetryQuery): Record<string, unknown> => ({
   queryId: "calibration-campaign",
@@ -110,9 +126,11 @@ export const telemetryRequest = ({ source, fromMs, toMs, contains }: TelemetryQu
 
 /** The events of a query response as time-ordered lines; a refused query is an error, never "no lines". */
 export const linesFrom = (status: number, body: string): TelemetryLine[] => {
-  const parsed = JSON.parse(body) as TelemetryResponse;
-  if (status !== 200 || parsed.success !== true) {
-    throw new Error(`telemetry query refused (HTTP ${status}): ${JSON.stringify(parsed.errors ?? []).slice(0, 300)}`);
+  const parsed = parseResponse(body);
+  if (status !== 200 || parsed?.success !== true) {
+    // An HttpCallError, so a 5xx — often an HTML page, not JSON — reads as transient and is retried.
+    const detail = parsed === null ? body.slice(0, 300) : JSON.stringify(parsed.errors ?? []).slice(0, 300);
+    throw new HttpCallError(status, `telemetry query refused (HTTP ${status}): ${detail}`);
   }
   return (parsed.result?.events?.events ?? [])
     .map((event) => ({
@@ -123,6 +141,14 @@ export const linesFrom = (status: number, body: string): TelemetryLine[] => {
 };
 
 // --- helpers --------------------------------------------------------------------------------------
+
+const parseResponse = (body: string): TelemetryResponse | null => {
+  try {
+    return JSON.parse(body) as TelemetryResponse;
+  } catch {
+    return null;
+  }
+};
 
 /** A log line's text; a structured line (an object) is kept as JSON rather than "[object Object]". */
 const textOf = (value: unknown): string => {

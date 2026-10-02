@@ -74,6 +74,24 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 
+# The target and the app it drives must agree, or a rehearsal clones real data and a production run reads
+# its override back from a laptop. A first pass, before the banner: `baseUrlProblems`
+# (bench/campaign/definition.ts) parses the URL properly and refuses again before any request.
+base_url=$(profile_value CAMPAIGN_BASE_URL)
+case "$target:$base_url" in
+  local:http://localhost:* | local:http://127.0.0.1:*) ;;
+  production:https://localhost* | production:https://127.0.0.1*)
+    echo "$profile: CAMPAIGN_TARGET=production needs the deployed app's URL, not '$base_url'." >&2
+    exit 1
+    ;;
+  production:https://*) ;;
+  *)
+    echo "$profile: CAMPAIGN_BASE_URL '$base_url' does not fit CAMPAIGN_TARGET=$target" >&2
+    echo "  (local: http://localhost:<port> or http://127.0.0.1:<port>; production: the deployed https URL)." >&2
+    exit 1
+    ;;
+esac
+
 # Commands that touch the app or Cloudflare. `status`, `set-cell`, `resume` and `verify-startup` only
 # read (the journal, or the logs) or append to the journal, so they skip the production checks and the
 # prompt. `drill` and `renewal` also need CLOUDFLARE_OBSERVABILITY_TOKEN and CLOUDFLARE_ACCOUNT_ID —

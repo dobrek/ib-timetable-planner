@@ -1,8 +1,6 @@
 /* eslint-disable no-console -- the console IS the runner's operator interface (bench precedent). */
-import { execFile, spawn } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { gridFor } from "./definition.ts";
 import { DRILL_MIN_CHECKPOINT, drillProblems, haltedLabelPattern, nextDrillStep } from "./drill.ts";
 import type { DrillStep } from "./drill.ts";
@@ -12,6 +10,7 @@ import { formatLifecycleBlock, lifecycleNumbers, renewalProblems } from "./lifec
 import type { JobClocks, LifecycleInput } from "./lifecycle-numbers.ts";
 import { nextStep } from "./next-step.ts";
 import type { Step } from "./next-step.ts";
+import { run, stream } from "./process-lifetime.ts";
 import { checkPlan, ledgerRows, log, now, perform, pollUntil, record, requireEnv, runLoop } from "./runner.ts";
 import type { Context, LedgerFileRow, RunnerConfig } from "./runner.ts";
 import { describeStep } from "./status-report.ts";
@@ -164,6 +163,8 @@ const performDrillStep = async (
       return awaitCheckpoint(context, state, step.jobId);
     case "deploy":
       return deployDrillCommit(context, step.jobId);
+    case "resume-deploy":
+      return resumeDrillDeploy(context, step.commit, step.versionBefore);
     case "read-shutdown":
       return readShutdown(context, telemetry, state, step.jobId);
     case "check-label": {
@@ -231,10 +232,38 @@ const deployDrillCommit = async (context: Context, jobId: string): Promise<numbe
   await run("git", ["add", marker]);
   await run("git", ["commit", "-m", "chore(solver): lifecycle drill marker (image-changing, deployed during a solve)"]);
   const commit = (await run("git", ["rev-parse", "--short", "HEAD"])).trim();
+  drillFact(context, { kind: "deploy-started", commit, versionBefore: await context.controller.liveVersion() });
+  await shipDrillCommit(context, commit);
+  return null;
+};
+
+/**
+ * A deploy interrupted after its marker commit. The live Worker version says whether it went out: if it
+ * moved, record it; if not, ship the SAME commit — a second marker would roll the container for nothing.
+ */
+const resumeDrillDeploy = async (context: Context, commit: string, versionBefore: string): Promise<number | null> => {
+  const live = await context.controller.liveVersion();
+  if (live !== versionBefore) {
+    log(`  the interrupted deploy of ${commit} went out as ${live}`);
+    drillFact(context, { kind: "deployed", commit, version: live });
+    return null;
+  }
+  const head = (await run("git", ["rev-parse", "--short", "HEAD"])).trim();
+  if (head !== commit) {
+    console.error(
+      `the interrupted deploy was of ${commit}, but HEAD is ${head} — check out ${commit}, then rerun \`drill\``,
+    );
+    return 1;
+  }
+  log(`  the interrupted deploy of ${commit} never went out — shipping it now, with no new marker`);
+  await shipDrillCommit(context, commit);
+  return null;
+};
+
+const shipDrillCommit = async (context: Context, commit: string): Promise<void> => {
   await stream("pnpm", ["build"]);
   await stream("pnpm", ["exec", "wrangler", "deploy", "--message", `lifecycle drill ${commit}`]);
   drillFact(context, { kind: "deployed", commit, version: await context.controller.liveVersion() });
-  return null;
 };
 
 /** Step 5: the shutdown pair from the container's lines — they land 20–40 s after they are logged. */
@@ -377,19 +406,3 @@ const drillFact = (context: Context, fact: DrillFact): void => {
 
 const describeDrillStep = (step: DrillStep): string =>
   step.kind === "act" ? describeStep({ kind: "act", action: step.action, reconcile: step.reconcile }) : step.kind;
-
-const execFileAsync = promisify(execFile);
-
-const run = async (command: string, args: readonly string[]): Promise<string> =>
-  (await execFileAsync(command, [...args], { maxBuffer: 20 * 1024 * 1024 })).stdout;
-
-/** A long build or deploy, its output shown as it happens. */
-const stream = (command: string, args: readonly string[]): Promise<void> =>
-  new Promise((resolve, reject) => {
-    const child = spawn(command, [...args], { stdio: "inherit" });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${command} ${args.join(" ")} exited ${code ?? "?"}`));
-    });
-  });

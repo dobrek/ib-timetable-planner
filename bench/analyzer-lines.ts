@@ -29,7 +29,13 @@ export type AnalyzerLine =
       readonly stale: readonly ActiveJobEntry[];
     }
   | { readonly kind: "job-id"; readonly prefix: string; readonly jobId: string }
-  | { readonly kind: "remaining-hours"; readonly planId: string; readonly unplacedHours: number };
+  | {
+      readonly kind: "remaining-hours";
+      readonly planId: string;
+      readonly unplacedHours: number;
+      /** Whether the plan bears the name the caller expected; null when none was given. Never the name. */
+      readonly nameMatches: boolean | null;
+    };
 
 export const formatAnalyzerLine = (line: AnalyzerLine): string => `${ANALYZER_LINE_PREFIX}${JSON.stringify(line)}`;
 

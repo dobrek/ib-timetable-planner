@@ -103,6 +103,23 @@ describe("nextDrillStep", () => {
     });
   });
 
+  it("settles an interrupted deploy from the live version rather than committing a second marker", () => {
+    const started = [
+      SETUP,
+      APPLY_C,
+      STOP,
+      STOPPED,
+      DISPATCH_DRILL,
+      fact({ kind: "checkpoint", position: 3 }),
+      fact({ kind: "deploy-started", commit: "abc1234", versionBefore: "v1@100" }),
+    ] as const;
+    const resume = { kind: "resume-deploy", jobId: "drill-job", commit: "abc1234", versionBefore: "v1@100" };
+
+    expect(next(...started)).toEqual(resume);
+    // The deploy in question may be what ended the row, so it is settled before the row is read.
+    expect(next(...started, INTERRUPTED)).toEqual(resume);
+  });
+
   it("halts when the solve ended before anything was deployed", () => {
     const step = next(SETUP, APPLY_C, STOP, STOPPED, DISPATCH_DRILL, [
       { kind: "await-terminal", jobId: "drill-job" },

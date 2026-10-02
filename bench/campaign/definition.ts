@@ -92,6 +92,24 @@ export const cellTuningProblems = ({ workers, stageBudgetS, modeABudgetS }: Cell
       : `Mode A ${modeABudgetS} s is outside 1–3600`,
   ].filter((problem): problem is string => problem !== null);
 
+/**
+ * Why the app URL cannot serve this target, or nothing. A local rehearsal pointed at the deployed app
+ * clones real data before anything local refuses it; a production run pointed at a laptop writes the
+ * real Worker's secrets, then reads the override back from the wrong app and reports none.
+ */
+export const baseUrlProblems = (target: CampaignTarget, baseUrl: string): string[] => {
+  if (!URL.canParse(baseUrl)) return [`CAMPAIGN_BASE_URL "${baseUrl}" is not a URL`];
+  const url = new URL(baseUrl);
+  const loopback = LOOPBACK_HOSTS.includes(url.hostname);
+  if (target === "local") return loopback ? [] : [`a local rehearsal needs a loopback app URL, not ${url.host}`];
+  return [
+    loopback ? `production needs the deployed app's URL, not ${url.host}` : null,
+    url.protocol === "https:" ? null : "production needs an https app URL",
+  ].filter((problem): problem is string => problem !== null);
+};
+
+const LOOPBACK_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "[::1]"];
+
 /** Ten tiers: Mode A (tier 1) under its own budget, then nine polishing stages under the stage budget. */
 const POLISHING_STAGES = 9;
 

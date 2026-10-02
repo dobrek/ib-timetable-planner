@@ -1,6 +1,7 @@
-import { spawn } from "node:child_process";
 import type { ActiveJobEntry, AnalyzerLine } from "../analyzer-lines.ts";
+import type { WorkerVersions } from "../campaign-ledger.ts";
 import { parseAnalyzerLines } from "../analyzer-lines.ts";
+import { childEnv, spawnChild } from "./process-lifetime.ts";
 
 /**
  * The runner's reads of `generation_jobs`, through `pnpm analyze:jobs` as a subprocess.
@@ -23,11 +24,14 @@ export type AnalyzerAccess = {
 
 export type AnalyzerClient = {
   activeJobs(): Promise<{ blocking: readonly ActiveJobEntry[]; stale: readonly ActiveJobEntry[] }>;
-  remainingHours(planId: string): Promise<number>;
+  /** The hours a Generate would hand the solver and, given a name, whether the plan bears it. */
+  remainingHours(planId: string, expectedName?: string): Promise<PlanFacts>;
   /** Merge these jobs into the ledger file under the given validity rules: the ledger's row count, and
    *  the tables (ledger, matrix) the analyzer printed beside it. */
   extractLedger(request: LedgerRequest): Promise<{ rows: number; report: string }>;
 };
+
+export type PlanFacts = { readonly unplacedHours: number; readonly nameMatches: boolean | null };
 
 export type LedgerRequest = {
   readonly ledgerPath: string;
@@ -35,6 +39,8 @@ export type LedgerRequest = {
   /** Every dispatched job's cell key, so a wrong-cell run is excluded by the ledger itself. */
   readonly cells: ReadonlyMap<string, string>;
   readonly expectedHost: string | null;
+  /** Every dispatched job's Worker version at dispatch and at terminal, so a stray deploy outlives the journal. */
+  readonly versions: ReadonlyMap<string, WorkerVersions>;
 };
 
 export const createAnalyzerClient = (access: AnalyzerAccess): AnalyzerClient => {
@@ -49,15 +55,21 @@ export const createAnalyzerClient = (access: AnalyzerAccess): AnalyzerClient => 
       const answer = only((await ask({ ANALYZE_ACTIVE: "1" })).lines, "active-jobs");
       return { blocking: answer.blocking, stale: answer.stale };
     },
-    remainingHours: async (planId) =>
-      only((await ask({ ANALYZE_REMAINING_HOURS: planId })).lines, "remaining-hours").unplacedHours,
-    extractLedger: async ({ ledgerPath, jobIds, cells, expectedHost }) => {
+    remainingHours: async (planId, expectedName = "") => {
+      const answer = only(
+        (await ask({ ANALYZE_REMAINING_HOURS: planId, ANALYZE_EXPECT_PLAN_NAME: expectedName })).lines,
+        "remaining-hours",
+      );
+      return { unplacedHours: answer.unplacedHours, nameMatches: answer.nameMatches };
+    },
+    extractLedger: async ({ ledgerPath, jobIds, cells, expectedHost, versions }) => {
       const { lines, output } = await ask({
         ANALYZE_LEDGER: ledgerPath,
         ANALYZE_JOBS: jobIds.join(","),
         ANALYZE_CELLS: [...cells].map(([jobId, cell]) => `${jobId}:${cell}`).join(","),
         ANALYZE_REQUIRE_SOLVER_CONFIG: "1",
         ANALYZE_EXPECT_HOST: expectedHost ?? "",
+        ANALYZE_VERSIONS: JSON.stringify(Object.fromEntries(versions)),
       });
       return { rows: only(lines, "ledger").rows, report: humanReport(output) };
     },
@@ -72,10 +84,7 @@ export const createAnalyzerClient = (access: AnalyzerAccess): AnalyzerClient => 
  */
 export const analyzerEnv = (access: AnalyzerAccess): Record<string, string> => ({
   ...Object.fromEntries(
-    Object.entries(process.env).filter(
-      (entry): entry is [string, string] =>
-        entry[1] !== undefined && !/^(SUPABASE_|ANALYZE_|ANALYZER_|CAMPAIGN_|LOCAL_SOLVER_)/.test(entry[0]),
-    ),
+    Object.entries(childEnv()).filter(([key]) => !/^(SUPABASE_|ANALYZE_|ANALYZER_|CAMPAIGN_|LOCAL_SOLVER_)/.test(key)),
   ),
   SUPABASE_URL: access.supabaseUrl,
   SUPABASE_SERVICE_ROLE_KEY: access.serviceRoleKey,
@@ -101,10 +110,11 @@ const humanReport = (output: string): string => {
 /** `pnpm <args>` with exactly `env` (not merged again), stdout and stderr captured together. */
 const runPnpm = (args: readonly string[], env: Record<string, string>): Promise<{ code: number; output: string }> =>
   new Promise((resolve, reject) => {
-    const child = spawn("pnpm", [...args], { env, stdio: ["ignore", "pipe", "pipe"] });
+    // A ledger extraction scores every delivered board; vitest.analyze caps each mode at 120 s.
+    const child = spawnChild("pnpm", args, { env, stdio: ["ignore", "pipe", "pipe"], timeoutMs: 10 * 60_000 });
     const chunks: Buffer[] = [];
-    child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
-    child.stderr.on("data", (chunk: Buffer) => chunks.push(chunk));
+    child.stdout?.on("data", (chunk: Buffer) => chunks.push(chunk));
+    child.stderr?.on("data", (chunk: Buffer) => chunks.push(chunk));
     child.on("error", reject);
     child.on("close", (code) => {
       resolve({ code: code ?? 1, output: Buffer.concat(chunks).toString("utf8") });

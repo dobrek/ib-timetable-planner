@@ -1,4 +1,4 @@
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, writeSync } from "node:fs";
+import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, truncateSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
 import type { CellTuning, HostFingerprint } from "../campaign-cell.ts";
 import type { StopOutcome } from "../../src/solver-container-ops.ts";
@@ -79,6 +79,8 @@ export type JournalEntry =
 export type DrillFact =
   /** The drill solve reached a checkpoint at this ladder position — the moment to deploy. */
   | { readonly kind: "checkpoint"; readonly position: number }
+  /** The marker commit exists and its deploy is about to go out; the live Worker version before it. */
+  | { readonly kind: "deploy-started"; readonly commit: string; readonly versionBefore: string }
   /** The image-changing local deploy went out, as this Worker version. */
   | { readonly kind: "deployed"; readonly commit: string; readonly version: string }
   /** The shutdown pair, read from the container's lines. */
@@ -179,6 +181,7 @@ export const readJournal = (path: string): JournalEntry[] =>
 /** One entry, flushed to disk before returning — a write-ahead log is only as good as its fsync. */
 export const appendEntry = (path: string, entry: JournalEntry): void => {
   mkdirSync(dirname(path), { recursive: true });
+  dropTornTail(path);
   const fd = openSync(path, "a");
   try {
     writeSync(fd, `${JSON.stringify(entry)}\n`);
@@ -187,6 +190,21 @@ export const appendEntry = (path: string, entry: JournalEntry): void => {
     closeSync(fd);
   }
 };
+
+/**
+ * A crash mid-append leaves a last line with no newline. Replay already ignores it; the next entry must
+ * not be written onto it, or that entry is lost too and the line after it reads as corruption.
+ */
+const dropTornTail = (path: string): void => {
+  if (!existsSync(path)) return;
+  const text = readFileSync(path, "utf8");
+  if (text === "" || text.endsWith("\n")) return;
+  truncateSync(path, Buffer.byteLength(text.slice(0, text.lastIndexOf("\n") + 1)));
+};
+
+/** The deployed Worker version moved between this attempt's dispatch and its terminal state. */
+export const workerVersionChanged = (attempt: Attempt): boolean =>
+  attempt.terminal !== null && attempt.terminal.version !== attempt.dispatchVersion;
 
 /** The one in-flight attempt: dispatched and not yet recorded. At most one exists at a time. */
 export const openAttempt = (state: CampaignState): Attempt | undefined =>

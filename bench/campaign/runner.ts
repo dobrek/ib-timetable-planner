@@ -2,16 +2,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import { cellKeyOf } from "../campaign-cell.ts";
 import type { HostFingerprint } from "../campaign-cell.ts";
+import type { WorkerVersions } from "../campaign-ledger.ts";
 import type { AnalyzerClient } from "./analyzer-client.ts";
 import type { CellController } from "./cell-controller.ts";
 import { cellByKey, gridFor } from "./definition.ts";
 import type { CampaignTarget } from "./definition.ts";
 import { ActionCallError, DISPATCH_TIMEOUT_MS, isTransient } from "./http-client.ts";
 import type { AppClient } from "./http-client.ts";
-import { appendEntry, readJournal, replay } from "./journal.ts";
+import { appendEntry, readJournal, replay, workerVersionChanged } from "./journal.ts";
 import type { ActionResult, CampaignState, JournalAction, JournalEntry } from "./journal.ts";
 import type { Step } from "./next-step.ts";
-import { describeStep } from "./status-report.ts";
+import { describeAction, describeStep } from "./status-report.ts";
 
 /**
  * The runner's machinery, shared by every command that acts: the replay → decide → perform loop, the
@@ -80,6 +81,12 @@ export const perform = async (
   action: JournalAction,
   reconcile: { readonly seq: number; readonly at: string } | null,
 ): Promise<boolean> => {
+  if (reconcile === null && state.pending !== null) {
+    // Replay keeps ONE pending intent: a new one would overwrite it, and its outcome would be lost.
+    throw new Error(
+      `"${describeAction(state.pending.action)}" is still open — \`run\` reconciles it before anything else`,
+    );
+  }
   const intent = reconcile ?? { seq: state.lastSeq + 1, at: now() };
   if (reconcile === null) record(context.config, { type: "intent", seq: intent.seq, at: intent.at, action });
   const result = await withRetries(context, () => execute(context, state, action, intent.at));
@@ -101,11 +108,11 @@ const execute = async (
       throw new Error("a setup was interrupted — run `setup` to reconcile it");
     case "apply-cell":
       // The drill's step 9 changes the secret UNDER a running solve on purpose; every other apply waits.
-      if (action.duringSolve !== true && !(await waitUntilIdle(context, state))) return null;
+      if (action.duringSolve !== true && !(await waitUntil(context, () => nothingSolving(context)))) return null;
       await controller.applyCell(action.tuning);
       return { kind: "apply-cell" };
     case "park":
-      if (!(await waitUntilIdle(context, state))) return null;
+      if (!(await waitUntil(context, () => safeToPark(context, state)))) return null;
       await controller.park();
       return { kind: "park" };
     case "stop-container":
@@ -126,7 +133,14 @@ const execute = async (
         jobIds: [action.jobId],
         cells: cellsOf(state),
         expectedHost: controller.expectedHost(state.firstHost),
+        versions: versionsOf(state),
       });
+      const attempt = state.attempts.find((candidate) => candidate.jobId === action.jobId);
+      if (attempt?.terminal != null && workerVersionChanged(attempt)) {
+        log(
+          `  ⚠ the Worker version changed during job ${action.jobId}: ${attempt.dispatchVersion} → ${attempt.terminal.version}`,
+        );
+      }
       const row = ledgerRow(config.ledgerPath, action.jobId);
       return { kind: "record", excluded: row.excluded, host: row.host };
     }
@@ -153,9 +167,7 @@ const dispatch = async (
 ): Promise<ActionResult> => {
   const { client, controller } = context;
   const campaignPlanId = state.setup?.campaignPlanId ?? "";
-  const adoptable = (view: JobView): boolean =>
-    !state.attempts.some((attempt) => attempt.jobId === view.jobId) &&
-    Date.parse(view.createdAt) >= Date.parse(intentAt) - CLOCK_SKEW_MS;
+  const adoptable = (view: JobView): boolean => isAdoptable(state, view, intentAt);
   const adopt = async (view: JobView): Promise<ActionResult> => ({
     kind: "dispatch",
     jobId: view.jobId,
@@ -194,6 +206,15 @@ const dispatch = async (
     return { kind: "dispatch-failed", error: `${error.code}: ${error.message}`, liveVersion };
   }
 };
+
+/**
+ * Whether a job found on the campaign plan IS the dispatch this intent began: one the journal has never
+ * seen, created after the intent (less the laptop-to-server clock skew). An older unknown job is not —
+ * adopting it would file someone else's solve, or an orphan, as this run.
+ */
+export const isAdoptable = (state: CampaignState, view: JobView, intentAt: string): boolean =>
+  !state.attempts.some((attempt) => attempt.jobId === view.jobId) &&
+  Date.parse(view.createdAt) >= Date.parse(intentAt) - CLOCK_SKEW_MS;
 
 /** `checkPlan` on the campaign plan: the app's own reclaim runs, so a dead container ends as `interrupted`. */
 const awaitTerminal = async (context: Context, state: CampaignState, jobId: string): Promise<ActionResult | null> => {
@@ -234,22 +255,39 @@ const gracefulStop = async (context: Context, state: CampaignState): Promise<num
     log("stopped — no override is live");
     return 0;
   }
-  if (!(await safeToChangeSecrets(context, state))) {
+  if (state.pending !== null && state.pending.action.kind !== "park") {
+    log(
+      `stopped — "${describeAction(state.pending.action)}" is still open, so cell ${state.override.cell}'s override is STILL LIVE; \`run\` reconciles it, then \`park\``,
+    );
+    return 0;
+  }
+  if (!(await safeToPark(context, state))) {
     log(`stopped — cell ${state.override.cell}'s override is STILL LIVE; \`park\` once nothing is solving`);
     return 0;
   }
   log("→ park the override before exiting");
-  const parked = await perform({ ...context, stop: new AbortController().signal }, state, { kind: "park" }, null);
+  const parked = await perform(
+    { ...context, stop: new AbortController().signal },
+    state,
+    { kind: "park" },
+    state.pending,
+  );
   log(parked ? "stopped — override parked" : "stopped — the park did not complete; `status` shows the override");
   return 0;
 };
 
 /**
- * A secret change deploys a new Worker version. Until the drill shows that leaves a running solve
- * alone, the runner changes secrets only when nothing on ANY plan is solving.
+ * A secret change deploys a new Worker version. A park may make one under a running solve once the
+ * drill has shown that leaves the solve alone; until then it waits for nothing on ANY plan to solve.
  */
-export const safeToChangeSecrets = async (context: Context, state: CampaignState): Promise<boolean> => {
-  if (state.secretChangeDisturbsSolve === false) return true;
+export const safeToPark = async (context: Context, state: CampaignState): Promise<boolean> =>
+  state.secretChangeDisturbsSolve === false || nothingSolving(context);
+
+/**
+ * A cell change always waits for every active job on every plan, drill or no drill: its next step is
+ * `stop-if-idle`, which answers `busy` under someone else's solve — and a refused stop halts the run.
+ */
+const nothingSolving = async (context: Context): Promise<boolean> => {
   const { blocking } = await context.analyzer.activeJobs();
   if (blocking.length === 0) return true;
   log(
@@ -258,14 +296,9 @@ export const safeToChangeSecrets = async (context: Context, state: CampaignState
   return false;
 };
 
-/** Before a secret change: wait — not fail — for every active job on every plan to end. */
-const waitUntilIdle = async (context: Context, state: CampaignState): Promise<boolean> =>
-  (await pollUntil(
-    context,
-    async () => ((await safeToChangeSecrets(context, state)) ? true : null),
-    Number.POSITIVE_INFINITY,
-    60_000,
-  )) === true;
+/** Before a secret change: wait — not fail — until `ready` says it is safe. */
+const waitUntil = async (context: Context, ready: () => Promise<boolean>): Promise<boolean> =>
+  (await pollUntil(context, async () => ((await ready()) ? true : null), Number.POSITIVE_INFINITY, 60_000)) === true;
 
 const report = async (
   context: Context,
@@ -301,6 +334,7 @@ const matrixReport = async (context: Context, state: CampaignState): Promise<str
     jobIds,
     cells: cellsOf(state),
     expectedHost: context.controller.expectedHost(state.firstHost),
+    versions: versionsOf(state),
   });
   const start = text.indexOf("**Cross-cell matrix**");
   return start === -1 ? text : text.slice(start);
@@ -317,6 +351,21 @@ class TransientError extends Error {}
 
 export const checkPlan = (client: AppClient, planId: string): Promise<JobView | null> =>
   client.action<JobView | null>("checkPlan", { planId });
+
+/** Every dispatched job's Worker version at dispatch and at terminal — the ledger's copy of the journal's. */
+export const versionsOf = (state: CampaignState): Map<string, WorkerVersions> =>
+  new Map(
+    state.attempts.flatMap((attempt) =>
+      attempt.jobId === null
+        ? []
+        : [
+            [
+              attempt.jobId,
+              { dispatch: attempt.dispatchVersion, terminal: attempt.terminal?.version ?? null },
+            ] as const,
+          ],
+    ),
+  );
 
 /** Every journaled job's cell key, so a wrong-cell run is excluded by the ledger itself. */
 export const cellsOf = (state: CampaignState): Map<string, string> => {

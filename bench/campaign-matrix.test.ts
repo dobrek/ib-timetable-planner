@@ -59,7 +59,9 @@ const run = (
 const ledgerOf = (jobs: LoadedJob[]) =>
   mergeLedger(
     [],
-    jobs.map((job) => toLedgerRow(job, { cells: new Map(), requireSolverConfig: false, host: null }, null)),
+    jobs.map((job) =>
+      toLedgerRow(job, { cells: new Map(), requireSolverConfig: false, host: null, versions: new Map() }, null),
+    ),
   );
 
 describe("formatCampaignMatrix", () => {

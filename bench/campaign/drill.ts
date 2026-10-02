@@ -25,6 +25,7 @@ export type DrillStep =
   | { readonly kind: "act"; readonly action: JournalAction; readonly reconcile: PendingIntent | null }
   | { readonly kind: "await-checkpoint"; readonly jobId: string }
   | { readonly kind: "deploy"; readonly jobId: string }
+  | { readonly kind: "resume-deploy"; readonly jobId: string; readonly commit: string; readonly versionBefore: string }
   | { readonly kind: "read-shutdown"; readonly jobId: string }
   | { readonly kind: "check-label"; readonly jobId: string; readonly proposalPlanId: string }
   | { readonly kind: "observe-secret-change"; readonly jobId: string; readonly disturbed: boolean }
@@ -44,6 +45,17 @@ export const nextDrillStep = (state: CampaignState, cellC: CampaignCell, cellA: 
   const checkpoint = fact(state, "checkpoint");
   const deployed = fact(state, "deployed");
   if (deployed === undefined) {
+    // A deploy interrupted after its commit is settled from the live version — never with a second
+    // marker, which would roll the container again. Before the row's end, too: it may be what ended it.
+    const started = fact(state, "deploy-started");
+    if (started !== undefined) {
+      return {
+        kind: "resume-deploy",
+        jobId: drill.jobId,
+        commit: started.commit,
+        versionBefore: started.versionBefore,
+      };
+    }
     if (drill.terminal !== null) {
       return halt(
         `the drill solve ended ${drill.terminal.status} before the deploy — nothing was interrupted; dispatch a new drill`,

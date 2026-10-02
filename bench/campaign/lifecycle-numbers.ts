@@ -1,3 +1,4 @@
+import { secondsBetween } from "../generation-jobs-report.ts";
 import type { ParsedLine, ParsedTelemetry } from "./telemetry-lines.ts";
 
 /**
@@ -66,7 +67,7 @@ export const lifecycleNumbers = (input: LifecycleInput): LifecycleNumbers => {
   const asked = first(drillLines, "shutdown-asked");
   const written = first(drillLines, "shutdown-written");
   return {
-    coldStartS: secondsBetween(renewal.createdAt, renewal.startedAt),
+    coldStartS: roundedSecondsBetween(renewal.createdAt, renewal.startedAt),
     coldStartFromLineS:
       startup === undefined ? null : round((startup.timestamp - Date.parse(renewal.createdAt)) / 1000),
     renewalGapsS: declined
@@ -79,7 +80,7 @@ export const lifecycleNumbers = (input: LifecycleInput): LifecycleNumbers => {
       asked === undefined || drill?.finishedAt == null
         ? null
         : round((Date.parse(drill.finishedAt) - asked.timestamp) / 1000),
-    drillDurationMin: drill === null ? null : minutes(secondsBetween(drill.startedAt, drill.finishedAt)),
+    drillDurationMin: drill === null ? null : minutes(roundedSecondsBetween(drill.startedAt, drill.finishedAt)),
     drillStageReached: drill?.stagesReached ?? null,
     drillCheckpointPosition: drill?.checkpointPosition ?? null,
   };
@@ -138,8 +139,11 @@ const lastBefore = (lines: readonly ParsedTelemetry[], at: number): ParsedTeleme
 const elapsedSince = (from: ParsedTelemetry | undefined, to: ParsedTelemetry | undefined): number | null =>
   from === undefined || to === undefined ? null : round((to.timestamp - from.timestamp) / 1000);
 
-const secondsBetween = (from: string | null, to: string | null): number | null =>
-  from === null || to === null ? null : round((Date.parse(to) - Date.parse(from)) / 1000);
+/** The report's clock (null on a missing or unreadable timestamp), to the tenth of a second. */
+const roundedSecondsBetween = (from: string | null, to: string | null): number | null => {
+  const elapsed = secondsBetween(from, to);
+  return elapsed === null ? null : round(elapsed);
+};
 
 const minutes = (value: number | null): number | null => (value === null ? null : Math.round((value / 60) * 100) / 100);
 

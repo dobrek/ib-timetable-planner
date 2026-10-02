@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { linesFrom, queryWindows, telemetryRequest } from "./telemetry.ts";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createTelemetryClient, linesFrom, queryWindows, telemetryRequest } from "./telemetry.ts";
 
 /** The query shape the spike proved, the window split it forced, and a refusal that is never "no lines". */
 const HOUR = 60 * 60 * 1000;
@@ -68,5 +71,43 @@ describe("linesFrom", () => {
     const refused = JSON.stringify({ success: false, errors: [{ code: 10000, message: "Authentication error" }] });
 
     expect(() => linesFrom(403, refused)).toThrow(/Authentication error/);
+  });
+});
+
+describe("createTelemetryClient", () => {
+  it("retries a 5xx whose body is an HTML page instead of ending a long observation", async () => {
+    const rawDir = mkdtempSync(join(tmpdir(), "campaign-telemetry-"));
+    const ok = JSON.stringify({
+      success: true,
+      result: { events: { events: [{ timestamp: 1, $metadata: { message: "[solver-container] started" } }] } },
+    });
+    const answers = [new Response("<html>502 Bad Gateway</html>", { status: 502 }), new Response(ok, { status: 200 })];
+    const fetchImpl = (() => Promise.resolve(answers.shift() ?? new Response("", { status: 500 }))) as typeof fetch;
+    try {
+      const client = createTelemetryClient({ accountId: "a", token: "t", rawDir, fetch: fetchImpl, retryDelayMs: 0 });
+
+      const lines = await client.lines({ source: "durable-object", fromMs: 0, toMs: HOUR });
+
+      expect(lines).toEqual([{ timestamp: 1, message: "[solver-container] started" }]);
+    } finally {
+      rmSync(rawDir, { recursive: true, force: true });
+    }
+  });
+
+  it("never retries a refusal: a 4xx is an answer", async () => {
+    const rawDir = mkdtempSync(join(tmpdir(), "campaign-telemetry-"));
+    const calls: string[] = [];
+    const fetchImpl = ((url: string) => {
+      calls.push(url);
+      return Promise.resolve(new Response(JSON.stringify({ success: false, errors: [] }), { status: 403 }));
+    }) as typeof fetch;
+    try {
+      const client = createTelemetryClient({ accountId: "a", token: "t", rawDir, fetch: fetchImpl, retryDelayMs: 0 });
+
+      await expect(client.lines({ source: "container", fromMs: 0, toMs: HOUR })).rejects.toThrow(/HTTP 403/);
+      expect(calls).toHaveLength(1);
+    } finally {
+      rmSync(rawDir, { recursive: true, force: true });
+    }
   });
 });

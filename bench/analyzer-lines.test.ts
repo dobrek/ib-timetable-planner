@@ -3,7 +3,7 @@ import { formatAnalyzerLine, parseAnalyzerLines, type AnalyzerLine } from "./ana
 
 /** The runner acts on these answers, so a garbled one must be loud and everything else ignored. */
 describe("analyzer lines", () => {
-  const answer: AnalyzerLine = { kind: "remaining-hours", planId: "plan-1", unplacedHours: 12 };
+  const answer: AnalyzerLine = { kind: "remaining-hours", planId: "plan-1", unplacedHours: 12, nameMatches: true };
 
   it("round-trips an answer through captured stdout, ignoring the reporter's own lines", () => {
     const stdout = [

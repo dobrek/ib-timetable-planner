@@ -48,14 +48,26 @@ const tuple = (slots: number): number[] => [0, 0, slots, 1, 0, 2, 3, 4, 5, 6];
 const ledger = mergeLedger(
   [],
   [
-    toLedgerRow(run("a1", "10:00", 120, 95), { cells: new Map(), requireSolverConfig: false, host: null }, tuple(95)),
-    toLedgerRow(run("b1", "10:30", 60, 99), { cells: new Map(), requireSolverConfig: false, host: null }, tuple(99)),
+    toLedgerRow(
+      run("a1", "10:00", 120, 95),
+      { cells: new Map(), requireSolverConfig: false, host: null, versions: new Map() },
+      tuple(95),
+    ),
+    toLedgerRow(
+      run("b1", "10:30", 60, 99),
+      { cells: new Map(), requireSolverConfig: false, host: null, versions: new Map() },
+      tuple(99),
+    ),
     toLedgerRow(
       run("a-failed", "11:00", 120, 80, { status: "failed", error: "solver error: boom" }),
-      { cells: new Map(), requireSolverConfig: false, host: null },
+      { cells: new Map(), requireSolverConfig: false, host: null, versions: new Map() },
       null,
     ),
-    toLedgerRow(run("a2", "11:30", 120, 93), { cells: new Map(), requireSolverConfig: false, host: null }, tuple(93)),
+    toLedgerRow(
+      run("a2", "11:30", 120, 93),
+      { cells: new Map(), requireSolverConfig: false, host: null, versions: new Map() },
+      tuple(93),
+    ),
   ],
 );
 

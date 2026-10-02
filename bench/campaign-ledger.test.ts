@@ -6,6 +6,7 @@ import {
   mergeLedger,
   parseCellMapping,
   parseLedgerFile,
+  parseVersionMapping,
   serializeLedger,
   toLedgerRow,
   type LedgerExpectations,
@@ -55,6 +56,7 @@ const expectations = (overrides: Partial<LedgerExpectations> = {}): LedgerExpect
   cells: new Map(),
   requireSolverConfig: false,
   host: null,
+  versions: new Map(),
   ...overrides,
 });
 
@@ -209,6 +211,16 @@ describe("mergeLedger", () => {
     expect(merged[0]?.deliveredObjective).toEqual(TUPLE);
   });
 
+  it("keeps the runner's worker versions when a later extraction did not supply them", () => {
+    const versions = new Map([[job().id, { dispatch: "v1@100", terminal: "v2@100" }]]);
+
+    const merged = mergeLedger(mergeLedger([], [toLedgerRow(job(), expectations({ versions }), TUPLE)]), [
+      toLedgerRow(job(), expectations(), TUPLE),
+    ]);
+
+    expect(merged[0]?.workerVersions).toEqual({ dispatch: "v1@100", terminal: "v2@100" });
+  });
+
   it("numbers runs within a cell by creation time, skipping the ones that do not count", () => {
     const runs = [
       job({ id: "a1", createdAt: "2026-10-01T10:00:00.000Z" }),
@@ -238,6 +250,14 @@ describe("the ledger file", () => {
     expect(parseLedgerFile(serializeLedger(ledger))).toEqual(ledger);
   });
 
+  it("reads a row written before worker versions were recorded as having none", () => {
+    const ledger = mergeLedger([], [toLedgerRow(job(), expectations(), TUPLE)]);
+    const older = JSON.parse(serializeLedger(ledger)) as { rows: Record<string, unknown>[] };
+    const rows = older.rows.map(({ workerVersions: _dropped, ...row }) => row);
+
+    expect(parseLedgerFile(JSON.stringify({ ...older, rows }))[0]?.workerVersions).toBeNull();
+  });
+
   it("refuses a file it did not write rather than merging into it", () => {
     expect(() => parseLedgerFile(JSON.stringify({ version: 2, rows: [] }))).toThrow();
   });
@@ -256,6 +276,19 @@ describe("parseCellMapping", () => {
   it("is empty when unset and loud when malformed", () => {
     expect(parseCellMapping("")).toEqual(new Map());
     expect(() => parseCellMapping("a-without-cell")).toThrow(/<job>:<cell>/);
+  });
+});
+
+describe("parseVersionMapping", () => {
+  it("reads JSON, since a split deployment's version carries commas", () => {
+    expect(parseVersionMapping('{"a":{"dispatch":"v1@50,v2@50","terminal":null}}')).toEqual(
+      new Map([["a", { dispatch: "v1@50,v2@50", terminal: null }]]),
+    );
+  });
+
+  it("is empty when unset and loud when malformed", () => {
+    expect(parseVersionMapping("")).toEqual(new Map());
+    expect(() => parseVersionMapping('{"a":{"dispatch":1}}')).toThrow();
   });
 });
 
@@ -280,6 +313,14 @@ describe("formatLedgerMarkdown", () => {
     expect(markdown).toContain("no: status failed (infeasible)");
     expect(markdown).toContain("95/90 FEASIBLE budget");
     expect(markdown).toContain("not-fired");
+  });
+
+  it("flags a run whose Worker version moved between dispatch and terminal", () => {
+    const versions = new Map([[job().id, { dispatch: "v1@100", terminal: "v2@100" }]]);
+
+    const markdown = formatLedgerMarkdown(mergeLedger([], [toLedgerRow(job(), expectations({ versions }), TUPLE)]));
+
+    expect(markdown).toMatch(/\| changed +\| \[0,3,95/);
   });
 });
 

@@ -34,11 +34,29 @@ Create an author account on the hosted project for the runner, following
 ### 2. The operator allowlist
 
 The runner reads the container's state and stops it when idle through `GET`/`POST
-/api/solver/container`, which answers only accounts listed in a Worker secret:
+/api/solver/container`, which answers only accounts listed in a Worker secret. Nothing sets that
+secret for you, and there is nothing to export first: the command below creates it, and wrangler
+then prompts for its value. Run it from the repo root so wrangler picks up the Worker name.
 
 ```bash
-pnpm exec wrangler secret put SOLVER_OPS_ALLOWED_EMAILS   # the campaign account's email
+pnpm exec wrangler secret put SOLVER_OPS_ALLOWED_EMAILS
+# ✔ Enter a secret value: … the campaign account's email (CAMPAIGN_EMAIL in step 4)
 ```
+
+To skip the prompt, pipe the value in: `echo '<campaign email>' | pnpm exec wrangler secret put
+SOLVER_OPS_ALLOWED_EMAILS`.
+
+- **It must name the campaign account.** The runner signs in as `CAMPAIGN_EMAIL` and is refused
+  with a 403 otherwise.
+- **It is a comma-separated list**, compared trimmed and case-insensitively. Add your own address
+  (`<campaign email>,<yours>`) only if you also want to open the route signed in as yourself.
+- **Unset or empty, the route answers 404 to everyone.** A 404 from the runner means this step is
+  missing.
+
+To check it, `pnpm exec wrangler secret list` shows the name, though not the value. Then sign in to
+the `workers.dev` URL as the campaign account and open `/api/solver/container`. It should answer
+with the container's status. `{"error":"not found"}` means the secret is missing, and
+`{"error":"not an operator"}` means it names a different address.
 
 Setting a secret deploys a new Worker version without rolling the container. Do it while nothing is
 solving anyway.

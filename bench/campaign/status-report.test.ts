@@ -36,4 +36,14 @@ describe("formatStatus", () => {
   it("reports no override when nothing was applied", () => {
     expect(formatStatus(replay(SET_UP), "production", Date.parse(AT))).toMatch(/^override none/m);
   });
+
+  it("sends an interrupted setup back to `setup`, naming its clone when the journal has one", () => {
+    const [setupIntent] = SET_UP;
+    const cloned = replay([setupIntent, { type: "setup-cloned", seq: 1, at: AT, planId: "clone-1" }]);
+
+    expect(formatStatus(replay([setupIntent]), "production", Date.parse(AT))).toMatch(
+      /^pending .* before its clone's id came back; `setup` explains/m,
+    );
+    expect(formatStatus(cloned, "production", Date.parse(AT))).toMatch(/^pending .* after cloning clone-1; `setup`/m);
+  });
 });

@@ -125,3 +125,38 @@ describe("replay", () => {
     expect(state.secretChangeDisturbsSolve).toBe(false);
   });
 });
+
+describe("an interrupted setup", () => {
+  const setupIntent: JournalEntry = {
+    type: "intent",
+    seq: 1,
+    at: "t1",
+    action: { kind: "setup", target: "production", sourcePlanId: "source", name: "Calibration — test" },
+  };
+
+  it("knows its clone once the id came back, so `setup` can finish it instead of asking", () => {
+    const state = replay([setupIntent, { type: "setup-cloned", seq: 1, at: "t2", planId: "clone-1" }]);
+
+    expect(state.pending?.action.kind).toBe("setup");
+    expect(state.clonedPlanId).toBe("clone-1");
+  });
+
+  it("does not know a clone when the id never came back", () => {
+    expect(replay([setupIntent]).clonedPlanId).toBeNull();
+  });
+
+  it("forgets the clone once the setup settles, so a later setup starts clean", () => {
+    const state = replay([
+      setupIntent,
+      { type: "setup-cloned", seq: 1, at: "t2", planId: "clone-1" },
+      { type: "outcome", seq: 1, at: "t3", result: { kind: "setup", campaignPlanId: "clone-1", remainingHours: 40 } },
+    ]);
+
+    expect(state.clonedPlanId).toBeNull();
+    expect(state.setup?.campaignPlanId).toBe("clone-1");
+  });
+
+  it("ignores a clone that names a different intent", () => {
+    expect(replay([setupIntent, { type: "setup-cloned", seq: 7, at: "t2", planId: "stray" }]).clonedPlanId).toBeNull();
+  });
+});

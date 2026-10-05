@@ -15,7 +15,9 @@ import type { CampaignCellKey, CampaignTarget } from "./definition.ts";
  * repeat: a second Generate would be a second solve.
  *
  * The other entries are a human's decisions, recorded once: the Cell D choice, a request for the one
- * run under `main`'s constants, a "resume" after a policy halt, and a lifecycle observation.
+ * run under `main`'s constants, a "resume" after a policy halt, and a lifecycle observation. One is
+ * the runner's own: `setup-cloned`, the id a clone came back with, written before anything else can
+ * fail, so an interrupted setup knows its plan instead of asking a human to find it.
  */
 export type JournalAction =
   | { readonly kind: "setup"; readonly target: CampaignTarget; readonly sourcePlanId: string; readonly name: string }
@@ -64,6 +66,7 @@ export type ActionResult =
 export type JournalEntry =
   | { readonly type: "intent"; readonly seq: number; readonly at: string; readonly action: JournalAction }
   | { readonly type: "outcome"; readonly seq: number; readonly at: string; readonly result: ActionResult }
+  | { readonly type: "setup-cloned"; readonly seq: number; readonly at: string; readonly planId: string }
   | { readonly type: "set-cell"; readonly at: string; readonly cell: "D"; readonly tuning: CellTuning }
   | { readonly type: "run-one"; readonly at: string }
   | { readonly type: "resume"; readonly at: string }
@@ -126,6 +129,8 @@ export type CampaignState = {
   readonly stopRefused: StopOutcome | null;
   readonly attempts: readonly Attempt[];
   readonly pending: PendingIntent | null;
+  /** The plan the pending setup's clone created, once its id came back; null while it is unknown. */
+  readonly clonedPlanId: string | null;
   readonly lastSeq: number;
   /** The last human `resume`: failures before it no longer count toward a halt. */
   readonly resumedAt: string | null;
@@ -147,6 +152,7 @@ export const EMPTY_STATE: CampaignState = {
   stopRefused: null,
   attempts: [],
   pending: null,
+  clonedPlanId: null,
   lastSeq: 0,
   resumedAt: null,
   runOneRequests: 0,
@@ -218,7 +224,11 @@ const apply = (state: CampaignState, entry: JournalEntry): CampaignState => {
       return { ...state, pending: { seq: entry.seq, at: entry.at, action: entry.action }, lastSeq: entry.seq };
     case "outcome":
       return state.pending?.seq === entry.seq
-        ? { ...settle(state, state.pending, entry.result, entry.at), pending: null }
+        ? { ...settle(state, state.pending, entry.result, entry.at), pending: null, clonedPlanId: null }
+        : state;
+    case "setup-cloned":
+      return state.pending?.seq === entry.seq && state.pending.action.kind === "setup"
+        ? { ...state, clonedPlanId: entry.planId }
         : state;
     case "set-cell":
       return { ...state, cellD: entry.tuning };

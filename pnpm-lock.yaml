@@ -22,6 +22,7 @@ overrides:
   svgo@>=4.0.0 <4.1.0: ^4.1.0
   sharp@>=0.34.5 <0.35.3: ^0.35.3
   smol-toml@>=1.0.0 <1.8.0: ^1.8.0
+  http-cache-semantics@>=4.0.0 <4.3.0: ^4.3.0
 
 importers:
 
@@ -3504,8 +3505,8 @@ packages:
   html-void-elements@3.0.0:
     resolution: {integrity: sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg==}
 
-  http-cache-semantics@4.2.0:
-    resolution: {integrity: sha512-dTxcvPXqPvXBQpq5dUr6mEMJX4oIEFv6bwom3FDwKRDsuIjjJGANqhBuoAn9c1RQJIdAKav33ED65E2ys+87QQ==}
+  http-cache-semantics@4.3.0:
+    resolution: {integrity: sha512-M5t5LlJpS1UHMjvwRQVdFHvPISGeLAxNcrWuJkeGh0KxsqCHZ1O3NXZU/8x7cD0BDcGW8kapxMKTvwlqrNkHkA==}
 
   iceberg-js@0.8.1:
     resolution: {integrity: sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==}
@@ -7925,7 +7926,7 @@ snapshots:
       get-tsconfig: 5.0.0-beta.4
       github-slugger: 2.0.0
       html-escaper: 3.0.3
-      http-cache-semantics: 4.2.0
+      http-cache-semantics: 4.3.0
       js-yaml: 4.3.2
       jsonc-parser: 3.3.1
       magic-string: 1.1.0
@@ -8860,7 +8861,7 @@ snapshots:
 
   html-void-elements@3.0.0: {}
 
-  http-cache-semantics@4.2.0: {}
+  http-cache-semantics@4.3.0: {}
 
   iceberg-js@0.8.1: {}
 

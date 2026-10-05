@@ -21,5 +21,12 @@ overrides:
   "svgo@>=4.0.0 <4.1.0": ^4.1.0
   "sharp@>=0.34.5 <0.35.3": ^0.35.3
   "smol-toml@>=1.0.0 <1.8.0": ^1.8.0
+  "http-cache-semantics@>=4.0.0 <4.3.0": ^4.3.0
 minimumReleaseAgeExclude:
   - fast-uri@3.1.7
+audit:
+  ignore:
+    # braces <=3.0.3: stack exhaustion on deeply nested brace patterns. No patched release exists
+    # (3.0.3 is the latest). It arrives only through steiger, a dev-time lint run over this repo's own
+    # paths, so no untrusted pattern reaches it. Drop this once braces or steiger ships a fix.
+    - GHSA-vfj7-8cjw-p6xm

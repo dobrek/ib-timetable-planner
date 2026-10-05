@@ -96,5 +96,5 @@
     "vitest": "^4.1.11",
     "wrangler": "^4.130.0"
   },
-  "packageManager": "pnpm@11.25.0"
+  "packageManager": "pnpm@12.9.1"
 }

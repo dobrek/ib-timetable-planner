@@ -7,7 +7,9 @@ runs:
   using: "composite"
   steps:
     - name: Install pnpm
-      uses: pnpm/action-setup@v6
+      # Pinned to the minor, not `@v6`: pnpm 12 support landed in v6.1.0, and the floating `v6` tag still
+      # points at the release before it. Return to `@v6` once that tag has moved past v6.1.0.
+      uses: pnpm/action-setup@v6.1.0
 
     # pnpm must be set up before setup-node so `cache: "pnpm"` can locate the store.
     - name: Node setup

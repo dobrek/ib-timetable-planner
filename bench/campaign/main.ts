@@ -119,9 +119,19 @@ const setup = async (context: Context, state: CampaignState, args: readonly stri
     return 1;
   }
   const { pending } = state;
-  if (pending !== null && pending.action.kind === "setup")
-    return reconcileSetup(context, pending.seq, pending.action, args);
+  if (pending !== null && pending.action.kind === "setup") {
+    return state.clonedPlanId === null
+      ? reconcileSetup(context, pending.seq, pending.action, args)
+      : finishSetup(context, pending.seq, state.clonedPlanId, pending.action.name);
+  }
 
+  // The analyzer is read once BEFORE the clone, against the source plan: a wrong key or database then
+  // fails here, while nothing has been written, instead of after a real plan has been cloned.
+  const source = await analyzer.remainingHours(campaign.sourcePlanId);
+  if (source.unplacedHours === 0) {
+    console.error("the source board leaves 0 hours to place, so every Generate would fail — nothing cloned.");
+    return 1;
+  }
   const seq = state.lastSeq + 1;
   const action: JournalAction = { kind: "setup", target: config.target, ...campaign };
   record(config, { type: "intent", seq, at: now(), action });
@@ -130,6 +140,20 @@ const setup = async (context: Context, state: CampaignState, args: readonly stri
     name: campaign.name,
     includeBoard: true,
   });
+  record(config, { type: "setup-cloned", seq, at: now(), planId: id });
+  return finishSetup(context, seq, id, campaign.name);
+};
+
+/**
+ * The clone exists and the journal knows its id: count its hours and settle the setup. Rerunning
+ * `setup` lands here when this step failed the first time, so it finishes rather than cloning again.
+ */
+const finishSetup = async (
+  { config, client, analyzer }: Context,
+  seq: number,
+  id: string,
+  name: string,
+): Promise<number> => {
   const { unplacedHours: remainingHours } = await analyzer.remainingHours(id);
   if (remainingHours === 0) {
     await client.action("deletePlan", { id });
@@ -140,13 +164,14 @@ const setup = async (context: Context, state: CampaignState, args: readonly stri
     return 1;
   }
   record(config, { type: "outcome", seq, at: now(), result: { kind: "setup", campaignPlanId: id, remainingHours } });
-  console.log(`campaign plan ${id} "${campaign.name}": ${remainingHours} h to place`);
+  console.log(`campaign plan ${id} "${name}": ${remainingHours} h to place`);
   return 0;
 };
 
 /**
- * A setup whose clone may or may not exist. It is not repeated blindly — a second clone of real
- * student data is litter — so the operator says which it was: the plan they found, or none.
+ * A setup that stopped before its clone's id came back, so the clone may or may not exist. It is not
+ * repeated blindly — a second clone of real student data is litter — so the operator says which it
+ * was: the plan they found, or none.
  */
 const reconcileSetup = async (
   context: Context,
@@ -402,7 +427,7 @@ main(process.argv.slice(2)).then(
   },
   (error: unknown) => {
     console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
-    console.error("The journal keeps any interrupted step; `run` reconciles it.");
+    console.error("The journal keeps any interrupted step; rerun the same command to reconcile it.");
     process.exitCode = 1;
   },
 );

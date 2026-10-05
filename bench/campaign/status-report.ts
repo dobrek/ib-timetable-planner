@@ -22,11 +22,7 @@ export const formatStatus = (state: CampaignState, fallbackTarget: CampaignTarge
           `plan     ${state.setup.campaignPlanId} "${state.setup.name}", cloned from ${state.setup.sourcePlanId} with ${state.setup.remainingHours} h to place`,
         ]),
     `override ${overrideLabel(state, nowMs)}`,
-    ...(state.pending === null
-      ? []
-      : [
-          `pending  "${describeAction(state.pending.action)}" was interrupted at ${state.pending.at}; \`run\` reconciles it`,
-        ]),
+    ...pendingLines(state),
     `next     ${describeStep(nextStep(state))}`,
     "",
     ...gridLines(state, grid),
@@ -92,6 +88,18 @@ const overrideLabel = (state: CampaignState, nowMs: number): string => {
   return state.override === null
     ? "none (the next cold start gets main's constants)"
     : `cell ${state.override.cell} since ${state.override.since} (${elapsed(state.override.since, nowMs)} ago)`;
+};
+
+/** An interrupted step and the command that settles it: `setup` its own (`run` refuses until it is), `run` the rest. */
+const pendingLines = ({ pending, clonedPlanId }: CampaignState): string[] => {
+  if (pending === null) return [];
+  const interrupted = `pending  "${describeAction(pending.action)}" was interrupted at ${pending.at}`;
+  if (pending.action.kind !== "setup") return [`${interrupted}; \`run\` reconciles it`];
+  return [
+    clonedPlanId === null
+      ? `${interrupted} before its clone's id came back; \`setup\` explains how to settle it`
+      : `${interrupted} after cloning ${clonedPlanId}; \`setup\` finishes it`,
+  ];
 };
 
 const gridLines = (state: CampaignState, grid: readonly CampaignCell[]): string[] =>

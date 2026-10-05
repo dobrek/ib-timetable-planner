@@ -4,6 +4,7 @@ import {
   loadPlacements,
   loadPlanTeachers,
   loadTeacherAvailability,
+  NOT_FOUND_ROW,
   unwrapMany,
   type PlanTeacher,
 } from "@/shared/api";
@@ -136,12 +137,15 @@ const fetchPlan = async (
     .select("id, name, slot_grid_preset, pending_proposal")
     .eq("id", planId)
     .single();
-  if (error) {
+  // Only zero rows means the plan is absent. Anything else (a rejected key, a malformed id, a network
+  // failure) is a failed read, and saying "not found" there sends the reader looking for a missing plan.
+  if (error?.code === NOT_FOUND_ROW) {
     throw new Error(
-      `Plan ${planId} not found in this database (${error.message}). ` +
+      `Plan ${planId} not found in this database. ` +
         `Plans are addressed by id, never by name — restore the snapshot or pass a different id.`,
     );
   }
+  if (error) throw new Error(`Could not read plan ${planId}: ${error.message}`);
   // S-306: a proposal whose board has not landed is not a comparable plan. Its board is the clone's
   // pins, not the solve's result, so every metric on the page would describe a state that is about to
   // be replaced — a worse failure than an absence, because the numbers would look finished.

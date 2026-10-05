@@ -136,6 +136,10 @@ Budget about 3 h of runner time and about 45 min attended.
    when there are none, because every Generate would then fail. The campaign measures a
    fill-the-gaps solve, so its numbers are not comparable with S-302's full-catalog run.
 
+   It reads the source plan through the analyzer **before** cloning. A wrong
+   `ANALYZER_SUPABASE_URL` or `ANALYZER_SERVICE_ROLE_KEY` (the local stack's key against the hosted
+   project, say) therefore fails with `Could not read plan …` while nothing has been written.
+
 2. **The drill** (attended, about 45 min; Docker running, tree clean at `origin/main`, image pre-built):
 
    ```bash
@@ -240,7 +244,8 @@ stopped and why.
 | `the container refused to stop (busy)` / `(unknown)`      | Something is solving, or the probe could not tell. Find out what with `ANALYZE_ACTIVE=1` and `pnpm analyze:jobs` against the hosted project. Once it is idle, run `resume` and `run`. |
 | `status() did not reflect the secret change within 180 s` | Check `GET /api/solver/container` in a browser while signed in as the campaign account, then rerun `run`. A secret bulk is idempotent.                                                |
 | `job … is already active on the campaign plan`            | Someone dispatched on the campaign plan by hand. Let it finish, then `run`.                                                                                                           |
-| `a setup was interrupted …`                               | Look for that exact plan name in the plans list: `setup --adopt <planId>` if it exists, `setup --abandon` if not.                                                                     |
+| `a setup was interrupted …`                               | The clone's id never came back. Look for that exact plan name in the plans list: `setup --adopt <planId>` if it exists, `setup --abandon` if not.                                     |
+| `setup` failed after `clonePlan` answered                 | Fix the cause and rerun `setup`. The journal kept the clone's id, so it finishes that clone rather than cloning again. `status` names it.                                             |
 | an error, then `the journal keeps any interrupted step`   | Fix the cause and rerun the same command. A dispatch whose answer was lost is found again, never sent twice.                                                                          |
 
 **A hard stop skips parking.** Examples are a second Ctrl-C, a killed terminal or a flat battery.

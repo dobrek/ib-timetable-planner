@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from "node:util";
 import type { ActiveJobEntry, AnalyzerLine } from "../analyzer-lines.ts";
 import type { WorkerVersions } from "../campaign-ledger.ts";
 import { parseAnalyzerLines } from "../analyzer-lines.ts";
@@ -47,7 +48,7 @@ export const createAnalyzerClient = (access: AnalyzerAccess): AnalyzerClient => 
   const ask = async (env: Record<string, string>): Promise<{ lines: AnalyzerLine[]; output: string }> => {
     const { code, output } = await runPnpm(["analyze:jobs"], { ...analyzerEnv(access), ...env });
     if (code !== 0) throw new Error(`pnpm analyze:jobs exited ${code}:\n${output.split("\n").slice(-25).join("\n")}`);
-    return { lines: parseAnalyzerLines(output), output };
+    return { lines: answersIn(output), output };
   };
 
   return {
@@ -77,15 +78,25 @@ export const createAnalyzerClient = (access: AnalyzerAccess): AnalyzerClient => 
 };
 
 /**
+ * The answers in the analyzer's captured output, read with terminal escapes stripped. Vitest's
+ * colour library keeps colour on even into a pipe, unless `TERM=dumb` or `NO_COLOR` is set, and its
+ * reporter closes the dimmed `stdout | …` header at the START of the next line, which is the answer's.
+ * Read raw, `\e[22m\e[39m@campaign {…}` misses the prefix and parses as no answer at all.
+ * `analyzerEnv` turns colour off at the source, and this keeps a stray escape from hiding an answer.
+ */
+export const answersIn = (output: string): AnalyzerLine[] => parseAnalyzerLines(stripVTControlCharacters(output));
+
+/**
  * The analyzer's whole environment: the runner's own, minus anything Supabase-shaped it may have
  * inherited and the campaign's own credentials, plus the pair this access names. Every `ANALYZE_*`
  * switch is cleared too, so a stray export in the operator's shell cannot change which question is
- * asked.
+ * asked. Colour is off, because a program reads this output (see `answersIn`).
  */
 export const analyzerEnv = (access: AnalyzerAccess): Record<string, string> => ({
   ...Object.fromEntries(
     Object.entries(childEnv()).filter(([key]) => !/^(SUPABASE_|ANALYZE_|ANALYZER_|CAMPAIGN_|LOCAL_SOLVER_)/.test(key)),
   ),
+  NO_COLOR: "1",
   SUPABASE_URL: access.supabaseUrl,
   SUPABASE_SERVICE_ROLE_KEY: access.serviceRoleKey,
   ...(access.allowRemote ? { ANALYZE_ALLOW_REMOTE: "1" } : {}),

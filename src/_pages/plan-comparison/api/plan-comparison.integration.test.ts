@@ -95,6 +95,13 @@ afterAll(async () => {
     await expect(loadPlanAnalysis(supabase, "00000000-0000-0000-0000-000000000000")).rejects.toThrow(/not found/);
   });
 
+  it("reports a read that failed as failed, not as a plan that does not exist", async () => {
+    // A malformed id stands in for every non-absence failure (a rejected key reads the same way): the
+    // query errors with something other than zero rows, and "not found" would send the reader looking
+    // for a missing plan.
+    await expect(loadPlanAnalysis(supabase, "not-a-uuid")).rejects.toThrow(/^Could not read plan not-a-uuid: /);
+  });
+
   /**
    * The load-bearing test — the entire reason `computeCatalogFingerprint` exists.
    *

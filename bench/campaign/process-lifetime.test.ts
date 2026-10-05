@@ -53,4 +53,12 @@ describe("a child's environment", () => {
     expect(Object.values(env)).not.toContain("observability-token");
     expect(env).not.toHaveProperty("ANALYZER_SERVICE_ROLE_KEY");
   });
+
+  it("turns the analyzer's colour off, because a program reads its output", () => {
+    vi.stubEnv("TERM", "xterm-256color");
+
+    const env = analyzerEnv({ supabaseUrl: "http://127.0.0.1:54321", serviceRoleKey: "key", allowRemote: false });
+
+    expect(env.NO_COLOR).toBe("1");
+  });
 });

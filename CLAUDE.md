@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-`ib-timetable-planner` — an interactive IB-school timetable planner. Astro 7 + React 19 islands on Cloudflare Workers (workerd), Supabase (Postgres) for persistence, Tailwind v4, TypeScript v6. Package manager **pnpm 11.9.0**, Node **24.15.0** (`.node-version`). See @README.md for depth.
+`ib-timetable-planner` — an interactive IB-school timetable planner. Astro 7 + React 19 islands on Cloudflare Workers (workerd), Supabase (Postgres) for persistence, Tailwind v4, TypeScript v6. Package manager **pnpm 12.9.1**, Node **24.15.0** (`.node-version`). See @README.md for depth.
 
 ## Hard rules
 

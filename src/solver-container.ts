@@ -21,18 +21,21 @@ export class SolverContainer extends Container<Env> {
   defaultPort = 8000;
 
   /**
-   * **Still 30m, and now a belt over braces rather than the only guard.** `sleepAfter` measures
-   * inactivity as *incoming requests*, and dispatch answers 202 and detaches — so from the
-   * platform's point of view the container looks idle for the whole solve. Before S-304 that made
-   * this number the entire defence, and it had to clear the PRD's 20-minute ceiling on its own.
+   * **An expiry is a question, not a stop — so this is a scale-to-zero knob, not a guard.**
+   * `sleepAfter` measures inactivity as *incoming requests*, and dispatch answers 202 and detaches,
+   * so to the platform the container looks idle for the whole solve and this window expires
+   * mid-solve as a matter of course. {@link onActivityExpired} answers each expiry by asking the
+   * container whether it is solving and declining the stop if it is: a solve of any length renews
+   * once per window, and only an idle container is let go. What the number buys is how soon an idle
+   * container stops billing.
    *
-   * Since S-304 the real defence is {@link onActivityExpired}: the expiry no longer implies a stop,
-   * it implies a *question*. The dividend — dropping to `10m` and restoring prompt scale-to-zero,
-   * worth the ~$5/month of idle billing this stopgap costs — is deliberately withheld until the
-   * production drill proves renewal on the deployed container (research D4, plan Phase 6). Lowering
-   * it first would re-open the mid-solve sleep S-302 measured, with nothing yet proven under it.
+   * S-302 shipped `30m` as a stopgap, back when this number was the whole defence and had to clear
+   * the PRD's 20-minute ceiling on its own. S-308 lowers it now that the renewal path exists;
+   * `mise run solver:campaign -- renewal` is the production check that a >10-minute solve renews
+   * and the idle container then stops. The window runs from the last request, and a deploy restarts
+   * it, because it resets the Durable Object (S-308 `change.md`, 2026-10-06).
    */
-  sleepAfter = "30m";
+  sleepAfter = "10m";
 
   /**
    * **The secrets channel, and the only one a Cloudflare container has.** There is no

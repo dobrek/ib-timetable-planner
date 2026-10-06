@@ -484,7 +484,7 @@ No schema change. Phase 1 rolls the container once (image change); the campaign'
 #### Manual
 
 - [ ] 3.3 Deploy-during-solve drill: `interrupted` with checkpoint, partial board delivered with stage label, Generate self-heals — evidence in `change.md`
-- [ ] 3.4 Renewal proof at `sleepAfter: 10m`: >10-minute production solve completes; idle sleep ~10 min post-solve
+- [x] 3.4 Renewal proof at `sleepAfter: 10m`: >10-minute production solve completes; idle sleep ~10 min post-solve (2026-10-06, job `56f587e0…`: one declined sleep, `succeeded`, idle stop at 600.5 s)
 - [ ] 3.5 The five production numbers recorded in `change.md`
 - [ ] 3.6 README advisory and roadmap/PRD S-304 truing merged
 

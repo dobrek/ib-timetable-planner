@@ -124,3 +124,32 @@ different way to deliver a shutdown signal mid-solve. The drill's later steps di
 The drill solve also stands as a full 240 s production solve: dispatched 07:15:34, succeeded
 07:43:55, 246 placements. The override was parked at 08:28:56, and the marker was pushed to `main`
 afterwards so `main` matches what is deployed.
+
+### 2026-10-06 — Renewal proof at `sleepAfter = "10m"`: renewal holds; the five production numbers
+
+`sleepAfter = "10m"` shipped in #133 (`1315822`, Deploy green). `mise run solver:campaign -- renewal`
+then ran Cell A run 1 (`w4-s120-a300`, job `56f587e0…`) and read only the logs until the idle
+container stopped. Its verdict was "renewal proven: a declined sleep during the solve, a succeeded
+row, then idle and stopped". Cell A run 1 counts in the grid.
+
+**Production lifecycle numbers — recorded 2026-10-06** (renewal job `56f587e0-62a3-494b-b991-928e08e43637`, drill job `7ef1ad6b-025c-454e-9d3b-becf68751811`)
+
+| number                                         | value                                                      |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| cold start (`started_at − created_at`)         | 4.4 s (startup line: 3.6 s)                                |
+| renewal cadence (gaps between `sleep declined`) | — (fewer than two lines)                                   |
+| idle-sleep boundary (after the last request)   | idle 600.1 s, stopped 600.5 s                              |
+| SIGTERM → `interrupted`                        | terminal write —; SIGTERM line → `finished_at` —           |
+| drill duration, stage reached                  | 28.36 min, 10 stage(s), checkpoint at position —           |
+
+Observed `unaccounted` per counted run (for `OVERHEAD_ALLOWANCE_S`): `7ef1ad6b` 2.866 s, `56f587e0` 2.958 s
+
+How to read the gaps:
+
+- **Renewal cadence "—"** is a measurement limit, not a failure. The solve ran between 10 and 20
+  minutes, so it crossed one expiry and produced one `sleep declined` line. A cadence needs two.
+- **SIGTERM → `interrupted` "—"** follows from the drill entry above: no shutdown signal reached a
+  solve, so there was nothing to time. It stays open with the drill's follow-up.
+- **Drill "checkpoint at position —"**: the drill solve ended `succeeded`, so its row holds a final
+  board rather than a kept checkpoint. Its checkpoint reached position 3 before the deploy, per the
+  journal.

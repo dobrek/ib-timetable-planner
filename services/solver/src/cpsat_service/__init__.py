@@ -21,3 +21,4 @@ channel. That works because CP-SAT releases the GIL during solve — measured, n
 uvicorn process answers `/health` while a 20-minute solve runs beside it. No queue, no
 multiprocessing, no Celery.
 """
+# lifecycle drill marker 2026-10-06T07:20:06.161Z (job 7ef1ad6b-025c-454e-9d3b-becf68751811)

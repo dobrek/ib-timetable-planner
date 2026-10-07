@@ -267,3 +267,23 @@ Generate on the campaign plan with no override set.
   Mode A took 3.18–6.16 s, and the PRD and roadmap now quote that range.
 
 `ledger.json` is refreshed to all 14 rows.
+
+### 2026-10-07 — Hosted cleanup: no calibration residue remains
+
+`mise run solver:campaign -- cleanup` ran at 13:01–13:02Z after the typed `delete` confirmation.
+
+- **14 proposals delivered, then deleted by id.** That is one per dispatched job: the 13 campaign
+  runs plus the final run at the shipped constants.
+- **The campaign plan `cdde43fa…` was deleted**, cascading its 14 `generation_jobs` rows.
+- **No `CALIBRATION_*` override was left.** Every cell had parked.
+
+**15 plans deleted in all.** The 2026-10-06 rehearsal clone (`3d062e6f…`) had already been deleted
+by hand before setup. A read-only check afterwards found no plan named `Calibration…`, and no job row
+for the campaign plan.
+
+`ledger.json` (14 rows) is now the only record of those jobs.
+
+The setup leftovers are the operator's to remove, per the runbook:
+- the `SOLVER_OPS_ALLOWED_EMAILS` Worker secret;
+- the observability API token;
+- the campaign account.

@@ -1,5 +1,11 @@
 import { ExternalLink, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
-import { describeCleanLabel, isHaltedJobStatus, LADDER_TIER_COUNT, policyLabel } from "@/entities/timetable";
+import {
+  describeCleanLabel,
+  isHaltedJobStatus,
+  LADDER_CEILING_MINUTES,
+  LADDER_TIER_COUNT,
+  policyLabel,
+} from "@/entities/timetable";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../../api/generation-delivery";
@@ -13,7 +19,7 @@ type Props = {
  * The generation job's whole visible life, in one strip — and since S-306, TWO strips, because the
  * job now has two pages and they owe the author different things.
  *
- * It exists because the work outlives the page. A CP-SAT solve runs for ~12 minutes on a server, so
+ * It exists because the work outlives the page. A CP-SAT solve runs for ~22–28 minutes on a server, so
  * there is no in-page progress to render and no engine to interrogate — only a durable row, and this
  * is the author's window onto it. Refresh re-reads that row, and on a job with a deliverable board
  * the re-read is also what DELIVERS it (verify → translate → apply, server-side).
@@ -72,7 +78,9 @@ export default function GenerationStatusStrip({ generation }: Props) {
         <a href="/plans" className="text-foreground hover:text-primary font-medium underline underline-offset-2">
           Watch progress in Plans
         </a>
-        <span className="text-muted-foreground/80">This runs for several minutes — you can leave the page.</span>
+        <span className="text-muted-foreground/80">
+          This runs for up to about {LADDER_CEILING_MINUTES} minutes — you can leave the page.
+        </span>
       </Strip>
     );
   }

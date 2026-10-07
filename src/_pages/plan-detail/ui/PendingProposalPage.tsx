@@ -1,5 +1,5 @@
 import { ArrowUpRight, CircleStop, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
-import { isActiveJobStatus, LADDER_TIER_COUNT, tierLabel } from "@/entities/timetable";
+import { isActiveJobStatus, LADDER_CEILING_MINUTES, LADDER_TIER_COUNT, tierLabel } from "@/entities/timetable";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../api/generation-delivery";
@@ -68,7 +68,8 @@ export default function PendingProposalPage({ planName, planId, job: initialJob 
           </span>
           <p className="text-muted-foreground mt-2 text-sm">
             Started <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time>. This runs
-            for several minutes — the board appears here on its own, and you can leave the page.
+            for up to about {LADDER_CEILING_MINUTES} minutes — the board appears here on its own, and you can leave the
+            page.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
             <StopAndKeep job={job} />

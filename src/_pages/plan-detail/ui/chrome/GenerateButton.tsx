@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Loader2, Wand2 } from "lucide-react";
-import { DEFAULT_SOLVE_POLICY, policyLabel, SOLVE_POLICY_PRESETS, type SolvePolicyPreset } from "@/entities/timetable";
+import {
+  DEFAULT_SOLVE_POLICY,
+  LADDER_CEILING_MINUTES,
+  policyLabel,
+  SOLVE_POLICY_PRESETS,
+  type SolvePolicyPreset,
+} from "@/entities/timetable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -108,8 +114,8 @@ export default function GenerateButton({ generation }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Generate a proposal</AlertDialogTitle>
             <AlertDialogDescription>
-              The solve runs on the server for several minutes and lands as a new proposal plan. This plan is never
-              written to, and you can leave the page while it runs.
+              The solve runs on the server for up to about {LADDER_CEILING_MINUTES} minutes and lands as a new proposal
+              plan. This plan is never written to, and you can leave the page while it runs.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">

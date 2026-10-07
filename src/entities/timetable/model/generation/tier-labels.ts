@@ -25,6 +25,23 @@ export const tierLabel = (name: string): string => TIER_LABELS[name] ?? name;
  */
 export const LADDER_TIER_COUNT = 10;
 
+/**
+ * The longest a generation run can take on production, in whole minutes. It is the one number the UI
+ * quotes ("up to about N minutes"), because a budget ceiling is a promise the page can keep and a
+ * typical latency is not.
+ *
+ * Derived from the shipped container budgets (S-308, 2026-10-07): Mode A at most twice (60 s, run
+ * again when clean mode's infeasibility fallback fires), plus nine ladder stages at 240 s:
+ * 2 × 60 + 9 × 240 = 2280 s = 38 min. Seconds of overhead (cold start, claim, row writes) fit inside
+ * "about". The campaign's typical run at these budgets took 22–28 minutes.
+ *
+ * **Coupled to `src/solver-container-env.ts` by hand.** The entities layer cannot import the
+ * Worker's deployment wiring, so a change to `CONTAINER_STAGE_BUDGET_S` or
+ * `CONTAINER_MODE_A_BUDGET_S` must revisit this number. `wrangler.jsonc`'s
+ * `rollout_active_grace_period` is the same worst case in seconds.
+ */
+export const LADDER_CEILING_MINUTES = 38;
+
 const TIER_LABELS: Record<string, string> = {
   completeness: "completeness",
   unplacedTotal: "unplaced",

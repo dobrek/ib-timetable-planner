@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_SOLVE_POLICY, type SolvePolicy } from "@/entities/timetable";
+import { DEFAULT_SOLVE_POLICY, LADDER_CEILING_MINUTES, type SolvePolicy } from "@/entities/timetable";
 import type { GenerationJobView } from "../../api/generation-delivery";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 import GenerateButton from "./GenerateButton";
@@ -179,13 +179,21 @@ describe("GenerateButton — the dialog", () => {
 
     for (const name of ["clean", "canonical order", "student-first"]) {
       fireEvent.click(radio(name));
-      const copy = dialog.textContent;
+      // The run's ceiling is the dialog's one number. It belongs to every option alike, so it ranks
+      // none of them, and it is the only digit allowed.
+      const copy = dialog.textContent.replace(`up to about ${String(LADDER_CEILING_MINUTES)} minutes`, "");
       expect(copy).not.toMatch(/\d/);
       expect(copy).not.toMatch(/\b(better|best|worse|faster|slower|recommended)\b/i);
       // And in the author's vocabulary — the engine's stays in the engine.
       expect(copy).not.toMatch(/\b(tier|ladder|canonical order the|soft cell)/i);
       expect(copy).toMatch(/In practice,/);
     }
+  });
+
+  it("quotes the run's ceiling rather than a typical duration", () => {
+    render(<GenerateButton generation={controls()} />);
+
+    expect(openDialog()).toHaveTextContent(`up to about ${String(LADDER_CEILING_MINUTES)} minutes`);
   });
 
   it("confirm launches with the chosen policy and closes the dialog", () => {

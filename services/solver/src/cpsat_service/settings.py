@@ -33,11 +33,11 @@ DEFAULT_MACHINE_EMAIL = "solver@ib-timetable-planner.dev"
 # produces a different — equally legal — board. Overridable per deployment, not per request.
 DEFAULT_WORKERS = 8
 
-# How many solves may run at once. One, because one solve already claims `DEFAULT_WORKERS` CP-SAT
-# workers for as long as the tier ladder runs (~23 minutes at the engine's default budgets — 300 s of
-# Mode A plus 9 × 120 s, or up to ~28 when the clean-mode infeasibility fallback re-solves Mode A — a
-# second solve bounded by that budget, which the tier-1 transcript never shows): a second concurrent
-# solve does not halve the wall clock,
+# How many solves may run at once. One, because one solve already claims every CP-SAT worker for as
+# long as the tier ladder runs: up to 38 minutes on production at S-308's calibrated budgets (60 s of
+# Mode A, twice if the clean-mode infeasibility fallback re-solves it, plus 9 × 240 s; 22–28 minutes in
+# the campaign's runs), or up to ~28 at this engine's local defaults (300 s + 9 × 120 s). A second
+# concurrent solve does not halve the wall clock,
 # it doubles both and starves `/health` — whose
 # answerability under load is the whole argument for running the solve on a plain thread. Raise it
 # per deployment when the container is sized for it; the cap exists so a burst of dispatches is

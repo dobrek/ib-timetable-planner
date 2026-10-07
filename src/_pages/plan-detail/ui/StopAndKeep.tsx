@@ -40,8 +40,10 @@ type Props = {
  *
  * **And it is honest about the wait.** Stopping is a request written to the row, not a signal sent to
  * a process: the solver notices on its next heartbeat and then has to unwind the ladder stage in
- * flight, which is budgeted in minutes. The dialog says so, and no number is quoted — the budgets are
- * configuration, and a measured latency would be a promise this page cannot keep.
+ * flight, which is budgeted in minutes. The dialog says so. Since S-308 the UI quotes a ceiling, never
+ * a latency: the run's worst case (`LADDER_CEILING_MINUTES`) is quoted where the run is described. A
+ * stop is bounded by the one stage in flight (240 s at the shipped budgets), which "a few minutes"
+ * already states honestly. A measured latency would be a promise this page cannot keep.
  *
  * Semantic theme tokens only, and `AlertDialog` rather than `Dialog` because this is a decision the
  * author has to take deliberately.

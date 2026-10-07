@@ -41,9 +41,20 @@ export const CONTAINER_LOG_LEVEL = "INFO";
  *
  * They are safe to forward for the same reason the three above are: tuning numbers, no privilege,
  * nothing a container that only ever sees UUIDs could widen its reach with.
+ *
+ * **The values come from S-308's production calibration** (ledger and verdict:
+ * `context/changes/production-calibration-campaign/`, 2026-10-07 entry). It ran 13 runs across 60,
+ * 120, 240 and 480 s stages, all on 4 workers.
+ * - **240 s stages.** They gave the most reliable delivered board: 93 total slots in 3 of 4 runs,
+ *   against 93–96 at 120 s. 480 s found a 92 once but 94 twice, at twice the time and cost.
+ * - **60 s Mode A.** Completeness needed at most 4.1 s across all 13 runs.
+ * - **4 workers.** The 8-worker question was not measured.
+ *
+ * The full ladder's worst case is the UI's `LADDER_CEILING_MINUTES` and `wrangler.jsonc`'s
+ * `rollout_active_grace_period`. Change either constant and both must be revisited.
  */
-export const CONTAINER_STAGE_BUDGET_S = "120";
-export const CONTAINER_MODE_A_BUDGET_S = "300";
+export const CONTAINER_STAGE_BUDGET_S = "240";
+export const CONTAINER_MODE_A_BUDGET_S = "60";
 
 /**
  * Empty, and deliberately so. A target is an objective VALUE and therefore a property of the
@@ -51,6 +62,9 @@ export const CONTAINER_MODE_A_BUDGET_S = "300";
  * intake. Shipping a value measured against a different catalog would either never fire (harmless,
  * useless) or stop a stage early on a year it was never sized for. Forwarding the key with no value
  * is what makes a season's tuning a one-line diff when there is a season to tune against.
+ *
+ * **Deferred by S-308 (2026-10-07):** target values are set per catalog and per planning season, not
+ * by a budget campaign (PRD Open Question 2).
  */
 export const CONTAINER_STAGE_TARGETS = "";
 
@@ -73,7 +87,7 @@ type Bounds = { readonly min: number; readonly max: number; readonly integer: bo
  * (`isValidCalibrationValue`, via `bench/campaign/definition.ts`) before it sets a secret.
  *
  * Workers stop at 16: the container is `standard-4`, and past that CP-SAT is timesharing a handful of
- * vCPU. A stage stops at 30 minutes, past the whole ladder's UI ceiling; Mode A at an hour.
+ * vCPU. A single stage stops at 30 minutes; Mode A at an hour.
  */
 export const CALIBRATION_BOUNDS: Readonly<Record<CalibrationKey, Bounds>> = {
   CALIBRATION_WORKERS: { min: 1, max: 16, integer: true },

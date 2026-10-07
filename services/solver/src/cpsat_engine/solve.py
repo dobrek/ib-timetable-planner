@@ -141,6 +141,9 @@ _FULL_LADDER_STAGES = 1 + len(_LADDER_TIER_INDICES)
 class SolveConfig:
     """Stage budgets, determinism knobs, and the repair neighbourhood radius — CLI-fed."""
 
+    # The CLI/local default. Production does not run these: the Worker sends the calibrated budgets
+    # (240 s / 60 s, S-308) as SOLVER_*_BUDGET_S from `src/solver-container-env.ts`. Never retune
+    # these literals from M-series runs.
     stage_budget_s: float = 120.0  # user decision: all tiers first-class at generous budgets
     mode_a_budget_s: float = 300.0
     repair_budget_s: float = 30.0

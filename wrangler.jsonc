@@ -37,7 +37,7 @@
       // fixture — `lite` is not survivable. `standard-4` (4 vCPU, 12 GiB, 20 GB) is the largest
       // predefined type and the documented per-instance ceiling.
       "instance_type": "standard-4",
-      // Default is unbounded. One solve already claims every worker for ~12–20 minutes, and the
+      // Default is unbounded. One solve already claims every worker for ~22–28 minutes (up to 38), and the
       // service itself refuses a second concurrent job (503), so a second instance would only add
       // cost. It also makes the rollout note below matter: the running instance IS the one replaced.
       "max_instances": 1,
@@ -46,24 +46,26 @@
       "constraints": {
         "regions": ["EEUR"],
       },
-      // Seconds. Read from the current Cloudflare rollout docs rather than assumed: it is the
-      // MINIMUM WAIT before an ACTIVE instance becomes eligible for replacement, after which the
-      // instance gets SIGTERM and 15 minutes before SIGKILL. 1200 = the PRD's 20-minute job ceiling.
+      // Seconds: the shipped ladder's worst case, 2 × 60 s Mode A + 9 × 240 s stages = 2280 s
+      // (38 min, the UI's LADDER_CEILING_MINUTES). The values come from S-308's calibration; its
+      // ledger is in context/changes/production-calibration-campaign/. `src/solver-container-env.test.ts`
+      // fails if this drifts from the budgets.
       //
-      // **It does not reliably protect an in-flight solve, and must not be read as if it does.**
-      // "Active" here means HOW LONG THE INSTANCE HAS BEEN CONNECTED TO ITS DURABLE OBJECT, not
-      // whether a request is in flight — so a solving container does count as active, and this
-      // comment's earlier rationale ("dispatch is 202-and-detach, so nothing looks active") was
-      // wrong. The conclusion holds for a different reason: the window runs from CONNECTION START,
-      // so a warm container whose connection age already exceeds 1200 s gets no protection at all,
-      // and a cold-started 20-minute solve loses its protection exactly as it finishes. And once
-      // SIGTERM lands, uvicorn's graceful shutdown does not wait for the daemon thread solving.
-      // S-304 lands the real guards (activity renewal, SIGTERM -> `interrupted`, fail-forward
-      // reclaim); the human rule in README § Deployment is what covers the gap until then.
+      // Per the current Cloudflare rollout docs (re-read 2026-10-07): the window is how long an
+      // instance has been CONNECTED TO ITS DURABLE OBJECT, not time since the deploy. An instance
+      // younger than the window is skipped; an older one MAY be replaced: SIGTERM, then up to
+      // 15 minutes before SIGKILL. So a cold-started solve is protected for its whole ladder, while
+      // a warm container older than the window is not.
+      //
+      // It is belt over braces now that S-304's guards are in: activity renewal, SIGTERM ->
+      // `interrupted` with the checkpoint kept, and fail-forward reclaim. In the 2026-10-06 drill, a
+      // deploy mid-solve did not stop the running container at all: it finished on the old image and
+      // was replaced only when it went idle (S-308 change.md). That is one observation, not a
+      // guarantee, which is why README § Deployment keeps its no-merge rule.
       //
       // `rollout_step_percentage` is left at its default deliberately — stepping a rollout is
       // meaningless at `max_instances: 1`.
-      "rollout_active_grace_period": 1200,
+      "rollout_active_grace_period": 2280,
     },
   ],
   "durable_objects": {

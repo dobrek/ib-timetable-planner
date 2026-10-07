@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { LADDER_CEILING_MINUTES, LADDER_TIER_COUNT } from "@/entities/timetable";
 import {
   CONTAINER_MODE_A_BUDGET_S,
   CONTAINER_STAGE_BUDGET_S,
@@ -68,16 +70,16 @@ describe("solverContainerEnvVars", () => {
   });
 
   it("sends the ladder's time allowances explicitly rather than letting the engine default win", () => {
-    // Not because the numbers differ from the engine's — today they do not — but because the
-    // container's startup line can only prove which cell a calibration run used if the Worker
-    // actually sent the values. An absent key logs `<engine-default>`, which is a fine default and
-    // a useless record.
+    // Two reasons. Since S-308 the numbers differ from the engine's literals (240/60 against
+    // `SolveConfig`'s 120/300), so an absent key would ship the wrong ladder. And the container's
+    // startup line can only prove which cell a run used if the Worker actually sent the values: an
+    // absent key logs `<engine-default>`, which is a fine default and a useless record.
     expect(solverContainerEnvVars({})).toMatchObject({
       SOLVER_STAGE_BUDGET_S: CONTAINER_STAGE_BUDGET_S,
       SOLVER_MODE_A_BUDGET_S: CONTAINER_MODE_A_BUDGET_S,
     });
-    expect(CONTAINER_STAGE_BUDGET_S).toBe("120");
-    expect(CONTAINER_MODE_A_BUDGET_S).toBe("300");
+    expect(CONTAINER_STAGE_BUDGET_S).toBe("240");
+    expect(CONTAINER_MODE_A_BUDGET_S).toBe("60");
   });
 
   it("forwards the stage-target key empty — the machinery, without a catalog-specific value", () => {
@@ -124,7 +126,7 @@ describe("calibration overrides", () => {
     expect(effectiveTuning({ CALIBRATION_STAGE_BUDGET_S: "60" })).toEqual({
       workers: 4,
       stageBudgetS: 60,
-      modeABudgetS: 300,
+      modeABudgetS: Number(CONTAINER_MODE_A_BUDGET_S),
       stageTargets: "",
       overridden: ["CALIBRATION_STAGE_BUDGET_S"],
     });
@@ -188,5 +190,26 @@ describe("isValidCalibrationValue", () => {
     expect(isValidCalibrationValue("CALIBRATION_STAGE_BUDGET_S", 5)).toBe(true);
     expect(isValidCalibrationValue("CALIBRATION_STAGE_BUDGET_S", 0)).toBe(false);
     expect(isValidCalibrationValue("CALIBRATION_MODE_A_BUDGET_S", Number.NaN)).toBe(false);
+  });
+});
+
+/**
+ * The shipped budgets reach two places that cannot import this file: the UI's quoted ceiling (the
+ * entities layer) and the rollout grace period (`wrangler.jsonc`). This test is the coupling, so a
+ * budget change that forgets either one fails here rather than in front of an author.
+ */
+describe("the shipped worst case", () => {
+  // Mode A at most twice (the clean-mode fallback re-solves it), then the nine ladder stages.
+  const worstCaseS = 2 * Number(CONTAINER_MODE_A_BUDGET_S) + (LADDER_TIER_COUNT - 1) * Number(CONTAINER_STAGE_BUDGET_S);
+
+  it("is the ceiling the UI quotes, rounded up to the minute", () => {
+    expect(LADDER_CEILING_MINUTES).toBe(Math.ceil(worstCaseS / 60));
+  });
+
+  it("is the rollout grace period, so a cold-started solve is never chosen for replacement mid-ladder", () => {
+    const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+    const grace = /"rollout_active_grace_period":\s*(\d+)/.exec(wrangler)?.[1];
+
+    expect(Number(grace)).toBe(LADDER_CEILING_MINUTES * 60);
   });
 });

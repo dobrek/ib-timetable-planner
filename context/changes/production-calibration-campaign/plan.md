@@ -510,6 +510,6 @@ No schema change. Phase 1 rolls the container once (image change); the campaign'
 
 #### Manual
 
-- [ ] 5.3 Deployed startup log shows the shipped constants; a final production Generate succeeds within the UI's stated ceiling
+- [x] 5.3 Deployed startup log shows the shipped constants; a final production Generate succeeds within the UI's stated ceiling (2026-10-07, job `97d4013b…`: `stage_budget_s=240 mode_a_budget_s=60 workers=4`, `succeeded` in 28.43 min against 38)
 - [x] 5.4 PRD, roadmap, README, `wrangler.jsonc`, `settings.py` prose rewritten; no undated mention of a greedy fallback gate or interactive Mode A path remains (`shape-notes.md` is left as the pre-PRD shaping record)
 - [ ] 5.5 Verdict and baseline entry present in `change.md`; hosted project free of calibration plans and proposals (the verdict and baseline are in, 2026-10-07; the hosted cleanup follows `run-one`)

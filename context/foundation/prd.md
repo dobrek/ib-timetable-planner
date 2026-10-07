@@ -227,8 +227,8 @@ calibration campaign, never tuned locally on the M4.
   > is the background job, and Mode B is not reachable from the app. What
   > this clause wanted measured is now in the guardrail below.
 - **The full ladder is an honest background job.** The completeness stage
-  is measured at ≤ 4.2 s on production (hint-free Mode A: 3.18–4.12 s over
-  13 runs). The full ladder's ceiling is 38 minutes, communicated in the UI
+  is measured at ≤ 6.2 s on production (hint-free Mode A: 3.18–6.16 s over
+  14 runs). The full ladder's ceiling is 38 minutes, communicated in the UI
   ("up to about 38 minutes") with stage-by-stage progress — never an
   indefinite spinner. Typical runs took 22–28 minutes.
   > Restated 2026-10-07 (S-308, `production-calibration-campaign` ledger).
@@ -613,7 +613,7 @@ calibration campaign, never tuned locally on the M4.
   tests and the `bench/` experiments, until its preconditions are met:
   clique-bound derivation extracted, a CP-SAT regression baseline pinned and
   executable, and hint-free Mode A measured. Priority: must-have.
-  > 2026-10-07 (S-308): hint-free Mode A is measured: 3.18–4.12 s over 13
+  > 2026-10-07 (S-308): hint-free Mode A is measured: 3.18–6.16 s over 14
   > production runs on a fill-the-gaps snapshot (the app sends no warm
   > start). The other two preconditions remain S-309's.
   > Socrates: Counter-arguments re-tested: deletion is one-way vs freeze; a
@@ -737,7 +737,7 @@ stage. ~~If the fast completeness solve exceeds its interactive budget, it
 falls back to the background job~~ Every solve runs as the background job —
 locked in shaping: one product behavior, no special waiting UI.
 > Amended 2026-10-07 (S-308). There is no interactive budget to exceed: the
-> completeness stage measured 3.2–4.1 s on production, inside the background
+> completeness stage measured 3.2–6.2 s on production, inside the background
 > job. The "one product behavior" it protected now holds by construction.
 
 **Policy is configuration — new.** Tier order and hard/soft split are

@@ -1889,6 +1889,152 @@
         "dispatch": "58fa58a5-6259-490a-8bca-db7070ce9534@100",
         "terminal": "58fa58a5-6259-490a-8bca-db7070ce9534@100"
       }
+    },
+    {
+      "jobId": "97d4013b-27cd-4123-ad5c-2ad7d8ba04fe",
+      "planId": "cdde43fa-7837-4162-b9f3-d663404fced7",
+      "proposalPlanId": "2c646c3e-43f0-45b1-87de-5d446aed1d37",
+      "cell": "w4-s240-a60",
+      "attribution": "solver_config",
+      "run": 1,
+      "preset": "clean",
+      "status": "succeeded",
+      "delivered": true,
+      "errorKind": null,
+      "excluded": null,
+      "clocks": {
+        "createdAt": "2026-10-07T12:18:49.999942+00:00",
+        "startedAt": "2026-10-07T12:18:54.238711+00:00",
+        "finishedAt": "2026-10-07T12:47:19.937772+00:00",
+        "queueToClaimS": 4.239,
+        "endToEndS": 1705.699,
+        "stageSumS": 1701.247,
+        "unaccountedS": 4.452
+      },
+      "solverConfig": {
+        "version": 1,
+        "workers": 4,
+        "stageBudgetS": 240,
+        "modeABudgetS": 60,
+        "seed": 1,
+        "budgetSource": {
+          "stage": "configured",
+          "modeA": "configured"
+        },
+        "targets": {},
+        "preset": "clean",
+        "cleanMode": true,
+        "host": {
+          "machine": "x86_64",
+          "cpuCount": 4,
+          "ortools": "9.15.6755"
+        },
+        "cleanFallback": false
+      },
+      "stages": [
+        {
+          "tier": 1,
+          "name": "completeness",
+          "status": "OPTIMAL",
+          "best": 0,
+          "wallClockS": 6.159666550000001
+        },
+        {
+          "tier": 2,
+          "name": "holes",
+          "status": "OPTIMAL",
+          "best": 0,
+          "bound": 0,
+          "wallClockS": 7.380708591
+        },
+        {
+          "tier": 3,
+          "name": "totalSlots",
+          "status": "FEASIBLE",
+          "best": 94,
+          "bound": 42,
+          "wallClockS": 240.051774327,
+          "stoppedBy": "budget"
+        },
+        {
+          "tier": 4,
+          "name": "teacherHoles",
+          "status": "FEASIBLE",
+          "best": 80,
+          "bound": 0,
+          "wallClockS": 239.96669794200002,
+          "stoppedBy": "budget"
+        },
+        {
+          "tier": 5,
+          "name": "softHits",
+          "status": "OPTIMAL",
+          "best": 0,
+          "bound": 0,
+          "wallClockS": 7.184757543000001
+        },
+        {
+          "tier": 6,
+          "name": "studentHoles",
+          "status": "FEASIBLE",
+          "best": 853,
+          "bound": 0,
+          "wallClockS": 240.04443986700002,
+          "stoppedBy": "budget"
+        },
+        {
+          "tier": 7,
+          "name": "doublesDeficit",
+          "status": "FEASIBLE",
+          "best": 216,
+          "bound": 0,
+          "wallClockS": 240.037568141,
+          "stoppedBy": "budget"
+        },
+        {
+          "tier": 8,
+          "name": "lateStarts",
+          "status": "FEASIBLE",
+          "best": 2,
+          "bound": 0,
+          "wallClockS": 240.31787975100002,
+          "stoppedBy": "budget"
+        },
+        {
+          "tier": 9,
+          "name": "fridayTail",
+          "status": "FEASIBLE",
+          "best": 34,
+          "bound": 0,
+          "wallClockS": 240.062399297,
+          "stoppedBy": "budget"
+        },
+        {
+          "tier": 10,
+          "name": "goldenBandDistance",
+          "status": "FEASIBLE",
+          "best": 4,
+          "bound": 0,
+          "wallClockS": 240.041484931,
+          "stoppedBy": "budget"
+        }
+      ],
+      "deliveredObjective": [
+        0,
+        0,
+        94,
+        80,
+        0,
+        852,
+        216,
+        2,
+        34,
+        4
+      ],
+      "workerVersions": {
+        "dispatch": "9ee17c9c-0f39-478a-9837-f228134d0792@100",
+        "terminal": "9ee17c9c-0f39-478a-9837-f228134d0792@100"
+      }
     }
   ]
 }

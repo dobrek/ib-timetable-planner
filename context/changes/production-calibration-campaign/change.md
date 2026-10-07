@@ -250,3 +250,20 @@ board (proposal `fe0f2300…`):
   - the renewal cadence, which needs one solve to cross two 10-minute expiries (routine at 240 s);
   - the 8-worker question;
   - stage-target values.
+
+### 2026-10-07 — Final production Generate at the shipped constants (Phase 5, 5.3)
+
+After #134 deployed (CI run 37617175484, Deploy green), `mise run solver:campaign -- run-one` ran one
+Generate on the campaign plan with no override set.
+
+- **Startup line** (cold start 12:18:53Z): `workers=4 stage_budget_s=240 mode_a_budget_s=60
+  stage_targets=<none>`. The row's `solver_config` matches (`w4-s240-a60`).
+- **Job `97d4013b…`** succeeded in **28.43 min** end to end, inside the UI's stated 38 minutes.
+  Queue to claim took 4.2 s, with 4.45 s unaccounted. The clean fallback did not fire.
+- **Delivered** `[0, 0, 94, 80, 0, 852, 216, 2, 34, 4]`. Its 94 slots and 80 teacher holes sit inside
+  the 240 s cell's campaign range (93–95 slots, 73–102 teacher holes).
+- **Mode A took 6.16 s**, above the campaign's 4.12 s maximum and still about 10× under the 60 s
+  budget. The verdict's Mode A statements above describe the 13 campaign runs. Across all 14 runs
+  Mode A took 3.18–6.16 s, and the PRD and roadmap now quote that range.
+
+`ledger.json` is refreshed to all 14 rows.

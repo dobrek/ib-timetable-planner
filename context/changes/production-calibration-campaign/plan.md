@@ -478,38 +478,38 @@ No schema change. Phase 1 rolls the container once (image change); the campaign'
 
 #### Automated
 
-- [ ] 3.1 CI green on each merge (all four jobs + deploy)
-- [ ] 3.2 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` clean on the phase's final tree
+- [x] 3.1 CI green on each merge (all four jobs + deploy) (#133 green including Deploy. The drill-marker push `a5c664d` failed `pnpm audit` on a new advisory unrelated to Phase 3, fixed in #133)
+- [x] 3.2 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` clean on the phase's final tree
 
 #### Manual
 
-- [ ] 3.3 Deploy-during-solve drill: `interrupted` with checkpoint, partial board delivered with stage label, Generate self-heals — evidence in `change.md`
+- [ ] 3.3 Deploy-during-solve drill: `interrupted` with checkpoint, partial board delivered with stage label, Generate self-heals — evidence in `change.md` (**not met** 2026-10-06: the deploy did not interrupt the solve; recorded in `change.md`, carried as a follow-up)
 - [x] 3.4 Renewal proof at `sleepAfter: 10m`: >10-minute production solve completes; idle sleep ~10 min post-solve (2026-10-06, job `56f587e0…`: one declined sleep, `succeeded`, idle stop at 600.5 s)
-- [ ] 3.5 The five production numbers recorded in `change.md`
-- [ ] 3.6 README advisory and roadmap/PRD S-304 truing merged
+- [x] 3.5 The five production numbers recorded in `change.md` (2026-10-06: three measured; renewal cadence and SIGTERM → `interrupted` were not measurable, with the reasons recorded)
+- [ ] 3.6 README advisory and roadmap/PRD S-304 truing merged (README's no-merge rule is deliberately kept, because the rescue path is unproven. PRD and roadmap truing ships in the Phase 5 PR)
 
 ### Phase 4: The campaign — 12 production runs
 
 #### Automated
 
-- [ ] 4.1 CI green on every cell merge
-- [ ] 4.2 `pnpm test` green (pin test tracks each constant edit)
+- [x] 4.1 CI green on every cell merge (amended: cells were secret switches, not merges. Each cell's `status()` agreed, and every row's `solver_config` matched its cell)
+- [x] 4.2 `pnpm test` green (pin test tracks each constant edit)
 
 #### Manual
 
-- [ ] 4.3 Twelve ledger rows with job ids, each run's startup log confirming the cell's values
-- [ ] 4.4 Per-tier analysis written; shipped stage budget, Mode A budget and worker count chosen with reasoning
-- [ ] 4.5 No merge happened while a campaign job was `running`
+- [x] 4.3 Twelve ledger rows with job ids, each run's startup log confirming the cell's values (13 counted rows: Cells A–C, the drill solve under C, and Cell D at 480 s. `ledger.json` is in this folder)
+- [x] 4.4 Per-tier analysis written; shipped stage budget, Mode A budget and worker count chosen with reasoning (`change.md`, 2026-10-07: 240 s / 60 s / 4)
+- [x] 4.5 No merge happened while a campaign job was `running` (the drill's laptop deploy was the deliberate exception)
 
 ### Phase 5: Ship, true up, record
 
 #### Automated
 
-- [ ] 5.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean; `mise run solver:check` green
+- [x] 5.1 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` clean; `mise run solver:check` green
 - [ ] 5.2 CI green on the shipping merge
 
 #### Manual
 
 - [ ] 5.3 Deployed startup log shows the shipped constants; a final production Generate succeeds within the UI's stated ceiling
-- [ ] 5.4 PRD, roadmap, README, `wrangler.jsonc`, `settings.py` prose rewritten; no undated mention of a greedy fallback gate or interactive Mode A path remains
-- [ ] 5.5 Verdict and baseline entry present in `change.md`; hosted project free of calibration plans and proposals
+- [x] 5.4 PRD, roadmap, README, `wrangler.jsonc`, `settings.py` prose rewritten; no undated mention of a greedy fallback gate or interactive Mode A path remains (`shape-notes.md` is left as the pre-PRD shaping record)
+- [ ] 5.5 Verdict and baseline entry present in `change.md`; hosted project free of calibration plans and proposals (the verdict and baseline are in, 2026-10-07; the hosted cleanup follows `run-one`)

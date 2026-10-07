@@ -38,7 +38,7 @@ The timetable editor's only generation engine is a client-side greedy solver at 
 | S-305 | stop-and-keep                   | stop a running job and keep the best completed-stage board                                                 | S-303                      | FR-305, US-302                                                        | done     |
 | S-306 | drift-decided-delivery          | the proposal is a plan — pending while it solves, an ordinary plan once delivered; the source is never written to | S-301                      | FR-306, FR-307, FR-308, FR-309, FR-313, US-301, US-303                | done     |
 | S-307 | solve-policy-choice             | choose the solve policy at launch — canonical order and student-first order join the clean default         | S-301                      | FR-302                                                                | done     |
-| S-308 | production-calibration-campaign | see honest, production-calibrated budgets/targets; the default-switch gate is evaluated                    | S-304                      | FR-303, FR-314, Non-functional guardrails                             | proposed |
+| S-308 | production-calibration-campaign | see honest, production-calibrated budgets/targets; the default-switch gate is evaluated                    | S-304                      | FR-303, FR-314, Non-functional guardrails                             | done     |
 | S-309 | greedy-retirement               | The greedy engine is deleted (CP-SAT default + Web Worker removal already shipped in S-301 / cleanup)     | S-305, S-306, S-307, S-308 | FR-312, FR-314                                                        | proposed |
 | S-310 | job-completion-email            | get notified of completion by email as well as in-app — "kick it off and walk away"                        | S-306                      | FR-309                                                                | proposed |
 
@@ -236,16 +236,23 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 
 ### S-308: Production calibration campaign
 
-- **Outcome:** Solve budgets and stage targets are set from a calibration campaign on the **production** instance (never tuned on the M4): fast solves (Mode A / small repair) return within the measured interactive budget or fall back to the background job; the UI communicates a realistic full-ladder ceiling instead of an indefinite spinner; hint-free Mode A is measured; the calibration gate for the default-path switch is evaluated and recorded.
+- **Outcome:** Solve budgets ~~and stage targets~~ are set from a calibration campaign on the **production** instance (never tuned on the M4). ~~Fast solves (Mode A / small repair) return within the measured interactive budget or fall back to the background job;~~ The UI communicates a measured full-ladder ceiling ("up to about 38 minutes") instead of an indefinite spinner. Hint-free Mode A is measured. ~~The calibration gate for the default-path switch is evaluated and recorded.~~ The FR-314 "calibration passed" record and the S-309 quality baseline are written.
+  > **Delivered 2026-10-07:** 240 s stages, 60 s Mode A and 4 workers, chosen from 13 production runs (ledger and verdict in `context/changes/production-calibration-campaign/`). Hint-free Mode A took 3.18–4.12 s. `sleepAfter` is 10m with renewal proven.
+  > **Struck 2026-10-07:**
+  > - Stage targets: deferred, see Open Roadmap Question 2.
+  > - The interactive path: none exists, because every Generate is the background job.
+  > - The default-path gate: S-301 switched to CP-SAT before the campaign ran.
+  >
+  > **Not met:** the deploy-during-solve drill never exercised the rescue path (`change.md`, 2026-10-06). It is carried as a follow-up.
 - **Change ID:** production-calibration-campaign
 - **PRD refs:** FR-303, FR-314, Non-functional guardrails
 - **Prerequisites:** S-304
 - **Parallel with:** S-305, S-306, S-307, S-310
 - **Blockers:** —
 - **Unknowns:**
-  - Solve-to-target threshold values — which quality tiers get targets and at what values (e.g. `teacherHoles ≤ 148`? ≤ 100?) — Owner: calibration campaign + expert input. Block: no (this slice exists to resolve it; the strategy is locked, only the values are open).
+  - ~~Solve-to-target threshold values — which quality tiers get targets and at what values (e.g. `teacherHoles ≤ 148`? ≤ 100?) — Owner: calibration campaign + expert input. Block: no (this slice exists to resolve it; the strategy is locked, only the values are open).~~ **Deferred 2026-10-07:** no targets ship. A target is a value for one catalog and one season, so expert input per season sets it; see Open Roadmap Question 2.
 - **Risk:** The only source of shipped numbers — running it before S-304 would risk losing 20-minute runs to mid-solve container sleep and calibrating against a lying platform; running it on the M4 would violate the locked tuning discipline. Its output (targets + the gate verdict) is the sole thing standing between the proposal flow and retirement, so it sits on Stream B's critical path.
-- **Status:** proposed
+- **Status:** done
 
 ### S-309: Greedy retirement — CP-SAT becomes the engine of record
 
@@ -296,11 +303,13 @@ Handed off to GitHub 2026-07-16: milestone **"CP-SAT solver service migration"**
 
 1. **Solver container credential scoping.** Which Supabase key/role does the container get? A dedicated role limited to `generation_jobs` writes would be cleanest; needs a grants design consistent with the least-privilege lesson. — Owner: author + plan phase. Block: none (resolved inside `/10x-plan solver-contract-and-jobs-schema`, F-301).
 2. **Solve-to-target thresholds.** Which quality tiers get targets and at what values (e.g. `teacherHoles ≤ 148`? ≤ 100?). The strategy — solve-to-target with budget ceilings — is locked; only the values are open. — Owner: calibration campaign + expert input. Block: none (resolved by S-308 itself).
+   **Deferred 2026-10-07 (S-308):** S-308 did not resolve it. It measured budgets on one snapshot, and a target belongs to one catalog and one season. No targets ship (`CONTAINER_STAGE_TARGETS = ""`); the 240 s budget ceilings are the stop. — Owner now: expert input, per season.
 3. ~~**CF API token scopes for Containers deploys.**~~ **RESOLVED 2026-08-17 in S-302**: `Workers Scripts: Edit` + `Containers: Edit`, both account-scoped — the narrow-token posture widens by exactly one permission. Cloudflare's `Edit Cloudflare Workers` template does not include Containers; `Cloudchamber: Edit` is the documented fallback if a container push 403s.
 
 ## Parked
 
 - **Off-Cloudflare hosting (Cloud Run / Fly.io)** — Why parked: PRD §Non-Goals; escape hatches considered only if calibration (S-308) proves the 4-vCPU ceiling genuinely binding. The image stays host-portable by construction.
+  > **2026-10-07 (S-308): the 4-vCPU ceiling did not bind, so this stays parked.** On `standard-4`, the shipped ladder fits a 38-minute ceiling the author accepted. More compute would still buy quality, since teacher holes kept improving up to 480 s, but that is a quality lever, not a blocker.
 - **`apps/` repo restructure** — Why parked: PRD §Non-Goals; any `apps/web` move is a dedicated, purely mechanical change after this migration ships — never sharing a diff with behavior changes.
 - **Parallel jobs per plan** — Why parked: PRD §Non-Goals; one active job per source plan stands; multi-policy parallel runs (per-job container instances) are a later lift.
 - **Push-based progress (Supabase Realtime / container WebSockets)** — Why parked: deliberately not ruled out by the PRD; the acknowledged upgrade if S-303's polling UX disappoints. **The trigger, defined 2026-08-20 so "disappoints" is not a matter of taste:** adopt push when either (a) a stage transition routinely takes more than ~10 s to appear on the plans list — which polling can only fix by shortening the interval, i.e. by multiplying the request count — or (b) hub polling becomes a measurable share of Supabase request volume. Until one of those is observed, the current shape reads nothing on an idle hub and nothing on a hidden tab, so neither is expected.

@@ -201,10 +201,15 @@ when, working from an existing plan:
   must never reach the database — regardless of what the container returns.
 - **The <200 ms drag-drop validation budget holds** — this change adds no work
   to the interactive validation path.
-- **Generation keeps working throughout the build.** Greedy remains the
+- **Generation keeps working throughout the build.** ~~Greedy remains the
   working Generate path until the calibration gate passes and the proposal
-  flow ships; deletion never precedes the replacement being deployed and
+  flow ships;~~ deletion never precedes the replacement being deployed and
   calibrated.
+  > Struck 2026-10-07 (S-308). No greedy Generate path is left to keep
+  > working: S-301 made CP-SAT the default, the Web Worker path is deleted,
+  > and S-308's calibration passed (`production-calibration-campaign`
+  > `change.md`, 2026-10-07). The rest still binds: S-309 deletes the greedy
+  > engine only once its own preconditions are met.
 - **PII posture preserved.** The dump is UUID-only by construction; names
   never reach the solver.
 
@@ -214,21 +219,41 @@ calibration campaign, never tuned locally on the M4.
 
 - **Validation responsiveness (preserved).** Drag-drop validation outcome
   visible within ≤ 200 ms p95 — this change adds no work to that path.
-- **Fast solves stay interactive.** A completeness (Mode A) or small-repair
+- ~~**Fast solves stay interactive.** A completeness (Mode A) or small-repair
   (Mode B) answer returns within single-digit seconds on production hardware
   *(calibration; expected ~2–4 s)*. Exceeding the interactive budget falls
-  back to the background job.
-- **The full ladder is an honest background job.** The UI communicates a
-  realistic ceiling *(calibration; order of ~12–20 minutes for full polish)*
-  and shows stage-by-stage progress — never an indefinite spinner.
+  back to the background job.~~
+  > Struck 2026-10-07 (S-308). There is no interactive path: every Generate
+  > is the background job, and Mode B is not reachable from the app. What
+  > this clause wanted measured is now in the guardrail below.
+- **The full ladder is an honest background job.** The completeness stage
+  is measured at ≤ 4.2 s on production (hint-free Mode A: 3.18–4.12 s over
+  13 runs). The full ladder's ceiling is 38 minutes, communicated in the UI
+  ("up to about 38 minutes") with stage-by-stage progress — never an
+  indefinite spinner. Typical runs took 22–28 minutes.
+  > Restated 2026-10-07 (S-308, `production-calibration-campaign` ledger).
+  > It read "a realistic ceiling *(calibration; order of ~12–20 minutes for
+  > full polish)*". The ceiling is 2 × 60 s of Mode A (the clean fallback can
+  > run it twice) plus 9 × 240 s stages, which is 2280 s. The author chose
+  > 240 s over 120 s stages for the more reliable board and accepted the
+  > longer wait.
 - **Job durability.** No job or progress is lost to browser close, container
   sleep, crash, or deploy; on interruption at most the in-flight stage is
   lost — every completed stage is recoverable.
 - **Outcome reproducibility.** Delivered board quality is defined by targets
   (a property of the catalog), not wall-clock (a property of hardware); two
   runs to the same targets are comparable even when their paths differ.
-- **Cost envelope.** Solver compute **~$15/month** at peak planning season
+- **Cost envelope.** Solver compute **~$30/month** at peak planning season
   and ~cents off-season (scale-to-zero), on the already-paid plan.
+  > Restated 2026-10-07 (S-308); it read ~$15/month. The shipped 240 s stages
+  > roughly double a solve: ~28 minutes typical against the ~12.5 behind the
+  > S-302 figure. That figure's own model grows by about $1/month per
+  > solve-minute at peak (12.5 min → $14.63, 20 min → $22.15). That puts peak
+  > near $30/month, or near $40 if every solve ran to the 38-minute ceiling.
+  > Per Generate it is ~$0.21 against ~$0.10 at 120 s (campaign `change.md`).
+  > `sleepAfter` dropped from 30m to 10m on 2026-10-06, which cuts most of
+  > the idle billing the S-302 stopgap added. The author accepted the trade
+  > for a more reliable board.
   > Restated 2026-08-17 (S-302). The original ≈$7 reproduces exactly ($7.11)
   > under its stated input of a 5-minute solve: the arithmetic was sound, the
   > input was overtaken by F-302's measured ~12.5-minute full-catalog solve,
@@ -588,6 +613,9 @@ calibration campaign, never tuned locally on the M4.
   tests and the `bench/` experiments, until its preconditions are met:
   clique-bound derivation extracted, a CP-SAT regression baseline pinned and
   executable, and hint-free Mode A measured. Priority: must-have.
+  > 2026-10-07 (S-308): hint-free Mode A is measured: 3.18–4.12 s over 13
+  > production runs on a fill-the-gaps snapshot (the app sends no warm
+  > start). The other two preconditions remain S-309's.
   > Socrates: Counter-arguments re-tested: deletion is one-way vs freeze; a
   > slipping retirement could stall the close-out. Resolution: stands — the
   > research's 14:20 follow-up already weighed both; deletion stays inside the
@@ -678,8 +706,12 @@ calibration campaign, never tuned locally on the M4.
   > property rather than as a mechanism. The token scope, listed as an open
   > question, is resolved.
 - **Tuning discipline.** Budgets/targets are never tuned on the M4; the
-  production calibration campaign is the only source of shipped numbers and
-  gates the default-path switch.
+  production calibration campaign is the only source of shipped numbers~~ and
+  gates the default-path switch~~.
+  > Struck 2026-10-07 (S-308). The switch to CP-SAT shipped with S-301 before
+  > the campaign ran, so there was no switch left to gate. The campaign set
+  > the shipped budgets: 240 s stages, 60 s Mode A, 4 workers. Targets were
+  > deferred (Open Question 2).
 - **Auth unchanged.** Deny-by-default middleware, single Author role; job
   Actions sit behind the existing session requirement.
 
@@ -701,9 +733,12 @@ the chosen policy. Each stage stops when it reaches its target
 (solve-to-target; budget ceilings as backstop), and every completed stage
 hardens its tier before the next begins, so quality accrues monotonically: an
 interrupted run still holds a complete board no worse than the previous
-stage. If the fast completeness solve exceeds its interactive budget, it
-falls back to the background job — locked in shaping: one product behavior,
-no special waiting UI.
+stage. ~~If the fast completeness solve exceeds its interactive budget, it
+falls back to the background job~~ Every solve runs as the background job —
+locked in shaping: one product behavior, no special waiting UI.
+> Amended 2026-10-07 (S-308). There is no interactive budget to exceed: the
+> completeness stage measured 3.2–4.1 s on production, inside the background
+> job. The "one product behavior" it protected now holds by construction.
 
 **Policy is configuration — new.** Tier order and hard/soft split are
 request-level configuration, not hidden constants: **clean mode
@@ -792,6 +827,11 @@ printable / PDF export; teacher soft preferences and hours-per-week caps.
    values (e.g. `teacherHoles ≤ 148`? ≤ 100?). — Owner: calibration campaign +
    expert input. (The *strategy* — solve-to-target with budget ceilings — is
    locked; only the values are open.)
+   **DEFERRED 2026-10-07 (S-308):** no targets ship
+   (`CONTAINER_STAGE_TARGETS = ""`). A target is a value for one catalog and
+   one planning season, which a budget campaign on one snapshot cannot set.
+   The 240 s budget ceilings are the stop until a season is tuned. — Owner
+   now: expert input, per season.
 3. **CF API token scopes for Containers deploys.** The deploy token is
    deliberately narrow today (Workers Scripts: Edit); verify the exact scopes
    Containers requires against current Cloudflare docs when wiring the deploy

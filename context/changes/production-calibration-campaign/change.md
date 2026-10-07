@@ -3,7 +3,7 @@ change_id: production-calibration-campaign
 title: Production calibration campaign
 status: impl_reviewed
 created: 2026-09-03
-updated: 2026-10-06
+updated: 2026-10-07
 archived_at: null
 ---
 
@@ -153,3 +153,100 @@ How to read the gaps:
 - **Drill "checkpoint at position —"**: the drill solve ended `succeeded`, so its row holds a final
   board rather than a kept checkpoint. Its checkpoint reached position 3 before the deploy, per the
   journal.
+
+### 2026-10-07 — Calibration passed (FR-314): 240 s stages, 60 s Mode A, 4 workers — verdict and pinned baseline
+
+The grid finished on 2026-10-07 with **13 counted runs and none excluded**. The clean-mode fallback
+never fired. Every run solved the campaign plan `cdde43fa…`, a fill-the-gaps snapshot: it was cloned
+with its board from `3ecaea22…` and had 246 h to place. The record is this folder's `ledger.json`
+(ids and numbers only).
+
+**Shipped configuration** (`src/solver-container-env.ts`): `CONTAINER_STAGE_BUDGET_S = "240"`,
+`CONTAINER_MODE_A_BUDGET_S = "60"`, `CONTAINER_WORKERS = "4"`. `CONTAINER_STAGE_TARGETS` stays `""`,
+deferred to PRD Open Question 2.
+
+The worst case is 2 × 60 s of Mode A (the clean fallback can run it twice) plus 9 × 240 s, which is
+2280 s. That number feeds two places: the UI's `LADDER_CEILING_MINUTES = 38` ("up to about 38
+minutes") and `wrangler.jsonc`'s `rollout_active_grace_period = 2280`.
+
+**The cells, as delivered boards.** The matrix's "best" is a tier's value when its own stage ended.
+Later stages may lower an earlier tier further, so the verdict reads the **delivered** objective.
+The cost estimate is per median run, at the 2026-09-04 pricing in this file (4 vCPU busy, 12 GiB and
+20 GB billed while awake), and includes the 10 idle minutes after a solve.
+
+| Cell                    | Runs | Delivered total slots | Median teacher holes (delivered) | End-to-end, min       | Est. cost per Generate |
+| ----------------------- | ---- | --------------------- | -------------------------------- | --------------------- | ---------------------- |
+| B `w4-s60-a300`         | 3    | 94, 95, 95            | 115                              | 7.34 / 7.34 / 7.35    | ~$0.07                 |
+| A `w4-s120-a300`        | 3    | 93, 94, 96            | 102                              | 10.84 / 12.10 / 14.35 | ~$0.10                 |
+| C `w4-s240-a300`        | 4    | 93, 93, 93, 95        | 86                               | 21.91 / 28.36 / 28.36 | ~$0.21                 |
+| D `w4-s480-a300`        | 3    | 92, 94, 94            | 70                               | 48.22 / 48.57 / 56.35 | ~$0.34                 |
+
+Cell C's four runs include the drill solve (`7ef1ad6b…`), which ran under the same cell and counts.
+
+**Verdict, against the plan's Phase 4 questions:**
+
+- **Does `best` improve with budget beyond run-to-run variance?** It depends on the tier.
+  - **Tier 3 (total slots) is driven more by search luck than by budget.** No cell's typical value
+    beat 240 s, which delivered 93 in 3 of 4 runs. 480 s found the only 92, once, and delivered 94
+    in the other two runs.
+  - **Tier 4 (teacher holes) improves steadily:** 115 → 102 → 86 → 70 (delivered medians).
+  - **Tiers 5–10 do not compare across cells**, because each one is solved under the values the
+    tiers above it hardened.
+- **Which tiers reach OPTIMAL, at which budget?**
+  - Tiers 1, 2 and 5 reach it in every run at every budget, in 3.2–7.2 s.
+  - Tiers 7 and 8 reach it only sometimes, with no budget trend: 120 s 2 of 3 each; 240 s 1 of 4
+    each; 480 s tier 7 1 of 3 and tier 8 2 of 3.
+  - Tiers 3, 4, 6, 9 and 10 never reach it: they stop on budget at every budget up to 480 s.
+    Tier 3's proven bound (21–49) is too weak to say how far from optimal 92–93 is.
+- **Do 8 workers on 4 vCPU help?** Not measured. Cell D was spent on 480 s × 4 workers instead,
+  by the author's decision on 2026-10-07, because a free slot mattered more than the worker
+  question. The shipped value stays 4, the count the container was sized for.
+- **What does Mode A need?** It ran **hint-free** in every run. The app sends no `warmStart`, so the
+  greedy hint is empty (`runner.py`'s request-to-dump step). Tier 1 took 3.18–4.12 s (median 3.54 s)
+  across all 13 runs, so 60 s is about 15× the maximum. This is S-309's "hint-free Mode A measured"
+  precondition, measured on a fill-the-gaps snapshot. A full-catalog Mode A was not measured here.
+- **Did the clean fallback fire?** Never, in 13 runs.
+- **Why 240 s ships:**
+  - Tier 3 ranks first, and 240 s gave the most reliable delivered slot count.
+  - 480 s did not beat it typically, at twice the time and cost.
+  - The author accepted the wait and the cost on 2026-10-07, so slots outrank time.
+  - Teacher holes improve further at 480 s, but they rank below slots.
+  - Advice for authors rather than a constant: two Generates at 240 s, keeping the better board,
+    is likelier to find a free slot than one Generate at 480 s.
+
+**Pinned quality baseline for S-309** (the shipped cell, `w4-s240-a300`). The four runs are
+`45f6b562…`, `64361f52…`, `7ef1ad6b…` and `8f93406e…`. Mode A ran at 300 s in the campaign. The
+shipped 60 s does not change the result, because Mode A never needed more than 4.12 s.
+
+| Tier | Name               | best min | best median | best max | OPTIMAL | Stopped by budget |
+| ---- | ------------------ | -------- | ----------- | -------- | ------- | ----------------- |
+| 1    | completeness       | 0        | 0           | 0        | 4/4     | 0/4               |
+| 2    | holes              | 0        | 0           | 0        | 4/4     | 0/4               |
+| 3    | totalSlots         | 93       | 93          | 96       | 0/4     | 4/4               |
+| 4    | teacherHoles       | 73       | 86          | 102      | 0/4     | 4/4               |
+| 5    | softHits           | 0        | 0           | 0        | 4/4     | 0/4               |
+| 6    | studentHoles       | 738      | 794         | 842      | 0/4     | 4/4               |
+| 7    | doublesDeficit     | 0        | 208         | 264      | 1/4     | 3/4               |
+| 8    | lateStarts         | 0        | 2           | 8        | 1/4     | 3/4               |
+| 9    | fridayTail         | 30       | 35          | 40       | 0/4     | 4/4               |
+| 10   | goldenBandDistance | 1        | 5           | 12       | 0/4     | 4/4               |
+
+Delivered objective tuples, lexicographically best first. Run `64361f52…` produced the best delivered
+board (proposal `fe0f2300…`):
+
+| Run           | Delivered `[unplaced, holes, slots, teacherHoles, softHits, studentHoles, doubles, late, friday, golden]` |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `64361f52…`   | `[0, 0, 93, 80, 0, 781, 264, 8, 38, 7]`                                                                   |
+| `7ef1ad6b…`   | `[0, 0, 93, 91, 0, 730, 164, 2, 32, 12]`                                                                  |
+| `8f93406e…`   | `[0, 0, 93, 102, 0, 787, 248, 2, 40, 3]`                                                                  |
+| `45f6b562…`   | `[0, 0, 95, 73, 0, 667, 0, 0, 30, 1]`                                                                     |
+
+**What this verdict rests on, and what it does not cover.**
+
+- 3–4 runs per cell, on one snapshot.
+- Production `standard-4` numbers only; no M-series number reached a shipped constant.
+- These questions stay open:
+  - the drill's rescue path (2026-10-06 entry);
+  - the renewal cadence, which needs one solve to cross two 10-minute expiries (routine at 240 s);
+  - the 8-worker question;
+  - stage-target values.

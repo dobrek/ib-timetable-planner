@@ -43,7 +43,7 @@ export const CONTAINER_LOG_LEVEL = "INFO";
  * nothing a container that only ever sees UUIDs could widen its reach with.
  *
  * **The values come from S-308's production calibration** (ledger and verdict:
- * `context/changes/production-calibration-campaign/`, 2026-10-07 entry). It ran 13 runs across 60,
+ * `context/archive/2026-09-03-production-calibration-campaign/`, 2026-10-07 entry). It ran 13 runs across 60,
  * 120, 240 and 480 s stages, all on 4 workers.
  * - **240 s stages.** They gave the most reliable delivered board: 93 total slots in 3 of 4 runs,
  *   against 93–96 at 120 s. 480 s found a 92 once but 94 twice, at twice the time and cost.

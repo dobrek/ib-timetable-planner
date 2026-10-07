@@ -8,7 +8,7 @@ for one-time setup, the attended drill, and the Cell D choice.
 This runbook says what to do on each of the two office days, what each command does, how to recover
 when the runner halts, and what to remove afterwards. The design is in
 `context/changes/automate-production-calibration-campaign/`. The campaign's own record (the ledger,
-the verdict and the numbers) lives in `context/changes/production-calibration-campaign/`.
+the verdict and the numbers) lives in `context/archive/2026-09-03-production-calibration-campaign/`.
 
 > **It writes to production.** It clones a real plan with its board, dispatches solves, switches
 > the container's tuning through Worker secrets, and deletes what it created at cleanup. Every

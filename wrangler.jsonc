@@ -48,7 +48,7 @@
       },
       // Seconds: the shipped ladder's worst case, 2 × 60 s Mode A + 9 × 240 s stages = 2280 s
       // (38 min, the UI's LADDER_CEILING_MINUTES). The values come from S-308's calibration; its
-      // ledger is in context/changes/production-calibration-campaign/. `src/solver-container-env.test.ts`
+      // ledger is in context/archive/2026-09-03-production-calibration-campaign/. `src/solver-container-env.test.ts`
       // fails if this drifts from the budgets.
       //
       // Per the current Cloudflare rollout docs (re-read 2026-10-07): the window is how long an

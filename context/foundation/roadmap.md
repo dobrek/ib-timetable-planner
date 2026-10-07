@@ -237,7 +237,7 @@ What's already in place in the codebase as of 2026-07-16 (auto-researched + auth
 ### S-308: Production calibration campaign
 
 - **Outcome:** Solve budgets ~~and stage targets~~ are set from a calibration campaign on the **production** instance (never tuned on the M4). ~~Fast solves (Mode A / small repair) return within the measured interactive budget or fall back to the background job;~~ The UI communicates a measured full-ladder ceiling ("up to about 38 minutes") instead of an indefinite spinner. Hint-free Mode A is measured. ~~The calibration gate for the default-path switch is evaluated and recorded.~~ The FR-314 "calibration passed" record and the S-309 quality baseline are written.
-  > **Delivered 2026-10-07:** 240 s stages, 60 s Mode A and 4 workers, chosen from 13 production runs (ledger and verdict in `context/changes/production-calibration-campaign/`). Hint-free Mode A took 3.18–6.16 s over 14 runs, including the final run at the shipped constants. `sleepAfter` is 10m with renewal proven.
+  > **Delivered 2026-10-07:** 240 s stages, 60 s Mode A and 4 workers, chosen from 13 production runs (ledger and verdict in `context/archive/2026-09-03-production-calibration-campaign/`). Hint-free Mode A took 3.18–6.16 s over 14 runs, including the final run at the shipped constants. `sleepAfter` is 10m with renewal proven.
   > **Struck 2026-10-07:**
   > - Stage targets: deferred, see Open Roadmap Question 2.
   > - The interactive path: none exists, because every Generate is the background job.

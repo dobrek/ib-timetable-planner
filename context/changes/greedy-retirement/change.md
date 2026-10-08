@@ -1,7 +1,7 @@
 ---
 change_id: greedy-retirement
 title: Greedy retirement
-status: implementing
+status: implemented
 created: 2026-10-08
 updated: 2026-10-08
 archived_at: null

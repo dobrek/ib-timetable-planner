@@ -685,14 +685,14 @@ Every artifact that describes greedy as live, or cites a mechanism S-309 removed
 
 #### Automated
 
-- [x] 5.1 Contract gates green on both sides
-- [x] 5.2 Prettier and lint clean
-- [x] 5.3 No doc still calls greedy live (grep)
-- [x] 5.4 Full local CI gate green: `/verify`
+- [x] 5.1 Contract gates green on both sides — 00a89ff
+- [x] 5.2 Prettier and lint clean — 00a89ff
+- [x] 5.3 No doc still calls greedy live (grep) — 00a89ff
+- [x] 5.4 Full local CI gate green: `/verify` — 00a89ff
 
 #### Manual
 
-- [x] 5.5 Author signs off on the FR-314 wording
-- [x] 5.6 Runbook reads correctly to an author who has never seen greedy
-- [x] 5.7 #106 and #108 updated after author confirms the text
+- [x] 5.5 Author signs off on the FR-314 wording — 00a89ff
+- [x] 5.6 Runbook reads correctly to an author who has never seen greedy — 00a89ff
+- [x] 5.7 #106 and #108 updated after author confirms the text — 00a89ff
 - [ ] 5.8 Merge only when no production solve is running

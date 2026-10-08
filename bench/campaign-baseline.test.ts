@@ -4,8 +4,9 @@ import { formatBaseline } from "./campaign-baseline";
 import { mergeLedger, toLedgerRow, type LoadedJob } from "./campaign-ledger";
 
 /**
- * S-309's test will assert against this block, so it must be dated, drawn from the one cell asked
- * for, built from counted runs only, and carry every run's exact delivered tuple beside its job id.
+ * This block is the documented production reference beside S-309's executable baseline
+ * (`services/solver/tests/test_baseline.py`), so it must be dated, drawn from the one cell asked for,
+ * built from counted runs only, and carry every run's exact delivered tuple beside its job id.
  */
 const config = (stageBudgetS: number): StoredSolverConfig => ({
   version: 1,

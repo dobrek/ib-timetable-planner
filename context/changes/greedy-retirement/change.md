@@ -1,7 +1,7 @@
 ---
 change_id: greedy-retirement
 title: Greedy retirement
-status: planned
+status: implementing
 created: 2026-10-08
 updated: 2026-10-08
 archived_at: null
@@ -58,3 +58,45 @@ Taken with the author; the full table is in `plan-brief.md`.
 - **TS residue:** dead-code sweep. **`deriveGoldenSets` is deleted**, which reverses July's never-delete listing for that one function (its only caller was greedy's `problem.ts`). The `GOLDEN_*` constants stay.
 - **Python:** R1b plus its orphans: `_residue`, `_run_ladder`'s `dump` parameter, and `ObjectiveModel.cohort_slots`. The `greedy_*` names stay.
 - **Sequencing:** in parallel with `automate-production-calibration-campaign`, which keeps its F1 and its stale ledger paths.
+
+### 2026-10-08 — Phase 1: baseline calibration evidence
+
+**Run:** CI run [37755541849](https://github.com/dobrek/ib-timetable-planner/actions/runs/37755541849), on a throwaway branch (`greedy-retirement-calibration`, deleted afterwards). It used `workflow_dispatch`, with 5 matrix jobs × 2 runs of `uv run pytest -m baseline -s` on `ubuntu-latest`.
+
+- Every runner had 4 vCPU.
+- The hosts were AMD EPYC 7763 (×3), AMD EPYC 9V74 and Intel Xeon 8370C, so the samples span more than one CPU model.
+
+**Exact assertions:** all ten samples passed. Every sample was complete with `holes` 0 and `softHits` 0, and `clean_fallback` was False.
+
+**Bounded tiers, the ten A samples in run order:**
+
+| Shard / run            | totalSlots     | teacherHoles      | wall clock (s)     |
+| ---------------------- | -------------- | ----------------- | ------------------ |
+| 4/1                    | 97             | 172               | 68.0               |
+| 4/2                    | 99             | 185               | 67.6               |
+| 1/1                    | 99             | 222               | 71.4               |
+| 1/2                    | 97             | 222               | 71.8               |
+| 5/1                    | 97             | 211               | 73.5               |
+| 5/2                    | 96             | 205               | 73.3               |
+| 3/1                    | 97             | 191               | 76.5               |
+| 3/2                    | 99             | 206               | 69.3               |
+| 2/1                    | 99             | 239               | 76.6               |
+| 2/2                    | 98             | 234               | 76.8               |
+| **min / median / max** | 96 / 97.5 / 99 | 172 / 208.5 / 239 | 67.6 / 72.6 / 76.8 |
+
+**Bounds, from `worst + max(2, ceil(0.10 × worst))`:** `TOTAL_SLOTS_BOUND = 109` and `TEACHER_HOLES_BOUND = 263`.
+
+- On M-series the same test gave `teacherHoles` 105–119, far below every runner sample. This is why the bounds come only from the runner.
+
+**Wall clock:**
+
+- A takes 67.6–76.8 s, within the ≤ ~90 s target.
+- C takes 2.4–3.3 s on the runner and 1.3 s on M-series.
+
+**Adaptation: C's tier 10 gets a stage target.**
+
+- On the descent catalog, tier 10 (golden-band distance) finds 1 against a bound of 0 and never proves it. It burned its full 15 s budget on every run, so C took 16.5 s instead of ~1 s.
+- C now sets `stage_targets={10: 10**9}`, through the same `Settings.stage_targets` path production carries, so tier 10 stops at its first solution.
+- Tier 3, which C asserts, has no target and keeps the full 15 s budget as proof headroom. It proved OPTIMAL = 14 in ~0.45 s on M-series and well inside 3.3 s on the runner.
+
+**Mutation check:** `TOTAL_SLOTS_BOUND = 90` turned A red (`98 <= 90`), and `DESCENT_OPTIMAL_SLOTS = 13` turned C red (`('OPTIMAL', 14) == ('OPTIMAL', 13)`). Both were reverted.

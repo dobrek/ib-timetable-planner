@@ -2,10 +2,11 @@
 
 The POC's recorded lesson was that `cli.py` never got test attention; this suite is the answer to
 it. Everything here runs against the REAL app through `TestClient`, with only the outbound
-Supabase HTTP swapped for an `httpx.MockTransport`. That boundary is deliberate: it is low enough
-that the assertions see the ACTUAL PostgREST requests (the `status=eq.queued` CAS filter, the narrow
-projections, the bearer header, the exact column payload) rather than a hand-rolled fake's idea of
-them, and high enough that no database is needed — so the solver CI lane stays DB-free and fast.
+Supabase HTTP swapped for an `httpx.MockTransport` (`fakes.py`). That boundary is deliberate: it is
+low enough that the assertions see the ACTUAL PostgREST requests (the `status=eq.queued` CAS filter,
+the narrow projections, the bearer header, the exact column payload) rather than a hand-rolled fake's
+idea of them, and high enough that no database is needed — so the solver CI lane stays DB-free and
+fast.
 
 Real RLS/grant/hook fidelity is not this suite's job and cannot be faked here; that is what the TS
 `solver-transport.integration.test.ts` proof-of-life covers against the live stack.
@@ -46,166 +47,17 @@ from cpsat_service.supabase import (
     RoleClaimError,
     SupabaseError,
 )
-
-SOLVE_REQUEST_GOLDEN = Path(__file__).resolve().parents[3] / "contracts" / "fixtures" / "solve-request.json"
-
-JOB_ID = "3f1a8c22-0b7e-4c8e-9a1d-2f6b5e4d3c21"
-
-
-def _jwt(claims: dict[str, Any]) -> str:
-    """A JWT-SHAPED token: header.payload.signature, unsigned.
-
-    `assert_role` reads the payload and deliberately does not verify the signature — it guards
-    against a hook that is switched off, not against forgery — so an unsigned token is a faithful
-    stand-in for what Auth returns, and the suite never needs a signing secret the container is
-    forbidden to hold.
-    """
-
-    def segment(part: dict[str, Any]) -> str:
-        raw = json.dumps(part, separators=(",", ":")).encode()
-        return base64.urlsafe_b64encode(raw).decode().rstrip("=")
-
-    return f"{segment({'alg': 'HS256', 'typ': 'JWT'})}.{segment(claims)}.signature-not-verified"
-
-
-ACCESS_TOKEN = _jwt({"role": REQUIRED_ROLE, "sub": "machine-user"})
-
-SETTINGS = Settings(
-    supabase_url="https://stack.test",
-    supabase_key="publishable-test-key",
-    machine_email="solver@ib-timetable-planner.dev",
-    machine_password="test-password",
-    workers=1,
-    max_concurrent_jobs=1,
-    log_level="INFO",
+from fakes import (
+    ACCESS_TOKEN,
+    JOB_ID,
+    SETTINGS,
+    FakeSupabase,
+    run_sync,
+    run_sync_registered,
+    unsigned_jwt,
 )
 
-
-# --- the recording transport ----------------------------------------------------------------------
-
-
-class RecordedCall:
-    """One outbound request, kept in a form the assertions can read without re-parsing httpx."""
-
-    def __init__(self, request: httpx.Request) -> None:
-        self.method = request.method
-        self.path = request.url.path
-        self.params = dict(request.url.params)
-        self.headers = dict(request.headers)
-        self.body: Any = json.loads(request.content) if request.content else None
-
-
-class FakeSupabase:
-    """An `httpx.MockTransport` standing in for Auth + PostgREST, recording every call.
-
-    **Locked, because since S-304 two threads reach it**: the worker's client and the heartbeat
-    timer's own. Without the lock `sign_in_count` is a lost-update race and the recorded call list
-    interleaves non-deterministically — a flake that would look like a heartbeat bug.
-
-    ``claimable`` False models the CAS losing: PostgREST answers 200 with an EMPTY array, which is
-    exactly how "no row matched `status=eq.queued`" looks on the wire.
-
-    ``snapshot_hash`` is the digest the claimed ROW carries. Left None, :func:`_run` fills it with the
-    request's own digest so the binding passes — a test that wants a mismatch states one explicitly
-    rather than every other test drifting through a hole in the guard.
-
-    ``access_token`` is what the Auth grant answers with; it is mutable so a test can model the hook
-    being switched off *between* two grants.
-    """
-
-    def __init__(
-        self,
-        *,
-        claimable: bool = True,
-        snapshot_hash: str | None = None,
-        access_token: str = ACCESS_TOKEN,
-        progress_response: httpx.Response | Exception | None = None,
-        solver_config_response: httpx.Response | None = None,
-        stop_requested_after: int | None = None,
-    ) -> None:
-        self._lock = threading.Lock()
-        self.calls: list[RecordedCall] = []
-        self.claimable = claimable
-        self.snapshot_hash = snapshot_hash
-        self.access_token = access_token
-        self.sign_in_count = 0
-        #: What a `running -> running` write answers with. A response models the edge failing or the
-        #: row having moved on; an exception models the connection never landing.
-        self.progress_response = progress_response
-        #: What a `running -> running` write CARRYING `solver_config` answers with — the column
-        #: rejected (a missing grant, a schema without the column) while every other write lands.
-        self.solver_config_response = solver_config_response
-        #: How many `running -> running` writes answer a null `stop_requested_at` before the column
-        #: comes back set — the author pressing Stop & keep mid-solve, seen from the wire. None
-        #: leaves it null forever, which is every other test in this file.
-        self.stop_requested_after = stop_requested_after
-        self.progress_count = 0
-
-    def transport(self) -> httpx.MockTransport:
-        return httpx.MockTransport(self._handle)
-
-    def client_factory(self, settings: Settings) -> JobRowClient:
-        http = httpx.Client(base_url=settings.supabase_url, transport=self.transport())
-        return JobRowClient(settings, client=http)
-
-    def patches(self) -> list[RecordedCall]:
-        return [call for call in self.calls if call.method == "PATCH"]
-
-    def claim_patch(self) -> RecordedCall:
-        """The CAS. Read by ROLE — its `status=eq.queued` filter — not by position: since S-303 a
-        run interleaves two progress PATCHes per ladder stage between the claim and the finish, so
-        `patches()[0]`/`[1]` would silently start asserting about a different write."""
-        return self._by_role("eq.queued")
-
-    def progress_patches(self) -> list[RecordedCall]:
-        """The `running -> running` writes, in order."""
-        return [call for call in self.patches() if call.params.get("status") == "eq.running"]
-
-    def config_patches(self) -> list[RecordedCall]:
-        """The progress writes that record the run's configuration, in order."""
-        return [call for call in self.progress_patches() if "solver_config" in call.body]
-
-    def finish_patch(self) -> RecordedCall:
-        """The terminal write — the only PATCH that carries no status filter at all, because RLS,
-        not a filter, is what bounds which transitions it may make."""
-        return self._by_role(None)
-
-    def _by_role(self, status_filter: str | None) -> RecordedCall:
-        matched = [call for call in self.patches() if call.params.get("status") == status_filter]
-        assert len(matched) == 1, (
-            f"expected exactly one PATCH with status={status_filter!r}, got {len(matched)}"
-        )
-        return matched[0]
-
-    def _handle(self, request: httpx.Request) -> httpx.Response:
-        with self._lock:
-            call = RecordedCall(request)
-            self.calls.append(call)
-            if call.path == "/auth/v1/token":
-                self.sign_in_count += 1
-                return httpx.Response(200, json={"access_token": self.access_token, "token_type": "bearer"})
-            if call.path == "/rest/v1/generation_jobs":
-                carries_config = isinstance(call.body, dict) and "solver_config" in call.body
-                if carries_config and self.solver_config_response is not None:
-                    return self.solver_config_response
-                if call.params.get("status") == "eq.running" and self.progress_response is not None:
-                    if isinstance(self.progress_response, Exception):
-                        raise self.progress_response
-                    return self.progress_response
-                claiming = call.params.get("status") == "eq.queued"
-                claimed = {"id": JOB_ID, "snapshot_hash": self.snapshot_hash}
-                row = claimed if claiming else self._progress_row()
-                rows = [row] if (self.claimable or not claiming) else []
-                return httpx.Response(200, json=rows)
-            return httpx.Response(404, json={"message": f"unexpected path {call.path}"})
-
-    def _progress_row(self) -> dict[str, Any]:
-        """What a `running -> running` write reads back: the widened projection, with the stop flag
-        appearing once the configured number of writes has gone by. Called under `_handle`'s lock,
-        which is what makes the counter safe against the heartbeat thread."""
-        self.progress_count += 1
-        requested = self.stop_requested_after is not None and self.progress_count > self.stop_requested_after
-        return {"id": JOB_ID, "stop_requested_at": "2026-09-01T12:00:00+00:00" if requested else None}
+SOLVE_REQUEST_GOLDEN = Path(__file__).resolve().parents[3] / "contracts" / "fixtures" / "solve-request.json"
 
 
 # --- fixtures ---------------------------------------------------------------------------------------
@@ -247,32 +99,6 @@ def _infeasible_request() -> dict[str, Any]:
         periods=2,
     )
     return {"formatVersion": 1, "snapshot": wire_snapshot(snapshot)}
-
-
-def _run(request: dict[str, Any], fake: FakeSupabase) -> JobRegistry:
-    """Run the worker SYNCHRONOUSLY (no thread) so a test asserts on a finished state rather than
-    on a sleep."""
-    registry = JobRegistry()
-    registry.register(JOB_ID)
-    _run_registered(request, fake, registry)
-    return registry
-
-
-def _run_registered(
-    request: dict[str, Any],
-    fake: FakeSupabase,
-    registry: JobRegistry,
-    *,
-    settings: Settings = SETTINGS,
-) -> None:
-    """:func:`_run` against a registry the test still holds — so it can fire the stop latch.
-
-    The row's `snapshot_hash` defaults to this request's own digest, matching the app's enqueue: the
-    binding is under test in its own two cases, not incidentally in every other one.
-    """
-    if fake.snapshot_hash is None:
-        fake.snapshot_hash = snapshot_hash(parse_snapshot(request["snapshot"]))
-    run_job(JOB_ID, request, settings=settings, registry=registry, client_factory=fake.client_factory)
 
 
 def _registered() -> JobRegistry:
@@ -447,7 +273,7 @@ def test_the_committed_golden_is_accepted_as_a_body(
 def test_successful_solve_claims_then_writes_the_result() -> None:
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     claim, finish = fake.claim_patch(), fake.finish_patch()
     assert claim.params["status"] == "eq.queued", "the CAS filter is the durable idempotency guard"
@@ -490,7 +316,7 @@ def test_every_written_column_is_inside_the_grant() -> None:
     }
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     for patch in fake.patches():
         assert set(patch.body) <= granted, f"writes outside the grant: {set(patch.body) - granted}"
@@ -501,7 +327,7 @@ def test_the_written_result_is_in_declared_array_order() -> None:
     BOARD order, and a non-canonical `result` would mismatch every later canonical comparison."""
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     placements = fake.finish_patch().body["result"]["placements"]
     keys = [(p["cohort"], p["courseId"], p["day"], p["period"], p["week"]) for p in placements]
@@ -513,7 +339,7 @@ def test_a_warm_start_is_carried_into_the_solve() -> None:
     exactly that field."""
     fake = FakeSupabase()
 
-    _run(_micro_request(warm_start=True), fake)
+    run_sync(_micro_request(warm_start=True), fake)
 
     assert fake.finish_patch().body["status"] == "succeeded"
 
@@ -528,7 +354,7 @@ def test_losing_the_claim_writes_nothing_further(caplog: pytest.LogCaptureFixtur
     fake = FakeSupabase(claimable=False)
 
     with caplog.at_level("WARNING", logger="cpsat_service.runner"):
-        _run(_micro_request(), fake)
+        run_sync(_micro_request(), fake)
 
     assert len(fake.patches()) == 1, "only the failed claim; a lost CAS must not trample a live solve"
     assert any("not claimable" in record.message for record in caplog.records)
@@ -548,7 +374,7 @@ def test_the_request_policy_becomes_the_solve_config(preset: str | None) -> None
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", record)
-        _run(_micro_request(policy=preset), FakeSupabase())
+        run_sync(_micro_request(policy=preset), FakeSupabase())
 
     expected = PRESETS[preset or DEFAULT_PRESET]
     assert [(config.clean_mode, config.ladder) for config in configs] == [
@@ -565,7 +391,7 @@ def test_the_row_advances_stage_by_stage_between_the_claim_and_the_finish() -> N
     legible from it alone. Two writes per stage — which tier is now running, then what came of it."""
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     assert [p.params.get("status") for p in fake.patches()] == [
         "eq.queued",
@@ -587,7 +413,7 @@ def test_under_student_first_the_counter_still_climbs_while_the_names_follow_the
     numbers the same run would read 1, 2, 6, 3, 4 … and the hub would show the solve going back."""
     fake = FakeSupabase()
 
-    _run(_micro_request(policy="student-first"), fake)
+    run_sync(_micro_request(policy="student-first"), fake)
 
     starts = [p for p in fake.progress_patches() if "stage_index" in p.body]
     completions = [p for p in fake.progress_patches() if "stages" in p.body]
@@ -606,7 +432,7 @@ def test_under_student_first_the_counter_still_climbs_while_the_names_follow_the
 def test_every_progress_write_is_filtered_projected_and_heartbeats() -> None:
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     for patch in fake.progress_patches():
         assert patch.params["id"] == f"eq.{JOB_ID}"
@@ -626,7 +452,7 @@ def test_every_progress_write_is_filtered_projected_and_heartbeats() -> None:
 def test_a_started_write_says_only_which_tier_is_running() -> None:
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     first = next(p for p in fake.progress_patches() if "stage_index" in p.body)
     assert set(first.body) == {"stage_index", "stage_name", "heartbeat_at"}, (
@@ -637,7 +463,7 @@ def test_a_started_write_says_only_which_tier_is_running() -> None:
 def test_a_completed_stage_that_solved_carries_the_incumbent_checkpoint() -> None:
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     completed = [p for p in fake.progress_patches() if "stages" in p.body]
     with_checkpoint = [p for p in completed if "checkpoint" in p.body]
@@ -654,7 +480,7 @@ def test_a_stage_that_solved_nothing_advances_the_transcript_but_not_the_checkpo
     `heartbeat_at` move, the checkpoint columns are left exactly as the last solved stage set them."""
     fake = FakeSupabase()
 
-    _run(_infeasible_request(), fake)
+    run_sync(_infeasible_request(), fake)
 
     completed = [p for p in fake.progress_patches() if "stages" in p.body]
     assert completed, "even a failed run reports its one completeness stage"
@@ -671,7 +497,7 @@ def test_a_failing_progress_write_is_logged_and_the_solve_still_succeeds(
     fake = FakeSupabase(progress_response=httpx.Response(503, json={"message": "edge unavailable"}))
 
     with caplog.at_level("WARNING", logger="cpsat_service.supabase"):
-        _run(_micro_request(), fake)
+        run_sync(_micro_request(), fake)
 
     assert fake.finish_patch().body["status"] == "succeeded"
     assert any("progress write failed" in record.message for record in caplog.records)
@@ -680,7 +506,7 @@ def test_a_failing_progress_write_is_logged_and_the_solve_still_succeeds(
 def test_a_transport_error_on_a_progress_write_does_not_kill_the_solve() -> None:
     fake = FakeSupabase(progress_response=httpx.ConnectError("the connection never landed"))
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     assert fake.finish_patch().body["status"] == "succeeded"
 
@@ -693,7 +519,7 @@ def test_a_progress_write_that_matches_no_row_is_a_warning_not_a_failure(
     fake = FakeSupabase(progress_response=httpx.Response(200, json=[]))
 
     with caplog.at_level("WARNING", logger="cpsat_service.supabase"):
-        _run(_micro_request(), fake)
+        run_sync(_micro_request(), fake)
 
     assert fake.finish_patch().body["status"] == "succeeded"
     assert any("matched no row" in record.message for record in caplog.records)
@@ -758,7 +584,7 @@ def test_an_unconfigured_service_leaves_the_engine_exactly_as_it_was() -> None:
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", record)
-        _run(_micro_request(), FakeSupabase())
+        run_sync(_micro_request(), FakeSupabase())
 
     assert [config.targets for config in configs] == [{}]
 
@@ -803,7 +629,7 @@ def test_an_unset_budget_leaves_the_engine_literal_exactly_as_it_was() -> None:
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", record)
-        _run(_micro_request(), FakeSupabase())
+        run_sync(_micro_request(), FakeSupabase())
 
     assert [(config.stage_budget_s, config.mode_a_budget_s) for config in configs] == [
         (engine.stage_budget_s, engine.mode_a_budget_s)
@@ -820,7 +646,7 @@ def test_the_run_record_is_written_before_the_first_stage_with_the_effective_val
     engine = SolveConfig()
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     progress = fake.progress_patches()
     assert "solver_config" in progress[0].body, "the record precedes every stage report"
@@ -846,8 +672,8 @@ def test_an_unset_budget_reads_engine_default_and_a_configured_one_reads_configu
     through to 120 solve alike, and only the source flag can tell them apart."""
     unset, configured = FakeSupabase(), FakeSupabase()
 
-    _run(_micro_request(), unset)
-    _run_registered(
+    run_sync(_micro_request(), unset)
+    run_sync_registered(
         _micro_request(), configured, _registered(), settings=replace(SETTINGS, stage_budget_s=5.0)
     )
 
@@ -865,7 +691,7 @@ def test_configured_targets_are_recorded_with_their_tiers() -> None:
 
     targeted = replace(SETTINGS, stage_targets={6: 900, 3: 95})
 
-    _run_registered(_micro_request(), fake, _registered(), settings=targeted)
+    run_sync_registered(_micro_request(), fake, _registered(), settings=targeted)
 
     assert fake.config_patches()[0].body["solver_config"]["targets"] == {"3": 95, "6": 900}
 
@@ -876,7 +702,7 @@ def test_the_last_progress_write_before_the_terminal_write_says_whether_the_fall
     over."""
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     progress = fake.progress_patches()
     last = progress[-1].body["solver_config"]
@@ -890,7 +716,7 @@ def test_the_last_progress_write_before_the_terminal_write_says_whether_the_fall
 def test_a_policy_without_clean_mode_records_once_and_never_names_the_fallback() -> None:
     fake = FakeSupabase()
 
-    _run(_micro_request(policy="canonical"), fake)
+    run_sync(_micro_request(policy="canonical"), fake)
 
     records = [patch.body["solver_config"] for patch in fake.config_patches()]
     assert len(records) == 1, "nothing new to say after the solve, so nothing is rewritten"
@@ -905,7 +731,7 @@ def test_a_latched_run_records_once_so_nothing_queues_ahead_of_its_terminal_writ
     registry = _registered()
     assert registry.request_stop(JOB_ID, "shutdown") is True
 
-    _run_registered(_micro_request(), fake, registry)
+    run_sync_registered(_micro_request(), fake, registry)
 
     records = [patch.body["solver_config"] for patch in fake.config_patches()]
     assert len(records) == 1, "the pre-solve record only"
@@ -923,7 +749,7 @@ def test_a_rejected_run_record_leaves_the_solve_succeeding(caplog: pytest.LogCap
     fake = FakeSupabase(solver_config_response=rejected)
 
     with caplog.at_level("WARNING", logger="cpsat_service.supabase"):
-        _run(_micro_request(), fake)
+        run_sync(_micro_request(), fake)
 
     assert fake.config_patches(), "the write was attempted"
     assert fake.finish_patch().body["status"] == "succeeded"
@@ -936,7 +762,7 @@ def test_a_snapshot_that_is_not_the_enqueued_one_fails_before_solving() -> None:
     `running` and RLS admits no way back."""
     fake = FakeSupabase(snapshot_hash="0" * 64)
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     claim, finish = fake.claim_patch(), fake.finish_patch()
     assert claim.body["status"] == "running"
@@ -951,7 +777,7 @@ def test_a_matching_snapshot_binds_and_proceeds_to_the_solve() -> None:
     the same fixture that fails above must sail through when the row agrees."""
     fake = FakeSupabase(snapshot_hash=snapshot_hash(parse_snapshot(_micro_request()["snapshot"])))
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     assert fake.finish_patch().body["status"] == "succeeded"
 
@@ -961,7 +787,7 @@ def test_infeasible_outcome_fails_the_job_and_still_writes_stages() -> None:
     wrapper that branched on exceptions would write `succeeded` over nothing."""
     fake = FakeSupabase()
 
-    _run(_infeasible_request(), fake)
+    run_sync(_infeasible_request(), fake)
 
     finish = fake.finish_patch()
     assert finish.body["status"] == "failed"
@@ -982,7 +808,7 @@ def test_precondition_error_fails_the_job_with_the_authors_message() -> None:
     )
     fake = FakeSupabase()
 
-    _run({"formatVersion": 1, "snapshot": wire_snapshot(snapshot)}, fake)
+    run_sync({"formatVersion": 1, "snapshot": wire_snapshot(snapshot)}, fake)
 
     finish = fake.finish_patch()
     assert finish.body["status"] == "failed"
@@ -994,7 +820,7 @@ def test_the_registry_releases_the_job_even_when_the_solve_fails() -> None:
     """Otherwise a failed job could never be redispatched without restarting the container."""
     fake = FakeSupabase()
 
-    registry = _run(_infeasible_request(), fake)
+    registry = run_sync(_infeasible_request(), fake)
 
     assert len(registry) == 0
 
@@ -1022,7 +848,7 @@ def test_a_latch_fired_before_the_solve_writes_interrupted_rather_than_succeeded
     registry = _registered()
     assert registry.request_stop(JOB_ID, "shutdown") is True
 
-    _run_registered(_micro_request(), fake, registry)
+    run_sync_registered(_micro_request(), fake, registry)
 
     finish = fake.finish_patch()
     assert finish.body["status"] == "interrupted"
@@ -1045,7 +871,7 @@ def test_a_stop_during_the_last_stage_is_interrupted_even_though_no_stage_reads_
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", solve_then_latch)
-        _run_registered(_micro_request(), fake, registry)
+        run_sync_registered(_micro_request(), fake, registry)
 
     finish = fake.finish_patch()
     assert finish.body["status"] == "interrupted"
@@ -1067,7 +893,7 @@ def test_a_stop_before_the_first_feasible_solution_is_interrupted_rather_than_fa
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", latch_then_give_up)
-        _run_registered(_micro_request(), fake, registry)
+        run_sync_registered(_micro_request(), fake, registry)
 
     finish = fake.finish_patch()
     assert finish.body["status"] == "interrupted"
@@ -1088,7 +914,7 @@ def test_a_latched_run_with_no_transcript_still_writes_interrupted_and_blanks_no
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", latch_immediately)
-        _run_registered(_micro_request(), fake, registry)
+        run_sync_registered(_micro_request(), fake, registry)
 
     finish = fake.finish_patch()
     assert finish.body["status"] == "interrupted"
@@ -1145,7 +971,7 @@ def test_an_unregistered_run_is_unlatchable_and_takes_todays_path() -> None:
     pre-S-304 one."""
     fake = FakeSupabase()
 
-    _run_registered(_micro_request(), fake, JobRegistry())
+    run_sync_registered(_micro_request(), fake, JobRegistry())
 
     assert fake.finish_patch().body["status"] == "succeeded"
 
@@ -1164,7 +990,7 @@ def test_the_stop_latch_reaches_the_engines_should_stop_hook() -> None:
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", record)
-        _run_registered(_micro_request(), FakeSupabase(), registry)
+        run_sync_registered(_micro_request(), FakeSupabase(), registry)
 
     predicate = configs[0].hooks.should_stop
     assert predicate is not None and predicate() is False
@@ -1214,7 +1040,7 @@ def test_a_solve_that_outlives_the_interval_renews_its_own_heartbeat() -> None:
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", dawdle)
-        _run_registered(
+        run_sync_registered(
             _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
         )
 
@@ -1233,7 +1059,9 @@ def test_the_heartbeat_never_beats_before_the_claim_is_won() -> None:
     fake = FakeSupabase(claimable=False)
     registry = _registered()
 
-    _run_registered(_micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.01))
+    run_sync_registered(
+        _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.01)
+    )
 
     assert len(fake.patches()) == 1, "only the failed claim"
 
@@ -1261,7 +1089,7 @@ def test_a_stop_request_observed_by_the_heartbeat_ends_the_job_as_stopped() -> N
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", solve_until_latched)
-        _run_registered(
+        run_sync_registered(
             _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
         )
 
@@ -1297,7 +1125,7 @@ def test_the_heartbeat_latches_at_most_once_however_many_beats_see_the_flag() ->
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(registry, "request_stop", record)
         patch.setattr("cpsat_service.runner.solve_complete", solve_through_several_beats)
-        _run_registered(
+        run_sync_registered(
             _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
         )
 
@@ -1318,7 +1146,7 @@ def test_a_null_stop_flag_is_simply_a_heartbeat() -> None:
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", dawdle)
-        _run_registered(
+        run_sync_registered(
             _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
         )
 
@@ -1331,7 +1159,7 @@ def test_the_solver_never_writes_the_stop_flag_it_only_observes_it() -> None:
     flag would be able to ignore Stop & keep. No write this worker makes may name the column."""
     fake = FakeSupabase(stop_requested_after=0)
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     for patch_call in fake.patches():
         assert "stop_requested_at" not in patch_call.body
@@ -1342,7 +1170,7 @@ def test_a_progress_write_with_an_unexpected_body_shape_answers_none_rather_than
     solving thread, so a malformed 2xx has to degrade to "nothing to observe"."""
     fake = FakeSupabase(progress_response=httpx.Response(200, json={"message": "not an array"}))
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     assert fake.finish_patch().body["status"] == "succeeded", "a bad body cannot cost a solve"
 
@@ -1378,7 +1206,7 @@ def test_one_short_solve_signs_in_once() -> None:
     interval still mints exactly one token — see the companion test below for the other half."""
     fake = FakeSupabase()
 
-    _run(_micro_request(), fake)
+    run_sync(_micro_request(), fake)
 
     assert fake.sign_in_count == 1, "the token is cached for the whole solve"
 
@@ -1396,7 +1224,7 @@ def test_the_heartbeat_signs_in_on_its_own_client_rather_than_sharing_the_worker
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("cpsat_service.runner.solve_complete", dawdle)
-        _run_registered(
+        run_sync_registered(
             _micro_request(), fake, registry, settings=replace(SETTINGS, heartbeat_interval_s=0.02)
         )
 
@@ -1506,9 +1334,9 @@ def test_a_token_carrying_the_narrow_role_is_accepted() -> None:
 @pytest.mark.parametrize(
     ("token", "why"),
     [
-        (_jwt({"role": "authenticated"}), "the hook is off and GoTrue fell back"),
-        (_jwt({"role": "service_role"}), "a wider role is still the wrong role"),
-        (_jwt({"sub": "machine-user"}), "the claim is absent entirely"),
+        (unsigned_jwt({"role": "authenticated"}), "the hook is off and GoTrue fell back"),
+        (unsigned_jwt({"role": "service_role"}), "a wider role is still the wrong role"),
+        (unsigned_jwt({"sub": "machine-user"}), "the claim is absent entirely"),
         ("not-a-jwt", "one segment, not three"),
         ("aaa.bbbb.ccc", "the payload segment decodes to bytes that are not JSON"),
         (f"aaa.{base64.urlsafe_b64encode(b'[1,2]').decode().rstrip('=')}.ccc", "JSON, but not an object"),
@@ -1531,7 +1359,7 @@ def test_a_re_mint_that_lost_the_role_is_refused_mid_life() -> None:
     client = fake.client_factory(SETTINGS)
     client.sign_in()
 
-    fake.access_token = _jwt({"role": "authenticated"})
+    fake.access_token = unsigned_jwt({"role": "authenticated"})
     client._token_minted_at -= TOKEN_MAX_AGE_S + 1  # pretend the token aged past the threshold
 
     with pytest.raises(RoleClaimError, match=REQUIRED_ROLE):
@@ -1548,7 +1376,7 @@ def test_startup_refuses_to_serve_with_a_token_that_is_not_the_narrow_role(
     thread after the handler answered 202, where `runner._claim` swallows the exception and the row
     sits `queued` forever. Failing in the lifespan instead exits uvicorn non-zero, so the port never
     binds, the container start fails, and the dispatch error path already marks the row `failed`."""
-    fake = FakeSupabase(access_token=_jwt({"role": "authenticated"}))
+    fake = FakeSupabase(access_token=unsigned_jwt({"role": "authenticated"}))
     monkeypatch.setattr(app_module, "settings", SETTINGS)
     monkeypatch.setattr(app_module, "JobRowClient", fake.client_factory)
 

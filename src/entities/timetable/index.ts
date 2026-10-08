@@ -35,9 +35,6 @@ export * from "./model/generation/occupied-slots";
 export * from "./model/generation/objective";
 export * from "./model/generation/golden-sets";
 export * from "./model/generation/run";
-// Only the engine's public surface — not test-only internals (maxWeightCliqueWeight,
-// backboneCliques, …), which the slice's own tests import relatively.
-export { createGreedyEngine, generatePlanGreedy, type GreedyTuning } from "./model/generation/engines/greedy";
 // The read-only plan-quality extractor (feature vector, never a score) — consumed by the
 // `analyze:plans` runner and by the in-app comparison surface (`_pages/plan-comparison`) unchanged.
 // Only the entry point and its input/output shapes; the per-lens derivations and the lane primitive

@@ -17,7 +17,7 @@ import type { GeneratorCohortSnapshot, GeneratorSnapshot } from "./types";
  * The fix is app-native, not a special case in the model: append each such course's UNCOVERED
  * hours (required − pins − already-parked, the exact `deriveGenerationDeficits` figure) to that
  * cohort's `parkedCourseIds` multiset. A parked entry covers one off-board hour, so the deficit
- * drops to 0 and every engine — greedy and CP-SAT alike — is compared on identical terms. The
+ * drops to 0 and the solver, the oracle and the bench all see the same residue. The
  * transform is pure over the snapshot (the rosters are already fully expanded), so it is tested
  * without a DB.
  *

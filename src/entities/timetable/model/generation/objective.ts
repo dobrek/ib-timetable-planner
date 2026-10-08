@@ -9,9 +9,11 @@ import type { CourseDeficit, GeneratedPlacement, GeneratorSnapshot } from "./typ
 
 /**
  * The engine-agnostic definition of board quality: the lexicographic objective, its comparator, and
- * the candidate-scoring function every engine (and the benchmark) must agree on. Lives outside any
- * engine so a second engine and the bench score against the *same* tiers rather than a private copy.
- * Depends only on the snapshot + a placement set + the per-course remaining hours — no engine state.
+ * the candidate-scoring function. The CP-SAT solver mirrors these tiers in Python
+ * (`services/solver/src/cpsat_engine/objective.py`), the objective-parity gate holds the two equal,
+ * and the bench scores boards with this function rather than a private copy (`campaign-ledger.ts`,
+ * the snapshot exporter). Depends only on the snapshot + a placement set + the per-course remaining
+ * hours — no engine state.
  *
  * The tier ORDER is the expert's, elicited by forced choice, not a guess (research.md §5.x):
  * completeness first, then interior holes, then the slot count (confirmed dominant over everything
@@ -38,12 +40,7 @@ export type Objective = [
 ];
 
 /** A scored board: its placements, objective tuple, per-cohort slots/unplaced, and the per-course
- *  hours still unplaced — with `placements`, the full state an LNS round rehydrates.
- *
- *  `objective` is only meaningful up to the tier count it was scored with (see `scoreCandidate`'s
- *  `tiers`): a candidate scored for a search round carries zeros below the prefix, so comparing it
- *  against a fully-scored one on those tiers would read a board with no shape cost at all. Compare
- *  candidates at the tier count they were scored with, or re-score. */
+ *  hours still unplaced. */
 export type Candidate = {
   placements: GeneratedPlacement[];
   objective: Objective;
@@ -53,30 +50,13 @@ export type Candidate = {
 };
 
 /**
- * The tiers a *search* may steer by. The three shape tiers below them (doubles, late starts, Friday
- * tail) are polish: a search that chases them is measurably worse at the tiers the expert ranks
- * above them, because their improving moves are cheap and plentiful — a board almost always has one
- * more single to pair or one more hour to pull off Friday. Steering by them moves the incumbent
- * nearly every round, and the rare completeness/slot move never gets the repeated attempts from a
- * stable board that finding it takes. Measured on the seed catalog: searching all nine tiers dropped
- * dp1 from complete-at-50-slots to 48 slots with an hour unplaced, and dp2 from 46 slots to 47 —
- * both of which the tuple itself ranks strictly worse than the board it gave up.
- *
- * So the engine searches on the prefix and polishes on the tail (`search.ts`, phase C). The full
- * tuple stays the definition of quality — every polish move is filtered by it, so a polished board is
- * never worse on any tier — but only these six *drive* the walk.
- */
-export const SEARCH_TIERS = 6;
-
-/**
  * Lexicographic comparison of two objective tuples — the priority tiers hold at ANY magnitude
  * (the weighted scalar it replaces let a studentHoles term in the hundreds outvote a whole slot).
- * Negative ⇒ `a` is the better board (smaller-is-better on every tier); shared by cross-attempt
- * selection and the LNS acceptance test so the two never disagree.
+ * Negative ⇒ `a` is the better board (smaller-is-better on every tier). No production caller since
+ * S-309; kept for S-307's "true objective tuple on the wire" dominance follow-up (roadmap).
  *
- * `tiers` truncates the comparison to the first N tiers — the caller's declaration that the tiers
- * below N must not steer this decision (see {@link SEARCH_TIERS}). It never *reorders* anything: a
- * prefix comparison and the full one always agree whenever the prefix differs.
+ * `tiers` truncates the comparison to the first N tiers. It never *reorders* anything: a prefix
+ * comparison and the full one always agree whenever the prefix differs.
  */
 export const compareObjectives = (a: Objective, b: Objective, tiers: number = a.length): number => {
   for (let tier = 0; tier < Math.min(tiers, a.length); tier++) {
@@ -86,26 +66,19 @@ export const compareObjectives = (a: Objective, b: Objective, tiers: number = a.
 };
 
 /**
- * Score a placement set against the snapshot into a `Candidate`. Reads only the snapshot (catalog,
- * pins, days) plus the caller's `remaining` map — no engine internals — so any engine can call it.
+ * Score a placement set against the snapshot into a `Candidate`, always on all ten tiers. Reads only
+ * the snapshot (catalog, pins, days) plus the caller's `remaining` map — no engine internals.
  *
- * This is the LNS hot loop (twice per round). Everything derived from the *snapshot alone* — the
- * teacher map, the soft-availability index, each cohort's student rosters — is memoized per snapshot
- * rather than rebuilt per call; only the row fold is per-candidate work. Rebuilding them per call
- * cost enough LNS rounds to lose a whole occupied slot on the real dp2 catalog (bench, 2026-07-14),
- * and a slot outranks every tier these structures feed.
+ * Everything derived from the *snapshot alone* — the teacher map, the soft-availability index, each
+ * cohort's student rosters — is memoized per snapshot rather than rebuilt per call; only the row fold
+ * is per-candidate work, so scoring many boards of one snapshot pays for those structures once.
  */
 export const scoreCandidate = (
   snapshot: GeneratorSnapshot,
   generated: GeneratedPlacement[],
   remaining: Map<string, number>,
-  tiers: number = Number.POSITIVE_INFINITY,
 ): Candidate => {
   const { teacherKeysOf, studentsOf, softCells, rosterOf } = derivationsOf(snapshot);
-  // The tiers below the search prefix are computed only when the caller will actually compare them
-  // (`SEARCH_TIERS`): they cost real time in the LNS hot loop — golden coverage unions a roster per
-  // cell — and a round that cannot be steered by them has no use for the number.
-  const polish = tiers > SEARCH_TIERS;
   const slots = {} as Record<Cohort, number>;
   const unplaced = {} as Record<Cohort, CourseDeficit[]>;
   let holes = 0;
@@ -125,11 +98,9 @@ export const scoreCandidate = (
       .map((c) => ({ courseId: c.id, missing: remaining.get(c.id) ?? 0 }));
     holes += countInteriorHoles(rows, snapshot.days);
     studentHoles += laneHoles(rows, (row) => studentsOf.get(row.courseId) ?? []);
-    if (polish) {
-      lateStarts += countLateStarts(rows);
-      fridayTail += countFridayTail(rows, snapshot.days);
-      goldenBandDistance += countGoldenBandDistance(studentsOf, rosterOf[cohort], rows);
-    }
+    lateStarts += countLateStarts(rows);
+    fridayTail += countFridayTail(rows, snapshot.days);
+    goldenBandDistance += countGoldenBandDistance(studentsOf, rosterOf[cohort], rows);
     boardRows.push(...rows);
   }
 
@@ -145,7 +116,7 @@ export const scoreCandidate = (
     laneHoles(boardRows, (row) => teacherKeysOf.get(row.courseId) ?? []),
     softHitsOf(teacherKeysOf, boardRows, softCells),
     studentHoles,
-    polish ? countDoublesDeficit(boardRows) : 0,
+    countDoublesDeficit(boardRows),
     lateStarts,
     fridayTail,
     goldenBandDistance,
@@ -153,8 +124,8 @@ export const scoreCandidate = (
   return { placements: generated, objective, slots, unplaced, remaining: new Map(remaining) };
 };
 
-/** Snapshot-derived scoring structures, memoized per snapshot (the LNS loop rescores the SAME
- *  snapshot thousands of times; a snapshot is immutable plain data, so this is a pure cache). */
+/** Snapshot-derived scoring structures, memoized per snapshot (a snapshot is immutable plain data,
+ *  so this is a pure cache). */
 type Derivations = {
   teacherKeysOf: Map<string, string[]>;
   studentsOf: Map<string, string[]>;
@@ -316,14 +287,14 @@ export const countGoldenBandDistance = (
 };
 
 /**
- * A cell is golden when it reaches the bar in EVERY week lane — the same reading `deriveGoldenSets`
- * and the analyzer's census use, and the same one that makes the concept mean anything: a cell that
+ * A cell is golden when it reaches the bar in EVERY week lane — the same reading the analyzer's
+ * census uses, and the same one that makes the concept mean anything: a cell that
  * covers the cohort in week A but half of it in week B is a moment when everyone is in class only
  * every other week, and a cell running in one lane alone leaves its students free in the other.
  *
- * The bar is `GOLDEN_COVERAGE`, not the full roster — the anchor seats near-golden sets (G1: missing
- * ≤ 10% is still golden enough), so a tier that scored only 100%-coverage cells would give the sets
- * construction actually produces no gravity at all, and the LNS would drag them back to the day tail.
+ * The bar is `GOLDEN_COVERAGE`, not the full roster — near-golden sets count (G1: missing ≤ 10% is
+ * still golden enough), so a tier that scored only 100%-coverage cells would exert no pull at all on
+ * the sets a real enrolment actually yields.
  */
 const isGolden = (coverage: Map<string, Set<string>>, cell: string, bar: number): boolean =>
   lanesOf("both").every((lane) => (coverage.get(`${cell}|${lane}`)?.size ?? 0) >= bar);

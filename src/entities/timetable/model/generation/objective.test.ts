@@ -12,7 +12,6 @@ import {
   countStudentHoles,
   countTeacherHoles,
   type Objective,
-  SEARCH_TIERS,
 } from "./objective";
 
 /** The 10-tuple, with every tier below `slots` defaulting to 0 so a case names only what it tests. */
@@ -47,6 +46,9 @@ const row = (courseId: string, day: number, period: number, week: PlacementWeek 
   period,
   week,
 });
+
+/** A truncation prefix that stops just above the shape tiers (doubles, late starts, Friday tail). */
+const SIX_TIERS = 6;
 
 describe("compareObjectives", () => {
   it("lets one fewer slot win despite a large studentHoles disadvantage (the scalar's bug)", () => {
@@ -97,15 +99,15 @@ describe("compareObjectives", () => {
     expect(compareObjectives(obj(0, 1, 2, 3), obj(0, 1, 2, 3))).toBe(0);
   });
 
-  it("ignores the shape tiers when truncated to SEARCH_TIERS (what the LNS walk steers by)", () => {
+  it("ignores the tiers past a truncation", () => {
     const shapelier = obj(0, 0, 49, 0, 0, 0, 40, 12, 30);
     const shapeless = obj(0, 0, 49, 0, 0, 0, 0, 0, 0);
-    expect(compareObjectives(shapelier, shapeless, SEARCH_TIERS)).toBe(0); // a tie the walk won't chase
-    expect(compareObjectives(shapelier, shapeless)).toBeGreaterThan(0); // …but the polish still ranks it
+    expect(compareObjectives(shapelier, shapeless, SIX_TIERS)).toBe(0); // the shape tiers sit past the prefix
+    expect(compareObjectives(shapelier, shapeless)).toBeGreaterThan(0); // …but the full tuple still ranks them
   });
 
-  it("never reorders a truncated comparison — a search tier still decides it", () => {
-    expect(compareObjectives(obj(0, 0, 49, 0, 0, 0, 99), obj(0, 0, 50), SEARCH_TIERS)).toBeLessThan(0);
+  it("never reorders a truncated comparison — a tier inside the prefix still decides it", () => {
+    expect(compareObjectives(obj(0, 0, 49, 0, 0, 0, 99), obj(0, 0, 50), SIX_TIERS)).toBeLessThan(0);
   });
 });
 
@@ -327,9 +329,8 @@ describe("countGoldenBandDistance (tier 10)", () => {
 
   it("takes a cell's WORST week lane — golden in week A and hollow in week B is not golden", () => {
     // The pair runs week A only, so in week B every one of its students is free: not a moment when
-    // the cohort is whole, and not the tier's business. The same worst-lane reading `deriveGoldenSets`
-    // and the analyzer's census use — the three must agree on what "golden" means or the tier
-    // protects cells the anchor never seats.
+    // the cohort is whole, and not the tier's business. The same worst-lane reading the analyzer's
+    // census uses — the two must agree on what "golden" means.
     const weekAOnly = [row("en-a", 1, 9, "a"), row("en-b", 1, 9, "a")];
     expect(countGoldenBandDistance(englishPair, 4, weekAOnly)).toBe(0);
 

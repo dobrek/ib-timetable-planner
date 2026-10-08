@@ -4,9 +4,8 @@ import type { BoardAvailabilityCell } from "../availability-index";
 import type { PlannerPlacement } from "../placement";
 
 /**
- * Engine-agnostic contract for automatic plan generation. Every engine implements the
- * `GeneratePlan` port over these shapes; everything downstream (dispatch, apply, review UX)
- * builds against the port, never an engine. Modeled on the app's own domain types
+ * Engine-agnostic contract for automatic plan generation. Everything downstream (dispatch, apply,
+ * review UX) builds against these shapes, never against an engine. Modeled on the app's own domain types
  * (`GroupingCourse`, `PlannerPlacement`) — no parallel shapes (lessons: port the mechanism).
  * All fields are plain, serializable data with no class instances or cycles, so a snapshot
  * crosses a process boundary as-is — today the JSON/HTTP hop to the solver service
@@ -14,7 +13,7 @@ import type { PlannerPlacement } from "../placement";
  *
  * These are the IN-APP types. The frozen TS↔Python wire contract is
  * `contracts/generation-wire.schema.json`, and it is deliberately NARROWER in several places
- * (const `engine`, four-field pins, no `stagnation`, no nulls) — see the per-field notes below and
+ * (const `engine`, four-field pins, no nulls) — see the per-field notes below and
  * `contracts/README.md`. `model/generation/wire.ts` is the projection between the two; changing a
  * shape here without the artifact turns both suites' golden tests red, which is the point.
  */
@@ -70,38 +69,34 @@ export type GenerationCohortDiagnostics = {
   occupiedSlotsAfter: number;
   /** Deficits the engine could not place — the review panel's unplaced list. */
   unplaced: CourseDeficit[];
-  /** Provable lower bound on this cohort's occupied slots (max-weight conflict clique, in hours).
-   *  Additive/optional: consumers that predate it ignore it. `occupiedSlotsAfter ≥ lowerBound`
-   *  holds only when the cohort is fully placed (`unplaced` empty); on an infeasible instance the
-   *  engine may seat fewer hours than the clique bound, so a consumer must clamp before rendering.
-   *  On the wire it is an integer, OMITTED when absent — `"lowerBound": null` is not legal. */
+  /** A provable lower bound on this cohort's occupied slots (max-weight conflict clique, in hours).
+   *  Optional on the wire; no engine currently emits it (S-309 retired the engine that computed
+   *  it, and the solver's cut that echoed it). Kept so the contract needs no
+   *  `formatVersion` bump, and because the recorded result golden still carries one. On the wire it
+   *  is an integer, OMITTED when absent — `"lowerBound": null` is not legal. */
   lowerBound?: number;
 };
 
 export type GenerationDiagnostics = {
-  /** Engine identifier (e.g. `cp-sat`, `greedy`) for the summary panel and benchmark reports.
+  /** Engine identifier (e.g. `cp-sat`) for the summary panel and benchmark reports.
    *  **Wider than the wire**: `contracts/generation-wire.schema.json` pins `engine` to the constant
-   *  `"cp-sat"`, the sole producer that crosses the TS↔Python boundary. `"greedy"` is in-app only,
-   *  and disappears with the engine itself (S-309). */
+   *  `"cp-sat"`, the sole producer since S-309; the in-app type stays a string. */
   engine: string;
   elapsedMs: number;
-  /** True when the result is not a full-budget, proven-optimal solve.
-   *  **On the wire this is exact**: `partial === !provenOptimal` (CP-SAT's reading, frozen in the
-   *  contract). In-app, greedy sets it from `signal.aborted` instead — a second meaning that leaves
-   *  with greedy (S-309). Never read it as "was cancelled" without checking `stopReason`. */
+  /** True when the result is not a proven-optimal solve: `partial === !provenOptimal`, CP-SAT's
+   *  reading, frozen in the contract. Never read it as "was cancelled" without checking
+   *  `stopReason`. */
   partial: boolean;
   /** Set only by engines that prove optimality (CP-SAT); absent means unknown.
    *  **Required on the wire** — CP-SAT always emits it. */
   provenOptimal?: boolean;
   /** Why the solve ended: `budget` (a ceiling ended at least one non-optimal stage), `target` (every
    *  non-optimal stage stopped at its configured target), `cancelled` (a stop predicate ended a
-   *  stage — Stop & keep, S-305), `interrupted` (the job never finished, S-304), or `stagnation`
-   *  (complete zero-hole board, no improvement window). Additive/optional; UI may ignore it —
-   *  and the job's terminal STATUS is keyed off the stop latch, never off this field, because an
-   *  externally interrupted stage records `budget` or nothing at all.
-   *  **Narrower on the wire**: the contract allows `budget | target | cancelled | interrupted` —
-   *  `stagnation` is a greedy-only reason and greedy never crosses the wire. */
-  stopReason?: "budget" | "target" | "stagnation" | "cancelled" | "interrupted";
+   *  stage — Stop & keep, S-305) or `interrupted` (the job never finished, S-304).
+   *  Additive/optional; UI may ignore it — and the job's terminal STATUS is keyed off the stop
+   *  latch, never off this field, because an externally interrupted stage records `budget` or
+   *  nothing at all. The same four values the contract allows. */
+  stopReason?: "budget" | "target" | "cancelled" | "interrupted";
 
   cohorts: Record<Cohort, GenerationCohortDiagnostics>;
 };
@@ -111,22 +106,7 @@ export type GenerationResult = {
   diagnostics: GenerationDiagnostics;
 };
 
-export type GenerationProgress = {
-  elapsedMs: number;
-  budgetMs: number;
-};
-
-export type GenerationHooks = {
-  /** Throttled progress reporting for the running-state UI. */
-  onProgress?: (progress: GenerationProgress) => void;
-  /** Cancellation: when aborted the engine resolves (never rejects) with its best-so-far
-   *  solution, marked `partial: true` — "Stop & keep" semantics. */
-  signal?: AbortSignal;
-};
-
-/** The port every engine implements. */
-export type GeneratePlan = (
-  snapshot: GeneratorSnapshot,
-  config: GeneratorConfig,
-  hooks?: GenerationHooks,
-) => Promise<GenerationResult>;
+/** The engine port `runVerifiedGeneration` takes. No in-app engine implements it since S-309: CP-SAT
+ *  runs as a background job and is deliberately NOT a `GeneratePlan` (`api/solver-transport.ts`), so
+ *  delivery wraps the job's stored result in a resolved promise (`generation-delivery.ts`). */
+export type GeneratePlan = (snapshot: GeneratorSnapshot, config: GeneratorConfig) => Promise<GenerationResult>;

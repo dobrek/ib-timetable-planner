@@ -30,8 +30,8 @@ export const THIN_SLOT_SHARE = 0.25;
 
 /** A cell missing at most this share of the cohort is "near-golden" — it admits ≥25/27 in dp1 and
  *  ≥31/34 in dp2. Re-exported from `GOLDEN_MISS_SHARE` rather than restated: it is the same elicited
- *  G1 number the detector and the `goldenBandDistance` tier are built on, and the three drifting
- *  apart is exactly how the tier stopped protecting the cells construction seats. */
+ *  G1 number the `goldenBandDistance` tier is built on, and if the two drifted apart this census
+ *  would count cells the tier does not protect, or miss cells it does. */
 export const NEAR_GOLDEN_MISS_SHARE = GOLDEN_MISS_SHARE;
 
 export const deriveSlotCensus = (courses: AnalyzerCourse[], rows: AnalyzerRow[]): SlotCensusFeatures => {

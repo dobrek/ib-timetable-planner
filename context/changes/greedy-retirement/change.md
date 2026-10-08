@@ -1,7 +1,7 @@
 ---
 change_id: greedy-retirement
 title: Greedy retirement
-status: implemented
+status: impl_reviewed
 created: 2026-10-08
 updated: 2026-10-08
 archived_at: null
@@ -84,7 +84,7 @@ Taken with the author; the full table is in `plan-brief.md`.
 | 2/2                    | 98             | 234               | 76.8               |
 | **min / median / max** | 96 / 97.5 / 99 | 172 / 208.5 / 239 | 67.6 / 72.6 / 76.8 |
 
-**Bounds, from `worst + max(2, ceil(0.10 × worst))`:** `TOTAL_SLOTS_BOUND = 109` and `TEACHER_HOLES_BOUND = 263`.
+**Bounds:** `TOTAL_SLOTS_BOUND = 109`, from `worst + max(2, ceil(0.10 × worst))`. `TEACHER_HOLES_BOUND = 299`, from `worst + ceil(0.25 × worst)`; it was first set at 263 with the 10% formula and widened after the implementation review (see below).
 
 - On M-series the same test gave `teacherHoles` 105–119, far below every runner sample. This is why the bounds come only from the runner.
 
@@ -131,6 +131,15 @@ The timing is unchanged, because the stop lands 0.5 s into tier 3 whether or not
 - The local seed plan's board no longer carries the fixture rows the skeleton expects. That is local data state, not this change.
 - The refused attempt had already cloned the plan; that clone was deleted with the other.
 
+### 2026-10-08 — Phase 4: evidence for the Generate check (4.10)
+
+Recorded after the implementation review (F8), which found 4.10 checked without evidence. The evidence is CI's `e2e` lane:
+
+- `e2e/specs/generation.spec.ts` presses Generate on the workerd preview, with the native CP-SAT service, and drives it to a delivered board on the proposal plan.
+- It was green on the Phase 4 commit itself (`f10bf39`, run 37771005774) and on the final HEAD (`fb92928`, run 37778609410).
+- The same runs' `integration` lane covers the server-side oracle on the delivered board.
+- Drag-drop validation and the board views are unchanged by this change: Phase 4 touched no page-slice code.
+
 ### 2026-10-08 — Phase 5: truth-up, a scope adaptation, and one observation
 
 **Adaptation, approved by the author: about 20 more comments were rewritten.** Phase 4's grep looked only for the word "greedy", so it missed comments that cite greedy mechanisms by name:
@@ -158,3 +167,12 @@ Each rationale was re-derived against today's code. Where a twin still exists, t
 - PR #135 carries `Closes #106`.
 
 **Memory:** `greedy-engine-slated-for-removal` was replaced by `greedy-engine-removed`.
+
+### 2026-10-08 — Implementation review: the `teacherHoles` bound widened
+
+Review F1 (`reviews/impl-review.md`), applied with the author's approval.
+
+- **Why.** The ten calibration samples are really five. The two runs on one host track each other (172/185, 222/222, 211/205, 191/206, 239/234), and the host means spread 178–237 (sd ≈ 22). At +10%, the bound of 263 sat about 2.4 sd out, a rough 1–4% chance of a false red per CI run, and `deploy` needs `solver` green.
+- **What changed.** `TEACHER_HOLES_BOUND` is now `239 + ceil(0.25 × 239) = 299`. `TOTAL_SLOTS_BOUND` keeps the plan's formula: sd ≈ 1, so it stays the sharp tripwire.
+- **No new runner samples were needed.** The change only loosens a bound, so the "calibrate only on the runner" rule is not touched.
+- The constants' comment now records the 4-vCPU public-runner assumption.

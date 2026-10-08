@@ -142,6 +142,11 @@ uv run pytest      # unit pins
 uv run ruff check .
 ```
 
+`uv run pytest` includes the regression baseline (`tests/test_baseline.py`, about 75 s), and so does
+`mise run solver:test`. For a fast local loop, run `uv run pytest -m "not baseline"`. CI always runs
+the baseline. Its bounds are calibrated on GitHub's 4-vCPU runner, so a machine with fewer cores may
+legitimately miss them.
+
 ## Runbook
 
 All commands assume the local Supabase stack is up (`pnpm exec supabase start`; `pnpm env:local`)

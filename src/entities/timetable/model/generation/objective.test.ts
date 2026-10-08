@@ -310,7 +310,7 @@ describe("countGoldenBandDistance (tier 10)", () => {
     expect(countGoldenBandDistance(englishPair, 4, [row("en-a", 1, 10)])).toBe(0);
   });
 
-  it("protects a NEAR-golden cell too — the tier's bar is the detector's, not full coverage (G1)", () => {
+  it("protects a NEAR-golden cell too — the tier's bar is G1's miss share, not full coverage", () => {
     // Near-golden sets (missing ≤10%) are what a real enrolment yields. A tier that scored only
     // 100%-coverage cells would give exactly those sets no pull, and nothing would keep them off the
     // day tail — the failure the tier exists to prevent.

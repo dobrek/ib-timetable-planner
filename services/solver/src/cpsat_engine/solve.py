@@ -7,9 +7,9 @@
 
 The ladder is the shared spine: each stage sets the objective to one tier, warm-starts from the
 incumbent, solves under the per-stage budget, and hardens ``tier_k <= best_k`` so no later stage can
-undo it — the lexicographic order the expert elicited (``objective.ts``). The per-cohort clique cut
-(``cohort_slots >= lowerBound``) is injected at the tier-3 stage, and only for a cohort the incumbent
-already completes (the bound is a *complete*-cohort property; ``types.ts:64-68``).
+undo it — the lexicographic order the expert elicited (``objective.ts``). No redundant cut is
+injected: the per-cohort clique cut the POC fed from greedy's bound never ran on the HTTP path and was
+retired with the engine (S-309); reviving it is a separate change with a parked-safe bound.
 """
 
 from __future__ import annotations
@@ -268,7 +268,7 @@ def solve_staged(dump: Dump, config: SolveConfig) -> SolveResult:
     tier1, incumbent = _place_maximally(bundle, config, _greedy_board(dump))
     objective = build_objective(bundle)
     stages, board, proven = _run_ladder(
-        bundle, objective, dump, config, _ladder(config), incumbent, mode="full", preceding=(tier1,)
+        bundle, objective, config, _ladder(config), incumbent, mode="full", preceding=(tier1,)
     )
     return SolveResult(
         mode="full", board=board, stages=(tier1, *stages), proven_optimal=proven and tier1.status == "OPTIMAL"
@@ -384,7 +384,6 @@ def solve_complete(dump: Dump, config: SolveConfig) -> SolveResult:
         stages, board, proven = _run_ladder(
             bundle,
             objective,
-            dump,
             config,
             _ladder(config),
             incumbent,
@@ -479,7 +478,7 @@ def solve_repair(dump: Dump, config: SolveConfig) -> SolveResult:
         targets=config.targets,
         hooks=config.hooks,
     )
-    stages, board, proven = _run_ladder(bundle, objective, dump, repair_config, (0, 3), greedy, mode="repair")
+    stages, board, proven = _run_ladder(bundle, objective, repair_config, (0, 3), greedy, mode="repair")
     return SolveResult(
         mode="repair",
         board=board,
@@ -503,7 +502,8 @@ def to_generation_result(dump: Dump, result: SolveResult, engine: str = "cp-sat"
 
     The shape is frozen in ``contracts/generation-wire.schema.json``. In particular an absent optional
     is an ABSENT KEY, never ``None`` — ``"lowerBound": null`` is not assignable to the TS type and is
-    rejected by the schema, so a cohort with no clique bound simply omits it."""
+    rejected by the schema. No engine produces that bound since S-309, so the key is never emitted;
+    it stays optional on the wire."""
     board = {(p.cohort, p.course_id, p.day, p.period, p.week): 1 for p in result.board}
     placed = _placed_by_course(board)
     defs = deficits(dump.snapshot)
@@ -517,12 +517,10 @@ def to_generation_result(dump: Dump, result: SolveResult, engine: str = "cp-sat"
             for c in snap.courses
             if defs[(cohort, c.id)] - placed.get((cohort, c.id), 0) > 0
         ]
-        lower_bound = dump.lower_bound(cohort)
         cohorts[cohort] = {
             "occupiedSlotsBefore": len(set(pins)),
             "occupiedSlotsAfter": len(set(pins + generated)),
             "unplaced": unplaced,
-            **({"lowerBound": lower_bound} if lower_bound is not None else {}),
         }
     diagnostics: dict[str, Any] = {
         "engine": engine,
@@ -572,7 +570,6 @@ def _stop_reason(stages: tuple[StageReport, ...]) -> Literal["budget", "target",
 def _run_ladder(
     bundle: ModelBundle,
     objective: ObjectiveModel,
-    dump: Dump,
     config: SolveConfig,
     tier_indices: Iterable[int],
     incumbent: dict[PlacementKey, int],
@@ -607,9 +604,6 @@ def _run_ladder(
             break
         tier = objective.tiers[idx]
         position = len(preceding) + offset + 1
-        if idx == 2:  # about to minimise totalSlots — inject the clique cut for completed cohorts
-            _add_clique_cuts(bundle, objective, dump, incumbent)
-
         _emit(
             config,
             StageEvent(kind="started", tier=idx + 1, name=tier.name, position=position, total=total),
@@ -687,18 +681,6 @@ def _checkpoint(
     return SolveResult(mode=mode, board=_generated(incumbent), stages=stages, proven_optimal=False)
 
 
-def _add_clique_cuts(
-    bundle: ModelBundle, objective: ObjectiveModel, dump: Dump, incumbent: dict[PlacementKey, int]
-) -> None:
-    """``cohort_slots >= lowerBound`` — a redundant tier-3 cut, added only for a cohort the incumbent
-    already completes (the clique bound holds only for a fully-placed cohort)."""
-    residue = _residue(bundle, incumbent)
-    for cohort in COHORTS:
-        bound = dump.lower_bound(cohort)
-        if bound is not None and residue[cohort] == 0:
-            bundle.model.add(objective.cohort_slots[cohort] >= bound)
-
-
 # --- completeness, freezing, neighbourhood --------------------------------------------------------
 
 
@@ -770,15 +752,6 @@ def _extract_board(bundle: ModelBundle, solver: cp_model.CpSolver) -> dict[Place
 
 def _generated(board: dict[PlacementKey, int]) -> tuple[Placement, ...]:
     return tuple(Placement(*key) for key, value in board.items() if value == 1)
-
-
-def _residue(bundle: ModelBundle, board: dict[PlacementKey, int]) -> dict[str, int]:
-    """Per-cohort unplaced hours = sum over courses of ``deficit - placed`` on this board."""
-    placed = _placed_by_course(board)
-    out = {cohort: 0 for cohort in COHORTS}
-    for (cohort, cid), need in bundle.deficits.items():
-        out[cohort] += max(0, need - placed.get((cohort, cid), 0))
-    return out
 
 
 def _residue_from_deficits(dump: Dump, board: dict[PlacementKey, int]) -> dict[tuple[str, str], int]:

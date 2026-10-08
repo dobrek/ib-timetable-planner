@@ -205,10 +205,9 @@ def build_dump(request: dict[str, Any]) -> Dump:
     """Turn a validated `SolveRequest` into the `Dump` the engine takes.
 
     The envelope is narrower than a dump by design, so the absent parts get empty stand-ins —
-    verified safe on the solve path: `lower_bound` returns None on empty diagnostics, and an empty
-    hint board is a no-op. The cost is that a wrapper-driven solve runs hint-free and without the
-    clique cut; hint-free Mode A was measured OPTIMAL on the golden catalog, so that cost is real
-    but small.
+    verified safe on the solve path: nothing reads the diagnostics, and an empty hint board is a
+    no-op. A wrapper-driven solve therefore runs hint-free, which is exactly the solve every app
+    dispatch gets (the app never sends a `warmStart`).
 
     `warmStart`, when present, becomes `greedy_placements` — which is exactly what
     `solve_complete` hints from, so a warm start works with no extra plumbing.

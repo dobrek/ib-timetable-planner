@@ -617,35 +617,35 @@ Every artifact that describes greedy as live, or cites a mechanism S-309 removed
 
 #### Automated
 
-- [x] 1.1 Baseline tests pass: `uv run pytest -m baseline`
-- [x] 1.2 Full Python suite passes, `test_service.py` unchanged in count
-- [x] 1.3 Type gate passes over src + tests: `uv run mypy`
-- [x] 1.4 Lint passes: `uv run ruff check`
-- [x] 1.5 Bench unit tests pass: `pnpm test bench/campaign-baseline.test.ts`
-- [ ] 1.6 CI `solver` job green on the PR branch after the calibration commit is reverted
+- [x] 1.1 Baseline tests pass: `uv run pytest -m baseline` — 0b4a5a2
+- [x] 1.2 Full Python suite passes, `test_service.py` unchanged in count — 0b4a5a2
+- [x] 1.3 Type gate passes over src + tests: `uv run mypy` — 0b4a5a2
+- [x] 1.4 Lint passes: `uv run ruff check` — 0b4a5a2
+- [x] 1.5 Bench unit tests pass: `pnpm test bench/campaign-baseline.test.ts` — 0b4a5a2
+- [x] 1.6 CI `solver` job green on the PR branch after the calibration commit is reverted — 0b4a5a2
 
 #### Manual
 
-- [x] 1.7 Ten calibration samples from the GitHub runner matrix; exact asserts hold in all; bounds set per formula; evidence recorded in the test and `change.md`
-- [ ] 1.8 Baseline A wall clock on the runner ≤ ~90 s, C's recorded beside it; solver job still under the e2e critical path
-- [x] 1.9 Mutation check: lowered bound fails A, expectation 13 fails C; both reverted
+- [x] 1.7 Ten calibration samples from the GitHub runner matrix; exact asserts hold in all; bounds set per formula; evidence recorded in the test and `change.md` — 0b4a5a2
+- [x] 1.8 Baseline A wall clock on the runner ≤ ~90 s, C's recorded beside it; solver job still under the e2e critical path — 0b4a5a2
+- [x] 1.9 Mutation check: lowered bound fails A, expectation 13 fails C; both reverted — 0b4a5a2
 
 ### Phase 2: Retire the dormant clique cut (R1b + orphans)
 
 #### Automated
 
-- [ ] 2.1 Objective parity stays exact 10/10
-- [ ] 2.2 Baseline unchanged and green
-- [ ] 2.3 Full Python suite passes
-- [ ] 2.4 No reference to the removed symbols remains beyond `objective.py`'s local `cohort_slots` (grep)
-- [ ] 2.5 Type and lint gates pass
-- [ ] 2.6 Shell/check task passes: `mise run solver:check`
-- [ ] 2.7 Contract gate on the TS side still green
+- [x] 2.1 Objective parity stays exact 10/10
+- [x] 2.2 Baseline unchanged and green
+- [x] 2.3 Full Python suite passes
+- [x] 2.4 No reference to the removed symbols remains beyond `objective.py`'s local `cohort_slots` (grep)
+- [x] 2.5 Type and lint gates pass
+- [x] 2.6 Shell/check task passes: `mise run solver:check`
+- [x] 2.7 Contract gate on the TS side still green
 
 #### Manual
 
-- [ ] 2.8 Watch item: live `test_stage_stop` seed tests 5× locally within ceiling; timings in `change.md`; CI confirms
-- [ ] 2.9 CLI run on the seed dump completes with no `lowerBound` keys
+- [x] 2.8 Watch item: live `test_stage_stop` seed tests 5× locally within ceiling; timings in `change.md`; CI confirms
+- [x] 2.9 CLI run on the seed dump completes with no `lowerBound` keys
 
 ### Phase 3: Re-anchor `bench/`
 

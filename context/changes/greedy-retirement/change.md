@@ -100,3 +100,16 @@ Taken with the author; the full table is in `plan-brief.md`.
 - Tier 3, which C asserts, has no target and keeps the full 15 s budget as proof headroom. It proved OPTIMAL = 14 in ~0.45 s on M-series and well inside 3.3 s on the runner.
 
 **Mutation check:** `TOTAL_SLOTS_BOUND = 90` turned A red (`98 <= 90`), and `DESCENT_OPTIMAL_SLOTS = 13` turned C red (`('OPTIMAL', 14) == ('OPTIMAL', 13)`). Both were reverted.
+
+### 2026-10-08 — Phase 2: the clique cut is gone; the watch-item timings
+
+**Watch item:** the two live seed tests in `test_stage_stop.py` (`-k live`, 8 workers, `LIVE_CEILING_S = 25`). Timed on M-series, so this shows stability only; these figures are not budgets.
+
+| | stop from another thread | board kept after a stop |
+| --- | --- | --- |
+| Without the cut, 5 runs | 2.68, 2.26, 2.25, 2.27, 2.28 s | 2.60, 2.27, 2.35, 2.24, 2.30 s |
+| With the cut (`0b4a5a2`), 2 runs | 2.34, 2.31 s | 2.29, 2.32 s |
+
+The timing is unchanged, because the stop lands 0.5 s into tier 3 whether or not the cut is there. Both tests run at about a tenth of their ceiling. CI confirms with the Phase 2 push.
+
+**CLI on the seed dump:** `uv run cpsat --mode complete --stage-budget 5 --mode-a-budget 30 --workers 4` completed with 238 placements and `stopReason: budget`. No `lowerBound` key appears anywhere in the result. `--mode parity` still reports 10/10.

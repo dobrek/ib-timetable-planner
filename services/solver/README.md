@@ -151,9 +151,9 @@ never `supabase db reset` mid-campaign (the dump records its `clonePlanId`).
 ### 1. Export (TS → dump JSON)
 
 ```bash
-# Committed seed fixture (PII-free, from CSV-seeded catalog):
+# Seed catalog (PII-free, from CSV-seeded catalog) — a NEW dump, never over the committed fixture:
 SOURCE_PLAN_ID=c43c5f07-9448-5ab2-ad54-358f59403585 PIN_SKELETON=1 \
-  OUT=services/solver/tests/fixtures/seed-plan-a.json pnpm experiment:export
+  OUT=services/solver/data/seed-dump.json pnpm experiment:export
 
 # Golden catalog (gitignored dump under services/solver/data/):
 SOURCE_PLAN_ID=<golden-plan-id> PIN_SKELETON=1 pnpm experiment:export
@@ -162,8 +162,10 @@ SOURCE_PLAN_ID=<golden-plan-id> PIN_SKELETON=1 pnpm experiment:export
 The export auto-parks any zero-student course's uncovered hours (a phantom-course guard) and logs
 each loudly. On the golden plan **as currently configured this is a no-op** — Chemistry SL was
 re-attributed to its real roster during Phase 1, so no course has an empty roster and the dump
-records `meta.autoParked: []`. The dump carries `{ snapshot, greedy baseline + per-cohort
-lowerBound, TS 10-tier objective tuple }`.
+records `meta.autoParked: []`. The dump carries `{ snapshot, an EMPTY warm-start block, the TS
+10-tier objective tuple of the pins-only board }`. It is hint-free since S-309 retired the greedy
+engine that used to fill the `greedy` block, so a CLI run on it solves exactly what an app dispatch
+solves: no hint and no clique cut. The block itself stays because `load_dump` requires the key.
 
 ### 2. Parity gate (Phase 3)
 
@@ -173,7 +175,8 @@ uv run cpsat --input data/<golden>-dump.json --output data/parity.json --mode pa
 ```
 
 Fixed-hint solve reproducing the dump's TS tuple exactly, all ten tiers. **Blocks** optimization
-work while any mismatch exists.
+work while any mismatch exists. On a hint-free dump the board being replayed is the pins alone; the
+full-board replay the gate exists for is `test_objective.py`'s, on the committed seed fixture.
 
 ### 3. Mode A — completeness (Phase 4, the headline)
 
@@ -197,8 +200,9 @@ uv run cpsat --input data/<golden>-dump.json --output data/full.json --mode full
 uv run cpsat --input data/<golden>-dump.json --output data/repair.json --mode repair
 ```
 
-1-hop conflict-graph neighbourhood of the greedy unplaced courses, pins frozen; `--hops 2` to
-escalate an infeasible residual.
+1-hop conflict-graph neighbourhood of the warm start's unplaced courses, pins frozen; `--hops 2` to
+escalate an infeasible residual. Mode B needs a warm-start board, and only the frozen seed fixture
+still carries one: on a hint-free dump every course is unplaced, so the window is the whole catalog.
 
 ### 6. Import (dump + result → verify → persist → analyze) (Phase 5)
 
@@ -210,7 +214,11 @@ ANALYZE_PLAN_A=<clonePlanId> ANALYZE_PLAN_B=<golden-plan-id> pnpm analyze:plans
 Verifies the CP-SAT board against `dump.snapshot`, persists into the export's clone, and prints the
 gold-side-by-side comparison. The board is then viewable at `/plans/<clonePlanId>`.
 
-## Regenerating the committed seed fixture
+## The committed seed fixture is frozen
 
-The fixture is a generated artifact. Regenerate after a schema/objective change with step 1's first
-command, then re-run `uv run pytest`.
+`tests/fixtures/seed-plan-a.json` is a greedy-era RECORDED artifact. Its warm-start board, its TS
+objective tuple and its per-cohort `lowerBound` (48/45) all came from the retired greedy engine, and
+the parity gate (`test_objective.py`) replays exactly that board. Since S-309 the exporter writes
+hint-free dumps and cannot reproduce it, so **never overwrite it**: write a new dump under `data/`
+instead. If a schema change ever forces the file to change, migrate it by hand and deliberately,
+the way the contract goldens are treated (`contracts/README.md`).

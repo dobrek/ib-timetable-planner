@@ -21,14 +21,16 @@ import { readJson } from "./read-json";
  *
  * Inputs, and why they are what they are:
  *   • the snapshot golden is the `snapshot` key of the committed seed dump, projected to the wire pin
- *     and canonicalized — real-size and UUID-only by construction, the same posture `.gitignore:84-94`
+ *     and canonicalized — real-size and UUID-only by construction, the same posture `.gitignore:90-100`
  *     pins for the dump itself.
  *   • the result golden is ONE CP-SAT CLI run over that same dump, canonicalized. The canonicalizer
  *     drops the solver's `"lowerBound": null` keys by specification, which is exactly the omit-when-
  *     absent convention the frozen contract requires. It is a RECORDED artifact, not a reproducible
  *     one: CP-SAT is non-deterministic across worker counts and its `elapsedMs` is wall-clock, so a
  *     regeneration produces a different (equally legal) board. Regenerate only for a `formatVersion`
- *     bump — see `contracts/README.md` §Regeneration for the exact command line.
+ *     bump — see `contracts/README.md` §Regeneration for the exact command line. Its `lowerBound`
+ *     values (48/45) are greedy-era: the CLI echoed the clique bound greedy wrote into the seed dump,
+ *     and no engine emits the key since S-309 retired both. The key stays optional on the wire.
  *   • the solve-request golden is DERIVED from the other two — that same snapshot as `snapshot`, and
  *     the result's board as `warmStart`, plus the default `policy` (so BOTH optional envelope keys are
  *     exercised rather than merely declared). No second CP-SAT run: given the same RESULT it
@@ -43,7 +45,8 @@ const RESULT = process.env.RESULT;
 
 const FIXTURES = join(process.cwd(), "contracts", "fixtures");
 
-/** The slice of the export dump this reads: the snapshot, and nothing else (greedy/objective are bench). */
+/** The slice of the export dump this reads: the snapshot, and nothing else (the warm-start block and
+ *  the objective tuple are bench transport). */
 type DumpSnapshot = { snapshot: GeneratorSnapshot };
 
 const USAGE =

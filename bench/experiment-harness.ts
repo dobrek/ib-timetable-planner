@@ -7,11 +7,11 @@ import type { LoadedPlan } from "@/_pages/plan-comparison/api";
 import type { CourseIdentity, SkeletonRow } from "./fixture-courses";
 
 /**
- * The DB-touching harness shared by the on-demand experiments (`generation`, `export-snapshot`,
- * `import-generated`). Extracted so the CP-SAT POC's export and import build the SAME snapshot and
- * persist through the SAME region-replace as the greedy loop: the whole POC rests on the exported
- * instance being byte-for-byte what the import later verifies and persists, and a second private
- * copy of `toSnapshot`/`persistRegion` would let the two drift apart silently.
+ * The DB-touching harness shared by the on-demand experiments (`export-snapshot`, `import-generated`).
+ * Extracted so the CP-SAT file transport's export and import build the SAME snapshot and persist
+ * through the SAME region-replace: the loop rests on the exported instance being byte-for-byte what
+ * the import later verifies and persists, and a second private copy of `toSnapshot`/`persistRegion`
+ * would let the two drift apart silently.
  *
  * Dev tooling — the Workers-runtime constraints do not apply here (`fs`, service-role client). All
  * runners refuse a non-local Supabase host (`local-supabase.ts`), so this module never touches

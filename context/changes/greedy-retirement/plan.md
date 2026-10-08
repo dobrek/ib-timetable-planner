@@ -634,33 +634,33 @@ Every artifact that describes greedy as live, or cites a mechanism S-309 removed
 
 #### Automated
 
-- [x] 2.1 Objective parity stays exact 10/10
-- [x] 2.2 Baseline unchanged and green
-- [x] 2.3 Full Python suite passes
-- [x] 2.4 No reference to the removed symbols remains beyond `objective.py`'s local `cohort_slots` (grep)
-- [x] 2.5 Type and lint gates pass
-- [x] 2.6 Shell/check task passes: `mise run solver:check`
-- [x] 2.7 Contract gate on the TS side still green
+- [x] 2.1 Objective parity stays exact 10/10 — f0aa806
+- [x] 2.2 Baseline unchanged and green — f0aa806
+- [x] 2.3 Full Python suite passes — f0aa806
+- [x] 2.4 No reference to the removed symbols remains beyond `objective.py`'s local `cohort_slots` (grep) — f0aa806
+- [x] 2.5 Type and lint gates pass — f0aa806
+- [x] 2.6 Shell/check task passes: `mise run solver:check` — f0aa806
+- [x] 2.7 Contract gate on the TS side still green — f0aa806
 
 #### Manual
 
-- [x] 2.8 Watch item: live `test_stage_stop` seed tests 5× locally within ceiling; timings in `change.md`; CI confirms
-- [x] 2.9 CLI run on the seed dump completes with no `lowerBound` keys
+- [x] 2.8 Watch item: live `test_stage_stop` seed tests 5× locally within ceiling; timings in `change.md`; CI confirms — f0aa806
+- [x] 2.9 CLI run on the seed dump completes with no `lowerBound` keys — f0aa806
 
 ### Phase 3: Re-anchor `bench/`
 
 #### Automated
 
-- [ ] 3.1 Type gate passes (covers `bench/`): `pnpm check`
-- [ ] 3.2 Lint passes: `pnpm lint`
-- [ ] 3.3 Unit suite passes: `pnpm test`
-- [ ] 3.4 No bench file imports greedy (grep)
-- [ ] 3.5 `pnpm experiment:goldens` without `RESULT` prints usage and exits green
-- [ ] 3.6 Python schema/CLI tests unaffected
+- [x] 3.1 Type gate passes (covers `bench/`): `pnpm check`
+- [x] 3.2 Lint passes: `pnpm lint`
+- [x] 3.3 Unit suite passes: `pnpm test`
+- [x] 3.4 No bench file imports greedy (grep)
+- [x] 3.5 `pnpm experiment:goldens` without `RESULT` prints usage and exits green
+- [x] 3.6 Python schema/CLI tests unaffected
 
 #### Manual
 
-- [ ] 3.7 Export → CLI → import loop works against the local stack with a hint-free dump
+- [x] 3.7 Export → CLI → import loop works against the local stack with a hint-free dump
 
 ### Phase 4: Delete the greedy engine (one revertable commit)
 

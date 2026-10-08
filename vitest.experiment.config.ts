@@ -2,9 +2,10 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 /**
- * On-demand generation experiment (`pnpm experiment:generation`) — NOT part of `pnpm test` or CI.
- * Clones a plan catalog-only in the local Supabase stack, optionally pins the fixture skeleton,
- * generates, verifies, persists, and prints the comparison against the source plan (start the stack
+ * On-demand bench experiments — NOT part of `pnpm test` or CI. Each has its own script naming its
+ * file: `experiment:export` (clone a plan and dump its hint-free instance for the CP-SAT CLI),
+ * `experiment:import` (verify and persist a CLI result into that clone) and `experiment:goldens`
+ * (regenerate the contract fixtures). The DB-touching ones need the local Supabase stack (start it
  * with `pnpm exec supabase start`; env comes from `.env.test.local`).
  *
  * A config of its own, mirroring `vitest.analyze.config.ts`: the `*.experiment.ts` / `*.analyze.ts`

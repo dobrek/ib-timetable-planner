@@ -617,18 +617,18 @@ Every artifact that describes greedy as live, or cites a mechanism S-309 removed
 
 #### Automated
 
-- [ ] 1.1 Baseline tests pass: `uv run pytest -m baseline`
-- [ ] 1.2 Full Python suite passes, `test_service.py` unchanged in count
-- [ ] 1.3 Type gate passes over src + tests: `uv run mypy`
-- [ ] 1.4 Lint passes: `uv run ruff check`
-- [ ] 1.5 Bench unit tests pass: `pnpm test bench/campaign-baseline.test.ts`
+- [x] 1.1 Baseline tests pass: `uv run pytest -m baseline`
+- [x] 1.2 Full Python suite passes, `test_service.py` unchanged in count
+- [x] 1.3 Type gate passes over src + tests: `uv run mypy`
+- [x] 1.4 Lint passes: `uv run ruff check`
+- [x] 1.5 Bench unit tests pass: `pnpm test bench/campaign-baseline.test.ts`
 - [ ] 1.6 CI `solver` job green on the PR branch after the calibration commit is reverted
 
 #### Manual
 
-- [ ] 1.7 Ten calibration samples from the GitHub runner matrix; exact asserts hold in all; bounds set per formula; evidence recorded in the test and `change.md`
+- [x] 1.7 Ten calibration samples from the GitHub runner matrix; exact asserts hold in all; bounds set per formula; evidence recorded in the test and `change.md`
 - [ ] 1.8 Baseline A wall clock on the runner ≤ ~90 s, C's recorded beside it; solver job still under the e2e critical path
-- [ ] 1.9 Mutation check: lowered bound fails A, expectation 13 fails C; both reverted
+- [x] 1.9 Mutation check: lowered bound fails A, expectation 13 fails C; both reverted
 
 ### Phase 2: Retire the dormant clique cut (R1b + orphans)
 

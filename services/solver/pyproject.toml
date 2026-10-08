@@ -56,6 +56,11 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+# CI runs everything (bare `uv run pytest`); `-m "not baseline"` is the fast local loop, and
+# `-m baseline` is what a re-calibration selects.
+markers = [
+  "baseline: production-path regression baseline (S-309) — bounds calibrated on the GitHub runner",
+]
 
 # CLAUDE.md's standing rule: all solver code stays fully type-annotated, with `--strict` as the gate.
 # Config-driven so `uv run mypy` (no args) is the whole command, in CI and locally alike.

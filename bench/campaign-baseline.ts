@@ -3,7 +3,9 @@ import { bestSpreadCells, groupByTier, renderTable } from "./generation-jobs-rep
 
 /**
  * The S-309 quality baseline: the shipped cell's per-tier `best` spread, the exact tuples its runs
- * delivered, and the job ids they came from — the numbers S-309's executable test will assert against.
+ * delivered, and the job ids they came from — the documented PRODUCTION reference. Nothing asserts
+ * against it: its instance is a deleted production plan that cannot be committed. The executable
+ * tripwire is `services/solver/tests/test_baseline.py`, on a committed instance.
  *
  * Dated, because a baseline is a measurement of one catalog on one day, and an undated one is read as
  * a standing truth. `date` is the caller's, so this stays pure.

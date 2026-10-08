@@ -12,7 +12,7 @@ import type { CellConstraint, CollisionViolation } from "./types";
  *
  * Warn severity here, so manual editing stays possible (the `course-day-stacking` precedent), but
  * **generator-hard**: `verifyGeneration` escalates it to a failure whenever a generated placement
- * participates, and `board.fitsAt` rejects any placement that would create one.
+ * participates, and the solver's model forbids one outright (`model.py`, rule 8).
  *
  * Week-aware, per the `lanes.ts` conventions: periods are read per concrete fortnightly week (a
  * `both` placement runs in each), so a week-A hour at P2 and a week-B hour at P5 are two separate
@@ -35,8 +35,7 @@ export const courseDaySplit: CellConstraint = {
 };
 
 /** The rule itself: periods within ONE day-week lane that are not consecutive. Exported because
- *  the engine's `fitsAt` guard and `verifyGeneration`'s delta mirror the oracle rather than
- *  restating it. */
+ *  `verifyGeneration`'s delta mirrors the oracle rather than restating it. */
 export const hasDaySplit = (periods: number[]): boolean => {
   const { count, span } = laneStats(periods);
   return count >= 2 && span > count;

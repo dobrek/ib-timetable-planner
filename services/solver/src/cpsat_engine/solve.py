@@ -709,8 +709,9 @@ def _freeze_outside(
 
 
 def _neighbourhood(dump: Dump, greedy: dict[PlacementKey, int], hops: int) -> set[tuple[str, str]]:
-    """The greedy unplaced courses plus their k-hop conflict-graph neighbourhood (shares a teacher or
-    a student — the ``problem.ts`` edge). Placed courses in the window are freed for rearrangement."""
+    """The warm start's unplaced courses plus their k-hop conflict-graph neighbourhood (shares a
+    teacher or a student — :func:`_conflicts`). Placed courses in the window are freed for
+    rearrangement."""
     courses = {(co, c.id): c for co in COHORTS for c in dump.snapshot.cohorts[co].courses}
     residue = _residue_from_deficits(dump, greedy)
     frontier = {key for key, left in residue.items() if left > 0}
@@ -729,7 +730,7 @@ def _neighbourhood(dump: Dump, greedy: dict[PlacementKey, int], hops: int) -> se
 
 
 def _conflicts(a: Course, b: Course) -> bool:
-    """Two courses cannot share a cell iff they share a teacher or a student (``problem.ts:170-171``)."""
+    """Two courses cannot share a cell iff they share a teacher or a student (model rules 3 and 4)."""
     return bool(set(a.teacher_keys) & set(b.teacher_keys)) or bool(set(a.student_keys) & set(b.student_keys))
 
 

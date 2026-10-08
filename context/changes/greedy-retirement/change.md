@@ -130,3 +130,31 @@ The timing is unchanged, because the stop lands 0.5 s into tier 3 whether or not
 - That guard is in `copyFixtureSkeleton`, which this change does not touch.
 - The local seed plan's board no longer carries the fixture rows the skeleton expects. That is local data state, not this change.
 - The refused attempt had already cloned the plan; that clone was deleted with the other.
+
+### 2026-10-08 — Phase 5: truth-up, a scope adaptation, and one observation
+
+**Adaptation, approved by the author: about 20 more comments were rewritten.** Phase 4's grep looked only for the word "greedy", so it missed comments that cite greedy mechanisms by name:
+
+- `board.fitsAt` / `board.ts`, cited as the in-engine twin the oracle's delta semantics "must stay" aligned with. These were in `verify.ts`, `verify.test.ts` and `collision/constraints/*`.
+- The engine fuzz and the "20-second solve", in `early-finish-edge.*`.
+- The LNS, in `student-lens.ts` and `objective.test.ts`.
+- `problem.ts`, in `solve.py`.
+
+Each rationale was re-derived against today's code. Where a twin still exists, the comment now cites CP-SAT's `model.py`, which encodes every day-scoped rule per lane. Elsewhere the history is stated plainly. All of it is comment-only.
+
+**Observation, predating S-309 and not fixed here:** the solver's pins precondition is STRICTER than the app's.
+
+- `model.py`'s `_assert_pins_precondition` calls itself the mirror of `verifyGeneration(snapshot, [])`. But it raises `PreconditionError` on pins that already stack a course, split a course, or over-shape a teacher day.
+- `verifyGeneration` permits all three as pin-only warns (delta semantics), and the UI allows them as warns.
+- So an author who hand-places, for example, an over-long teacher day passes the app's precondition, enqueues a job, and gets back `failed: precondition: pins over-shape teacher day …`.
+- The `verify.ts` docblock now states the asymmetry. Whether to align the two is an open product question (a candidate follow-up), outside S-309's scope.
+
+**CI timing figures** were taken from one PR #135 run (37771005774, on `f10bf39`, the final code state): `solver` took ~194 s and `e2e` ~393 s. Across the four PR runs, e2e ranged 393–461 s and solver 165–208 s, so the solver lane stays well off the critical path.
+
+**Trackers (outward-facing, with the author's approval):**
+
+- #106 was retitled "S-309: Retire the greedy engine; pin the CP-SAT regression baseline", and its body was rewritten.
+- #108's open question 2 now reads "deferred, not resolved" and points at PRD Open Question 2.
+- PR #135 carries `Closes #106`.
+
+**Memory:** `greedy-engine-slated-for-removal` was replaced by `greedy-engine-removed`.

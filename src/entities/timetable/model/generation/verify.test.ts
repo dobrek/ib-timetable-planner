@@ -186,9 +186,9 @@ describe("verifyGeneration", () => {
   });
 
   it("reads the course-day delta per week lane — a pins-only week-A split does not veto week B", () => {
-    // The author pinned a split in week A. Week B of the same day is empty, and `board.fitsAt`
-    // accepts a hour there (the lanes never meet). A lane-blind delta key rejected the whole board
-    // because "that course has a generated row on that day".
+    // The author pinned a split in week A. Week B of the same day is empty, so an hour there breaks
+    // nothing (the lanes never meet). A lane-blind delta key rejected the whole board because "that
+    // course has a generated row on that day".
     const board = snapshot({
       periods: 8,
       dp1: {
@@ -282,11 +282,10 @@ describe("verifyGeneration", () => {
     expect(verifyGeneration(board, [gen("dp1", "eng", 2, 1)]).ok).toBe(true);
   });
 
-  it("permits a generated row INSIDE a teacher day the pins already broke — the fitsAt delta, verify-side", () => {
-    // t1's pins already span 10 periods on day 1. `board.fitsAt` accepts further placements on that
-    // lane (it rejects only breaches the candidate CREATES), so verify must too — judging the day
-    // board-wide instead made one hand-placed over-long teacher day reject every generated board,
-    // after the full budget was spent and with nothing in the search loop to signal it.
+  it("permits a generated row INSIDE a teacher day the pins already broke — the delta, per lane", () => {
+    // t1's pins already span 10 periods on day 1. A generated row on that lane did not CREATE the
+    // breach, so verify must accept it — judging the day board-wide instead made one hand-placed
+    // over-long teacher day reject every generated board.
     const board = snapshot({
       periods: 10,
       dp1: {

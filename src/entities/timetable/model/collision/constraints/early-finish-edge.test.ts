@@ -141,9 +141,9 @@ describe("earlyFinishEdge", () => {
       // The student never lives a day holding both X and Y: in week A the day is X@1, F@3 (F last);
       // in week B it is F@3, Y@5 (F first). F is at an edge of every REAL day, so when it stops
       // running mid-year no hole appears — the union of the two weeks invents a box that cannot
-      // occur. The engine's `fitsAt` guard reads lanes separately for the same reason, and an
-      // over-strict oracle here would reject boards the search legitimately constructs (a
-      // fitsAt-looser-than-verify gap with no in-loop signal — caught by the engine fuzz).
+      // occur. The solver's model reads lanes separately for the same reason (`model.py`), and an
+      // over-strict oracle here would reject boards it legitimately constructs — after the whole
+      // solve had been spent.
       const f = course("F", "T", ["s"]);
       const x = course("X", "T", ["s"]);
       const y = course("Y", "T", ["s"]);

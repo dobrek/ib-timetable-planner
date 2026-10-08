@@ -30,11 +30,13 @@ import type { GeneratedPlacement, GeneratorSnapshot } from "./types";
  * permitted — otherwise a single pre-existing over-long teacher day would make every board
  * unverifiable and the engine could never return anything.
  *
- * "Created" is read at the same granularity as `board.fitsAt`'s `creates()`, and must stay that way:
- * per WEEK LANE for `teacher-day-shape` (against the pins-only board), per participating course-day
- * for the two course rules. A coarser reading here than in `fitsAt` is the worst of both worlds —
- * the search happily builds boards this judge then rejects, with no in-loop signal and the whole
- * budget already spent (see `createsTeacherDayShape`).
+ * "Created" is read at the granularity the rules themselves have: per WEEK LANE for
+ * `teacher-day-shape` (against the pins-only board), per participating course-day lane for the two
+ * course rules. A coarser key over-rejects — one lane a pin already broke would condemn every hour
+ * placed beside it (see `createsTeacherDayShape`). The distinction only bites on a board whose pins
+ * already break a rule, and the CP-SAT solver never returns one: its own precondition
+ * (`services/solver/src/cpsat_engine/model.py`) refuses such pins outright, so on dirty pins it is
+ * the stricter of the two.
  *
  * The structural pass asserts the invariants the core does NOT check: grid-preset bounds,
  * `week_mode ↔ week` consistency, catalog membership (a catalog-missing course is silently
@@ -151,9 +153,9 @@ const mergedPlacements = (
  * A course-day warn (stacking, split) fails verification only when a GENERATED row *created* it:
  * some lane that breaches on the merged board did not breach on the pins-only one.
  *
- * Read per lane, like `board.fitsAt` — the previous `(courseId, day)` key was lane-blind, so a
- * biweekly course whose week-A pins were already split rejected any week-B hour the generator put
- * on that day, though the two lanes never meet.
+ * Read per lane, as the solver's model encodes the rule — the previous `(courseId, day)` key was
+ * lane-blind, so a biweekly course whose week-A pins were already split rejected any week-B hour the
+ * generator put on that day, though the two lanes never meet.
  */
 const createsCourseDayBreach = (
   pinned: PinnedBoards,
@@ -200,12 +202,10 @@ const pinnedBoards = (snapshot: GeneratorSnapshot): PinnedBoards => {
  * A teacher-day-shape warn fails verification only when a GENERATED row *created* it: some lane that
  * breaches on the merged board did not breach on the pins-only board.
  *
- * This is the verify-side twin of `board.fitsAt`'s `creates()`, and it must stay one: `fitsAt` reads
- * the delta per WEEK LANE, so a lane a pin already broke keeps accepting placements. Keying the
- * delta on `(teacher, day)` instead — "did the generator touch this teacher's day at all?" — made
- * ONE pin-broken teacher-day reject every board that put any hour on it, while `fitsAt` happily
- * built those boards: the whole 20 s budget burned, no in-loop signal, and an author who hand-placed
- * an over-long teacher day (a warn, so the UI allows it) could not generate at all.
+ * The delta is read per WEEK LANE, so a lane a pin already broke does not condemn its other lane.
+ * Keying it on `(teacher, day)` instead — "did the generator touch this teacher's day at all?" —
+ * once made ONE pin-broken teacher-day reject every board that put any hour on it, so an author who
+ * hand-placed an over-long teacher day (a warn, so the UI allows it) could not generate at all.
  */
 const createsTeacherDayShape = (
   pinned: PinnedBoards,

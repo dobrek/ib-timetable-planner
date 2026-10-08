@@ -311,9 +311,9 @@ describe("countGoldenBandDistance (tier 10)", () => {
   });
 
   it("protects a NEAR-golden cell too — the tier's bar is the detector's, not full coverage (G1)", () => {
-    // The anchor stage seats sets at GOLDEN_COVERAGE (missing ≤10%). A tier that scored only
-    // 100%-coverage cells would give exactly those sets no gravity, and the LNS would drag them
-    // straight back to the day tail — the failure the tier exists to prevent.
+    // Near-golden sets (missing ≤10%) are what a real enrolment yields. A tier that scored only
+    // 100%-coverage cells would give exactly those sets no pull, and nothing would keep them off the
+    // day tail — the failure the tier exists to prevent.
     const roster = 10;
     const nineOfTen = new Map([["wide", Array.from({ length: 9 }, (_, i) => `s${i}`)]]);
 

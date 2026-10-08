@@ -262,9 +262,11 @@ jobs:
   # retrofitted. It is config-driven (`[tool.mypy]` in pyproject) and covers `src/` and `tests/`.
   #
   # **No path filtering, and S-302 decided that deliberately** — the earlier note here promising it
-  # was wrong about the economics. This job runs 44 s; `verify`, `integration`, `e2e` and `solver`
-  # carry no `needs:` between them, so they run in parallel and the critical path is `e2e` at 426 s.
-  # Filtering a 44 s job out of that saves billed minutes and exactly zero wall clock — while costing
+  # was wrong about the economics. This job runs ~194 s since S-309's regression baseline joined it
+  # (`tests/test_baseline.py`, ~75 s of the pytest step); `verify`, `integration`, `e2e` and `solver`
+  # carry no `needs:` between them, so they run in parallel and the critical path is `e2e` at ~393 s
+  # (both measured 2026-10-08, PR #135 run 37771005774). Filtering a job that finishes well inside
+  # the critical path saves billed minutes and exactly zero wall clock — while costing
   # a rewrite of `deploy`'s `if:` gate, because a skipped job is not a success and would stop
   # shipping `main`. The `always() && !contains(needs.*.result,'failure')` form that fixes it also
   # switches off the implicit success gate for all four needs at once, on the only job that touches
@@ -357,7 +359,8 @@ jobs:
       # the layer PUSH stays incremental via registry-side dedup, but the build itself re-runs from
       # scratch on each ephemeral runner. Measured 2026-08-18 on the first container deploy: +37 s
       # on this job (101 s vs a 64 s baseline; ~7 s build, ~17 s first push, ~5 s rollout) against a
-      # pipeline whose critical path is the 426 s `e2e` job — so layer caching is NOT warranted.
+      # pipeline whose critical path is the `e2e` job (426 s then; ~393 s on 2026-10-08, PR #135) — so
+      # layer caching is NOT warranted.
       # If the image grows and it starts to bite, the lever is `cache-from`/`cache-to: type=gha`,
       # never path filters.
       #

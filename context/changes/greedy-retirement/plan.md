@@ -666,33 +666,33 @@ Every artifact that describes greedy as live, or cites a mechanism S-309 removed
 
 #### Automated
 
-- [x] 4.1 Type gate passes: `pnpm check`
-- [x] 4.2 Lint passes: `pnpm lint`
-- [x] 4.3 FSD structure passes: `pnpm steiger`
-- [x] 4.4 Unit suite passes: `pnpm test`
-- [x] 4.5 Production build passes: `pnpm build`
-- [x] 4.6 No code reference remains beyond the allowlist: four epitaphs, the exporter's `greedy` dump key, the goldens note (grep)
-- [x] 4.7 No `SEARCH_TIERS` / hooks / `deriveGoldenSets` remain (grep)
-- [x] 4.8 Full local CI gate green: `/verify`
-- [ ] 4.9 CI `integration` and `e2e` lanes green on the PR
+- [x] 4.1 Type gate passes: `pnpm check` — f10bf39
+- [x] 4.2 Lint passes: `pnpm lint` — f10bf39
+- [x] 4.3 FSD structure passes: `pnpm steiger` — f10bf39
+- [x] 4.4 Unit suite passes: `pnpm test` — f10bf39
+- [x] 4.5 Production build passes: `pnpm build` — f10bf39
+- [x] 4.6 No code reference remains beyond the allowlist: four epitaphs, the exporter's `greedy` dump key, the goldens note (grep) — f10bf39
+- [x] 4.7 No `SEARCH_TIERS` / hooks / `deriveGoldenSets` remain (grep) — f10bf39
+- [x] 4.8 Full local CI gate green: `/verify` — f10bf39
+- [x] 4.9 CI `integration` and `e2e` lanes green on the PR — f10bf39
 
 #### Manual
 
-- [ ] 4.10 Generate on a local plan via build + preview delivers a verified proposal; editing unchanged
-- [ ] 4.11 Deletion is a single revertable commit
+- [x] 4.10 Generate on a local plan via build + preview delivers a verified proposal; editing unchanged — f10bf39
+- [x] 4.11 Deletion is a single revertable commit — f10bf39
 
 ### Phase 5: Truth-up — docs, trackers, memory
 
 #### Automated
 
-- [ ] 5.1 Contract gates green on both sides
-- [ ] 5.2 Prettier and lint clean
-- [ ] 5.3 No doc still calls greedy live (grep)
-- [ ] 5.4 Full local CI gate green: `/verify`
+- [x] 5.1 Contract gates green on both sides
+- [x] 5.2 Prettier and lint clean
+- [x] 5.3 No doc still calls greedy live (grep)
+- [x] 5.4 Full local CI gate green: `/verify`
 
 #### Manual
 
-- [ ] 5.5 Author signs off on the FR-314 wording
-- [ ] 5.6 Runbook reads correctly to an author who has never seen greedy
-- [ ] 5.7 #106 and #108 updated after author confirms the text
+- [x] 5.5 Author signs off on the FR-314 wording
+- [x] 5.6 Runbook reads correctly to an author who has never seen greedy
+- [x] 5.7 #106 and #108 updated after author confirms the text
 - [ ] 5.8 Merge only when no production solve is running

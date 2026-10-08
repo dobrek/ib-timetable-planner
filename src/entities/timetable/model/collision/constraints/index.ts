@@ -35,8 +35,9 @@ export const violatesAny = (course: GroupingCourse, others: GroupingCourse[]): b
   CELL_CONSTRAINTS.some((constraint) => constraint.test?.(course, others) ?? false);
 
 export type { BoardContext, CellConstraint, CollisionViolation } from "./types";
-// The day-scoped rules' predicates + bounds: the oracle owns the definition, and both mirrors — the
-// engine's `fitsAt` fast path and `verifyGeneration`'s delta — import these rather than restating them.
+// The day-scoped rules' predicates + bounds: the oracle owns the definition, and its TS mirror —
+// `verifyGeneration`'s delta — imports these rather than restating them. (The solver's Python model
+// restates them per lane; every board it returns is re-judged by this oracle before delivery.)
 export { hasDaySplit } from "./course-day-split";
 export { exceedsDayCap } from "./course-day-stacking";
 export {

@@ -19,8 +19,8 @@ import type { BoardContext, CellConstraint, CollisionViolation } from "./types";
  * cohort's (`ctx.occupiedByTeacher`). Week-aware per the `lanes.ts` conventions: each concrete
  * fortnightly week is its own day.
  *
- * Warn severity (manual editing stays possible), generator-hard through `verifyGeneration` +
- * `board.fitsAt` — the `course-day-stacking` template. Board-only (no `test`).
+ * Warn severity (manual editing stays possible), generator-hard through `verifyGeneration` and the
+ * solver's model (`model.py`, rule 9) — the `course-day-stacking` template. Board-only (no `test`).
  */
 export const TEACHER_DAY_SPAN_MAX = 8;
 export const TEACHER_STREAK_MAX = 6;
@@ -40,7 +40,7 @@ export const teacherDayShape: CellConstraint = {
 };
 
 /** The rule itself: a teacher day-lane that spans more than 8 periods or teaches more than 6 in a
- *  row. Exported because the engine's `fitsAt` guard mirrors the oracle rather than restating it. */
+ *  row. Exported because `verifyGeneration`'s delta mirrors the oracle rather than restating it. */
 export const exceedsTeacherDayShape = (periods: number[]): boolean => {
   const { span, maxStreak } = laneStats(periods);
   return span > TEACHER_DAY_SPAN_MAX || maxStreak > TEACHER_STREAK_MAX;

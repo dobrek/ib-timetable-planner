@@ -50,10 +50,10 @@ export const earlyFinishEdge: CellConstraint = {
  * Per LANE, not per union: a `both`-week flagged course whose only week-A neighbour is below it and
  * whose only week-B neighbour is above it is at a day edge in *each real week the student lives*
  * (last lesson in week A, first in week B) — reading the two weeks as one set would invent a hole
- * that never occurs. It would also make the oracle stricter than the engine's own `fitsAt` guard
- * (which is lane-wise, `board.ts`), so the search would happily construct such a board and the final
- * verdict would throw the whole 20-second solve away — the fitsAt-looser-than-verify trap, in the
- * one direction that produces no in-loop signal.
+ * that never occurs. It would also make the oracle stricter than the solver's model, which encodes
+ * the rule lane-wise (`services/solver/src/cpsat_engine/model.py`), so the solver would construct
+ * such a board and the final verdict would throw the whole solve away — a model-looser-than-verify
+ * gap, in the one direction nothing inside the solve can signal.
  */
 const isInterior = (
   index: DayOccupancyIndex,

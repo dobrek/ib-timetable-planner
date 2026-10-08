@@ -85,7 +85,7 @@ describe("teacherDayShape", () => {
 });
 
 describe("exceedsTeacherDayShape", () => {
-  it("is the rule the engine's fitsAt guard mirrors: span ≤ 8, streak ≤ 6", () => {
+  it("is the rule verifyGeneration's delta mirrors: span ≤ 8, streak ≤ 6", () => {
     expect(exceedsTeacherDayShape([])).toBe(false);
     expect(exceedsTeacherDayShape([1, 8])).toBe(false); // span 8 exactly
     expect(exceedsTeacherDayShape([1, 9])).toBe(true); // span 9

@@ -1,10 +1,10 @@
 ---
 change_id: greedy-retirement
 title: Greedy retirement
-status: impl_reviewed
+status: archived
 created: 2026-10-08
 updated: 2026-10-08
-archived_at: null
+archived_at: 2026-10-08T14:02:14Z
 ---
 
 ## Notes

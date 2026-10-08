@@ -34,7 +34,7 @@ export type GeneratorCohortSnapshot = {
 export type GeneratorSnapshot = {
   days: number;
   periods: number;
-  /** Plan-scoped teacher availability, raw cells (engines/verify index them as needed). */
+  /** Plan-scoped teacher availability, raw cells (verify, scoring and the solver index them as needed). */
   availability: BoardAvailabilityCell[];
   /** Ids of every course flagged `finishes_early` across BOTH cohorts (side-set, never a
    *  `GroupingCourse` field — mirrors `SharedBoardProps.finishesEarlyByCourseId`). */

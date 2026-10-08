@@ -5,8 +5,8 @@ import type { AnalyzerCourse, AnalyzerRow, StudentFeatures } from "./types";
 
 /**
  * The tier-4 lens: what the week feels like from a desk. The objective already carries a
- * `studentHoles` term (dead last, and no LNS operator hunts it), and the v0 report found the
- * expert beats the engine by 35% on it anyway — a real human edge the search never contests.
+ * `studentHoles` term (sixth of ten — below every teacher tier), and the v0 report found the expert
+ * beat the then-engine by 35% on it — a real human edge the search had never contested.
  *
  * `gapSlots` is the same number `countStudentHoles` returns on the same input (a parity test pins
  * this): same student join, same lane expansion, same span − occupancy fold. Everything else here

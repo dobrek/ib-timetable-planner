@@ -52,8 +52,9 @@ Three decisions the schema encodes that are easy to miss when reading it quickly
    `budget` if any non-optimal stage was ended by a ceiling (a stage with no solution counts as
    budget — the ceiling is what ended it), else `target`; absent when the solve proved optimality.
    `interrupted` is written by the app, not the engine: it labels a job that never finished (S-304).
-   `stagnation` is absent because it is a greedy-only reason — **greedy is out of contract entirely**
-   and leaves in S-309. The in-app TS types stay wider until then; the wire is the narrow one.
+   `stagnation` is absent because it was a greedy-only reason — **greedy never crossed the wire**,
+   and S-309 deleted it along with that reason. The in-app TS types stay wider where they still
+   differ (`engine` is a plain string there); the wire is the narrow one.
 3. **Omit when absent, never null.** No property on this wire may be `null`. An absent optional
    (`lowerBound`, `stopReason`, `best`, `bound`, `stoppedBy`, `warmStart`) is an omitted key. Both
    canonicalizers implement the rule rather than merely documenting it: they drop `null`/`undefined`-valued keys.
@@ -62,12 +63,13 @@ Three decisions the schema encodes that are easy to miss when reading it quickly
 ## Out of scope — stated so it is never "discovered" and frozen by mistake
 
 - **The bench export dump** (`bench/export-snapshot.experiment.ts` → `services/solver/tests/fixtures/seed-plan-a.json`).
-  Its `meta`, its `greedy.*` warm-start, and its `objective` 10-tuple are **bench transport**, not
+  Its `meta`, its `greedy.*` warm-start (always empty since S-309; the committed seed fixture keeps a
+  recorded greedy-era board), and its `objective` 10-tuple are **bench transport**, not
   production wire. The dump keeps its own `formatVersion` gate in `schema.py`; that gate is bench
   scope and is unrelated to `SolveRequest.formatVersion`.
 - **The `.report.json` sidecar** written by `cli.py` (snake_case `wall_clock_s`, `rows_freed`, config
   echo). `cli.py` is the acknowledged throwaway transport; F-302's HTTP wrapper will not produce it.
-- **The greedy engine.** It never crosses the wire and is slated for removal (S-309).
+- **The greedy engine.** It never crossed the wire, and S-309 deleted it.
 - **The 10-tuple objective.** It is a bench parity baseline; the solver never holds it during the
   ladder (per-stage `best`/`bound` are upper bounds under `tier_k <= best_k` hardening, and
   recovering a true tuple needs an `evaluate_board` re-solve).

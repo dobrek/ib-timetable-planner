@@ -182,6 +182,9 @@ when, working from an existing plan:
    **calibration campaign on the production instance** has set budgets/targets
    and gated the switch; CP-SAT is the default generate path; the greedy
    engine and its Web Worker path are deleted.
+   > 2026-10-08 (S-309): met. The Web Worker path went in
+   > `clean-up-bench-generation`, and S-309 deleted the engine once FR-314's
+   > preconditions were met (see FR-314).
 
 ### Secondary
 
@@ -616,6 +619,22 @@ calibration campaign, never tuned locally on the M4.
   > 2026-10-07 (S-308): hint-free Mode A is measured: 3.18–6.16 s over 14
   > production runs on a fill-the-gaps snapshot (the app sends no warm
   > start). The other two preconditions remain S-309's.
+  > 2026-10-08 (S-309): **met — the greedy engine is deleted.**
+  > - **Clique-bound derivation: resolved, not extracted.** The clique-bound
+  >   cut was found inactive on the production path since F-302 (the service
+  >   builds its dump without greedy's diagnostics, so no bound ever reached a
+  >   production solve), so no production dependency on greedy remained.
+  >   S-309 retired the cut on both sides. Reviving it is a separate CP-SAT
+  >   change, gated by a parked-safe bound and a production comparison.
+  > - **CP-SAT regression baseline, pinned and executable:**
+  >   `services/solver/tests/test_baseline.py`, run on every CI run in the
+  >   solver lane. It is a regression tripwire on a committed instance, not a
+  >   reproduction of S-308's production numbers, which stay the documented
+  >   reference. It proves the descent catalog's clique-bound optimum (tier 3
+  >   OPTIMAL at 14 slots) and runs the committed seed catalog through the
+  >   production path, asserting a complete, hole-free, clean board exactly and
+  >   slots/teacher holes against bounds calibrated on the CI runner.
+  > - **Hint-free Mode A:** measured in S-308 (above).
   > Socrates: Counter-arguments re-tested: deletion is one-way vs freeze; a
   > slipping retirement could stall the close-out. Resolution: stands — the
   > research's 14:20 follow-up already weighed both; deletion stays inside the
@@ -679,6 +698,9 @@ calibration campaign, never tuned locally on the M4.
   preconditions for the engine itself: clique-bound derivation extracted out of
   `engines/greedy/`, a CP-SAT regression baseline pinned and executable,
   hint-free Mode A measured.
+  > 2026-10-08 (S-309): the engine is deleted; how each precondition was met
+  > is recorded under FR-314. The contract needed no `formatVersion` bump:
+  > `lowerBound` stays an optional wire field that no engine currently emits.
 - **Runtime split.** The workerd constraint (no Node-only APIs) continues to
   bind all app code; the solver appliance is exempt by design. Container
   reality: linux/amd64 images, 4 vCPU ceiling (standard-4), outbound ports

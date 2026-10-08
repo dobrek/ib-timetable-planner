@@ -7,8 +7,8 @@ import type { AnalyzerRow, CourseAdjacencyFeatures } from "./types";
  * subject" is an invariant, not a preference. Subject identity is NOT needed: a student takes at most
  * one course per subject, so this is a same-`courseId` phenomenon at the row grain.
  *
- * Both halves are now modeled: the split is a hard rule (`courseDaySplit`, enforced in `board.fitsAt`
- * and the oracle), the doubles are a soft tier (`countDoublesDeficit`). This lens still measures both,
+ * Both halves are now modeled: the split is a hard rule (`courseDaySplit`, enforced by the solver's
+ * model and the oracle), the doubles are a soft tier (`countDoublesDeficit`). This lens still measures both,
  * because the rule guarantees only that the two hours are *adjacent when they share a day* — nothing
  * makes them share one.
  *

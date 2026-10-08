@@ -66,7 +66,7 @@ describe("courseDaySplit", () => {
 });
 
 describe("hasDaySplit", () => {
-  it("is the rule the engine's fitsAt guard mirrors", () => {
+  it("is the rule verifyGeneration's delta mirrors", () => {
     expect(hasDaySplit([])).toBe(false);
     expect(hasDaySplit([3])).toBe(false);
     expect(hasDaySplit([3, 4])).toBe(false);

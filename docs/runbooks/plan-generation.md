@@ -23,8 +23,10 @@ generating against — neither is a generation setting.
    flag and the engine will bury the course mid-day; set it on a course that does _not_ end early and
    you will hand it a constraint nobody asked for.
 2. **Teacher availability rows are current.** `strong` is a hard "no" — the engine will not place
-   there. `soft` is a preference the engine now counts and avoids (the tuning target is zero soft
-   hits, and the expert's own board takes none), but it will take one rather than lose a slot.
+   there. `soft` is a "would rather not": under the default **clean** policy Generate adds no new
+   lesson on a soft cell beyond the ones you pinned there yourself, and drops that rule for the run
+   only if no complete timetable exists without it. The other two policies weigh it as a preference,
+   after completeness, holes and compactness.
 
 Both are worth a look before every planning season, because both drift silently: a course changes its
 end date, a teacher changes their Tuesday.
@@ -54,28 +56,43 @@ split, teacher span, day edge) is enforced against pins and generated rows alike
 
 ## c) Generate
 
-Hit **Generate** and give it its budget (20 s). What comes back:
+Hit **Generate**, pick a solve policy (**clean** is the default; the dialog says what each one does),
+and confirm. What happens next:
 
-- **Complete, or nearly.** Expect a small residue — a handful of hours the search could not seat
-  under the hard rules. That is by design: the expert's own rule (R17) is that _an unplaced hour beats
-  a rule violation_, so the engine leaves the hour out rather than split a course across a day or run
-  a teacher nine hours deep. The residue is your hand-finishing list, and it is small (recent runs on
-  the real catalog: 5–8 hours).
-- **Zero same-day splits, teacher days within span 8 / streak 6, day starts at P1.** These are
-  enforced, not hoped for.
+- **It runs in the background, on the server.** A typical run takes 22–28 minutes and the ceiling is
+  "up to about 38 minutes" — the board under it shows "Generating — stage N of 10" as it works
+  through the priorities in order. You can leave the page; the run carries on.
+- **It lands as a new proposal plan.** The plan you generated from is never written to. The proposal
+  is a copy of it with the generated lessons added around your pins.
+- **Stop & keep** ends the run early and keeps the board from the last stage that finished. Stopped
+  before the first stage finished, it keeps nothing.
+
+What comes back:
+
+- **A complete board.** Every course's hours are placed — the first stage proves a complete board
+  exists before anything else is tuned. If the pins and the hard rules leave no complete timetable,
+  the run fails and says so, rather than leaving hours out or breaking a rule (R17: _an unplaced hour
+  beats a rule violation_ — so no board at all beats a broken one).
+- **No double-booking, no same-day splits, at most two hours of a course a day, teacher days within
+  span 8 / streak 6, early-finishing courses at the day's edge.** These are enforced, not hoped for.
+  A late start or a long Friday is a preference the later stages work on, not a rule.
 - **Golden slots mid-day.** The cells where the whole cohort is in class land in the P4–P7 band,
   where they cost nobody a window — not at the day's tail, where they buy nothing.
 
-What it will _not_ do as well as you: pack a teacher's day. Teacher gap-slots run ~3× the expert's on
-the same catalog. Treat the generated board as a strong first draft whose teacher days are the first
-thing worth your eye.
+What the stages after the first do with their time (measured on production, S-308): cohort holes
+and soft hits reached a proven zero in every run, while the total slot count and the teacher,
+student, Friday and golden-band tiers stop on their time budget rather than on a proof — so a run
+returns a very good board, not a proven-best one. The slot count in particular depends more on the
+search's luck than on time — **two Generates, keeping the better proposal, are
+likelier to find a free slot than one long one.** Treat the proposal as a strong first draft whose
+teacher days are the first thing worth your eye.
 
 ---
 
 ## d) Hand-finish
 
-1. **Place the residue.** The unplaced hours are listed per course. Dropping them onto the board goes
-   through the same validation as any drag, so the rules still hold.
+1. **Open the proposal.** Hand edits on it go through the same validation as any drag, so the rules
+   still hold. If you changed your mind about a pin, change it on the source plan and generate again.
 2. **Sweep the teacher days.** Look for a teacher with a window between two lessons and see whether a
    swap closes it. This is where the manual work still pays.
 3. **Check the week's shape** — the expert's own first three checks on any plan: does Friday end
@@ -89,10 +106,11 @@ thing worth your eye.
   data, not enforced by the engine: a _manual_ edit that puts a lesson in the Advisory hour will only
   warn (as a stacking warning would), not block. Pinning Advisory first makes this moot for
   generation, which is why the workflow above starts there.
-- **Teacher compactness is the engine's weakest tier.** It is modeled (`teacherHoles`, above soft
-  availability and above student gaps) and it has its own search operator, but the search spends its
-  budget on completeness and slots first — both of which the expert ranks above it, so the ordering is
-  right even where the result is not yet good enough.
-- **Doubles are a preference, not a target.** The engine pairs a course's hours where the cell allows,
-  but it does not pull a course's days together, so a 4-hour course still spreads more than the
-  expert's would.
+- **Teacher compactness is where the time goes.** It is modeled (`teacherHoles`, above soft
+  availability and above student gaps) and it keeps improving with more time per stage — production
+  runs went 115 → 102 → 86 → 70 gap-slots (median) as the per-stage budget grew 60 → 120 → 240 →
+  480 s (S-308) — but it ranks below completeness and slots, which the expert ranks above it, so the
+  shipped budget stops at 240 s where the slot count stops improving.
+- **Doubles are a preference, not a target.** They rank seventh, below every people tier, and the
+  delivered boards in the S-308 runs ranged from fully paired to over two hundred avoidable singles.
+  Expect to pair some courses by hand.

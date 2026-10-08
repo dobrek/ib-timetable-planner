@@ -1,4 +1,4 @@
-import type { GeneratePlan, GenerationHooks, GenerationResult, GeneratorConfig, GeneratorSnapshot } from "./types";
+import type { GeneratePlan, GenerationResult, GeneratorConfig, GeneratorSnapshot } from "./types";
 import { type GenerationVerdict, verifyGeneration } from "./verify";
 
 /**
@@ -18,7 +18,6 @@ export const runVerifiedGeneration = async (
   engine: GeneratePlan,
   snapshot: GeneratorSnapshot,
   config: GeneratorConfig,
-  hooks?: GenerationHooks,
 ): Promise<VerifiedGenerationOutcome> => {
   // Fail-fast precondition: pins alone already carry blocking violations, so no engine result could
   // ever pass verify (pins are never moved) — reject in milliseconds instead of burning the whole
@@ -26,7 +25,7 @@ export const runVerifiedGeneration = async (
   const precondition = verifyGeneration(snapshot, []);
   if (!precondition.ok) return { ok: false, reason: "precondition", verdict: precondition };
 
-  const result = await engine(snapshot, config, hooks);
+  const result = await engine(snapshot, config);
   const verdict = verifyGeneration(snapshot, result.placements);
   return { ok: true, result, verdict };
 };

@@ -32,7 +32,7 @@ import type { PlannerPlacement } from "../placement";
 /**
  * The wire projection of a pin: exactly the four fields the engine reads. `id`, `isOptional` and
  * `bundleId` are caller-local markers — the narrowing happens HERE, at the wire boundary, so the
- * in-app `GeneratorSnapshot` (still consumed by the greedy engine until S-309) stays untouched.
+ * in-app `GeneratorSnapshot` (still read by verify, scoring and auto-park) stays untouched.
  */
 export type WirePin = Pick<PlannerPlacement, "courseId" | "day" | "period" | "week">;
 

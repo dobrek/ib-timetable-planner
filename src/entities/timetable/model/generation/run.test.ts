@@ -68,7 +68,7 @@ describe("runVerifiedGeneration", () => {
     const outcome = await runVerifiedGeneration(engine, snapshot, CONFIG);
 
     expect(engine).toHaveBeenCalledTimes(1);
-    expect(engine).toHaveBeenCalledWith(snapshot, CONFIG, undefined);
+    expect(engine).toHaveBeenCalledWith(snapshot, CONFIG);
     expect(outcome.ok).toBe(true);
     if (outcome.ok) {
       expect(outcome.result).toBe(fakeEngineResult);

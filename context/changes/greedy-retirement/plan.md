@@ -651,29 +651,29 @@ Every artifact that describes greedy as live, or cites a mechanism S-309 removed
 
 #### Automated
 
-- [x] 3.1 Type gate passes (covers `bench/`): `pnpm check`
-- [x] 3.2 Lint passes: `pnpm lint`
-- [x] 3.3 Unit suite passes: `pnpm test`
-- [x] 3.4 No bench file imports greedy (grep)
-- [x] 3.5 `pnpm experiment:goldens` without `RESULT` prints usage and exits green
-- [x] 3.6 Python schema/CLI tests unaffected
+- [x] 3.1 Type gate passes (covers `bench/`): `pnpm check` — 80eb45c
+- [x] 3.2 Lint passes: `pnpm lint` — 80eb45c
+- [x] 3.3 Unit suite passes: `pnpm test` — 80eb45c
+- [x] 3.4 No bench file imports greedy (grep) — 80eb45c
+- [x] 3.5 `pnpm experiment:goldens` without `RESULT` prints usage and exits green — 80eb45c
+- [x] 3.6 Python schema/CLI tests unaffected — 80eb45c
 
 #### Manual
 
-- [x] 3.7 Export → CLI → import loop works against the local stack with a hint-free dump
+- [x] 3.7 Export → CLI → import loop works against the local stack with a hint-free dump — 80eb45c
 
 ### Phase 4: Delete the greedy engine (one revertable commit)
 
 #### Automated
 
-- [ ] 4.1 Type gate passes: `pnpm check`
-- [ ] 4.2 Lint passes: `pnpm lint`
-- [ ] 4.3 FSD structure passes: `pnpm steiger`
-- [ ] 4.4 Unit suite passes: `pnpm test`
-- [ ] 4.5 Production build passes: `pnpm build`
-- [ ] 4.6 No code reference remains beyond the allowlist: four epitaphs, the exporter's `greedy` dump key, the goldens note (grep)
-- [ ] 4.7 No `SEARCH_TIERS` / hooks / `deriveGoldenSets` remain (grep)
-- [ ] 4.8 Full local CI gate green: `/verify`
+- [x] 4.1 Type gate passes: `pnpm check`
+- [x] 4.2 Lint passes: `pnpm lint`
+- [x] 4.3 FSD structure passes: `pnpm steiger`
+- [x] 4.4 Unit suite passes: `pnpm test`
+- [x] 4.5 Production build passes: `pnpm build`
+- [x] 4.6 No code reference remains beyond the allowlist: four epitaphs, the exporter's `greedy` dump key, the goldens note (grep)
+- [x] 4.7 No `SEARCH_TIERS` / hooks / `deriveGoldenSets` remain (grep)
+- [x] 4.8 Full local CI gate green: `/verify`
 - [ ] 4.9 CI `integration` and `e2e` lanes green on the PR
 
 #### Manual

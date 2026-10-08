@@ -106,7 +106,8 @@
 - **Fix**: Print the line inside `capsys.disabled()`, so it always lands in the log, and add each stage's `wall_clock_s` to `summary()`.
 - **Decision**: FIXED. A `_report(capsys, …)` helper prints past the capture, `summary()` carries `tier:status@Ns` per stage, and the module docstring is updated.
   - Verified without `-s`: both `baseline:` lines print, and ruff and mypy are clean.
-  - Local M-series figures: tier 2 proved in 1.7 s. On a runner 3–5× slower that is about 5–8.5 s against the 10 s stage budget, and it is now visible in every CI log.
+  - Verified on CI, in a green log of PR #135 run 37786875585 on `83b3f52`: both lines print.
+  - Tier 2 (`holes`) proved OPTIMAL in 1.7 s on the runner, the same as on M-series, so it has ample headroom against the 10 s stage budget. An earlier estimate here scaled the M-series figure by 3–5× to 5–8.5 s; that did not hold, because tier 2 ends on its proof, not on its budget.
 
 ### F5 — "~75 s" baseline figure doesn't match the run it cites
 

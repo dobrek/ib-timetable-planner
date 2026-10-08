@@ -62,8 +62,8 @@ Three decisions the schema encodes that are easy to miss when reading it quickly
 
 ## Out of scope — stated so it is never "discovered" and frozen by mistake
 
-- **The bench export dump** (`bench/export-snapshot.experiment.ts` → `services/solver/tests/fixtures/seed-plan-a.json`).
-  Its `meta`, its `greedy.*` warm-start (always empty since S-309; the committed seed fixture keeps a
+- **The bench export dump** (`bench/export-snapshot.experiment.ts` → `services/solver/data/<plan>-dump.json`;
+  the committed `services/solver/tests/fixtures/seed-plan-a.json` is one, frozen). Its `meta`, its `greedy.*` warm-start (always empty since S-309; the committed seed fixture keeps a
   recorded greedy-era board), and its `objective` 10-tuple are **bench transport**, not
   production wire. The dump keeps its own `formatVersion` gate in `schema.py`; that gate is bench
   scope and is unrelated to `SolveRequest.formatVersion`.

@@ -263,7 +263,7 @@ jobs:
   #
   # **No path filtering, and S-302 decided that deliberately** — the earlier note here promising it
   # was wrong about the economics. This job runs ~194 s since S-309's regression baseline joined it
-  # (`tests/test_baseline.py`, ~75 s of the pytest step); `verify`, `integration`, `e2e` and `solver`
+  # (`tests/test_baseline.py`, ~80 s of the pytest step); `verify`, `integration`, `e2e` and `solver`
   # carry no `needs:` between them, so they run in parallel and the critical path is `e2e` at ~393 s
   # (both measured 2026-10-08, PR #135 run 37771005774). Filtering a job that finishes well inside
   # the critical path saves billed minutes and exactly zero wall clock — while costing
@@ -277,6 +277,9 @@ jobs:
   solver:
     name: "Solver tests (Python)"
     runs-on: ubuntu-latest
+    # Every CP-SAT solve in the suite is time-budgeted (the baseline's worst case is ~150 s), so a
+    # run near this ceiling means a hang. Without it, GitHub's 360-minute default would hold `deploy`.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: services/solver

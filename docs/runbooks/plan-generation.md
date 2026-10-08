@@ -23,10 +23,11 @@ generating against — neither is a generation setting.
    flag and the engine will bury the course mid-day; set it on a course that does _not_ end early and
    you will hand it a constraint nobody asked for.
 2. **Teacher availability rows are current.** `strong` is a hard "no" — the engine will not place
-   there. `soft` is a "would rather not": under the default **clean** policy Generate adds no new
-   lesson on a soft cell beyond the ones you pinned there yourself, and drops that rule for the run
-   only if no complete timetable exists without it. The other two policies weigh it as a preference,
-   after completeness, holes and compactness.
+   there. `soft` is a "would rather not": under the default **clean** policy, and under
+   **student-first**, which keeps the same rule, Generate adds no new lesson on a soft cell beyond
+   the ones you pinned there yourself, and drops that rule for the run only if no complete timetable
+   exists without it. Only **canonical** weighs it as a preference, after completeness, holes and
+   compactness.
 
 Both are worth a look before every planning season, because both drift silently: a course changes its
 end date, a teacher changes their Tuesday.
@@ -60,7 +61,7 @@ Hit **Generate**, pick a solve policy (**clean** is the default; the dialog says
 and confirm. What happens next:
 
 - **It runs in the background, on the server.** A typical run takes 22–28 minutes and the ceiling is
-  "up to about 38 minutes" — the board under it shows "Generating — stage N of 10" as it works
+  "up to about 38 minutes" — the pending page shows "Generating — stage N of 10" as it works
   through the priorities in order. You can leave the page; the run carries on.
 - **It lands as a new proposal plan.** The plan you generated from is never written to. The proposal
   is a copy of it with the generated lessons added around your pins.

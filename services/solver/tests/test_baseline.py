@@ -16,8 +16,9 @@ What this is NOT: a reproduction of S-308's production numbers. Those came from 
 uncommittable production instance through a ~28-minute nondeterministic solve, and they stay the
 documented, non-asserted reference (`bench/campaign-baseline.ts`).
 
-Every test prints one `baseline:` line before it asserts anything, so a red sample still reports what
-it saw — read it with `-s` (`uv run pytest -m baseline -s`).
+Every test prints one `baseline:` line before it asserts anything, past pytest's output capture, so
+every CI log carries the tuple and per-stage timings, green runs included, and a red sample still
+reports what it saw.
 """
 
 from __future__ import annotations
@@ -66,15 +67,20 @@ PRODUCTION_PATH_SETTINGS = replace(SETTINGS, workers=4, stage_budget_s=10.0, mod
 #   totalSlots     96 / 97.5 / 99      (97, 99, 99, 97, 97, 96, 97, 99, 99, 98)
 #   teacherHoles  172 / 208.5 / 239    (172, 185, 222, 222, 211, 205, 191, 206, 239, 234)
 #   wall clock   67.6 / 72.6 / 76.8 s  (C: 2.4-3.3 s)
-# Each bound is `worst observed + max(2, ceil(0.10 * worst observed))`. Re-calibrate ONLY on the
+# `totalSlots` is bounded at `worst + max(2, ceil(0.10 * worst))`; it barely moves (sd ~1) and is the
+# sharp tripwire. `teacherHoles` gets `worst + ceil(0.25 * worst)`: its spread is host-to-host — the
+# two runs on one host track each other, so the ten samples are really five — and +10% left a false
+# red (which blocks `deploy`) at a few percent per run. Both assume GitHub's 4-vCPU runner, which this
+# repo gets because it is public; a 2-vCPU runner would need a re-calibration. Re-calibrate ONLY on the
 # runner — M-series is 3-5x faster and would set bounds a loaded runner cannot meet (the same machine
 # gave teacherHoles 105 here). S-308's ledger (`bench/campaign-baseline.ts`) stays the production
 # reference; these numbers describe a committed instance at ten-second stages, not production.
 TOTAL_SLOTS_BOUND = 109
-TEACHER_HOLES_BOUND = 263
+TEACHER_HOLES_BOUND = 299
 
-# (id, teacher, students, hours) — ported from greedy's quality bar (`descent-catalog.ts`), dp1 only,
-# on a 5 x 6 grid. Conflicts are teacher- and student-driven; no pins, no availability.
+# (id, teacher, students, hours) — ported from greedy's quality bar (`descent-catalog.ts`, deleted
+# with it in S-309), dp1 only, on a 5 x 6 grid. Conflicts are teacher- and student-driven; no pins,
+# no availability.
 DESCENT_COURSES: tuple[tuple[str, str, tuple[str, ...], int], ...] = (
     ("c0", "t0", ("s2", "s7"), 2),
     ("c1", "t3", ("s3",), 2),
@@ -92,7 +98,9 @@ DESCENT_COURSES: tuple[tuple[str, str, tuple[str, ...], int], ...] = (
 
 
 @pytest.mark.baseline
-def test_descent_catalog_proves_the_clique_optimum(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_descent_catalog_proves_the_clique_optimum(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     """CP-SAT's slot descent reaches — and PROVES — the instance's floor of 14 occupied cells.
 
     The floor is the heaviest conflict clique, {c0, c2, c3, c4, c11, c5}: the first five share teacher
@@ -101,7 +109,7 @@ def test_descent_catalog_proves_the_clique_optimum(monkeypatch: pytest.MonkeyPat
     stage that ends OPTIMAL at 14 has proved the descent works. A FEASIBLE 14 would not be a proof.
     """
     run = _solve(_descent_request(), DESCENT_SETTINGS, monkeypatch)
-    print(f"baseline: descent {run.summary()}")
+    _report(capsys, f"descent {run.summary()}")
 
     assert run.status == "succeeded"
     tier3 = next(stage for stage in run.result.stages if stage.tier == TOTAL_SLOTS + 1)
@@ -113,7 +121,9 @@ def test_descent_catalog_proves_the_clique_optimum(monkeypatch: pytest.MonkeyPat
 
 
 @pytest.mark.baseline
-def test_production_path_baseline_on_the_seed_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_production_path_baseline_on_the_seed_catalog(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     """The committed seed catalog through the HTTP path, minus `warmStart` — the app never sends one.
 
     Exact where the answer is structural (a complete, hole-free, clean board, without the clean
@@ -122,7 +132,7 @@ def test_production_path_baseline_on_the_seed_catalog(monkeypatch: pytest.Monkey
     golden = json.loads(SOLVE_REQUEST_GOLDEN.read_text())
     request = {key: value for key, value in golden.items() if key != "warmStart"}
     run = _solve(request, PRODUCTION_PATH_SETTINGS, monkeypatch)
-    print(f"baseline: production-path {run.summary()}")
+    _report(capsys, f"production-path {run.summary()}")
 
     assert run.status == "succeeded"
     assert run.result.clean_fallback is False, "the seed catalog is clean-satisfiable"
@@ -146,11 +156,19 @@ class _Run:
     wall_clock_s: float
 
     def summary(self) -> str:
-        stages = " ".join(f"{stage.tier}:{stage.status}" for stage in self.result.stages)
+        stages = " ".join(
+            f"{stage.tier}:{stage.status}@{stage.wall_clock_s:.1f}s" for stage in self.result.stages
+        )
         return (
             f"status={self.status} tuple={self.tiers} wall_clock_s={self.wall_clock_s:.1f} "
             f"clean_fallback={self.result.clean_fallback} stages=[{stages}]"
         )
+
+
+def _report(capsys: pytest.CaptureFixture[str], line: str) -> None:
+    """Print the `baseline:` line past pytest's capture, so a GREEN CI log carries it too."""
+    with capsys.disabled():
+        print(f"\nbaseline: {line}")
 
 
 def _solve(request: dict[str, Any], settings: Settings, monkeypatch: pytest.MonkeyPatch) -> _Run:

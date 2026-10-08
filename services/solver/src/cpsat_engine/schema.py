@@ -108,11 +108,6 @@ class Dump:
     greedy_diagnostics: dict[str, Any]
     objective: tuple[int, ...]
 
-    def lower_bound(self, cohort: str) -> int | None:
-        """The per-cohort clique lower bound the greedy engine computed (redundant tier-3 cut)."""
-        value = self.greedy_diagnostics.get("cohorts", {}).get(cohort, {}).get("lowerBound")
-        return int(value) if value is not None else None
-
 
 def load_dump(path: str | Path) -> Dump:
     """Parse the dump JSON at ``path`` into a :class:`Dump`, rejecting an unknown ``formatVersion``."""

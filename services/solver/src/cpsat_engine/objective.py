@@ -45,15 +45,13 @@ class Tier:
 
 @dataclass(frozen=True)
 class ObjectiveModel:
-    """The ordered ten tiers plus the per-cohort occupied-slot vars (the tier-3 clique-cut anchor)."""
+    """The ordered ten tiers, in ``build_objective``'s fixed order."""
 
     tiers: tuple[Tier, ...]
-    cohort_slots: dict[str, cp_model.IntVar]
 
 
 def build_objective(bundle: ModelBundle) -> ObjectiveModel:
-    """Build the ten tier vars once (call once per model). Also exposes the per-cohort slot vars so
-    the staged solver can inject the redundant clique cut ``cohort_slots >= lowerBound`` at tier 3."""
+    """Build the ten tier vars once (call once per model)."""
     occ = _Occupancy(bundle)
     cohort_slots = _cohort_slot_vars(bundle, occ)
     tiers = (
@@ -68,7 +66,7 @@ def build_objective(bundle: ModelBundle) -> ObjectiveModel:
         Tier("fridayTail", _tier_friday_tail(bundle, occ)),
         Tier("goldenBandDistance", _tier_golden(bundle, occ)),
     )
-    return ObjectiveModel(tiers=tiers, cohort_slots=cohort_slots)
+    return ObjectiveModel(tiers=tiers)
 
 
 def build_tiers(bundle: ModelBundle) -> list[Tier]:
@@ -139,8 +137,7 @@ def _tier_holes(bundle: ModelBundle, occ: _Occupancy) -> cp_model.IntVar:
 
 
 def _cohort_slot_vars(bundle: ModelBundle, occ: _Occupancy) -> dict[str, cp_model.IntVar]:
-    """Per-cohort distinct occupied (day, period) cells (week-agnostic). tier 3 = their sum, and the
-    clique cut hardens each individually against its greedy lower bound."""
+    """Per-cohort distinct occupied (day, period) cells (week-agnostic). tier 3 = their sum."""
     used: dict[str, list[Term]] = {cohort: [] for cohort in COHORTS}
     for (cohort, day, period), terms in occ.cohort_cell.items():
         used[cohort].append(_bool_occ(bundle, terms, f"slot_{cohort}_{day}_{period}"))

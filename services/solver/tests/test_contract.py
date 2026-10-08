@@ -262,8 +262,9 @@ def _solve_result(*, proven_optimal: bool, stages: tuple[StageReport, ...] = ())
 
 
 def test_generation_result_omits_lower_bound_instead_of_nulling_it(schema: dict[str, Any]) -> None:
-    # No greedy diagnostics -> no clique bound. The old emitter wrote `"lowerBound": null` here,
-    # which is not assignable to the TS type and is rejected by the frozen schema.
+    # No engine produces a clique bound since S-309, and the key stays optional on the wire. The old
+    # emitter wrote `"lowerBound": null` here, which is not assignable to the TS type and is rejected
+    # by the frozen schema.
     dump = _dump(b.snapshot(dp1=b.cohort(courses=[b.course("a", teachers=["t1"])])))
     payload = to_generation_result(dump, _solve_result(proven_optimal=True))
 

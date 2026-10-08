@@ -5,12 +5,11 @@ import { describe, expect, it } from "vitest";
 import { COHORT_VALUES } from "@/shared/config";
 import {
   autoParkPhantomCourses,
-  generatePlanGreedy,
-  runVerifiedGeneration,
+  deriveGenerationDeficits,
   scoreCandidate,
+  verifyGeneration,
   type AutoParkedEntry,
   type GeneratedPlacement,
-  type GenerationResult,
   type GeneratorSnapshot,
 } from "@/entities/timetable";
 import { loadPlanAnalysis } from "@/_pages/plan-comparison/api";
@@ -26,26 +25,30 @@ import {
 } from "./experiment-harness";
 
 /**
- * `pnpm experiment:export` — the CP-SAT POC's export seam. Mirrors the generation experiment's flow
- * up to (not including) persist, then writes a JSON dump instead:
+ * `pnpm experiment:export` — the CP-SAT file-transport seam. Writes a JSON dump of one plan's
+ * generation instance, HINT-FREE, exactly as an app dispatch is:
  *
  *   clone catalog-only → optional PIN_SKELETON fixture copy → assemble the snapshot → auto-park
- *   zero-student courses' uncovered hours (assert + log loudly) → greedy-generate on the transformed
- *   snapshot → verify → compute the TS 10-tier objective tuple for the merged greedy board → dump.
+ *   zero-student courses' uncovered hours (assert + log loudly) → check the pins against the oracle →
+ *   compute the TS 10-tier objective tuple for the pins-only board → dump.
  *
- *   SOURCE_PLAN_ID=<plan-id> [PIN_SKELETON=1] [BUDGET_MS=20000] [OUT=path] pnpm experiment:export
+ *   SOURCE_PLAN_ID=<plan-id> [PIN_SKELETON=1] [OUT=path] pnpm experiment:export
  *
  * The dump (schema below) is the Python package's INPUT CONTRACT — the Python side never re-derives
- * the snapshot or re-scores the greedy board; it reads them here. UUIDs only: names, levels, and
- * flags are not in the snapshot type and never enter the dump. The seed-catalog dump is committed as
- * the pytest fixture (`OUT=services/solver/tests/fixtures/seed-plan-a.json`); the golden dump stays
- * gitignored under `services/solver/data/`.
+ * the snapshot; it reads it here. The `greedy` warm-start block is always EMPTY since S-309 retired
+ * the engine that filled it, so a CLI run on a new dump solves what production solves (no hint, no
+ * clique cut); `objective` is the pins-only board's tuple, which keeps `parity()` meaningful on it.
+ * UUIDs only: names, levels, and flags are not in the snapshot type and never enter the dump.
+ *
+ * The committed pytest fixture `services/solver/tests/fixtures/seed-plan-a.json` is a greedy-era
+ * RECORDED artifact — its warm start, objective tuple and clique bounds came from the retired engine,
+ * and the parity gate replays that board. Never regenerate it over the top: write a new dump beside
+ * it. Other dumps stay gitignored under `services/solver/data/`.
  *
  * Plans are addressed by id, never by name. Dev tooling — the Workers-runtime constraints do not apply.
  */
 const SOURCE_PLAN_ID = process.env.SOURCE_PLAN_ID;
 const PIN_SKELETON = process.env.PIN_SKELETON === "1";
-const BUDGET_MS = Number(process.env.BUDGET_MS ?? 20_000);
 const OUT = process.env.OUT ?? (SOURCE_PLAN_ID ? `services/solver/data/${SOURCE_PLAN_ID}-dump.json` : undefined);
 
 /** The export dump — the Python package's input contract. See the Python `schema.py` mirror. */
@@ -59,7 +62,8 @@ export type ExportDump = {
     autoParked: AutoParkedEntry[];
   };
   snapshot: GeneratorSnapshot;
-  greedy: { placements: GeneratedPlacement[]; diagnostics: GenerationResult["diagnostics"] };
+  /** The warm-start slot `load_dump` still requires — empty on every dump this runner writes. */
+  greedy: { placements: GeneratedPlacement[]; diagnostics: Record<string, never> };
   objective: number[];
 };
 
@@ -78,7 +82,7 @@ describe("snapshot export", () => {
     expect(ready).toBe(false);
   });
 
-  it.runIf(ready)("clones, pins, auto-parks, generates, verifies and dumps the instance", async () => {
+  it.runIf(ready)("clones, pins, auto-parks, checks the pins and dumps the instance", async () => {
     if (!SOURCE_PLAN_ID || !OUT) throw new Error(USAGE);
     const supabase = createLocalSupabase();
     const source = await loadPlanAnalysis(supabase, SOURCE_PLAN_ID);
@@ -101,20 +105,18 @@ describe("snapshot export", () => {
     const { snapshot, autoParked } = autoParkPhantomCourses(rawSnapshot);
     logAutoParked(autoParked);
 
-    const outcome = await runVerifiedGeneration(generatePlanGreedy, snapshot, { budgetMs: BUDGET_MS });
-    if (!outcome.ok) {
+    // The same fail-fast precondition Generate runs: the pins-only board already carrying a blocking
+    // violation means no solver result could ever pass verify, so the dump would be unsolvable.
+    const precondition = verifyGeneration(snapshot, []);
+    if (!precondition.ok) {
       throw new Error(
-        `Precondition failed — the pinned board already violates the oracle:\n${verdictReasons(outcome)}`,
-      );
-    }
-    if (!outcome.verdict.ok) {
-      throw new Error(
-        `The greedy board FAILED verification — refusing to dump an un-shippable warm start.\n` +
-          `Clone ${clonePlanId} left in place for inspection at /plans/${clonePlanId}.\n${verdictReasons(outcome)}`,
+        `Precondition failed — the pinned board already violates the oracle:\n` +
+          `Clone ${clonePlanId} left in place for inspection at /plans/${clonePlanId}.\n` +
+          verdictReasons({ verdict: precondition }),
       );
     }
 
-    const objective = scoreCandidate(snapshot, outcome.result.placements, remainingOf(outcome.result)).objective;
+    const objective = scoreCandidate(snapshot, [], generationDeficitsOf(snapshot)).objective;
     const dump: ExportDump = {
       formatVersion: 1,
       meta: {
@@ -125,33 +127,31 @@ describe("snapshot export", () => {
         autoParked,
       },
       snapshot,
-      greedy: { placements: outcome.result.placements, diagnostics: outcome.result.diagnostics },
+      greedy: { placements: [], diagnostics: {} },
       objective: [...objective],
     };
 
     mkdirSync(dirname(OUT), { recursive: true });
     writeFileSync(OUT, `${JSON.stringify(dump, null, 2)}\n`);
-    console.log(`\nobjective (TS 10-tuple): [${objective.join(", ")}]`);
-    console.log(`greedy unplaced: ${unplacedSummary(outcome.result)}`);
+    console.log(`\nobjective (TS 10-tuple, pins-only board): [${objective.join(", ")}]`);
     console.log(`dump written → ${OUT}  (clone ${clonePlanId} MUST survive until import — no db reset)`);
 
-    expect(outcome.verdict.ok).toBe(true);
+    expect(precondition.ok).toBe(true);
   });
 });
 
 const label = (): string => process.env.LABEL ?? `Export ${new Date().toISOString().slice(0, 16)}`;
 
-/** The generator's per-course remaining hours, keyed by course id across both cohorts — the input
- *  `scoreCandidate` reads tier 1 (`unplacedTotal`) from directly (never recomputed from placements). */
-const remainingOf = (result: GenerationResult): Map<string, number> => {
-  const remaining = new Map<string, number>();
-  for (const cohort of COHORT_VALUES) {
-    for (const deficit of result.diagnostics.cohorts[cohort].unplaced) {
-      remaining.set(deficit.courseId, deficit.missing);
-    }
-  }
-  return remaining;
-};
+/** What Generate would ask the solver to place, per course id across both cohorts — the per-cohort
+ *  `deriveGenerationDeficits` the app runs. `scoreCandidate` reads tier 1 (`unplacedTotal`) from it
+ *  directly (never recomputed from placements). */
+const generationDeficitsOf = (snapshot: GeneratorSnapshot): Map<string, number> =>
+  new Map(
+    COHORT_VALUES.flatMap((cohort) => {
+      const { pins, courses, parkedCourseIds } = snapshot.cohorts[cohort];
+      return deriveGenerationDeficits(pins, courses, parkedCourseIds);
+    }).map(({ courseId, missing }) => [courseId, missing]),
+  );
 
 const logAutoParked = (autoParked: AutoParkedEntry[]): void => {
   if (autoParked.length === 0) {
@@ -163,9 +163,3 @@ const logAutoParked = (autoParked: AutoParkedEntry[]): void => {
     console.log(`  • ${entry.cohort} ${entry.courseId} — ${entry.hoursParked} h parked`);
   }
 };
-
-const unplacedSummary = (result: GenerationResult): string =>
-  COHORT_VALUES.map(
-    (cohort) =>
-      `${cohort} ${result.diagnostics.cohorts[cohort].unplaced.reduce((sum, deficit) => sum + deficit.missing, 0)}h`,
-  ).join(" · ");

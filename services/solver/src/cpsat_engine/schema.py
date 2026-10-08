@@ -5,7 +5,9 @@ names, levels, or flags (port the mechanism, not the legacy shape). Derives per-
 (``required - pins - parked``, clamped at 0 per course) and rejects an unknown ``formatVersion``.
 
 The dump is produced by ``bench/export-snapshot.experiment.ts``; its shape is the contract between
-the TS export and this package. See that file for the authoritative schema.
+the TS export and this package. See that file for the authoritative schema. Since S-309 the exporter
+writes an EMPTY ``greedy`` warm-start block (the engine that filled it is retired); the key stays
+required here, and the committed ``seed-plan-a.json`` is a greedy-era recorded artifact.
 """
 
 from __future__ import annotations

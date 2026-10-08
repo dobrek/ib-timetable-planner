@@ -113,3 +113,20 @@ Taken with the author; the full table is in `plan-brief.md`.
 The timing is unchanged, because the stop lands 0.5 s into tier 3 whether or not the cut is there. Both tests run at about a tenth of their ceiling. CI confirms with the Phase 2 push.
 
 **CLI on the seed dump:** `uv run cpsat --mode complete --stage-budget 5 --mode-a-budget 30 --workers 4` completed with 238 placements and `stopReason: budget`. No `lowerBound` key appears anywhere in the result. `--mode parity` still reports 10/10.
+
+### 2026-10-08 — Phase 3: the hint-free export → CLI → import loop, against the local stack
+
+1. **Export.** Ran `SOURCE_PLAN_ID=<Seed Plan A> OUT=<scratch>/seed-dump.json pnpm experiment:export`.
+   - The dump has `greedy: { placements: [], diagnostics: {} }` and a pins-only objective of `[250, 0, 0, 0, 0, 0, 0, 0, 0, 0]`.
+   - Nothing was auto-parked.
+2. **CLI.**
+   - `--mode parity` on the new dump reports 10/10: the pins-only board, all generated vars fixed to 0.
+   - `--mode complete --policy clean --stage-budget 5 --mode-a-budget 60 --workers 4` reports `outcome=complete` with 250 rows.
+3. **Import.** Ran `IN=… DUMP=… pnpm experiment:import`. The result is `verify: OK · soft warns 0` and was persisted into the clone.
+4. **Cleanup.** Both clones were deleted afterwards through a local-only guarded script.
+
+**Not caused by S-309: `PIN_SKELETON=1` refused** on the local Seed Plan A. The message was "Fixture skeleton incomplete in the source plan: dp1 EE (2), dp1 CAS (1) … carry no placements".
+
+- That guard is in `copyFixtureSkeleton`, which this change does not touch.
+- The local seed plan's board no longer carries the fixture rows the skeleton expects. That is local data state, not this change.
+- The refused attempt had already cloned the plan; that clone was deleted with the other.

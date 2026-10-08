@@ -10,9 +10,9 @@ import {
 import type { LoadedPlan } from "@/_pages/plan-comparison/api";
 
 /**
- * The plan-comparison renderer, shared by `pnpm analyze:plans` and `pnpm experiment:generation`.
- * One renderer, so an experiment's tables are diffable against the recorded run-1 tables *by
- * construction* rather than by convention — a second copy would drift the moment a column moved.
+ * The plan-comparison renderer behind `pnpm analyze:plans`. One renderer, so every run's tables are
+ * diffable against the recorded run-1 tables *by construction* rather than by convention — a second
+ * copy would drift the moment a column moved.
  *
  * It reports; it never judges. No pass/fail bar on any metric lives here — that would smuggle back
  * the scalar score the analyzer exists to avoid.

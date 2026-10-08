@@ -8,8 +8,8 @@ import { buildReport, printPlanReports } from "./plan-report";
  * `pnpm analyze:plans` — the expert-vs-generated comparison, automated. Point it at one or two plan
  * ids in the local stack and it prints, per plan, the rule verdict (the **verify-gold** experiment:
  * feed an expert board to the engine's own oracle and ask "would this have been allowed?"), then the
- * feature tables side by side, via the shared renderer `plan-report.ts` (the same one
- * `pnpm experiment:generation` prints, so the tables stay diffable across runs).
+ * feature tables side by side, via the shared renderer `plan-report.ts` (so the tables stay diffable
+ * across runs).
  *
  *   ANALYZE_PLAN_A=<golden-id> [ANALYZE_PLAN_B=<clone-id>] pnpm analyze:plans
  *

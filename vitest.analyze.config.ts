@@ -7,8 +7,8 @@ import { defineConfig } from "vitest/config";
  * env comes from `.env.test.local`) and prints the comparison report.
  *
  * A config of its own, mirroring `vitest.experiment.config.ts`: the `*.analyze.ts` /
- * `*.experiment.ts` include split keeps the analyzer and the generation experiments from ever
- * triggering each other (a 60-second engine solve is not something an analysis run should pay for).
+ * `*.experiment.ts` include split keeps the analyzer and the bench experiments from ever triggering
+ * each other (an export that clones a plan is not something an analysis run should set off).
  */
 export default defineConfig({
   resolve: { tsconfigPaths: true },

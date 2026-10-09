@@ -432,8 +432,8 @@ None. No step is added. Pinned refs download the same action code.
 
 #### Manual
 
-- [ ] 1.8 Draft PR run shows only `Contents: read` + `Metadata: read` in the four test jobs
-- [ ] 1.9 `ci.yml` rationale comment reads in house voice and names the write-scope override rule
+- [x] 1.8 Draft PR run shows only `Contents: read` + `Metadata: read` in the four test jobs
+- [x] 1.9 `ci.yml` rationale comment reads in house voice and names the write-scope override rule
 
 ### Phase 2: SHA pinning and Dependabot
 
@@ -450,23 +450,23 @@ None. No step is added. Pinned refs download the same action code.
 
 #### Manual
 
-- [ ] 2.9 PR run downloads every action at its pinned SHA, no tag refs left
-- [ ] 2.10 Diff review: no pin upgrades a version
-- [ ] 2.11 setup-uv comments keep the `version` ↔ `mise.toml` lockstep note
+- [x] 2.9 PR run downloads every action at its pinned SHA, no tag refs left
+- [x] 2.10 Diff review: no pin upgrades a version
+- [x] 2.11 setup-uv comments keep the `version` ↔ `mise.toml` lockstep note
 
 ### Phase 3: Merge, verify on `main`, enforce pinning
 
 #### Automated
 
-- [ ] 3.1 Post-merge `main` run is green including `deploy`
-- [ ] 3.2 No open `actions/missing-workflow-permissions` alerts
-- [ ] 3.3 Alerts #1/#2/#3/#5/#6 are `fixed`
-- [ ] 3.4 Enforcement is on (or rollback recorded)
+- [x] 3.1 Post-merge `main` run is green including `deploy`
+- [x] 3.2 No open `actions/missing-workflow-permissions` alerts
+- [x] 3.3 Alerts #1/#2/#3/#5/#6 are `fixed`
+- [x] 3.4 Enforcement is on (or rollback recorded)
 - [ ] 3.5 Post-flip `workflow_dispatch` run on `main` passes all four test jobs
 
 #### Manual
 
-- [ ] 3.6 Merged only while no production solve was running
+- [x] 3.6 Merged only while no production solve was running
 - [ ] 3.7 All five post-merge jobs, `deploy` included, show only `Contents: read` + `Metadata: read`
 - [ ] 3.8 Dependabot shows no config error; first-run PRs match expectations
 - [ ] 3.9 A code-scanning analysis and a Dependabot run both completed after the flip

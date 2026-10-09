@@ -439,14 +439,14 @@ None. No step is added. Pinned refs download the same action code.
 
 #### Automated
 
-- [x] 2.1 All workflow YAML parses
-- [x] 2.2 No remote ref lacks a SHA pin with an exact version comment
-- [x] 2.3 Exactly 13 pinned remote refs
-- [x] 2.4 Every pinned SHA is the commit its comment's tag points at
-- [x] 2.5 Dependabot config has the agreed shape
-- [x] 2.6 Formatting is clean
-- [x] 2.7 Local CI gate is green
-- [ ] 2.8 Phase 2 commit CI passes all four test jobs
+- [x] 2.1 All workflow YAML parses — 97d6b42
+- [x] 2.2 No remote ref lacks a SHA pin with an exact version comment — 97d6b42
+- [x] 2.3 Exactly 13 pinned remote refs — 97d6b42
+- [x] 2.4 Every pinned SHA is the commit its comment's tag points at — 97d6b42
+- [x] 2.5 Dependabot config has the agreed shape — 97d6b42
+- [x] 2.6 Formatting is clean — 97d6b42
+- [x] 2.7 Local CI gate is green — 97d6b42
+- [x] 2.8 Phase 2 commit CI passes all four test jobs — 97d6b42
 
 #### Manual
 

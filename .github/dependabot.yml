@@ -1,0 +1,33 @@
+# Keeps the SHA pins on every remote `uses:` current — see the pinning rule in `workflows/ci.yml`.
+#
+# MONTHLY, not weekly: every merge to `main` deploys the Worker and rolls the solver container, and
+# README's "do not merge while a production solve is running" rule binds a Dependabot PR exactly as
+# it binds any other. A slower cadence means fewer deploys and fewer no-solve windows to find.
+#
+# Minor and patch bumps share ONE grouped PR; each MAJOR stays out of the group and gets a PR of
+# its own, so its changelog is reviewed on its own and a bad one reverts on its own.
+#
+# `github-actions` only. npm (pnpm) and uv entries are deferred: Dependabot's pnpm 12 support is
+# unverified, and solver bumps must respect ortools' tight protobuf/numpy pins
+# (`context/foundation/health-check.md` Fix 6).
+#
+# Dependabot bumps `uses:` refs, never `with:` inputs. `deploy`'s `wranglerVersion` (lockstep with
+# the `wrangler` devDependency in `package.json`) and setup-uv's `version` (lockstep with
+# `mise.toml`'s `uv`) stay hand-maintained.
+#
+# `directories` is plural on purpose: `directory: "/"` scans only `.github/workflows/` plus a root
+# `action.yml`, so the composite actions under `.github/actions/` would never be updated — and a
+# glob works only with the plural key.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directories: ["/", "/.github/actions/*"]
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore"
+      include: "scope" # → "chore(deps): bump …", matching the repo's commit convention
+    groups:
+      actions-minor-patch: # group ids must start and end with a letter
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

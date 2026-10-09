@@ -422,13 +422,13 @@ None. No step is added. Pinned refs download the same action code.
 
 #### Automated
 
-- [x] 1.1 All edited YAML parses
-- [x] 1.2 Workflow scope is exactly `contents: read` and no job overrides it
-- [x] 1.3 All five checkouts disable persisted credentials
-- [x] 1.4 No expression interpolation inside composite `run:` scripts
-- [x] 1.5 Formatting is clean
-- [x] 1.6 Local CI gate is green
-- [ ] 1.7 Draft PR opened; Phase 1 commit CI passes all four test jobs
+- [x] 1.1 All edited YAML parses — 4dc637f
+- [x] 1.2 Workflow scope is exactly `contents: read` and no job overrides it — 4dc637f
+- [x] 1.3 All five checkouts disable persisted credentials — 4dc637f
+- [x] 1.4 No expression interpolation inside composite `run:` scripts — 4dc637f
+- [x] 1.5 Formatting is clean — 4dc637f
+- [x] 1.6 Local CI gate is green — 4dc637f
+- [x] 1.7 Draft PR opened; Phase 1 commit CI passes all four test jobs — 4dc637f
 
 #### Manual
 
@@ -439,13 +439,13 @@ None. No step is added. Pinned refs download the same action code.
 
 #### Automated
 
-- [ ] 2.1 All workflow YAML parses
-- [ ] 2.2 No remote ref lacks a SHA pin with an exact version comment
-- [ ] 2.3 Exactly 13 pinned remote refs
-- [ ] 2.4 Every pinned SHA is the commit its comment's tag points at
-- [ ] 2.5 Dependabot config has the agreed shape
-- [ ] 2.6 Formatting is clean
-- [ ] 2.7 Local CI gate is green
+- [x] 2.1 All workflow YAML parses
+- [x] 2.2 No remote ref lacks a SHA pin with an exact version comment
+- [x] 2.3 Exactly 13 pinned remote refs
+- [x] 2.4 Every pinned SHA is the commit its comment's tag points at
+- [x] 2.5 Dependabot config has the agreed shape
+- [x] 2.6 Formatting is clean
+- [x] 2.7 Local CI gate is green
 - [ ] 2.8 Phase 2 commit CI passes all four test jobs
 
 #### Manual

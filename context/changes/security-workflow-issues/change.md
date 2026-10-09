@@ -1,7 +1,7 @@
 ---
 change_id: security-workflow-issues
 title: Security workflow issues
-status: implementing
+status: implemented
 created: 2026-10-09
 updated: 2026-10-09
 archived_at: null
@@ -38,7 +38,7 @@ https://github.com/dobrek/ib-timetable-planner/security/code-scanning/1
 
   There is no minor/patch group PR: nothing below a major was pending. Titles read `chore(deps): bump …`, as configured. **Each is a separate review, and each merge deploys, so merge only with no solve running.**
 - **`sha_pinning_required` (3.4):** before, `{"enabled":true,"allowed_actions":"all","sha_pinning_required":false}`. `PUT {"enabled": true, "allowed_actions": "all", "sha_pinning_required": true}` at 11:18:01Z, and the read-back is `true`.
-- **Post-flip proof (3.5, 3.9):**
-  - CI: `workflow_dispatch` run 37922894079 on `main`.
-  - CodeQL: default setup **skips Dependabot PRs** (the `CodeQL` check reads `skipping` on #137), and GitHub refuses to re-run its own CodeQL and Dependabot runs ("This workflow run cannot be retried"). The post-flip analysis therefore comes from this close-out PR.
-  - Dependabot: `@dependabot recreate` on #140 at 11:19:18Z, to force an update job after the flip.
+- **Post-flip proof (3.5, 3.9). Enforcement blocked nothing, so no rollback:**
+  - **CI:** `workflow_dispatch` run 37922894079 on `main` → `success`. All four test jobs passed and `deploy` was skipped. That run exercised both local composite actions and setup-cli's nested `oven-sh/setup-bun@<sha>`, so local `./.github/actions/*` refs and SHA-pinned nested actions both pass the policy.
+  - **CodeQL:** default setup **skips Dependabot PRs** (the `CodeQL` check reads `skipping` on #137), and GitHub refuses to re-run its own CodeQL and Dependabot runs ("This workflow run cannot be retried"). The post-flip analysis came from close-out PR #141: analyses 1922769329 `actions` (11:22:32Z), 1922770111 `python` and 1922770266 `javascript-typescript`, all with no error. All of #141's CI also passed under enforcement.
+  - **Dependabot:** `@dependabot recreate` on #140 at 11:19:18Z → `Dependabot Updates` run 37923005874 at 11:19:24Z → `success`. It force-pushed #140 to `f79a017` at 11:19:57Z.

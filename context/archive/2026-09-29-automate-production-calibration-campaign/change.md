@@ -1,10 +1,10 @@
 ---
 change_id: automate-production-calibration-campaign
 title: Automate production calibration campaign
-status: impl_reviewed
+status: archived
 created: 2026-09-29
-updated: 2026-10-02
-archived_at: null
+updated: 2026-10-09
+archived_at: 2026-10-09T07:45:33Z
 ---
 
 ## Notes

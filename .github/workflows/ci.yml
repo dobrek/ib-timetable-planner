@@ -13,12 +13,33 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+# The GITHUB_TOKEN scope, written down rather than inherited from the repo's Actions default
+# (read-only today, but that is a setting, and settings change without a commit). Every action at
+# its pinned version needs at most `contents: read` — checkout, and setup-node's Node-manifest
+# fetch — and nothing this workflow runs reads the token itself: `deploy` authenticates with its
+# Cloudflare and Supabase secrets only. Caching and artifact uploads go through the runtime token,
+# which `permissions:` does not govern.
+#
+# Workflow-level on purpose, so a future job inherits read-only instead of the default. A job that
+# ever needs a write scope (say, `deployments: write` for wrangler-action's GitHub Deployments) gets
+# a JOB-level `permissions:` override; never widen this default to suit one job. Do not confuse this
+# key with a workflow-level `env:`, which stays forbidden — see the env-isolation note in
+# `.github/actions/supabase-stack/action.yml`.
+#
+# Every checkout sets `persist-credentials: false`. Nothing here runs a remote git command and no
+# dependency is git-sourced, so a persisted token would serve only the lifecycle scripts
+# `pnpm install` runs, and every later step — none of which should hold one.
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: "Lint, audit, unit & build"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
 
       # `scripts/solver/*.sh` is in every other gate's blind spot — ESLint ignores `scripts/`,
@@ -71,6 +92,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
       # The solver-credential guard signs in as the machine user with the PUBLISHABLE key — that is
       # its subject (what a client holding only that key and a password can reach), so it needs the
@@ -172,6 +195,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/supabase-stack
         with:
@@ -285,6 +310,8 @@ jobs:
         working-directory: services/solver
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       # ortools pins protobuf/numpy tightly, so this package owns a dedicated venv — uv builds it
       # from the committed lockfile. `working-directory` is repeated here because `defaults.run`
@@ -327,6 +354,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
 
       - run: pnpm exec astro sync

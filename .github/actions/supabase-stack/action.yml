@@ -43,11 +43,17 @@ runs:
     # workflow-level `env:` block — writing a production key into `.dev.vars` would aim
     # the workerd preview, and a real signInWithPassword, at production. $GITHUB_ENV is
     # per-job, so these stay job-scoped.
+    #
+    # The input reaches the script through `env:`, never as `${{ }}` inside `run:`: an expression
+    # there is pasted into the script text before bash parses it, so a non-literal value from a
+    # future caller would execute as code. No `run:` in either composite action interpolates one.
     - name: Export Supabase env
       shell: bash
+      env:
+        EXPORT_ANON_KEY: ${{ inputs.export-anon-key }}
       run: |
         EXTRA=""
-        [ "${{ inputs.export-anon-key }}" = "true" ] && EXTRA="--override-name auth.anon_key=SUPABASE_KEY"
+        [ "$EXPORT_ANON_KEY" = "true" ] && EXTRA="--override-name auth.anon_key=SUPABASE_KEY"
         supabase status -o env \
           --override-name api.url=SUPABASE_URL $EXTRA \
           --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \

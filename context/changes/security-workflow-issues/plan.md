@@ -462,12 +462,12 @@ None. No step is added. Pinned refs download the same action code.
 - [x] 3.2 No open `actions/missing-workflow-permissions` alerts
 - [x] 3.3 Alerts #1/#2/#3/#5/#6 are `fixed`
 - [x] 3.4 Enforcement is on (or rollback recorded)
-- [ ] 3.5 Post-flip `workflow_dispatch` run on `main` passes all four test jobs
+- [x] 3.5 Post-flip `workflow_dispatch` run on `main` passes all four test jobs
 
 #### Manual
 
 - [x] 3.6 Merged only while no production solve was running
-- [ ] 3.7 All five post-merge jobs, `deploy` included, show only `Contents: read` + `Metadata: read`
-- [ ] 3.8 Dependabot shows no config error; first-run PRs match expectations
-- [ ] 3.9 A code-scanning analysis and a Dependabot run both completed after the flip
-- [ ] 3.10 Outcomes recorded in `change.md` Notes
+- [x] 3.7 All five post-merge jobs, `deploy` included, show only `Contents: read` + `Metadata: read`
+- [x] 3.8 Dependabot shows no config error; first-run PRs match expectations
+- [x] 3.9 A code-scanning analysis and a Dependabot run both completed after the flip
+- [x] 3.10 Outcomes recorded in `change.md` Notes

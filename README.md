@@ -456,7 +456,7 @@ pnpm exec supabase db diff             # should report clean afterward
 
 > Table reachability is pinned explicitly in migrations, not left to Supabase's legacy auto-grant for new `public` tables (the platform is moving to opt-in grants). `authenticated` and `service_role` are granted DML on the public schema — current and future tables, via `alter default privileges` — while `anon` is revoked (least privilege). When adding a `public` table, the default-privilege rules carry these grants forward automatically; if a table is ever unexpectedly unreachable, run `pnpm exec supabase db advisors` and confirm the role holds a grant. RLS controls which rows are visible; grants control whether the table is reachable at all — both must be in place.
 
-**Rollback.** There is no production data to preserve yet. Prefer additive migrations (nullable new columns, no `DROP`); a code rollback does not undo an applied migration. To reset hosted state at this stage, drop and re-push.
+**Rollback.** Hosted holds real school data, so migrations are **additive only** (nullable new columns, no `DROP`), and hosted is never dropped and re-pushed. A code rollback does not undo an applied migration — recover by rolling forward with a new additive migration.
 
 ### Auth routes
 

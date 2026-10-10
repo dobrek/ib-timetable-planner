@@ -394,3 +394,15 @@ Offered as non-goals and left open on purpose — not forgotten: per-plan sharin
    user.
 2. **Invitation lifetime vs platform cap.** The 72-hour invitation lifetime must be verified
    against what the auth platform allows. — Owner: planning.
+   - _Finding (2026-10-10, health check):_ the platform has **one** lifetime for every email link.
+     Supabase's docs: "The Email OTP Expiration setting also governs the validity of Magic Links
+     and other email links, including confirmation, password recovery, email change, and
+     invitation links", and a value above 86,400 s (one day) "is strongly discouraged and can only
+     be set via the Management API". So the guardrail's "invite 72 h, reset 1 h" cannot both hold
+     with standard Supabase links. Options, undecided:
+     (a) one lifetime for all links (e.g. 24 h), with invites relying on FR-401's re-send and the
+     reset guardrail relaxed to match;
+     (b) reset links stay at the platform's 1 h, and invites use app-issued tokens with their own
+     72 h expiry (more code; a new token table under RLS);
+     (c) 72 h for all links via the Management API (discouraged; weakens reset).
+     Decide before `/10x-plan`; the choice may amend the non-functional guardrail.

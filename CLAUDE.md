@@ -41,6 +41,17 @@ FSD layers under `src/`: `app/` (shell, layouts, styles), `_pages/<slice>/` (pag
 - Test at the wrapper level (HTTP surface), not just the core — the untested `cli.py` was the POC's recorded lesson.
 - Cross-ecosystem tasks run through **mise**; pnpm scripts remain the JS-side canon. Never add solver steps to `package.json`. `mise.toml` is the **catalog**, not the code: every task body lives in `scripts/solver/*.sh` (POSIX sh, `set -eu` as the first non-comment line, self-locating to the repo root, sourcing `common.sh`), shellcheck-gated by `mise run solver:check` and CI's `verify` job. A new solver task means a new script plus a one-line `run`.
 
+## Database & auth (Supabase)
+
+- **Hosted holds real school data — migrations are additive only.** Never `DROP`, never drop-and-re-push: CI's `deploy` job applies every pending migration to hosted on merge to `main`, so each one must be safe against live data on its own. Recover by rolling forward with a new migration.
+- **No `SECURITY DEFINER`.** Every RPC is INVOKER so RLS governs it — no migration defines a DEFINER function today, and several say why in their comments. An exception needs a recorded reason in the migration and the plan that introduces it.
+- **The Worker holds no secret key** — only `SUPABASE_KEY` (`sb_publishable_…`), by decision of record (`context/deployment/deploy-plan.md:141`). `sb_secret_…` appears only in Node tooling and tests. Tokens are ES256; don't write legacy `anon`/`service_role` JWT idioms or HS256 assumptions — fetch current Supabase docs (Context7 `/supabase/supabase`, `/supabase/ssr`) before writing Auth code.
+- **Hosted auth config (Site URL, redirect allowlist, password policy, SMTP, email templates, hooks) changes by hand** — dashboard or Management API, per `docs/runbooks/`. Never run `supabase config push`: it pushes the whole `supabase/config.toml`, which is the **local development** config (`docs/runbooks/solver-credential.md` lists what it would break).
+- The Custom Access Token Hook trusts only `app_metadata.machine_role` (Admin-API-only, never user-writable) and rewrites `claims.role` solely for the exact value `solver_job_writer`. Never let a user- or admin-editable value flow into `claims.role`.
+- **Integration suites run as service-role, which bypasses RLS** — they prove behaviour, not access control. An access-control claim needs a client signed in with the publishable key, as `src/test/solver-credential.integration.test.ts` does. Confirm grant posture with `has_table_privilege(...)`, not by reading the migration (see `context/foundation/lessons.md`).
+- After a migration that changes a table or column, regenerate `src/shared/api/database.types.ts` with the local stack up: `pnpm exec supabase gen types typescript --local > src/shared/api/database.types.ts`. Check the diff before committing — the redirect empties the file if the command fails. It is generator output, committed verbatim and prettier-ignored; never hand-edit it.
+- CI's Supabase stack (`.github/actions/supabase-stack/action.yml`) starts with `mailpit` and `edge-runtime` excluded. A suite that needs email capture or an Edge Function must re-include them there, or it passes locally and fails in CI.
+
 ## Coding Style & Naming
 
 - Use `type` for data shapes; reserve `interface` for behavioral/class contracts. Each function does one thing; never mutate parameters.

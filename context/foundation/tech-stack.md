@@ -20,7 +20,8 @@ hints:
 ---
 
 > Updated 2026-07-16 for the post-POC CP-SAT solver-service change
-> (`context/foundation/prd.md`), aligned with the two-component
+> (`context/foundation/archive/2026-10-10-prd.md`; archived 2026-10-10 when the
+> user-management PRD replaced it), aligned with the two-component
 > `context/foundation/stack-assessment.md` of the same date. Originally the
 > greenfield hand-off that bootstrapped the repo from 10x-astro-starter; the
 > frontmatter keeps that record, with `deployment_target` (Workers, not

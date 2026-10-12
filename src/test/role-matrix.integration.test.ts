@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient as UntypedSupabaseClient } from "@supabase/supabase-js";
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { shelveCourses } from "@/_pages/plan-detail/api/shelf";
-import { computeSnapshotHash } from "@/entities/timetable";
 import type { Database, SupabaseClient } from "@/shared/api";
 import {
   addAvailability,
   addCourse,
+  addGenerationJob,
   addMerge,
   addOverlap,
   addStudentWithChoices,
@@ -15,13 +14,17 @@ import {
   computeGroupingsFor,
   createPlan,
   createSignedInUser,
+  generationJobRow,
   placeCourse,
   registerPlan,
+  shelveCourses,
   teardown,
   type SignedInUser,
 } from "@/test/factories";
+import { decodeAccessClaims, type AccessClaims } from "./access-claims";
 import { probeRead, probeWrite, seesFixtureRows, type PublicTable, type WriteAttempt } from "./access-probe";
 import { connectPostgres, heldPrivileges } from "./postgres-client";
+import { createPublishableClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 import {
   GRANTS,
@@ -64,7 +67,6 @@ const PRINCIPALS = Object.keys(PRINCIPAL_NOTES) as Principal[];
 const TABLES = Object.keys(READS) as PublicTable[];
 const REPRESENTATIVES = Object.keys(WRITES) as RepresentativeTable[];
 const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
-const CLONE_SOURCE_HIDDEN = /source plan .* not found/;
 
 (hasEnv ? describe : describe.skip)("role matrix (local Supabase)", () => {
   let admin: SupabaseClient;
@@ -80,17 +82,19 @@ const CLONE_SOURCE_HIDDEN = /source plan .* not found/;
     signedIn = { noRole: await createSignedInUser(admin) };
     principals = {
       // The publishable key and no session: never signed in.
-      anon: createClient<Database>(SUPABASE_URL, PUBLISHABLE_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      }),
+      anon: createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY),
       noRole: signedIn.noRole.client,
     };
     planId = await buildFixture(admin);
   }, 30_000);
 
   afterAll(async () => {
-    await teardown(admin);
-    await pg.end();
+    try {
+      await teardown(admin);
+    } finally {
+      // Teardown throws one aggregated error; the socket must close either way.
+      await pg.end();
+    }
   });
 
   it("fixture: the service role sees a fixture row in every public table", async () => {
@@ -160,9 +164,11 @@ const livePosture = async (pg: Client): Promise<Record<string, TablePosture>> =>
        join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relkind in ('r', 'p')`,
   );
-  const entries = await Promise.all(
-    rows.map(
-      async ({ relname, relrowsecurity }): Promise<[string, TablePosture]> => [
+  // One table at a time: a pg Client runs one query at a time, and overlapping calls are deprecated (gone in pg@9).
+  const entries = await rows.reduce<Promise<[string, TablePosture][]>>(
+    async (done, { relname, relrowsecurity }) => [
+      ...(await done),
+      [
         relname,
         {
           anon: await heldPrivileges(pg, "anon", `public.${relname}`),
@@ -170,7 +176,8 @@ const livePosture = async (pg: Client): Promise<Record<string, TablePosture>> =>
           rls: relrowsecurity,
         },
       ],
-    ),
+    ],
+    Promise.resolve([]),
   );
   return Object.fromEntries(entries);
 };
@@ -188,27 +195,13 @@ const WRITE_PROBES: Record<RepresentativeTable, Record<WriteOperation, WriteProb
       const id = randomUUID();
       // Registered before the attempt, so an allowed insert is still torn down.
       registerPlan(id);
-      return Promise.resolve({
-        attempt: () => client.from("plans").insert({ id, name: `Factory Plan ${id}`, slot_grid_preset: "5x10" }),
-        effectLanded: async () => readBack(await admin.from("plans").select("id").eq("id", id)).length > 0,
-      });
+      return Promise.resolve(
+        insertProbe(admin, client, "plans", { id, name: `Factory Plan ${id}`, slot_grid_preset: "5x10" }),
+      );
     },
-    update: async (admin, client) => {
-      const id = await createPlan(admin);
-      const name = `Factory Plan ${randomUUID()}`;
-      return {
-        attempt: () => client.from("plans").update({ name }).eq("id", id),
-        effectLanded: async () =>
-          readBack(await admin.from("plans").select("name").eq("id", id).single()).name === name,
-      };
-    },
-    delete: async (admin, client) => {
-      const id = await createPlan(admin);
-      return {
-        attempt: () => client.from("plans").delete().eq("id", id),
-        effectLanded: async () => readBack(await admin.from("plans").select("id").eq("id", id)).length === 0,
-      };
-    },
+    update: async (admin, client) =>
+      updateProbe(admin, client, "plans", await createPlan(admin), "name", `Factory Plan ${randomUUID()}`),
+    delete: async (admin, client) => deleteProbe(admin, client, "plans", await createPlan(admin)),
   },
   courses: {
     insert: (admin, client, planId) => {
@@ -221,52 +214,33 @@ const WRITE_PROBES: Record<RepresentativeTable, Record<WriteOperation, WriteProb
         level: "none",
         hours_per_week: 1,
       };
-      return Promise.resolve({
-        attempt: () => client.from("courses").insert(row),
-        effectLanded: async () => readBack(await admin.from("courses").select("id").eq("id", id)).length > 0,
-      });
+      return Promise.resolve(insertProbe(admin, client, "courses", row));
     },
-    update: async (admin, client, planId) => {
-      const id = await addProbeCourse(admin, planId);
-      const color = "#5e771e";
-      return {
-        attempt: () => client.from("courses").update({ color }).eq("id", id),
-        effectLanded: async () =>
-          readBack(await admin.from("courses").select("color").eq("id", id).single()).color === color,
-      };
-    },
-    delete: async (admin, client, planId) => {
-      const id = await addProbeCourse(admin, planId);
-      return {
-        attempt: () => client.from("courses").delete().eq("id", id),
-        effectLanded: async () => readBack(await admin.from("courses").select("id").eq("id", id)).length === 0,
-      };
-    },
+    update: async (admin, client, planId) =>
+      updateProbe(admin, client, "courses", await addProbeCourse(admin, planId), "color", "#5e771e"),
+    delete: async (admin, client, planId) => deleteProbe(admin, client, "courses", await addProbeCourse(admin, planId)),
   },
   students: {
-    insert: (admin, client, planId) => {
-      const id = randomUUID();
-      return Promise.resolve({
-        attempt: () => client.from("students").insert({ id, plan_id: planId, cohort: "dp1", full_name: "Probe" }),
-        effectLanded: async () => readBack(await admin.from("students").select("id").eq("id", id)).length > 0,
-      });
-    },
-    update: async (admin, client, planId) => {
-      const id = await addProbeStudent(admin, planId);
-      const fullName = `Probe ${randomUUID()}`;
-      return {
-        attempt: () => client.from("students").update({ full_name: fullName }).eq("id", id),
-        effectLanded: async () =>
-          readBack(await admin.from("students").select("full_name").eq("id", id).single()).full_name === fullName,
-      };
-    },
-    delete: async (admin, client, planId) => {
-      const id = await addProbeStudent(admin, planId);
-      return {
-        attempt: () => client.from("students").delete().eq("id", id),
-        effectLanded: async () => readBack(await admin.from("students").select("id").eq("id", id)).length === 0,
-      };
-    },
+    insert: (admin, client, planId) =>
+      Promise.resolve(
+        insertProbe(admin, client, "students", {
+          id: randomUUID(),
+          plan_id: planId,
+          cohort: "dp1",
+          full_name: "Probe",
+        }),
+      ),
+    update: async (admin, client, planId) =>
+      updateProbe(
+        admin,
+        client,
+        "students",
+        await addProbeStudent(admin, planId),
+        "full_name",
+        `Probe ${randomUUID()}`,
+      ),
+    delete: async (admin, client, planId) =>
+      deleteProbe(admin, client, "students", await addProbeStudent(admin, planId)),
   },
   placements: {
     // The board's write path is the `place_course` RPC, not a direct insert, so that is what's probed.
@@ -287,50 +261,77 @@ const WRITE_PROBES: Record<RepresentativeTable, Record<WriteOperation, WriteProb
           readBack(await admin.from("placements").select("id").eq("course_id", courseId)).length > 0,
       };
     },
-    update: async (admin, client, planId) => {
-      const id = await addProbePlacement(admin, planId);
-      return {
-        attempt: () => client.from("placements").update({ is_optional: true }).eq("id", id),
-        effectLanded: async () =>
-          readBack(await admin.from("placements").select("is_optional").eq("id", id).single()).is_optional,
-      };
-    },
-    delete: async (admin, client, planId) => {
-      const id = await addProbePlacement(admin, planId);
-      return {
-        attempt: () => client.from("placements").delete().eq("id", id),
-        effectLanded: async () => readBack(await admin.from("placements").select("id").eq("id", id)).length === 0,
-      };
-    },
+    // The factory places a course as not optional, so `true` is a change.
+    update: async (admin, client, planId) =>
+      updateProbe(admin, client, "placements", await addProbePlacement(admin, planId), "is_optional", true),
+    delete: async (admin, client, planId) =>
+      deleteProbe(admin, client, "placements", await addProbePlacement(admin, planId)),
   },
   // Each cell gets a plan of its own: a plan holds at most one queued or running job.
   generation_jobs: {
-    insert: async (admin, client) => {
-      const id = randomUUID();
-      const row = { id, ...(await jobRow(await createPlan(admin))) };
-      return {
-        attempt: () => client.from("generation_jobs").insert(row),
-        effectLanded: async () => readBack(await admin.from("generation_jobs").select("id").eq("id", id)).length > 0,
-      };
-    },
-    update: async (admin, client) => {
-      const id = await insertTerminalJob(admin, await createPlan(admin));
-      const error = `probe ${randomUUID()}`;
-      return {
-        attempt: () => client.from("generation_jobs").update({ error }).eq("id", id),
-        effectLanded: async () =>
-          readBack(await admin.from("generation_jobs").select("error").eq("id", id).single()).error === error,
-      };
-    },
-    delete: async (admin, client) => {
-      const id = await insertTerminalJob(admin, await createPlan(admin));
-      return {
-        attempt: () => client.from("generation_jobs").delete().eq("id", id),
-        effectLanded: async () => readBack(await admin.from("generation_jobs").select("id").eq("id", id)).length === 0,
-      };
-    },
+    insert: async (admin, client) =>
+      insertProbe(admin, client, "generation_jobs", {
+        id: randomUUID(),
+        ...(await generationJobRow(await createPlan(admin))),
+      }),
+    update: async (admin, client) =>
+      updateProbe(
+        admin,
+        client,
+        "generation_jobs",
+        await addFinishedJob(admin, await createPlan(admin)),
+        "error",
+        `probe ${randomUUID()}`,
+      ),
+    delete: async (admin, client) =>
+      deleteProbe(admin, client, "generation_jobs", await addFinishedJob(admin, await createPlan(admin))),
   },
 };
+
+type Tables = Database["public"]["Tables"];
+
+// The three shapes most write cells share. Each read-back is derived from its attempt, so the two
+// can never name different tables or columns. The clients are taken untyped because one code path
+// writes every table; the row, column and sentinel stay typed against the generated schema.
+
+/** INSERT `row` as the principal; the effect is a row with its client-supplied id. */
+const insertProbe = <T extends RepresentativeTable>(
+  admin: UntypedSupabaseClient,
+  client: UntypedSupabaseClient,
+  table: T,
+  row: Tables[T]["Insert"] & { id: string },
+): WriteAttempt => ({
+  attempt: () => client.from(table).insert(row),
+  effectLanded: async () => readBack(await admin.from(table).select("id").eq("id", row.id)).length > 0,
+});
+
+/** UPDATE one column of row `id` to `sentinel`, which must differ from its starting value. */
+const updateProbe = <T extends RepresentativeTable, C extends keyof Tables[T]["Update"] & string>(
+  admin: UntypedSupabaseClient,
+  client: UntypedSupabaseClient,
+  table: T,
+  id: string,
+  column: C,
+  sentinel: NonNullable<Tables[T]["Update"][C]>,
+): WriteAttempt => ({
+  attempt: () =>
+    client
+      .from(table)
+      .update({ [column]: sentinel })
+      .eq("id", id),
+  effectLanded: async () => readBack(await admin.from(table).select(column).eq("id", id).single())[column] === sentinel,
+});
+
+/** DELETE row `id` as the principal; the effect is the row gone. */
+const deleteProbe = (
+  admin: UntypedSupabaseClient,
+  client: UntypedSupabaseClient,
+  table: RepresentativeTable,
+  id: string,
+): WriteAttempt => ({
+  attempt: () => client.from(table).delete().eq("id", id),
+  effectLanded: async () => readBack(await admin.from(table).select("id").eq("id", id)).length === 0,
+});
 
 /**
  * `clone_plan` reads its source inside `insert … select`, so a source hidden by RLS surfaces as the
@@ -345,11 +346,13 @@ const cloneProbe = (admin: SupabaseClient, client: SupabaseClient, planId: strin
       return result;
     },
     effectLanded: async () => {
+      // Not a pure check: it also registers what it finds, so a clone the attempt never saw is still torn down.
       const clones = readBack(await admin.from("plans").select("id").eq("name", name));
       for (const { id } of clones) registerPlan(id);
       return clones.length > 0;
     },
-    deniedWhen: CLONE_SOURCE_HIDDEN,
+    // Anchored to this cell's own source, so a wrong or deleted plan id throws instead of reading as "denied".
+    deniedWhen: new RegExp(`^clone_plan: source plan ${planId} not found$`),
   };
 };
 
@@ -372,12 +375,8 @@ const buildFixture = async (admin: SupabaseClient): Promise<string> => {
   await addStudentWithChoices(admin, { planId, cohort: "dp1", fullName: "Matrix Student", courseIds: [placed] });
   await computeGroupingsFor(admin, { planId, cohort: "dp1" });
   await placeCourse(admin, { planId, cohort: "dp1", courseId: placed, day: 1, period: 1 });
-  await shelveCourses(admin, {
-    planId,
-    cohort: "dp1",
-    members: [{ courseId: parked, week: "both", isOptional: false }],
-  });
-  await insertTerminalJob(admin, planId);
+  await shelveCourses(admin, { planId, cohort: "dp1", courseIds: [parked] });
+  await addFinishedJob(admin, planId);
   return planId;
 };
 
@@ -393,34 +392,8 @@ const addProbePlacement = async (admin: SupabaseClient, planId: string): Promise
 };
 
 /** A finished job, so it never holds its plan's one active-job slot. */
-const insertTerminalJob = async (admin: SupabaseClient, planId: string): Promise<string> => {
-  const { data, error } = await admin
-    .from("generation_jobs")
-    .insert({ ...(await jobRow(planId)), status: "failed" })
-    .select("id")
-    .single();
-  if (error) throw new Error(`insertTerminalJob: ${error.message}`);
-  return data.id;
-};
-
-const jobRow = async (planId: string): Promise<Database["public"]["Tables"]["generation_jobs"]["Insert"]> => {
-  const snapshot = {
-    days: 5,
-    periods: 10,
-    availability: [],
-    finishesEarlyByCourseId: [],
-    cohorts: {
-      dp1: { courses: [], pins: [], parkedCourseIds: [] },
-      dp2: { courses: [], pins: [], parkedCourseIds: [] },
-    },
-  };
-  return {
-    plan_id: planId,
-    policy: { budgetMs: 20_000, mode: "full" },
-    snapshot,
-    snapshot_hash: await computeSnapshotHash(snapshot),
-  };
-};
+const addFinishedJob = (admin: SupabaseClient, planId: string): Promise<string> =>
+  addGenerationJob(admin, { planId, status: "failed" });
 
 /** A service-role read-back. It throws on any error: a failed read-back must never read as "no effect". */
 const readBack = <T>({ data, error }: { data: T; error: { message: string } | null }): NonNullable<T> => {
@@ -428,12 +401,9 @@ const readBack = <T>({ data, error }: { data: T; error: { message: string } | nu
   return data;
 };
 
-type Claims = { role?: string; sub?: string; app_metadata?: { machine_role?: string } };
-
-/** The access token's payload, decoded without verification: the claims RLS will judge it by. */
-const claimsOf = async ({ client }: SignedInUser): Promise<Claims> => {
+/** The claims RLS will judge the principal by, from the session its client holds. */
+const claimsOf = async ({ client }: SignedInUser): Promise<AccessClaims> => {
   const { data } = await client.auth.getSession();
-  const payload = data.session?.access_token.split(".")[1];
-  if (!payload) throw new Error("the signed-in client holds no JWT access token");
-  return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Claims;
+  if (!data.session) throw new Error("the signed-in client holds no session");
+  return decodeAccessClaims(data.session.access_token);
 };

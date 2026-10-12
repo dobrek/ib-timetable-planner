@@ -5,7 +5,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
 import { computeSnapshotHash } from "@/entities/timetable";
 import { createPlan, teardown } from "@/test/factories";
+import { decodeAccessClaims } from "./access-claims";
 import { connectPostgres, heldColumnPrivileges, heldPrivileges } from "./postgres-client";
+import { createPublishableClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 
 /**
@@ -66,9 +68,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     if (created.error) throw new Error(`machine user: ${created.error.message}`);
     machineUserId = created.data.user.id;
 
-    solver = createClient<Database>(SUPABASE_URL, PUBLISHABLE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    solver = createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY);
     const signedIn = await solver.auth.signInWithPassword({ email, password });
     if (signedIn.error) throw new Error(`password grant: ${signedIn.error.message}`);
     accessToken = signedIn.data.session.access_token;
@@ -84,7 +84,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
   });
 
   it("mints a token whose role claim is solver_job_writer, not authenticated", () => {
-    expect(decodeClaims(accessToken).role).toBe("solver_job_writer");
+    expect(decodeAccessClaims(accessToken).role).toBe("solver_job_writer");
   });
 
   it("cannot read plans — the escalation the hook-misfire fallback would hand it", async () => {
@@ -244,14 +244,6 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     expect(rows[0]).toEqual({ rolbypassrls: false, rolcanlogin: false });
   });
 });
-
-/** A JWT's payload, decoded without verification — the signature is GoTrue's business; the claim
- *  the container will be judged by is ours. */
-const decodeClaims = (token: string): { role?: string } => {
-  const payload = token.split(".")[1];
-  if (!payload) throw new Error("access token is not a JWT");
-  return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { role?: string };
-};
 
 const jobRow = async (planId: string): Promise<Database["public"]["Tables"]["generation_jobs"]["Insert"]> => {
   const snapshot = {

@@ -11,5 +11,8 @@ export { addTeacher, type AddTeacherInput } from "./add-teacher";
 export { addStudentWithChoices, type AddStudentWithChoicesInput } from "./add-student-with-choices";
 export { placeCourse } from "./place-course";
 export { computeGroupingsFor } from "./compute-groupings-for";
+export { shelveCourses, type ShelveCoursesFactoryInput } from "./shelve-courses";
+export { generationJobRow } from "./generation-job-row";
+export { addGenerationJob, type AddGenerationJobInput } from "./add-generation-job";
 export { createSignedInUser, type SignedInUser } from "./create-signed-in-user";
 export { registerPlan, teardown } from "./teardown";

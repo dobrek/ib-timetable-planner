@@ -21,7 +21,11 @@ import type { Database, SupabaseClient } from "@/shared/api";
  *
  * **Writes never ask for rows back.** A `return=representation` write (`.select()` chained onto it)
  * adds a RETURNING clause, which Postgres checks against the table's SELECT policy. Once S-403
- * splits read from write, a read denial would then masquerade as a write denial.
+ * splits read from write, a read denial would then masquerade as an INSERT denial. That isolation
+ * is INSERT's alone: an UPDATE or DELETE that filters in its WHERE (`.eq("id", id)` does) is held
+ * to the SELECT policy too, so a principal that may write a row but not read it reaches 0 rows,
+ * and its cell reads "denied". That is the honest answer — such a principal cannot do the write
+ * through the app either — but a write-only cell cannot be expressed.
  *
  * Test lane only, like `postgres-client.ts` beside it.
  */

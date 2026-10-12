@@ -645,12 +645,12 @@ local stack, and `restore.sql` undoes it.
 
 #### Automated
 
-- [x] 3.1 Drill restored: no `f401 drill` policy in `pg_policies`
-- [x] 3.2 Role matrix green again after restore
-- [x] 3.3 Full local CI gate passes: `/verify`
+- [x] 3.1 Drill restored: no `f401 drill` policy in `pg_policies` — 1ab044e
+- [x] 3.2 Role matrix green again after restore — 1ab044e
+- [x] 3.3 Full local CI gate passes: `/verify` — 1ab044e
 
 #### Manual
 
-- [x] 3.4 With the drill applied, exactly the 32 `noRole` cells are red for the right reason
-- [x] 3.5 Drill result recorded in `change.md`
-- [x] 3.6 CLAUDE.md and `test-plan.md` point at the harness and drop the cross-author phase
+- [x] 3.4 With the drill applied, exactly the 32 `noRole` cells are red for the right reason — 1ab044e
+- [x] 3.5 Drill result recorded in `change.md` — 1ab044e
+- [x] 3.6 CLAUDE.md and `test-plan.md` point at the harness and drop the cross-author phase — 1ab044e

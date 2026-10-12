@@ -613,33 +613,33 @@ local stack, and `restore.sql` undoes it.
 
 #### Automated
 
-- [x] 1.1 Types check: `pnpm check`
-- [x] 1.2 Lint passes: `pnpm lint`
-- [x] 1.3 FSD structure passes: `pnpm steiger`
-- [x] 1.4 Unit lane passes: `pnpm test`
-- [x] 1.5 Factory smoke and solver guard pass against the local stack
-- [x] 1.6 Full integration lane passes locally: `pnpm test:integration`
+- [x] 1.1 Types check: `pnpm check` — 270b1c2
+- [x] 1.2 Lint passes: `pnpm lint` — 270b1c2
+- [x] 1.3 FSD structure passes: `pnpm steiger` — 270b1c2
+- [x] 1.4 Unit lane passes: `pnpm test` — 270b1c2
+- [x] 1.5 Factory smoke and solver guard pass against the local stack — 270b1c2
+- [x] 1.6 Full integration lane passes locally: `pnpm test:integration` — 270b1c2
 
 #### Manual
 
-- [x] 1.7 Non-loopback `SUPABASE_URL` fails at the loopback guard before any request
-- [x] 1.8 No `signed-in-…@example.test` users remain after a full integration run
+- [x] 1.7 Non-loopback `SUPABASE_URL` fails at the loopback guard before any request — 270b1c2
+- [x] 1.8 No `signed-in-…@example.test` users remain after a full integration run — 270b1c2
 
 ### Phase 2: Access probe and the role matrix
 
 #### Automated
 
-- [ ] 2.1 Types check: `pnpm check`
-- [ ] 2.2 Lint passes: `pnpm lint`
-- [ ] 2.3 FSD structure passes: `pnpm steiger`
-- [ ] 2.4 Unit lane passes, including the classifier and expectation-invariant tests: `pnpm test`
-- [ ] 2.5 Role matrix passes against the local stack
-- [ ] 2.6 Full integration lane passes locally: `pnpm test:integration`
+- [x] 2.1 Types check: `pnpm check`
+- [x] 2.2 Lint passes: `pnpm lint`
+- [x] 2.3 FSD structure passes: `pnpm steiger`
+- [x] 2.4 Unit lane passes, including the classifier and expectation-invariant tests: `pnpm test`
+- [x] 2.5 Role matrix passes against the local stack
+- [x] 2.6 Full integration lane passes locally: `pnpm test:integration`
 
 #### Manual
 
-- [ ] 2.7 Matrix output lists every cell and the `noRole` titles carry the hole note
-- [ ] 2.8 The matrix runs in seconds locally and leaves no users or plans behind
+- [x] 2.7 Matrix output lists every cell and the `noRole` titles carry the hole note
+- [x] 2.8 The matrix runs in seconds locally and leaves no users or plans behind
 
 ### Phase 3: Prove the suite can fail, then point the docs at it
 

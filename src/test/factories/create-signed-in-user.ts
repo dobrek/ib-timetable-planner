@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
-import type { Database, SupabaseClient } from "@/shared/api";
+import type { SupabaseClient } from "@/shared/api";
+import { createPublishableClient } from "@/test/publishable-client";
 import { readPublishableKey } from "@/test/publishable-key";
 import { registerUser } from "./teardown";
 
@@ -39,11 +39,8 @@ export async function createSignedInUser(admin: SupabaseClient): Promise<SignedI
   const id = created.data.user.id;
   registerUser(id);
 
-  // `persistSession: false` gives each client its own in-memory session, so several signed-in
-  // clients in one file never share one. The token outlives the lane, so no refresh is needed.
-  const client = createClient<Database>(url, publishableKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  // Its own in-memory session, so several signed-in clients in one file never share one.
+  const client = createPublishableClient(url, publishableKey);
   const signedIn = await client.auth.signInWithPassword({ email, password });
   if (signedIn.error) throw new Error(`createSignedInUser: password grant: ${signedIn.error.message}`);
 

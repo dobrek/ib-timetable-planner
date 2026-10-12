@@ -46,7 +46,8 @@ import {
  * Today the matrix pins the posture S-403 replaces: anon is denied everywhere, and a signed-in user
  * without a role is allowed everywhere. S-403 flips the expectations first (red), then its policy
  * migration turns them green. That flip is the proof that this suite can fail; the deny drill in
- * `context/changes/give-integration-lane-a-signed-in-client-per-role/` shows it on today's schema.
+ * the `give-integration-lane-a-signed-in-client-per-role` change folder (`drill/`) shows it on
+ * today's schema.
  *
  * Each principal signs in once per file, never per test, which keeps the lane clear of GoTrue's
  * rate limits. Each write cell acts on a fresh target, so cells never depend on their order.

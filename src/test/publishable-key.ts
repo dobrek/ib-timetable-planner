@@ -4,10 +4,11 @@ import { resolve } from "node:path";
 /**
  * The stack's PUBLISHABLE (anon) key — the only Supabase key the solver container will ever hold.
  *
- * The integration lane normally needs just the service-role key, so `load-test-env.ts` does not
- * look for this one. The solver-credential guard test does: its whole subject is what a client
- * holding *nothing but* the publishable key and a password can reach, and reproducing that with a
- * privileged key would test a different thing entirely.
+ * Most of the integration lane needs only the service-role key. The suites that sign in need this
+ * one too — the solver-credential guard, and every suite built on `createSignedInUser`: their whole
+ * subject is what a client holding *nothing but* the publishable key and a password can reach, and
+ * reproducing that with a privileged key would test a different thing entirely. In CI,
+ * `load-test-env.ts` fails the run when it is missing.
  *
  * Resolution order — env first (CI exports it from the ephemeral stack), then `.dev.vars` /
  * `.env.local`, which `pnpm env:local` already writes for the dev server. No hardcoded fallback:

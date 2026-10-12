@@ -37,16 +37,6 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PUBLISHABLE_KEY = readPublishableKey();
 
-// In CI the stack is always present, so a missing publishable key means the workflow stopped
-// exporting it — fail the run loudly rather than let the guard silently skip (the silent-zero-
-// coverage trap that `load-test-env.ts` guards the other two vars against).
-if (process.env.CI === "true" && SUPABASE_URL && !PUBLISHABLE_KEY) {
-  throw new Error(
-    "The solver-credential guard needs the stack's publishable key as SUPABASE_KEY. Set " +
-      "`export-anon-key: 'true'` on the integration job's supabase-stack step.",
-  );
-}
-
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
 
 (hasEnv ? describe : describe.skip)("solver credential", () => {

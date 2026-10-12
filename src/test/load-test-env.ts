@@ -25,12 +25,16 @@ try {
 // boot or export its env — fail the whole run loudly instead of letting suites
 // silently skip (the silent-zero-coverage trap). Locally (CI unset) we keep the
 // per-suite describe.skip so a dev without the stack stays unblocked.
+//
+// SUPABASE_KEY (the publishable key) is on the list because the suites that sign in — the
+// solver-credential guard and the role matrix — would otherwise skip in CI without a sound.
 if (process.env.CI === "true") {
-  const missing = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].filter((key) => !process.env[key]);
+  const missing = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY"].filter((key) => !process.env[key]);
   if (missing.length > 0) {
     throw new Error(
       `Integration tests expected the Supabase stack in CI but these vars are missing: ${missing.join(", ")}. ` +
-        `Ensure 'supabase start' ran and 'supabase status -o env' exported them to $GITHUB_ENV.`,
+        `Ensure 'supabase start' ran and 'supabase status -o env' exported them to $GITHUB_ENV ` +
+        `(SUPABASE_KEY also needs \`export-anon-key: "true"\` on the job's supabase-stack step).`,
     );
   }
 }

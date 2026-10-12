@@ -1,10 +1,10 @@
 ---
 change_id: give-integration-lane-a-signed-in-client-per-role
 title: Give integration lane a signed in client per role
-status: impl_reviewed
+status: archived
 created: 2026-10-12
 updated: 2026-10-12
-archived_at: null
+archived_at: 2026-10-12T14:30:49Z
 ---
 
 ## Notes

@@ -613,17 +613,17 @@ local stack, and `restore.sql` undoes it.
 
 #### Automated
 
-- [ ] 1.1 Types check: `pnpm check`
-- [ ] 1.2 Lint passes: `pnpm lint`
-- [ ] 1.3 FSD structure passes: `pnpm steiger`
-- [ ] 1.4 Unit lane passes: `pnpm test`
-- [ ] 1.5 Factory smoke and solver guard pass against the local stack
-- [ ] 1.6 Full integration lane passes locally: `pnpm test:integration`
+- [x] 1.1 Types check: `pnpm check`
+- [x] 1.2 Lint passes: `pnpm lint`
+- [x] 1.3 FSD structure passes: `pnpm steiger`
+- [x] 1.4 Unit lane passes: `pnpm test`
+- [x] 1.5 Factory smoke and solver guard pass against the local stack
+- [x] 1.6 Full integration lane passes locally: `pnpm test:integration`
 
 #### Manual
 
-- [ ] 1.7 Non-loopback `SUPABASE_URL` fails at the loopback guard before any request
-- [ ] 1.8 No `signed-in-…@example.test` users remain after a full integration run
+- [x] 1.7 Non-loopback `SUPABASE_URL` fails at the loopback guard before any request
+- [x] 1.8 No `signed-in-…@example.test` users remain after a full integration run
 
 ### Phase 2: Access probe and the role matrix
 

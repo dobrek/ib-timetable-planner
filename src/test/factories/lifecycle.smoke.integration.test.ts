@@ -1,17 +1,29 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/shared/api";
-import { addMerge, addStudentWithChoices, createPlan, placeCourse, seedPlanCatalog, teardown } from "./index";
+import { readPublishableKey } from "@/test/publishable-key";
+import {
+  addMerge,
+  addStudentWithChoices,
+  createPlan,
+  createSignedInUser,
+  placeCourse,
+  seedPlanCatalog,
+  teardown,
+} from "./index";
 
 // Smoke test for the scenario-factory lifecycle (plan.md Phase 2 #2.3):
 // createPlan + seedPlanCatalog build an owned, fully-cataloged plan, an output
 // builder (placeCourse → real insertPlacement) writes a row, and teardown
 // cascade-removes the plan and everything under it. Plan-rooted isolation means
 // this suite depends on NOTHING already in the dev DB. Skips when env is absent.
+// A second case does the same for `createSignedInUser`: create, sign in, tear down
+// (skipped when there is no publishable key).
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
+const hasPublishableKey = Boolean(readPublishableKey());
 
 (hasEnv ? describe : describe.skip)("scenario-factory lifecycle (local Supabase)", () => {
   let supabase: SupabaseClient<Database>;
@@ -115,5 +127,21 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       .select("*", { count: "exact", head: true })
       .eq("plan_id", planId);
     expect(orphanPlacements).toBe(0);
+  });
+
+  (hasPublishableKey ? it : it.skip)("creates a signed-in human user, and teardown deletes it", async () => {
+    const user = await createSignedInUser(supabase);
+
+    // The client holds that user's own session, not the service role's.
+    const { data: signedIn, error } = await user.client.auth.getUser();
+    expect(error).toBeNull();
+    expect(signedIn.user?.id).toBe(user.id);
+
+    await teardown(supabase);
+
+    // Assert the not-found error itself: any other failure would also come back without a user.
+    const { data: after, error: lookupError } = await supabase.auth.admin.getUserById(user.id);
+    expect(after.user).toBeNull();
+    expect(lookupError?.code).toBe("user_not_found");
   });
 });

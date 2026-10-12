@@ -629,28 +629,28 @@ local stack, and `restore.sql` undoes it.
 
 #### Automated
 
-- [x] 2.1 Types check: `pnpm check`
-- [x] 2.2 Lint passes: `pnpm lint`
-- [x] 2.3 FSD structure passes: `pnpm steiger`
-- [x] 2.4 Unit lane passes, including the classifier and expectation-invariant tests: `pnpm test`
-- [x] 2.5 Role matrix passes against the local stack
-- [x] 2.6 Full integration lane passes locally: `pnpm test:integration`
+- [x] 2.1 Types check: `pnpm check` — 968c4e4
+- [x] 2.2 Lint passes: `pnpm lint` — 968c4e4
+- [x] 2.3 FSD structure passes: `pnpm steiger` — 968c4e4
+- [x] 2.4 Unit lane passes, including the classifier and expectation-invariant tests: `pnpm test` — 968c4e4
+- [x] 2.5 Role matrix passes against the local stack — 968c4e4
+- [x] 2.6 Full integration lane passes locally: `pnpm test:integration` — 968c4e4
 
 #### Manual
 
-- [x] 2.7 Matrix output lists every cell and the `noRole` titles carry the hole note
-- [x] 2.8 The matrix runs in seconds locally and leaves no users or plans behind
+- [x] 2.7 Matrix output lists every cell and the `noRole` titles carry the hole note — 968c4e4
+- [x] 2.8 The matrix runs in seconds locally and leaves no users or plans behind — 968c4e4
 
 ### Phase 3: Prove the suite can fail, then point the docs at it
 
 #### Automated
 
-- [ ] 3.1 Drill restored: no `f401 drill` policy in `pg_policies`
-- [ ] 3.2 Role matrix green again after restore
-- [ ] 3.3 Full local CI gate passes: `/verify`
+- [x] 3.1 Drill restored: no `f401 drill` policy in `pg_policies`
+- [x] 3.2 Role matrix green again after restore
+- [x] 3.3 Full local CI gate passes: `/verify`
 
 #### Manual
 
-- [ ] 3.4 With the drill applied, exactly the 32 `noRole` cells are red for the right reason
-- [ ] 3.5 Drill result recorded in `change.md`
-- [ ] 3.6 CLAUDE.md and `test-plan.md` point at the harness and drop the cross-author phase
+- [x] 3.4 With the drill applied, exactly the 32 `noRole` cells are red for the right reason
+- [x] 3.5 Drill result recorded in `change.md`
+- [x] 3.6 CLAUDE.md and `test-plan.md` point at the harness and drop the cross-author phase

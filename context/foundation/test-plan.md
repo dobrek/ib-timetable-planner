@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-06-23 (status — Phase 3 complete + archived; all rollout phases 0–4 done)
+> Last updated: 2026-10-12 (F-401: the role matrix supersedes the cross-author "Phase 2.5" deferral; §6.2 gains access-control claims). Previous: 2026-06-23 (Phase 3 complete + archived; all rollout phases 0–4 done)
 
 ## 1. Strategy
 
@@ -64,7 +64,7 @@ research's job, see §1 principle #3).
 | 2 | The **drag → action → grid feedback loop renders the wrong verdict** — an optimistic UI keeps showing "valid" after the server returns invalid, so the user never sees the collision. | High | High | interview Q3 + Q4; FSD evidence dir `src/_pages/plan-detail/{ui,api}` |
 | 3 | A **server-mutation boundary diverges from its tested core** — every app-data mutation/compute now flows through Astro Actions (`src/actions/` barrel over `_pages/*/api/` handlers; the placements/grouping API route was migrated away). Untested at the **wrapper-over-a-real-HTTP-`/_actions/*`-request** layer: broken auth enforcement, wrong `DomainError`→`ActionError` translation, failed persistence, off-contract response, or no server-side re-validation of untrusted input. | High | Medium | interview correction (Actions are now the sole mutation transport); test base: the wrapper contract is unit-tested but no integration test invokes a real Action over HTTP; lessons.md Actions-only rule |
 | 4 | **Placed work is lost** — a placement does not survive reload/crash, or a write is silently dropped, violating the work-durability promise. | High | Medium | PRD NFR Work durability L173; FSD evidence dir `src/_pages/plan-detail/api` |
-| 5 | **Unauthenticated access, or a regression of the author-only privacy invariant** — an Astro Action handler missing `requireSession()` (the `/_actions/*` path is exempt from the middleware redirect by convention, so the gate is per-handler), or student names/choices leaking beyond their author. The rewritten PRD makes **no access-control change**, so the job is to *preserve* the existing author-only invariant, not to cover a change-introduced surface. Per-author RLS / cross-author IDOR stays a **deferred, prerequisite-gated** concern (candidate Phase 2.5), not a surface this wave introduces. *(abuse: authorization / IDOR)* | High | Medium | PRD Privacy L177 (student names + choices author-only), Constraints L379 + Access Control Changes L434 (no access-control change); Actions self-enforce auth (interview correction + `src/actions` convention); cross-author RLS still untested; FSD evidence dir `src/_pages/sign-in/ui`, `src/pages/auth` |
+| 5 | **Unauthenticated access, or a regression of the author-only privacy invariant** — an Astro Action handler missing `requireSession()` (the `/_actions/*` path is exempt from the middleware redirect by convention, so the gate is per-handler), or student names/choices leaking beyond their author. The rewritten PRD makes **no access-control change**, so the job is to *preserve* the existing author-only invariant, not to cover a change-introduced surface. The cross-author / IDOR half, once deferred as candidate Phase 2.5, is **superseded**: the user-management PRD keeps one shared workspace with global roles, so there is no per-author ownership to test. Human-role access is pinned by the role matrix instead (F-401, flipped by S-403). *(abuse: authorization / IDOR)* | High | Medium | PRD Privacy L177 (student names + choices author-only), Constraints L379 + Access Control Changes L434 (no access-control change); Actions self-enforce auth (interview correction + `src/actions` convention); human-role RLS pinned by `src/test/role-matrix.integration.test.ts` (F-401); FSD evidence dir `src/_pages/sign-in/ui`, `src/pages/auth` |
 | 6 | **A new enriched-dimension false-positive class passes as valid** — *refresh inference, not yet live:* as each enriched dimension ships, the validator could mark a placement valid that the richer rule should reject — a new false-positive class under the L166 no-wrong-positive guardrail. The family: **S-02** co-teaching (both teachers of a co-taught course count as occupied), **S-03** bi-weekly opposite-week overlap (the unified-rule rewrite), **S-04** cross-cohort symmetric teacher occupancy, **S-06** both-cohorts-at-once. | High | High | refresh inference grounded in roadmap S-02 / S-03 / S-04 / S-06 + PRD L166–170 (the enriched no-false-positive surface); **no code anchor — classes not built**. Not testable until each class ships; response is the §3 Phase 4 parity harness, per slice. |
 | 7 | **A bundle operation or a parked bundle loses in-progress work** — a bundle move/remove/replace, or a bundle parked off-board, drops placed work, breaking the no-silent-loss-on-refresh / tab-close promise. *refresh inference, not yet live.* | High | Medium | refresh inference grounded in roadmap S-05 (`first-class-bundle-operations`, `ready`) + S-07 (`bundle-holding-container`; Secondary success criterion — a parked bundle survives refresh) + PRD durability L173; interview Q1 fear #2 + Q3 low-confidence. Implementation pitfall when the slices ship: guard `localStorage` with try/catch (`lessons.md:40-45`). |
 
@@ -89,7 +89,7 @@ deliberately unmapped**: registration is closed to an approved author set
 | #2 | A server "invalid" verdict **visibly renders as invalid** in the grid; an accepted drop renders valid; optimistic UI state reconciles with the server response. | "the API returned invalid" ≠ "the user saw invalid". | How the React island consumes the API response; the optimistic-update reconciliation path. | component / integration (React island); ≤1 e2e only if integration cannot reach the loop. | Over-mocking the API so the test passes regardless of the real contract; meaningless snapshot; coupling to component internals. |
 | #3 | A request hitting the boundary — the **Action wrapper over a real HTTP `/_actions/*` request** — enforces auth, translates a domain error to the correct client error, persists, and rejects malformed/untrusted input. | "the domain function is tested, so the boundary is fine" — the *handler wiring* is what is untested. | The real handler path (Astro's action context over `/_actions/*`); the persistence call; the response/error contract shape; the `requireSession` enforcement point. | integration (real Action via Astro's action context, local Supabase). | Mocking the domain function *inside* the boundary test (tests nothing); re-testing `src/_pages/courses` logic that is already covered. |
 | #4 | After a reload, the grid **restores exactly** the placed state. | "the write returned 200" ≠ "the work is durable". | The persist + read-back path; RLS on read; what reload actually re-fetches. | integration (local Supabase). | Asserting the DB write happened instead of asserting that reload restores the placed grid. |
-| #5 | An Action invoked **without a session is rejected**; author B **cannot read or mutate** author A's students/placements/catalog. | "the middleware protects everything" — `/_actions/*` is exempt; "logged in" ≠ "authorized for this row". | RLS policies and ownership column; per-handler `requireSession` coverage; the gated-route set. | integration (local Supabase + auth, both mechanisms). | Happy-path single-author only — the attacker is a *different* authenticated author, not an anonymous one. |
+| #5 | An Action invoked **without a session is rejected**; a signed-in principal **reaches only what its role allows** — each cell of the role matrix holds through a real publishable-key client. | "the middleware protects everything" — `/_actions/*` is exempt; "logged in" ≠ "authorized for this row". | RLS policies and grants per role; per-handler `requireSession` coverage; the gated-route set. | integration (local Supabase + auth, both mechanisms): the role matrix (§6.2). | Asserting on `error` alone (RLS denies a read or an update silently), or proving access through the service role, which bypasses RLS. |
 | #6 | *(not testable until each class ships)* As each enriched dimension lands, a fixture the richer rule should reject is **rejected** and a clean one is accepted — a per-slice parity fixture (expected values from requirements) guarded by the §3 Phase 4 harness across S-02 / S-03 / S-04 / S-06. | "the in-cell checks already cover this" — they do not; today's core is single-cell, single-teacher, single-cohort, and week-agnostic. | Each new class's added dimension (teacher-set, week parity, cross-cohort occupancy, both-cohorts context); the parity oracle's expected values (from requirements, not the new code). | unit (parity fixture) once each class exists. | Shipping a new class without a false-positive parity guard; lifting the oracle's expected values from the new validator's own code. |
 | #7 | A bundle op (move/remove/replace) and a **parked** bundle both **survive a reload** with their placed work intact — prove restore, not the write. | "the write returned 200" ≠ "the parked bundle came back after refresh". | The bundle persistence + read-back path; what a refresh / tab-close re-fetches or re-hydrates; the `localStorage` guard (try/catch) if park state is client-persisted. | integration (local Supabase) for the server path; component for the client-restore path. | Asserting the write happened instead of asserting that reload restores the bundle / parked state. |
 
@@ -131,11 +131,15 @@ value.
   change ever shipped. The old **Risk #3 route half is dropped**: the
   placements/grouping API route migrated to Astro Actions, so Phase 0 alone
   owns that boundary (no double-count).
-- **Phase 2** carries an explicit **prerequisite**: an ownership column + real
-  per-author RLS policies must land before cross-author tests are meaningful.
-  Today RLS policies are permissive (`using(true)`) and the integration suites
-  use the service-role key, which bypasses RLS — so "authenticated = full
-  access," not per-author ownership.
+- **Phase 2's cross-author prerequisite is retired (2026-10-12).** It assumed
+  per-author ownership: an ownership column plus per-author RLS. The
+  user-management PRD keeps one shared workspace with global roles instead
+  (`prd.md` access table; per-plan ownership is "model B", a non-goal,
+  `prd.md:385`), so there is no cross-author boundary to test. The role matrix
+  replaced it (F-401, `src/test/role-matrix.integration.test.ts`). It signs real
+  users in with the publishable key and pins today's posture: RLS is permissive
+  (`using(true)`), so any signed-in user reaches everything. S-403 flips the
+  matrix to the fail-closed role model.
 - **Phase 2 is a hybrid, and it introduced the project's first Playwright e2e
   harness** (`testing-auth-actions-boundary-rls`) — the reusable browser-test
   pattern was **not** deferred wholesale to Phase 3. The split: e2e owns the
@@ -147,9 +151,9 @@ value.
   job runs the suite against a real workerd preview and **gates deploy**; a
   `GRANT … TO authenticated` migration pins table reachability. **Deferred:**
   the `createPlan` UI-driven happy-path e2e (a later browser test once the
-  pattern is established) and the **cross-author / IDOR half of #5** (waits on
-  the ownership-column + real-RLS prerequisite above — candidate Phase 2.5).
-  See §6.3 for the reusable harness pointer.
+  pattern is established). The **cross-author / IDOR half of #5** was deferred
+  too, as candidate Phase 2.5; it is superseded by the role matrix (see the note
+  above). See §6.3 for the reusable harness pointer.
 - **Phase 3 landed (`testing-drag-validate-feedback`, archived 2026-06-23).** The
   optimistic drag → validate → feedback reconciliation loop was the #1 under-tested
   worry (interview Q3 + Q4), so it led the remaining rollout: a `use-placements`
@@ -231,14 +235,14 @@ phase lands; before that, the gate is `planned`.
 |------|-------|-----------|---------|
 | lint + typecheck (astro sync → eslint → build) | local + CI | required (already wired) | syntactic / type drift |
 | unit + integration | local + CI | required after §3 Phase 1 | validator false-positives, boundary regressions |
-| auth + RLS ownership integration | local + CI | required after §3 Phase 2 | unauthenticated mutation, cross-author PII access |
+| auth + RLS role-matrix integration | local + CI | required after §3 Phase 2 (role matrix since F-401) | unauthenticated mutation; a principal reaching rows or grants its role should not (anon and no-role today, S-403's roles next) |
 | drag→feedback e2e / island integration | CI on PR | required after §3 Phase 3 | broken drop-validation user path, lost work |
 | new-validator-class parity fixture | CI on PR | required after §3 Phase 4 | a new collision class shipping without a false-positive guard |
 | pre-prod smoke | between merge + prod | optional | environment-specific (workerd / Supabase) failures |
 
 > **Current enforcement (as of 2026-06-23).** With §3 Phase 1 (absorbed),
 > Phase 2, and Phase 3 (`testing-drag-validate-feedback`) **complete**, the
-> **unit + integration**, **auth + RLS ownership integration**, and
+> **unit + integration**, **auth + RLS role-matrix integration**, and
 > **drag→feedback e2e / island integration** gates are now **live**. The
 > drag→feedback gate runs `e2e/specs/drag-validate-feedback.spec.ts` (a real
 > collision rendering `aria-invalid`) plus the jsdom `dom` lane hook test and the
@@ -322,6 +326,25 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   generator, through the shared `scripts/lib/catalog-transcode.mjs` (byte-identical-seed
   guarded) — so CSV-derived oracles (`adapter-parity`, `load`) stay valid.
 
+**Access-control claims — a signed-in client** (F-401). The service role bypasses RLS, so a
+service-role suite can never prove who may reach a row. For that:
+
+- **Get a client from `createSignedInUser(admin)`** (`src/test/factories/`). It returns a confirmed
+  human user signed in with the publishable key, and registers it with `teardown`, which deletes
+  plans first and then users. It refuses a non-loopback `SUPABASE_URL`. Sign in **once per
+  principal per file**, in `beforeAll`, never per test, which keeps clear of GoTrue's rate limits.
+- **Judge the outcome with the access probe** (`src/test/access-probe.ts`), never from `error`
+  alone. RLS denies a SELECT as an empty result, and an UPDATE or DELETE as 0 rows, with no error.
+  `probeRead` judges from the principal's own view; `probeWrite` reads back as the service role.
+  Never chain `.select()` onto a probed write: Postgres checks RETURNING against the SELECT policy.
+  Any non-access error throws rather than passing as "denied".
+- **Add a cell, not a suite.** State the claim in `src/test/role-matrix-expectations.ts`.
+  `src/test/role-matrix.integration.test.ts` runs every cell live, plus an exact catalog check of
+  grants and RLS. A new table or principal fails `pnpm check` until every cell is declared.
+- **Show that it can fail.** A guard that has never gone red is not yet a guard. The deny drill in
+  the `give-integration-lane-a-signed-in-client-per-role` change folder (`drill/`) is the pattern:
+  a scratch restrictive policy turns exactly the expected cells red.
+
 ### 6.3 Adding an e2e test
 
 The reusable pattern shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`).
@@ -345,8 +368,9 @@ Copy it rather than reinventing:
   (see the playwright-cli skill). Run with `pnpm test:e2e`.
 - **Scope discipline:** prefer integration (`.handler`) for matrix-shaped truths;
   reserve e2e for genuinely browser-observable ones. The `createPlan` UI-driven
-  happy-path mutation e2e and the cross-author/IDOR flow are **deferred** (the
-  latter waits on the ownership-column + real-RLS prerequisite — see §3 notes).
+  happy-path mutation e2e is **deferred**. Access control is proven at the
+  integration layer by the role matrix (§6.2), not by an e2e cross-author flow,
+  which is superseded (see §3 notes). E2e role accounts arrive with S-403.
 - **Board drag/locators are shared, not copied.** The dnd-kit stepped-pointer
   drag (`placeFromPalette`) and the role-based board locators (`cell`,
   `paletteChip`, `placedChip`, `collisionBadge`, `computeGroupings`) live in
@@ -464,13 +488,13 @@ contributors should respect these unless the underlying assumption changes.
   validation moves off the in-memory board check, or if the budget starts being
   missed in practice. (Source: Phase 2 interview Q5 + the 2026-06-18 refresh
   interview; see the §2 performance-budget note.)
-- **Cross-author / IDOR access — deferred, not permanently excluded.**
-  Cross-author tests wait on the ownership-column + real per-author RLS
-  prerequisite (today RLS is permissive `using(true)` and integration uses the
-  service-role key, which bypasses RLS), so a cross-author test would assert
-  nothing meaningful yet — candidate **Phase 2.5**. This is a *deferral pending a
-  prerequisite*, not a standing exclusion. (Source: Phase 2 deferral; see §2
-  Risk #5 and §3 notes.)
+- **Cross-author / IDOR access — superseded, no longer deferred.** It waited
+  on per-author ownership, which the user-management PRD does not adopt: one
+  shared workspace with global roles, and per-plan ownership is "model B", a
+  non-goal (`prd.md:385`). Access control is pinned by the role matrix instead
+  (F-401, `src/test/role-matrix.integration.test.ts`), which S-403 flips to the
+  fail-closed role model. Re-evaluate only if per-plan ownership is ever
+  adopted. (Source: F-401; see §2 Risk #5 and §3 notes.)
 
 ## 8. Freshness Ledger
 

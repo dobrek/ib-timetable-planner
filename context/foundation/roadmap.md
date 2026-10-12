@@ -43,7 +43,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 
 | ID    | Change ID                    | Outcome (user can …)                                                                                   | Prerequisites      | PRD refs                                                                       | Status   |
 | ----- | ---------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------ | ------------------------------------------------------------------------------ | -------- |
-| F-401 | give-integration-lane-a-signed-in-client-per-role | (foundation) the integration lane signs in a real user per principal (once per file) and pins today's access posture in a role matrix that S-403 flips | — | FR-410, §Guardrails (no author loses access), §Constraints (CI lanes stay green) | in-progress |
+| F-401 | give-integration-lane-a-signed-in-client-per-role | (foundation) the integration lane signs in a real user per principal (once per file) and pins today's access posture in a role matrix that S-403 flips | — | FR-410, §Guardrails (no author loses access), §Constraints (CI lanes stay green) | done |
 | F-402 | ci-publishable-key-and-pinned-cli | (foundation) every CI lane uses the `sb_publishable_` key production uses, on a pinned Supabase CLI | — | §Constraints (CI lanes stay green) | ready    |
 | S-401 | account-self-service         | change their own password and set a display name; passwords under 15 characters are refused           | —                  | FR-411, FR-413, §NFG (passwords ≥ 15)                                          | ready    |
 | S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | blocked  |
@@ -114,7 +114,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Blockers:** —
 - **Unknowns:** — (whether CI's `SUPABASE_KEY` moves to `sb_publishable_…` is settled: it moves in its own change, F-402, and the harness reads the key format-agnostically through `readPublishableKey()`).
 - **Risk:** Deliberately schema-free: no migration, so nothing deploys to hosted. Until S-403 the matrix can tell only three principals apart (anon, any signed-in user, the solver), so on its own it proves little that is new; its value is the ready harness and the expectation table S-403 edits, which turns "the first red run proves it can fail" into a reviewable diff instead of a red `main`. It adds a suite to an integration lane that is already about 1-in-5 red from transient 502s, so sign-ins happen once per role per file. Research: `context/changes/give-integration-lane-a-signed-in-client-per-role/research.md` (Option 1).
-- **Status:** in-progress
+- **Status:** done
 
 ### F-402: CI on the publishable key and a pinned Supabase CLI
 
@@ -333,3 +333,5 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 ## Done
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips that item's `Status` to `done` — when a change whose `Change ID` matches the item is archived.)
+
+- **F-401: (foundation) the integration lane can create a real user, sign it in with the publishable key, and clean it up through `teardown`. A role-matrix suite pins today's access posture in an expectation table: anon is denied, and a signed-in user without a role is allowed everywhere (the hole S-403 closes). Each outcome is established by reading back as service role, so RLS's silent denials (empty SELECT, 0-row UPDATE/DELETE) cannot pass as green.** — Archived 2026-10-12 → `context/archive/2026-10-12-give-integration-lane-a-signed-in-client-per-role/`. Lesson: —.

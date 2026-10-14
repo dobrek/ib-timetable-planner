@@ -1,5 +1,5 @@
 name: "Supabase stack (trimmed)"
-description: "Install the Supabase CLI, regenerate the seed, boot a trimmed local stack, and export its minted keys to $GITHUB_ENV."
+description: "Run the lockfile's Supabase CLI (./.github/actions/setup must run first), regenerate the seed, boot a trimmed local stack, and export its env to $GITHUB_ENV."
 
 inputs:
   export-anon-key:
@@ -7,12 +7,35 @@ inputs:
     required: false
     default: "false"
 
-# Remote actions are SHA-pinned with an exact `# vX.Y.Z` — see the pinning rule in `ci.yml`.
+# A remote action added to this file is SHA-pinned with an exact `# vX.Y.Z` — see the pinning rule
+# in `ci.yml`. None is used today: the CLI comes from the lockfile.
 runs:
   using: "composite"
   steps:
-    - name: Install Supabase CLI
-      uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+    # The CLI is the one `pnpm-lock.yaml` resolves, run through `pnpm exec`, so whatever moves
+    # `supabase` in the lockfile moves CI — and the stack's images, which are that CLI's defaults —
+    # in the same commit. `supabase/setup-cli` was dropped: v3.0.1 finds the version by parsing the
+    # lockfile as ONE YAML document, pnpm 12 writes two, and the action fell back to `latest` without
+    # a word, so CI ran whatever CLI shipped last. This step reads the installed package's version
+    # (the lockfile's, under `--frozen-lockfile`) and fails unless that is the binary answering.
+    #
+    # Precondition: `./.github/actions/setup` runs earlier in the job — it is what puts the CLI in
+    # `node_modules`.
+    - name: Supabase CLI (the lockfile's)
+      shell: bash
+      run: |
+        pkg=node_modules/supabase/package.json
+        if [ ! -f "$pkg" ]; then
+          echo "$pkg is missing: run ./.github/actions/setup before this action" >&2
+          exit 1
+        fi
+        expected="$(node -p "require('./$pkg').version")"
+        actual="$(pnpm exec supabase --version)"
+        if [ "$actual" != "$expected" ]; then
+          echo "expected Supabase CLI $expected (lockfile), but 'pnpm exec supabase' answered '$actual'" >&2
+          exit 1
+        fi
+        echo "Supabase CLI $actual (lockfile)"
 
     # Regenerate the catalog seed so `supabase start` loads a current seed.sql.
     - name: Regenerate seed
@@ -25,7 +48,7 @@ runs:
     # postgres-meta), not the docs' aliases — the CLI rejects inbucket/storage/etc.
     - name: Start Supabase (trimmed stack)
       shell: bash
-      run: supabase start -x studio,imgproxy,mailpit,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
+      run: pnpm exec supabase start -x studio,imgproxy,mailpit,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
 
     # The local stack mints its own keys; export them to the job env so the integration
     # / e2e suites and the load-test-env CI fail-gate find them. `status -o env` quotes
@@ -55,7 +78,7 @@ runs:
       run: |
         EXTRA=""
         [ "$EXPORT_ANON_KEY" = "true" ] && EXTRA="--override-name auth.anon_key=SUPABASE_KEY"
-        supabase status -o env \
+        pnpm exec supabase status -o env \
           --override-name api.url=SUPABASE_URL $EXTRA \
           --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \
           --override-name db.url=SUPABASE_DB_URL \

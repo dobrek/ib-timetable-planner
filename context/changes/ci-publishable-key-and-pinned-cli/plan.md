@@ -522,13 +522,13 @@ Dropping `setup-cli` removes its Bun download and npm install, about 4.7 s per s
 
 #### Automated
 
-- [x] 3.1 Local images match CI
-- [x] 3.2 Only the storage override remains in `supabase/.temp`
-- [x] 3.3 Integration lane passes locally with the solver up
-- [x] 3.4 Formatting holds
+- [x] 3.1 Local images match CI — 9698046
+- [x] 3.2 Only the storage override remains in `supabase/.temp` — 9698046
+- [x] 3.3 Integration lane passes locally with the solver up — 9698046
+- [x] 3.4 Formatting holds — 9698046
 
 #### Manual
 
-- [x] 3.5 `pnpm build && pnpm preview` smoke on the realigned stack
-- [x] 3.6 One local Generate end to end on PostgREST v16.2
-- [x] 3.7 README paragraph reads correctly to a never-linked reader
+- [x] 3.5 `pnpm build && pnpm preview` smoke on the realigned stack — 9698046
+- [x] 3.6 One local Generate end to end on PostgREST v16.2 — 9698046
+- [x] 3.7 README paragraph reads correctly to a never-linked reader — 9698046

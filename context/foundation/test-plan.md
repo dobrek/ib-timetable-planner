@@ -363,8 +363,8 @@ Copy it rather than reinventing:
   the shared `e2e/author-credentials.mjs`.
 - **Fidelity:** `webServer` runs `pnpm build && pnpm preview` on real **workerd**
   (not Vite dev) — the worker reads `SUPABASE_URL`/`SUPABASE_KEY` from `.dev.vars`
-  (written by `pnpm env:local` locally; by the CI `e2e` job from the stack's
-  minted keys). No sleeps / `networkidle`; gate on hydration and assertions
+  (written by `pnpm env:local` locally; by the CI `e2e` job from what the
+  `supabase-stack` action exported). No sleeps / `networkidle`; gate on hydration and assertions
   (see the playwright-cli skill). Run with `pnpm test:e2e`.
 - **Scope discipline:** prefer integration (`.handler`) for matrix-shaped truths;
   reserve e2e for genuinely browser-observable ones. The `createPlan` UI-driven

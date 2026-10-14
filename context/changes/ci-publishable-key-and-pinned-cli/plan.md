@@ -530,5 +530,5 @@ Dropping `setup-cli` removes its Bun download and npm install, about 4.7 s per s
 #### Manual
 
 - [x] 3.5 `pnpm build && pnpm preview` smoke on the realigned stack — 9698046
-- [x] 3.6 One local Generate end to end on PostgREST v16.2 — 9698046
+- [x] 3.6 One local Generate end to end on PostgREST v16.2 — 9698046 (no local row survives; evidence: CI run 38572677708's `generation.spec.ts`, green on the same PostgREST v16.2 / GoTrue v2.196.0 images)
 - [x] 3.7 README paragraph reads correctly to a never-linked reader — 9698046

@@ -412,7 +412,7 @@ pnpm exec supabase stop     # shut it down
 
 **Which images the stack runs.** The stack runs the image tags that the lockfile's Supabase CLI defaults to. CI runs the same CLI through `pnpm exec supabase`, so a stack that has never been linked runs exactly CI's images. Anything that moves `supabase` in `pnpm-lock.yaml` moves those images, on your machine and in CI at once. That includes a `package.json` bump, and also a plain `pnpm update`, because `package.json` gives `supabase` a `^` range.
 
-One thing overrides those defaults, on one machine only. `supabase link` (see [Hosted project](#hosted-project)) writes `supabase/.temp/postgres-version`, `rest-version` and `gotrue-version`, a snapshot of hosted's service versions at the time of the link. From then on, the CLI prefers those files to its own defaults. To check, run `ls supabase/.temp/*-version`. If it lists none of those three, there is nothing to do. Otherwise, to get back onto CI's images, move the three files aside and restart. The data volume is kept:
+One thing overrides those defaults, on one machine only. `supabase link` (see [Hosted project](#hosted-project)) writes `supabase/.temp/postgres-version`, `rest-version` and `gotrue-version`, a snapshot of hosted's service versions at the time of the link. From then on, the CLI prefers those files to its own defaults. To check, run `ls supabase/.temp/*-version`. If it lists none of those three (zsh's `no matches found` means the same), there is nothing to do. Otherwise, to get back onto CI's images, move the three files aside and restart. The data volume is kept:
 
 ```bash
 pnpm exec supabase stop

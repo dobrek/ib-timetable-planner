@@ -1,7 +1,7 @@
 ---
 change_id: ci-publishable-key-and-pinned-cli
 title: CI on the publishable key and a pinned Supabase CLI (F-402)
-status: implemented
+status: impl_reviewed
 created: 2026-10-14
 updated: 2026-10-14
 archived_at: null

@@ -33,8 +33,8 @@ if (process.env.CI === "true") {
   if (missing.length > 0) {
     throw new Error(
       `Integration tests expected the Supabase stack in CI but these vars are missing: ${missing.join(", ")}. ` +
-        `Ensure 'supabase start' ran and 'supabase status -o env' exported them to $GITHUB_ENV ` +
-        `(SUPABASE_KEY also needs \`export-anon-key: "true"\` on the job's supabase-stack step).`,
+        `The supabase-stack action's "Assert Supabase env" step should have failed the job first — ` +
+        `check that it ran.`,
     );
   }
 }

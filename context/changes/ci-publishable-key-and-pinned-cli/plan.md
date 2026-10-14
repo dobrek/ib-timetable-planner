@@ -489,28 +489,28 @@ Dropping `setup-cli` removes its Bun download and npm install, about 4.7 s per s
 
 #### Automated
 
-- [x] 1.1 No `setup-cli` reference remains
-- [x] 1.2 Every CLI call in the action goes through pnpm
-- [x] 1.3 Version-step drill passes, and fails on a mismatch and on a missing install
-- [x] 1.4 Formatting holds: `pnpm exec prettier --check .github`
-- [x] 1.5 Local CI gate passes: `/verify`
+- [x] 1.1 No `setup-cli` reference remains — 7f98451
+- [x] 1.2 Every CLI call in the action goes through pnpm — 7f98451
+- [x] 1.3 Version-step drill passes, and fails on a mismatch and on a missing install — 7f98451
+- [x] 1.4 Formatting holds: `pnpm exec prettier --check .github` — 7f98451
+- [x] 1.5 Local CI gate passes: `/verify` — 7f98451
 
 #### Manual
 
-- [ ] 1.6 All four test jobs green on the phase-1 commit
-- [ ] 1.7 Integration log shows CLI 2.117.0 and its three default image tags
+- [x] 1.6 All four test jobs green on the phase-1 commit — 7f98451
+- [x] 1.7 Integration log shows CLI 2.117.0 and its three default image tags — 7f98451
 
 ### Phase 2: Switch both keys and assert at the producer
 
 #### Automated
 
-- [ ] 2.1 No legacy wiring remains
-- [ ] 2.2 Assertion drill cases (a)–(e) behave as specified and are recorded in `change.md`
-- [ ] 2.3 Types check: `pnpm check`
-- [ ] 2.4 Lint passes: `pnpm lint`
-- [ ] 2.5 Unit lane passes: `pnpm test`
-- [ ] 2.6 Formatting holds
-- [ ] 2.7 Local CI gate passes: `/verify`
+- [x] 2.1 No legacy wiring remains
+- [x] 2.2 Assertion drill cases (a)–(e) behave as specified and are recorded in `change.md`
+- [x] 2.3 Types check: `pnpm check`
+- [x] 2.4 Lint passes: `pnpm lint`
+- [x] 2.5 Unit lane passes: `pnpm test`
+- [x] 2.6 Formatting holds
+- [x] 2.7 Local CI gate passes: `/verify`
 
 #### Manual
 

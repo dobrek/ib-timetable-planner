@@ -106,12 +106,11 @@ jobs:
       - uses: ./.github/actions/setup
       # Two suites sign in with the PUBLISHABLE key, because what a client holding only that key and
       # a password can reach is their subject: the solver-credential guard (as the machine user) and
-      # the role matrix (as human users, through `createSignedInUser`). So they need the stack's anon
-      # key exported. `src/test/load-test-env.ts` fails the run in CI when it is missing, rather than
-      # letting either suite skip.
+      # the role matrix (as human users, through `createSignedInUser`). The stack action always
+      # exports it as SUPABASE_KEY, in production's `sb_publishable_` format, and its "Assert Supabase
+      # env" step fails the job if it is missing or in another format. `src/test/load-test-env.ts`
+      # still fails the run in CI when it is missing, rather than letting either suite skip.
       - uses: ./.github/actions/supabase-stack
-        with:
-          export-anon-key: "true"
 
       # --- the CP-SAT solver service (F-302 proof-of-life) ------------------------------------
       # `solver-transport.integration.test.ts` drives a real job row `queued -> running ->
@@ -209,8 +208,6 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/supabase-stack
-        with:
-          export-anon-key: "true"
 
       # --- the CP-SAT solver service, so a spec can press Generate (S-306) ----------------------
       # The same recipe the `integration` job runs, and for the same reasons — see the long comments
@@ -253,9 +250,11 @@ jobs:
           echo "solver service never answered /health"; cat "$RUNNER_TEMP/solver.log"; exit 1
 
       # The workerd preview reads SUPABASE_URL/SUPABASE_KEY from `.dev.vars`, NOT from
-      # `webServer.env` — and the CI stack mints its own anon key that won't match the
-      # fixed local publishable key, so we must write `.dev.vars` from the minted keys
-      # before the server boots. Unquoted KEY=value, matching `pnpm env:local` output.
+      # `webServer.env`, so the file is written here, before the server boots, from what the stack
+      # action exported. Those values come from the stack's own `status` rather than a profile
+      # because `.envs/` is gitignored — CI has no `local.vars` — and because reading the stack's
+      # output stays correct if `config.toml` ever sets custom keys. Unquoted KEY=value, matching
+      # `pnpm env:local` output.
       #
       # `SOLVER_URL` joins them for the same reason and with the same urgency: the build below
       # snapshots this file, so a value exported into the shell instead would reach the Worker as

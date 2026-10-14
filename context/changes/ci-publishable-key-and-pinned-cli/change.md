@@ -14,3 +14,19 @@ Roadmap item F-402 (`context/foundation/roadmap.md` § F-402). Every CI lane sho
 Open unknowns for the plan phase (both non-blocking): whether the service-role variable also moves to `sb_secret_…` here (touches 36 integration suites, `scripts/provision-*.mjs`, `bench/`), and the pin mechanism (`setup-cli` `version:` kept in step by hand vs. the lockfile's CLI via `pnpm exec supabase`).
 
 Prior research: `context/archive/2026-10-12-give-integration-lane-a-signed-in-client-per-role/research.md` (follow-up "Why CI exports the legacy anon key").
+
+## Assertion drill (2026-10-14)
+
+Phase 2's "Assert Supabase env" step, proven to fail for the right reasons before CI depended on it. Both step bodies were extracted from the committed `.github/actions/supabase-stack/action.yml` with `yq` and run as `shell: bash` runs them (`bash --noprofile --norc -eo pipefail`). Cases were injected through env vars only, never by editing the extracted script.
+
+**Setup.** The "Export Supabase env" body ran against the local stack (CLI 2.117.0), with `GITHUB_ENV` pointing at a scratch file. It exited 0 and wrote exactly four lines: `SUPABASE_DB_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_URL`. The filter kept every other `status` field out, the legacy `ANON_KEY` / `SERVICE_ROLE_KEY` JWTs included. That file was loaded as the assert step's environment. For (b) and (c), the legacy JWTs were read from an unfiltered `status -o env` into shell variables that were never printed.
+
+| Case | Injection | Exit | Output |
+| --- | --- | --- | --- |
+| (a) | the four, as exported | 0 | four lines: each name with its length, `set` for the URLs, and the matched prefix for the keys (`sb_publishable_`, `sb_secret_`) |
+| (b) | `SUPABASE_KEY` = legacy `ANON_KEY` | 1 | `SUPABASE_KEY: expected the sb_publishable_ prefix` |
+| (c) | `SUPABASE_SERVICE_ROLE_KEY` = legacy `SERVICE_ROLE_KEY` | 1 | `SUPABASE_SERVICE_ROLE_KEY: expected the sb_secret_ prefix` |
+| (d) | `SUPABASE_DB_URL` unset | 1 | `SUPABASE_DB_URL: expected a value, found none` |
+| (e) | (b) and (d) together | 1 | both lines in one run, so the step collects every failure before exiting |
+
+**No value appeared in any output.** Each case's combined stdout and stderr was checked by the driver before it was shown. The check covered all six values (the four exported and the two legacy JWTs), each key's random part after its prefix, the loopback host and the DB credentials. None matched.

@@ -1,12 +1,6 @@
 name: "Supabase stack (trimmed)"
 description: "Run the lockfile's Supabase CLI (./.github/actions/setup must run first), regenerate the seed, boot a trimmed local stack, and export its env to $GITHUB_ENV."
 
-inputs:
-  export-anon-key:
-    description: "When 'true', also export the stack's anon key as SUPABASE_KEY (the e2e lane writes it into .dev.vars and uses it for signInWithPassword)."
-    required: false
-    default: "false"
-
 # A remote action added to this file is SHA-pinned with an exact `# vX.Y.Z` — see the pinning rule
 # in `ci.yml`. None is used today: the CLI comes from the lockfile.
 runs:
@@ -50,16 +44,28 @@ runs:
       shell: bash
       run: pnpm exec supabase start -x studio,imgproxy,mailpit,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
 
-    # The local stack mints its own keys; export them to the job env so the integration
-    # / e2e suites and the load-test-env CI fail-gate find them. `status -o env` quotes
-    # its values (SUPABASE_URL="http://..."); $GITHUB_ENV keeps quotes literal, which
-    # supabase-js rejects as an invalid URL — strip them before appending. The e2e lane
-    # additionally needs the anon key (SUPABASE_KEY) for `.dev.vars` + signInWithPassword,
-    # toggled via the `export-anon-key` input. `SUPABASE_DB_URL` is the direct Postgres endpoint the
-    # grant-posture suite needs: `has_table_privilege` is catalog introspection, which PostgREST
-    # cannot express at all — and reading a migration's revoke statements is explicitly NOT proof
-    # (lessons.md). The CLI's local port is fixed, so this matches the local default; exporting it
-    # keeps CI explicit rather than lucky.
+    # Export the stack's env to the job, for both lanes' solver, the integration / e2e suites and
+    # the load-test-env CI fail-gate. The keys are the CLI's fixed defaults, not minted per stack,
+    # and they go out in the formats production uses: SUPABASE_KEY is the publishable key
+    # (`sb_publishable_…`), and SUPABASE_SERVICE_ROLE_KEY carries the secret key (`sb_secret_…`)
+    # under its historical name. The deprecated HS256 `anon_key` / `service_role_key` fields are
+    # not exported.
+    #
+    # `status` drops an unknown `--override-name` path without an error (exit 0, no variable), so a
+    # typo here surfaces only as a missing variable much later — hence "Assert Supabase env" below.
+    #
+    # `status -o env` prints EVERY field, not just the overridden ones: the legacy JWTs as ANON_KEY /
+    # SERVICE_ROLE_KEY, JWT_SECRET, the S3 keys. The grep keeps exactly the four names, so no legacy
+    # key reaches the job env under any name — a later step reaching for SERVICE_ROLE_KEY gets
+    # nothing rather than, quietly, the JWT. Under `pipefail` a grep matching nothing fails the step.
+    #
+    # `status -o env` quotes its values (SUPABASE_URL="http://..."); $GITHUB_ENV keeps quotes
+    # literal, which supabase-js rejects as an invalid URL — strip them before appending.
+    # `SUPABASE_DB_URL` is the direct Postgres endpoint the grant-posture suite needs:
+    # `has_table_privilege` is catalog introspection, which PostgREST cannot express at all — and
+    # reading a migration's revoke statements is explicitly NOT proof (lessons.md). The CLI's local
+    # port is fixed, so this matches the local default; exporting it keeps CI explicit rather than
+    # lucky.
     #
     # Env isolation (e2e ↔ deploy): these vars come SOLELY from this job's own ephemeral
     # stack. Never reference `${{ secrets.SUPABASE_* }}` here (those are the hosted/
@@ -68,18 +74,56 @@ runs:
     # the workerd preview, and a real signInWithPassword, at production. $GITHUB_ENV is
     # per-job, so these stay job-scoped.
     #
-    # The input reaches the script through `env:`, never as `${{ }}` inside `run:`: an expression
-    # there is pasted into the script text before bash parses it, so a non-literal value from a
-    # future caller would execute as code. No `run:` in either composite action interpolates one.
+    # The action takes no inputs. One added later reaches a script through `env:`, never as `${{ }}`
+    # inside `run:`: an expression there is pasted into the script text before bash parses it, so a
+    # non-literal value from a caller would execute as code. No `run:` in either composite action
+    # interpolates one.
     - name: Export Supabase env
       shell: bash
-      env:
-        EXPORT_ANON_KEY: ${{ inputs.export-anon-key }}
       run: |
-        EXTRA=""
-        [ "$EXPORT_ANON_KEY" = "true" ] && EXTRA="--override-name auth.anon_key=SUPABASE_KEY"
         pnpm exec supabase status -o env \
-          --override-name api.url=SUPABASE_URL $EXTRA \
-          --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \
+          --override-name api.url=SUPABASE_URL \
+          --override-name auth.publishable_key=SUPABASE_KEY \
+          --override-name auth.secret_key=SUPABASE_SERVICE_ROLE_KEY \
           --override-name db.url=SUPABASE_DB_URL \
-          | sed 's/"//g' >> "$GITHUB_ENV"
+          | sed 's/"//g' \
+          | grep -E '^(SUPABASE_URL|SUPABASE_KEY|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL)=' \
+          >> "$GITHUB_ENV"
+
+    # The gate on the export, ahead of everything that consumes it — both lanes' solver boots on
+    # these values before any test runs. All four must be set, and both keys must carry production's
+    # prefix. It collects every failure and exits once, so a single run names every problem. It
+    # prints names, lengths and the expected prefix, never a character of a value, even though these
+    # local keys are public CLI defaults.
+    #
+    # It has to be its own step: a value appended to $GITHUB_ENV reaches only LATER steps, embedded
+    # composite steps included.
+    - name: Assert Supabase env
+      shell: bash
+      run: |
+        # NAME=required-prefix; an empty prefix only requires a value.
+        expectations=(
+          "SUPABASE_URL="
+          "SUPABASE_KEY=sb_publishable_"
+          "SUPABASE_SERVICE_ROLE_KEY=sb_secret_"
+          "SUPABASE_DB_URL="
+        )
+        failures=()
+        report=()
+        for expectation in "${expectations[@]}"; do
+          name="${expectation%%=*}"
+          prefix="${expectation#*=}"
+          value="${!name:-}"
+          if [ -z "$value" ]; then
+            failures+=("$name: expected a value, found none")
+          elif [[ "$value" != "$prefix"* ]]; then
+            failures+=("$name: expected the $prefix prefix")
+          else
+            report+=("$name: ${prefix:-set}, ${#value} chars")
+          fi
+        done
+        if [ "${#failures[@]}" -gt 0 ]; then
+          printf '%s\n' "${failures[@]}" >&2
+          exit 1
+        fi
+        printf '%s\n' "${report[@]}"

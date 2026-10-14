@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-10-12
+updated: 2026-10-14
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -44,7 +44,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | ID    | Change ID                    | Outcome (user can …)                                                                                   | Prerequisites      | PRD refs                                                                       | Status   |
 | ----- | ---------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------ | ------------------------------------------------------------------------------ | -------- |
 | F-401 | give-integration-lane-a-signed-in-client-per-role | (foundation) the integration lane signs in a real user per principal (once per file) and pins today's access posture in a role matrix that S-403 flips | — | FR-410, §Guardrails (no author loses access), §Constraints (CI lanes stay green) | done |
-| F-402 | ci-publishable-key-and-pinned-cli | (foundation) every CI lane uses the `sb_publishable_` key production uses, on a pinned Supabase CLI | — | §Constraints (CI lanes stay green) | ready    |
+| F-402 | ci-publishable-key-and-pinned-cli | (foundation) every CI lane uses the `sb_publishable_` key production uses, on a pinned Supabase CLI | — | §Constraints (CI lanes stay green) | planning |
 | S-401 | account-self-service         | change their own password and set a display name; passwords under 15 characters are refused           | —                  | FR-411, FR-413, §NFG (passwords ≥ 15)                                          | ready    |
 | S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | blocked  |
 | S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | proposed |
@@ -129,7 +129,7 @@ A foundation was considered for each of those and rejected: postponing none of t
   - Whether the service-role variable also moves to `sb_secret_…` here. It touches all 36 integration suites, `scripts/provision-*.mjs` and `bench/`, and needs a local check first. — Owner: plan phase. Block: no.
   - Pin mechanism: `setup-cli`'s `version:` kept in step with `package.json` by hand (as the `wranglerVersion` and uv pins already are; Dependabot moves only `uses:` refs), or the lockfile's CLI run through `pnpm exec supabase`. — Owner: plan phase. Block: no.
 - **Risk:** Small, but it changes the environment of three CI consumers at once: the e2e preview's `.dev.vars`, the CP-SAT service in the integration job, and the solver-credential suite. So it lands on its own, not inside F-401, and a red build stays unambiguous. No test result changes today: both keys resolve to the `anon` role, and signed-in requests carry the user's token either way. No technical reason was ever recorded for the legacy key; "anon" and "publishable" have been used as synonyms since June 2026 (`8b1fd3b`, `3ef2cc5`, `7d0fc65`). CI is the only environment on the legacy key, and its CLI is unpinned (the last run pulled GoTrue v2.197.0 against v2.189.0 locally). Research: `context/archive/2026-10-12-give-integration-lane-a-signed-in-client-per-role/research.md` (follow-up "Why CI exports the legacy anon key").
-- **Status:** ready
+- **Status:** planning
 
 ## Slices
 

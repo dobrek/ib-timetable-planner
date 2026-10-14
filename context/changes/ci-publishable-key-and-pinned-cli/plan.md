@@ -504,31 +504,31 @@ Dropping `setup-cli` removes its Bun download and npm install, about 4.7 s per s
 
 #### Automated
 
-- [x] 2.1 No legacy wiring remains
-- [x] 2.2 Assertion drill cases (a)–(e) behave as specified and are recorded in `change.md`
-- [x] 2.3 Types check: `pnpm check`
-- [x] 2.4 Lint passes: `pnpm lint`
-- [x] 2.5 Unit lane passes: `pnpm test`
-- [x] 2.6 Formatting holds
-- [x] 2.7 Local CI gate passes: `/verify`
+- [x] 2.1 No legacy wiring remains — fcbe9fd
+- [x] 2.2 Assertion drill cases (a)–(e) behave as specified and are recorded in `change.md` — fcbe9fd
+- [x] 2.3 Types check: `pnpm check` — fcbe9fd
+- [x] 2.4 Lint passes: `pnpm lint` — fcbe9fd
+- [x] 2.5 Unit lane passes: `pnpm test` — fcbe9fd
+- [x] 2.6 Formatting holds — fcbe9fd
+- [x] 2.7 Local CI gate passes: `/verify` — fcbe9fd
 
 #### Manual
 
-- [ ] 2.8 All four test jobs green on the phase-2 commit
-- [ ] 2.9 "Assert Supabase env" logs show names, lengths and prefixes only, in both lanes
-- [ ] 2.10 Solver-touching suites and `generation.spec.ts` pass on the publishable key
+- [x] 2.8 All four test jobs green on the phase-2 commit — fcbe9fd
+- [x] 2.9 "Assert Supabase env" logs show names, lengths and prefixes only, in both lanes — fcbe9fd
+- [x] 2.10 Solver-touching suites and `generation.spec.ts` pass on the publishable key — fcbe9fd
 
 ### Phase 3: Realign the developer machine and document
 
 #### Automated
 
-- [ ] 3.1 Local images match CI
-- [ ] 3.2 Only the storage override remains in `supabase/.temp`
-- [ ] 3.3 Integration lane passes locally with the solver up
-- [ ] 3.4 Formatting holds
+- [x] 3.1 Local images match CI
+- [x] 3.2 Only the storage override remains in `supabase/.temp`
+- [x] 3.3 Integration lane passes locally with the solver up
+- [x] 3.4 Formatting holds
 
 #### Manual
 
-- [ ] 3.5 `pnpm build && pnpm preview` smoke on the realigned stack
-- [ ] 3.6 One local Generate end to end on PostgREST v16.2
-- [ ] 3.7 README paragraph reads correctly to a never-linked reader
+- [x] 3.5 `pnpm build && pnpm preview` smoke on the realigned stack
+- [x] 3.6 One local Generate end to end on PostgREST v16.2
+- [x] 3.7 README paragraph reads correctly to a never-linked reader

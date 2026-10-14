@@ -375,8 +375,8 @@ pnpm exec wrangler rollback <deployment-id>
 GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`. All jobs share the `./.github/actions/setup` step (pnpm + Node + `pnpm install --frozen-lockfile`):
 
 1. **`verify` job** — `shellcheck scripts/solver` → `astro sync` → `check` → `lint` → `steiger` → `pnpm audit --audit-level=high` → `test` → `build`
-2. **`integration` job** — boots a trimmed local Supabase stack, provisions the solver machine user with a per-run password, launches the CP-SAT service (with `SOLVER_MAX_CONCURRENT_JOBS=2`, sized to the worker cap below) and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` — which includes both solver-touching suites: the `queued → running → succeeded` proof-of-life, and the full S-301 chain from Generate to a verified board on the proposal plan
-3. **`e2e` job** — boots the stack, provisions the solver machine user and starts the **native** CP-SAT service (same recipe as `integration`, `SOLVER_MAX_CONCURRENT_JOBS` left at 1), writes `.dev.vars` **including `SOLVER_URL`** — before the build that snapshots it — then boots the workerd preview and runs the Playwright suite (`pnpm test:e2e`). The solver is what lets `generation.spec.ts` press Generate and drive the result to a board; without `SOLVER_URL` the preview would pick the container binding instead and need Docker for no extra coverage
+2. **`integration` job** — boots a trimmed local Supabase stack on the lockfile's Supabase CLI (`.github/actions/supabase-stack`, which exports `sb_publishable_` / `sb_secret_` keys and asserts their format before the solver boots), provisions the solver machine user with a per-run password, launches the CP-SAT service (with `SOLVER_MAX_CONCURRENT_JOBS=2`, sized to the worker cap below) and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` — which includes both solver-touching suites: the `queued → running → succeeded` proof-of-life, and the full S-301 chain from Generate to a verified board on the proposal plan
+3. **`e2e` job** — boots the stack through the same action (the lockfile's CLI, asserted `sb_publishable_` / `sb_secret_` keys), provisions the solver machine user and starts the **native** CP-SAT service (same recipe as `integration`, `SOLVER_MAX_CONCURRENT_JOBS` left at 1), writes `.dev.vars` **including `SOLVER_URL`** — before the build that snapshots it — then boots the workerd preview and runs the Playwright suite (`pnpm test:e2e`). The solver is what lets `generation.spec.ts` press Generate and drive the result to a board; without `SOLVER_URL` the preview would pick the container binding instead and need Docker for no extra coverage
 4. **`solver` job** — from `services/solver`: `uv sync --locked` → `ruff check` → `mypy` (strict, src + tests) → `pytest` → `uv audit`
 5. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` + `solver` all pass: applies pending migrations (`supabase db push`), checks the Docker daemon, then builds and pushes the solver container image and ships the Worker + container via `cloudflare/wrangler-action` (v4)
 
@@ -410,6 +410,19 @@ pnpm exec supabase start    # boot the local stack
 pnpm exec supabase stop     # shut it down
 ```
 
+**Which images the stack runs.** The stack runs the image tags that the lockfile's Supabase CLI defaults to. CI runs the same CLI through `pnpm exec supabase`, so a stack that has never been linked runs exactly CI's images. Anything that moves `supabase` in `pnpm-lock.yaml` moves those images, on your machine and in CI at once. That includes a `package.json` bump, and also a plain `pnpm update`, because `package.json` gives `supabase` a `^` range.
+
+One thing overrides those defaults, on one machine only. `supabase link` (see [Hosted project](#hosted-project)) writes `supabase/.temp/postgres-version`, `rest-version` and `gotrue-version`, a snapshot of hosted's service versions at the time of the link. From then on, the CLI prefers those files to its own defaults. To check, run `ls supabase/.temp/*-version`. If it lists none of those three, there is nothing to do. Otherwise, to get back onto CI's images, move the three files aside and restart. The data volume is kept:
+
+```bash
+pnpm exec supabase stop
+mkdir -p supabase/.temp/link-snapshot
+mv supabase/.temp/{postgres,rest,gotrue}-version supabase/.temp/link-snapshot/
+pnpm exec supabase start
+```
+
+If Postgres refuses the existing volume, which can happen when the snapshot was newer than the CLI's default, move the files back and start again. Re-linking writes all three files again, and the drift comes back. `storage-version` lives there too, but CI runs no storage container, so leave it.
+
 ### Hosted project
 
 | Detail      | Value                  |
@@ -423,6 +436,8 @@ Link the CLI to the hosted project (one-time):
 pnpm exec supabase login
 pnpm exec supabase link --project-ref hwmuiymhjgewtymymbmb
 ```
+
+Linking also pins this machine's local stack to hosted's image versions as they were at link time. See [Which images the stack runs](#local-development-default) for how to undo that.
 
 ### Database: migrations & seed
 

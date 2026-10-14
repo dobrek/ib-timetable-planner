@@ -79,7 +79,7 @@ What's already in place in the codebase as of 2026-10-10 (auto-researched + auth
 - **Backend / API:** present — Astro Actions are the single mutation/compute transport.
 - **Data:** present — Supabase Postgres; hosted holds real school data (migrations additive only, applied on merge).
 - **Auth:** **partial** — authentication present (email/password, deny-by-default `src/middleware.ts:7-10` allowing only `/auth/signin`, `/api/auth/`, `/_`); **authorization absent**: 16 `using (true)` policies for `authenticated` (a 17th `using (true)`, the solver's SELECT on `generation_jobs`, is not human-facing and stays), no human role or capability helper, actions check only that a session exists (`src/shared/lib/actions/require-session.ts:9-11`), and `DomainErrorCode` has no `FORBIDDEN`.
-- **Deploy / infra:** present — GitHub Actions gate-then-deploy (verify / integration / e2e / solver / deploy); the CP-SAT solver runs as a Cloudflare Container attached to the Worker. CI's ephemeral stack exports the legacy anon JWT as `SUPABASE_KEY` and runs an unpinned Supabase CLI. → F-402.
+- **Deploy / infra:** present — GitHub Actions gate-then-deploy (verify / integration / e2e / solver / deploy); the CP-SAT solver runs as a Cloudflare Container attached to the Worker. CI's ephemeral stack runs on the lockfile's Supabase CLI and exports production's key formats (`SUPABASE_KEY` is `sb_publishable_…`, `SUPABASE_SERVICE_ROLE_KEY` carries `sb_secret_…`), asserted before either lane's solver boots. → F-402.
 - **Observability:** partial — Cloudflare observability and raw `console.*` only; **no audit trail** of who changed what.
 
 **Change-specific:**

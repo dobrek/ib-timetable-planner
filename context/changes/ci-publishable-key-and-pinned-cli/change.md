@@ -30,3 +30,21 @@ Phase 2's "Assert Supabase env" step, proven to fail for the right reasons befor
 | (e) | (b) and (d) together | 1 | both lines in one run, so the step collects every failure before exiting |
 
 **No value appeared in any output.** Each case's combined stdout and stderr was checked by the driver before it was shown. The check covered all six values (the four exported and the two legacy JWTs), each key's random part after its prefix, the loopback host and the DB credentials. None matched.
+
+## The runner prints exported values in step headers (CI, 2026-10-14)
+
+On CI run 38563186955 (`fcbe9fd`), the "Assert Supabase env" step's own output in both lanes was exactly the four `NAME: prefix-or-set, N chars` lines, with no value characters. The log is still not value-free. GitHub's runner prints every `$GITHUB_ENV` variable in the `env:` header of each later step, this one included, outside any step's control. So the two key values appear there. The DB URL's credentials showed as `***`.
+
+This was accepted as is and not masked:
+
+- **It predates this change, and this change narrowed it.** On the phase-1 run (`7f98451`), the headers printed every `status` field:
+  - the legacy JWTs, under `SUPABASE_KEY` and `SUPABASE_SERVICE_ROLE_KEY`;
+  - `JWT_SECRET`;
+  - `PUBLISHABLE_KEY` and `SECRET_KEY`;
+  - `REST_URL` and `GRAPHQL_URL`.
+
+  After the four-name filter, they print only `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL`.
+- **The values are public.** Both keys in CI were byte-identical to the local stack's (compared by match only, never printed). They are the CLI's fixed defaults, the same on every machine.
+- **The plan's no-value rule is about the assertion's output, and that held.**
+
+If a future stack ever carries a non-default key, the lever is `::add-mask::` on the value inside "Export Supabase env". The runner then prints `***` in every later header.

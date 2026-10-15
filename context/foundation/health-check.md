@@ -227,15 +227,30 @@ The project is past the point where the course's later lessons apply: CI/CD, aut
 and agent instruction files already exist. So every fix below is actionable now, ranked by impact
 on agent work for this change.
 
-> **Status (2026-10-10):** none of these fixes has been applied. They are tracked as tasks, grouped
-> by the phase they should land in, in `context/changes/user-managment-research/change.md` →
-> *Tasks gathered*. Only the documentation parts of Fix 3 are done:
-> - README Rollback now says additive-only;
-> - the `config.toml` hook comment is corrected;
-> - `CLAUDE.md` has a "Database & auth (Supabase)" section containing only rules true today.
+> **Status (2026-10-15):** two fixes have landed in part. The findings below are left as they were
+> on 2026-10-10.
+> - **Fix 1, harness half:** done by F-401 (archived at
+>   `context/archive/2026-10-12-give-integration-lane-a-signed-in-client-per-role/`).
+>   `createSignedInUser` in `src/test/factories/` returns a publishable-key client signed in as a
+>   real user, cleaned up through `teardown`. `src/test/role-matrix.integration.test.ts` runs the
+>   cells in `src/test/role-matrix-expectations.ts`, which pin today's posture. Role assignment and
+>   flipping the matrix stay with S-403.
+> - **Fix 3, documentation parts:**
+>   - README Rollback says additive-only;
+>   - the `config.toml` hook comment is corrected;
+>   - `CLAUDE.md` has a "Database & auth (Supabase)" section containing only rules true today.
 >
-> The role, email-flow and Edge Function rules are tasks that land with the phases that build
-> them. Fix 5's finding is recorded under PRD Open Question 2.
+>   The role, email-flow and Edge Function rules land with the phases that build them.
+>
+> Every other fix is still open. Each is assigned to a slice in `context/foundation/roadmap.md` →
+> *Backlog Handoff* (Notes column), from the task list in
+> `context/changes/user-managment-research/change.md` → *Tasks gathered*. Fix 5 is still
+> undecided. Its finding is recorded under PRD Open Question 2 (Open Roadmap Question 2).
+>
+> Re-checked on 2026-10-15: `main` CI green; `pnpm audit` unchanged (1 ignored high); every test
+> password already 15 characters or longer, so Fix 4's minimum breaks no lane. F-402 (CI on the
+> `sb_publishable_` key, Supabase CLI pinned to the lockfile, archived 2026-10-14) is not one of
+> these fixes, but it changes the CI stack this report describes.
 
 ### Fix before agent work (Category A)
 

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Mail, Lock, LogIn } from "lucide-react";
 import { FormField } from "./FormField";
-import { PasswordToggle } from "./PasswordToggle";
 import { SubmitButton } from "./SubmitButton";
 import { ServerError } from "./ServerError";
 
@@ -12,7 +11,6 @@ type Props = {
 export default function SignInForm({ serverError }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   function validate() {
@@ -51,6 +49,7 @@ export default function SignInForm({ serverError }: Props) {
           clearError("email");
         }}
         placeholder="you@example.com"
+        autoComplete="username"
         error={errors.email}
         icon={<Mail className="size-4" />}
       />
@@ -58,23 +57,16 @@ export default function SignInForm({ serverError }: Props) {
       <FormField
         id="password"
         label="Password"
-        type={showPassword ? "text" : "password"}
+        type="password"
         value={password}
         onChange={(v) => {
           setPassword(v);
           clearError("password");
         }}
         placeholder="Your password"
+        autoComplete="current-password"
         error={errors.password}
         icon={<Lock className="size-4" />}
-        endContent={
-          <PasswordToggle
-            visible={showPassword}
-            onToggle={() => {
-              setShowPassword(!showPassword);
-            }}
-          />
-        }
       />
 
       <ServerError message={serverError} />

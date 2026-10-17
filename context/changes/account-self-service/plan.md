@@ -568,31 +568,31 @@ One extra PostgREST read (`loadOwnProfile`) per shell render, and two on `/accou
 
 #### Automated
 
-- [x] 1.1 `pnpm exec supabase db reset` applies the migration cleanly on the local stack
-- [x] 1.2 `pnpm db:types` regenerates `database.types.ts`; a deliberately failing run leaves the file unchanged
-- [x] 1.3 `pnpm check` passes with `profiles` declared in `READS` and `GRANTS`
-- [x] 1.4 `pnpm test` passes (`role-matrix-expectations.test.ts` with the own-row rule)
-- [x] 1.5 `pnpm test:integration` role-matrix + solver-credential suites pass, including catalog and CHECK-constraint cells
-- [x] 1.6 `pnpm lint` and `pnpm steiger` pass
+- [x] 1.1 `pnpm exec supabase db reset` applies the migration cleanly on the local stack — fc9c5a8
+- [x] 1.2 `pnpm db:types` regenerates `database.types.ts`; a deliberately failing run leaves the file unchanged — fc9c5a8
+- [x] 1.3 `pnpm check` passes with `profiles` declared in `READS` and `GRANTS` — fc9c5a8
+- [x] 1.4 `pnpm test` passes (`role-matrix-expectations.test.ts` with the own-row rule) — fc9c5a8
+- [x] 1.5 `pnpm test:integration` role-matrix + solver-credential suites pass, including catalog and CHECK-constraint cells — fc9c5a8
+- [x] 1.6 `pnpm lint` and `pnpm steiger` pass — fc9c5a8
 
 #### Manual
 
-- [x] 1.7 `has_table_privilege` shows anon none, authenticated SELECT/INSERT/UPDATE only
-- [x] 1.8 Studio shows `profiles` with RLS and the three policies
-- [x] 1.9 Prerequisite: hosted password-update toggles read off and hosted floor set to 15, by hand
+- [x] 1.7 `has_table_privilege` shows anon none, authenticated SELECT/INSERT/UPDATE only — fc9c5a8
+- [x] 1.8 Studio shows `profiles` with RLS and the three policies — fc9c5a8
+- [x] 1.9 Prerequisite: hosted password-update toggles read off and hosted floor set to 15, by hand — fc9c5a8
 
 ### Phase 2: Shared plumbing
 
 #### Automated
 
-- [ ] 2.1 `pnpm test` passes including `to-domain-error.test.ts` for every mapping row
-- [ ] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass with the sign-in toggle removed
-- [ ] 2.3 `pnpm build` passes
-- [ ] 2.4 `pnpm test:e2e e2e/specs/auth.spec.ts` passes (setup toggle gate intact)
+- [x] 2.1 `pnpm test` passes including `to-domain-error.test.ts` for every mapping row
+- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass with the sign-in toggle removed
+- [x] 2.3 `pnpm build` passes
+- [x] 2.4 `pnpm test:e2e e2e/specs/auth.spec.ts` passes (setup toggle gate intact)
 
 #### Manual
 
-- [ ] 2.5 Sign-in toggle works, password manager fills, banner token-clean in both themes
+- [x] 2.5 Sign-in toggle works, password manager fills, banner token-clean in both themes
 
 ### Phase 3: Account slice
 

@@ -60,6 +60,7 @@ export { Input } from "./input";
 export { MultiSelect, type MultiSelectItem } from "./multi-select";
 export { NumberField } from "./number-field";
 export { OptionalTag } from "./optional-tag";
+export { PasswordInput } from "./password-input";
 export { Label } from "./label";
 export {
   Popover,

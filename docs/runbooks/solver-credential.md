@@ -152,9 +152,9 @@ that are not obviously connected to the solver, and that no test would catch:
 | ------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `site_url = "http://127.0.0.1:3000"`                    | `:154`                 | Points production's auth Site URL at **localhost** — breaks every redirect-bearing flow (password reset, magic link, email change). |
 | `additional_redirect_urls = ["https://127.0.0.1:3000"]` | `:156`                 | Drops the real allow-list for the same flows.                                                                                       |
-| `enable_confirmations = false`                          | `:212`                 | Turns off email confirmation on hosted.                                                                                             |
-| `secure_password_change = false`                        | `:214`                 | Removes re-authentication on password change.                                                                                       |
-| `minimum_password_length = 6`                           | `:175`                 | Weakens the hosted password floor.                                                                                                  |
+| `enable_confirmations = false`                          | `:213`                 | Turns off email confirmation on hosted.                                                                                             |
+| `secure_password_change = false`                        | `:215`                 | Nothing while hosted is off, as it must be: deliberately off per FR-411 (see [`hosted-auth-settings.md`](hosted-auth-settings.md)). |
+| `minimum_password_length = 15`                          | `:176`                 | Nothing while hosted matches it; the hosted floor is set by hand (see [`hosted-auth-settings.md`](hosted-auth-settings.md)).        |
 
 (Both URL values are stale even for local use — the app serves on `4321`, not `3000`.)
 

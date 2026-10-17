@@ -70,6 +70,7 @@ The app is served at `http://localhost:4321`. Local Supabase Studio is at `http:
 | `pnpm format`    | Prettier across the tree                                |
 | `pnpm env:local` | Switch `.env.local` + `.dev.vars` to local Supabase     |
 | `pnpm env:prod`  | Switch `.env.local` + `.dev.vars` to hosted Supabase    |
+| `pnpm db:types`  | Regenerate `database.types.ts` from the local stack     |
 
 ## Project Structure
 
@@ -159,6 +160,8 @@ One-time, per local database: create the machine Auth user the service signs in 
 ```bash
 SOLVER_MACHINE_PASSWORD='<strong-password>' node scripts/provision-solver-user.mjs
 ```
+
+The password must be **at least 15 characters**: the local Auth floor (`minimum_password_length` in `supabase/config.toml`) refuses anything shorter, and the script has no check of its own. A stack started before that floor landed needs `pnpm exec supabase stop && pnpm exec supabase start` to pick it up.
 
 Then, with the Supabase stack up:
 
@@ -460,6 +463,12 @@ The generator aborts loudly on data inconsistencies (e.g. phantom courses) and p
 
 ```bash
 pnpm exec supabase migration new <descriptive_name>
+```
+
+After a migration that changes a table or column, regenerate the committed types with the stack up and check the diff:
+
+```bash
+pnpm db:types   # fail-safe: on any error src/shared/api/database.types.ts is left untouched
 ```
 
 **Hosted.** On merge to `main`, the CI `deploy` job applies pending **migrations only** via `supabase db push` (the seed is dev-only and is never applied to hosted). To push out-of-band — CI unavailable, or to validate before merge:

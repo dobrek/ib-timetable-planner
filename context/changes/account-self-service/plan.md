@@ -1,0 +1,626 @@
+# Account Self-Service (S-401) Implementation Plan
+
+## Overview
+
+Give every signed-in user an `/account` page, reached from the sidebar footer, where they change their own password and set a display name. Enforce the PRD's 15-character password floor where a user cannot bypass it (Supabase Auth config, local and hosted), nudge existing users whose password is below it, and store the display name in a new `public.profiles` table that later slices (S-406 Users page, S-407 "Created by") can read. Roadmap S-401; PRD FR-411, FR-413, §NFG "Passwords shorter than 15 characters are refused".
+
+## Current State Analysis
+
+From `context/changes/account-self-service/research.md` (2026-10-16, commit `a86f52c`):
+
+- **Auth plumbing works for this today.** Actions build a server client from `context.cookies` (`src/shared/lib/actions/require-supabase.ts:5`); cookies written in an action reach the response; `@supabase/ssr` calls `setAll` on `USER_UPDATED`. GoTrue's `PUT /user` returns the user only (no new tokens), keeps the caller's session, and **deletes every other session of the user** (hard-coded, `internal/models/user.go` `LogoutAllExceptMe`). The middleware's per-request `getUser()` (`src/middleware.ts:26-35`) turns that into a sign-out on the other devices' next request.
+- **Missing plumbing:** no `AuthError → DomainError` mapper (`toDomainError` is PostgREST-only, `src/shared/api/postgrest/to-domain-error.ts:15-19`); `DomainErrorCode` lacks `UNAUTHORIZED` / `TOO_MANY_REQUESTS` (`src/shared/lib/errors/domain-error.ts:9-14`); `defineDomainAction`'s `run(supabase, input)` receives no caller id (`src/shared/lib/actions/define-domain-action.ts:15`).
+- **Config:** `minimum_password_length = 6` (`supabase/config.toml:175`), `secure_password_change = false` (`:214`), `password_requirements = ""` (`:178`). Hosted values for the password floor, "Secure password change" and "Require current password when updating" are **unrecorded**; the last one has **no `config.toml` key at all**. Every password in the repo, CI and e2e is already ≥ 15 characters.
+- **Legacy passwords:** GoTrue enforces the floor only when a password is *set*; sign-in returns `data.weakPassword` on a 200, which `src/pages/api/auth/signin.ts:13` discards.
+- **Shell:** `SidebarLayout.astro:102-122` footer shows the email, the theme toggle and a native sign-out form; no account link, no React in the shell. `GLOBAL_NAV_ITEMS` also drives the dashboard cards (`DashboardPage.astro:5`) and will be role-gated by S-403.
+- **Forms:** reference pattern is `src/_pages/teachers/ui/TeacherFormDialog.tsx` (RHF + `zodResolver`, `mode: "onTouched"`, `submitForm`, `callAction`). `submitForm` toasts then `refreshPage()` → a full reload with no `<ClientRouter />`, which destroys the toast (`src/shared/lib/forms/refresh-page.ts:4-5`). `PasswordToggle` is private to the sign-in slice (`src/_pages/sign-in/ui/PasswordToggle.tsx`). `Banner.astro` uses literal hex colours (`:27-41`).
+- **Harness:** the role matrix is typed over every public table (`src/test/role-matrix-expectations.ts:44,109`) and assumes plan-rooted rows (`planKey` → `id | plan_id`, `src/test/access-probe.ts:123-127`); `WRITES` has no "whose row" dimension and `role-matrix-expectations.test.ts:21-23` forbids an all-denied write row. Every `chromium` e2e spec shares one author whose provisioning never resets the password (`scripts/provision-e2e-author.mjs:53-68`). No `pnpm db:types` script exists (HC Fix 8).
+- **Grants precedent:** `generation_jobs` is the only table revoking all eight privileges from `anon` (`supabase/migrations/20260810200122_generation_jobs.sql:120-129`); `solver_job_writer` holds no default privileges, so a new table is unreachable to it unless granted.
+
+## Desired End State
+
+A signed-in user (with or without a role, once S-403 lands) opens **Account** from the sidebar footer and:
+
+- sets, changes or clears a **display name**; the footer immediately shows it (email beneath), and other signed-in users can read it from `public.profiles`;
+- **changes their password** by typing it twice (no current password asked); on success they stay signed in on this device, their other devices are signed out on their next request, and a password under 15 characters or over 72 bytes is refused by the server, not just the form;
+- a user whose *existing* password is below 15 characters sees a dismissible banner after sign-in pointing at `/account`.
+
+Verification: `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` green; the role matrix declares and proves `profiles` (anon none; `authenticated` INSERT/SELECT/UPDATE; own-row writes allowed, another's row denied; `solver_job_writer` unreachable); an integration suite proves the password mechanics (success, floor, same-password, other-session revocation); e2e proves the page, the footer link, the display-name round trip and both unauth guards; the hosted-settings runbook records the three Auth values as checked.
+
+### Key Discoveries:
+
+- `supabase.auth.updateUser({ password })` must never be passed `email` on the server client (forced PKCE writes a verifier cookie; a different email starts an email-change flow) — research §1.
+- GoTrue measures password length in **UTF-8 bytes** (`len(password)`), caps at **72 bytes** (`validation_failed`, 400); a client `min(15)` on UTF-16 code units is at least as strict, so it is safe for UX; the 72-byte cap needs a byte check — research §4.
+- `upsert` without `.select()` sends `Prefer: return=minimal`, which keeps the write off the SELECT policy (the RETURNING trap recorded in `20260812141459_solver_select_column_scope.sql:16-29`).
+- `heldPrivileges` returns verbs sorted; `GRANTS.profiles.authenticated` must be `["INSERT","SELECT","UPDATE"]` in that order (`src/test/postgres-client.ts`).
+- `e2e/auth.setup.ts` is the only place allowed to drive the sign-in UI (`e2e/CLAUDE.md:34-36`); a second storageState from the same setup keeps that rule intact.
+- Cross-slice loaders live in `src/shared/api/` (`loadPlanSummary`, `loadTeacherNames`) — the precedent for `loadOwnProfile`.
+
+## What We're NOT Doing
+
+- No current-password check and no "Secure password change" nonce (PRD FR-411 dropped the rule; the session-hijack trade-off is accepted and recorded in the hosted-settings runbook). Both hosted toggles are verified **off**, never enabled.
+- No forgot-password / reset email, SMTP, `site_url`, redirect allowlist or `[inbucket] → [local_smtp]` changes — S-402 (roadmap `:299-300`).
+- No `email` column, no `auth.users` trigger and no mirror of users who never set a name in `profiles` — S-406 owns the readable user list and its sync mechanism.
+- No `SECURITY DEFINER` function (S-403 introduces the first, recorded exception).
+- No forced password change for legacy users — a dismissible nudge only (the forced flow is S-409's).
+- No `password_requirements` character classes (PRD requires length only; classes would break `openssl rand -hex`, bare `randomUUID()` and the e2e default). No HIBP (Pro-tier; plan tier unrecorded).
+- No React in the app shell: the footer link stays plain Astro; no user dropdown menu.
+- No `<ClientRouter />`; the display-name save reloads the page and reports success server-side.
+- No password-change click-through in Playwright (mechanics are proven at integration level); no changes to the shared e2e author's password.
+- No display name on the dashboard header ("Signed in as <email>" stays; `auth.spec.ts:16-19` asserts it).
+- No middleware change. `/account` is an ordinary authenticated route today; S-403 adds the role-less allowance when it adds roles (noted for S-403 in Migration Notes).
+
+## Implementation Approach
+
+Five phases, each independently green and mergeable (every merge deploys — observe the no-solve-running rule):
+
+1. **Data layer & access proof** first, because the migration is the only piece that touches hosted data on merge and the harness generalization is where the hidden cost sits. It lands the floor locally so the integration suite in Phase 3 can prove the refusal.
+2. **Shared plumbing** next — error mapping, actor param, `PasswordInput`, token-clean `Banner` — small, pattern-following, unit-tested, no UI yet.
+3. **The account slice**: schemas, domain functions, actions, island, route, and the integration suite that proves the password mechanics.
+4. **Shell, nudge and browser coverage**: the footer link, the weak-password cookie + banner, the second e2e account and the specs.
+5. **Docs and hosted settings**: runbooks, the by-hand hosted check, CLAUDE.md/README, `.editorconfig`, roadmap drift.
+
+Within the slice: Astro Actions, not an API route (API routes are reserved for session endpoints, `lessons.md:23`); one island mounting one `<Toaster />`; two private form hooks (`ui-conventions.md:26-33`); the password form skips the reload (toast survives), the name form reloads to `/account?saved=name` and the page renders the status.
+
+## Critical Implementation Details
+
+- **`updateUser` call shape.** Pass exactly `{ password }`. Never include `email` or `data` in the same call on the server client (see Key Discoveries). Read the result with the new `unwrapAuth`, never `if (error) throw`.
+- **Floor must land in `config.toml` before the integration suite.** The "14 characters → refused" test depends on the local stack running `minimum_password_length = 15`; restart the stack after the edit (`pnpm exec supabase stop && start`, or `db reset`).
+- **Both profile forms live in one island.** `submitForm` toasts on success; a second `<Toaster />` would show each toast twice. The password form passes `refresh: async () => {}` and `onClose: () => form.reset()`; the name form passes `refresh: () => navigate("/account?saved=name")`.
+- **Grant lists are compared sorted and exact** (`livePosture` vs `GRANTS`); the migration must revoke precisely so `authenticated` reads `["INSERT","SELECT","UPDATE"]` and `anon` `[]`.
+- **Second storageState, not a UI sign-in in a test.** The `setup` project signs both fixed accounts in; the account spec runs in a project that only it uses, so the display-name change cannot leak into parallel specs.
+
+## Phase 1: Data layer & access proof
+
+### Overview
+
+Raise the local password floor, add `public.profiles` with its RLS and grants, make type regeneration fail-safe, and extend the role-matrix and solver-guard suites so the new table is declared, probed and proven.
+
+### Changes Required:
+
+#### 1. Local password floor
+
+**File**: `supabase/config.toml`
+
+**Intent**: Make the local Auth server refuse passwords under 15 characters so every later test of the floor can fail. Leave `secure_password_change = false` and `password_requirements = ""` as they are, with a one-line comment above the floor citing PRD §NFG.
+
+**Contract**: `[auth] minimum_password_length = 15` (`:175`). Nothing else in `[auth]` / `[auth.email]` changes in this slice.
+
+#### 2. `profiles` migration
+
+**File**: `supabase/migrations/<timestamp>_profiles.sql` (via `pnpm exec supabase migration new profiles`)
+
+**Intent**: One additive table keyed by the Auth user id, holding only the display name, written by its owner and readable by every signed-in human; unreachable to `anon` and to the solver role. Header block in the house style ("GRANTS / RLS: yes to both"), and a comment stating that the no-control-character check mirrors the Zod rule because PostgREST can be called directly.
+
+**Contract** (the CHECK and the grant narrowing are the non-obvious parts):
+
+```sql
+create table public.profiles (
+  user_id      uuid primary key references auth.users (id) on delete cascade,  -- same key S-403's user_roles will use
+  display_name text
+    check (
+      display_name is null
+      or (
+        char_length(display_name) between 1 and 60
+        and display_name = btrim(display_name)
+        and display_name !~ '[[:cntrl:]​-‏‪-‮⁦-⁩﻿]'
+      )
+    ),
+  updated_at   timestamptz not null default now()
+);
+create trigger profiles_updated_at before update on public.profiles
+  for each row execute function extensions.moddatetime(updated_at);
+
+alter table public.profiles enable row level security;
+create policy "Authenticated users read every profile" on public.profiles
+  for select to authenticated using (true);
+create policy "Users insert their own profile" on public.profiles
+  for insert to authenticated with check (user_id = (select auth.uid()));
+create policy "Users update their own profile" on public.profiles
+  for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+-- no DELETE policy: rows leave by cascade
+
+revoke select, insert, update, delete on public.profiles from anon;
+revoke truncate, references, trigger, maintain on public.profiles from anon;
+revoke delete, truncate, references, trigger, maintain on public.profiles from authenticated;
+-- service_role keeps its default DML (factories, teardown); solver_job_writer and supabase_auth_admin get nothing.
+```
+
+Invariants: `display_name` nullable (S-406 will add rows for users who never set one); no authorization data ever lives here; the `\u` escapes in the regex are verified live by the integration test in change 7 below (Postgres ARE supports them; the test is the proof).
+
+#### 3. Fail-safe type regeneration (HC Fix 8)
+
+**File**: `scripts/db-types.mjs`, `package.json`
+
+**Intent**: Replace the raw redirect that empties `database.types.ts` on failure with a script that captures `pnpm exec supabase gen types typescript --local`, writes to a temp file and moves it into place only on exit 0 with non-empty output. Wire it as `pnpm db:types`.
+
+**Contract**: `"db:types": "node scripts/db-types.mjs"`; the script exits non-zero and leaves the committed file untouched on any failure. Node-only (host tooling, like the other `scripts/*.mjs`).
+
+#### 4. Regenerated types
+
+**File**: `src/shared/api/database.types.ts`
+
+**Intent**: Run `pnpm db:types` with the stack on the new migration; commit verbatim. This is what makes the role matrix a type error until `profiles` is declared.
+
+**Contract**: `Database["public"]["Tables"]["profiles"]` with `user_id`, `display_name: string | null`, `updated_at`.
+
+#### 5. Per-table fixture key in the access probe
+
+**File**: `src/test/access-probe.ts`, `src/test/role-matrix.integration.test.ts`
+
+**Intent**: Generalize the probe from "every row belongs to a plan" to a per-table fixture reference, so a user-keyed table can be probed with the same `classifyRead`. Add a fixture profile owned by a dedicated fixture user; keep the shared-workspace classifier unchanged (`using (true)` still holds; S-403 owns the "own row only" outcome).
+
+**Contract**: `probeRead(client, table, fixture)` and `seesFixtureRows(client, table, fixture)` take `FixtureRef = { planId: string; profileOwnerId: string }`; a private `fixtureKey(table): { column: "id" | "plan_id" | "user_id"; value: string }` replaces `planKey`. `buildFixture` returns a `FixtureRef`, creating the owner through a new factory (change 6) and inserting its profile row as the service role. The docblock's "partial visibility" sentence is reworded to "other rows but none of the fixture's".
+
+#### 6. Factories for a plain Auth user and a profile row
+
+**File**: `src/test/factories/create-auth-user.ts`, `src/test/factories/add-profile.ts`, `src/test/factories/create-signed-in-user.ts`, `src/test/factories/index.ts`
+
+**Intent**: `createAuthUser(admin)` creates and registers a confirmed user without signing in (no rate-limit cost); `addProfile(admin, { userId, displayName })` inserts a row as the service role. `createSignedInUser` additionally returns `password`, so a suite can open a second session for the same user (Phase 3's revocation test). Export all from the barrel.
+
+**Contract**: `SignedInUser` gains `password: string`; `createAuthUser` returns `{ id, email }`; both register with `teardown` (users cascade their profile).
+
+#### 7. Role-matrix expectations and probes for `profiles`
+
+**File**: `src/test/role-matrix-expectations.ts`, `src/test/role-matrix-expectations.test.ts`, `src/test/role-matrix.integration.test.ts`
+
+**Intent**: Declare the new table in `READS` and `GRANTS`, and add write cells with the "whose row" dimension profiles need: own-row writes (the evidence that the payload is valid) and another-user's-row writes (the claim under test). Relax the "every write row has an allowed principal" guard only for rows that have an own-row counterpart. Also assert the CHECK constraint live (a control character and an over-long name are refused with `23514` through the owner's own client), which is the proof the `\u` escapes work in this Postgres.
+
+**Contract**:
+
+| Cell | anon | noRole |
+|---|---|---|
+| `READS.profiles` | denied | allowed |
+| own-row INSERT / UPDATE | denied | allowed |
+| another's row INSERT (foreign `user_id`) / UPDATE / DELETE | denied | denied |
+| `GRANTS.profiles` | `[]` | `["INSERT","SELECT","UPDATE"]` |
+
+Shape: a new `OWN_ROW_WRITES: Record<"profiles", Record<"insert" | "update", Cell>>` beside `WRITES`, and `profiles` added to `RepresentativeTable` with `WRITES.profiles` meaning "the fixture owner's row". Write-probe builders receive the principal's own user id (`null` for anon → a random uuid, denied at the grant layer). `PRINCIPAL_NOTES.noRole` is reworded: allowed everywhere *except another user's profile row*. The expectations test treats a `WRITES` row as evidenced when either it or its `OWN_ROW_WRITES` counterpart has an allowed principal.
+
+#### 8. Solver guard covers `profiles`
+
+**File**: `src/test/solver-credential.integration.test.ts`
+
+**Intent**: Prove the machine role cannot reach the new table even if the token hook fell back to `authenticated` — add `profiles` to the unreachable-table loop and to the `heldPrivileges(...) → []` assertions.
+
+**Contract**: `heldPrivileges(pg, "solver_job_writer", "public.profiles")` equals `[]`; `solver.from("profiles").select("user_id")` errors `42501`.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- `pnpm exec supabase db reset` applies the migration cleanly on the local stack
+- `pnpm db:types` regenerates `src/shared/api/database.types.ts` and a deliberately failing run (stack stopped) leaves the file unchanged
+- `pnpm check` passes with `profiles` declared in `READS` and `GRANTS`
+- `pnpm test` passes (`role-matrix-expectations.test.ts` with the own-row rule)
+- `pnpm test:integration src/test/role-matrix.integration.test.ts src/test/solver-credential.integration.test.ts` passes, including the catalog check and the CHECK-constraint cells
+- `pnpm lint` and `pnpm steiger` pass
+
+#### Manual Verification:
+
+- `select has_table_privilege('anon','public.profiles', v) from unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']) v` is all `false`; the same for `authenticated` is `true` only for SELECT/INSERT/UPDATE
+- Supabase Studio shows `profiles` with RLS enabled and the three policies
+
+**Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
+
+---
+
+## Phase 2: Shared plumbing
+
+### Overview
+
+Add the pieces every later phase relies on: auth-error translation, the caller identity for domain functions, a reusable password input, and a token-clean banner. No user-visible change yet beyond sign-in gaining autocomplete attributes.
+
+### Changes Required:
+
+#### 1. Domain error codes
+
+**File**: `src/shared/lib/errors/domain-error.ts`
+
+**Intent**: Let the domain layer express "no session" and "rate limited", which GoTrue produces and `ActionError` already carries.
+
+**Contract**: `DomainErrorCode` gains `"UNAUTHORIZED" | "TOO_MANY_REQUESTS"`; `runDomain` needs no change (codes stay a 1:1 subset).
+
+#### 2. Auth error mapper
+
+**File**: `src/shared/api/auth/to-domain-error.ts`, `src/shared/api/auth/unwrap-auth.ts`, `src/shared/api/auth/index.ts`, `src/shared/api/index.ts`, plus `to-domain-error.test.ts`
+
+**Intent**: A sibling of `postgrest/`: translate supabase-js `AuthError`s into `DomainError`s so domain functions read `unwrapAuth(result, messages)` like they read `unwrapRow`. Distinguish user mistakes from hosted misconfiguration, which must surface loudly.
+
+**Contract** (`error.code` → `DomainErrorCode`, message policy):
+
+| GoTrue `code` | Domain code | Message |
+|---|---|---|
+| `weak_password` (`AuthWeakPasswordError`, `.reasons`) | `UNPROCESSABLE_CONTENT` | from `reasons`: length → "at least 15 characters"; `pwned` → "found in a data breach"; else GoTrue's |
+| `same_password` | `UNPROCESSABLE_CONTENT` | "Choose a password you have not used before." |
+| `validation_failed` | `BAD_REQUEST` | GoTrue's (72-byte cap) |
+| `over_request_rate_limit` | `TOO_MANY_REQUESTS` | "Too many attempts — try again in a few minutes." |
+| `reauthentication_needed`, `current_password_required`, `current_password_invalid` | `INTERNAL_SERVER_ERROR` | "Password changes are misconfigured on the server." + `console.error` naming the hosted toggle |
+| `isAuthSessionMissingError(error)` (no cookie session, or revoked) | `UNAUTHORIZED` | "Your session has ended — sign in again." |
+| anything else | `INTERNAL_SERVER_ERROR` | GoTrue's message |
+
+`unwrapAuth<T>(result: { data: T; error: AuthError | null }): T` throws the mapped `DomainError`. Unit tests cover every row with constructed `AuthError`/`AuthWeakPasswordError`/`AuthSessionMissingError` instances (no network).
+
+#### 3. Caller identity for domain functions
+
+**File**: `src/shared/lib/actions/require-session.ts`, `src/shared/lib/actions/define-domain-action.ts`
+
+**Intent**: Domain functions that write a user-owned row need the caller's id without a second `getUser()` round trip. `requireSession` returns the `User` it already checks; `defineDomainAction` passes an actor as an optional third argument. Existing `run` functions keep compiling (fewer parameters are assignable).
+
+**Contract**: `requireSession(context): User`; `run: (supabase, input, actor: { userId: string }) => Promise<TOutput>`.
+
+#### 4. `PasswordInput` promoted to `shared/ui`
+
+**File**: `src/shared/ui/password-input.tsx`, `src/shared/ui/index.ts`; delete `src/_pages/sign-in/ui/PasswordToggle.tsx`; update `src/_pages/sign-in/ui/SignInForm.tsx` and `FormField.tsx`
+
+**Intent**: One input-with-toggle for sign-in now and for the account page, the reset page (S-402), the forced change (S-409) and the invite acceptance (S-410). The toggle names itself after the field so two toggles on one page have distinct accessible names, and declares its state and target.
+
+**Contract**: `<PasswordInput id name autoComplete toggleLabel="password" …inputProps />` renders the shadcn `Input` with `type` switched by local state and a button with `aria-label={visible ? \`Hide ${toggleLabel}\` : \`Show ${toggleLabel}\`}`, `aria-pressed`, `aria-controls={id}`. Sign-in keeps `toggleLabel="password"` so `auth.setup.ts:26-27` ("Show password"/"Hide password") still matches, and gains `autoComplete="username"` on email and `"current-password"` on password. Token classes only.
+
+#### 5. Token-clean `Banner`
+
+**File**: `src/shared/ui/Banner.astro`
+
+**Intent**: The weak-password nudge (Phase 4) uses the `warning` variant, and `lessons.md:12-17` forbids the literal hex it carries today. Rewrite the three variants on semantic tokens (`--warning`, `--destructive`, and an info tone on `--accent`/`--foreground`), keep the `role` logic and the slot.
+
+**Contract**: No hex or palette-named utilities remain in the file; variants and `role` unchanged; the missing-config banner in `BaseLayout.astro` renders as before.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- `pnpm test` passes, including `src/shared/api/auth/to-domain-error.test.ts` covering every mapping row
+- `pnpm check`, `pnpm lint`, `pnpm steiger` pass (no `_pages/sign-in` import of the deleted toggle remains)
+- `pnpm build` passes
+- `pnpm test:e2e e2e/specs/auth.spec.ts` passes (the setup project's toggle gate still finds "Show password")
+
+#### Manual Verification:
+
+- Sign-in page: the toggle flips the field, a password manager offers to fill it (autocomplete attributes), light and dark themes show no literal colours on the missing-config banner (temporarily blank a key in `.dev.vars` to see it)
+
+**Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
+
+---
+
+## Phase 3: Account slice
+
+### Overview
+
+The `_pages/account` slice with its two actions, the `/account` route and island, and the integration suite that proves the password mechanics and the profile upsert through real publishable-key sessions.
+
+### Changes Required:
+
+#### 1. Schemas
+
+**File**: `src/_pages/account/model/schemas.ts`, `schemas.test.ts`
+
+**Intent**: One source of truth for both the action gates and the form resolvers. The password rule mirrors GoTrue (≥ 15, ≤ 72 bytes); the display-name rule mirrors the DB CHECK and normalizes to NFC so the stored string is what the user saw. The confirm field exists only on the client.
+
+**Contract**:
+
+- `passwordInput = z.object({ password: z.string().min(15, …).refine(utf8Bytes ≤ 72, …) })` — the action input.
+- `passwordFormSchema = passwordInput.extend({ confirm: z.string() }).refine(match, { path: ["confirm"], message: "Passwords do not match" })` — client only; `PasswordFormValues = z.input<…>`, `PasswordInput = z.output<typeof passwordInput>`.
+- `displayNameInput = z.object({ displayName: z.string().transform(NFC + trim).pipe(z.string().max(60).refine(noForbiddenChars)).transform("" → null) })`, where `noForbiddenChars` rejects `[\p{Cc}​-‏‪-‮⁦-⁩﻿]`; `DisplayNameFormValues = z.input`, `DisplayNameInput = z.output` (`{ displayName: string | null }`).
+- Unit tests: 14 vs 15 chars; a 73-byte password made of 2-byte characters is refused while 72 bytes passes; confirm mismatch lands on `confirm`; name trimming, NFC, bidi-override refusal, `""` → `null`.
+
+#### 2. Domain functions
+
+**File**: `src/_pages/account/api/update-password.ts`, `src/_pages/account/api/update-display-name.ts`, `src/_pages/account/api/constants.ts`
+
+**Intent**: Framework-free, `(supabase, input, actor)`-shaped. `updatePassword` calls `supabase.auth.updateUser({ password })` and reads it through `unwrapAuth`. `updateDisplayName` upserts `{ user_id: actor.userId, display_name }` with `onConflict: "user_id"` and no `.select()`, read through `unwrapCompleted` (a `23514` maps to `UNPROCESSABLE_CONTENT` with the slice's message).
+
+**Contract**: `updatePassword(supabase, { password }): Promise<void>`; `updateDisplayName(supabase, { displayName }, { userId }): Promise<void>`. Neither returns user data to the client.
+
+#### 3. Actions, client, barrel, composition
+
+**File**: `src/_pages/account/api/actions.ts`, `src/_pages/account/api/account-client.ts`, `src/_pages/account/api/index.ts`, `src/actions/index.ts`
+
+**Intent**: The declarative routing table and the typed client seam, following the teachers slice exactly; `accountActions` spread into the composition root.
+
+**Contract**: `accountActions = { updatePassword: defineDomainAction({ input: passwordInput, run: updatePassword }), updateDisplayName: defineDomainAction({ input: displayNameInput, run: updateDisplayName }) }`; `account-client.ts` exports `updatePassword(values)` / `updateDisplayName(values)` over `callAction`; `api/index.ts` exports `accountActions` (and `loadOwnProfile` re-exported from `@/shared/api` is **not** here — see change 4).
+
+#### 4. Profile loader
+
+**File**: `src/shared/api/load-own-profile.ts`, `src/shared/api/index.ts`
+
+**Intent**: The one read the account page and the app shell share: the caller's profile row, or `null` when none exists or the read fails (the shell must never break on it).
+
+**Contract**: `loadOwnProfile(supabase, userId): Promise<{ displayName: string | null }>` — `maybeSingle()` on `profiles` by `user_id`; an error logs and resolves to `{ displayName: null }`.
+
+#### 5. Display label helper
+
+**File**: `src/shared/lib/profile/index.ts`, `src/shared/lib/profile/profile-label.ts`, `profile-label.test.ts`
+
+**Intent**: The fallback rule the sidebar and the account page share: show the name when set, the email otherwise, and the email as the second line only when a name exists (FR-413).
+
+**Contract**: `profileLabel({ displayName, email }): { primary: string; secondary: string | null }`.
+
+#### 6. Island and forms
+
+**File**: `src/_pages/account/ui/AccountSettings.tsx`, `src/_pages/account/ui/DisplayNameForm.tsx`, `src/_pages/account/ui/PasswordForm.tsx`, `src/_pages/account/index.ts`
+
+**Intent**: One island (`AccountSettings`, the thin orchestrator that mounts the single `<Toaster />`) with two named form sections. Each form file owns its private hook below the component (`useDisplayNameForm`, `usePasswordForm`), RHF + `zodResolver`, `mode: "onTouched"`, `submitForm`. Page header follows `TeacherCatalog.tsx:38-42`; content in a `max-w-xl` column; cards hand-rolled like `DashboardPage.astro:22`.
+
+**Contract**:
+
+- `AccountSettings({ email, displayName })`; both forms are `<form aria-labelledby>` landmarks ("Display name", "Change password") with distinct submit labels ("Save name", "Change password").
+- Display-name form: one `Input` with `FormDescription` ("Shown beside your email. Leave empty to show only your email."), a live counter via `useWatch` (`n/60`, in `aria-describedby`); `submitForm({ …, conflictField: "displayName", conflictCodes: ["UNPROCESSABLE_CONTENT", "BAD_REQUEST"], successMessage: "Display name saved", onClose: noop, refresh: () => navigate("/account?saved=name") })`.
+- Password form: a hidden `<input type="text" name="username" autoComplete="username" value={email} readOnly hidden>` then two `PasswordInput`s (`autoComplete="new-password"`, `toggleLabel` "new password" / "confirmation"), `FormDescription` "At least 15 characters. Your other devices will be signed out."; `submitForm({ …, conflictField: "password", conflictCodes: ["UNPROCESSABLE_CONTENT", "BAD_REQUEST", "TOO_MANY_REQUESTS"], successMessage: "Password changed", onClose: () => form.reset(), refresh: async () => {} })`; on success also clears the weak-password cookie (Phase 4 constant — stub the call now, wire the constant then) and `UNAUTHORIZED` falls through to the toast.
+- No `autoComplete="off"` anywhere in this slice. `FormMessage`s are complemented by a `role="status"` line for success where no toast survives.
+
+#### 7. Route and page
+
+**File**: `src/pages/account.astro`, `src/_pages/account/ui/AccountPage.astro`
+
+**Intent**: Read the profile, render the header and a server-side `saved` status, mount the island. The status line is what survives the display-name reload.
+
+**Contract**: `account.astro` builds the client like `dashboard.astro`/`teachers.astro`, calls `loadOwnProfile(supabase, user.id)`, and renders `<AccountPage email displayName saved={Astro.url.searchParams.get("saved")} />` inside `AppShellLayout title="Account"`; `AccountPage.astro` renders `<p role="status">Display name saved.</p>` when `saved === "name"` and `<AccountSettings … client:load />`. 503 branch when Supabase is unconfigured, as the other pages do.
+
+#### 8. Integration suite — password mechanics and profile access
+
+**File**: `src/test/account-self-service.integration.test.ts`
+
+**Intent**: Prove the domain functions against the real local Auth and database through publishable-key sessions, including the one behaviour nobody can see in code review: other sessions are revoked. Signs in once per principal per file.
+
+**Contract** (each `it` independent; `teardown` in `afterAll`):
+
+1. `updatePassword(user.client, { password: strong })` resolves; `signInWithPassword` with the new password succeeds and with the old one fails `invalid_credentials`.
+2. A 14-character password → `DomainError` `UNPROCESSABLE_CONTENT` (requires Phase 1's floor on the running stack).
+3. The same password again → `UNPROCESSABLE_CONTENT` (`same_password`).
+4. Two sessions of one user (`createSignedInUser` + a second `createPublishableClient` signed in with `user.password`): after a change on session A, `B.auth.getUser()` returns an error (session missing) while `A.auth.getUser()` still succeeds.
+5. `updateDisplayName(user.client, { displayName: "Ada" }, { userId })` creates the row (read back as service role); a second call updates it and `updated_at` moves; `null` clears it.
+6. Another signed-in user reads the row but its `update` affects 0 rows; a raw insert with a U+202E name as the owner fails `23514`.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- `pnpm test` passes (`schemas.test.ts`, `profile-label.test.ts`, mapper tests)
+- `pnpm test:integration src/test/account-self-service.integration.test.ts` passes against the local stack with the Phase 1 floor
+- `pnpm check`, `pnpm lint`, `pnpm steiger` pass (new slice conforms to FSD; no `astro:actions` import in `ui/`)
+- `pnpm build` passes
+
+#### Manual Verification:
+
+- `pnpm build && pnpm preview`: `/account` renders both forms; saving a name reloads with "Display name saved."; a 10-character password shows the field error before submit; a 15-character password succeeds with a toast, the form clears and the session persists; the same password again shows the field error; a second browser (or private window) signed in as the same user is bounced to sign-in on its next navigation
+- Password manager offers to save the new credential (username + new-password autocomplete)
+
+**Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
+
+---
+
+## Phase 4: Shell, nudge & browser coverage
+
+### Overview
+
+Make the account page reachable from every page, surface the legacy-password nudge, and cover the new surface in Playwright with an isolated second account.
+
+### Changes Required:
+
+#### 1. Sidebar footer becomes the account entry point
+
+**File**: `src/app/layouts/SidebarLayout.astro` (and a sibling `SidebarAccountLink.astro` if the markup warrants it)
+
+**Intent**: Replace the plain email paragraph with a link to `/account` showing `profileLabel` (name, email beneath; email alone when no name), a `UserRound` icon, `title="Account"`, and `aria-current="page"` on `/account`. Collapsed mode shows the icon only. The theme toggle and sign-out form stay. The layout reads the profile itself (`createClient` + `loadOwnProfile`) and never fails the shell on a read error.
+
+**Contract**: a `role="link"` named "Account" exists in the footer on every shell page; the two text lines are `truncate`d with `title`; no user value enters an `is:inline` script.
+
+#### 2. Weak-password cookie and banner
+
+**File**: `src/shared/config/auth-cookies.ts`, `src/shared/config/index.ts`, `src/pages/api/auth/signin.ts`, `src/app/layouts/SidebarLayout.astro`, `src/_pages/account/ui/PasswordForm.tsx`
+
+**Intent**: Turn the `weakPassword` hint GoTrue already returns into a dismissible nudge. Sign-in sets a non-HttpOnly session cookie when the hint is present and deletes it otherwise; the shell renders a `Banner variant="warning"` ("Your password is shorter than the new 15-character minimum. Change it on your account page." + link + Dismiss) when the cookie exists; Dismiss and a successful password change clear it client-side.
+
+**Contract**: `WEAK_PASSWORD_COOKIE = "weak-password"`; `signin.ts` reads `const { data, error }` and sets `{ path: "/", sameSite: "lax", httpOnly: false, secure: import.meta.env.PROD }` with no `maxAge` (browser-session cookie); the banner's Dismiss is a static inline script (`document.cookie = "weak-password=; Max-Age=0; path=/"` + remove the element); `PasswordForm` clears the same cookie on success. The banner is not rendered on `/account` itself.
+
+#### 3. Second e2e account
+
+**File**: `e2e/author-credentials.mjs`, `scripts/provision-e2e-author.mjs`, `e2e/auth.setup.ts`, `playwright.config.ts`, `.gitignore` (if the new state file is not already covered by `e2e/.auth/`)
+
+**Intent**: A fixed `e2e-account@example.test` / `e2e-account-password` account, provisioned by the same idempotent script and signed in by the same `setup` project into `e2e/.auth/account.json`, used by a `chromium-account` project that only the account spec runs in — so the display-name change touches no one else's session and no test drives the sign-in UI.
+
+**Contract**: the credentials module exports `accounts = [{ email, password, stateFile }, …]` consumed by both script and setup; `setup` has one test per account (shared private helper); `chromium` adds `account\.spec\.ts` to `testIgnore`; `chromium-account` has `testMatch: /account\.spec\.ts/`, `storageState: "e2e/.auth/account.json"`, `dependencies: ["setup"]`. `e2e/CLAUDE.md` gains one paragraph on the second account and the rule that specs mutating account state use it. The second password is 20 characters (≥ 15).
+
+#### 4. Specs
+
+**File**: `e2e/specs/account.spec.ts`, `e2e/specs/account-guard.spec.ts`, `e2e/specs/account-action-unauth.spec.ts`
+
+**Intent**: Browser proof of the page, the footer round trip and both server-side gates.
+
+**Contract**:
+
+- `account.spec.ts` (chromium-account): open `/account` via the footer "Account" link; both landmarks visible with their descriptions; set display name `E2E Name <shortId>` (hydration gate: re-assert `toHaveValue` after fill) → "Display name saved." status → footer link text contains the name and the email; clear the name → footer shows the email only. Password section asserts labels, the "At least 15 characters" description and the two toggles by their distinct names; it does **not** submit.
+- `account-guard.spec.ts` (chromium-guard): `/account` → redirected to `/auth/signin`.
+- `account-action-unauth.spec.ts` (chromium-guard): `POST /_actions/updateDisplayName` with `{ displayName: "probe" }` → 401, `code: "UNAUTHORIZED"`.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- `pnpm test:e2e` passes locally (all projects, with the solver up per README) — at minimum `pnpm test:e2e e2e/specs/account.spec.ts e2e/specs/account-guard.spec.ts e2e/specs/account-action-unauth.spec.ts e2e/specs/auth.spec.ts`
+- `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` pass
+- CI `e2e` job green on the PR (the provisioning script creates both accounts from `$GITHUB_ENV`)
+
+#### Manual Verification:
+
+- In `pnpm preview`: footer shows name + email, collapsed rail shows the icon with the "Account" tooltip, `aria-current` on `/account`; a user with a < 15-char password (create one in Studio with the floor temporarily lowered, or on a stack started before Phase 1) sees the banner after sign-in, Dismiss hides it for the session, changing the password removes it for good; dark theme banner reads correctly
+- Mobile width (~375px): both forms usable beside the 64px rail
+
+**Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
+
+---
+
+## Phase 5: Docs & hosted settings
+
+### Overview
+
+Record what hosted must hold by hand, update the runbooks and command references the slice changes, and carry the two any-time hygiene items the roadmap assigned to S-401.
+
+### Changes Required:
+
+#### 1. Hosted auth settings runbook
+
+**File**: `docs/runbooks/hosted-auth-settings.md`
+
+**Intent**: The three Auth values this slice depends on, none of which `config.toml` can carry to hosted, with the read-only check and the decision behind each: `password_min_length = 15` (set), `security_update_password_require_reauthentication = false` (keep off: nonce needs email), `security_update_password_require_current_password = false` (keep off: FR-411, trade-off accepted). Also how to read the GoTrue version (`/auth/v1/health`) and the standing "never `config push`" pointer.
+
+**Contract**: a checklist with the Management API `GET /v1/projects/hwmuiymhjgewtymymbmb/config/auth` fields, the dashboard path for each, a "last verified" line, and the mapper rows that would fire if a toggle flips (so a future 500 is diagnosable).
+
+#### 2. Existing runbooks
+
+**File**: `docs/runbooks/author-provisioning.md`, `docs/runbooks/solver-credential.md`
+
+**Intent**: Point the "change the password" step (`author-provisioning.md:93-94`) at `/account`; state the 15-character floor where a password is entered (`:39-40`, `:91`); in `solver-credential.md:156-157` update the `minimum_password_length` row to `15` with its new line number and reword the `secure_password_change` row ("deliberately off — FR-411; see hosted-auth-settings.md").
+
+**Contract**: no runbook still says a password can be changed only in the console; the config-push table matches `config.toml` line numbers after Phase 1.
+
+#### 3. Command references and hygiene
+
+**File**: `CLAUDE.md`, `README.md`, `.editorconfig`
+
+**Intent**: Swap the raw `gen types … >` command for `pnpm db:types` in CLAUDE.md `:52` and add it to README's script table and § Database steps; mention the password floor beside `SOLVER_MACHINE_PASSWORD` in README's local setup. Add `.editorconfig` (HC Fix 10) covering Python, TOML, YAML and Deno files Prettier does not format.
+
+**Contract**: `grep "gen types" CLAUDE.md README.md` finds only the script's own documentation; `.editorconfig` has `root = true`, LF, final newline, 2-space default, 4-space `*.py`.
+
+#### 4. Roadmap drift
+
+**File**: `context/foundation/roadmap.md`
+
+**Intent**: Two lines the research found stale: "v2.189.0 locally" (`:131`) → v2.196.0; F-402's backlog row "Ready: yes" (`:298`) → done. Status fields for S-401 are owned by the `/10x-*` tooling and are not hand-edited here.
+
+**Contract**: only those two cells change.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- `pnpm format` reports no changes needed on the edited docs; `pnpm lint` and `pnpm build` still pass
+- `/verify` (full local CI gate) passes
+
+#### Manual Verification:
+
+- Hosted dashboard / Management API: `password_min_length = 15` set; both password-update toggles confirmed off; values and date written into `hosted-auth-settings.md` **before the PR merges** (the merge deploys the migration)
+- A sign-in on hosted with an existing author still works; `/account` changes that author's password successfully (then hand the new password to its owner over the usual channel)
+
+**Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
+
+---
+
+## Testing Strategy
+
+### Unit Tests:
+
+- `schemas.test.ts`: 14/15-character boundary; 72-byte cap with multi-byte characters; confirm mismatch path; NFC + trim; forbidden characters; `""` → `null`.
+- `to-domain-error.test.ts`: every mapping row, including `AuthWeakPasswordError.reasons` wording and `isAuthSessionMissingError`.
+- `profile-label.test.ts`: name set / unset / whitespace-only.
+- `role-matrix-expectations.test.ts`: own-row evidence rule; sorted grant lists.
+
+### Integration Tests:
+
+- `role-matrix.integration.test.ts`: `profiles` READS/GRANTS/own-vs-other writes; CHECK constraint live (`23514`); catalog completeness.
+- `solver-credential.integration.test.ts`: `profiles` unreachable to `solver_job_writer`.
+- `account-self-service.integration.test.ts`: password success / floor / same-password / other-session revocation; profile create / update / clear; other user reads but cannot write.
+
+### Manual Testing Steps:
+
+1. `pnpm exec supabase db reset` → `pnpm db:types` → diff is only `profiles`.
+2. `pnpm build && pnpm preview`; sign in; open Account from the footer; set a name → footer updates; clear it → email only.
+3. Change password to 14 characters → field error; to 15+ → toast, still signed in; in a private window signed in as the same user, navigate → bounced to sign-in.
+4. Sign in as a user with a short password (pre-floor stack) → banner; Dismiss; sign in again → banner returns; change password → banner gone on later sign-ins.
+5. Collapse the sidebar → icon + tooltip; resize to phone width → forms usable.
+6. Hosted: run the hosted-auth-settings checklist and record it.
+
+## Performance Considerations
+
+One extra PostgREST read (`loadOwnProfile`) per shell render, and two on `/account` (shell + page). Negligible against the existing per-request `getUser()`; if it ever matters, the middleware can set `locals.profile` once — not now. Drag-drop validation is untouched (no role checks introduced).
+
+## Migration Notes
+
+- **Additive only; safe on live data.** `profiles` starts empty; nothing reads it before the code that tolerates `null`. The migration auto-deploys on merge to `main` — do not merge while a production solve runs.
+- **Hosted by hand, before merge:** the password floor and the two toggles (Phase 5). The app works with the floor unset on hosted (the Zod rule still refuses in the form), but the floor is then UX-only until it is set.
+- **Local stacks:** developers must restart their stack after Phase 1 for the floor; any developer `SOLVER_MACHINE_PASSWORD` under 15 characters is refused on the next `provision-solver-user.mjs` run (README gets the note).
+- **For S-403:** `/account` and `updatePassword` / `updateDisplayName` must stay reachable without a role (FR-410) — a role-less path tier in the middleware and an exemption in any action-level role guard. The matrix's `classifyRead` will need an "own row" outcome once role-less SELECT on `profiles` narrows to the caller's row. The `profiles.user_id` key is the one `user_roles` should share.
+- **For S-406:** add `email` to `profiles` together with its sync mechanism, and create rows for users who never set a name; both are access decisions owned there.
+
+## References
+
+- Research: `context/changes/account-self-service/research.md`
+- Roadmap item: `context/foundation/roadmap.md:136-148` (S-401); PRD `context/foundation/prd.md:210-229` (FR-410/411/413), `:130` (§NFG)
+- Reference form: `src/_pages/teachers/ui/TeacherFormDialog.tsx`; schemas `src/_pages/teachers/model/schemas.ts`; actions `src/_pages/teachers/api/actions.ts`
+- Action plumbing: `src/shared/lib/actions/define-domain-action.ts`, `require-session.ts`, `run-domain.ts`; errors `src/shared/lib/errors/domain-error.ts`
+- Grants precedent: `supabase/migrations/20260810200122_generation_jobs.sql:116-129`; RETURNING trap `20260812141459_solver_select_column_scope.sql:16-29`
+- Harness: `src/test/access-probe.ts`, `src/test/role-matrix-expectations.ts`, `src/test/role-matrix.integration.test.ts`, `src/test/factories/`
+- E2E topology: `playwright.config.ts`, `e2e/auth.setup.ts`, `e2e/author-credentials.mjs`, `scripts/provision-e2e-author.mjs`, `e2e/CLAUDE.md`
+- Conventions: `context/foundation/ui-conventions.md` (hooks `:26-53`, forms `:129-160`, action clients `:191-217`, inline scripts `:259-266`); `context/foundation/lessons.md` (tokens, actions transport, anon revoke, `astro check`)
+
+## Progress
+
+> Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles. See `references/progress-format.md`.
+
+### Phase 1: Data layer & access proof
+
+#### Automated
+
+- [ ] 1.1 `pnpm exec supabase db reset` applies the migration cleanly on the local stack
+- [ ] 1.2 `pnpm db:types` regenerates `database.types.ts`; a deliberately failing run leaves the file unchanged
+- [ ] 1.3 `pnpm check` passes with `profiles` declared in `READS` and `GRANTS`
+- [ ] 1.4 `pnpm test` passes (`role-matrix-expectations.test.ts` with the own-row rule)
+- [ ] 1.5 `pnpm test:integration` role-matrix + solver-credential suites pass, including catalog and CHECK-constraint cells
+- [ ] 1.6 `pnpm lint` and `pnpm steiger` pass
+
+#### Manual
+
+- [ ] 1.7 `has_table_privilege` shows anon none, authenticated SELECT/INSERT/UPDATE only
+- [ ] 1.8 Studio shows `profiles` with RLS and the three policies
+
+### Phase 2: Shared plumbing
+
+#### Automated
+
+- [ ] 2.1 `pnpm test` passes including `to-domain-error.test.ts` for every mapping row
+- [ ] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass with the sign-in toggle removed
+- [ ] 2.3 `pnpm build` passes
+- [ ] 2.4 `pnpm test:e2e e2e/specs/auth.spec.ts` passes (setup toggle gate intact)
+
+#### Manual
+
+- [ ] 2.5 Sign-in toggle works, password manager fills, banner token-clean in both themes
+
+### Phase 3: Account slice
+
+#### Automated
+
+- [ ] 3.1 `pnpm test` passes (schemas, profile-label, mapper)
+- [ ] 3.2 `pnpm test:integration src/test/account-self-service.integration.test.ts` passes
+- [ ] 3.3 `pnpm check`, `pnpm lint`, `pnpm steiger` pass for the new slice
+- [ ] 3.4 `pnpm build` passes
+
+#### Manual
+
+- [ ] 3.5 `/account` forms behave as specified in preview (name save, floor error, password change, same-password error, second session bounced)
+- [ ] 3.6 Password manager offers to save the new credential
+
+### Phase 4: Shell, nudge & browser coverage
+
+#### Automated
+
+- [ ] 4.1 `pnpm test:e2e` passes (account, account-guard, account-action-unauth, auth specs at minimum)
+- [ ] 4.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` pass
+- [ ] 4.3 CI `e2e` job green with both accounts provisioned
+
+#### Manual
+
+- [ ] 4.4 Footer link (expanded, collapsed, `aria-current`), weak-password banner lifecycle, dark theme
+- [ ] 4.5 Phone-width layout usable
+
+### Phase 5: Docs & hosted settings
+
+#### Automated
+
+- [ ] 5.1 `pnpm format` clean on edited docs; `pnpm lint` and `pnpm build` pass
+- [ ] 5.2 `/verify` passes
+
+#### Manual
+
+- [ ] 5.3 Hosted floor set and both toggles confirmed off, recorded in `hosted-auth-settings.md` before merge
+- [ ] 5.4 Hosted sign-in works and `/account` changes an existing author's password

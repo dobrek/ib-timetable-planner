@@ -38,11 +38,17 @@ export type PublicTable = keyof Database["public"]["Tables"];
 /** An error as supabase-js reports one: PostgREST's (with a SQLSTATE), or a fetch failure (no code). */
 export type ProbeError = { code?: string; message: string };
 
+/**
+ * The fixture's rows, by what owns them: most tables hang off a plan, `profiles` off a user. Each
+ * table finds its fixture rows through one of these (see `fixtureKey`).
+ */
+export type FixtureRef = { planId: string; profileOwnerId: string };
+
 export type ReadEvidence = {
   error: ProbeError | null;
-  /** The principal sees at least one of the fixture plan's rows. */
+  /** The principal sees at least one of the fixture's rows. */
   seesFixtureRows: boolean;
-  /** The principal sees at least one row of the table, from any plan. */
+  /** The principal sees at least one row of the table, the fixture's or any other. */
   seesAnyRow: boolean;
 };
 
@@ -67,7 +73,7 @@ const INSUFFICIENT_PRIVILEGE = "42501";
 /**
  * Whether the principal may read the table, from its own view of it. "Denied" means the table
  * reads empty (or 42501), which is S-403's promise that a user with no role reads nothing.
- * Seeing other plans' rows but none of the fixture's is neither outcome under the shared-workspace
+ * Seeing other rows but none of the fixture's is neither outcome under the shared-workspace
  * model, so it throws.
  */
 export function classifyRead({ error, seesFixtureRows, seesAnyRow }: ReadEvidence): AccessOutcome {
@@ -77,7 +83,7 @@ export function classifyRead({ error, seesFixtureRows, seesAnyRow }: ReadEvidenc
   }
   if (seesFixtureRows) return "allowed";
   if (!seesAnyRow) return "denied";
-  throw new Error("partial visibility: the principal sees other plans' rows but none of the fixture plan's");
+  throw new Error("partial visibility: the principal sees other rows but none of the fixture's");
 }
 
 /** Whether a write was allowed, from the service role's read-back of its effect. */
@@ -88,20 +94,28 @@ export function classifyWrite({ error, effectObserved, deniedWhen }: WriteEviden
   throw unexpected(error);
 }
 
-/** Read `table` as the principal: once for the fixture plan's rows, once for any row at all. */
-export async function probeRead(client: SupabaseClient, table: PublicTable, planId: string): Promise<AccessOutcome> {
-  const fixture = await sight(fixtureRowsQuery(client, table, planId));
-  const anyRow = await sight(untyped(client).from(table).select(planKey(table)).limit(1));
+/** Read `table` as the principal: once for the fixture's rows, once for any row at all. */
+export async function probeRead(
+  client: SupabaseClient,
+  table: PublicTable,
+  fixture: FixtureRef,
+): Promise<AccessOutcome> {
+  const fixtureRows = await sight(fixtureRowsQuery(client, table, fixture));
+  const anyRow = await sight(untyped(client).from(table).select(fixtureKey(table, fixture).column).limit(1));
   return classifyRead({
-    error: fixture.error ?? anyRow.error,
-    seesFixtureRows: fixture.seen,
+    error: fixtureRows.error ?? anyRow.error,
+    seesFixtureRows: fixtureRows.seen,
     seesAnyRow: anyRow.seen,
   });
 }
 
-/** Whether `client` sees any of the fixture plan's rows in `table`. Throws on any error. */
-export async function seesFixtureRows(client: SupabaseClient, table: PublicTable, planId: string): Promise<boolean> {
-  const { error, seen } = await sight(fixtureRowsQuery(client, table, planId));
+/** Whether `client` sees any of the fixture's rows in `table`. Throws on any error. */
+export async function seesFixtureRows(
+  client: SupabaseClient,
+  table: PublicTable,
+  fixture: FixtureRef,
+): Promise<boolean> {
+  const { error, seen } = await sight(fixtureRowsQuery(client, table, fixture));
   if (error) throw new Error(`reading ${table}: ${formatError(error)}`);
   return seen;
 }
@@ -120,11 +134,20 @@ const sight = async (query: PromiseLike<{ data: unknown[] | null; error: ProbeEr
   return { error, seen: (data?.length ?? 0) > 0 };
 };
 
-// A table's rows belong to a plan through `plan_id`, except the root itself.
-const planKey = (table: PublicTable): "id" | "plan_id" => (table === "plans" ? "id" : "plan_id");
+type FixtureKey = { column: "id" | "plan_id" | "user_id"; value: string };
 
-const fixtureRowsQuery = (client: SupabaseClient, table: PublicTable, planId: string) =>
-  untyped(client).from(table).select(planKey(table)).eq(planKey(table), planId).limit(1);
+// A table's rows belong to a plan through `plan_id`, except the root itself and `profiles`, whose
+// rows belong to a user.
+const fixtureKey = (table: PublicTable, fixture: FixtureRef): FixtureKey => {
+  if (table === "plans") return { column: "id", value: fixture.planId };
+  if (table === "profiles") return { column: "user_id", value: fixture.profileOwnerId };
+  return { column: "plan_id", value: fixture.planId };
+};
+
+const fixtureRowsQuery = (client: SupabaseClient, table: PublicTable, fixture: FixtureRef) => {
+  const { column, value } = fixtureKey(table, fixture);
+  return untyped(client).from(table).select(column).eq(column, value).limit(1);
+};
 
 // One code path reads every table, so the probe drops the per-table row types it cannot use.
 const untyped = (client: SupabaseClient): UntypedSupabaseClient => client;

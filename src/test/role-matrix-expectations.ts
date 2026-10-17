@@ -7,15 +7,18 @@ import type { TablePrivilege } from "./postgres-client";
  * turned to denied — goes red before the policy migration turns it green, and the diff to this file
  * is the access change under review.
  *
- * Every fact here is **today's** posture (2026-10-12), not a target:
+ * Every fact here is **today's** posture (2026-10-17), not a target:
  *
- * - Every `public` table has RLS on and one `ALL to authenticated using (true)` policy, so any
- *   signed-in human reads and writes everything.
+ * - Every `public` table but `profiles` has RLS on and one `ALL to authenticated using (true)`
+ *   policy, so any signed-in human reads and writes everything.
+ * - `profiles` (S-401) is the one exception: every signed-in human reads every row, but inserts and
+ *   updates only their own, and nobody deletes one. `PROFILE_WRITES` holds the "whose row" cells.
  * - `anon` holds no DML grant on any table, so PostgREST refuses it outright (42501). It still holds
  *   Supabase's auto-granted TRUNCATE, REFERENCES, TRIGGER and MAINTAIN on 15 tables, which
- *   PostgREST cannot reach; `generation_jobs` revoked all eight (lessons.md, "granting a role is not
- *   excluding the others").
- * - `authenticated` holds all eight privileges everywhere, so RLS is its only lock.
+ *   PostgREST cannot reach; `generation_jobs` and `profiles` revoked all eight (lessons.md,
+ *   "granting a role is not excluding the others").
+ * - `authenticated` holds all eight privileges everywhere except `profiles` (INSERT, SELECT and
+ *   UPDATE only), so RLS is its only lock.
  *
  * Completeness is enforced: a missing principal or table is a type error, so S-403 adding a
  * principal, or `database.types.ts` gaining `user_roles`, fails `pnpm check` until every cell is
@@ -30,6 +33,12 @@ export type RepresentativeTable = "plans" | "courses" | "students" | "placements
 
 export type WriteOperation = "insert" | "update" | "delete";
 
+/** Whose profile row a write targets: the principal's own, or another user's. */
+export type ProfileOwner = "own" | "others";
+
+/** A profile has no DELETE cell: `GRANTS.profiles` holds no DELETE, which the catalog check proves. */
+export type ProfileWriteOperation = "insert" | "update";
+
 export type Rpc = "clone_plan";
 
 type Cell = Record<Principal, AccessOutcome>;
@@ -38,7 +47,8 @@ export type TableGrants = { anon: readonly TablePrivilege[]; authenticated: read
 
 export const PRINCIPAL_NOTES: Record<Principal, string> = {
   anon: "TODAY: no session is denied everywhere, at the grant layer",
-  noRole: "TODAY: a signed-in user without a role is allowed everywhere — the hole S-403 closes",
+  noRole:
+    "TODAY: a signed-in user without a role is allowed everywhere except another user's profile row — the hole S-403 closes",
 };
 
 export const READS: Record<PublicTable, Cell> = {
@@ -52,6 +62,7 @@ export const READS: Record<PublicTable, Cell> = {
   generation_jobs: { anon: "denied", noRole: "allowed" },
   placements: { anon: "denied", noRole: "allowed" },
   plans: { anon: "denied", noRole: "allowed" },
+  profiles: { anon: "denied", noRole: "allowed" },
   shelf_bundle_courses: { anon: "denied", noRole: "allowed" },
   shelf_bundles: { anon: "denied", noRole: "allowed" },
   student_choices: { anon: "denied", noRole: "allowed" },
@@ -88,6 +99,22 @@ export const WRITES: Record<RepresentativeTable, Record<WriteOperation, Cell>> =
   },
 };
 
+/**
+ * The "whose row" dimension `WRITES` cannot hold. The `own` cells are the evidence that each
+ * payload is valid; the `others` cells, which deny everyone, are the claim under test. The
+ * expectations test checks each `others` row through its `own` counterpart.
+ */
+export const PROFILE_WRITES: Record<ProfileOwner, Record<ProfileWriteOperation, Cell>> = {
+  own: {
+    insert: { anon: "denied", noRole: "allowed" },
+    update: { anon: "denied", noRole: "allowed" },
+  },
+  others: {
+    insert: { anon: "denied", noRole: "denied" },
+    update: { anon: "denied", noRole: "denied" },
+  },
+};
+
 export const RPCS: Record<Rpc, Cell> = {
   clone_plan: { anon: "denied", noRole: "allowed" },
 };
@@ -105,6 +132,7 @@ const ALL_EIGHT: readonly TablePrivilege[] = [
   "TRUNCATE",
   "UPDATE",
 ];
+const OWN_ROW_DML: readonly TablePrivilege[] = ["INSERT", "SELECT", "UPDATE"];
 
 export const GRANTS: Record<PublicTable, TableGrants> = {
   bundles: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
@@ -117,6 +145,7 @@ export const GRANTS: Record<PublicTable, TableGrants> = {
   generation_jobs: { anon: NONE, authenticated: ALL_EIGHT },
   placements: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   plans: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
+  profiles: { anon: NONE, authenticated: OWN_ROW_DML },
   shelf_bundle_courses: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   shelf_bundles: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   student_choices: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },

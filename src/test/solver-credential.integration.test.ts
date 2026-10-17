@@ -99,6 +99,11 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
       const { error } = await solver.from(table).select("id");
       expect(error?.code, `${table} should be unreachable`).toBe("42501");
     }
+
+    // `profiles` (S-401) is keyed by user, not by `id`, so it is probed by its own key. It holds the
+    // names of the people the solver must never be able to tie a run to.
+    const { error } = await solver.from("profiles").select("user_id");
+    expect(error?.code, "profiles should be unreachable").toBe("42501");
   });
 
   it("reads its job and advances it within the policy", async () => {
@@ -184,6 +189,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     // Before S-301 this read `["SELECT"]`, because SELECT was the one table-wide grant.
     expect(await heldPrivileges(pg, "solver_job_writer", "public.generation_jobs")).toEqual([]);
     expect(await heldPrivileges(pg, "solver_job_writer", "public.plans")).toEqual([]);
+    expect(await heldPrivileges(pg, "solver_job_writer", "public.profiles")).toEqual([]);
   });
 
   it("holds SELECT on exactly the five readable columns — never on the payload", async () => {

@@ -9,9 +9,11 @@ import {
   addGenerationJob,
   addMerge,
   addOverlap,
+  addProfile,
   addStudentWithChoices,
   addTeacher,
   computeGroupingsFor,
+  createAuthUser,
   createPlan,
   createSignedInUser,
   generationJobRow,
@@ -22,17 +24,27 @@ import {
   type SignedInUser,
 } from "@/test/factories";
 import { decodeAccessClaims, type AccessClaims } from "./access-claims";
-import { probeRead, probeWrite, seesFixtureRows, type PublicTable, type WriteAttempt } from "./access-probe";
+import {
+  probeRead,
+  probeWrite,
+  seesFixtureRows,
+  type FixtureRef,
+  type PublicTable,
+  type WriteAttempt,
+} from "./access-probe";
 import { connectPostgres, heldPrivileges } from "./postgres-client";
 import { createPublishableClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 import {
   GRANTS,
   PRINCIPAL_NOTES,
+  PROFILE_WRITES,
   READS,
   RPCS,
   WRITES,
   type Principal,
+  type ProfileOwner,
+  type ProfileWriteOperation,
   type RepresentativeTable,
   type TableGrants,
   type WriteOperation,
@@ -47,7 +59,8 @@ import {
  * S-403's admin, author and viewer apart.
  *
  * Today the matrix pins the posture S-403 replaces: anon is denied everywhere, and a signed-in user
- * without a role is allowed everywhere. S-403 flips the expectations first (red), then its policy
+ * without a role is allowed everywhere except another user's profile row (S-401's own-row
+ * policies, which S-403 keeps). S-403 flips the expectations first (red), then its policy
  * migration turns them green. That flip is the proof that this suite can fail; the deny drill in
  * the `give-integration-lane-a-signed-in-client-per-role` change folder (`drill/`) shows it on
  * today's schema.
@@ -67,13 +80,18 @@ const PRINCIPALS = Object.keys(PRINCIPAL_NOTES) as Principal[];
 const TABLES = Object.keys(READS) as PublicTable[];
 const REPRESENTATIVES = Object.keys(WRITES) as RepresentativeTable[];
 const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
+const PROFILE_OWNERS: ProfileOwner[] = ["own", "others"];
+const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
 
 (hasEnv ? describe : describe.skip)("role matrix (local Supabase)", () => {
   let admin: SupabaseClient;
   let pg: Client;
   let signedIn: Record<SignedInPrincipal, SignedInUser>;
   let principals: Record<Principal, SupabaseClient>;
-  let planId: string;
+  let fixture: FixtureRef;
+
+  // Anon holds no session, so it owns no row.
+  const ownUserIdOf = (principal: Principal): string | null => (principal === "anon" ? null : signedIn[principal].id);
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY || !PUBLISHABLE_KEY) return;
@@ -85,7 +103,7 @@ const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
       anon: createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY),
       noRole: signedIn.noRole.client,
     };
-    planId = await buildFixture(admin);
+    fixture = await buildFixture(admin);
   }, 30_000);
 
   afterAll(async () => {
@@ -99,7 +117,7 @@ const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
 
   it("fixture: the service role sees a fixture row in every public table", async () => {
     const sightings = await Promise.all(
-      TABLES.map(async (table) => ({ table, seen: await seesFixtureRows(admin, table, planId) })),
+      TABLES.map(async (table) => ({ table, seen: await seesFixtureRows(admin, table, fixture) })),
     );
     expect(sightings.filter(({ seen }) => !seen).map(({ table }) => table)).toEqual([]);
   });
@@ -132,7 +150,7 @@ const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
       for (const table of TABLES) {
         const expected = READS[table][principal];
         it(`${principal} SELECT ${table} → ${expected}`, async () => {
-          expect(await probeRead(principals[principal], table, planId)).toBe(expected);
+          expect(await probeRead(principals[principal], table, fixture)).toBe(expected);
         });
       }
 
@@ -140,7 +158,21 @@ const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
         for (const operation of OPERATIONS) {
           const expected = WRITES[table][operation][principal];
           it(`${principal} ${operation.toUpperCase()} ${table} → ${expected}`, async () => {
-            const attempt = await WRITE_PROBES[table][operation](admin, principals[principal], planId);
+            const attempt = await WRITE_PROBES[table][operation](admin, principals[principal], fixture.planId);
+            expect(await probeWrite(attempt)).toBe(expected);
+          });
+        }
+      }
+
+      for (const owner of PROFILE_OWNERS) {
+        for (const operation of PROFILE_OPERATIONS) {
+          const expected = PROFILE_WRITES[owner][operation][principal];
+          it(`${principal} ${operation.toUpperCase()} ${owner} profile → ${expected}`, async () => {
+            const attempt = await PROFILE_WRITE_PROBES[owner][operation](
+              admin,
+              principals[principal],
+              ownUserIdOf(principal),
+            );
             expect(await probeWrite(attempt)).toBe(expected);
           });
         }
@@ -148,7 +180,7 @@ const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
 
       const expected = RPCS.clone_plan[principal];
       it(`${principal} RPC clone_plan → ${expected}`, async () => {
-        expect(await probeWrite(cloneProbe(admin, principals[principal], planId))).toBe(expected);
+        expect(await probeWrite(cloneProbe(admin, principals[principal], fixture.planId))).toBe(expected);
       });
     });
   }
@@ -333,6 +365,62 @@ const deleteProbe = (
   effectLanded: async () => readBack(await admin.from(table).select("id").eq("id", id)).length === 0,
 });
 
+/** Builds one profile write cell's target with the service role. `ownUserId` is null for anon. */
+type ProfileWriteProbeBuilder = (
+  admin: SupabaseClient,
+  client: SupabaseClient,
+  ownUserId: string | null,
+) => Promise<WriteAttempt>;
+
+/**
+ * Every probe names `user_id` explicitly, so own and others differ only in whose id it is. Each
+ * cell builds its own target: the `own` cells clear or seed the principal's one row first, so
+ * neither depends on the other having run. Anon owns no row, so its `own` cells aim at a random id,
+ * which the grant layer refuses before anything else could matter. Each `others` cell gets a fresh
+ * user — with a profile only for UPDATE — so RLS is the only possible reason for a refusal.
+ */
+const PROFILE_WRITE_PROBES: Record<ProfileOwner, Record<ProfileWriteOperation, ProfileWriteProbeBuilder>> = {
+  own: {
+    insert: async (admin, client, ownUserId) => {
+      if (ownUserId) setUp(await admin.from("profiles").delete().eq("user_id", ownUserId));
+      return profileInsertProbe(admin, client, ownUserId ?? randomUUID());
+    },
+    update: async (admin, client, ownUserId) => {
+      if (ownUserId) setUp(await admin.from("profiles").upsert({ user_id: ownUserId, display_name: "Probe start" }));
+      return profileUpdateProbe(admin, client, ownUserId ?? randomUUID());
+    },
+  },
+  others: {
+    insert: async (admin, client) => profileInsertProbe(admin, client, (await createAuthUser(admin)).id),
+    update: async (admin, client) => {
+      const { id } = await createAuthUser(admin);
+      await addProfile(admin, { userId: id, displayName: "Probe start" });
+      return profileUpdateProbe(admin, client, id);
+    },
+  },
+};
+
+/** INSERT a profile for `userId` as the principal; the effect is a row with that owner. */
+const profileInsertProbe = (admin: SupabaseClient, client: SupabaseClient, userId: string): WriteAttempt => ({
+  attempt: () => client.from("profiles").insert({ user_id: userId, display_name: probeName() }),
+  effectLanded: async () => readBack(await admin.from("profiles").select("user_id").eq("user_id", userId)).length > 0,
+});
+
+/** UPDATE `userId`'s display name to a sentinel; the effect is the sentinel stored. */
+const profileUpdateProbe = (admin: SupabaseClient, client: SupabaseClient, userId: string): WriteAttempt => {
+  const sentinel = probeName();
+  return {
+    attempt: () => client.from("profiles").update({ display_name: sentinel }).eq("user_id", userId),
+    effectLanded: async () =>
+      readBack(await admin.from("profiles").select("display_name").eq("user_id", userId)).some(
+        (row) => row.display_name === sentinel,
+      ),
+  };
+};
+
+// Unique per call and within the CHECK's 60 characters.
+const probeName = (): string => `Probe ${randomUUID()}`;
+
 /**
  * `clone_plan` reads its source inside `insert … select`, so a source hidden by RLS surfaces as the
  * RPC's own "source plan … not found" (P0001), not as 42501. Catalog only: the board is irrelevant.
@@ -357,11 +445,12 @@ const cloneProbe = (admin: SupabaseClient, client: SupabaseClient, planId: strin
 };
 
 /**
- * One plan with at least one row in every public table, built with the service role:
- * teachers and availability, three courses (one taught), an overlap and a merge, a student with a
- * choice, computed groupings, a placement and its bundle, a parked course, and a finished job.
+ * At least one row in every public table, built with the service role. One plan holds every
+ * plan-rooted table's rows: teachers and availability, three courses (one taught), an overlap and a
+ * merge, a student with a choice, computed groupings, a placement and its bundle, a parked course,
+ * and a finished job. One user, never signed in, owns the fixture profile.
  */
-const buildFixture = async (admin: SupabaseClient): Promise<string> => {
+const buildFixture = async (admin: SupabaseClient): Promise<FixtureRef> => {
   const planId = await createPlan(admin);
   const { teacherId } = await addTeacher(admin, { planId, code: "RM" });
   await addAvailability(admin, { planId, teacherId, day: 1, period: 1, severity: "soft" });
@@ -377,7 +466,9 @@ const buildFixture = async (admin: SupabaseClient): Promise<string> => {
   await placeCourse(admin, { planId, cohort: "dp1", courseId: placed, day: 1, period: 1 });
   await shelveCourses(admin, { planId, cohort: "dp1", courseIds: [parked] });
   await addFinishedJob(admin, planId);
-  return planId;
+  const { id: profileOwnerId } = await createAuthUser(admin);
+  await addProfile(admin, { userId: profileOwnerId, displayName: "Matrix Owner" });
+  return { planId, profileOwnerId };
 };
 
 const addProbeCourse = async (admin: SupabaseClient, planId: string): Promise<string> =>
@@ -394,6 +485,11 @@ const addProbePlacement = async (admin: SupabaseClient, planId: string): Promise
 /** A finished job, so it never holds its plan's one active-job slot. */
 const addFinishedJob = (admin: SupabaseClient, planId: string): Promise<string> =>
   addGenerationJob(admin, { planId, status: "failed" });
+
+/** A service-role setup write. It throws on any error: a failed setup must never read as a denial. */
+const setUp = ({ error }: { error: { message: string } | null }): void => {
+  if (error) throw new Error(`setup failed: ${error.message}`);
+};
 
 /** A service-role read-back. It throws on any error: a failed read-back must never read as "no effect". */
 const readBack = <T>({ data, error }: { data: T; error: { message: string } | null }): NonNullable<T> => {

@@ -49,7 +49,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - Tradeoff: a third write record, though it is the one the "whose row" dimension actually needs.
   - Confidence: HIGH — read directly from the matrix code.
   - Blind spot: S-403's `user_roles` may want the same record. Generalize then, not now.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F2 — Auth error mapper: 7 rows, ~3 reachable, shared at first use
 
@@ -80,7 +80,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - Tradeoff: a shared surface with one caller, against the stated rule.
   - Confidence: HIGH.
   - Blind spot: S-402's needs are not designed yet.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F3 — The actor parameter widens a shared contract; a column default avoids it
 
@@ -102,7 +102,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - Tradeoff: a shared contract change for one consumer.
   - Confidence: HIGH.
   - Blind spot: none significant.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F4 — The weak-password nudge is a three-writer cookie machine
 
@@ -131,7 +131,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - Tradeoff: it reverses a decision recorded in the brief, and relies on the developer contacting each user.
   - Confidence: MED — it assumes no hosted password was set outside the runbook.
   - Blind spot: the hosted user list was not checked.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F5 — E2E isolation infrastructure guards against a leak that doesn't exist
 
@@ -159,7 +159,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - Tradeoff: a future spec that asserts on footer text must know about this.
   - Confidence: HIGH — checked: all footer/email selectors, the config and the importers.
   - Blind spot: S-402/S-409 will need throwaway users for password flows. That is their infrastructure, not this slice's.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F6 — The name regex is written in invisible characters
 
@@ -172,10 +172,10 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - Copied as written, they put invisible text into a migration and a `.ts` file. Nobody can review it, and a diff shows nothing.
   - The defence is also written twice (a SQL CHECK and a Zod refine), with its own live test and unit tests. Meanwhile the PRD's mitigation for impersonation is the email shown beside the name (FR-413), which a bidi override in a separate element cannot fake.
 - **Fix A ⭐ Recommended**: Keep the defence, but spell it out as escapes in one named, commented constant per side:
-  - `​-‏`: zero-width characters and marks
-  - `‪-‮`: bidi embeddings and overrides
-  - `⁦-⁩`: isolates
-  - `﻿`: byte-order mark
+  - U+200B–U+200F: zero-width characters and marks
+  - U+202A–U+202E: bidi embeddings and overrides
+  - U+2066–U+2069: isolates
+  - U+FEFF: byte-order mark
 
   Notes:
   - Strength: fixes the certain defect and keeps the decision.
@@ -187,7 +187,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - Tradeoff: zero-width look-alike names become possible; the email line is the only guard.
   - Confidence: MED — this is a product call.
   - Blind spot: none significant.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F7 — CHECK and access claims proven twice, partly in the wrong suite
 
@@ -202,7 +202,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - The matrix keeps only access cells.
   - The CHECK is proven once, in the account suite: `updateDisplayName` with a raw (non-Zod) U+202E name raises `UNPROCESSABLE_CONTENT`, which proves the CHECK and the `23514` mapping together.
   - Drop item 6's access half, and the "CHECK-constraint cells" wording from step 1.5.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F8 — The blocking hosted unknown is checked last
 
@@ -215,7 +215,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - The plan also calls every phase "independently mergeable". A Phase 3 merge would therefore put `/account` live on hosted before the floor is set or the toggles are verified.
   - Meanwhile Phase 5 says "before the PR merges", as if there were only one PR.
 - **Fix**: Move the read-only GET, and setting the hosted floor, into the Prerequisites before Phase 1. State that the slice ships as one PR, or gate the merge that exposes `/account` on that check.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F9 — Sign-in's adoption of PasswordInput has no contract
 
@@ -228,7 +228,7 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - `FormField` renders its own `<Input>`, with a left icon (`pl-10`) and an `endContent` prop whose only use is the toggle.
   - How sign-in swaps in a component that renders its own Input is left for the implementer to guess.
 - **Fix**: When `type="password"`, `FormField` renders `PasswordInput` (forwarding `className` for the icon padding). Delete `endContent` and `SignInForm`'s `showPassword` state, so the change removes code. The "Show password" label stays, which keeps `auth.setup.ts:26-27` working.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17
 
 ### F10 — The profile read hides its failures; the label helper is promoted early
 
@@ -249,4 +249,4 @@ The core of the plan is solid: GoTrue session mechanics, RLS and grants, `return
   - `SidebarLayout` owns the try/catch → `null`.
   - `profileLabel` stays beside `SidebarLayout` until a second consumer appears.
   - Drop the counter.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED — the recommended fix (⭐ Fix A where two are offered); folded into plan.md on 2026-10-17

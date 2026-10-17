@@ -1,4 +1,5 @@
 import { getSolverTransport } from "@/entities/timetable/api/solver-config";
+import { accountActions } from "@/_pages/account/api";
 import { courseActions } from "@/_pages/courses/api";
 import { createGenerationActions, groupingActions, placementActions, shelfActions } from "@/_pages/plan-detail/api";
 import { planActions } from "@/_pages/plans-list/api";
@@ -17,6 +18,7 @@ import { teacherActions } from "@/_pages/teachers/api";
  * the one place that can hold both halves.
  */
 export const server = {
+  ...accountActions,
   ...courseActions,
   ...teacherActions,
   ...studentActions,

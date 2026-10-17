@@ -11,8 +11,10 @@ export { loadTeacherNames } from "./load-teacher-names";
 export { loadStudentNames } from "./load-student-names";
 export { loadCourseMerges, type CourseMerge } from "./load-course-merges";
 export { loadPlanTeachers, type PlanTeacher } from "./load-plan-teachers";
+export { loadOwnProfile } from "./load-own-profile";
 export {
   UNIQUE_VIOLATION,
+  CHECK_VIOLATION,
   NOT_FOUND_ROW,
   unwrapRow,
   unwrapMaybeRow,

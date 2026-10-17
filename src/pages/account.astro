@@ -1,0 +1,23 @@
+---
+import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
+import AccountPage from "@/_pages/account/ui/AccountPage.astro";
+import { createClient, loadOwnProfile } from "@/shared/api";
+
+const { user } = Astro.locals;
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+if (!supabase) Astro.response.status = 503;
+
+// The middleware guarantees a user on this route. A failed read fails the page on purpose: an empty
+// field would read as "no name" (the shell, by contrast, falls back to the email).
+const displayName = supabase && user ? await loadOwnProfile(supabase, user.id) : null;
+---
+
+<AppShellLayout title="Account">
+  {
+    !supabase || !user ? (
+      <p class="text-muted-foreground text-sm">Your account is unavailable — Supabase is not configured.</p>
+    ) : (
+      <AccountPage email={user.email ?? ""} displayName={displayName} saved={Astro.url.searchParams.get("saved")} />
+    )
+  }
+</AppShellLayout>

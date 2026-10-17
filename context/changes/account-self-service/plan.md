@@ -585,28 +585,28 @@ One extra PostgREST read (`loadOwnProfile`) per shell render, and two on `/accou
 
 #### Automated
 
-- [x] 2.1 `pnpm test` passes including `to-domain-error.test.ts` for every mapping row
-- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass with the sign-in toggle removed
-- [x] 2.3 `pnpm build` passes
-- [x] 2.4 `pnpm test:e2e e2e/specs/auth.spec.ts` passes (setup toggle gate intact)
+- [x] 2.1 `pnpm test` passes including `to-domain-error.test.ts` for every mapping row — 35a1517
+- [x] 2.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass with the sign-in toggle removed — 35a1517
+- [x] 2.3 `pnpm build` passes — 35a1517
+- [x] 2.4 `pnpm test:e2e e2e/specs/auth.spec.ts` passes (setup toggle gate intact) — 35a1517
 
 #### Manual
 
-- [x] 2.5 Sign-in toggle works, password manager fills, banner token-clean in both themes
+- [x] 2.5 Sign-in toggle works, password manager fills, banner token-clean in both themes — 35a1517
 
 ### Phase 3: Account slice
 
 #### Automated
 
-- [ ] 3.1 `pnpm test` passes (schemas, profile-label, mapper)
-- [ ] 3.2 `pnpm test:integration src/test/account-self-service.integration.test.ts` passes
-- [ ] 3.3 `pnpm check`, `pnpm lint`, `pnpm steiger` pass for the new slice
-- [ ] 3.4 `pnpm build` passes
+- [x] 3.1 `pnpm test` passes (schemas, profile-label, mapper)
+- [x] 3.2 `pnpm test:integration src/test/account-self-service.integration.test.ts` passes
+- [x] 3.3 `pnpm check`, `pnpm lint`, `pnpm steiger` pass for the new slice
+- [x] 3.4 `pnpm build` passes
 
 #### Manual
 
-- [ ] 3.5 `/account` forms behave as specified in preview (name save, floor error, password change, same-password error, second session bounced)
-- [ ] 3.6 Password manager offers to save the new credential
+- [x] 3.5 `/account` forms behave as specified in preview (name save, floor error, password change, same-password error, second session bounced)
+- [x] 3.6 Password manager offers to save the new credential
 
 ### Phase 4: Shell, nudge & browser coverage
 

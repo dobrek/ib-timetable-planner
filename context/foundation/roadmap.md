@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-10-14
+updated: 2026-10-17
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -45,7 +45,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | ----- | ---------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------ | ------------------------------------------------------------------------------ | -------- |
 | F-401 | give-integration-lane-a-signed-in-client-per-role | (foundation) the integration lane signs in a real user per principal (once per file) and pins today's access posture in a role matrix that S-403 flips | — | FR-410, §Guardrails (no author loses access), §Constraints (CI lanes stay green) | done |
 | F-402 | ci-publishable-key-and-pinned-cli | (foundation) every CI lane uses the `sb_publishable_` key production uses, on a pinned Supabase CLI | — | §Constraints (CI lanes stay green) | done |
-| S-401 | account-self-service         | change their own password and set a display name; passwords under 15 characters are refused           | —                  | FR-411, FR-413, §NFG (passwords ≥ 15)                                          | ready    |
+| S-401 | account-self-service         | change their own password and set a display name; passwords under 15 characters are refused           | —                  | FR-411, FR-413, §NFG (passwords ≥ 15)                                          | planning |
 | S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | blocked  |
 | S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | proposed |
 | S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | ready    |
@@ -145,7 +145,7 @@ A foundation was considered for each of those and rejected: postponing none of t
   - Current-password rule — the research's decided scope says to enable hosted "Require current password", but the PRD later dropped that rule (FR-411's resolution: it would block a user arriving from a reset link). The PRD supersedes; the plan confirms the hosted toggle stays off and records the accepted session-hijack trade-off. — Owner: plan phase. Block: no.
   - The display name must live where the Users list (S-406) and "Created by" (S-407) can later read it for every user, not only the signed-in one. — Owner: plan phase. Block: no.
 - **Risk:** The smallest valuable slice: it needs no role, no email and no secret, so it can start now. It closes the provisioning runbook's "change the password" step that no screen allows today, and it is the first place a password is set, so the 15-character minimum lands here (local config, and the hosted setting by hand) and every later password path inherits it. A developer's own solver machine password under 15 characters would be refused on re-provisioning.
-- **Status:** ready
+- **Status:** planning
 
 ### S-402: Forgot password by email
 

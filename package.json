@@ -21,6 +21,7 @@
     "experiment:export": "vitest run --config vitest.experiment.config.ts bench/export-snapshot.experiment.ts",
     "experiment:import": "vitest run --config vitest.experiment.config.ts bench/import-generated.experiment.ts",
     "experiment:goldens": "vitest run --config vitest.experiment.config.ts bench/generate-contract-goldens.experiment.ts",
+    "db:types": "node scripts/db-types.mjs",
     "pretest:e2e": "node scripts/provision-e2e-author.mjs",
     "test:e2e": "playwright test",
     "env:local": "cp .envs/local.vars .env.local && cp .envs/local.vars .dev.vars",

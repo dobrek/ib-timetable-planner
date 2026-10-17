@@ -514,6 +514,24 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          display_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          display_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          display_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       shelf_bundle_courses: {
         Row: {
           course_id: string

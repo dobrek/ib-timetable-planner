@@ -23,12 +23,12 @@ A user opens Account, types a name, and the footer shows it with their email ben
 | Where the floor lives | Supabase Auth config (local `config.toml`, hosted by hand); Zod is UX only | `@supabase/ssr` cookies are not HttpOnly, so a user can `PUT /auth/v1/user` around the form | Research |
 | Display-name storage | `public.profiles (user_id PK → auth.users, display_name nullable, CHECK)` with own-row RLS, no trigger, no DEFINER | Validated in the DB and readable by S-406/S-407; `user_metadata` is invisible to others and unvalidated | Plan |
 | Where the name shows now | Sidebar footer link: name, email beneath (email alone when unset) | Setting a name has an immediate visible effect and honours FR-413's "email beside name" | Plan |
-| Legacy short passwords | Dismissible nudge banner from sign-in's `weakPassword` hint via a session cookie | Honours "refused" at set time without locking anyone out; the forced flow belongs to S-409 | Plan |
+| Legacy short passwords | Sign-in's `weakPassword` hint redirects to `/dashboard?notice=weak-password`, which shows a warning banner (no cookie) | Honours "refused" at set time without locking anyone out; reuses the query-flag status pattern; the forced flow belongs to S-409 | Plan review F4 |
 | Confirm field | Yes, two `PasswordInput`s (client-only match rule) | A typo is otherwise found at the next sign-in, and there is no self-service reset before S-402 | Plan |
 | Transport | Astro Actions (`defineDomainAction`), not an API route | API routes are reserved for session endpoints; forms get RHF field errors | Research |
-| Caller identity | `requireSession` returns the `User`; `run(supabase, input, { userId })` | Avoids a second `getUser()` round trip; existing domain functions keep compiling | Plan |
+| Caller identity | `profiles.user_id default auth.uid()`; domain functions stay `(supabase, input)` | No shared-contract change for one consumer; the database knows the caller, and RLS still enforces ownership | Plan review F3 |
 | Success feedback | Password form skips the reload (toast survives); name form reloads to `/account?saved=name` with a server-rendered status | `refreshPage()` is a full reload with no `<ClientRouter />`, which kills toasts; the footer needs the reload | Research |
-| E2E isolation | Second fixed account + `chromium-account` project, signed in by the existing `setup` | Password mechanics proven at integration level; no spec drives the sign-in UI; no shared-author mutation | Plan |
+| E2E isolation | `account.spec` runs on the shared author and restores the name in a `finally`; `/account` redirect added to `auth-guard.spec` | No spec reads the footer; password mechanics are proven at integration level; no second account needed | Plan review F5 |
 | HC Fix 4 split | Only `minimum_password_length` here | Matches the roadmap; `site_url`/redirects/`[local_smtp]` are S-402's and untestable without email | Plan |
 
 ## Scope
@@ -39,7 +39,7 @@ A user opens Account, types a name, and the footer shows it with their email ben
 
 ## Architecture / Approach
 
-`SidebarLayout` → `loadOwnProfile` (`shared/api`) → footer link → `/account` page passes `{ email, displayName }` to one `AccountSettings` island. Each form: shared Zod schema → RHF resolver and action `input` → `account-client.ts` → `defineDomainAction` → domain fn. `updatePassword` calls `auth.updateUser({ password })` read through `unwrapAuth` (new `shared/api/auth/`); `updateDisplayName` upserts `profiles` (`return=minimal`) with the actor id. `signin.ts` sets/clears the `weak-password` cookie; the shell renders the banner from it. The matrix probes `profiles` by `user_id` with a dedicated fixture owner.
+`SidebarLayout` → `loadOwnProfile` (`shared/api`, throws; the shell catches) → footer link → `/account` page passes `{ email, displayName }` to one `AccountSettings` island. Each form: shared Zod schema → RHF resolver and action `input` → `account-client.ts` → `defineDomainAction` → domain fn. `updatePassword` calls `auth.updateUser({ password })` read through a slice-private `unwrapAuth`; `updateDisplayName` upserts `{ display_name }` into `profiles` (`return=minimal`), with `user_id` from the `auth.uid()` default. `signin.ts` redirects to `/dashboard?notice=weak-password` on the hint. The matrix probes `profiles` by `user_id` with a dedicated fixture owner and a separate `PROFILE_WRITES` own/others record. (Revised after the plan review; see `plan.md`.)
 
 ## Phases at a Glance
 

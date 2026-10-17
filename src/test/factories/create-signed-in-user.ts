@@ -7,6 +7,8 @@ import { registerUser } from "./teardown";
 export type SignedInUser = {
   id: string;
   email: string;
+  /** The user's password, so a suite can open a second session as the same user. */
+  password: string;
   /** A publishable-key client holding this user's session: what a browser tab holds after sign-in. */
   client: SupabaseClient;
 };
@@ -44,7 +46,7 @@ export async function createSignedInUser(admin: SupabaseClient): Promise<SignedI
   const signedIn = await client.auth.signInWithPassword({ email, password });
   if (signedIn.error) throw new Error(`createSignedInUser: password grant: ${signedIn.error.message}`);
 
-  return { id, email, client };
+  return { id, email, password, client };
 }
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);

@@ -1,7 +1,6 @@
-import type { ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { CircleAlert } from "lucide-react";
-import { cn } from "@/shared/lib/class-names";
-import { Input, Label } from "@/shared/ui";
+import { Input, Label, PasswordInput } from "@/shared/ui";
 
 type FormFieldProps = {
   id: string;
@@ -11,10 +10,10 @@ type FormFieldProps = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  autoComplete?: string;
   error?: string;
   hint?: ReactNode;
   icon: ReactNode;
-  endContent?: ReactNode;
 };
 
 export function FormField({
@@ -25,33 +24,39 @@ export function FormField({
   value,
   onChange,
   placeholder,
+  autoComplete,
   error,
   hint,
   icon,
-  endContent,
 }: FormFieldProps) {
+  const inputProps = {
+    id,
+    name: name ?? id,
+    value,
+    onChange: (e: ChangeEvent<HTMLInputElement>) => {
+      onChange(e.target.value);
+    },
+    placeholder,
+    autoComplete,
+    "aria-invalid": error ? true : undefined,
+    className: "pl-10",
+  };
+
   return (
     <div>
       <Label htmlFor={id} className="mb-1 block text-sm">
         {label}
       </Label>
       <div className="relative">
-        <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2">
+        {/* z-10: PasswordInput's own positioned wrapper paints after this icon and would cover it. */}
+        <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2">
           {icon}
         </span>
-        <Input
-          id={id}
-          name={name ?? id}
-          type={type}
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-          }}
-          placeholder={placeholder}
-          aria-invalid={error ? true : undefined}
-          className={cn("pl-10", endContent && "pr-10")}
-        />
-        {endContent}
+        {type === "password" ? (
+          <PasswordInput {...inputProps} toggleLabel="password" />
+        ) : (
+          <Input {...inputProps} type={type} />
+        )}
       </div>
       {error ? (
         <p className="text-destructive mt-1 flex items-center gap-1 text-xs">

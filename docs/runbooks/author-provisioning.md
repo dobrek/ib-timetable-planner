@@ -36,8 +36,10 @@ so a user created in Studio can sign in immediately.
 
 2. Open Supabase Studio at **http://127.0.0.1:54323**.
 3. Go to **Authentication → Users → Add user → Create new user**.
-4. Enter the author's email and a password. Ensure **Auto Confirm User** is
-   enabled (or leave the default — local config auto-confirms regardless).
+4. Enter the author's email and a password of **at least 15 characters** (the
+   Auth floor, `minimum_password_length`; a shorter one is refused). Ensure
+   **Auto Confirm User** is enabled (or leave the default — local config
+   auto-confirms regardless).
 5. Sign in at **http://localhost:4321/auth/signin** with those credentials.
 
 If you changed `enable_signup` in `config.toml`, the local stack must be
@@ -88,10 +90,14 @@ makes the created user immediately sign-in-ready.
 
 1. Open the project in the Supabase dashboard (https://supabase.com/dashboard).
 2. Go to **Authentication → Users → Add user → Create new user**.
-3. Enter the email and password. Enable **Auto Confirm User** so the author can
-   sign in without an email round-trip (no SMTP is configured for this project).
+3. Enter the email and a password of **at least 15 characters** (the hosted
+   floor — see [`hosted-auth-settings.md`](hosted-auth-settings.md)). Enable
+   **Auto Confirm User** so the author can sign in without an email round-trip
+   (no SMTP is configured for this project).
 4. Hand the credentials to the author over a secure channel; have them sign in at
-   the deployed `/auth/signin` and change the password.
+   the deployed `/auth/signin`, open **Account** from the sidebar footer
+   (`/account`), and change the password there. It takes no current password, and
+   it signs their other devices out.
 
 ---
 

@@ -612,23 +612,23 @@ One extra PostgREST read (`loadOwnProfile`) per shell render, and two on `/accou
 
 #### Automated
 
-- [x] 4.1 `pnpm test:e2e` passes (account, account-guard, account-action-unauth, auth specs at minimum)
-- [x] 4.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` pass
+- [x] 4.1 `pnpm test:e2e` passes (account, account-guard, account-action-unauth, auth specs at minimum) — 06288f9
+- [x] 4.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` pass — 06288f9
 - [ ] 4.3 CI `e2e` job green with both accounts provisioned
 
 #### Manual
 
-- [x] 4.4 Footer link (expanded, collapsed, `aria-current`), weak-password banner lifecycle, dark theme
-- [x] 4.5 Phone-width layout usable
+- [x] 4.4 Footer link (expanded, collapsed, `aria-current`), weak-password banner lifecycle, dark theme — 06288f9
+- [x] 4.5 Phone-width layout usable — 06288f9
 
 ### Phase 5: Docs & hosted settings
 
 #### Automated
 
-- [ ] 5.1 `pnpm format` clean on edited docs; `pnpm lint` and `pnpm build` pass
-- [ ] 5.2 `/verify` passes
+- [x] 5.1 `pnpm format` clean on edited docs; `pnpm lint` and `pnpm build` pass
+- [x] 5.2 `/verify` passes
 
 #### Manual
 
-- [ ] 5.3 Hosted floor set and both toggles confirmed off, recorded in `hosted-auth-settings.md` before merge
+- [x] 5.3 Hosted floor set and both toggles confirmed off, recorded in `hosted-auth-settings.md` before merge
 - [ ] 5.4 Hosted sign-in works and `/account` changes an existing author's password

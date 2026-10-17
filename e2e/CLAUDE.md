@@ -34,6 +34,10 @@ spec; promote a helper to `support/` only once a second spec needs it.
 - **Authenticate via `storageState`, never through the UI in a test.** The `setup`
   project already did the login; authenticated specs start signed in. (The only
   spec that drives the sign-in UI is `auth.setup.ts` itself.)
+- **Never assert on the sidebar footer's text.** `account.spec.ts` sets the shared
+  author's display name while it runs (and clears it in a `finally`), so the footer
+  may show a name in parallel specs. Never submit the author's password form either:
+  the next run's `setup` would fail to sign in.
 - **Role-based locators first:** `getByRole` / `getByLabel` / `getByText`. Never
   CSS selectors, XPath, or DOM structure. The agent sees the accessibility tree,
   not pixels. Disambiguate by scoping to a container (e.g. the row), not by

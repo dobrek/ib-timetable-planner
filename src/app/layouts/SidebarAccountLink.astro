@@ -1,0 +1,40 @@
+---
+import { UserRound } from "lucide-react";
+import type { ProfileLabel } from "./profile-label";
+
+type Props = ProfileLabel & {
+  active: boolean;
+};
+
+const { primary, secondary, active } = Astro.props;
+---
+
+<!--
+  The footer's identity line, and the way to the account page. Its accessible name starts with
+  "Account" in both widths: the visually hidden word leads, the name and email follow when expanded,
+  and when collapsed only the icon is visible, with `title` as its tooltip.
+-->
+<a
+  href="/account"
+  title="Account"
+  aria-current={active ? "page" : undefined}
+  class:list={[
+    "collapsed:size-8 collapsed:flex-none collapsed:justify-center collapsed:px-0 flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-1.5 transition-colors",
+    active
+      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+  ]}
+>
+  <UserRound size={18} aria-hidden="true" className="shrink-0" />
+  <span class="sr-only">Account </span>
+  <span class="collapsed:hidden flex min-w-0 flex-col text-xs leading-tight">
+    <span class="truncate font-medium" title={primary}>{primary}</span>
+    {
+      secondary && (
+        <span class="truncate opacity-75" title={secondary}>
+          {secondary}
+        </span>
+      )
+    }
+  </span>
+</a>

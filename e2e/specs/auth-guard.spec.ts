@@ -9,3 +9,10 @@ test("unauthenticated visitor is redirected from a protected page", async ({ pag
 
   await expect(page).toHaveURL(/\/auth\/signin/);
 });
+
+// /account is an ordinary authenticated route (S-401): the same deny-by-default redirect guards it.
+test("unauthenticated visitor is redirected from the account page", async ({ page }) => {
+  await page.goto("/account");
+
+  await expect(page).toHaveURL(/\/auth\/signin/);
+});

@@ -10,11 +10,13 @@ export const POST: APIRoute = async (context) => {
   if (!supabase) {
     return context.redirect(`/auth/signin?error=${encodeURIComponent("Supabase is not configured")}`);
   }
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return context.redirect(`/auth/signin?error=${encodeURIComponent(error.message)}`);
   }
 
-  return context.redirect("/dashboard");
+  // GoTrue enforces the 15-character floor only when a password is set, so an older, shorter one
+  // still signs in; it says so in `weakPassword`, and the dashboard turns that into a nudge.
+  return context.redirect(data.weakPassword ? "/dashboard?notice=weak-password" : "/dashboard");
 };

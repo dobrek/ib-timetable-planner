@@ -598,28 +598,28 @@ One extra PostgREST read (`loadOwnProfile`) per shell render, and two on `/accou
 
 #### Automated
 
-- [x] 3.1 `pnpm test` passes (schemas, profile-label, mapper)
-- [x] 3.2 `pnpm test:integration src/test/account-self-service.integration.test.ts` passes
-- [x] 3.3 `pnpm check`, `pnpm lint`, `pnpm steiger` pass for the new slice
-- [x] 3.4 `pnpm build` passes
+- [x] 3.1 `pnpm test` passes (schemas, profile-label, mapper) — 1abc69f
+- [x] 3.2 `pnpm test:integration src/test/account-self-service.integration.test.ts` passes — 1abc69f
+- [x] 3.3 `pnpm check`, `pnpm lint`, `pnpm steiger` pass for the new slice — 1abc69f
+- [x] 3.4 `pnpm build` passes — 1abc69f
 
 #### Manual
 
-- [x] 3.5 `/account` forms behave as specified in preview (name save, floor error, password change, same-password error, second session bounced)
-- [x] 3.6 Password manager offers to save the new credential
+- [x] 3.5 `/account` forms behave as specified in preview (name save, floor error, password change, same-password error, second session bounced) — 1abc69f
+- [x] 3.6 Password manager offers to save the new credential — 1abc69f
 
 ### Phase 4: Shell, nudge & browser coverage
 
 #### Automated
 
-- [ ] 4.1 `pnpm test:e2e` passes (account, account-guard, account-action-unauth, auth specs at minimum)
-- [ ] 4.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` pass
+- [x] 4.1 `pnpm test:e2e` passes (account, account-guard, account-action-unauth, auth specs at minimum)
+- [x] 4.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` pass
 - [ ] 4.3 CI `e2e` job green with both accounts provisioned
 
 #### Manual
 
-- [ ] 4.4 Footer link (expanded, collapsed, `aria-current`), weak-password banner lifecycle, dark theme
-- [ ] 4.5 Phone-width layout usable
+- [x] 4.4 Footer link (expanded, collapsed, `aria-current`), weak-password banner lifecycle, dark theme
+- [x] 4.5 Phone-width layout usable
 
 ### Phase 5: Docs & hosted settings
 

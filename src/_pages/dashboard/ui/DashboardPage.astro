@@ -1,9 +1,24 @@
 ---
 import { GLOBAL_NAV_ITEMS } from "@/shared/config";
+import Banner from "@/shared/ui/Banner.astro";
 
 const { user } = Astro.locals;
 const sections = GLOBAL_NAV_ITEMS.filter((item) => item.href !== "/dashboard");
+// Set by sign-in when GoTrue reports the password is under the 15-character floor. It shows after
+// each such sign-in until the password changes; there is no cookie to clear.
+const weakPassword = Astro.url.searchParams.get("notice") === "weak-password";
 ---
+
+{
+  weakPassword && (
+    <div class="mb-6 overflow-hidden rounded-lg">
+      <Banner variant="warning">
+        Your password is shorter than the new 15-character minimum.{" "}
+        <a href="/account">Change it on your account page</a>.
+      </Banner>
+    </div>
+  )
+}
 
 <header class="mb-8">
   <h1 class="text-foreground text-2xl font-semibold tracking-tight">Welcome back</h1>

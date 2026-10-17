@@ -1,6 +1,9 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
+import SidebarAccountLink from "./SidebarAccountLink.astro";
 import SidebarNavLink from "./SidebarNavLink.astro";
+import { profileLabel } from "./profile-label";
+import { createClient, loadOwnProfile } from "@/shared/api";
 import { GLOBAL_NAV_ITEMS, planNavItems, type NavItem } from "@/shared/config";
 import { Sun, Moon, PanelLeft, LogOut } from "lucide-react";
 
@@ -27,8 +30,27 @@ const withActive = (item: NavItem) => ({ ...item, active: isActive(item.href) })
 const globalItems = GLOBAL_NAV_ITEMS.map(withActive);
 const planItems = plan ? planNavItems(plan.id).map(withActive) : [];
 
+const accountLabel = profileLabel({ displayName: await readDisplayName(), email: user?.email ?? "" });
+
 const iconButtonClass =
   "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors";
+
+/**
+ * The shell must never fail on the profile read, so an error logs and the footer shows the email
+ * alone. (If this client refreshes an expired token, the late cookie write only warns: the
+ * middleware has already put fresh cookies on the response.)
+ */
+async function readDisplayName(): Promise<string | null> {
+  const supabase = user ? createClient(Astro.request.headers, Astro.cookies) : null;
+  if (!supabase || !user) return null;
+  try {
+    return await loadOwnProfile(supabase, user.id);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("[sidebar] loading the profile failed:", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
 ---
 
 <BaseLayout title={title}>
@@ -100,10 +122,8 @@ const iconButtonClass =
       </nav>
 
       <div class="border-sidebar-border border-t p-3">
-        <div class="collapsed:justify-center collapsed:px-0 flex items-center justify-between gap-2 px-3 pb-2">
-          <p class="text-sidebar-foreground/70 collapsed:hidden truncate text-xs" title={user?.email}>
-            {user?.email}
-          </p>
+        <div class="collapsed:flex-col collapsed:gap-1 flex items-center gap-2 pb-2">
+          <SidebarAccountLink {...accountLabel} active={pathname === "/account"} />
           <button type="button" id="theme-toggle" aria-label="Toggle theme" class:list={iconButtonClass}>
             <span class="dark:hidden"><Moon size={16} aria-hidden="true" /></span>
             <span class="hidden dark:block"><Sun size={16} aria-hidden="true" /></span>

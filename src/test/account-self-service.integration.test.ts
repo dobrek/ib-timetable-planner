@@ -73,6 +73,8 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
       expect(
         (await otherDevice.auth.signInWithPassword({ email: user.email, password: user.password })).error,
       ).toBeNull();
+      // Proves the second session is live first: a client holding no session fails the same way.
+      expect((await otherDevice.auth.getUser()).error).toBeNull();
 
       await updatePassword(user.client, { password: strongPassword() });
 

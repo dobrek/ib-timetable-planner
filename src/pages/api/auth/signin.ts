@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { postSignInPath } from "@/_pages/sign-in/model/post-sign-in-path";
 import { createClient } from "@/shared/api";
 
 export const POST: APIRoute = async (context) => {
@@ -16,7 +17,5 @@ export const POST: APIRoute = async (context) => {
     return context.redirect(`/auth/signin?error=${encodeURIComponent(error.message)}`);
   }
 
-  // GoTrue enforces the 15-character floor only when a password is set, so an older, shorter one
-  // still signs in; it says so in `weakPassword`, and the dashboard turns that into a nudge.
-  return context.redirect(data.weakPassword ? "/dashboard?notice=weak-password" : "/dashboard");
+  return context.redirect(postSignInPath(data));
 };

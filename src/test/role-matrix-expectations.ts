@@ -115,6 +115,13 @@ export const PROFILE_WRITES: Record<ProfileOwner, Record<ProfileWriteOperation, 
   },
 };
 
+/**
+ * Re-keying: an UPDATE of the principal's own profile that names another user's `user_id`. The
+ * UPDATE policy's `with check` is its only lock, so S-403's policy rewrite must keep this denied.
+ * Its payload differs from `PROFILE_WRITES.own.update` only in that column, which is its evidence.
+ */
+export const PROFILE_REKEY: Cell = { anon: "denied", noRole: "denied" };
+
 export const RPCS: Record<Rpc, Cell> = {
   clone_plan: { anon: "denied", noRole: "allowed" },
 };

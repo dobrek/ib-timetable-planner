@@ -38,6 +38,7 @@ import { readPublishableKey } from "./publishable-key";
 import {
   GRANTS,
   PRINCIPAL_NOTES,
+  PROFILE_REKEY,
   PROFILE_WRITES,
   READS,
   RPCS,
@@ -177,6 +178,12 @@ const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
           });
         }
       }
+
+      const rekeyExpected = PROFILE_REKEY[principal];
+      it(`${principal} UPDATE own profile onto another user → ${rekeyExpected}`, async () => {
+        const attempt = await profileRekeyProbe(admin, principals[principal], ownUserIdOf(principal));
+        expect(await probeWrite(attempt)).toBe(rekeyExpected);
+      });
 
       const expected = RPCS.clone_plan[principal];
       it(`${principal} RPC clone_plan → ${expected}`, async () => {
@@ -415,6 +422,29 @@ const profileUpdateProbe = (admin: SupabaseClient, client: SupabaseClient, userI
       readBack(await admin.from("profiles").select("display_name").eq("user_id", userId)).some(
         (row) => row.display_name === sentinel,
       ),
+  };
+};
+
+/**
+ * Move the principal's own profile onto a fresh user who has none, so a refusal can only be RLS: an
+ * existing profile would collide on the key first. The effect is a row owned by that user. Seeds
+ * the own row like `own.update`, whose allowed principal is this payload's evidence.
+ */
+const profileRekeyProbe = async (
+  admin: SupabaseClient,
+  client: SupabaseClient,
+  ownUserId: string | null,
+): Promise<WriteAttempt> => {
+  if (ownUserId) setUp(await admin.from("profiles").upsert({ user_id: ownUserId, display_name: "Probe start" }));
+  const { id: targetId } = await createAuthUser(admin);
+  return {
+    attempt: () =>
+      client
+        .from("profiles")
+        .update({ user_id: targetId })
+        .eq("user_id", ownUserId ?? randomUUID()),
+    effectLanded: async () =>
+      readBack(await admin.from("profiles").select("user_id").eq("user_id", targetId)).length > 0,
   };
 };
 

@@ -1,10 +1,10 @@
 ---
 change_id: account-self-service
 title: Account self-service: change password and set display name (S-401)
-status: impl_reviewed
+status: archived
 created: 2026-10-16
 updated: 2026-10-19
-archived_at: null
+archived_at: 2026-10-19T13:46:35Z
 ---
 
 ## Notes

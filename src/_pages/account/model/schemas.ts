@@ -15,7 +15,10 @@ const MIN_PASSWORD_LENGTH = 15;
 /** GoTrue refuses a password over 72 bytes (bcrypt's limit) — bytes, so accented letters count double. */
 const MAX_PASSWORD_BYTES = 72;
 
-/** Mirrors `char_length(display_name) between 1 and 60` in the `profiles` CHECK. */
+/**
+ * Mirrors `char_length(display_name) between 1 and 60` in the `profiles` CHECK. `char_length` counts
+ * code points, so the rule does too: `max` counts UTF-16 units and would refuse emoji the CHECK accepts.
+ */
 const MAX_DISPLAY_NAME_LENGTH = 60;
 
 /**
@@ -59,7 +62,10 @@ export const updateDisplayNameInput = z.object({
     .pipe(
       z
         .string()
-        .max(MAX_DISPLAY_NAME_LENGTH, `Use at most ${MAX_DISPLAY_NAME_LENGTH} characters.`)
+        .refine(
+          (name) => codePointLength(name) <= MAX_DISPLAY_NAME_LENGTH,
+          `Use at most ${MAX_DISPLAY_NAME_LENGTH} characters.`,
+        )
         .refine((name) => !FORBIDDEN_NAME_CHARACTERS.test(name), "Remove invisible or text-direction characters."),
     )
     .transform((name) => (name === "" ? null : name)),
@@ -75,3 +81,6 @@ export type DisplayNameFormValues = z.input<typeof updateDisplayNameInput>;
 export type UpdateDisplayNameInput = z.output<typeof updateDisplayNameInput>;
 
 const utf8Length = (text: string): number => new TextEncoder().encode(text).length;
+
+/** Code points, not graphemes, on purpose: that is what Postgres's `char_length` counts. */
+const codePointLength = (text: string): number => Array.from(text).length;

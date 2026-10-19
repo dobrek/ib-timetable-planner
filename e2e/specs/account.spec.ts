@@ -50,7 +50,9 @@ test("a saved display name shows in the footer beside the email, and clearing it
     await expect(footerLink).toContainText(authorEmail);
     await expect(footerLink).not.toContainText(name);
   } finally {
-    await page.request.post("/_actions/updateDisplayName", { data: { displayName: "" } });
+    const restored = await page.request.post("/_actions/updateDisplayName", { data: { displayName: "" } });
+    // Soft, so a failed restore is reported without masking the test's own failure.
+    expect.soft(restored.ok(), "restore the shared author's display name").toBe(true);
   }
 });
 
@@ -60,8 +62,10 @@ async function saveDisplayName(page: Page, value: string): Promise<void> {
   const field = page.getByRole("form", { name: "Display name" }).getByLabel("Display name");
   await field.fill(value);
   await expect(field).toHaveValue(value);
-  await page.getByRole("button", { name: "Save name" }).click();
-  await page.waitForURL(/\/account\?saved=name$/);
+  // Wait on the load itself: from the second save on, the URL already reads `?saved=name`, so
+  // `waitForURL` alone would return before the reload.
+  await Promise.all([page.waitForEvent("load"), page.getByRole("button", { name: "Save name" }).click()]);
+  await expect(page).toHaveURL(/\/account\?saved=name$/);
 }
 
 // A value typed before React attaches is lost, so gate on React-only behaviour first: the password

@@ -52,6 +52,11 @@ describe("updateDisplayNameInput", () => {
     expect(parse("a".repeat(61)).success).toBe(false);
   });
 
+  it("counts the cap in code points, as the CHECK's char_length does — not UTF-16 units", () => {
+    expect(parse("😀".repeat(60)).success).toBe(true);
+    expect(parse("😀".repeat(61)).success).toBe(false);
+  });
+
   it.each([
     ["a bidi override", 0x202e],
     ["a zero-width space", 0x200b],

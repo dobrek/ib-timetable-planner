@@ -262,6 +262,8 @@ Sign-in adoption (F9), a change that removes code:
 - Sign-in keeps `toggleLabel="password"`, so `auth.setup.ts:26-27` ("Show password" / "Hide password") still matches.
 - Email gains `autoComplete="username"`; password gains `"current-password"`.
 
+> **Implementation note (impl review F1):** shipped without `aria-pressed`. The toggle's label already says what pressing it does ("Show …" / "Hide …"), and a toggle that uses `aria-pressed` must keep a fixed label, so the two patterns don't combine. `aria-label` plus `aria-controls` is the one chosen (`src/shared/ui/password-input.tsx`).
+
 #### 5. Token-clean `Banner`
 
 **File**: `src/shared/ui/Banner.astro`
@@ -307,6 +309,8 @@ The `_pages/account` slice with its two actions, the `/account` route and island
 - `passwordFormSchema = passwordInput.extend({ confirm: z.string() }).refine(match, { path: ["confirm"], message: "Passwords do not match" })` — client only; `PasswordFormValues = z.input<…>`, `PasswordInput = z.output<typeof passwordInput>`.
 - `displayNameInput = z.object({ displayName: z.string().transform(NFC + trim).pipe(z.string().max(60).refine(noForbiddenChars)).transform("" → null) })`, where `noForbiddenChars` tests one named, commented `FORBIDDEN_NAME_CHARACTERS = /[\p{Cc}\u{200B}-\u{200F}\u{202A}-\u{202E}\u{2066}-\u{2069}\u{FEFF}]/u` — escapes, one comment per range, mirroring the SQL CHECK (F6); `DisplayNameFormValues = z.input`, `DisplayNameInput = z.output` (`{ displayName: string | null }`).
 - Unit tests: 14 vs 15 chars; a 73-byte password made of 2-byte characters is refused while 72 bytes passes; confirm mismatch lands on `confirm`; name trimming, NFC, bidi-override refusal, `""` → `null`.
+
+> **Implementation note (impl review F1):** the schemas shipped named after their actions: `updatePasswordInput` / `updateDisplayNameInput`, with types `UpdatePasswordInput` / `UpdateDisplayNameInput`, plus `PasswordFormOutput` for the client form. The planned `PasswordInput` type would have collided with the shared `PasswordInput` component.
 
 #### 2. Domain functions and their auth-error mapper
 
@@ -547,7 +551,7 @@ One extra PostgREST read (`loadOwnProfile`) per shell render, and two on `/accou
 - **For S-407:** `profiles.user_id default auth.uid()` is the schema's first `auth.uid()` default, and the precedent for `created_by` (it also works for rows written inside RPCs).
 - **Local stacks:** developers must restart their stack after Phase 1 for the floor; any developer `SOLVER_MACHINE_PASSWORD` under 15 characters is refused on the next `provision-solver-user.mjs` run (README gets the note).
 - **For S-403:** `/account` and `updatePassword` / `updateDisplayName` must stay reachable without a role (FR-410) — a role-less path tier in the middleware and an exemption in any action-level role guard. The matrix's `classifyRead` will need an "own row" outcome once role-less SELECT on `profiles` narrows to the caller's row. The `profiles.user_id` key is the one `user_roles` should share.
-- **For S-406:** add `email` to `profiles` together with its sync mechanism, and create rows for users who never set a name; both are access decisions owned there.
+- **For S-406:** add `email` to `profiles` together with its sync mechanism, and create rows for users who never set a name; both are access decisions owned there. That migration should also refuse U+061C (Arabic Letter Mark), the one invisible bidi mark the name rule misses (impl review F4), as an added CHECK constraint plus the Zod regex, never by dropping the existing one.
 
 ## References
 

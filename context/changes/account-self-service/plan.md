@@ -614,7 +614,7 @@ One extra PostgREST read (`loadOwnProfile`) per shell render, and two on `/accou
 
 - [x] 4.1 `pnpm test:e2e` passes (account, account-guard, account-action-unauth, auth specs at minimum) — 06288f9
 - [x] 4.2 `pnpm check`, `pnpm lint`, `pnpm steiger`, `pnpm test`, `pnpm build` pass — 06288f9
-- [ ] 4.3 CI `e2e` job green with both accounts provisioned
+- [x] 4.3 CI `e2e` job green with both accounts provisioned
 
 #### Manual
 
@@ -625,10 +625,10 @@ One extra PostgREST read (`loadOwnProfile`) per shell render, and two on `/accou
 
 #### Automated
 
-- [x] 5.1 `pnpm format` clean on edited docs; `pnpm lint` and `pnpm build` pass
-- [x] 5.2 `/verify` passes
+- [x] 5.1 `pnpm format` clean on edited docs; `pnpm lint` and `pnpm build` pass — 91e6d92
+- [x] 5.2 `/verify` passes — 91e6d92
 
 #### Manual
 
-- [x] 5.3 Hosted floor set and both toggles confirmed off, recorded in `hosted-auth-settings.md` before merge
-- [ ] 5.4 Hosted sign-in works and `/account` changes an existing author's password
+- [x] 5.3 Hosted floor set and both toggles confirmed off, recorded in `hosted-auth-settings.md` before merge — 91e6d92
+- [x] 5.4 Hosted sign-in works and `/account` changes an existing author's password

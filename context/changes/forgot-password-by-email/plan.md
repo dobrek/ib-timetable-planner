@@ -899,8 +899,8 @@ Prove on production what no local stack can: delivery to a real inbox, sender au
 
 #### Automated
 
-- [x] 4.1 The full local CI gate passes on the final branch: run the `/verify` skill
-- [x] 4.2 Formatting passes on the edited docs: `pnpm exec prettier --check README.md CLAUDE.md docs context/changes/forgot-password-by-email`
+- [x] 4.1 The full local CI gate passes on the final branch: run the `/verify` skill — 88f1626
+- [x] 4.2 Formatting passes on the edited docs: `pnpm exec prettier --check README.md CLAUDE.md docs context/changes/forgot-password-by-email` — 88f1626
 
 #### Manual
 

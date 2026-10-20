@@ -1,0 +1,59 @@
+---
+import { buttonVariants } from "@/shared/ui";
+import Banner from "@/shared/ui/Banner.astro";
+import type { EmailLink } from "../model/email-link";
+
+type Props = {
+  /** The link from the query string, or `null` when it is missing or malformed. */
+  link: EmailLink | null;
+};
+
+const { link } = Astro.props;
+
+// The scanner-safe landing for an emailed one-time link. Rendering it spends nothing, on any HTTP
+// method: a mail scanner can fetch it as often as it likes. Only a person pressing the native
+// Continue button POSTs the token to `/api/auth/confirm`.
+//
+// Hard rules: no hydrated island, no script, no Turnstile or other third-party resource, no
+// `meta refresh` — and no `href` anywhere on this page carries the token (a scanner follows links).
+// The token travels only in the hidden fields below.
+const linkClass = "text-muted-foreground hover:text-foreground text-sm underline underline-offset-4";
+---
+
+<div class="bg-background flex min-h-screen items-center justify-center p-4">
+  <div
+    class="border-border bg-card/80 text-card-foreground w-full max-w-sm space-y-6 rounded-2xl border p-8 shadow-lg backdrop-blur-xl"
+  >
+    <h1 class="text-center text-2xl font-bold">Reset your password</h1>
+
+    {
+      link ? (
+        <>
+          <p class="text-muted-foreground text-sm">
+            Press Continue to sign in and choose a new password. The link works once.
+          </p>
+          <form method="post" action="/api/auth/confirm">
+            <input type="hidden" name="token_hash" value={link.tokenHash} />
+            <input type="hidden" name="type" value={link.type} />
+            <button type="submit" class:list={buttonVariants({ className: "w-full" })}>
+              Continue
+            </button>
+          </form>
+        </>
+      ) : (
+        <>
+          <div class="overflow-hidden rounded-lg">
+            <Banner variant="warning">
+              This link is incomplete. Open it straight from the email, or request a new one below.
+            </Banner>
+          </div>
+          <p class="text-center">
+            <a href="/auth/forgot" class:list={linkClass}>
+              Request a new link
+            </a>
+          </p>
+        </>
+      )
+    }
+  </div>
+</div>

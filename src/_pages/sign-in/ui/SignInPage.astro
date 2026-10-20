@@ -14,5 +14,11 @@ const { serverError } = Astro.props;
   >
     <h1 class="mb-6 text-center text-2xl font-bold">Sign in</h1>
     <SignInForm serverError={serverError} client:load />
+    {/* Outside the island, so `auth.setup.ts`'s locators inside the form stay unique. */}
+    <p class="mt-4 text-center">
+      <a href="/auth/forgot" class="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4">
+        Forgot password?
+      </a>
+    </p>
   </div>
 </div>

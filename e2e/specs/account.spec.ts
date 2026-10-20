@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { authorEmail } from "../author-credentials.mjs";
+import { waitForAccountHydration } from "../support/account";
 import { gotoStable, shortId } from "../support/planner";
 
 // Runs in `chromium` on the shared author (no account of its own, F5 in the change's plan review).
@@ -58,7 +59,7 @@ test("a saved display name shows in the footer beside the email, and clearing it
 
 /** Fill and save the display name once the island is live, then wait for the reload it causes. */
 async function saveDisplayName(page: Page, value: string): Promise<void> {
-  await waitForHydration(page);
+  await waitForAccountHydration(page);
   const field = page.getByRole("form", { name: "Display name" }).getByLabel("Display name");
   await field.fill(value);
   await expect(field).toHaveValue(value);
@@ -66,16 +67,4 @@ async function saveDisplayName(page: Page, value: string): Promise<void> {
   // `waitForURL` alone would return before the reload.
   await Promise.all([page.waitForEvent("load"), page.getByRole("button", { name: "Save name" }).click()]);
   await expect(page).toHaveURL(/\/account\?saved=name$/);
-}
-
-// A value typed before React attaches is lost, so gate on React-only behaviour first: the password
-// toggle flips its own label only once the island is hydrated (the auth.setup.ts idiom).
-async function waitForHydration(page: Page): Promise<void> {
-  const show = page.getByRole("button", { name: "Show new password" });
-  const hide = page.getByRole("button", { name: "Hide new password" });
-  await expect(async () => {
-    if (await hide.isVisible()) return;
-    await show.click();
-    await expect(hide).toBeVisible({ timeout: 1_000 });
-  }).toPass();
 }

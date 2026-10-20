@@ -871,29 +871,29 @@ Prove on production what no local stack can: delivery to a real inbox, sender au
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `pnpm test` (turnstile-verdict, verify-turnstile, plus Phase 1's)
-- [x] 2.2 Type check, lint and FSD pass: `pnpm check`, `pnpm lint`, `pnpm steiger`
-- [x] 2.3 Production build passes, including the `postbuild` client-bundle assertion: `pnpm build`
+- [x] 2.1 Unit tests pass: `pnpm test` (turnstile-verdict, verify-turnstile, plus Phase 1's) — 6e8cc31
+- [x] 2.2 Type check, lint and FSD pass: `pnpm check`, `pnpm lint`, `pnpm steiger` — 6e8cc31
+- [x] 2.3 Production build passes, including the `postbuild` client-bundle assertion: `pnpm build` — 6e8cc31
 
 #### Manual
 
-- [x] 2.4 Deliberate break: `sb_publishable_x` in a client island fails `pnpm build`, naming the file; reverted
-- [x] 2.5 Preview probes: GET/HEAD on both endpoints return 404, a foreign-`Origin` POST returns 403, and a POST with no token redirects to `?error=verification`
+- [x] 2.4 Deliberate break: `sb_publishable_x` in a client island fails `pnpm build`, naming the file; reverted — 6e8cc31
+- [x] 2.5 Preview probes: GET/HEAD on both endpoints return 404, a foreign-`Origin` POST returns 403, and a POST with no token redirects to `?error=verification` — 6e8cc31
 
 ### Phase 3: Pages & browser coverage
 
 #### Automated
 
-- [ ] 3.1 E2E passes: the new spec, the guard additions and every existing spec, `auth.setup.ts` included: `pnpm test:e2e`
-- [ ] 3.2 The full local CI gate passes: run the `/verify` skill
+- [x] 3.1 E2E passes: the new spec, the guard additions and every existing spec, `auth.setup.ts` included: `pnpm test:e2e`
+- [x] 3.2 The full local CI gate passes: run the `/verify` skill
 
 #### Manual
 
-- [ ] 3.3 The flow walked on the preview, end to end
-- [ ] 3.4 `/auth/confirm` works with JavaScript disabled
-- [ ] 3.5 Confirm-page headers present; no extra script and no token in any `href`
-- [ ] 3.6 Both pages work by keyboard alone, and the alerts are announced
-- [ ] 3.7 With the Turnstile keys removed, the forgot page and endpoint show the unavailable state; keys restored
+- [x] 3.3 The flow walked on the preview, end to end
+- [x] 3.4 `/auth/confirm` works with JavaScript disabled
+- [x] 3.5 Confirm-page headers present; no extra script and no token in any `href`
+- [x] 3.6 Both pages work by keyboard alone, and the alerts are announced
+- [x] 3.7 With the Turnstile keys removed, the forgot page and endpoint show the unavailable state; keys restored
 
 ### Phase 4: Docs, rules & the hosted gate
 

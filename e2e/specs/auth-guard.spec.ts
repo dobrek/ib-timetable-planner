@@ -16,3 +16,46 @@ test("unauthenticated visitor is redirected from the account page", async ({ pag
 
   await expect(page).toHaveURL(/\/auth\/signin/);
 });
+
+// --- S-402: the password-reset surface ------------------------------------------------------------
+// Exactly the decided surface is public, and the endpoint that spends a link cannot be reached by
+// a mail scanner's GET or HEAD, nor by another site's form.
+
+test("the forgot-password page is public", async ({ page }) => {
+  await page.goto("/auth/forgot");
+
+  await expect(page).toHaveURL(/\/auth\/forgot$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Forgot password" })).toBeVisible();
+});
+
+test("the confirm page is public, and with no link it says the link is incomplete", async ({ page }) => {
+  await page.goto("/auth/confirm");
+
+  await expect(page).toHaveURL(/\/auth\/confirm$/);
+  await expect(page.getByText("This link is incomplete.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue" })).toHaveCount(0);
+});
+
+for (const path of ["/api/auth/confirm", "/api/auth/forgot"]) {
+  test(`${path} answers GET and HEAD with 404, so fetching it does nothing`, async ({ request }) => {
+    // `maxRedirects: 0`: a middleware redirect would read as a 302 here, not as a follow-through 404.
+    expect((await request.get(path, { maxRedirects: 0 })).status()).toBe(404);
+    expect((await request.head(path, { maxRedirects: 0 })).status()).toBe(404);
+  });
+}
+
+test("a cross-site form POST to the reset request is refused before it runs", async ({ request }) => {
+  const response = await request.post("/api/auth/forgot", {
+    form: { email: "nobody@example.test" },
+    headers: { Origin: "https://evil.example" },
+    maxRedirects: 0,
+  });
+
+  expect(response.status()).toBe(403);
+});
+
+test("the recovery landing still needs a session", async ({ page }) => {
+  await page.goto("/account?notice=recovery");
+
+  await expect(page).toHaveURL(/\/auth\/signin/);
+});

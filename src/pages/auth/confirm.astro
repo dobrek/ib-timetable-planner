@@ -1,0 +1,25 @@
+---
+import Layout from "@/app/layouts/BaseLayout.astro";
+import ConfirmEmailLinkPage from "@/_pages/password-recovery/ui/ConfirmEmailLinkPage.astro";
+import { parseEmailLink } from "@/_pages/password-recovery";
+
+// Public (middleware allowlist): the link holder is signed out until they press Continue (S-402).
+// This page renders on EVERY method — Astro renders an .astro page for POST too — so it has no side
+// effects at all; only `POST /api/auth/confirm` spends a link.
+//
+// Response headers take effect only here, in the route file (Astro ignores them in a component):
+// - `no-store`: the page holds a one-time token.
+// - `strict-origin`, never `no-referrer`: under `no-referrer` Chromium sends `Origin: null` on the
+//   Continue POST, and Astro's origin check answers it with 403. `strict-origin` still keeps the
+//   token-carrying path and query out of every Referer.
+// - `noindex`: a confirm URL is never a search result.
+Astro.response.headers.set("Cache-Control", "no-store");
+Astro.response.headers.set("Referrer-Policy", "strict-origin");
+Astro.response.headers.set("X-Robots-Tag", "noindex");
+
+const link = parseEmailLink(Astro.url.searchParams);
+---
+
+<Layout title="Reset your password">
+  <ConfirmEmailLinkPage link={link} />
+</Layout>

@@ -1,0 +1,15 @@
+---
+import { TURNSTILE_SECRET_KEY, TURNSTILE_SITE_KEY } from "astro:env/server";
+import Layout from "@/app/layouts/BaseLayout.astro";
+import ForgotPasswordPage from "@/_pages/password-recovery/ui/ForgotPasswordPage.astro";
+import { forgotPageState } from "@/_pages/password-recovery";
+
+// Public (middleware allowlist): a signed-out user asks for a reset link here (S-402, FR-412).
+// Without both Turnstile keys reset is unavailable — never offered without its bot check.
+const configured = Boolean(TURNSTILE_SITE_KEY && TURNSTILE_SECRET_KEY);
+const state = forgotPageState(Astro.url.searchParams, { configured });
+---
+
+<Layout title="Forgot password">
+  <ForgotPasswordPage state={state} siteKey={TURNSTILE_SITE_KEY ?? ""} />
+</Layout>

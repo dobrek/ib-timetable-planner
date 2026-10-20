@@ -16,6 +16,11 @@
   },
   "observability": {
     "enabled": true,
+    // Strip query strings from request URLs in Workers Logs and traces (S-402): the emailed confirm
+    // URL carries a one-time `token_hash`, and a logged link would be a usable one. Nothing reads
+    // URLs back out of the logs — the campaign runner's telemetry filters on `$metadata.message`
+    // (`bench/campaign/telemetry.ts`). Field checked against wrangler 4.130's config schema.
+    "redact_query_string": true,
   },
 
   // --- the CP-SAT solver container (S-302) ---------------------------------------------------------

@@ -856,29 +856,29 @@ Prove on production what no local stack can: delivery to a real inbox, sender au
 
 #### Automated
 
-- [x] 1.1 Local stack restarted on the new config, and `pnpm exec supabase status` no longer prints the `[inbucket]` deprecation warning
-- [x] 1.2 Type check passes: `pnpm check`
-- [x] 1.3 Lint and FSD structure pass: `pnpm lint` and `pnpm steiger`
-- [x] 1.4 Unit tests pass: `pnpm test` (email-link, forgot-page-state, reset-outcome)
-- [x] 1.5 The new suite passes: `pnpm test:integration src/test/password-recovery.integration.test.ts`
-- [x] 1.6 The whole lane passes: `pnpm test:integration` (re-run once on a transient 502, a known flake)
+- [x] 1.1 Local stack restarted on the new config, and `pnpm exec supabase status` no longer prints the `[inbucket]` deprecation warning — e2c8dd8
+- [x] 1.2 Type check passes: `pnpm check` — e2c8dd8
+- [x] 1.3 Lint and FSD structure pass: `pnpm lint` and `pnpm steiger` — e2c8dd8
+- [x] 1.4 Unit tests pass: `pnpm test` (email-link, forgot-page-state, reset-outcome) — e2c8dd8
+- [x] 1.5 The new suite passes: `pnpm test:integration src/test/password-recovery.integration.test.ts` — e2c8dd8
+- [x] 1.6 The whole lane passes: `pnpm test:integration` (re-run once on a transient 502, a known flake) — e2c8dd8
 
 #### Manual
 
-- [x] 1.7 In Mailpit, the recovery email and the password-changed notification look right, and the recovery link's host is `localhost:4321`
+- [x] 1.7 In Mailpit, the recovery email and the password-changed notification look right, and the recovery link's host is `localhost:4321` — e2c8dd8
 
 ### Phase 2: Turnstile gate & the auth endpoints
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `pnpm test` (turnstile-verdict, verify-turnstile, plus Phase 1's)
-- [ ] 2.2 Type check, lint and FSD pass: `pnpm check`, `pnpm lint`, `pnpm steiger`
-- [ ] 2.3 Production build passes, including the `postbuild` client-bundle assertion: `pnpm build`
+- [x] 2.1 Unit tests pass: `pnpm test` (turnstile-verdict, verify-turnstile, plus Phase 1's)
+- [x] 2.2 Type check, lint and FSD pass: `pnpm check`, `pnpm lint`, `pnpm steiger`
+- [x] 2.3 Production build passes, including the `postbuild` client-bundle assertion: `pnpm build`
 
 #### Manual
 
-- [ ] 2.4 Deliberate break: `sb_publishable_x` in a client island fails `pnpm build`, naming the file; reverted
-- [ ] 2.5 Preview probes: GET/HEAD on both endpoints return 404, a foreign-`Origin` POST returns 403, and a POST with no token redirects to `?error=verification`
+- [x] 2.4 Deliberate break: `sb_publishable_x` in a client island fails `pnpm build`, naming the file; reverted
+- [x] 2.5 Preview probes: GET/HEAD on both endpoints return 404, a foreign-`Origin` POST returns 403, and a POST with no token redirects to `?error=verification`
 
 ### Phase 3: Pages & browser coverage
 

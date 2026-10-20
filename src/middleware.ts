@@ -4,9 +4,16 @@ import { createClient } from "@/shared/api";
 // Deny-by-default: every route requires an authenticated session except the
 // paths below. Keep this allowlist tight — only the sign-in surface, the auth
 // API endpoints, and static/internal assets are reachable unauthenticated.
-const PUBLIC_PATHS = ["/auth/signin"];
+// Every entry carries a one-line reason (PRD Constraints).
+const PUBLIC_PATHS = [
+  "/auth/signin", // a signed-out user must be able to sign in
+  "/auth/forgot", // a signed-out user must be able to ask for a reset link (S-402, FR-412)
+  "/auth/confirm", // the link holder is signed out until they press Continue (S-402)
+];
 const PUBLIC_PREFIXES = [
-  "/api/auth/", // sign-in / sign-out endpoints
+  // signin, signout, forgot, confirm. ANY file placed under this prefix is public without
+  // anyone deciding so, and must be safe signed out.
+  "/api/auth/",
   "/_", // Astro internals (e.g. /_astro/, /_image, /_server-islands)
 ];
 

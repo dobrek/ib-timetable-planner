@@ -259,10 +259,16 @@ jobs:
       # `SOLVER_URL` joins them for the same reason and with the same urgency: the build below
       # snapshots this file, so a value exported into the shell instead would reach the Worker as
       # nothing at all and every Generate would fail with "not configured".
+      #
+      # The two TURNSTILE_* keys are Cloudflare's PUBLIC always-pass test keys (S-402), there for the
+      # same `.dev.vars` lesson: without them `/auth/forgot` renders "unavailable" and the reset spec
+      # has nothing to press. The app accepts a test secret only on a loopback host, so these can
+      # never switch the bot check off anywhere else.
       - name: Write .dev.vars for the workerd preview
         run: |
-          printf 'SUPABASE_URL=%s\nSUPABASE_KEY=%s\nSOLVER_URL=%s\n' \
-            "$SUPABASE_URL" "$SUPABASE_KEY" "http://127.0.0.1:8000" > .dev.vars
+          printf 'SUPABASE_URL=%s\nSUPABASE_KEY=%s\nSOLVER_URL=%s\nTURNSTILE_SITE_KEY=%s\nTURNSTILE_SECRET_KEY=%s\n' \
+            "$SUPABASE_URL" "$SUPABASE_KEY" "http://127.0.0.1:8000" \
+            "1x00000000000000000000AA" "1x0000000000000000000000000000000AA" > .dev.vars
 
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium

@@ -138,7 +138,7 @@ The primary dev path is **local Supabase** (set up in P.5–P.7). This phase for
 
 - [x] 5.1 `pnpm exec wrangler secret put SUPABASE_URL` → paste the hosted project's URL from 1.3 (looks like `https://hwmuiymhjgewtymymbmb.supabase.co`).
 - [x] 5.2 `pnpm exec wrangler secret put SUPABASE_KEY` → paste the hosted project's Publishable (anon) key from 1.3.
-- [x] 5.3 Decide: does any server code path need the **Secret** (service role) key? Currently [src/lib/supabase.ts](src/lib/supabase.ts) uses only the Publishable key + cookie session. _(Decision: Secret key NOT pushed — Publishable + cookie session is sufficient.)_
+- [x] 5.3 Decide: does any server code path need the **Secret** (service role) key? Currently [src/shared/api/supabase.ts](src/shared/api/supabase.ts) uses only the Publishable key + cookie session. _(Decision: Secret key NOT pushed — Publishable + cookie session is sufficient.)_
 - [x] 5.4 `pnpm exec wrangler secret list` → confirm names (values never displayed).
 
 **Gate:** production Worker has exactly the secrets it needs, no more.
@@ -160,14 +160,14 @@ This is the human-gated first push. Don't automate yet — we want to see it wor
   - Sign out → session cleared.
   - Hit `/dashboard` unauthenticated → middleware redirects.
   - **Note:** if the project has email confirmation enabled, the confirmation link in the email will point to the wrong URL until 6.6 is done. Options: (a) temporarily disable email confirmation in Auth → Providers → Email before this test, (b) accept the broken link and just verify the user row is created, or (c) swap the order and do 6.6 first (safe — the Workers URL already exists from 6.3).
-- [x] 6.6 Supabase Auth → URL Configuration → Site URL: set to the Workers URL from 6.3. Add it to "Redirect URLs" too if email confirmation is enabled.
+- [x] 6.6 Supabase Auth → URL Configuration → Site URL: set to the Workers URL from 6.3. Add it to "Redirect URLs" too if email confirmation is enabled. _(Superseded by S-402, 2026-10: the Site URL moves to the custom domain `https://ib-timetable-planner.dev` so email links match the sending domain, with both hosts in the redirect allow-list — see `docs/runbooks/hosted-auth-settings.md`.)_
 - [x] 6.7 `pnpm exec wrangler deployments list` → confirm the deployment is recorded. _(Version ID: `880d497b-9093-4bdc-9f17-4c59c2fab5d5`.)_
 
 **Gate:** the deployed app passes the same smoke test path as local dev, end-to-end against the hosted Supabase project.
 
 **Edge case (workerd-specific):** if signup works locally but fails in production with a `nodejs_compat` error, the deploy bundle has a runtime gap that didn't surface in `pnpm dev`. Resolution: check `wrangler tail` for the missing module, identify which dep dragged it in, consider swapping for an edge-native alternative. Do **not** disable `nodejs_compat` — Supabase JS needs it.
 
-**Edge case (CORS / cookies):** if signin returns 200 but the session cookie isn't set on the production domain, verify the cookie's `Secure` flag is on (it must be for HTTPS) and `SameSite` is appropriate. [src/lib/supabase.ts](src/lib/supabase.ts) is the right place to inspect — don't paper over it in middleware.
+**Edge case (CORS / cookies):** if signin returns 200 but the session cookie isn't set on the production domain, verify the cookie's `Secure` flag is on (it must be for HTTPS) and `SameSite` is appropriate. [src/shared/api/supabase.ts](src/shared/api/supabase.ts) is the right place to inspect — don't paper over it in middleware.
 
 **Edge case (Site URL drift):** if signup emails contain `localhost` links, you forgot 6.6. Fix and re-test.
 

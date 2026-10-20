@@ -1,14 +1,15 @@
 # E2E Testing Rules
 
 Rules for authoring Playwright specs in this directory. They keep generated/edited
-tests stable by default — apply them rather than reinventing per spec. The four
-specs already here (`seed`, `auth`, `auth-guard`, `action-unauth`) are the
-exemplars; model new specs on them.
+tests stable by default — apply them rather than reinventing per spec. Of the 28
+specs here, `seed`, `auth`, `auth-guard` and `action-unauth` are the exemplars;
+model new specs on them.
 
 **Reuse shared plumbing — don't copy it.** Cross-cutting infrastructure (the
 hydration-race `clickToReveal`, the `gotoStable` navigation retry, `shortId`, and
 `createPlan`/`createTeacher`/`deletePlan` entity lifecycle) lives in
-`e2e/support/planner.ts`. Import from there rather than re-declaring per spec —
+`e2e/support/planner.ts`; the account page's hydration gate
+(`waitForAccountHydration`) lives in `e2e/support/account.ts`. Import from there rather than re-declaring per spec —
 these are plumbing with no test-specific meaning, and copies drift. `support/*.ts`
 is not a `*.spec.ts`/`*.setup.ts` file, so Playwright does not collect it as a test.
 Keep feature-specific authoring (course/student forms, board locators) local to the
@@ -28,6 +29,9 @@ spec; promote a helper to `support/` only once a second spec needs it.
   named `*guard.spec.ts` / `*unauth.spec.ts`.
 - **Local prerequisites.** Local Supabase running + `pnpm env:local`. The author
   account is provisioned automatically by `pretest:e2e` before `pnpm test:e2e`.
+  `.envs/local.vars` must carry `SOLVER_URL` (with `mise run solver:dev` up, for
+  `generation.spec.ts`) and Cloudflare's public Turnstile test keys (for the reset
+  specs; without them `/auth/forgot` renders "unavailable") — README § Getting Started.
 
 ## Rules
 
@@ -38,6 +42,15 @@ spec; promote a helper to `support/` only once a second spec needs it.
   author's display name while it runs (and clears it in a `finally`), so the footer
   may show a name in parallel specs. Never submit the author's password form either:
   the next run's `setup` would fail to sign in.
+- **One sanctioned exception to "never touch users": a throwaway user.** An unauth
+  spec whose flow changes a password may create its own user through the
+  service-role admin API and delete it in a `finally` — and must refuse any
+  non-loopback `SUPABASE_URL` first, so it can never create users on hosted. See
+  `forgot-password-unauth.spec.ts`.
+- **Read mail through Mailpit's API** (`src/test/mailpit.ts`, loopback-only), with a
+  unique address per test, and delete only your own messages, by id. Mailpit's
+  `DELETE /api/v1/messages` with no ids empties the whole mailbox, including mail
+  a parallel spec or suite is waiting for.
 - **Role-based locators first:** `getByRole` / `getByLabel` / `getByText`. Never
   CSS selectors, XPath, or DOM structure. The agent sees the accessibility tree,
   not pixels. Disambiguate by scoping to a container (e.g. the row), not by

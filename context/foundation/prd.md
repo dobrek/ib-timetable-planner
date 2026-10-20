@@ -123,8 +123,11 @@ Keeps editing exactly as today; gains a self-service account.
 - A role change takes effect on the affected person's next action, with no sign-out needed.
 - After a ban or delete, all of that person's access ends within at most 1 hour.
 - An invitation link stops working 72 hours after it is sent; a password-reset link after 1 hour.
-- A flood of password-reset requests cannot prevent a genuine staff member from resetting their
-  own password.
+- An **automated** flood of password-reset requests cannot prevent a genuine staff member from
+  resetting their own password.
+  - _Accepted residual (S-402, 2026-10-20):_ a person who passes the bot check by hand can replace
+    one colleague's reset link at most once every 5 minutes. Reworded from "a flood" so the
+    guardrail states what the mechanism (a bot check plus a per-user resend interval) proves.
 - No email the product sends contains student data; emails carry staff and plan information only.
 - Product emails pass sender authentication and reach a real staff inbox at the school, not quarantine.
 - Passwords shorter than 15 characters are refused.
@@ -406,3 +409,6 @@ Offered as non-goals and left open on purpose — not forgotten: per-plan sharin
      72 h expiry (more code; a new token table under RLS);
      (c) 72 h for all links via the Management API (discouraged; weakens reset).
      Decide before `/10x-plan`; the choice may amend the non-functional guardrail.
+   - _S-402 (2026-10-20):_ password reset shipped at the platform's 1 h (`mailer_otp_exp = 3600`),
+     which meets the guardrail as written. Its code is the same under (a), (b) and (c), so the choice
+     moved to S-410, the first slice it changes.

@@ -10,7 +10,9 @@ The gate is enforced at two layers:
 
 - **App** — there is no signup page or API route, and the middleware is
   deny-by-default (`src/middleware.ts`): every route requires an authenticated
-  session except `/auth/signin`, the `/api/auth/` endpoints, and static assets.
+  session except `/auth/signin`, the password-reset pages `/auth/forgot` and
+  `/auth/confirm`, the `/api/auth/` endpoints, and static assets. A reset only
+  ever reaches an account that already exists.
 - **Supabase** — `enable_signup = false` under `[auth]` in `supabase/config.toml`
   (local) and the equivalent dashboard toggle (hosted) reject account creation
   even if someone calls the auth REST endpoint directly.
@@ -93,11 +95,16 @@ makes the created user immediately sign-in-ready.
 3. Enter the email and a password of **at least 15 characters** (the hosted
    floor — see [`hosted-auth-settings.md`](hosted-auth-settings.md)). Enable
    **Auto Confirm User** so the author can sign in without an email round-trip
-   (no SMTP is configured for this project).
+   (hosted keeps `mailer_autoconfirm` on; that runbook records what it implies).
 4. Hand the credentials to the author over a secure channel; have them sign in at
    the deployed `/auth/signin`, open **Account** from the sidebar footer
    (`/account`), and change the password there. It takes no current password, and
    it signs their other devices out.
+
+**A forgotten password** needs nobody with backend access since S-402: the author
+uses **Forgot password?** on the sign-in page (`/auth/forgot`) and gets a link by
+email ([`email-delivery.md`](email-delivery.md)). If the email cannot reach them,
+the fallback is the dashboard (**Authentication → Users**) until S-409.
 
 ---
 
@@ -114,23 +121,14 @@ stack only. The hosted project has its own toggle that must be closed separately
 3. Keep the **Email** provider itself **enabled** — disabling it would block
    sign-in, not just signup.
 
-**Via the CLI** (if you manage hosted config from `config.toml`):
+Never via `supabase config push`: it sends the whole local `config.toml`, a
+development config that would point hosted's Site URL at localhost and drop the
+reset flood guard (see [`solver-credential.md`](solver-credential.md#do-not-reach-for-supabase-config-push-unless-you-have-read-this)).
 
-```bash
-pnpm exec supabase link --project-ref <project-ref>   # one-time
-pnpm exec supabase config push                        # pushes config.toml to hosted
-```
-
-Verify by sending a direct signup request to the hosted auth endpoint — it should
-be rejected:
-
-```bash
-curl -i -X POST 'https://<project-ref>.supabase.co/auth/v1/signup' \
-  -H "apikey: <anon-key>" \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"test@example.com","password":"whatever123"}'
-# Expect: 422 / "Signups not allowed for this instance"
-```
+Verify it read-only — `disable_signup` must be `true` (the command is in
+[`hosted-auth-settings.md`](hosted-auth-settings.md#check-them-read-only)). Do not
+probe with a real sign-up request: if registration were open, the probe would
+create an account.
 
 ---
 

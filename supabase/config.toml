@@ -96,7 +96,8 @@ openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
 # are monitored, and you can view the emails that would have been sent from the web interface.
-[inbucket]
+# The Mailpit API on this port is how the S-402 suites read reset mail (`src/test/mailpit.ts`).
+[local_smtp]
 enabled = true
 # Port to use for the email testing server web interface.
 port = 54324
@@ -150,10 +151,14 @@ max_indexes = 5
 [auth]
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
-# in emails.
-site_url = "http://127.0.0.1:3000"
-# A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# in emails: the recovery template builds its link from it, so it is the origin the preview and
+# Playwright serve (hosted is `https://ib-timetable-planner.dev`, set by hand —
+# `docs/runbooks/hosted-auth-settings.md`).
+site_url = "http://localhost:4321"
+# URLs that auth providers are permitted to redirect to post authentication. Globs are supported
+# (`**` matches any path); an entry that matches nothing makes Auth silently fall back to the
+# Referer, then the Site URL.
+additional_redirect_urls = ["http://localhost:4321/**", "http://127.0.0.1:4321/**"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
@@ -214,6 +219,8 @@ enable_confirmations = false
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
+# 1s keeps the suites fast. Hosted is 300 s (`smtp_max_frequency`), and the reset notice and email
+# say "5 minutes" to match (`src/_pages/password-recovery/model/recovery-policy.ts`).
 max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
@@ -230,16 +237,20 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Project-owned email templates. Hosted gets the same files through the Management API step in
+# `docs/runbooks/hosted-auth-settings.md`, never `supabase config push`. New or changed templates
+# apply only after `supabase stop && supabase start`; `db reset` is not enough.
+#
+# The two `content_path`s resolve from different directories (CLI 2.117.0): a template's against
+# the project root, a notification's against `supabase/`. Both point at `supabase/templates/`.
+[auth.email.template.recovery]
+subject = "Reset your IB Planner password"
+content_path = "./supabase/templates/recovery.html"
 
-# Uncomment to customize notification email template
-# [auth.email.notification.password_changed]
-# enabled = true
-# subject = "Your password has been changed"
-# content_path = "./templates/password_changed_notification.html"
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Your IB Planner password was changed"
+content_path = "./templates/password_changed_notification.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.

@@ -93,7 +93,7 @@ The S-402 values (custom SMTP is already set; see `email-delivery.md`):
 
 ```bash
 curl -s -X PATCH -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' \
-  https://api.supabase.com/v1/projects/hwmuiymhjgewtymymbmb/config/auth \
+  https://api.supabase.com/v1/projects/hwmuiymhjgewtymymbmb/config/auth -o /dev/null -w 'HTTP %{http_code}\n' \
   -d '{"site_url": "https://ib-timetable-planner.dev",
        "uri_allow_list": "https://ib-timetable-planner.dev/**,https://ib-timetable-planner.dobromir-kropielnicki.workers.dev/**",
        "mailer_otp_exp": 3600,
@@ -108,7 +108,8 @@ it below.
 ### Sync the templates from the repo
 
 `supabase/templates/*` are the source of truth; this sends them byte for byte, then reads them back
-and diffs. Run it from the repo root whenever a template or subject changes.
+and diffs. Run it from the repo root whenever a template or subject changes. Every PATCH here prints
+its HTTP status — expect `HTTP 200` — because a failed one is otherwise silent.
 
 ```bash
 jq -n \
@@ -120,10 +121,13 @@ jq -n \
     mailer_subjects_password_changed_notification: "Your IB Planner password was changed",
     mailer_templates_password_changed_notification_content: $changed}' \
   | curl -s -X PATCH -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' \
-      https://api.supabase.com/v1/projects/hwmuiymhjgewtymymbmb/config/auth -d @- > /dev/null
+      https://api.supabase.com/v1/projects/hwmuiymhjgewtymymbmb/config/auth -d @- \
+      -o /dev/null -w 'HTTP %{http_code}\n'
 
 hosted=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
   https://api.supabase.com/v1/projects/hwmuiymhjgewtymymbmb/config/auth)
+jq '{site_url, mailer_subjects_recovery, mailer_subjects_password_changed_notification}' <<<"$hosted"
+# Expect site_url with NO trailing slash, and both "IB Planner" subjects
 jq -j .mailer_templates_recovery_content <<<"$hosted" | diff - supabase/templates/recovery.html \
   && echo "recovery template in sync"
 jq -j .mailer_templates_password_changed_notification_content <<<"$hosted" \
@@ -131,6 +135,12 @@ jq -j .mailer_templates_password_changed_notification_content <<<"$hosted" \
 ```
 
 `jq -j` prints the string without adding a newline, so a template that matches diffs clean.
+
+**A read-back proves what the Management API stored, not what the next email looks like**, so finish
+by sending yourself a reset and reading the email itself. On 2026-10-20 the first email after the
+merge still carried Supabase's default template, and the second its default subject, before both
+were re-sent. The templates use `{{ .SiteURL }}` verbatim: a `site_url` with a trailing slash gives
+`…dev//auth/confirm`, which production happens to normalize, so keep `site_url` slash-free.
 
 ## What goes wrong when a value drifts
 
@@ -162,6 +172,7 @@ jq -j .mailer_templates_password_changed_notification_content <<<"$hosted" \
 
 Add a row after every read-back.
 
-| Date       | Values                                                                             | GoTrue       | By                                             |
-| ---------- | ---------------------------------------------------------------------------------- | ------------ | ---------------------------------------------- |
-| 2026-10-17 | `password_min_length` 15 (set); reauthentication `false`; current password `false` | not recorded | the developer, before S-401 Phase 1 (plan 1.9) |
+| Date       | Values                                                                                                                                                                                                                                                                                                                                                                                                                                          | GoTrue       | By                                                                                |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------- |
+| 2026-10-17 | `password_min_length` 15 (set); reauthentication `false`; current password `false`                                                                                                                                                                                                                                                                                                                                                              | not recorded | the developer, before S-401 Phase 1 (plan 1.9)                                    |
+| 2026-10-20 | S-402, set and read back: `site_url` `https://ib-timetable-planner.dev`; `uri_allow_list` both hosts; `mailer_otp_exp` 3600; `smtp_max_frequency` 300; `rate_limit_email_sent` 30; CAPTCHA off; `mailer_autoconfirm` `true`; both subjects; password-changed notification on; both templates in sync (diff clean); SMTP `smtp.resend.com` / `"465"` / `resend` / `team@ib-timetable-planner.dev` / "IB Planner"; S-401's three values unchanged | v2.197.0     | the developer, right after the S-402 merge, before its deploy finished (plan 4.4) |

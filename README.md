@@ -39,10 +39,14 @@ cat > .envs/local.vars <<EOF
 SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_KEY=<Publishable key from supabase start>
 SOLVER_URL=http://127.0.0.1:8000
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 EOF
 ```
 
 > `.envs/` is gitignored, so these files are per-machine — this snippet is the only place their contents are specified. `SOLVER_URL` is optional: leave it out and generation dispatch is simply unavailable (`getSolverTransport()` returns `null`). See [Running the solver service](#running-the-solver-service-dev).
+>
+> The two `TURNSTILE_*` values are Cloudflare's **public** always-pass test keys, for the bot check on `/auth/forgot`. Leave them out and password reset renders "unavailable" (it fails closed). The app accepts a test key only on a loopback host, so they cannot switch the check off anywhere else; production uses a real widget ([`docs/runbooks/email-delivery.md`](docs/runbooks/email-delivery.md)).
 
 4. Activate the local environment profile:
 
@@ -60,17 +64,17 @@ The app is served at `http://localhost:4321`. Local Supabase Studio is at `http:
 
 ## Available Scripts
 
-| Script           | Description                                             |
-| ---------------- | ------------------------------------------------------- |
-| `pnpm dev`       | Start the Astro dev server (Cloudflare workerd runtime) |
-| `pnpm build`     | Production build                                        |
-| `pnpm preview`   | Preview the production build locally                    |
-| `pnpm lint`      | ESLint (flat config, type-checked)                      |
-| `pnpm lint:fix`  | Auto-fix lint issues                                    |
-| `pnpm format`    | Prettier across the tree                                |
-| `pnpm env:local` | Switch `.env.local` + `.dev.vars` to local Supabase     |
-| `pnpm env:prod`  | Switch `.env.local` + `.dev.vars` to hosted Supabase    |
-| `pnpm db:types`  | Regenerate `database.types.ts` from the local stack     |
+| Script           | Description                                                                |
+| ---------------- | -------------------------------------------------------------------------- |
+| `pnpm dev`       | Start the Astro dev server (Cloudflare workerd runtime)                    |
+| `pnpm build`     | Production build, then asserts `dist/client` holds no Supabase key or host |
+| `pnpm preview`   | Preview the production build locally                                       |
+| `pnpm lint`      | ESLint (flat config, type-checked)                                         |
+| `pnpm lint:fix`  | Auto-fix lint issues                                                       |
+| `pnpm format`    | Prettier across the tree                                                   |
+| `pnpm env:local` | Switch `.env.local` + `.dev.vars` to local Supabase                        |
+| `pnpm env:prod`  | Switch `.env.local` + `.dev.vars` to hosted Supabase                       |
+| `pnpm db:types`  | Regenerate `database.types.ts` from the local stack                        |
 
 ## Project Structure
 
@@ -336,15 +340,17 @@ The same flag is the only way to make `--dry-run` Docker-free: a plain `wrangler
 
 Production secrets are stored on the Worker via `pnpm exec wrangler secret put`:
 
-| Worker secret                 | Used by                                                                   |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| `SUPABASE_URL`                | the Worker, and forwarded to the container                                |
-| `SUPABASE_KEY`                | the Worker (publishable), and forwarded to the container                  |
-| `SOLVER_MACHINE_PASSWORD`     | **the container only** — the Worker is a courier and never uses it itself |
-| `CALIBRATION_WORKERS`         | **campaign-only, normally unset** — overrides `CONTAINER_WORKERS`         |
-| `CALIBRATION_STAGE_BUDGET_S`  | **campaign-only, normally unset** — overrides `CONTAINER_STAGE_BUDGET_S`  |
-| `CALIBRATION_MODE_A_BUDGET_S` | **campaign-only, normally unset** — overrides `CONTAINER_MODE_A_BUDGET_S` |
-| `SOLVER_OPS_ALLOWED_EMAILS`   | **campaign-only, normally unset** — who may call `/api/solver/container`  |
+| Worker secret                 | Used by                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `SUPABASE_URL`                | the Worker, and forwarded to the container                                                                   |
+| `SUPABASE_KEY`                | the Worker (publishable), and forwarded to the container                                                     |
+| `SOLVER_MACHINE_PASSWORD`     | **the container only** — the Worker is a courier and never uses it itself                                    |
+| `TURNSTILE_SITE_KEY`          | the Worker — rendered into `/auth/forgot`'s bot-check widget (public, but read at runtime)                   |
+| `TURNSTILE_SECRET_KEY`        | the Worker — verifies the widget's token before a password reset; missing either key makes reset unavailable |
+| `CALIBRATION_WORKERS`         | **campaign-only, normally unset** — overrides `CONTAINER_WORKERS`                                            |
+| `CALIBRATION_STAGE_BUDGET_S`  | **campaign-only, normally unset** — overrides `CONTAINER_STAGE_BUDGET_S`                                     |
+| `CALIBRATION_MODE_A_BUDGET_S` | **campaign-only, normally unset** — overrides `CONTAINER_MODE_A_BUDGET_S`                                    |
+| `SOLVER_OPS_ALLOWED_EMAILS`   | **campaign-only, normally unset** — who may call `/api/solver/container`                                     |
 
 > The Worker gains no new privilege by carrying the third one: a Cloudflare container cannot read Worker secrets on its own (there is no `containers[].configuration.secrets`), so `SolverContainer` reads them and passes them down through `envVars`. **If `SOLVER_MACHINE_PASSWORD` is missing, every generation fails** — the container still boots (`/health` must answer on a bare container, so its credential check skips itself) but `solve` refuses work with a 503, so the row is marked `failed` and the clone deleted. Loud, but every Generate fails until the secret is set — setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
 
@@ -378,8 +384,8 @@ pnpm exec wrangler rollback <deployment-id>
 GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR to `main`. All jobs share the `./.github/actions/setup` step (pnpm + Node + `pnpm install --frozen-lockfile`):
 
 1. **`verify` job** — `shellcheck scripts/solver` → `astro sync` → `check` → `lint` → `steiger` → `pnpm audit --audit-level=high` → `test` → `build`
-2. **`integration` job** — boots a trimmed local Supabase stack on the lockfile's Supabase CLI (`.github/actions/supabase-stack`, which exports `sb_publishable_` / `sb_secret_` keys and asserts their format before the solver boots), provisions the solver machine user with a per-run password, launches the CP-SAT service (with `SOLVER_MAX_CONCURRENT_JOBS=2`, sized to the worker cap below) and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` — which includes both solver-touching suites: the `queued → running → succeeded` proof-of-life, and the full S-301 chain from Generate to a verified board on the proposal plan
-3. **`e2e` job** — boots the stack through the same action (the lockfile's CLI, asserted `sb_publishable_` / `sb_secret_` keys), provisions the solver machine user and starts the **native** CP-SAT service (same recipe as `integration`, `SOLVER_MAX_CONCURRENT_JOBS` left at 1), writes `.dev.vars` **including `SOLVER_URL`** — before the build that snapshots it — then boots the workerd preview and runs the Playwright suite (`pnpm test:e2e`). The solver is what lets `generation.spec.ts` press Generate and drive the result to a board; without `SOLVER_URL` the preview would pick the container binding instead and need Docker for no extra coverage
+2. **`integration` job** — boots a trimmed local Supabase stack on the lockfile's Supabase CLI (`.github/actions/supabase-stack`, which keeps Mailpit so the password-reset suite can read its mail, and exports `sb_publishable_` / `sb_secret_` keys and asserts their format before the solver boots), provisions the solver machine user with a per-run password, launches the CP-SAT service (with `SOLVER_MAX_CONCURRENT_JOBS=2`, sized to the worker cap below) and waits on its `/health`, then runs `pnpm test:integration --maxWorkers=2` — which includes both solver-touching suites: the `queued → running → succeeded` proof-of-life, and the full S-301 chain from Generate to a verified board on the proposal plan
+3. **`e2e` job** — boots the stack through the same action (the lockfile's CLI, asserted `sb_publishable_` / `sb_secret_` keys), provisions the solver machine user and starts the **native** CP-SAT service (same recipe as `integration`, `SOLVER_MAX_CONCURRENT_JOBS` left at 1), writes `.dev.vars` **including `SOLVER_URL`** and Cloudflare's public Turnstile test keys — before the build that snapshots it — then boots the workerd preview and runs the Playwright suite (`pnpm test:e2e`). The reset spec reads its email from the stack's Mailpit and loads the Turnstile widget from `challenges.cloudflare.com`. The solver is what lets `generation.spec.ts` press Generate and drive the result to a board; without `SOLVER_URL` the preview would pick the container binding instead and need Docker for no extra coverage
 4. **`solver` job** — from `services/solver`: `uv sync --locked` → `ruff check` → `mypy` (strict, src + tests) → `pytest` → `uv audit`
 5. **`deploy` job** — on push to `main` only, after `verify` + `integration` + `e2e` + `solver` all pass: applies pending migrations (`supabase db push`), checks the Docker daemon, then builds and pushes the solver container image and ships the Worker + container via `cloudflare/wrangler-action` (v4)
 
@@ -484,16 +490,18 @@ pnpm exec supabase db diff             # should report clean afterward
 
 ### Auth routes
 
-| Route          | Description                                                     |
-| -------------- | --------------------------------------------------------------- |
-| `/auth/signin` | Email/password sign-in                                          |
-| `/dashboard`   | Protected page (redirects to `/auth/signin` if unauthenticated) |
+| Route           | Description                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| `/auth/signin`  | Email/password sign-in                                                                     |
+| `/auth/forgot`  | Request a password-reset email (public; Turnstile-guarded, one neutral answer)             |
+| `/auth/confirm` | Scanner-safe landing for the emailed link; only its **Continue** button spends it (public) |
+| `/dashboard`    | Protected page (redirects to `/auth/signin` if unauthenticated)                            |
 
-There is no self-service signup: accounts are provisioned manually. See [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md).
+There is no self-service signup: accounts are provisioned manually. See [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md). Password reset by email (S-402) is self-service; its sender, DNS and smoke test are in [`docs/runbooks/email-delivery.md`](docs/runbooks/email-delivery.md), and its hosted Auth values in [`docs/runbooks/hosted-auth-settings.md`](docs/runbooks/hosted-auth-settings.md).
 
 The CP-SAT solver reaches the database as a **machine** Auth user whose token carries a narrow Postgres role (`solver_job_writer`, reaching only `generation_jobs`) via a Custom Access Token Hook — it never holds a secret key. Provisioning, rotation, hosted enablement, and the kill-switch drill are in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
 
-Route protection is deny-by-default in `src/middleware.ts` — every route requires an authenticated session except the sign-in page, the `/api/auth/` endpoints, and static assets.
+Route protection is deny-by-default in `src/middleware.ts` — every route requires an authenticated session except the sign-in page, the two password-reset pages, the `/api/auth/` endpoints, and static assets. Each public entry carries its reason there.
 
 ## License
 

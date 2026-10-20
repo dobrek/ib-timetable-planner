@@ -148,17 +148,18 @@ pnpm exec supabase config push   # ⚠️ pushes the ENTIRE local config.toml �
 repo's local file is a **development** config. Pushing it as-is would change hosted auth in ways
 that are not obviously connected to the solver, and that no test would catch:
 
-| Local setting                                           | `supabase/config.toml` | What it would do to hosted                                                                                                          |
-| ------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `site_url = "http://127.0.0.1:3000"`                    | `:154`                 | Points production's auth Site URL at **localhost** — breaks every redirect-bearing flow (password reset, magic link, email change). |
-| `additional_redirect_urls = ["https://127.0.0.1:3000"]` | `:156`                 | Drops the real allow-list for the same flows.                                                                                       |
-| `enable_confirmations = false`                          | `:213`                 | Turns off email confirmation on hosted.                                                                                             |
-| `secure_password_change = false`                        | `:215`                 | Nothing while hosted is off, as it must be: deliberately off per FR-411 (see [`hosted-auth-settings.md`](hosted-auth-settings.md)). |
-| `minimum_password_length = 15`                          | `:176`                 | Nothing while hosted matches it; the hosted floor is set by hand (see [`hosted-auth-settings.md`](hosted-auth-settings.md)).        |
+| Local setting                                                                         | `supabase/config.toml` | What it would do to hosted                                                                                                                                            |
+| ------------------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `site_url = "http://localhost:4321"`                                                  | `:157`                 | Points production's auth Site URL at **localhost** — every password-reset email (and later every invite) would link to the developer's machine.                       |
+| `additional_redirect_urls = ["http://localhost:4321/**", "http://127.0.0.1:4321/**"]` | `:161`                 | Replaces the real allow-list (the custom domain and the workers.dev host) with local hosts.                                                                           |
+| `max_frequency = "1s"`                                                                | `:224`                 | Drops hosted's per-user resend interval from 300 s to 1 s — **removes half of the reset flood guard** without a sound (see [`email-delivery.md`](email-delivery.md)). |
+| `enable_confirmations = false`                                                        | `:218`                 | Turns off email confirmation on hosted.                                                                                                                               |
+| `secure_password_change = false`                                                      | `:220`                 | Nothing while hosted is off, as it must be: deliberately off per FR-411 (see [`hosted-auth-settings.md`](hosted-auth-settings.md)).                                   |
+| `minimum_password_length = 15`                                                        | `:181`                 | Nothing while hosted matches it; the hosted floor is set by hand (see [`hosted-auth-settings.md`](hosted-auth-settings.md)).                                          |
+| `[auth.email.template.recovery]`, `[auth.email.notification.password_changed]`        | `:246-253`             | Pushes the templates — the same files hosted should hold, but past the runbook's read-back, and with whatever local edits are uncommitted.                            |
 
-(Both URL values are stale even for local use — the app serves on `4321`, not `3000`.)
-
-If you use `config push` anyway: fix `site_url` and `additional_redirect_urls` **first**, review the
+If you use `config push` anyway: set `site_url`, `additional_redirect_urls` and `max_frequency` to
+hosted's values ([`hosted-auth-settings.md`](hosted-auth-settings.md)) **first**, review the
 diff the CLI prints, and confirm the rest of the table above is what you intend hosted to have. The
 exact set of keys `config push` transmits is a property of the Supabase CLI version in use — check
 its current docs rather than trusting this table to be exhaustive.

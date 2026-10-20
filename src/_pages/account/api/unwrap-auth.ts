@@ -14,7 +14,8 @@ import {
  * Private to the account slice, and it maps only what `updateUser({ password })` can reach. A
  * hosted toggle flipped on (`reauthentication_needed`, `current_password_required`) falls through
  * to GoTrue's own message on purpose; `docs/runbooks/hosted-auth-settings.md` names those codes.
- * Promote this to `shared/api` when S-402 brings a second caller.
+ * S-402 maps its Auth outcomes to redirects, not `DomainError`s, so it did not need this. Promote it
+ * to `shared/api` when a second `DomainError` caller appears (S-409 or S-410).
  */
 export function unwrapAuth<R extends { data: unknown; error: AuthError | null }>(result: R): SuccessData<R> {
   if (result.error) throw toDomainError(result.error);

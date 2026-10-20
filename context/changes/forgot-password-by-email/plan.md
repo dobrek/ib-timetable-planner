@@ -884,23 +884,23 @@ Prove on production what no local stack can: delivery to a real inbox, sender au
 
 #### Automated
 
-- [x] 3.1 E2E passes: the new spec, the guard additions and every existing spec, `auth.setup.ts` included: `pnpm test:e2e`
-- [x] 3.2 The full local CI gate passes: run the `/verify` skill
+- [x] 3.1 E2E passes: the new spec, the guard additions and every existing spec, `auth.setup.ts` included: `pnpm test:e2e` — 3eb70fe
+- [x] 3.2 The full local CI gate passes: run the `/verify` skill — 3eb70fe
 
 #### Manual
 
-- [x] 3.3 The flow walked on the preview, end to end
-- [x] 3.4 `/auth/confirm` works with JavaScript disabled
-- [x] 3.5 Confirm-page headers present; no extra script and no token in any `href`
-- [x] 3.6 Both pages work by keyboard alone, and the alerts are announced
-- [x] 3.7 With the Turnstile keys removed, the forgot page and endpoint show the unavailable state; keys restored
+- [x] 3.3 The flow walked on the preview, end to end — 3eb70fe
+- [x] 3.4 `/auth/confirm` works with JavaScript disabled — 3eb70fe
+- [x] 3.5 Confirm-page headers present; no extra script and no token in any `href` — 3eb70fe
+- [x] 3.6 Both pages work by keyboard alone, and the alerts are announced — 3eb70fe
+- [x] 3.7 With the Turnstile keys removed, the forgot page and endpoint show the unavailable state; keys restored — 3eb70fe
 
 ### Phase 4: Docs, rules & the hosted gate
 
 #### Automated
 
-- [ ] 4.1 The full local CI gate passes on the final branch: run the `/verify` skill
-- [ ] 4.2 Formatting passes on the edited docs: `pnpm exec prettier --check README.md CLAUDE.md docs context/changes/forgot-password-by-email`
+- [x] 4.1 The full local CI gate passes on the final branch: run the `/verify` skill
+- [x] 4.2 Formatting passes on the edited docs: `pnpm exec prettier --check README.md CLAUDE.md docs context/changes/forgot-password-by-email`
 
 #### Manual
 

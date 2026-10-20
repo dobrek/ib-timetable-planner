@@ -40,9 +40,12 @@ runs:
     # gotrue (cheap; future RLS/e2e). Exclude everything else to cut boot time.
     # Container names are the CLI's own labels (mailpit/storage-api/logflare/
     # postgres-meta), not the docs' aliases — the CLI rejects inbucket/storage/etc.
+    #
+    # Mailpit is kept: the S-402 integration suite and e2e spec read password-reset mail through its
+    # API on :54324 (`src/test/mailpit.ts`). Excluded, they pass locally and fail here.
     - name: Start Supabase (trimmed stack)
       shell: bash
-      run: pnpm exec supabase start -x studio,imgproxy,mailpit,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
+      run: pnpm exec supabase start -x studio,imgproxy,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
 
     # Export the stack's env to the job, for both lanes' solver, the integration / e2e suites and
     # the load-test-env CI fail-gate. The keys are the CLI's fixed defaults, not minted per stack,

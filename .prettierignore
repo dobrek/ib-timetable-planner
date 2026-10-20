@@ -11,6 +11,10 @@ src/shared/api/database.types.ts
 # json/css/md only, so nothing catches it; ignoring it here does.
 pnpm-lock.yaml
 supabase/seed.sql
+# GoTrue email templates (S-402). They are Go templates, not HTML documents: prettier reads their
+# `{{/* … */}}` notes as prose and reflows them into one paragraph, and the runbook's Management API
+# step sends each file to hosted byte for byte, so what is committed is what hosted renders.
+supabase/templates/
 # The Python solver package. Its README/JSON belong to the uv+ruff toolchain, not to prettier —
 # without this entry lefthook's `prettier --write` starts reformatting the tree on every commit
 # that touches it. (Inherited from the `poc/` entry this package was promoted out of.)

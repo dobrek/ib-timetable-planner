@@ -1,0 +1,17 @@
+{{/*
+  S-402 password-reset email. GoTrue renders this file as a Go template, so these notes are a
+  template comment (dropped at render), never an HTML comment: an action inside an HTML comment
+  would still be evaluated and land in the email's source. Hosted gets this file through the
+  Management API step in docs/runbooks/hosted-auth-settings.md, never `supabase config push`.
+
+  - Exactly one link, built from SiteURL and TokenHash. It opens /auth/confirm, which only renders,
+    so a mail scanner can fetch it without spending the link. Never ConfirmationURL: GoTrue spends
+    that one on GET.
+  - No form, script, image, tracking or shortener, and nothing about students.
+  - "1 hour" mirrors hosted mailer_otp_exp (recovery-policy.ts LINK_LIFETIME): change both together.
+*/}}
+<h2>IB Planner</h2>
+<p>Someone asked to reset the password for your IB Planner account.</p>
+<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery">Reset your password</a></p>
+<p>The link works once, for 1 hour. If you asked more than once, only the newest email works.</p>
+<p>If you didn't ask, ignore this email — your password stays the same.</p>

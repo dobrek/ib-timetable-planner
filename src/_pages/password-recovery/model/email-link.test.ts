@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEmailLink } from "./email-link";
+import { landingPathFor, parseEmailLink } from "./email-link";
 
 const HASH = "a".repeat(56);
 
@@ -56,5 +56,11 @@ describe("parseEmailLink", () => {
     form.set("type", "recovery");
 
     expect(parseEmailLink(form)).toBeNull();
+  });
+});
+
+describe("landingPathFor", () => {
+  it("lands a recovery on the account page's password form, with its banner", () => {
+    expect(landingPathFor("recovery")).toBe("/account?notice=recovery");
   });
 });

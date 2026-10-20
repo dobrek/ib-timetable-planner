@@ -84,6 +84,13 @@ export default defineConfig({
       // and exactly why `prod.vars` must not carry one. `optional: true` is what makes "no solver
       // configured at all" a supported state (transport `null`) rather than a boot failure.
       SOLVER_URL: envField.string({ context: "server", access: "secret", optional: true }),
+      // Cloudflare Turnstile, the bot check on the public password-reset request (S-402). Both are
+      // runtime server secrets read from the Worker env / `.dev.vars`. The site key is public, but a
+      // public var would be inlined at BUILD from `process.env`, which CI's deploy build does not
+      // have; the server renders it into the page instead. Missing either key is a supported state
+      // that makes reset UNAVAILABLE (fail closed), never unguarded.
+      TURNSTILE_SITE_KEY: envField.string({ context: "server", access: "secret", optional: true }),
+      TURNSTILE_SECRET_KEY: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },
 });

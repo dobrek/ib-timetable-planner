@@ -5,13 +5,20 @@ import AccountSettings from "./AccountSettings";
 type Props = {
   email: string;
   displayName: string | null;
-  /** `?saved=name` after a display-name save: the reload that shows the new name destroys its toast. */
+  /** `?saved=name` or `?saved=password` after a save: the reload destroys the form's toast, so the page reports it. */
   saved: string | null;
   /** `?notice=recovery` when a password-reset link signed the user in (S-402's `/api/auth/confirm`). */
   notice: string | null;
 };
 
 const { email, displayName, saved, notice } = Astro.props;
+
+// One status line for every save on this page, so each form confirms the same, prominent way.
+const SAVED_MESSAGES: Partial<Record<string, string>> = {
+  name: "Display name saved.",
+  password: "Password changed.",
+};
+const savedMessage = saved ? SAVED_MESSAGES[saved] : undefined;
 ---
 
 <div class="max-w-xl space-y-6">
@@ -29,9 +36,9 @@ const { email, displayName, saved, notice } = Astro.props;
   </header>
 
   {
-    saved === "name" && (
+    savedMessage && (
       <p role="status" class="border-valid bg-valid/10 text-foreground rounded-md border px-3 py-2 text-sm">
-        Display name saved.
+        {savedMessage}
       </p>
     )
   }

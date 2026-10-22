@@ -63,7 +63,10 @@ test("a forgotten password is reset from the email link, which a mail scanner ca
     await form.getByLabel("Confirm new password", { exact: true }).fill(newPassword);
     await expect(form.getByLabel("New password", { exact: true })).toHaveValue(newPassword);
     await form.getByRole("button", { name: "Change password" }).click();
-    await expect(page.getByText("Password changed", { exact: true })).toBeVisible();
+    // Reported above the forms, like a name save; the reload also drops the reset-link banner.
+    await expect(page).toHaveURL(/\/account\?saved=password$/);
+    await expect(page.getByRole("status").filter({ hasText: "Password changed." })).toBeVisible();
+    await expect(page.getByText("You're signed in from a password-reset link.")).toHaveCount(0);
 
     expect((await signIn(email, newPassword)).error).toBeNull();
     expect((await signIn(email, oldPassword)).error?.code).toBe("invalid_credentials");

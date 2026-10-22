@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { navigate } from "astro:transitions/client";
 import { useForm } from "react-hook-form";
 import { submitForm } from "@/shared/lib/forms";
 import {
@@ -21,8 +22,9 @@ type Props = {
 };
 
 /**
- * Change the caller's password, typed twice; no current password is asked (PRD FR-411). Nothing
- * server-rendered changes, so the page does not reload and the success toast survives.
+ * Change the caller's password, typed twice; no current password is asked (PRD FR-411). A change
+ * reloads into `/account?saved=password` and the page reports it above the forms, as a name save
+ * does: a toast is easy to miss on a wide screen, and the reload also drops the reset-link banner.
  */
 export default function PasswordForm({ email }: Props) {
   const { form, onSubmit } = usePasswordForm();
@@ -91,9 +93,9 @@ function usePasswordForm() {
       conflictCodes: ["UNPROCESSABLE_CONTENT", "BAD_REQUEST", "TOO_MANY_REQUESTS"],
       successMessage: "Password changed",
       onClose: () => {
-        form.reset();
+        // Nothing to close: this form is not a dialog, and the reload below replaces the page.
       },
-      refresh: () => Promise.resolve(),
+      refresh: () => navigate("/account?saved=password"),
     });
 
   return { form, onSubmit };

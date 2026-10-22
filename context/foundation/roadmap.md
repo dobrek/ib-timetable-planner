@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-10-20
+updated: 2026-10-22
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -46,7 +46,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | F-401 | give-integration-lane-a-signed-in-client-per-role | (foundation) the integration lane signs in a real user per principal (once per file) and pins today's access posture in a role matrix that S-403 flips | — | FR-410, §Guardrails (no author loses access), §Constraints (CI lanes stay green) | done |
 | F-402 | ci-publishable-key-and-pinned-cli | (foundation) every CI lane uses the `sb_publishable_` key production uses, on a pinned Supabase CLI | — | §Constraints (CI lanes stay green) | done |
 | S-401 | account-self-service         | change their own password and set a display name; passwords under 15 characters are refused           | —                  | FR-411, FR-413, §NFG (passwords ≥ 15)                                          | done |
-| S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | in-progress |
+| S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | done |
 | S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | proposed |
 | S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | ready    |
 | S-405 | viewer-read-only             | (viewer) read every plan and proposal, export and compare, with no edit affordances                    | S-403, S-404       | FR-409                                                                         | blocked  |
@@ -159,7 +159,7 @@ A foundation was considered for each of those and rejected: postponing none of t
   - Email-link lifetime — the platform has one lifetime for every email link, so "invite 72 h, reset 1 h" cannot both hold (Open Roadmap Question 2). — Owner: user. Block: no; S-402 ships at 1 h; decided at S-410.
   - Which guard against reset flooding — **decided (plan, 2026-10-20):** Cloudflare Turnstile verified in the Worker, plus a 300 s per-user resend interval and one neutral answer for every outcome. Supabase's own CAPTCHA is ruled out (it would break the solver's password sign-in), and Resend Pro is the fallback only if a flood is ever observed. The PRD guardrail now reads "an automated flood". — Owner: plan phase. Block: no.
 - **Risk:** The head of the external-risk track (`top_blocker: external`): the first email the product ever sends, through DNS and hosted mail settings changed by hand, into a school tenant whose link scanners can consume one-time links. Sequenced straight after S-401 — and its by-hand provider and DNS setup can begin before S-401 lands — so delivery and scanner surprises surface while the invite flow (S-410) is still far off. Widens the deny-by-default allowlist for the first time since sign-in, with a recorded reason.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-403: Fail-closed roles
 
@@ -337,3 +337,4 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 - **F-401: (foundation) the integration lane can create a real user, sign it in with the publishable key, and clean it up through `teardown`. A role-matrix suite pins today's access posture in an expectation table: anon is denied, and a signed-in user without a role is allowed everywhere (the hole S-403 closes). Each outcome is established by reading back as service role, so RLS's silent denials (empty SELECT, 0-row UPDATE/DELETE) cannot pass as green.** — Archived 2026-10-12 → `context/archive/2026-10-12-give-integration-lane-a-signed-in-client-per-role/`. Lesson: —.
 - **F-402: (foundation) every CI lane reaches its ephemeral stack with the key format production uses: `SUPABASE_KEY` is `sb_publishable_…`, checked by a CI assertion rather than assumed. The stack comes from a pinned Supabase CLI kept in step with `package.json`, so the auth server and the `status` export syntax stop drifting between CI and developer machines.** — Archived 2026-10-14 → `context/archive/2026-10-14-ci-publishable-key-and-pinned-cli/`. Lesson: —.
 - **S-401: Any user can open an account page from the sidebar, change their own password and set a display name; a password shorter than 15 characters is refused.** — Archived 2026-10-19 → `context/archive/2026-10-16-account-self-service/`. Lesson: —.
+- **S-402: Any user can request a password reset from the sign-in page, receive the email in a real school inbox, open a confirm page that consumes the link only on a deliberate click (a mail scanner opening it does not), and set a new password; a flood of reset requests cannot stop a genuine staff member from resetting, and the email carries no student data.** — Archived 2026-10-22 → `context/archive/2026-10-19-forgot-password-by-email/`. Lesson: —.

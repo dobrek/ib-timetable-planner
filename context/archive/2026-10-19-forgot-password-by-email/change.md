@@ -1,10 +1,10 @@
 ---
 change_id: forgot-password-by-email
 title: Forgot password by email (S-402)
-status: impl_reviewed
+status: archived
 created: 2026-10-19
 updated: 2026-10-22
-archived_at: null
+archived_at: 2026-10-22T10:13:41Z
 ---
 
 ## Notes

@@ -64,9 +64,10 @@ upgrades, not scope.
 **Monorepo posture (locked in shaping).** The Astro app stays at the repo
 root; role-named satellites hold the rest (`services/solver/`, tech-neutral
 schema artifacts in `contracts/`, `supabase/` as shared infra). No
-Turborepo/Nx/pnpm-workspace packages. **mise** provides toolchain pins
-(node/python/uv) and cross-ecosystem tasks; pnpm scripts remain the JS-side
-canon — solver steps never enter `package.json`.
+Turborepo/Nx/pnpm-workspace packages. **mise** pins `uv` and `shellcheck`,
+reads `.node-version` for node, and fronts the cross-ecosystem tasks; Python
+is pinned by `services/solver/.python-version`, which uv reads. pnpm scripts
+remain the JS-side canon — solver steps never enter `package.json`.
 
 **CI/CD.** GitHub Actions, auto-deploy on merge to main, extended per FR-315:
 a path-filtered solver verify lane (ruff + pytest + mypy) joins the existing

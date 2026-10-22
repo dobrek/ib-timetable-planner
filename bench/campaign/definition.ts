@@ -10,7 +10,7 @@ import {
  * What the calibration campaign measures (S-308 Phase 4): three fixed cells at 4 workers, three
  * valid runs each, then a fourth cell a human chooses after reading the matrix.
  *
- * **Runtime rule for `bench/campaign/`.** These files execute under Node 24's native type stripping
+ * **Runtime rule for `bench/campaign/`.** These files execute under Node's native type stripping
  * (`node bench/campaign/main.ts`), while their tests run under vitest. Node resolves no `@/` alias and
  * strips types without checking them, so a runtime error here is invisible to `pnpm test`: every type
  * comes in through `import type`, only erasable syntax is used (no `enum`, `namespace` or parameter

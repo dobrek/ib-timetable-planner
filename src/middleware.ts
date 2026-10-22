@@ -2,8 +2,9 @@ import { defineMiddleware } from "astro:middleware";
 import { createClient } from "@/shared/api";
 
 // Deny-by-default: every route requires an authenticated session except the
-// paths below. Keep this allowlist tight — only the sign-in surface, the auth
-// API endpoints, and static/internal assets are reachable unauthenticated.
+// paths below. Keep this allowlist tight — only the sign-in and password-reset
+// pages, the auth API endpoints, and static/internal assets are reachable
+// unauthenticated.
 // Every entry carries a one-line reason (PRD Constraints).
 const PUBLIC_PATHS = [
   "/auth/signin", // a signed-out user must be able to sign in

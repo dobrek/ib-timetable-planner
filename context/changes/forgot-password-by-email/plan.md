@@ -300,6 +300,7 @@ Make the local and CI stacks send and capture recovery mail. Build the slice's p
   - `type ResetOutcome = "accepted" | "throttled" | "rejected-address" | "send-failed" | "unexpected"`.
   - `toResetOutcome(error: unknown): ResetOutcome` classifies a returned `AuthError`, an `AuthRetryableFetchError` with no code, and any thrown value.
   - The classification is for **logs only**: the route never branches on it.
+  - *(As built: `toResetReport(error): ResetReport`, with `ResetReport = { outcome, code, status }`, plus `formatResetReport` for the log line: the shape the "outcome, GoTrue code and status" logging rule needs. `requestPasswordReset` resolves to a `ResetReport`. `email-link.ts` also gained `landingPathFor(type)`, so a new link type names its landing page.)*
 - **`recovery-policy.ts`:** `LINK_LIFETIME = "1 hour"` and `RESEND_INTERVAL = "5 minutes"`, coupled to hosted `mailer_otp_exp` and `smtp_max_frequency`. The docblock points at the runbook.
 - **`index.ts`:** follows `_pages/sign-in/index.ts`.
 
@@ -581,7 +582,7 @@ Build the two public pages, the sign-in link and the account banner. Prove the w
   3. `expect.poll` Mailpit for the link.
   4. **Simulated scanner:** `request.head(link)` and `request.get(link)`, twice each. Each returns 200, and the GET body holds the Continue button.
   5. `page.goto(link)`, click Continue, land on `/account?notice=recovery` with the banner visible.
-  6. Hydration-gate the password form (the `account.spec.ts` idiom), set a new password twice, and see the "Password changed" toast.
+  6. Hydration-gate the password form (the `account.spec.ts` idiom), set a new password twice, and see the "Password changed" toast. *(Changed after the merge in 2e36c1d: the page reloads into `/account?saved=password`, shows a "Password changed." status line above the forms, and drops the reset banner.)*
   7. Prove it from Node with a publishable-key `signInWithPassword`: new password OK, old password `invalid_credentials`.
   8. Assert the password-changed notification arrived.
   9. Reopen the used link and press Continue, and land on `/auth/forgot?error=link-expired` with its copy.
@@ -856,58 +857,58 @@ Prove on production what no local stack can: delivery to a real inbox, sender au
 
 #### Automated
 
-- [x] 1.1 Local stack restarted on the new config, and `pnpm exec supabase status` no longer prints the `[inbucket]` deprecation warning — e2c8dd8
-- [x] 1.2 Type check passes: `pnpm check` — e2c8dd8
-- [x] 1.3 Lint and FSD structure pass: `pnpm lint` and `pnpm steiger` — e2c8dd8
-- [x] 1.4 Unit tests pass: `pnpm test` (email-link, forgot-page-state, reset-outcome) — e2c8dd8
-- [x] 1.5 The new suite passes: `pnpm test:integration src/test/password-recovery.integration.test.ts` — e2c8dd8
-- [x] 1.6 The whole lane passes: `pnpm test:integration` (re-run once on a transient 502, a known flake) — e2c8dd8
+- [x] 1.1 Local stack restarted on the new config, and `pnpm exec supabase status` no longer prints the `[inbucket]` deprecation warning — f4f6ba7
+- [x] 1.2 Type check passes: `pnpm check` — f4f6ba7
+- [x] 1.3 Lint and FSD structure pass: `pnpm lint` and `pnpm steiger` — f4f6ba7
+- [x] 1.4 Unit tests pass: `pnpm test` (email-link, forgot-page-state, reset-outcome) — f4f6ba7
+- [x] 1.5 The new suite passes: `pnpm test:integration src/test/password-recovery.integration.test.ts` — f4f6ba7
+- [x] 1.6 The whole lane passes: `pnpm test:integration` (re-run once on a transient 502, a known flake) — f4f6ba7
 
 #### Manual
 
-- [x] 1.7 In Mailpit, the recovery email and the password-changed notification look right, and the recovery link's host is `localhost:4321` — e2c8dd8
+- [x] 1.7 In Mailpit, the recovery email and the password-changed notification look right, and the recovery link's host is `localhost:4321` — f4f6ba7
 
 ### Phase 2: Turnstile gate & the auth endpoints
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `pnpm test` (turnstile-verdict, verify-turnstile, plus Phase 1's) — 6e8cc31
-- [x] 2.2 Type check, lint and FSD pass: `pnpm check`, `pnpm lint`, `pnpm steiger` — 6e8cc31
-- [x] 2.3 Production build passes, including the `postbuild` client-bundle assertion: `pnpm build` — 6e8cc31
+- [x] 2.1 Unit tests pass: `pnpm test` (turnstile-verdict, verify-turnstile, plus Phase 1's) — 5ceb0e5
+- [x] 2.2 Type check, lint and FSD pass: `pnpm check`, `pnpm lint`, `pnpm steiger` — 5ceb0e5
+- [x] 2.3 Production build passes, including the `postbuild` client-bundle assertion: `pnpm build` — 5ceb0e5
 
 #### Manual
 
-- [x] 2.4 Deliberate break: `sb_publishable_x` in a client island fails `pnpm build`, naming the file; reverted — 6e8cc31
-- [x] 2.5 Preview probes: GET/HEAD on both endpoints return 404, a foreign-`Origin` POST returns 403, and a POST with no token redirects to `?error=verification` — 6e8cc31
+- [x] 2.4 Deliberate break: `sb_publishable_x` in a client island fails `pnpm build`, naming the file; reverted — 5ceb0e5
+- [x] 2.5 Preview probes: GET/HEAD on both endpoints return 404, a foreign-`Origin` POST returns 403, and a POST with no token redirects to `?error=verification` — 5ceb0e5
 
 ### Phase 3: Pages & browser coverage
 
 #### Automated
 
-- [x] 3.1 E2E passes: the new spec, the guard additions and every existing spec, `auth.setup.ts` included: `pnpm test:e2e` — 3eb70fe
-- [x] 3.2 The full local CI gate passes: run the `/verify` skill — 3eb70fe
+- [x] 3.1 E2E passes: the new spec, the guard additions and every existing spec, `auth.setup.ts` included: `pnpm test:e2e` — 74401c8
+- [x] 3.2 The full local CI gate passes: run the `/verify` skill — 74401c8
 
 #### Manual
 
-- [x] 3.3 The flow walked on the preview, end to end — 3eb70fe
-- [x] 3.4 `/auth/confirm` works with JavaScript disabled — 3eb70fe
-- [x] 3.5 Confirm-page headers present; no extra script and no token in any `href` — 3eb70fe
-- [x] 3.6 Both pages work by keyboard alone, and the alerts are announced — 3eb70fe
-- [x] 3.7 With the Turnstile keys removed, the forgot page and endpoint show the unavailable state; keys restored — 3eb70fe
+- [x] 3.3 The flow walked on the preview, end to end — 74401c8
+- [x] 3.4 `/auth/confirm` works with JavaScript disabled — 74401c8
+- [x] 3.5 Confirm-page headers present; no extra script and no token in any `href` — 74401c8
+- [x] 3.6 Both pages work by keyboard alone, and the alerts are announced — 74401c8
+- [x] 3.7 With the Turnstile keys removed, the forgot page and endpoint show the unavailable state; keys restored — 74401c8
 
 ### Phase 4: Docs, rules & the hosted gate
 
 #### Automated
 
-- [x] 4.1 The full local CI gate passes on the final branch: run the `/verify` skill — 88f1626
-- [x] 4.2 Formatting passes on the edited docs: `pnpm exec prettier --check README.md CLAUDE.md docs context/changes/forgot-password-by-email` — 88f1626
+- [x] 4.1 The full local CI gate passes on the final branch: run the `/verify` skill — b740072
+- [x] 4.2 Formatting passes on the edited docs: `pnpm exec prettier --check README.md CLAUDE.md docs context/changes/forgot-password-by-email` — b740072
 
 #### Manual
 
 - [x] 4.3 The Resend domain is verified, every DNS record is DNS-only, and DMARC resolves to `p=none` — 2026-10-20 (hosted, by hand; DMARC verified with `dig` on the authoritative nameserver)
 - [x] 4.4 The hosted Auth read-back matches the runbook table, recorded with the GoTrue version — cf153d8
 - [x] 4.5 The Turnstile widget exists with both hostnames, and both Worker secrets are set — cf153d8
-- [x] 4.6 No production solve is running; the PR is merged and `deploy` is green — cf153d8
+- [x] 4.6 No production solve is running; the PR is merged and `deploy` is green — cf153d8 (merged before 4.4 and 4.5 were done: see change.md Notes)
 
 ### Phase 5: Hosted smoke (after merge)
 

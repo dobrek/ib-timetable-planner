@@ -93,7 +93,9 @@ function usePasswordForm() {
       conflictCodes: ["UNPROCESSABLE_CONTENT", "BAD_REQUEST", "TOO_MANY_REQUESTS"],
       successMessage: "Password changed",
       onClose: () => {
-        // Nothing to close: this form is not a dialog, and the reload below replaces the page.
+        // Clear both fields before the reload: navigate() returns once it sets the URL, and a
+        // back-forward cache restore would otherwise bring the new password back.
+        form.reset();
       },
       refresh: () => navigate("/account?saved=password"),
     });

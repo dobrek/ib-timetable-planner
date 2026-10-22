@@ -59,3 +59,16 @@ test("the recovery landing still needs a session", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/auth\/signin/);
 });
+
+// The reset flood guard holds only while the browser never holds the publishable key (CLAUDE.md).
+// postbuild checks the bundle; this checks what the server renders per request, where island props
+// and `define:vars` land and no build check looks. Booleans only: a failure never prints the key.
+for (const path of ["/auth/signin", "/auth/forgot", "/auth/confirm"]) {
+  test(`${path} renders no Supabase key or host into the page`, async ({ request }) => {
+    const html = await (await request.get(path)).text();
+
+    for (const pattern of ["sb_publishable_", "sb_secret_", ".supabase.co", "127.0.0.1:54321"]) {
+      expect(html.includes(pattern), `${path} carries ${pattern}`).toBe(false);
+    }
+  });
+}

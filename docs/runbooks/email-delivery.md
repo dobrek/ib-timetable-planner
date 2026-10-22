@@ -132,7 +132,8 @@ details):
 - If Safe Links wrapped the URL, the decoded `url=` keeps `token_hash` and `type=recovery`.
 - **Worker Logs show pre-click HEAD and GET to `/auth/confirm` from Microsoft ranges, and no POST.**
   The token is still valid 5 minutes or more after delivery, and the human's Continue succeeds.
-- Check the `Content-Type`: whether Resend's relay added a plain-text part is unverified.
+- `Content-Type` is `multipart/alternative`: Resend's relay adds a `text/plain` part generated from
+  the HTML (verified in S-402's developer-inbox smoke, 2026-10-20).
 
 If a scanner ever POSTs the Continue form before the person does, the fallback is a typed code
 (`{{ .Token }}`) — a follow-up change, not a setting.

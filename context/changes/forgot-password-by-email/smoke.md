@@ -83,6 +83,10 @@ not Junk; `spf`/`dkim`/`dmarc`/`compauth` pass; `SFV:NSPM`, `CAT:NONE`; a Safe L
 keeps `token_hash` and `type`; Worker Logs show pre-click HEAD/GET to `/auth/confirm` and no POST;
 the token still works 5+ minutes after delivery).
 
+Before the run, re-check hosted `site_url` with the read-back under "Sync the templates from the
+repo" in `docs/runbooks/hosted-auth-settings.md`: it regained its trailing slash once between
+2026-10-20 and 2026-10-22, cause unknown, and a slash puts `//auth/confirm` in the email.
+
 ## 5.4 Scanner verdict
 
 _Deferred with 5.3._ Pass, or a follow-up change for the typed-code fallback (`{{ .Token }}`). Until

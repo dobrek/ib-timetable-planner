@@ -18,7 +18,8 @@ const SAVED_MESSAGES: Partial<Record<string, string>> = {
   name: "Display name saved.",
   password: "Password changed.",
 };
-const savedMessage = saved ? SAVED_MESSAGES[saved] : undefined;
+// Own keys only: `?saved=valueOf` would otherwise reach Object.prototype and break the render.
+const savedMessage = saved && Object.hasOwn(SAVED_MESSAGES, saved) ? SAVED_MESSAGES[saved] : undefined;
 ---
 
 <div class="max-w-xl space-y-6">

@@ -36,6 +36,10 @@ export function createClient(requestHeaders: Headers, cookies: AstroCookies) {
  * ever uses. The implicit flow sends no code challenge, so the link verifies from any device.
  *
  * Never use it for a call that needs a session: it has none, and it never stores one.
+ *
+ * Every request gives up after `SESSIONLESS_TIMEOUT_MS`: the reset runs in `waitUntil`, which
+ * Workers cancels 30 s after the response, so a stalled send must fail in time to log its own
+ * `send-failed` line rather than vanish.
  */
 export function createSessionlessClient() {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -44,9 +48,19 @@ export function createSessionlessClient() {
 
   return createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
     auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: timeBoundedFetch },
   });
 }
 
 function requiredCookieValue(value: string | undefined): string {
   return value ?? "";
+}
+
+// Inside Workers' 30 s `waitUntil` window, with room left to log. Calls the global rather than
+// aliasing it: workerd refuses a `fetch` called with a `this` other than the global.
+const SESSIONLESS_TIMEOUT_MS = 20_000;
+
+function timeBoundedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const timeout = AbortSignal.timeout(SESSIONLESS_TIMEOUT_MS);
+  return fetch(input, { ...init, signal: init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout });
 }

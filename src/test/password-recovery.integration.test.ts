@@ -34,7 +34,9 @@ const RECOVERY_SUBJECT = "Reset your IB Planner password";
 const CHANGED_SUBJECT = "Your IB Planner password was changed";
 const CONFIRM_LINK = /^http:\/\/localhost:4321\/auth\/confirm\?token_hash=[0-9a-f]{56}&type=recovery$/;
 
-(hasEnv ? describe : describe.skip)("password recovery (local Supabase + Mailpit)", () => {
+// 30 s per test: one test can wait on Mailpit twice (`waitForMessageTo`, 10 s each), and Vitest's 5 s
+// default would otherwise end it before the helper's own "no message to …" error can say why.
+(hasEnv ? describe : describe.skip)("password recovery (local Supabase + Mailpit)", { timeout: 30_000 }, () => {
   let admin: SupabaseClient;
   const ownMail = new Set<string>();
 
@@ -44,8 +46,11 @@ const CONFIRM_LINK = /^http:\/\/localhost:4321\/auth\/confirm\?token_hash=[0-9a-
   });
 
   afterAll(async () => {
-    if (ownMail.size > 0) await deleteMessages([...ownMail]);
-    await teardown(admin);
+    try {
+      if (ownMail.size > 0) await deleteMessages([...ownMail]);
+    } finally {
+      await teardown(admin);
+    }
   });
 
   it("sends nothing for an unknown address, and answers as if it had", async () => {

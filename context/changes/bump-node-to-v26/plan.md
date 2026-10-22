@@ -186,11 +186,11 @@ Refresh the Tailwind packages from 4.3.0 to 4.3.3. Node 26 deprecates `module.re
 
 #### Automated Verification:
 
-- [ ] The lockfile diff is confined to Tailwind packages. `git diff pnpm-lock.yaml` shows only `tailwindcss` / `@tailwindcss/*` entries, and `grep -E "^  '?supabase@" pnpm-lock.yaml` still shows `2.117.0`.
-- [ ] `pnpm install --frozen-lockfile` succeeds on the refreshed lockfile.
-- [ ] `pnpm astro sync 2>&1 | grep -c DEP0205` prints `0` on Node 26.12.1.
-- [ ] `pnpm build 2>&1 | grep -c DEP0205` prints `0`, and the build plus the `postbuild` key assert are green.
-- [ ] `/verify` is green on Node 26.12.1.
+- [x] The lockfile diff is confined to Tailwind packages. `git diff pnpm-lock.yaml` shows only `tailwindcss` / `@tailwindcss/*` entries, and `grep -E "^  '?supabase@" pnpm-lock.yaml` still shows `2.117.0`.
+- [x] `pnpm install --frozen-lockfile` succeeds on the refreshed lockfile.
+- [x] `pnpm astro sync 2>&1 | grep -c DEP0205` prints `0` on Node 26.12.1.
+- [x] `pnpm build 2>&1 | grep -c DEP0205` prints `0`, and the build plus the `postbuild` key assert are green.
+- [x] `/verify` is green on Node 26.12.1.
 
 #### Manual Verification:
 
@@ -248,14 +248,14 @@ None. Node is build and test tooling only, and the <200 ms placement-validation 
 
 #### Automated
 
-- [x] 1.1 mise resolves node 26.12.1 in the repo root; node v26.12.1, pnpm 12.9.1
-- [x] 1.2 Frozen install clean on Node 26, lockfile unchanged
-- [x] 1.3 dom-lane storage canary passes on Node 26.12.1
-- [x] 1.4 Deliberate break: canary fails on Node 26 without the execArgv flag
-- [x] 1.5 Canary passes on Node 24.19.0 (flag spelling valid on 24)
-- [x] 1.6 Full pnpm test green with no localStorage ExperimentalWarning
-- [x] 1.7 /verify green on Node 26.12.1
-- [x] 1.8 No stale 24.15 literal outside archive/deployment/changes/lockfile
+- [x] 1.1 mise resolves node 26.12.1 in the repo root; node v26.12.1, pnpm 12.9.1 — e60ba0b
+- [x] 1.2 Frozen install clean on Node 26, lockfile unchanged — e60ba0b
+- [x] 1.3 dom-lane storage canary passes on Node 26.12.1 — e60ba0b
+- [x] 1.4 Deliberate break: canary fails on Node 26 without the execArgv flag — e60ba0b
+- [x] 1.5 Canary passes on Node 24.19.0 (flag spelling valid on 24) — e60ba0b
+- [x] 1.6 Full pnpm test green with no localStorage ExperimentalWarning — e60ba0b
+- [x] 1.7 /verify green on Node 26.12.1 — e60ba0b
+- [x] 1.8 No stale 24.15 literal outside archive/deployment/changes/lockfile — e60ba0b
 
 #### Manual
 
@@ -265,11 +265,11 @@ None. Node is build and test tooling only, and the <200 ms placement-validation 
 
 #### Automated
 
-- [ ] 2.1 Lockfile diff confined to Tailwind packages; supabase still 2.117.0
-- [ ] 2.2 Frozen install succeeds on refreshed lockfile
-- [ ] 2.3 astro sync prints no DEP0205 on Node 26
-- [ ] 2.4 Build prints no DEP0205; build + postbuild assert green
-- [ ] 2.5 /verify green on Node 26.12.1
+- [x] 2.1 Lockfile diff confined to Tailwind packages; supabase still 2.117.0
+- [x] 2.2 Frozen install succeeds on refreshed lockfile
+- [x] 2.3 astro sync prints no DEP0205 on Node 26
+- [x] 2.4 Build prints no DEP0205; build + postbuild assert green
+- [x] 2.5 /verify green on Node 26.12.1
 
 #### Manual
 

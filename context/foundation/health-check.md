@@ -48,7 +48,7 @@ Status: present — pnpm-lock.yaml (app), uv.lock (solver)
 Package manager: pnpm 12.9.1 (app, pinned in packageManager); uv 0.12.3 (solver, pinned in mise.toml)
 ```
 
-Both ecosystems are pinned and reproducible. Node is pinned by `.node-version` (24.15.0) and
+Both ecosystems are pinned and reproducible. Node is pinned by `.node-version` (26.12.1) and
 Python by `services/solver/.python-version` (≥3.13). CI installs with `--frozen-lockfile` and
 `uv sync --locked`.
 

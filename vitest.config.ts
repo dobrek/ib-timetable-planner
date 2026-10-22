@@ -38,6 +38,13 @@ export default defineConfig({
           environment: "jsdom",
           include: ["src/**/*.test.tsx"],
           setupFiles: ["./src/test/setup-dom.ts"],
+          // Node ≥25 ships its own Web Storage globals, and Vitest 4's jsdom environment skips the
+          // window keys the global already has — so jsdom's storage never lands, and Node's
+          // `localStorage` is undefined without `--localstorage-file` (vitest-dev/vitest#10867, not
+          // planned for 4.x). Turning Node's off restores jsdom's. Spelled `--no-experimental-webstorage`
+          // because Node 24 rejects `--no-webstorage`. Re-check whether it is still needed on Vitest 5;
+          // `src/test/dom-lane.test.tsx` goes red if storage goes missing.
+          execArgv: ["--no-experimental-webstorage"],
         },
       },
     ],

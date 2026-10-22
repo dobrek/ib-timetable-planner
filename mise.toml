@@ -19,6 +19,14 @@
 [env]
 _.path = ['{{config_root}}/node_modules/.bin']
 
+[settings]
+# Node is pinned by `.node-version` alone — the file CI's `setup-node` reads via `node-version-file`.
+# This setting makes mise read it too, so a developer resolves the same Node as the gate whatever
+# their global config says. Never add `node` to `[tools]`: that is a second literal to keep in
+# lockstep with `.node-version`. `python` is deliberately not listed — uv owns
+# `services/solver/.python-version`, and a second interpreter source must not exist (see `uv` below).
+idiomatic_version_file_enable_tools = ["node"]
+
 [tools]
 # The same version both `setup-uv` steps in `.github/workflows/ci.yml` pin via their `version:`
 # input. Bump all three together — the point of the pin is that a developer and the gate build the

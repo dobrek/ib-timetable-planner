@@ -1,7 +1,7 @@
 ---
 change_id: bump-node-to-v26
 title: Bump node to v26
-status: implementing
+status: implemented
 created: 2026-10-22
 updated: 2026-10-22
 archived_at: null

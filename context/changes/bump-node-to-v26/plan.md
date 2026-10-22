@@ -265,11 +265,11 @@ None. Node is build and test tooling only, and the <200 ms placement-validation 
 
 #### Automated
 
-- [x] 2.1 Lockfile diff confined to Tailwind packages; supabase still 2.117.0
-- [x] 2.2 Frozen install succeeds on refreshed lockfile
-- [x] 2.3 astro sync prints no DEP0205 on Node 26
-- [x] 2.4 Build prints no DEP0205; build + postbuild assert green
-- [x] 2.5 /verify green on Node 26.12.1
+- [x] 2.1 Lockfile diff confined to Tailwind packages; supabase still 2.117.0 — d9090da
+- [x] 2.2 Frozen install succeeds on refreshed lockfile — d9090da
+- [x] 2.3 astro sync prints no DEP0205 on Node 26 — d9090da
+- [x] 2.4 Build prints no DEP0205; build + postbuild assert green — d9090da
+- [x] 2.5 /verify green on Node 26.12.1 — d9090da
 
 #### Manual
 

@@ -914,6 +914,6 @@ Prove on production what no local stack can: delivery to a real inbox, sender au
 #### Manual
 
 - [x] 5.1 Developer-inbox smoke on the custom domain passes — cf153d8
-- [x] 5.2 Worker Logs show outcome lines with no email address, token or query string
+- [x] 5.2 Worker Logs show outcome lines with no email address, token or query string — 2092be2
 - [ ] 5.3 The coordinator's M365 smoke passes the research § 10 criteria, recorded redacted in `smoke.md`
 - [ ] 5.4 Scanner verdict recorded: no pre-click POST, or a follow-up change for the typed code is opened

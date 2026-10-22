@@ -75,14 +75,19 @@ masked and counted any `token_hash` value it met.
 
 ## 5.3 Coordinator's M365 inbox
 
-_Pending — needs the coordinator._ Criteria: `docs/runbooks/email-delivery.md` § Smoke test (Inbox
+_Deferred 2026-10-22: the coordinator's M365 inbox is not available yet. The implementation was
+closed with 5.3 and 5.4 open; run them before archiving (or accept them open at archive time)._
+Reading the logs for that run needs a Workers Observability API token (the `wrangler` login cannot),
+as for 5.2. Criteria: `docs/runbooks/email-delivery.md` § Smoke test (Inbox
 not Junk; `spf`/`dkim`/`dmarc`/`compauth` pass; `SFV:NSPM`, `CAT:NONE`; a Safe Links-wrapped URL
 keeps `token_hash` and `type`; Worker Logs show pre-click HEAD/GET to `/auth/confirm` and no POST;
 the token still works 5+ minutes after delivery).
 
 ## 5.4 Scanner verdict
 
-_Pending on 5.3._ Pass, or a follow-up change for the typed-code fallback (`{{ .Token }}`).
+_Deferred with 5.3._ Pass, or a follow-up change for the typed-code fallback (`{{ .Token }}`). Until
+then the scanner rule is proven only against simulated scanners (the e2e spec's HEAD/GET passes) and
+the absence of any pre-click POST in the developer runs, not against Safe Links itself.
 
 ## DMARC follow-up
 

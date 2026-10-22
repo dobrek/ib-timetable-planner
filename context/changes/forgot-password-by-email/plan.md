@@ -905,15 +905,15 @@ Prove on production what no local stack can: delivery to a real inbox, sender au
 #### Manual
 
 - [x] 4.3 The Resend domain is verified, every DNS record is DNS-only, and DMARC resolves to `p=none` — 2026-10-20 (hosted, by hand; DMARC verified with `dig` on the authoritative nameserver)
-- [x] 4.4 The hosted Auth read-back matches the runbook table, recorded with the GoTrue version
-- [x] 4.5 The Turnstile widget exists with both hostnames, and both Worker secrets are set
-- [x] 4.6 No production solve is running; the PR is merged and `deploy` is green
+- [x] 4.4 The hosted Auth read-back matches the runbook table, recorded with the GoTrue version — cf153d8
+- [x] 4.5 The Turnstile widget exists with both hostnames, and both Worker secrets are set — cf153d8
+- [x] 4.6 No production solve is running; the PR is merged and `deploy` is green — cf153d8
 
 ### Phase 5: Hosted smoke (after merge)
 
 #### Manual
 
-- [x] 5.1 Developer-inbox smoke on the custom domain passes
-- [ ] 5.2 Worker Logs show outcome lines with no email address, token or query string
+- [x] 5.1 Developer-inbox smoke on the custom domain passes — cf153d8
+- [x] 5.2 Worker Logs show outcome lines with no email address, token or query string
 - [ ] 5.3 The coordinator's M365 smoke passes the research § 10 criteria, recorded redacted in `smoke.md`
 - [ ] 5.4 Scanner verdict recorded: no pre-click POST, or a follow-up change for the typed code is opened

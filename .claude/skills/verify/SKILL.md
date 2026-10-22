@@ -10,7 +10,7 @@ Run the exact sequence `.github/workflows/ci.yml` runs, in order, stopping at th
 3. `pnpm check`
 4. `pnpm lint`
 5. `pnpm steiger`
-6. `pnpm audit`
+6. `pnpm audit --audit-level=high`
 7. `pnpm test`
 8. `pnpm build`
 

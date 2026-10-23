@@ -156,7 +156,7 @@ Pin 26.12.1, make mise resolve it locally, restore and guard jsdom Web Storage, 
 
 #### Manual Verification:
 
-- [ ] `pnpm build && pnpm preview` on Node 26: sign in and open a plan board. It renders and accepts a drag-drop. Restart the preview after the build; see the memory note on preview daemonizing.
+- [x] `pnpm build && pnpm preview` on Node 26: sign in and open a plan board. It renders and accepts a drag-drop. Restart the preview after the build; see the memory note on preview daemonizing.
 
 **Implementation Note**: After all automated verification passes, pause for your confirmation of the manual smoke before Phase 2.
 
@@ -194,8 +194,8 @@ Refresh the Tailwind packages from 4.3.0 to 4.3.3. Node 26 deprecates `module.re
 
 #### Manual Verification:
 
-- [ ] `pnpm build && pnpm preview`: the plan board, plans list and sign-in page look unchanged from before the refresh, in both light and dark themes (Tailwind patch-level CSS check).
-- [ ] The bump PR's CI is green on `ubuntu-latest` for all of `verify`, `integration`, `e2e` and `solver`. This closes the research's Linux-runner gap. A single `integration` red needs a re-run before it's attributed to this diff (known ~1-in-5 parallel flake on `main`).
+- [x] `pnpm build && pnpm preview`: the plan board, plans list and sign-in page look unchanged from before the refresh, in both light and dark themes (Tailwind patch-level CSS check).
+- [x] The bump PR's CI is green on `ubuntu-latest` for all of `verify`, `integration`, `e2e` and `solver`. This closes the research's Linux-runner gap. A single `integration` red needs a re-run before it's attributed to this diff (known ~1-in-5 parallel flake on `main`).
 
 **Implementation Note**: After automated verification passes, pause for the visual check and the PR's CI result.
 
@@ -259,7 +259,7 @@ None. Node is build and test tooling only, and the <200 ms placement-validation 
 
 #### Manual
 
-- [ ] 1.9 Build + preview smoke on Node 26: sign in, board renders, drag-drop works
+- [x] 1.9 Build + preview smoke on Node 26: sign in, board renders, drag-drop works
 
 ### Phase 2: Tailwind patch refresh (drop DEP0205)
 
@@ -273,5 +273,5 @@ None. Node is build and test tooling only, and the <200 ms placement-validation 
 
 #### Manual
 
-- [ ] 2.6 Visual check: board, plans list, sign-in unchanged in light and dark
-- [ ] 2.7 Bump PR CI green on ubuntu-latest for verify, integration, e2e, solver
+- [x] 2.6 Visual check: board, plans list, sign-in unchanged in light and dark
+- [x] 2.7 Bump PR CI green on ubuntu-latest for verify, integration, e2e, solver

@@ -28,7 +28,8 @@ spec; promote a helper to `support/` only once a second spec needs it.
   what rejects them. Authenticated specs go in `*.spec.ts`; negative specs are
   named `*guard.spec.ts` / `*unauth.spec.ts`.
 - **Local prerequisites.** Local Supabase running + `pnpm env:local`. The author
-  account is provisioned automatically by `pretest:e2e` before `pnpm test:e2e`.
+  account is provisioned automatically by `pretest:e2e` before `pnpm test:e2e`,
+  holding the `author` role (`scripts/provision-e2e-author.mjs`, loopback-only).
   `.envs/local.vars` must carry `SOLVER_URL` (with `mise run solver:dev` up, for
   `generation.spec.ts`) and Cloudflare's public Turnstile test keys (for the reset
   specs; without them `/auth/forgot` renders "unavailable") — README § Getting Started.

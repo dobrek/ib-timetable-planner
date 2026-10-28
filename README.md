@@ -62,6 +62,14 @@ pnpm dev
 
 The app is served at `http://localhost:4321`. Local Supabase Studio is at `http://127.0.0.1:54323` and Mailpit (email capture) at `http://127.0.0.1:54324`.
 
+6. Create your local account in Studio (**Authentication → Users → Add user**, a password of at least 15 characters — [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md)), then give it a role:
+
+```bash
+node scripts/assign-role.mjs <email> author
+```
+
+> Repeat both after every `pnpm exec supabase db reset`: a reset leaves no users and no roles. The script needs the local **Secret** key; it takes `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, or falls back to `.env.test.local`. Once roles are enforced (S-403), an account without one sees only a "no access yet" notice and its own account page.
+
 ## Available Scripts
 
 | Script           | Description                                                                |
@@ -497,7 +505,7 @@ pnpm exec supabase db diff             # should report clean afterward
 | `/auth/confirm` | Scanner-safe landing for the emailed link; only its **Continue** button spends it (public) |
 | `/dashboard`    | Protected page (redirects to `/auth/signin` if unauthenticated)                            |
 
-There is no self-service signup: accounts are provisioned manually. See [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md). Password reset by email (S-402) is self-service; its sender, DNS and smoke test are in [`docs/runbooks/email-delivery.md`](docs/runbooks/email-delivery.md), and its hosted Auth values in [`docs/runbooks/hosted-auth-settings.md`](docs/runbooks/hosted-auth-settings.md).
+There is no self-service signup: accounts are provisioned manually, and each one also needs a role (`node scripts/assign-role.mjs <email> <admin|author|viewer>`). See [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md). Password reset by email (S-402) is self-service; its sender, DNS and smoke test are in [`docs/runbooks/email-delivery.md`](docs/runbooks/email-delivery.md), and its hosted Auth values in [`docs/runbooks/hosted-auth-settings.md`](docs/runbooks/hosted-auth-settings.md).
 
 The CP-SAT solver reaches the database as a **machine** Auth user whose token carries a narrow Postgres role (`solver_job_writer`, reaching only `generation_jobs`) via a Custom Access Token Hook — it never holds a secret key. Provisioning, rotation, hosted enablement, and the kill-switch drill are in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
 

@@ -35,6 +35,9 @@ export type AccessOutcome = "allowed" | "denied";
 
 export type PublicTable = keyof Database["public"]["Tables"];
 
+/** The tables whose rows belong to a user through `user_id`, not to a plan. */
+export type UserKeyedTable = "profiles" | "user_roles";
+
 /** An error as supabase-js reports one: PostgREST's (with a SQLSTATE), or a fetch failure (no code). */
 export type ProbeError = { code?: string; message: string };
 
@@ -120,6 +123,22 @@ export async function probeRead(
   });
 }
 
+/**
+ * Read one user's row of a user-keyed table as the principal, named by its `user_id`. A targeted
+ * read cannot see "other rows but not this one", so an own-row policy reads as allowed on the
+ * principal's own row and denied on another user's, never as partial visibility. The row must
+ * exist, which the caller proves as the service role: otherwise an empty read could not tell a
+ * denial from an absence.
+ */
+export async function probeUserRowRead(
+  client: SupabaseClient,
+  table: UserKeyedTable,
+  userId: string,
+): Promise<AccessOutcome> {
+  const { error, seen } = await sight(untyped(client).from(table).select("user_id").eq("user_id", userId).limit(1));
+  return classifyRead({ error, seesFixtureRows: seen, seesAnyRow: seen });
+}
+
 /** Whether `client` sees any of the fixture's rows in `table`. Throws on any error. */
 export async function seesFixtureRows(
   client: SupabaseClient,
@@ -148,12 +167,14 @@ const sight = async (query: PromiseLike<{ data: unknown[] | null; error: ProbeEr
 type FixtureKey = { column: "id" | "plan_id" | "user_id"; value: string };
 
 // A table's rows belong to a plan through `plan_id`, except the root itself and the user-keyed
-// tables, `profiles` and `user_roles`, whose rows belong to a user.
+// tables, whose rows belong to a user.
 const fixtureKey = (table: PublicTable, fixture: FixtureRef): FixtureKey => {
   if (table === "plans") return { column: "id", value: fixture.planId };
-  if (table === "profiles" || table === "user_roles") return { column: "user_id", value: fixture.profileOwnerId };
+  if (isUserKeyed(table)) return { column: "user_id", value: fixture.profileOwnerId };
   return { column: "plan_id", value: fixture.planId };
 };
+
+const isUserKeyed = (table: PublicTable): table is UserKeyedTable => table === "profiles" || table === "user_roles";
 
 const fixtureRowsQuery = (client: SupabaseClient, table: PublicTable, fixture: FixtureRef) => {
   const { column, value } = fixtureKey(table, fixture);

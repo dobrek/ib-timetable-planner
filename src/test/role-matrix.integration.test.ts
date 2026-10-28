@@ -28,11 +28,12 @@ import { decodeAccessClaims, type AccessClaims } from "./access-claims";
 import {
   classifyCall,
   probeRead,
+  probeUserRowRead,
   probeWrite,
   seesFixtureRows,
   type AccessOutcome,
   type FixtureRef,
-  type PublicTable,
+  type UserKeyedTable,
   type WriteAttempt,
 } from "./access-probe";
 import { connectPostgres, heldPrivileges } from "./postgres-client";
@@ -45,12 +46,17 @@ import {
   PROFILE_WRITES,
   READS,
   RPCS,
+  SELF_GRANT_EVIDENCE,
+  SELF_GRANTS,
+  USER_KEYED_READS,
   WRITES,
+  type PlanScopedTable,
   type Principal,
-  type ProfileOwner,
   type ProfileWriteOperation,
   type RepresentativeTable,
+  type RowOwner,
   type Rpc,
+  type SelfGrant,
   type TableGrants,
   type WriteOperation,
 } from "./role-matrix-expectations";
@@ -64,33 +70,57 @@ import {
  * (`user_roles`) rather than Postgres roles, so only the first instrument will ever tell S-403's
  * admin, author and viewer apart.
  *
- * Today the matrix pins the posture S-403 replaces: anon is denied everywhere, and a signed-in user
- * without a role is allowed everywhere except other users' profile and role rows (the own-row
- * policies on `profiles` and `user_roles`, which S-403 keeps). S-403 flips the expectations first
- * (red), then its policy migration turns them green. That flip is the proof that this suite can
- * fail; the deny drill in the `give-integration-lane-a-signed-in-client-per-role` change folder
- * (`drill/`) shows it on today's schema.
+ * Today the matrix pins the posture S-403 replaces: anon is denied everywhere, and every signed-in
+ * user, whatever role it holds, is allowed everywhere except other users' profile and role rows
+ * (the own-row policies on `profiles` and `user_roles`, which S-403 keeps). S-403 flips the
+ * expectations first (red), then its policy migration turns them green. That flip is the proof that
+ * this suite can fail; the deny drill in the `give-integration-lane-a-signed-in-client-per-role`
+ * change folder (`drill/`) shows it on today's schema.
  *
  * Each principal signs in once per file, never per test, which keeps the lane clear of GoTrue's
- * rate limits. Each write cell acts on a fresh target, so cells never depend on their order.
+ * rate limits. Each write cell acts on a fresh target, and each read of a user-keyed table names the
+ * row it targets, so cells never depend on their order.
  */
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PUBLISHABLE_KEY = readPublishableKey();
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
 
-/** Every principal but anon holds a session. S-403's roles join `noRole` here. */
+/** Every principal but anon holds a session. */
 type SignedInPrincipal = Exclude<Principal, "anon">;
 
-/** The role each signed-in principal holds, which `own_app_role` must answer. */
-const HELD_ROLES: Record<SignedInPrincipal, AppRole | null> = { noRole: null };
+/** The role each signed-in principal signs in holding, which `own_app_role` must answer. */
+const HELD_ROLES: Record<SignedInPrincipal, AppRole | null> = {
+  noRole: null,
+  viewer: "viewer",
+  author: "author",
+  admin: "admin",
+};
+
+/** Every write a self-grant can send: the service role's evidence covers each one. */
+const SELF_GRANT_WRITES: Record<SelfGrant, WriteOperation[]> = {
+  "claim admin": ["insert", "update"],
+  "drop own role": ["delete"],
+};
+
+/**
+ * The write a principal's self-grant sends. Claiming `admin` INSERTs a role row when the principal
+ * holds none, and UPDATEs the one it holds; dropping its role DELETEs that row.
+ */
+const selfGrantWrite = (grant: SelfGrant, principal: Principal): WriteOperation => {
+  if (grant === "drop own role") return "delete";
+  return principal !== "anon" && HELD_ROLES[principal] !== null ? "update" : "insert";
+};
 
 const PRINCIPALS = Object.keys(PRINCIPAL_NOTES) as Principal[];
-const TABLES = Object.keys(READS) as PublicTable[];
+const SIGNED_IN_PRINCIPALS = Object.keys(HELD_ROLES) as SignedInPrincipal[];
+const PLAN_SCOPED_TABLES = Object.keys(READS) as PlanScopedTable[];
+const USER_KEYED_TABLES = Object.keys(USER_KEYED_READS) as UserKeyedTable[];
 const REPRESENTATIVES = Object.keys(WRITES) as RepresentativeTable[];
 const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
-const PROFILE_OWNERS: ProfileOwner[] = ["own", "others"];
+const ROW_OWNERS: RowOwner[] = ["own", "others"];
 const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
+const SELF_GRANT_NAMES = Object.keys(SELF_GRANTS) as SelfGrant[];
 const RPC_NAMES = Object.keys(RPCS) as Rpc[];
 
 (hasEnv ? describe : describe.skip)("role matrix (local Supabase)", () => {
@@ -103,15 +133,42 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
   // Anon holds no session, so it owns no row.
   const ownUserIdOf = (principal: Principal): string | null => (principal === "anon" ? null : signedIn[principal].id);
 
+  /**
+   * The user whose row a user-keyed read names, made sure to exist as the service role, so an empty
+   * read can only mean a denial. The principal's own profile is seeded, since a user holds one only
+   * once they save a display name; its role row is the one it signed in with, and the fixture owner
+   * holds both. Anon owns no row, so it aims at a random id, which the grant layer refuses before a
+   * row could matter.
+   */
+  const userRowTargetOf = async (principal: Principal, table: UserKeyedTable, owner: RowOwner): Promise<string> => {
+    if (owner === "others") return requireUserRow(admin, table, fixture.profileOwnerId);
+    const ownUserId = ownUserIdOf(principal);
+    if (!ownUserId) return randomUUID();
+    if (table === "profiles") {
+      setUp(await admin.from("profiles").upsert({ user_id: ownUserId, display_name: "Probe start" }));
+    }
+    return requireUserRow(admin, table, ownUserId);
+  };
+
+  // A "no-row" cell is not probed. Its premise is checked instead, so the marker can never hide a cell.
+  const lacksOwnRow = async (principal: Principal, table: UserKeyedTable): Promise<boolean> => {
+    const ownUserId = ownUserIdOf(principal);
+    if (!ownUserId) throw new Error(`${principal} owns no row it could lack`);
+    return !(await hasUserRow(admin, table, ownUserId));
+  };
+
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY || !PUBLISHABLE_KEY) return;
     admin = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
     pg = await connectPostgres();
-    signedIn = { noRole: await createSignedInUser(admin) };
+    signedIn = await signInEveryPrincipal(admin);
     principals = {
       // The publishable key and no session: never signed in.
       anon: createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY),
       noRole: signedIn.noRole.client,
+      viewer: signedIn.viewer.client,
+      author: signedIn.author.client,
+      admin: signedIn.admin.client,
     };
     fixture = await buildFixture(admin);
   }, 30_000);
@@ -127,7 +184,10 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
 
   it("fixture: the service role sees a fixture row in every public table", async () => {
     const sightings = await Promise.all(
-      TABLES.map(async (table) => ({ table, seen: await seesFixtureRows(admin, table, fixture) })),
+      [...PLAN_SCOPED_TABLES, ...USER_KEYED_TABLES].map(async (table) => ({
+        table,
+        seen: await seesFixtureRows(admin, table, fixture),
+      })),
     );
     expect(sightings.filter(({ seen }) => !seen).map(({ table }) => table)).toEqual([]);
   });
@@ -196,11 +256,27 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
         });
       }
 
-      for (const table of TABLES) {
+      for (const table of PLAN_SCOPED_TABLES) {
         const expected = READS[table][principal];
         it(`${principal} SELECT ${table} → ${expected}`, async () => {
           expect(await probeRead(principals[principal], table, fixture)).toBe(expected);
         });
+      }
+
+      for (const table of USER_KEYED_TABLES) {
+        for (const owner of ROW_OWNERS) {
+          const expected = USER_KEYED_READS[table][owner][principal];
+          if (expected === "no-row") {
+            it(`${principal} SELECT ${owner} ${table} row → no-row: it holds none`, async () => {
+              expect(await lacksOwnRow(principal, table)).toBe(true);
+            });
+          } else {
+            it(`${principal} SELECT ${owner} ${table} row → ${expected}`, async () => {
+              const userId = await userRowTargetOf(principal, table, owner);
+              expect(await probeUserRowRead(principals[principal], table, userId)).toBe(expected);
+            });
+          }
+        }
       }
 
       for (const table of REPRESENTATIVES) {
@@ -213,7 +289,7 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
         }
       }
 
-      for (const owner of PROFILE_OWNERS) {
+      for (const owner of ROW_OWNERS) {
         for (const operation of PROFILE_OPERATIONS) {
           const expected = PROFILE_WRITES[owner][operation][principal];
           it(`${principal} ${operation.toUpperCase()} ${owner} profile → ${expected}`, async () => {
@@ -233,6 +309,23 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
         expect(await probeWrite(attempt)).toBe(rekeyExpected);
       });
 
+      for (const grant of SELF_GRANT_NAMES) {
+        const expected = SELF_GRANTS[grant][principal];
+        if (expected === "no-row") {
+          it(`${principal} ${grant} → no-row: it holds no role row`, async () => {
+            expect(await lacksOwnRow(principal, "user_roles")).toBe(true);
+          });
+        } else {
+          const write = selfGrantWrite(grant, principal);
+          const whose = principal === "anon" ? "a fresh user's" : "own";
+          it(`${principal} ${grant} (${write.toUpperCase()} ${whose} role row) → ${expected}`, async () => {
+            const target = ownUserIdOf(principal) ?? (await freshRoleTarget(admin, write));
+            const attempt = await ROLE_WRITE_PROBES[write](admin, principals[principal], target);
+            expect(await probeWrite(attempt)).toBe(expected);
+          });
+        }
+      }
+
       for (const rpc of RPC_NAMES) {
         const expected = RPCS[rpc][principal];
         it(`${principal} RPC ${rpc} → ${expected}`, async () => {
@@ -241,7 +334,32 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
       }
     });
   }
+
+  // No app principal may send a self-grant, so the service role sends each one instead: the evidence
+  // that every all-denied `SELF_GRANTS` row is refused for access, not for a broken payload.
+  describe("service role — the evidence for the self-grant rows", () => {
+    for (const grant of SELF_GRANT_NAMES) {
+      for (const write of SELF_GRANT_WRITES[grant]) {
+        const expected = SELF_GRANT_EVIDENCE[grant];
+        it(`service role ${grant} (${write.toUpperCase()} a fresh user's role row) → ${expected}`, async () => {
+          const attempt = await ROLE_WRITE_PROBES[write](admin, admin, await freshRoleTarget(admin, write));
+          expect(await probeWrite(attempt)).toBe(expected);
+        });
+      }
+    }
+  });
 });
+
+/** Signs every signed-in principal in at once, each holding its role from `HELD_ROLES`. */
+const signInEveryPrincipal = async (admin: SupabaseClient): Promise<Record<SignedInPrincipal, SignedInUser>> => {
+  const users = await Promise.all(
+    SIGNED_IN_PRINCIPALS.map(
+      async (principal) =>
+        [principal, await createSignedInUser(admin, { role: HELD_ROLES[principal] ?? undefined })] as const,
+    ),
+  );
+  return Object.fromEntries(users) as Record<SignedInPrincipal, SignedInUser>;
+};
 
 type TablePosture = TableGrants & { rls: boolean };
 
@@ -489,7 +607,7 @@ type ProfileWriteProbeBuilder = (
  * which the grant layer refuses before anything else could matter. Each `others` cell gets a fresh
  * user — with a profile only for UPDATE — so RLS is the only possible reason for a refusal.
  */
-const PROFILE_WRITE_PROBES: Record<ProfileOwner, Record<ProfileWriteOperation, ProfileWriteProbeBuilder>> = {
+const PROFILE_WRITE_PROBES: Record<RowOwner, Record<ProfileWriteOperation, ProfileWriteProbeBuilder>> = {
   own: {
     insert: async (admin, client, ownUserId) => {
       if (ownUserId) setUp(await admin.from("profiles").delete().eq("user_id", ownUserId));
@@ -553,6 +671,75 @@ const profileRekeyProbe = async (
 
 // Unique per call and within the CHECK's 60 characters.
 const probeName = (): string => `Probe ${randomUUID()}`;
+
+/** Whether the service role sees `userId`'s row in `table`. Throws on any error. */
+const hasUserRow = async (admin: UntypedSupabaseClient, table: UserKeyedTable, userId: string): Promise<boolean> =>
+  readBack(await admin.from(table).select("user_id").eq("user_id", userId)).length > 0;
+
+/** `userId`, once the service role sees its row in `table`. A missing row is a setup failure. */
+const requireUserRow = async (admin: UntypedSupabaseClient, table: UserKeyedTable, userId: string): Promise<string> => {
+  if (!(await hasUserRow(admin, table, userId))) throw new Error(`setup failed: no ${table} row for ${userId}`);
+  return userId;
+};
+
+/** One self-grant write against `userId`'s role row, sent by `client`. */
+type RoleWriteProbe = (admin: SupabaseClient, client: SupabaseClient, userId: string) => Promise<WriteAttempt>;
+
+/**
+ * Each probe first checks that its target is in the state the write needs: no role row to INSERT,
+ * one to UPDATE or DELETE. So the read-back can only change if the write lands, and a missing or
+ * stray row is a setup failure rather than an outcome.
+ */
+const ROLE_WRITE_PROBES: Record<WriteOperation, RoleWriteProbe> = {
+  insert: async (admin, client, userId) => {
+    if (await roleRowOf(admin, userId)) throw new Error(`setup failed: ${userId} already holds a role row`);
+    return {
+      attempt: () => client.from("user_roles").insert({ user_id: userId, role: "admin" }),
+      effectLanded: async () => (await roleRowOf(admin, userId)) !== null,
+    };
+  },
+  // Every UPDATE moves `updated_at` (the moddatetime trigger), so the effect shows even on a row
+  // that already reads `admin`, which is what an admin's self-grant sends.
+  update: async (admin, client, userId) => {
+    const before = await requireRoleRow(admin, userId);
+    return {
+      attempt: () => client.from("user_roles").update({ role: "admin" }).eq("user_id", userId),
+      effectLanded: async () => (await requireRoleRow(admin, userId)).updated_at !== before.updated_at,
+    };
+  },
+  delete: async (admin, client, userId) => {
+    await requireRoleRow(admin, userId);
+    return {
+      attempt: () => client.from("user_roles").delete().eq("user_id", userId),
+      effectLanded: async () => (await roleRowOf(admin, userId)) === null,
+    };
+  },
+};
+
+/**
+ * A fresh user in the state `write` needs: no role row to INSERT, an `author` row to UPDATE or
+ * DELETE. The target of anon's self-grants, which owns no row, and of the service role's evidence.
+ */
+const freshRoleTarget = async (admin: SupabaseClient, write: WriteOperation): Promise<string> => {
+  const { id } = await createAuthUser(admin);
+  if (write !== "insert") setUp(await admin.from("user_roles").insert({ user_id: id, role: "author" }));
+  return id;
+};
+
+type RoleRow = { role: AppRole; updated_at: string };
+
+/** `userId`'s role row as the service role sees it, or null when it holds none. Throws on any error. */
+const roleRowOf = async (admin: SupabaseClient, userId: string): Promise<RoleRow | null> => {
+  const { data, error } = await admin.from("user_roles").select("role, updated_at").eq("user_id", userId).maybeSingle();
+  if (error) throw new Error(`read-back failed: ${error.message}`);
+  return data;
+};
+
+const requireRoleRow = async (admin: SupabaseClient, userId: string): Promise<RoleRow> => {
+  const row = await roleRowOf(admin, userId);
+  if (!row) throw new Error(`setup failed: ${userId} holds no role row`);
+  return row;
+};
 
 /**
  * `clone_plan` reads its source inside `insert … select`, so a source hidden by RLS surfaces as the

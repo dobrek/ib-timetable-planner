@@ -28,7 +28,9 @@ The gate is enforced at two layers:
 ## a) Create an author locally (Supabase Studio)
 
 The local stack auto-confirms email (`[auth.email] enable_confirmations = false`),
-so a user created in Studio can sign in immediately.
+so a user created in Studio can sign in immediately. It holds no role until you
+give it one (step 5): from S-403's enforcement on, an account without a role sees
+only a "no access yet" notice and its own account page.
 
 1. Start the local stack if it isn't running:
 
@@ -42,7 +44,15 @@ so a user created in Studio can sign in immediately.
    Auth floor, `minimum_password_length`; a shorter one is refused). Ensure
    **Auto Confirm User** is enabled (or leave the default — local config
    auto-confirms regardless).
-5. Sign in at **http://localhost:4321/auth/signin** with those credentials.
+5. Give it a role ([b-bis](#b-bis-assign-or-change-a-role-script)):
+
+   ```bash
+   node scripts/assign-role.mjs <email> author
+   ```
+
+6. Sign in at **http://localhost:4321/auth/signin** with those credentials.
+
+A `db reset` deletes every local user and role, so repeat steps 2–5 after one.
 
 If you changed `enable_signup` in `config.toml`, the local stack must be
 restarted for it to take effect:
@@ -58,10 +68,15 @@ pnpm exec supabase stop && pnpm exec supabase start
 
 The e2e suite (`pnpm test:e2e`) needs a sign-in-ready author. Instead of clicking
 through Studio, `scripts/provision-e2e-author.mjs` creates it via the admin API
-(`auth.admin.createUser`), which bypasses `enable_signup = false`. It runs
-automatically as the **`pretest:e2e` hook** before every e2e run (locally and in
-CI) and is **idempotent** — a re-run against an existing author succeeds rather
-than erroring, so it is safe to run repeatedly.
+(`auth.admin.createUser`), which bypasses `enable_signup = false`, and gives it
+the `author` role. It runs automatically as the **`pretest:e2e` hook** before
+every e2e run (locally and in CI) and is **idempotent** — a re-run against an
+existing author succeeds rather than erroring, and re-asserts the role, so it is
+safe to run repeatedly. The author is created after the migrations ran, so the
+S-403 backfill never sees it: the role comes from this script alone.
+
+It is **loopback-only**: the author's password is a public literal, so the script
+refuses any non-local `SUPABASE_URL` before it sends a request.
 
 **What it reads:**
 
@@ -96,7 +111,14 @@ makes the created user immediately sign-in-ready.
    floor — see [`hosted-auth-settings.md`](hosted-auth-settings.md)). Enable
    **Auto Confirm User** so the author can sign in without an email round-trip
    (hosted keeps `mailer_autoconfirm` on; that runbook records what it implies).
-4. Hand the credentials to the author over a secure channel; have them sign in at
+4. Give the account a role from a human shell, with the hosted URL and **secret**
+   key exported ([b-bis](#b-bis-assign-or-change-a-role-script)):
+
+   ```bash
+   ASSIGN_ROLE_CONFIRM=yes node scripts/assign-role.mjs <email> author
+   ```
+
+5. Hand the credentials to the author over a secure channel; have them sign in at
    the deployed `/auth/signin`, open **Account** from the sidebar footer
    (`/account`), and change the password there. It takes no current password, and
    it signs their other devices out.
@@ -105,6 +127,33 @@ makes the created user immediately sign-in-ready.
 uses **Forgot password?** on the sign-in page (`/auth/forgot`) and gets a link by
 email ([`email-delivery.md`](email-delivery.md)). If the email cannot reach them,
 the fallback is the dashboard (**Authentication → Users**) until S-409.
+
+---
+
+## b-bis) Assign or change a role (script)
+
+Every human account holds one role, `admin`, `author` or `viewer`, in
+`public.user_roles` (S-403). Until S-406 ships a Users page, the only way to set
+one is `scripts/assign-role.mjs`, run by someone with the service-role key:
+
+```bash
+node scripts/assign-role.mjs <email> <admin|author|viewer|none>
+```
+
+- **`none`** deletes the role row; any other role creates or replaces it. The
+  script prints the target host and the role before → after.
+- **Machine accounts are refused.** An account with `app_metadata.machine_role`
+  (the solver's) must never hold a human role.
+- **Keys.** Nobody writes a role through the Data API, so the script needs the
+  **secret** key: export `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your
+  shell, never a committed file. For the local stack both fall back to
+  `.env.test.local`.
+- **A non-local host** needs `ASSIGN_ROLE_CONFIRM=yes`, or the script refuses
+  before it changes anything.
+
+S-403's first migration made every human who existed when it ran an `author`.
+The developer's `admin`, and the role of every account created since, are this
+script's job.
 
 ---
 
@@ -136,4 +185,5 @@ create an account.
 
 Do not re-add a signup page, a signup API route, or a "Sign up" link.
 The absence is intentional and load-bearing for data privacy. New authors are
-always provisioned through steps (a) or (b) above by someone with backend access.
+always provisioned through steps (a) or (b) above by someone with backend access,
+and given their role through [b-bis](#b-bis-assign-or-change-a-role-script).

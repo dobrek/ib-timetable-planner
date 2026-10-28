@@ -725,13 +725,13 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [x] 1.1 Migrations apply from scratch with migration 1's post-conditions passing
-- [x] 1.2 Types regenerate with a diff limited to `app_role`, `user_roles`, `own_app_role`
-- [x] 1.3 Type check passes with 0 errors
-- [x] 1.4 Unit suite passes (incl. `role-matrix-expectations.test.ts`)
-- [x] 1.5 Role matrix green, incl. the new catalog, `private` and `own_app_role` cells
-- [x] 1.6 Full integration lane green
-- [x] 1.7 Lint and FSD structure clean
+- [x] 1.1 Migrations apply from scratch with migration 1's post-conditions passing — 795f99f
+- [x] 1.2 Types regenerate with a diff limited to `app_role`, `user_roles`, `own_app_role` — 795f99f
+- [x] 1.3 Type check passes with 0 errors — 795f99f
+- [x] 1.4 Unit suite passes (incl. `role-matrix-expectations.test.ts`) — 795f99f
+- [x] 1.5 Role matrix green, incl. the new catalog, `private` and `own_app_role` cells — 795f99f
+- [x] 1.6 Full integration lane green — 795f99f
+- [x] 1.7 Lint and FSD structure clean — 795f99f
 
 #### Manual
 
@@ -742,14 +742,14 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [ ] 2.1 Type check passes (completeness forces every principal × cell)
-- [ ] 2.2 Unit suite passes, incl. the self-grant evidence invariant
-- [ ] 2.3 Role matrix green with five principals at today's posture
-- [ ] 2.4 Full integration lane green
-- [ ] 2.5 E2E green, and green again on a second run (provisioner idempotent)
-- [ ] 2.6 Operator tool round trip on local, with refusals
-- [ ] 2.7 Provisioner refuses a non-loopback URL
-- [ ] 2.8 Full local CI gate green
+- [x] 2.1 Type check passes (completeness forces every principal × cell)
+- [x] 2.2 Unit suite passes, incl. the self-grant evidence invariant
+- [x] 2.3 Role matrix green with five principals at today's posture
+- [x] 2.4 Full integration lane green
+- [x] 2.5 E2E green, and green again on a second run (provisioner idempotent)
+- [x] 2.6 Operator tool round trip on local, with refusals
+- [x] 2.7 Provisioner refuses a non-loopback URL
+- [x] 2.8 Full local CI gate green
 
 #### Manual
 

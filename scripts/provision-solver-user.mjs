@@ -18,49 +18,19 @@
 //   SOLVER_MACHINE_EMAIL=solver@ib-timetable-planner.dev SOLVER_MACHINE_PASSWORD=… node …
 //
 // See docs/runbooks/solver-credential.md for the full credential story.
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { findUserIdByEmail } from "./lib/find-user-id-by-email.mjs";
+import { loadTestEnvFallback } from "./lib/load-test-env-fallback.mjs";
 
 const MACHINE_ROLE = "solver_job_writer";
 const DEFAULT_EMAIL = "solver@ib-timetable-planner.dev";
-
-// Zero-config local DX: if the service-role key / URL aren't exported, fall back to parsing
-// .env.test.local — the same file the integration lane's load-test-env.ts reads.
-function loadTestEnvFallback() {
-  try {
-    const content = readFileSync(resolve(process.cwd(), ".env.test.local"), "utf-8");
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eq = trimmed.indexOf("=");
-      if (eq === -1) continue;
-      const key = trimmed.slice(0, eq).trim();
-      const value = trimmed.slice(eq + 1).trim();
-      if (!(key in process.env)) process.env[key] = value;
-    }
-  } catch {
-    // No local test env — the absence check below surfaces a clear error.
-  }
-}
 
 function fail(message) {
   process.stderr.write(`[provision-solver-user] ${message}\n`);
   process.exit(1);
 }
 
-/** Page through the admin user list to resolve an email to its id. */
-async function findUserIdByEmail(supabase, email) {
-  for (let page = 1; page <= 20; page += 1) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) fail(`Failed to list users: ${error.message}`);
-    const match = data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
-    if (match) return match.id;
-    if (data.users.length < 200) return undefined;
-  }
-  return undefined;
-}
-
+// Zero-config local DX: SUPABASE_URL and the service-role key fall back to .env.test.local.
 loadTestEnvFallback();
 
 const url = process.env.SUPABASE_URL;
@@ -98,7 +68,7 @@ if (created.error.code !== "email_exists") {
   fail(`Failed to create ${email}: ${created.error.message}`);
 }
 
-const userId = await findUserIdByEmail(supabase, email);
+const userId = await findUserIdByEmail(supabase, email).catch((error) => fail(error.message));
 if (!userId) fail(`${email} reports as existing but could not be found — resolve it in the dashboard.`);
 
 const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {

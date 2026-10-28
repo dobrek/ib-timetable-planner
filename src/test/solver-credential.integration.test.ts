@@ -14,11 +14,14 @@ import { readPublishableKey } from "./publishable-key";
  * The solver credential's guard test — load-bearing, not hardening.
  *
  * The design (machine Auth user -> Custom Access Token Hook -> `solver_job_writer`) has one
- * failure mode, and it is silent: if the hook is disabled or errors, GoTrue mints the machine
- * user a plain `authenticated` token, which — given `alter default privileges` and the
- * `using (true)` policy on every table — reaches the ENTIRE database. The spike proved it by
- * returning real plan names. Nothing about that failure looks like a failure: the container
- * connects, reads its job, and works perfectly while holding far too much.
+ * failure mode: if the hook is disabled or errors, GoTrue mints the machine user a plain
+ * `authenticated` token. Until S-403 that token — given `alter default privileges` and the
+ * `using (true)` policy on every table — reached the ENTIRE database, and silently: the spike
+ * proved it by returning real plan names, and nothing about the failure looked like one. Since
+ * S-403's fail-closed policies (`20261028200630_fail_closed_policies.sql`) it reaches no data at
+ * all: every human-facing policy asks for a role, and a machine user holds none (the backfill skips
+ * it, and `scripts/assign-role.mjs` refuses it). A misfire is no longer an escalation, but it still
+ * leaves the solver unable to work, so the hook stays load-bearing.
  *
  * So this suite asserts the claim AND the denial, because either alone can false-negative: a role
  * claim could be right while a grant is too wide, and a `plans` denial could come from RLS rather
@@ -87,7 +90,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     expect(decodeAccessClaims(accessToken).role).toBe("solver_job_writer");
   });
 
-  it("cannot read plans — the escalation the hook-misfire fallback would hand it", async () => {
+  it("cannot read plans — the escalation the hook-misfire fallback handed it before S-403", async () => {
     const { data, error } = await solver.from("plans").select("id, name");
 
     expect(error?.code).toBe("42501");

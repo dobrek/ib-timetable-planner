@@ -47,7 +47,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | F-402 | ci-publishable-key-and-pinned-cli | (foundation) every CI lane uses the `sb_publishable_` key production uses, on a pinned Supabase CLI | — | §Constraints (CI lanes stay green) | done |
 | S-401 | account-self-service         | change their own password and set a display name; passwords under 15 characters are refused           | —                  | FR-411, FR-413, §NFG (passwords ≥ 15)                                          | done |
 | S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | done |
-| S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | planning |
+| S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | in-progress |
 | S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | ready    |
 | S-405 | viewer-read-only             | (viewer) read every plan and proposal, export and compare, with no edit affordances                    | S-403, S-404       | FR-409                                                                         | blocked  |
 | S-406 | users-page-roles             | (admin) list the school's users and change anyone's role; the last admin cannot be demoted             | S-403              | FR-405, FR-406, FR-408, FR-413, §NFG (access changes traceable)                | proposed |
@@ -171,7 +171,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** The riskiest slice, and the reason it comes first under `main_goal: quality`: it rewrites every human-facing database rule (16 `using (true)` policies today; the solver's own `using (true)` SELECT stays) to fail-closed on live school data, and migrations auto-deploy on merge, so the migration must be safe on its own. Two things make it verifiable rather than hopeful. First, F-401's harness is already in place: this slice's first phase adds `user_roles` and role assignment, then flips the role matrix's expectations so it goes red before the policy change turns it green (today no test can fail on a human role having too much access). The `user_roles` migration must revoke all eight privileges from `anon` (default privileges still hand it TRUNCATE, REFERENCES, TRIGGER and MAINTAIN on new tables). Second, the e2e account gets its role in the same PR, or `e2e` goes red and blocks `deploy`. The live role-reading helper is the repo's first scoped exception to "no SECURITY DEFINER", recorded per CLAUDE.md. Side effect worth naming: the role-less solver machine user loses its fallback to full read if the token hook is ever off. Restricting who may stop a job is not here — that is S-407.
-- **Status:** planning
+- **Status:** in-progress
 
 ### S-404: Current-plan marker
 

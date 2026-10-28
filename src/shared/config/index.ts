@@ -38,3 +38,4 @@ export {
   type SubjectColor,
 } from "./subject-colors";
 export { optionalChipClass } from "./optional-chip";
+export type { AppRole } from "./app-role";

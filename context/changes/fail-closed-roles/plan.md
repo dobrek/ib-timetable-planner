@@ -742,14 +742,14 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [x] 2.1 Type check passes (completeness forces every principal × cell)
-- [x] 2.2 Unit suite passes, incl. the self-grant evidence invariant
-- [x] 2.3 Role matrix green with five principals at today's posture
-- [x] 2.4 Full integration lane green
-- [x] 2.5 E2E green, and green again on a second run (provisioner idempotent)
-- [x] 2.6 Operator tool round trip on local, with refusals
-- [x] 2.7 Provisioner refuses a non-loopback URL
-- [x] 2.8 Full local CI gate green
+- [x] 2.1 Type check passes (completeness forces every principal × cell) — d5c077f
+- [x] 2.2 Unit suite passes, incl. the self-grant evidence invariant — d5c077f
+- [x] 2.3 Role matrix green with five principals at today's posture — d5c077f
+- [x] 2.4 Full integration lane green — d5c077f
+- [x] 2.5 E2E green, and green again on a second run (provisioner idempotent) — d5c077f
+- [x] 2.6 Operator tool round trip on local, with refusals — d5c077f
+- [x] 2.7 Provisioner refuses a non-loopback URL — d5c077f
+- [x] 2.8 Full local CI gate green — d5c077f
 
 #### Manual
 

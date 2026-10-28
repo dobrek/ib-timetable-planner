@@ -798,9 +798,9 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [x] 5.1 No doc still claims the old posture
-- [x] 5.2 Formatting clean
-- [x] 5.3 Full local CI gate green
+- [x] 5.1 No doc still claims the old posture — 29e139e
+- [x] 5.2 Formatting clean — 29e139e
+- [x] 5.3 Full local CI gate green — 29e139e
 
 #### Manual
 

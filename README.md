@@ -68,7 +68,7 @@ The app is served at `http://localhost:4321`. Local Supabase Studio is at `http:
 node scripts/assign-role.mjs <email> author
 ```
 
-> Repeat both after every `pnpm exec supabase db reset`: a reset leaves no users and no roles. The script needs the local **Secret** key; it takes `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, or falls back to `.env.test.local`. Once roles are enforced (S-403), an account without one sees only a "no access yet" notice and its own account page.
+> Repeat both after every `pnpm exec supabase db reset`: a reset leaves no users and no roles. The script needs the local **Secret** key; it takes `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, or falls back to `.env.test.local`. Since S-403, an account without one sees only a "no access yet" notice and its own account page.
 
 ## Available Scripts
 
@@ -206,7 +206,7 @@ solver service starting: workers=8 max_concurrent_jobs=1 stage_targets=<none> st
 startup credential check passed: the access token carries role=solver_job_writer
 ```
 
-That second line is a **fail-closed gate**, not decoration: if the Custom Access Token Hook is off, Auth silently issues `role: authenticated`, which reaches every table. The service refuses to start rather than run with it.
+That second line is a **fail-closed gate**, not decoration: if the Custom Access Token Hook is off, Auth silently issues `role: authenticated`. Since S-403 that token reaches **no data**: every human-facing policy asks for an app role, and the machine user holds none. So the solver could not claim a single job, and the service refuses to start rather than run with it.
 
 Optional: `SOLVER_WORKERS` (default `8`, pinned for reproducibility — never auto), `SOLVER_MAX_CONCURRENT_JOBS` (default `1`; further dispatches get a 503), `SOLVER_LOG_LEVEL` (default `INFO`), `SOLVER_STAGE_TARGETS` (default empty) and the two ladder budgets `SOLVER_STAGE_BUDGET_S` / `SOLVER_MODE_A_BUDGET_S` (default: unset).
 
@@ -492,7 +492,7 @@ pnpm exec supabase db push             # apply pending migrations to the linked 
 pnpm exec supabase db diff             # should report clean afterward
 ```
 
-> Table reachability is pinned explicitly in migrations, not left to Supabase's legacy auto-grant for new `public` tables (the platform is moving to opt-in grants). `authenticated` and `service_role` are granted DML on the public schema — current and future tables, via `alter default privileges` — while `anon` is revoked (least privilege). When adding a `public` table, the default-privilege rules carry these grants forward automatically; if a table is ever unexpectedly unreachable, run `pnpm exec supabase db advisors` and confirm the role holds a grant. RLS controls which rows are visible; grants control whether the table is reachable at all — both must be in place.
+> Table reachability is pinned explicitly in migrations, not left to Supabase's legacy auto-grant for new `public` tables (the platform is moving to opt-in grants). `authenticated` and `service_role` are granted DML on the public schema — current and future tables, via `alter default privileges` — while `anon` is revoked (least privilege). When adding a `public` table, the default-privilege rules carry these grants forward automatically; if a table is ever unexpectedly unreachable, run `pnpm exec supabase db advisors` and confirm the Postgres role holds a grant. Grants control whether the table is reachable at all; RLS controls which rows are visible, and since S-403 every human-facing policy also asks for an app role (`private.can_read()` to read, `private.can_edit()` to write). A signed-in user needs all three: the grant, the policy, and a row in `public.user_roles`. A new table also needs its four capability policies (CLAUDE.md § Database & auth).
 
 **Rollback.** Hosted holds real school data, so migrations are **additive only** (nullable new columns, no `DROP`), and hosted is never dropped and re-pushed. A code rollback does not undo an applied migration — recover by rolling forward with a new additive migration.
 
@@ -509,7 +509,7 @@ There is no self-service signup: accounts are provisioned manually, and each one
 
 The CP-SAT solver reaches the database as a **machine** Auth user whose token carries a narrow Postgres role (`solver_job_writer`, reaching only `generation_jobs`) via a Custom Access Token Hook — it never holds a secret key. Provisioning, rotation, hosted enablement, and the kill-switch drill are in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
 
-Route protection is deny-by-default in `src/middleware.ts` — every route requires an authenticated session except the sign-in page, the two password-reset pages, the `/api/auth/` endpoints, and static assets. Each public entry carries its reason there.
+Route protection is deny-by-default in `src/middleware.ts` — every route requires an authenticated session except the sign-in page, the two password-reset pages, the `/api/auth/` endpoints, and static assets. Each public entry carries its reason there. Signed in, a user also needs a role (S-403): without one, the middleware sends them to `/dashboard`, which shows a "no access yet" notice, and a failed role lookup renders a 503 page. Only the role-exempt paths in `src/shared/config/role-gate.ts` (`/account` among them) skip that check, each with its reason.
 
 ## License
 

@@ -25,6 +25,11 @@ Do this before Day 1. None of it touches the campaign's data.
 Create an author account on the hosted project for the runner, following
 [author-provisioning.md § b](author-provisioning.md), with **Auto Confirm User** on.
 
+- **It needs the `author` role.** The runner clones, generates and delivers, and since S-403 every
+  write needs `admin` or `author`. An account that existed when S-403's first migration ran was
+  backfilled as `author`; one created since gets it in § b's role step
+  (`ASSIGN_ROLE_CONFIRM=yes node scripts/assign-role.mjs <email> author`). Without a role, every
+  action the runner sends is refused.
 - **Do not give it a `machine_role`.** That `app_metadata` key is what turns an account into the
   solver's narrow database role, so this must stay an ordinary author.
 - **Use a dedicated account, not your own.** Signing out in a browser ends the session globally, so
@@ -106,6 +111,12 @@ LOCAL_SOLVER_SUPABASE_URL=http://127.0.0.1:54321
 LOCAL_SOLVER_SUPABASE_KEY=<local publishable key>
 LOCAL_SOLVER_MACHINE_PASSWORD=<the local solver machine user's password>
 ```
+
+The rehearsal's account needs the `author` role too, because it clones, generates and delivers. The
+example signs in as the e2e author, which `node scripts/provision-e2e-author.mjs` (also run by
+`pnpm test:e2e`) creates holding `author`. Any other local account needs
+`node scripts/assign-role.mjs <email> author`. Either way, redo it after every local `db reset`,
+which leaves no users and no roles.
 
 A journal is bound to the target it was set up with. To switch, move `.campaign/` aside.
 
@@ -278,6 +289,8 @@ stopped and why.
 
    - Delete the observability API token in the dashboard (**My Profile → API Tokens**), unless its
      TTL has already ended.
-   - Disable or delete the campaign account.
+   - Disable or delete the campaign account. At the least, take its role away
+     (`ASSIGN_ROLE_CONFIRM=yes node scripts/assign-role.mjs <email> none`), which ends its data
+     access on its next request.
    - Remove the hosted keys from `.envs/campaign.vars`, or delete the file.
    - `.campaign/` can go too. Only the ledger in S-308's folder is kept.

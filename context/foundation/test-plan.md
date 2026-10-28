@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-10-12 (F-401: the role matrix supersedes the cross-author "Phase 2.5" deferral; §6.2 gains access-control claims). Previous: 2026-06-23 (Phase 3 complete + archived; all rollout phases 0–4 done)
+> Last updated: 2026-10-28 (S-403: the role matrix flipped to fail-closed roles with five principals; Risk #5 is now about preserving that posture; §4 and §6.3 gain the `chromium-no-role` project). Previous: 2026-10-12 (F-401: the role matrix supersedes the cross-author "Phase 2.5" deferral; §6.2 gains access-control claims). Before that: 2026-06-23 (Phase 3 complete + archived; all rollout phases 0–4 done)
 
 ## 1. Strategy
 
@@ -64,7 +64,7 @@ research's job, see §1 principle #3).
 | 2 | The **drag → action → grid feedback loop renders the wrong verdict** — an optimistic UI keeps showing "valid" after the server returns invalid, so the user never sees the collision. | High | High | interview Q3 + Q4; FSD evidence dir `src/_pages/plan-detail/{ui,api}` |
 | 3 | A **server-mutation boundary diverges from its tested core** — every app-data mutation/compute now flows through Astro Actions (`src/actions/` barrel over `_pages/*/api/` handlers; the placements/grouping API route was migrated away). Untested at the **wrapper-over-a-real-HTTP-`/_actions/*`-request** layer: broken auth enforcement, wrong `DomainError`→`ActionError` translation, failed persistence, off-contract response, or no server-side re-validation of untrusted input. | High | Medium | interview correction (Actions are now the sole mutation transport); test base: the wrapper contract is unit-tested but no integration test invokes a real Action over HTTP; lessons.md Actions-only rule |
 | 4 | **Placed work is lost** — a placement does not survive reload/crash, or a write is silently dropped, violating the work-durability promise. | High | Medium | PRD NFR Work durability L173; FSD evidence dir `src/_pages/plan-detail/api` |
-| 5 | **Unauthenticated access, or a regression of the author-only privacy invariant** — an Astro Action handler missing `requireSession()` (the `/_actions/*` path is exempt from the middleware redirect by convention, so the gate is per-handler), or student names/choices leaking beyond their author. The rewritten PRD makes **no access-control change**, so the job is to *preserve* the existing author-only invariant, not to cover a change-introduced surface. The cross-author / IDOR half, once deferred as candidate Phase 2.5, is **superseded**: the user-management PRD keeps one shared workspace with global roles, so there is no per-author ownership to test. Human-role access is pinned by the role matrix instead (F-401, flipped by S-403). *(abuse: authorization / IDOR)* | High | Medium | PRD Privacy L177 (student names + choices author-only), Constraints L379 + Access Control Changes L434 (no access-control change); Actions self-enforce auth (interview correction + `src/actions` convention); human-role RLS pinned by `src/test/role-matrix.integration.test.ts` (F-401); FSD evidence dir `src/_pages/sign-in/ui`, `src/pages/auth` |
+| 5 | **Unauthenticated access, or a principal reaching beyond its role** — an Astro Action handler missing its session or capability check (the `/_actions/*` path is exempt from the middleware's redirect and role gate by convention, so `defineDomainAction`'s `requireSession` → `requireCapability` is the per-handler gate), a viewer writing, or a signed-in user without a role reaching plan data or student names/choices. S-403 made the user-management PRD's access-control change: three global roles, fail-closed (no role, no data). The job now is to *preserve* that posture as tables and actions are added. The cross-author / IDOR half, once deferred as candidate Phase 2.5, is **superseded**: the user-management PRD keeps one shared workspace with global roles, so there is no per-author ownership to test. Human-role access is pinned by the role matrix instead (F-401, flipped by S-403). *(abuse: authorization / IDOR)* | High | Medium | PRD Privacy L177 (student names + choices author-only, before roles); user-management PRD § Access Control Changes (`prd.md:334`: three roles, no role ⇒ no access); Actions self-enforce session and capability (`defineDomainAction`, `requires` defaulting to `edit`); human-role RLS pinned by `src/test/role-matrix.integration.test.ts` (F-401, flipped by S-403); FSD evidence dir `src/_pages/sign-in/ui`, `src/pages/auth` |
 | 6 | **A new enriched-dimension false-positive class passes as valid** — *refresh inference, not yet live:* as each enriched dimension ships, the validator could mark a placement valid that the richer rule should reject — a new false-positive class under the L166 no-wrong-positive guardrail. The family: **S-02** co-teaching (both teachers of a co-taught course count as occupied), **S-03** bi-weekly opposite-week overlap (the unified-rule rewrite), **S-04** cross-cohort symmetric teacher occupancy, **S-06** both-cohorts-at-once. | High | High | refresh inference grounded in roadmap S-02 / S-03 / S-04 / S-06 + PRD L166–170 (the enriched no-false-positive surface); **no code anchor — classes not built**. Not testable until each class ships; response is the §3 Phase 4 parity harness, per slice. |
 | 7 | **A bundle operation or a parked bundle loses in-progress work** — a bundle move/remove/replace, or a bundle parked off-board, drops placed work, breaking the no-silent-loss-on-refresh / tab-close promise. *refresh inference, not yet live.* | High | Medium | refresh inference grounded in roadmap S-05 (`first-class-bundle-operations`, `ready`) + S-07 (`bundle-holding-container`; Secondary success criterion — a parked bundle survives refresh) + PRD durability L173; interview Q1 fear #2 + Q3 low-confidence. Implementation pitfall when the slices ship: guard `localStorage` with try/catch (`lessons.md:40-45`). |
 
@@ -137,9 +137,12 @@ value.
   (`prd.md` access table; per-plan ownership is "model B", a non-goal,
   `prd.md:385`), so there is no cross-author boundary to test. The role matrix
   replaced it (F-401, `src/test/role-matrix.integration.test.ts`). It signs real
-  users in with the publishable key and pins today's posture: RLS is permissive
-  (`using(true)`), so any signed-in user reaches everything. S-403 flips the
-  matrix to the fail-closed role model.
+  users in with the publishable key, one per principal (anon, no role, viewer,
+  author, admin). F-401 pinned the permissive posture it found; S-403 flipped it
+  to the fail-closed role model, red before its policy migration and green after
+  (the `fail-closed-roles` change's deny drill). Reading needs a role, writing
+  needs `admin` or `author`, and a user without a role reaches only their own
+  account rows.
 - **Phase 2 is a hybrid, and it introduced the project's first Playwright e2e
   harness** (`testing-auth-actions-boundary-rls`) — the reusable browser-test
   pattern was **not** deferred wholesale to Phase 3. The split: e2e owns the
@@ -204,7 +207,7 @@ The classic test base for this project. AI-native tools (if any) carry a
 |-------|------|---------|-------|
 | unit | Vitest | 4.1.9 | `vitest.config.ts`; **55 unit** test files — 53 co-located `*.test.ts` siblings under the FSD slices + 2 infra-guard suites in `src/test/` (`no-seed-coupling`, `seed-transcode-identity`). |
 | integration | Vitest | 4.1.9 | `vitest.integration.config.ts`; **10 integration** suites (the Phase 2 `action-boundary.integration.test.ts` is the +1 over the prior refresh's 9); plan-rooted scenario factory harness at `src/test/factories/`; requires the local Supabase stack (`pnpm test:integration`). Live **CI integration lane**: regenerate seed → boot a trimmed Supabase stack → `pnpm test:integration --maxWorkers=2` (the 2-worker cap is a CI runner-resource hedge). Mutations/compute flow through **Astro Actions only** — a real Action over `/_actions/*`; the placements/grouping API route is gone. |
-| e2e | Playwright (`@playwright/test`) | 1.61.0 | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). **7 e2e specs** in `e2e/specs/` (`auth`, `auth-guard`, `action-unauth`, `seed`, `cohort-switching`, `co-teaching`, `drag-validate-feedback`); `e2e/auth.setup.ts` is the **setup project**, not a spec. Shared board/catalog plumbing lives in `e2e/support/` (`planner.ts`, `board.ts`, `catalog.ts`). Three Playwright **projects** — `setup` (logs in once → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs) — distinct from the spec count. `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e landed in §3 Phase 3 (`drag-validate-feedback.spec.ts`). |
+| e2e | Playwright (`@playwright/test`) | 1.61.0 | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). **7 e2e specs** in `e2e/specs/` (`auth`, `auth-guard`, `action-unauth`, `seed`, `cohort-switching`, `co-teaching`, `drag-validate-feedback`); the two setup files, `e2e/auth.setup.ts` (the author) and `e2e/no-role.setup.ts` (an account that never holds a role, S-403), make up the **setup project**; they are not specs. Shared board/catalog plumbing lives in `e2e/support/` (`planner.ts`, `board.ts`, `catalog.ts`). Four Playwright **projects** — `setup` (logs in once per account → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs), `chromium-no-role` (`*.no-role.spec.ts`, signed in without a role) — distinct from the spec count. `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e landed in §3 Phase 3 (`drag-validate-feedback.spec.ts`). |
 | edge runtime | n/a | — | Code runs on Cloudflare Workers (workerd) in dev and prod — edge-safe libs only, no Node APIs (`fs`, `child_process`, native). |
 
 **Versions pinned (verified 2026-06-18):** astro **6.4.8**, vitest **4.1.9**,
@@ -235,7 +238,7 @@ phase lands; before that, the gate is `planned`.
 |------|-------|-----------|---------|
 | lint + typecheck (astro sync → eslint → build) | local + CI | required (already wired) | syntactic / type drift |
 | unit + integration | local + CI | required after §3 Phase 1 | validator false-positives, boundary regressions |
-| auth + RLS role-matrix integration | local + CI | required after §3 Phase 2 (role matrix since F-401) | unauthenticated mutation; a principal reaching rows or grants its role should not (anon and no-role today, S-403's roles next) |
+| auth + RLS role-matrix integration | local + CI | required after §3 Phase 2 (role matrix since F-401) | unauthenticated mutation; a principal reaching rows or grants its role should not (anon, no role, viewer, author and admin since S-403), or a plan-scoped table without the four capability policies |
 | drag→feedback e2e / island integration | CI on PR | required after §3 Phase 3 | broken drop-validation user path, lost work |
 | new-validator-class parity fixture | CI on PR | required after §3 Phase 4 | a new collision class shipping without a false-positive guard |
 | pre-prod smoke | between merge + prod | optional | environment-specific (workerd / Supabase) failures |
@@ -329,10 +332,11 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 **Access-control claims — a signed-in client** (F-401). The service role bypasses RLS, so a
 service-role suite can never prove who may reach a row. For that:
 
-- **Get a client from `createSignedInUser(admin)`** (`src/test/factories/`). It returns a confirmed
-  human user signed in with the publishable key, and registers it with `teardown`, which deletes
-  plans first and then users. It refuses a non-loopback `SUPABASE_URL`. Sign in **once per
-  principal per file**, in `beforeAll`, never per test, which keeps clear of GoTrue's rate limits.
+- **Get a client from `createSignedInUser(admin, { role })`** (`src/test/factories/`; omit `role`
+  for a user without one). It returns a confirmed human user signed in with the publishable key,
+  holding that role, and registers it with `teardown`, which deletes plans first and then users.
+  It refuses a non-loopback `SUPABASE_URL`. Sign in **once per principal per file**, in
+  `beforeAll`, never per test, which keeps clear of GoTrue's rate limits.
 - **Judge the outcome with the access probe** (`src/test/access-probe.ts`), never from `error`
   alone. RLS denies a SELECT as an empty result, and an UPDATE or DELETE as 0 rows, with no error.
   `probeRead` judges from the principal's own view; `probeWrite` reads back as the service role.
@@ -340,7 +344,9 @@ service-role suite can never prove who may reach a row. For that:
   Any non-access error throws rather than passing as "denied".
 - **Add a cell, not a suite.** State the claim in `src/test/role-matrix-expectations.ts`.
   `src/test/role-matrix.integration.test.ts` runs every cell live, plus an exact catalog check of
-  grants and RLS. A new table or principal fails `pnpm check` until every cell is declared.
+  grants and RLS, and a structural check that every plan-scoped table carries exactly the four
+  capability policies (`CAPABILITY_POLICIES`). A new table or principal fails `pnpm check` until
+  every cell is declared, and the structural check until the table has its four policies.
 - **Show that it can fail.** A guard that has never gone red is not yet a guard. The deny drill in
   the `give-integration-lane-a-signed-in-client-per-role` change folder (`drill/`) is the pattern:
   a scratch restrictive policy turns exactly the expected cells red.
@@ -356,11 +362,16 @@ Copy it rather than reinventing:
     reuses `e2e/.auth/user.json` via `storageState` — no per-test sign-in);
   - negative / unauthenticated flow (guard redirect, no-session Action) → name
     it `*guard.spec.ts` or `*unauth.spec.ts` (runs under `chromium-guard`, which
-    starts with **no** cookies, so the real server-side gate is what rejects).
-- **Auth reuse:** `e2e/auth.setup.ts` signs in once through the real UI and
-  writes `storageState`; the author is provisioned idempotently by
-  `scripts/provision-e2e-author.mjs` (the `pretest:e2e` hook), reading creds from
-  the shared `e2e/author-credentials.mjs`.
+    starts with **no** cookies, so the real server-side gate is what rejects);
+  - signed in without a role (the role gate, an action's `FORBIDDEN`) → name it
+    `*.no-role.spec.ts` (runs under `chromium-no-role`, which reuses
+    `e2e/.auth/no-role.json`).
+- **Auth reuse:** the two setup files, `e2e/auth.setup.ts` and
+  `e2e/no-role.setup.ts`, each sign in once through the real UI and write
+  `storageState`. Both accounts are provisioned idempotently by
+  `scripts/provision-e2e-author.mjs` (the `pretest:e2e` hook): the author holds
+  `author`, and `e2e-no-role@example.test` never holds a role. Creds come from
+  the shared `e2e/author-credentials.mjs` and `e2e/no-role-credentials.mjs`.
 - **Fidelity:** `webServer` runs `pnpm build && pnpm preview` on real **workerd**
   (not Vite dev) — the worker reads `SUPABASE_URL`/`SUPABASE_KEY` from `.dev.vars`
   (written by `pnpm env:local` locally; by the CI `e2e` job from what the
@@ -370,7 +381,9 @@ Copy it rather than reinventing:
   reserve e2e for genuinely browser-observable ones. The `createPlan` UI-driven
   happy-path mutation e2e is **deferred**. Access control is proven at the
   integration layer by the role matrix (§6.2), not by an e2e cross-author flow,
-  which is superseded (see §3 notes). E2e role accounts arrive with S-403.
+  which is superseded (see §3 notes). S-403 added the role-less account
+  (`no-access.no-role.spec.ts`); viewer and admin accounts arrive with S-405 and
+  S-406.
 - **Board drag/locators are shared, not copied.** The dnd-kit stepped-pointer
   drag (`placeFromPalette`) and the role-based board locators (`cell`,
   `paletteChip`, `placedChip`, `collisionBadge`, `computeGroupings`) live in
@@ -492,7 +505,7 @@ contributors should respect these unless the underlying assumption changes.
   on per-author ownership, which the user-management PRD does not adopt: one
   shared workspace with global roles, and per-plan ownership is "model B", a
   non-goal (`prd.md:385`). Access control is pinned by the role matrix instead
-  (F-401, `src/test/role-matrix.integration.test.ts`), which S-403 flips to the
+  (F-401, `src/test/role-matrix.integration.test.ts`), which S-403 flipped to the
   fail-closed role model. Re-evaluate only if per-plan ownership is ever
   adopted. (Source: F-401; see §2 Risk #5 and §3 notes.)
 

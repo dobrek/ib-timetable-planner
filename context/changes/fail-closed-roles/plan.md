@@ -780,12 +780,12 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [x] 4.1 Unit suite passes (access model, nav filter, guard, `toDomainError`, capability map)
-- [x] 4.2 Type check passes with 0 errors
-- [x] 4.3 Lint and FSD structure clean
-- [x] 4.4 Integration lane green, incl. `action-boundary`
-- [x] 4.5 E2E green, incl. the `chromium-no-role` project
-- [x] 4.6 Production build clean
+- [x] 4.1 Unit suite passes (access model, nav filter, guard, `toDomainError`, capability map) — a463575
+- [x] 4.2 Type check passes with 0 errors — a463575
+- [x] 4.3 Lint and FSD structure clean — a463575
+- [x] 4.4 Integration lane green, incl. `action-boundary` — a463575
+- [x] 4.5 E2E green, incl. the `chromium-no-role` project — a463575
+- [x] 4.6 Production build clean — a463575
 
 #### Manual
 
@@ -798,9 +798,9 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [ ] 5.1 No doc still claims the old posture
-- [ ] 5.2 Formatting clean
-- [ ] 5.3 Full local CI gate green
+- [x] 5.1 No doc still claims the old posture
+- [x] 5.2 Formatting clean
+- [x] 5.3 Full local CI gate green
 
 #### Manual
 

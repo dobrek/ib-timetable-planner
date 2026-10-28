@@ -31,3 +31,18 @@ as taks S-403 from roadmap
   - **viewer (16):** `INSERT` / `UPDATE` / `DELETE` on plans, courses, students, placements and generation_jobs (15), and `RPC clone_plan`.
   - **anon, author, admin:** 0. The author and admin columns did not move.
 - **Green rerun, after migration 2** (`pnpm exec supabase db reset`, with all post-conditions passing; 70 `public` policies over 18 tables): the same command gives **247 / 247**. The full integration lane, with the native solver up, gives 39 files and 466 tests. `pnpm test:e2e` gives 48 / 48, with a freshly provisioned `author`.
+
+## Browser verification of Phase 4's manual rows (Playwright, local)
+
+On 2026-10-28, on `pnpm build && pnpm preview` (workerd) against the local stack after migration 2. A throwaway account `manual-s403@example.test` was created through the admin API, roles were changed with `scripts/assign-role.mjs`, and everything was deleted afterwards. **This is evidence for the human sign-off.** The Progress rows 4.7–4.10 stay unchecked until a human confirms them.
+
+- **4.7, role-less** (`playwright-cli`):
+  - `/dashboard` shows "No access yet — ask your admin", with a link to the account page. The Primary nav holds only Home: no Plans, no tiles.
+  - `/plans`, `/plans/<random uuid>` and `/plans/<random uuid>/courses` all land on `/dashboard`.
+  - `/account` saves a display name ("Display name saved.", and the `profiles` row is written) and changes the password ("Password changed.").
+  - Sign-out lands on `/auth/signin`, and `/dashboard` then redirects there. Signing in with the new password works.
+- **4.8, author:** promoted with `assign-role.mjs … author`. The next reload shows Plans in the nav and tiles. Creating a plan and cloning Seed Plan A both work. A group drag landed in 283 ms, the stepped-drag gesture included.
+- **4.9 and 4.10, viewer, live role change** (a scripted Playwright run over `e2e/support` helpers):
+  - Demoted to `viewer` from the shell, with the board still open and no sign-out. The next drag showed "You don't have permission to do that." and the optimistic move rolled back. A reload showed nothing changed.
+  - Renaming the plan as viewer was refused with the same message, and the name was unchanged after a reload.
+  - Promoted back to `author`, the next drag landed and survived a reload.

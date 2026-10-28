@@ -114,8 +114,8 @@ graceful part.
 `jwt_expiry` is 3600 s and a full solve can run ~20 minutes, so one token comfortably covers a solve.
 When a token nears expiry the container should **re-run the password grant**, not the refresh grant.
 The password grant demonstrably fires the hook; whether the refresh grant does was never verified,
-and a refresh that silently returned an `authenticated` token would be the exact escalation this
-design exists to prevent. Re-signing-in costs one request and removes the question.
+and a refresh that silently returned an `authenticated` token would put the solver on the fallback
+this design exists to avoid (below). Re-signing-in costs one request and removes the question.
 
 ---
 
@@ -181,10 +181,17 @@ curl -s -X POST 'https://<project-ref>.supabase.co/auth/v1/token?grant_type=pass
 ## The failure mode, and the drill that proves we would catch it
 
 If the hook is disabled or errors, GoTrue falls back to `role: authenticated`. Because
-`alter default privileges` grants `authenticated` DML on every current and future public table and
-every table carries `for all to authenticated using (true)`, that fallback is a **silent escalation
-to full database access** — the spike returned real plan names through it. Nothing about it looks
-broken: the container connects, reads its job, and solves.
+`alter default privileges` grants `authenticated` DML on every current and future public table, RLS
+alone decides what that token reaches:
+
+- **Until S-403** every table carried `for all to authenticated using (true)`, so the fallback
+  silently read and wrote everything. The spike returned real plan names through it, and nothing
+  looked broken: the container connected, read its job, and solved.
+- **Since S-403** (`20261028200630_fail_closed_policies.sql`) the fallback reaches **no data**.
+  Every human-facing policy asks for an app role (`private.can_read()`, `private.can_edit()`), and
+  the machine user holds none: the role backfill skipped it, and `scripts/assign-role.mjs` refuses
+  it. A misfire is no longer a leak, but the solver cannot read or claim its job either, so the hook
+  stays load-bearing.
 
 `src/test/solver-credential.integration.test.ts` converts that into a red build. It asserts the
 decoded `role` claim **and** `permission denied` on `plans`, because either check alone can
@@ -290,9 +297,10 @@ scripts/provision-solver-user.mjs` against hosted, with the hosted **service-rol
 > (`src/solver-container-env.ts`). The **intent** holds exactly as before — the Worker gains no new
 > privilege, since it already holds the publishable key and never uses the password itself.
 
-> **Verification is a gate, not a formality.** Skipping it fails _upward_: with no hook, the machine
-> user does not lose access — it falls back to `authenticated` and reaches the whole database, with
-> no error to notice. Decode the token and confirm `role` reads `solver_job_writer` **before**
+> **Verification is a gate, not a formality.** With no hook, the machine user falls back to
+> `authenticated`. Until S-403 that fallback read and wrote every table, with no error to notice.
+> Since S-403's fail-closed policies it reaches **no data**: closed rather than open, but every
+> hosted solve fails. Decode the token and confirm `role` reads `solver_job_writer` **before**
 > pointing any container at hosted.
 >
 > Since S-302 the solver also asserts this **in code**, at startup and on every token re-mint: a

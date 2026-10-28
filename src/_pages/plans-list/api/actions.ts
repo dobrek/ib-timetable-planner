@@ -20,9 +20,11 @@ export const planActions = {
   deletePlan: defineDomainAction({ input: deletePlanInput, run: deletePlan }),
   // A READ behind an action, which is unusual here and deliberate: it is the hub's poll, so it needs
   // the same session gate and the same Supabase-client plumbing every mutation gets, and none of the
-  // raw Request/Response reasons that would make it an API route.
+  // raw Request/Response reasons that would make it an API route. It writes nothing, so it declares
+  // `read` (S-403): a viewer's hub keeps polling.
   readGenerationJobStatuses: defineDomainAction({
     input: readGenerationJobStatusesInput,
     run: readGenerationJobStatuses,
+    requires: "read",
   }),
 };

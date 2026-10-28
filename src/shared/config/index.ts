@@ -1,4 +1,4 @@
-export { GLOBAL_NAV_ITEMS, planNavItems, type NavItem } from "./nav";
+export { GLOBAL_NAV_ITEMS, planNavItems, visibleNavItems, type NavItem } from "./nav";
 export {
   COHORTS,
   COHORT_VALUES,
@@ -39,3 +39,7 @@ export {
 } from "./subject-colors";
 export { optionalChipClass } from "./optional-chip";
 export type { AppRole } from "./app-role";
+export { grants, type Capability } from "./capability";
+export { allows, type AccessState } from "./access-state";
+export { resolveAccess } from "./resolve-access";
+export { decideRoleGate, ROLE_NOTICE_PATH, ROLE_UNAVAILABLE_PATH, type RoleGateDecision } from "./role-gate";

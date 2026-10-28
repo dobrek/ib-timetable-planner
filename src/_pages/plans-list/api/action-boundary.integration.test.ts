@@ -7,7 +7,7 @@ import { createPlanInput } from "../model/schemas";
 
 // Exercises the Astro Action wrapper through its `.handler` against the real local
 // Supabase — the seam Risk #3 targets ("the handler wiring is what is untested").
-// Drives the FULL wrapper (requireSession → requireSupabase → runDomain), not the
+// Drives the FULL wrapper (requireSession → requireCapability → requireSupabase → runDomain), not the
 // domain function in isolation, so the DomainError→ActionError translation is proven
 // end to end from a real Postgres error.
 //
@@ -37,10 +37,11 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
 
 // Cast through unknown: the stub types `locals.user` as `unknown`, but tsc/eslint see
-// the real astro:actions `ActionAPIContext` whose `locals.user` is `User | null`.
+// the real astro:actions `ActionAPIContext` whose `locals.user` is `User | null`. The access is
+// what the middleware would have read for an author, so the capability guard lets the edits through.
 const signedIn = (): ActionAPIContext =>
   ({
-    locals: { user: { id: "e2e-author" } },
+    locals: { user: { id: "e2e-author" }, access: { status: "granted", role: "author" } },
     request: new Request("http://localhost/_actions/test", { method: "POST" }),
     cookies: {},
   }) as unknown as ActionAPIContext;

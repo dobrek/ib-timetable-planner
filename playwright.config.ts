@@ -3,11 +3,14 @@ import { defineConfig, devices } from "@playwright/test";
 // Root Playwright config — picked up by `playwright test` with no flags.
 //
 // Project topology (the reusable pattern for all future browser tests):
-//   - `setup`         logs in once through the real UI and writes storageState.
+//   - `setup`         logs in once per account through the real UI and writes storageState.
 //   - `chromium`      authenticated specs; depends on `setup`, reuses its cookies.
 //   - `chromium-guard` no storageState — the negative/unauth specs run here so the
 //                      real server-side gate (middleware redirect / requireSession)
 //                      is what rejects them, not a missing fixture.
+//   - `chromium-no-role` `*.no-role.spec.ts` only, signed in as the account that never
+//                      holds a role (S-403), so the role gate and the action guard
+//                      are what answer.
 //
 // `webServer` builds then previews on REAL workerd (`astro preview` = `wrangler
 // dev ./dist`), because the boundary under test (`/_actions/*` + `astro:env/server`
@@ -37,7 +40,7 @@ export default defineConfig({
     { name: "setup", testMatch: /.*\.setup\.ts/ },
     {
       name: "chromium",
-      testIgnore: /.*(guard|unauth)\.spec\.ts/,
+      testIgnore: [/.*(guard|unauth)\.spec\.ts/, /.*\.no-role\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/user.json" },
       dependencies: ["setup"],
     },
@@ -45,6 +48,12 @@ export default defineConfig({
       name: "chromium-guard",
       testMatch: /.*(guard|unauth)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], storageState: { cookies: [], origins: [] } },
+    },
+    {
+      name: "chromium-no-role",
+      testMatch: /.*\.no-role\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/no-role.json" },
+      dependencies: ["setup"],
     },
   ],
   webServer: {

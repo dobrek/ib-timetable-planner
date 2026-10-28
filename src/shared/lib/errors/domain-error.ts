@@ -9,11 +9,18 @@
 export type DomainErrorCode =
   | "BAD_REQUEST"
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
   | "UNPROCESSABLE_CONTENT"
   | "TOO_MANY_REQUESTS"
   | "INTERNAL_SERVER_ERROR";
+
+/**
+ * What a caller is told when their role does not cover a write (S-403): by the action guard before
+ * the domain runs, and by `toDomainError` when RLS refuses one with SQLSTATE 42501.
+ */
+export const FORBIDDEN_MESSAGE = "You don't have permission to do that.";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

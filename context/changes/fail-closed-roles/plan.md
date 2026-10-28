@@ -764,12 +764,12 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [x] 3.1 Flipped matrix red against the Phase 2 schema (recorded in `change.md`)
-- [x] 3.2 Migration 2 applies from scratch with its post-conditions passing
-- [x] 3.3 Role matrix green, incl. the structural policy assertion
-- [x] 3.4 Full integration lane green
-- [x] 3.5 E2E green with the author unaffected
-- [x] 3.6 Type check and unit suite pass
+- [x] 3.1 Flipped matrix red against the Phase 2 schema (recorded in `change.md`) — 40c9c27
+- [x] 3.2 Migration 2 applies from scratch with its post-conditions passing — 40c9c27
+- [x] 3.3 Role matrix green, incl. the structural policy assertion — 40c9c27
+- [x] 3.4 Full integration lane green — 40c9c27
+- [x] 3.5 E2E green with the author unaffected — 40c9c27
+- [x] 3.6 Type check and unit suite pass — 40c9c27
 
 #### Manual
 
@@ -780,12 +780,12 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [ ] 4.1 Unit suite passes (access model, nav filter, guard, `toDomainError`, capability map)
-- [ ] 4.2 Type check passes with 0 errors
-- [ ] 4.3 Lint and FSD structure clean
-- [ ] 4.4 Integration lane green, incl. `action-boundary`
-- [ ] 4.5 E2E green, incl. the `chromium-no-role` project
-- [ ] 4.6 Production build clean
+- [x] 4.1 Unit suite passes (access model, nav filter, guard, `toDomainError`, capability map)
+- [x] 4.2 Type check passes with 0 errors
+- [x] 4.3 Lint and FSD structure clean
+- [x] 4.4 Integration lane green, incl. `action-boundary`
+- [x] 4.5 E2E green, incl. the `chromium-no-role` project
+- [x] 4.6 Production build clean
 
 #### Manual
 

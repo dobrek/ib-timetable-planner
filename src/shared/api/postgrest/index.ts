@@ -1,4 +1,4 @@
-export { UNIQUE_VIOLATION, CHECK_VIOLATION, NOT_FOUND_ROW } from "./sqlstates";
+export { UNIQUE_VIOLATION, CHECK_VIOLATION, NOT_FOUND_ROW, INSUFFICIENT_PRIVILEGE } from "./sqlstates";
 export { unwrapRow } from "./unwrap-row";
 export { unwrapMaybeRow } from "./unwrap-maybe-row";
 export { unwrapMany } from "./unwrap-many";

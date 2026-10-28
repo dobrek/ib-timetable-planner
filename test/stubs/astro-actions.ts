@@ -9,10 +9,13 @@
 export type ActionErrorCode =
   | "BAD_REQUEST"
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
   | "UNPROCESSABLE_CONTENT"
-  | "INTERNAL_SERVER_ERROR";
+  | "TOO_MANY_REQUESTS"
+  | "INTERNAL_SERVER_ERROR"
+  | "SERVICE_UNAVAILABLE";
 
 export class ActionError extends Error {
   readonly code: ActionErrorCode;
@@ -31,9 +34,10 @@ export function defineAction<T>(action: T): T {
   return action;
 }
 
-// Minimal shape the helpers read: `locals.user` (session), `request.headers`, `cookies`.
+// Minimal shape the helpers read: `locals.user` (session), `locals.access` (role capability),
+// `request.headers`, `cookies`.
 export type ActionAPIContext = {
-  locals: { user?: unknown };
+  locals: { user?: unknown; access?: unknown };
   request: Request;
   cookies: unknown;
 };

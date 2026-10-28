@@ -1,9 +1,12 @@
 ---
-import { GLOBAL_NAV_ITEMS } from "@/shared/config";
+import { GLOBAL_NAV_ITEMS, visibleNavItems } from "@/shared/config";
 import Banner from "@/shared/ui/Banner.astro";
 
-const { user } = Astro.locals;
-const sections = GLOBAL_NAV_ITEMS.filter((item) => item.href !== "/dashboard");
+const { user, access } = Astro.locals;
+const sections = visibleNavItems(GLOBAL_NAV_ITEMS, access).filter((item) => item.href !== "/dashboard");
+// A signed-in user an admin has given no role (FR-410). The middleware sends every gated page here,
+// so this is all they see besides their own account.
+const noAccess = access.status === "none";
 // Set by sign-in when GoTrue reports the password is under the 15-character floor. It shows after
 // each such sign-in until the password changes; there is no cookie to clear.
 const weakPassword = Astro.url.searchParams.get("notice") === "weak-password";
@@ -27,21 +30,39 @@ const weakPassword = Astro.url.searchParams.get("notice") === "weak-password";
   </p>
 </header>
 
-<div class="grid gap-4 sm:grid-cols-2">
-  {
-    sections.map((item) => {
-      const Icon = item.icon;
-      return (
-        <a
-          href={item.href}
-          class="border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground flex items-center gap-4 rounded-lg border p-5 transition-colors"
-        >
-          <span class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
-            <Icon size={20} aria-hidden="true" />
-          </span>
-          <span class="font-medium">{item.label}</span>
+{
+  noAccess ? (
+    <section
+      aria-labelledby="no-access-heading"
+      class="border-border bg-card text-card-foreground rounded-lg border p-6"
+    >
+      <h2 id="no-access-heading" class="text-lg font-semibold">
+        No access yet — ask your admin
+      </h2>
+      <p class="text-muted-foreground mt-2 text-sm">
+        Your account has not been given access to any plans. Until it is, you can still manage{" "}
+        <a href="/account" class="text-foreground font-medium underline">
+          your account
         </a>
-      );
-    })
-  }
-</div>
+        .
+      </p>
+    </section>
+  ) : (
+    <div class="grid gap-4 sm:grid-cols-2">
+      {sections.map((item) => {
+        const Icon = item.icon;
+        return (
+          <a
+            href={item.href}
+            class="border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground flex items-center gap-4 rounded-lg border p-5 transition-colors"
+          >
+            <span class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
+              <Icon size={20} aria-hidden="true" />
+            </span>
+            <span class="font-medium">{item.label}</span>
+          </a>
+        );
+      })}
+    </div>
+  )
+}

@@ -1,1 +1,1 @@
-export { DomainError, type DomainErrorCode } from "./domain-error";
+export { DomainError, FORBIDDEN_MESSAGE, type DomainErrorCode } from "./domain-error";

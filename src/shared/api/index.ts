@@ -12,10 +12,12 @@ export { loadStudentNames } from "./load-student-names";
 export { loadCourseMerges, type CourseMerge } from "./load-course-merges";
 export { loadPlanTeachers, type PlanTeacher } from "./load-plan-teachers";
 export { loadOwnProfile } from "./load-own-profile";
+export { loadOwnRole } from "./load-own-role";
 export {
   UNIQUE_VIOLATION,
   CHECK_VIOLATION,
   NOT_FOUND_ROW,
+  INSUFFICIENT_PRIVILEGE,
   unwrapRow,
   unwrapMaybeRow,
   unwrapMany,

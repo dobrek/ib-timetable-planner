@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient as UntypedSupabaseClient } from "@sup
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database, SupabaseClient } from "@/shared/api";
+import type { AppRole } from "@/shared/config";
 import {
   addAvailability,
   addCourse,
@@ -25,9 +26,11 @@ import {
 } from "@/test/factories";
 import { decodeAccessClaims, type AccessClaims } from "./access-claims";
 import {
+  classifyCall,
   probeRead,
   probeWrite,
   seesFixtureRows,
+  type AccessOutcome,
   type FixtureRef,
   type PublicTable,
   type WriteAttempt,
@@ -47,6 +50,7 @@ import {
   type ProfileOwner,
   type ProfileWriteOperation,
   type RepresentativeTable,
+  type Rpc,
   type TableGrants,
   type WriteOperation,
 } from "./role-matrix-expectations";
@@ -55,16 +59,17 @@ import {
  * The role matrix: every cell of `role-matrix-expectations.ts`, run live through real clients.
  *
  * Rows are proven through each principal's own client by the access probe, so RLS is in play; a
- * service-role suite cannot see it at all. Grants are proven from the catalog over `pg`. App roles
- * will live in rows rather than Postgres roles, so only the first instrument will ever tell
- * S-403's admin, author and viewer apart.
+ * service-role suite cannot see it at all. Grants are proven from the catalog over `pg`, and so are
+ * the role helpers in the `private` schema, which PostgREST does not expose. App roles live in rows
+ * (`user_roles`) rather than Postgres roles, so only the first instrument will ever tell S-403's
+ * admin, author and viewer apart.
  *
  * Today the matrix pins the posture S-403 replaces: anon is denied everywhere, and a signed-in user
- * without a role is allowed everywhere except another user's profile row (S-401's own-row
- * policies, which S-403 keeps). S-403 flips the expectations first (red), then its policy
- * migration turns them green. That flip is the proof that this suite can fail; the deny drill in
- * the `give-integration-lane-a-signed-in-client-per-role` change folder (`drill/`) shows it on
- * today's schema.
+ * without a role is allowed everywhere except other users' profile and role rows (the own-row
+ * policies on `profiles` and `user_roles`, which S-403 keeps). S-403 flips the expectations first
+ * (red), then its policy migration turns them green. That flip is the proof that this suite can
+ * fail; the deny drill in the `give-integration-lane-a-signed-in-client-per-role` change folder
+ * (`drill/`) shows it on today's schema.
  *
  * Each principal signs in once per file, never per test, which keeps the lane clear of GoTrue's
  * rate limits. Each write cell acts on a fresh target, so cells never depend on their order.
@@ -77,12 +82,16 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
 /** Every principal but anon holds a session. S-403's roles join `noRole` here. */
 type SignedInPrincipal = Exclude<Principal, "anon">;
 
+/** The role each signed-in principal holds, which `own_app_role` must answer. */
+const HELD_ROLES: Record<SignedInPrincipal, AppRole | null> = { noRole: null };
+
 const PRINCIPALS = Object.keys(PRINCIPAL_NOTES) as Principal[];
 const TABLES = Object.keys(READS) as PublicTable[];
 const REPRESENTATIVES = Object.keys(WRITES) as RepresentativeTable[];
 const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
 const PROFILE_OWNERS: ProfileOwner[] = ["own", "others"];
 const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
+const RPC_NAMES = Object.keys(RPCS) as Rpc[];
 
 (hasEnv ? describe : describe.skip)("role matrix (local Supabase)", () => {
   let admin: SupabaseClient;
@@ -132,6 +141,38 @@ const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
     expect(await livePosture(pg)).toEqual(declared);
   });
 
+  it("catalog: private holds the role helpers, and only current_app_role is SECURITY DEFINER", async () => {
+    expect(await privateFunctionSecurity(pg)).toEqual(PRIVATE_FUNCTIONS);
+  });
+
+  it("catalog: current_app_role pins an empty search_path, and its owner bypasses RLS", async () => {
+    const { rows } = await pg.query<{ config: string[] | null; owner_bypasses_rls: boolean }>(
+      `select p.proconfig as config, o.rolbypassrls as owner_bypasses_rls
+         from pg_proc p
+         join pg_roles o on o.oid = p.proowner
+        where p.oid = 'private.current_app_role()'::regprocedure`,
+    );
+    // An owner without BYPASSRLS reads no rows: every human, authors included, would hold no role.
+    expect(rows).toEqual([{ config: ['search_path=""'], owner_bypasses_rls: true }]);
+  });
+
+  it("catalog: only authenticated may execute the private helpers and own_app_role, never anon or PUBLIC", async () => {
+    expect(await roleFunctionExecutors(pg)).toEqual({
+      "private.can_edit()": ["authenticated"],
+      "private.can_read()": ["authenticated"],
+      "private.current_app_role()": ["authenticated"],
+      "public.own_app_role()": ["authenticated"],
+    });
+  });
+
+  it("Data API: the private schema is not exposed, so PostgREST refuses it (PGRST106)", async () => {
+    // A signed-in client holds USAGE on `private` and EXECUTE on its helpers, so the exposed-schema
+    // list is the only thing between it and a direct call.
+    const client: UntypedSupabaseClient = principals.noRole;
+    const { error } = await client.schema("private").rpc("current_app_role");
+    expect(error?.code).toBe("PGRST106");
+  });
+
   for (const principal of PRINCIPALS) {
     describe(`${principal} — ${PRINCIPAL_NOTES[principal]}`, () => {
       if (principal !== "anon") {
@@ -145,6 +186,13 @@ const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
 
         it(`${principal}'s token subject is its own user id`, async () => {
           expect((await claimsOf(signedIn[principal])).sub).toBe(signedIn[principal].id);
+        });
+
+        it(`${principal}'s own_app_role answers ${HELD_ROLES[principal] ?? "null"}`, async () => {
+          expect(await principals[principal].rpc("own_app_role")).toMatchObject({
+            error: null,
+            data: HELD_ROLES[principal],
+          });
         });
       }
 
@@ -185,10 +233,12 @@ const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
         expect(await probeWrite(attempt)).toBe(rekeyExpected);
       });
 
-      const expected = RPCS.clone_plan[principal];
-      it(`${principal} RPC clone_plan → ${expected}`, async () => {
-        expect(await probeWrite(cloneProbe(admin, principals[principal], fixture.planId))).toBe(expected);
-      });
+      for (const rpc of RPC_NAMES) {
+        const expected = RPCS[rpc][principal];
+        it(`${principal} RPC ${rpc} → ${expected}`, async () => {
+          expect(await RPC_PROBES[rpc](admin, principals[principal], fixture.planId)).toBe(expected);
+        });
+      }
     });
   }
 });
@@ -219,6 +269,59 @@ const livePosture = async (pg: Client): Promise<Record<string, TablePosture>> =>
     Promise.resolve([]),
   );
   return Object.fromEntries(entries);
+};
+
+type FunctionSecurity = "definer" | "invoker";
+
+/**
+ * Every function in `private`, and whether it runs as its owner or its caller. `current_app_role`
+ * is the repo's one recorded SECURITY DEFINER exception (its migration says why); the capability
+ * wrappers run as the caller. A new helper fails the catalog check until it is declared here.
+ */
+const PRIVATE_FUNCTIONS: Record<string, FunctionSecurity> = {
+  "private.can_edit()": "invoker",
+  "private.can_read()": "invoker",
+  "private.current_app_role()": "definer",
+};
+
+/** Every function in `private`, by schema-qualified signature, with how it runs. */
+const privateFunctionSecurity = async (pg: Client): Promise<Record<string, FunctionSecurity>> => {
+  const { rows } = await pg.query<{ signature: string; definer: boolean }>(
+    `select ${QUALIFIED_SIGNATURE} as signature, p.prosecdef as definer
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'private'`,
+  );
+  return Object.fromEntries(rows.map(({ signature, definer }) => [signature, definer ? "definer" : "invoker"]));
+};
+
+/**
+ * Which of anon, authenticated and PUBLIC may execute each function in `private`, and the app's
+ * role read. Postgres gives PUBLIC EXECUTE on every new function, so a missed revoke shows up here.
+ */
+const roleFunctionExecutors = async (pg: Client): Promise<Record<string, string[]>> => {
+  const { rows } = await pg.query<{ signature: string; executors: string[] }>(
+    `select ${QUALIFIED_SIGNATURE} as signature,
+            array(select r from unnest(array['anon', 'authenticated', 'public']) as r
+                   where has_function_privilege(r, p.oid, 'EXECUTE') order by r) as executors
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'private' or p.oid = 'public.own_app_role()'::regprocedure`,
+  );
+  return Object.fromEntries(rows.map(({ signature, executors }) => [signature, executors]));
+};
+
+// `schema.name(args)`, whatever the connection's search_path: `regprocedure` drops a visible schema.
+const QUALIFIED_SIGNATURE = "format('%s.%s(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid))";
+
+/** One RPC cell: the call as the principal, classified. */
+type RpcProbe = (admin: SupabaseClient, client: SupabaseClient, planId: string) => Promise<AccessOutcome>;
+
+const RPC_PROBES: Record<Rpc, RpcProbe> = {
+  clone_plan: (admin, client, planId) => probeWrite(cloneProbe(admin, client, planId)),
+  // A read: there is no effect to read back, so the call's own answer is the outcome. What it
+  // answers is checked per principal, against `HELD_ROLES`.
+  own_app_role: async (_admin, client) => classifyCall((await client.rpc("own_app_role")).error),
 };
 
 /** Builds one write cell's target with the service role, and returns the attempt and its read-back. */
@@ -478,7 +581,7 @@ const cloneProbe = (admin: SupabaseClient, client: SupabaseClient, planId: strin
  * At least one row in every public table, built with the service role. One plan holds every
  * plan-rooted table's rows: teachers and availability, three courses (one taught), an overlap and a
  * merge, a student with a choice, computed groupings, a placement and its bundle, a parked course,
- * and a finished job. One user, never signed in, owns the fixture profile.
+ * and a finished job. One user, never signed in, owns the fixture profile and role row.
  */
 const buildFixture = async (admin: SupabaseClient): Promise<FixtureRef> => {
   const planId = await createPlan(admin);
@@ -498,6 +601,7 @@ const buildFixture = async (admin: SupabaseClient): Promise<FixtureRef> => {
   await addFinishedJob(admin, planId);
   const { id: profileOwnerId } = await createAuthUser(admin);
   await addProfile(admin, { userId: profileOwnerId, displayName: "Matrix Owner" });
+  setUp(await admin.from("user_roles").insert({ user_id: profileOwnerId, role: "author" }));
   return { planId, profileOwnerId };
 };
 

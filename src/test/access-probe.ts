@@ -39,8 +39,8 @@ export type PublicTable = keyof Database["public"]["Tables"];
 export type ProbeError = { code?: string; message: string };
 
 /**
- * The fixture's rows, by what owns them: most tables hang off a plan, `profiles` off a user. Each
- * table finds its fixture rows through one of these (see `fixtureKey`).
+ * The fixture's rows, by what owns them: most tables hang off a plan, `profiles` and `user_roles`
+ * off a user. Each table finds its fixture rows through one of these (see `fixtureKey`).
  */
 export type FixtureRef = { planId: string; profileOwnerId: string };
 
@@ -84,6 +84,17 @@ export function classifyRead({ error, seesFixtureRows, seesAnyRow }: ReadEvidenc
   if (seesFixtureRows) return "allowed";
   if (!seesAnyRow) return "denied";
   throw new Error("partial visibility: the principal sees other rows but none of the fixture's");
+}
+
+/**
+ * Whether the principal may call a read-only RPC, from the call's own answer: it has no effect to
+ * read back and no fixture row to look for. An answer is "allowed", 42501 (no EXECUTE) is
+ * "denied", and any other error throws, as everywhere else.
+ */
+export function classifyCall(error: ProbeError | null): AccessOutcome {
+  if (!error) return "allowed";
+  if (error.code === INSUFFICIENT_PRIVILEGE) return "denied";
+  throw unexpected(error);
 }
 
 /** Whether a write was allowed, from the service role's read-back of its effect. */
@@ -136,11 +147,11 @@ const sight = async (query: PromiseLike<{ data: unknown[] | null; error: ProbeEr
 
 type FixtureKey = { column: "id" | "plan_id" | "user_id"; value: string };
 
-// A table's rows belong to a plan through `plan_id`, except the root itself and `profiles`, whose
-// rows belong to a user.
+// A table's rows belong to a plan through `plan_id`, except the root itself and the user-keyed
+// tables, `profiles` and `user_roles`, whose rows belong to a user.
 const fixtureKey = (table: PublicTable, fixture: FixtureRef): FixtureKey => {
   if (table === "plans") return { column: "id", value: fixture.planId };
-  if (table === "profiles") return { column: "user_id", value: fixture.profileOwnerId };
+  if (table === "profiles" || table === "user_roles") return { column: "user_id", value: fixture.profileOwnerId };
   return { column: "plan_id", value: fixture.planId };
 };
 

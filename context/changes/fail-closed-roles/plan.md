@@ -725,13 +725,13 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [ ] 1.1 Migrations apply from scratch with migration 1's post-conditions passing
-- [ ] 1.2 Types regenerate with a diff limited to `app_role`, `user_roles`, `own_app_role`
-- [ ] 1.3 Type check passes with 0 errors
-- [ ] 1.4 Unit suite passes (incl. `role-matrix-expectations.test.ts`)
-- [ ] 1.5 Role matrix green, incl. the new catalog, `private` and `own_app_role` cells
-- [ ] 1.6 Full integration lane green
-- [ ] 1.7 Lint and FSD structure clean
+- [x] 1.1 Migrations apply from scratch with migration 1's post-conditions passing
+- [x] 1.2 Types regenerate with a diff limited to `app_role`, `user_roles`, `own_app_role`
+- [x] 1.3 Type check passes with 0 errors
+- [x] 1.4 Unit suite passes (incl. `role-matrix-expectations.test.ts`)
+- [x] 1.5 Role matrix green, incl. the new catalog, `private` and `own_app_role` cells
+- [x] 1.6 Full integration lane green
+- [x] 1.7 Lint and FSD structure clean
 
 #### Manual
 

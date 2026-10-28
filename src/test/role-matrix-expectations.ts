@@ -7,22 +7,24 @@ import type { TablePrivilege } from "./postgres-client";
  * turned to denied — goes red before the policy migration turns it green, and the diff to this file
  * is the access change under review.
  *
- * Every fact here is **today's** posture (2026-10-17), not a target:
+ * Every fact here is **today's** posture (2026-10-28), not a target:
  *
- * - Every `public` table but `profiles` has RLS on and one `ALL to authenticated using (true)`
- *   policy, so any signed-in human reads and writes everything.
- * - `profiles` (S-401) is the one exception: every signed-in human reads every row, but inserts and
+ * - Every `public` table but `profiles` and `user_roles` has RLS on and one
+ *   `ALL to authenticated using (true)` policy, so any signed-in human reads and writes everything.
+ * - `profiles` (S-401) is one exception: every signed-in human reads every row, but inserts and
  *   updates only their own, and nobody deletes one. `PROFILE_WRITES` holds the "whose row" cells.
+ * - `user_roles` (S-403) is the other: a signed-in human reads only their own role row, and nobody
+ *   writes one through the Data API. No policy reads a role yet, so holding one changes nothing.
  * - `anon` holds no DML grant on any table, so PostgREST refuses it outright (42501). It still holds
  *   Supabase's auto-granted TRUNCATE, REFERENCES, TRIGGER and MAINTAIN on 15 tables, which
- *   PostgREST cannot reach; `generation_jobs` and `profiles` revoked all eight (lessons.md,
- *   "granting a role is not excluding the others").
+ *   PostgREST cannot reach; `generation_jobs`, `profiles` and `user_roles` revoked all eight
+ *   (lessons.md, "granting a role is not excluding the others").
  * - `authenticated` holds all eight privileges everywhere except `profiles` (INSERT, SELECT and
- *   UPDATE only), so RLS is its only lock.
+ *   UPDATE only) and `user_roles` (SELECT only), so RLS is its only lock.
  *
- * Completeness is enforced: a missing principal or table is a type error, so S-403 adding a
- * principal, or `database.types.ts` gaining `user_roles`, fails `pnpm check` until every cell is
- * declared. A table that exists live but not in `GRANTS` fails the suite's catalog check.
+ * Completeness is enforced: a missing principal or table is a type error, so a new principal, or a
+ * new table in `database.types.ts`, fails `pnpm check` until every cell is declared. A table that
+ * exists live but not in `GRANTS` fails the suite's catalog check.
  */
 
 /** Who attempts the access. S-403 adds `"admin" | "author" | "viewer"`. */
@@ -39,7 +41,8 @@ export type ProfileOwner = "own" | "others";
 /** A profile has no DELETE cell: `GRANTS.profiles` holds no DELETE, which the catalog check proves. */
 export type ProfileWriteOperation = "insert" | "update";
 
-export type Rpc = "clone_plan";
+/** `clone_plan` writes; `own_app_role` only answers the caller's own role (the app's role read). */
+export type Rpc = "clone_plan" | "own_app_role";
 
 type Cell = Record<Principal, AccessOutcome>;
 
@@ -48,7 +51,7 @@ export type TableGrants = { anon: readonly TablePrivilege[]; authenticated: read
 export const PRINCIPAL_NOTES: Record<Principal, string> = {
   anon: "TODAY: no session is denied everywhere, at the grant layer",
   noRole:
-    "TODAY: a signed-in user without a role is allowed everywhere except another user's profile row — the hole S-403 closes",
+    "TODAY: a signed-in user without a role is allowed everywhere except other users' profile and role rows — the hole S-403 closes",
 };
 
 export const READS: Record<PublicTable, Cell> = {
@@ -69,6 +72,7 @@ export const READS: Record<PublicTable, Cell> = {
   students: { anon: "denied", noRole: "allowed" },
   teacher_availability: { anon: "denied", noRole: "allowed" },
   teachers: { anon: "denied", noRole: "allowed" },
+  user_roles: { anon: "denied", noRole: "denied" },
 };
 
 export const WRITES: Record<RepresentativeTable, Record<WriteOperation, Cell>> = {
@@ -124,6 +128,7 @@ export const PROFILE_REKEY: Cell = { anon: "denied", noRole: "denied" };
 
 export const RPCS: Record<Rpc, Cell> = {
   clone_plan: { anon: "denied", noRole: "allowed" },
+  own_app_role: { anon: "denied", noRole: "allowed" },
 };
 
 // Sorted the way `heldPrivileges` returns them, so the catalog check compares like with like.
@@ -140,6 +145,7 @@ const ALL_EIGHT: readonly TablePrivilege[] = [
   "UPDATE",
 ];
 const OWN_ROW_DML: readonly TablePrivilege[] = ["INSERT", "SELECT", "UPDATE"];
+const READ_ONLY: readonly TablePrivilege[] = ["SELECT"];
 
 export const GRANTS: Record<PublicTable, TableGrants> = {
   bundles: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
@@ -159,4 +165,5 @@ export const GRANTS: Record<PublicTable, TableGrants> = {
   students: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   teacher_availability: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   teachers: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
+  user_roles: { anon: NONE, authenticated: READ_ONLY },
 };

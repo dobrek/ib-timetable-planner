@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@/shared/api";
+import type { AppRole } from "@/shared/config";
 import { createPublishableClient } from "@/test/publishable-client";
 import { readPublishableKey } from "@/test/publishable-key";
 import { registerUser } from "./teardown";
@@ -27,10 +28,13 @@ export type SignedInUser = {
  * - **Registered before sign-in,** so a failed sign-in does not leak the user.
  * - **The password** is 40 characters with all four character classes, so it meets any likely
  *   password policy, and it holds no `#`, quotes or whitespace (the README's dotenv rule).
- *
- * Extension point: S-403 adds a `role` option here once `user_roles` exists.
+ * - **`role`** gives the user a `user_roles` row, inserted by the service role after registration,
+ *   so a failed insert never leaks the user. Without it the user holds no role: a role-less human.
  */
-export async function createSignedInUser(admin: SupabaseClient): Promise<SignedInUser> {
+export async function createSignedInUser(
+  admin: SupabaseClient,
+  { role }: { role?: AppRole } = {},
+): Promise<SignedInUser> {
   const url = requireLoopbackUrl();
   const publishableKey = requirePublishableKey();
   const email = `signed-in-${randomUUID()}@example.test`;
@@ -40,6 +44,7 @@ export async function createSignedInUser(admin: SupabaseClient): Promise<SignedI
   if (created.error) throw new Error(`createSignedInUser: createUser: ${created.error.message}`);
   const id = created.data.user.id;
   registerUser(id);
+  if (role) await assignRole(admin, id, role);
 
   // Its own in-memory session, so several signed-in clients in one file never share one.
   const client = createPublishableClient(url, publishableKey);
@@ -48,6 +53,12 @@ export async function createSignedInUser(admin: SupabaseClient): Promise<SignedI
 
   return { id, email, password, client };
 }
+
+/** The role row leaves with its user: `user_roles.user_id` cascades from auth.users. */
+const assignRole = async (admin: SupabaseClient, userId: string, role: AppRole): Promise<void> => {
+  const { error } = await admin.from("user_roles").insert({ user_id: userId, role });
+  if (error) throw new Error(`createSignedInUser: assign role: ${error.message}`);
+};
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 

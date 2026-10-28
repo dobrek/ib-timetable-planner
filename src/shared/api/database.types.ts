@@ -767,6 +767,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -843,6 +864,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      own_app_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
       }
       place_course: {
         Args: {
@@ -966,6 +991,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "admin" | "author" | "viewer"
       availability_severity: "strong" | "soft"
       cohort: "dp1" | "dp2"
       course_week_mode: "agnostic" | "biweekly"
@@ -1100,6 +1126,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      app_role: ["admin", "author", "viewer"],
       availability_severity: ["strong", "soft"],
       cohort: ["dp1", "dp2"],
       course_week_mode: ["agnostic", "biweekly"],

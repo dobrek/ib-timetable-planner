@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyRead, classifyWrite, type ProbeError } from "./access-probe";
+import { classifyCall, classifyRead, classifyWrite, type ProbeError } from "./access-probe";
 
 /**
  * Every branch of the role matrix's classification, pinned without a stack. Two rules carry the
@@ -17,6 +17,7 @@ const CLONE_SOURCE_HIDDEN: ProbeError = {
   message: "clone_plan: source plan 6f1c9a52-6b0e-4a43-9d1e-3c6f6d0b8a11 not found",
 };
 const CLONE_NOT_FOUND = /source plan .* not found/;
+const NO_EXECUTE: ProbeError = { code: "42501", message: "permission denied for function own_app_role" };
 
 const NON_ACCESS_ERRORS: [string, ProbeError][] = [
   ["a foreign-key violation (23503)", { code: "23503", message: 'insert or update on table "courses" violates…' }],
@@ -46,6 +47,20 @@ describe("classifyRead", () => {
 
   it.each(NON_ACCESS_ERRORS)("throws on %s instead of calling it denied", (_why, error) => {
     expect(() => classifyRead({ error, seesFixtureRows: false, seesAnyRow: false })).toThrow(/not an access denial/);
+  });
+});
+
+describe("classifyCall", () => {
+  it("reads any answer as allowed, a null value included", () => {
+    expect(classifyCall(null)).toBe("allowed");
+  });
+
+  it("reads a missing EXECUTE grant (42501) as denied", () => {
+    expect(classifyCall(NO_EXECUTE)).toBe("denied");
+  });
+
+  it.each(NON_ACCESS_ERRORS)("throws on %s instead of calling it denied", (_why, error) => {
+    expect(() => classifyCall(error)).toThrow(/not an access denial/);
   });
 });
 

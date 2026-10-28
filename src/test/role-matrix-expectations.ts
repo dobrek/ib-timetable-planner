@@ -3,30 +3,38 @@ import type { TablePrivilege } from "./postgres-client";
 
 /**
  * The access spec as data: what each principal may do, which `role-matrix.integration.test.ts`
- * runs live, cell by cell. This is the file S-403 edits. Every principal and cell exists already,
- * pinned to today's facts, so its flip changes only values: it goes red before the policy migration
- * turns it green, and the diff to this file is the access change under review.
+ * runs live, cell by cell. An access change starts here, as a diff to this file. S-403 flipped these
+ * cells to the fail-closed posture before its policy migration existed, ran them red against the
+ * old policies (the `fail-closed-roles` change's deny drill), and then
+ * `20261028200630_fail_closed_policies.sql` turned them green.
  *
- * Every fact here is **today's** posture (2026-10-28), not a target:
+ * The posture since S-403:
  *
- * - Every `public` table but `profiles` and `user_roles` has RLS on and one
- *   `ALL to authenticated using (true)` policy, so any signed-in human reads and writes everything.
- * - `profiles` (S-401) is one exception: every signed-in human reads every row, but inserts and
- *   updates only their own, and nobody deletes one. `PROFILE_WRITES` holds the "whose row" cells.
- * - `user_roles` (S-403) is the other: a signed-in human reads only their own role row, and nobody
- *   writes one through the Data API (`SELF_GRANTS`).
- * - No policy reads a role yet. So viewer, author and admin hold exactly noRole's access, plus a
- *   role row of their own to read.
+ * - Every `public` table but `profiles` and `user_roles` has RLS on and the four policies in
+ *   `CAPABILITY_POLICIES`. Reading needs a role (`private.can_read()`); writing needs `admin` or
+ *   `author` (`private.can_edit()`). So a viewer reads every plan and writes none, and a signed-in
+ *   user without a role reaches none of it. The behavioural cells cover five representative tables,
+ *   and the suite's structural check proves the four policies on all sixteen.
+ * - A viewer's INSERT and UPDATE fail with 42501 and its DELETE matches no rows, so its write cells
+ *   read "denied" either way: the probe judges a write by the service role's read-back.
+ * - `profiles` (S-401): a user reads their own row, and anyone holding a role reads every row. A
+ *   user inserts and updates only their own row, whatever their role, and nobody deletes one.
+ *   `PROFILE_WRITES` holds the "whose row" cells.
+ * - `user_roles`: a signed-in human reads only their own role row, and nobody writes one through
+ *   the Data API (`SELF_GRANTS`).
+ * - admin holds exactly an author's access: admin surfaces are S-406's.
  * - `anon` holds no DML grant on any table, so PostgREST refuses it outright (42501). It still holds
  *   Supabase's auto-granted TRUNCATE, REFERENCES, TRIGGER and MAINTAIN on 15 tables, which
  *   PostgREST cannot reach; `generation_jobs`, `profiles` and `user_roles` revoked all eight
  *   (lessons.md, "granting a role is not excluding the others").
  * - `authenticated` holds all eight privileges everywhere except `profiles` (INSERT, SELECT and
- *   UPDATE only) and `user_roles` (SELECT only), so RLS is its only lock.
+ *   UPDATE only) and `user_roles` (SELECT only). So, for a signed-in user, RLS is the lock, and the
+ *   role it holds is what RLS judges.
  *
  * Completeness is enforced: a missing principal or table is a type error, so a new principal, or a
  * new table in `database.types.ts`, fails `pnpm check` until every cell is declared. A table that
- * exists live but not in `GRANTS` fails the suite's catalog check.
+ * exists live but not in `GRANTS` fails the suite's catalog check, and a plan-scoped table without
+ * exactly the four capability policies fails its structural check.
  */
 
 /** Who attempts the access: no session, a session without a role, and a session per app role. */
@@ -66,37 +74,36 @@ type OwnRowCell = Record<Principal, OwnRowOutcome>;
 export type TableGrants = { anon: readonly TablePrivilege[]; authenticated: readonly TablePrivilege[] };
 
 export const PRINCIPAL_NOTES: Record<Principal, string> = {
-  anon: "TODAY: no session is denied everywhere, at the grant layer",
-  noRole:
-    "TODAY: a signed-in user without a role is allowed everywhere except other users' profile and role rows — the hole S-403 closes",
-  viewer: "TODAY: a viewer holds noRole's access plus its own role row — no policy reads the role yet",
-  author: "TODAY: an author holds noRole's access plus its own role row — no policy reads the role yet",
-  admin: "TODAY: an admin holds noRole's access plus its own role row — no policy reads the role yet",
+  anon: "no session is denied everywhere, at the grant layer",
+  noRole: "a signed-in user without a role reaches only its own profile, and no plan data at all",
+  viewer: "a viewer reads every plan and profile, and writes only its own profile",
+  author: "an author reads and writes every plan, and writes only its own profile",
+  admin: "an admin holds exactly an author's access until S-406",
 };
 
 export const READS: Record<PlanScopedTable, Cell> = {
-  bundles: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+  bundles: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
   course_grouping_members: {
     anon: "denied",
-    noRole: "allowed",
+    noRole: "denied",
     viewer: "allowed",
     author: "allowed",
     admin: "allowed",
   },
-  course_groupings: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  course_merges: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  course_overlaps: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  course_teachers: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  courses: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  generation_jobs: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  placements: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  plans: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  shelf_bundle_courses: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  shelf_bundles: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  student_choices: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  students: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  teacher_availability: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-  teachers: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+  course_groupings: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  course_merges: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  course_overlaps: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  course_teachers: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  courses: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  generation_jobs: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  placements: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  plans: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  shelf_bundle_courses: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  shelf_bundles: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  student_choices: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  students: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  teacher_availability: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  teachers: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
 };
 
 /**
@@ -107,7 +114,7 @@ export const READS: Record<PlanScopedTable, Cell> = {
 export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCell>> = {
   profiles: {
     own: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    others: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+    others: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
   },
   user_roles: {
     own: { anon: "denied", noRole: "no-row", viewer: "allowed", author: "allowed", admin: "allowed" },
@@ -117,29 +124,29 @@ export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCel
 
 export const WRITES: Record<RepresentativeTable, Record<WriteOperation, Cell>> = {
   plans: {
-    insert: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    update: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    delete: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+    insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    update: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    delete: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
   },
   courses: {
-    insert: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    update: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    delete: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+    insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    update: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    delete: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
   },
   students: {
-    insert: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    update: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    delete: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+    insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    update: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    delete: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
   },
   placements: {
-    insert: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    update: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    delete: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+    insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    update: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    delete: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
   },
   generation_jobs: {
-    insert: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    update: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
-    delete: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+    insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    update: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    delete: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
   },
 };
 
@@ -200,9 +207,40 @@ export const SELF_GRANT_EVIDENCE: Record<SelfGrant, AccessOutcome> = {
 };
 
 export const RPCS: Record<Rpc, Cell> = {
-  clone_plan: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+  clone_plan: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
   own_app_role: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
 };
+
+/** A policy's command, as `pg_policies.cmd` spells it. */
+export type PolicyCommand = "ALL" | "SELECT" | "INSERT" | "UPDATE" | "DELETE";
+
+/** A policy as `pg_policies` states it: a predicate is Postgres' own deparse, and null when absent. */
+export type PolicyShape = {
+  name: string;
+  command: PolicyCommand;
+  roles: readonly string[];
+  using: string | null;
+  withCheck: string | null;
+};
+
+// The deparse of `(select private.can_read())`: the `( SELECT … AS …)` form is the wrapper itself,
+// which makes the helper an InitPlan, run once per table reference rather than once per row.
+const CAN_READ = "( SELECT private.can_read() AS can_read)";
+const CAN_EDIT = "( SELECT private.can_edit() AS can_edit)";
+
+/**
+ * The policies a human session falls under on every plan-scoped table, and nothing else: reading
+ * needs a role, writing needs `admin` or `author`. UPDATE reaches a row by `can_read` and checks it
+ * by `can_edit`, so a viewer's UPDATE fails with 42501 instead of matching no rows and reporting
+ * success. The structural check proves this list on all sixteen tables, which is what covers the
+ * eleven that hold no behavioural cell. Sorted by command, the way that check reads them.
+ */
+export const CAPABILITY_POLICIES: readonly PolicyShape[] = [
+  { name: "Editors delete rows", command: "DELETE", roles: ["authenticated"], using: CAN_EDIT, withCheck: null },
+  { name: "Editors insert rows", command: "INSERT", roles: ["authenticated"], using: null, withCheck: CAN_EDIT },
+  { name: "Readers read every row", command: "SELECT", roles: ["authenticated"], using: CAN_READ, withCheck: null },
+  { name: "Editors update rows", command: "UPDATE", roles: ["authenticated"], using: CAN_READ, withCheck: CAN_EDIT },
+];
 
 // Sorted the way `heldPrivileges` returns them, so the catalog check compares like with like.
 const NONE: readonly TablePrivilege[] = [];

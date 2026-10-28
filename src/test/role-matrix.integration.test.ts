@@ -40,6 +40,7 @@ import { connectPostgres, heldPrivileges } from "./postgres-client";
 import { createPublishableClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 import {
+  CAPABILITY_POLICIES,
   GRANTS,
   PRINCIPAL_NOTES,
   PROFILE_REKEY,
@@ -51,6 +52,7 @@ import {
   USER_KEYED_READS,
   WRITES,
   type PlanScopedTable,
+  type PolicyShape,
   type Principal,
   type ProfileWriteOperation,
   type RepresentativeTable,
@@ -66,16 +68,21 @@ import {
  *
  * Rows are proven through each principal's own client by the access probe, so RLS is in play; a
  * service-role suite cannot see it at all. Grants are proven from the catalog over `pg`, and so are
- * the role helpers in the `private` schema, which PostgREST does not expose. App roles live in rows
- * (`user_roles`) rather than Postgres roles, so only the first instrument will ever tell S-403's
- * admin, author and viewer apart.
+ * the role helpers in the `private` schema, which PostgREST does not expose, and the policies
+ * themselves. App roles live in rows (`user_roles`) rather than Postgres roles, so only the first
+ * instrument tells admin, author and viewer apart.
  *
- * Today the matrix pins the posture S-403 replaces: anon is denied everywhere, and every signed-in
- * user, whatever role it holds, is allowed everywhere except other users' profile and role rows
- * (the own-row policies on `profiles` and `user_roles`, which S-403 keeps). S-403 flips the
- * expectations first (red), then its policy migration turns them green. That flip is the proof that
- * this suite can fail; the deny drill in the `give-integration-lane-a-signed-in-client-per-role`
- * change folder (`drill/`) shows it on today's schema.
+ * The matrix pins S-403's fail-closed posture. Anon is denied everywhere. A signed-in user without
+ * a role reaches only its own profile. A viewer reads every plan and profile, and writes only its
+ * own profile. An author and an admin read and write every plan. Behavioural cells cover five
+ * representative tables, so a structural check over `pg_policies` proves the other eleven: every
+ * plan-scoped table holds exactly `CAPABILITY_POLICIES`, and no policy a session can fall under is
+ * a literal `true`.
+ *
+ * S-403 flipped the expectations before its policy migration existed. Their red run against the old
+ * policies (the `fail-closed-roles` change's deny drill) is the proof that this suite can fail, as
+ * F-401's drill (`drill/` in the `give-integration-lane-a-signed-in-client-per-role` change folder)
+ * was before it.
  *
  * Each principal signs in once per file, never per test, which keeps the lane clear of GoTrue's
  * rate limits. Each write cell acts on a fresh target, and each read of a user-keyed table names the
@@ -199,6 +206,26 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
 
     // A table that is live but undeclared, or declared but gone, shows up as a key difference.
     expect(await livePosture(pg)).toEqual(declared);
+  });
+
+  it("catalog: every plan-scoped table holds exactly the four capability policies, and no other", async () => {
+    const declared = Object.fromEntries(PLAN_SCOPED_TABLES.map((table) => [table, CAPABILITY_POLICIES]));
+
+    // A new table without the four, a fifth policy, a drifted name or an unwrapped helper all differ.
+    expect(await humanPolicies(pg)).toEqual(declared);
+  });
+
+  it("catalog: no policy that authenticated or PUBLIC falls under is a literal `true`", async () => {
+    const { rows } = await pg.query<{ policy: string }>(
+      `select format('%s: %s', tablename, policyname) as policy
+         from pg_policies
+        where schemaname = 'public'
+          and roles && array['authenticated', 'public']::name[]
+          and (qual = 'true' or with_check = 'true')
+        order by tablename, policyname`,
+    );
+    // The solver's `to solver_job_writer` policies are out of scope: no human session holds that role.
+    expect(rows.map(({ policy }) => policy)).toEqual([]);
   });
 
   it("catalog: private holds the role helpers, and only current_app_role is SECURITY DEFINER", async () => {
@@ -387,6 +414,37 @@ const livePosture = async (pg: Client): Promise<Record<string, TablePosture>> =>
     Promise.resolve([]),
   );
   return Object.fromEntries(entries);
+};
+
+/**
+ * Every RLS table in `public` but the user-keyed ones, with each policy a human session can fall
+ * under, as `pg_policies` states it and sorted by command. The solver's `to solver_job_writer`
+ * policies are left out, since no human session holds that role. A table with no policy lists none.
+ */
+const humanPolicies = async (pg: Client): Promise<Record<string, PolicyShape[]>> => {
+  const { rows } = await pg.query<{ relname: string; policies: PolicyShape[] }>(
+    `select c.relname,
+            coalesce(
+              jsonb_agg(
+                jsonb_build_object(
+                  'name', p.policyname, 'command', p.cmd, 'roles', p.roles, 'using', p.qual, 'withCheck', p.with_check
+                )
+                order by p.cmd, p.policyname
+              ) filter (where p.policyname is not null),
+              '[]'
+            ) as policies
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       left join pg_policies p
+         on p.schemaname = n.nspname and p.tablename = c.relname and p.roles <> '{solver_job_writer}'
+      where n.nspname = 'public'
+        and c.relkind in ('r', 'p')
+        and c.relrowsecurity
+        and c.relname <> all ($1::text[])
+      group by c.relname`,
+    [USER_KEYED_TABLES],
+  );
+  return Object.fromEntries(rows.map(({ relname, policies }) => [relname, policies]));
 };
 
 type FunctionSecurity = "definer" | "invoker";

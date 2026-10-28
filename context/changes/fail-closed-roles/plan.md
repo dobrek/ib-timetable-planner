@@ -725,13 +725,13 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [x] 1.1 Migrations apply from scratch with migration 1's post-conditions passing — 795f99f
-- [x] 1.2 Types regenerate with a diff limited to `app_role`, `user_roles`, `own_app_role` — 795f99f
-- [x] 1.3 Type check passes with 0 errors — 795f99f
-- [x] 1.4 Unit suite passes (incl. `role-matrix-expectations.test.ts`) — 795f99f
-- [x] 1.5 Role matrix green, incl. the new catalog, `private` and `own_app_role` cells — 795f99f
-- [x] 1.6 Full integration lane green — 795f99f
-- [x] 1.7 Lint and FSD structure clean — 795f99f
+- [x] 1.1 Migrations apply from scratch with migration 1's post-conditions passing — dc8857f
+- [x] 1.2 Types regenerate with a diff limited to `app_role`, `user_roles`, `own_app_role` — dc8857f
+- [x] 1.3 Type check passes with 0 errors — dc8857f
+- [x] 1.4 Unit suite passes (incl. `role-matrix-expectations.test.ts`) — dc8857f
+- [x] 1.5 Role matrix green, incl. the new catalog, `private` and `own_app_role` cells — dc8857f
+- [x] 1.6 Full integration lane green — dc8857f
+- [x] 1.7 Lint and FSD structure clean — dc8857f
 
 #### Manual
 
@@ -742,14 +742,14 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [x] 2.1 Type check passes (completeness forces every principal × cell) — d5c077f
-- [x] 2.2 Unit suite passes, incl. the self-grant evidence invariant — d5c077f
-- [x] 2.3 Role matrix green with five principals at today's posture — d5c077f
-- [x] 2.4 Full integration lane green — d5c077f
-- [x] 2.5 E2E green, and green again on a second run (provisioner idempotent) — d5c077f
-- [x] 2.6 Operator tool round trip on local, with refusals — d5c077f
-- [x] 2.7 Provisioner refuses a non-loopback URL — d5c077f
-- [x] 2.8 Full local CI gate green — d5c077f
+- [x] 2.1 Type check passes (completeness forces every principal × cell) — 7ba6470
+- [x] 2.2 Unit suite passes, incl. the self-grant evidence invariant — 7ba6470
+- [x] 2.3 Role matrix green with five principals at today's posture — 7ba6470
+- [x] 2.4 Full integration lane green — 7ba6470
+- [x] 2.5 E2E green, and green again on a second run (provisioner idempotent) — 7ba6470
+- [x] 2.6 Operator tool round trip on local, with refusals — 7ba6470
+- [x] 2.7 Provisioner refuses a non-loopback URL — 7ba6470
+- [x] 2.8 Full local CI gate green — 7ba6470
 
 #### Manual
 
@@ -764,12 +764,12 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Automated
 
-- [ ] 3.1 Flipped matrix red against the Phase 2 schema (recorded in `change.md`)
-- [ ] 3.2 Migration 2 applies from scratch with its post-conditions passing
-- [ ] 3.3 Role matrix green, incl. the structural policy assertion
-- [ ] 3.4 Full integration lane green
-- [ ] 3.5 E2E green with the author unaffected
-- [ ] 3.6 Type check and unit suite pass
+- [x] 3.1 Flipped matrix red against the Phase 2 schema (recorded in `change.md`)
+- [x] 3.2 Migration 2 applies from scratch with its post-conditions passing
+- [x] 3.3 Role matrix green, incl. the structural policy assertion
+- [x] 3.4 Full integration lane green
+- [x] 3.5 E2E green with the author unaffected
+- [x] 3.6 Type check and unit suite pass
 
 #### Manual
 

@@ -25,7 +25,9 @@ export const createGenerationActions = (deps: GenerationDeps) => ({
   // No injected dependency: delivery never talks to the solver. It reads the row the solver already
   // wrote, and everything after that is the database and the pure oracle. Dual-keyed since S-306:
   // the same action answers a visit to the source plan and a visit to the proposal.
-  checkPlan: defineDomainAction({ input: checkPlanInput, run: checkPlan }),
+  // `read` (S-403), because it is the pending page's poll. The writes it may make (reclaim, deliver,
+  // notify) are author behaviour that RLS refuses a viewer; what a viewer's poll should do is S-405's.
+  checkPlan: defineDomainAction({ input: checkPlanInput, run: checkPlan, requires: "read" }),
   // Nor does stopping (S-305): it writes a flag on the row and the solver's own heartbeat reads it.
   // Routing the stop through the database rather than through the transport is what makes it work
   // from a closed tab, and what keeps the app free of any dependency on reaching the container.

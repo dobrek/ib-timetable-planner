@@ -4,7 +4,7 @@ import SidebarAccountLink from "./SidebarAccountLink.astro";
 import SidebarNavLink from "./SidebarNavLink.astro";
 import { profileLabel } from "./profile-label";
 import { createClient, loadOwnProfile } from "@/shared/api";
-import { GLOBAL_NAV_ITEMS, planNavItems, type NavItem } from "@/shared/config";
+import { GLOBAL_NAV_ITEMS, planNavItems, visibleNavItems, type NavItem } from "@/shared/config";
 import { Sun, Moon, PanelLeft, LogOut } from "lucide-react";
 
 type Props = {
@@ -16,7 +16,7 @@ type Props = {
 };
 
 const { title, plan, fullWidth = false } = Astro.props;
-const { user } = Astro.locals;
+const { user, access } = Astro.locals;
 const pathname = Astro.url.pathname;
 
 // Home and the plan board match exactly (the board href prefixes every plan sub-route);
@@ -27,7 +27,8 @@ const isActive = (href: string) =>
   EXACT_HREFS.has(href) ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
 const withActive = (item: NavItem) => ({ ...item, active: isActive(item.href) });
-const globalItems = GLOBAL_NAV_ITEMS.map(withActive);
+// A role-less user loses Plans here and in the dashboard tiles alike (S-403).
+const globalItems = visibleNavItems(GLOBAL_NAV_ITEMS, access).map(withActive);
 const planItems = plan ? planNavItems(plan.id).map(withActive) : [];
 
 const accountLabel = profileLabel({ displayName: await readDisplayName(), email: user?.email ?? "" });

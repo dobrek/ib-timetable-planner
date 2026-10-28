@@ -1,7 +1,7 @@
 # E2E Testing Rules
 
 Rules for authoring Playwright specs in this directory. They keep generated/edited
-tests stable by default — apply them rather than reinventing per spec. Of the 28
+tests stable by default — apply them rather than reinventing per spec. Of the 29
 specs here, `seed`, `auth`, `auth-guard` and `action-unauth` are the exemplars;
 model new specs on them.
 
@@ -9,8 +9,9 @@ model new specs on them.
 hydration-race `clickToReveal`, the `gotoStable` navigation retry, `shortId`, and
 `createPlan`/`createTeacher`/`deletePlan` entity lifecycle) lives in
 `e2e/support/planner.ts`; the account page's hydration gate
-(`waitForAccountHydration`) lives in `e2e/support/account.ts`. Import from there rather than re-declaring per spec —
-these are plumbing with no test-specific meaning, and copies drift. `support/*.ts`
+(`waitForAccountHydration`) lives in `e2e/support/account.ts`; the setup files'
+UI sign-in (`signInThroughUi`) lives in `e2e/support/sign-in.ts`. Import from
+there rather than re-declaring per spec — these are plumbing with no test-specific meaning, and copies drift. `support/*.ts`
 is not a `*.spec.ts`/`*.setup.ts` file, so Playwright does not collect it as a test.
 Keep feature-specific authoring (course/student forms, board locators) local to the
 spec; promote a helper to `support/` only once a second spec needs it.
@@ -22,14 +23,19 @@ spec; promote a helper to `support/` only once a second spec needs it.
   `astro:env/server` secrets, cookie SSR) only behaves correctly on workerd. The
   preview worker reads `SUPABASE_URL`/`SUPABASE_KEY` from `.dev.vars` (written by
   `pnpm env:local`); `webServer.env` is deliberately not forwarded.
-- **Projects.** `setup` signs in once and writes `storageState`; `chromium`
-  (authenticated) depends on it and reuses its cookies; `chromium-guard` (no
-  storageState) hosts the negative/unauth specs so the real server-side gate is
-  what rejects them. Authenticated specs go in `*.spec.ts`; negative specs are
-  named `*guard.spec.ts` / `*unauth.spec.ts`.
-- **Local prerequisites.** Local Supabase running + `pnpm env:local`. The author
-  account is provisioned automatically by `pretest:e2e` before `pnpm test:e2e`,
-  holding the `author` role (`scripts/provision-e2e-author.mjs`, loopback-only).
+- **Projects.** `setup` signs in once per account and writes `storageState`;
+  `chromium` (authenticated) depends on it and reuses its cookies; `chromium-guard`
+  (no storageState) hosts the negative/unauth specs so the real server-side gate is
+  what rejects them; `chromium-no-role` depends on `setup` and runs only
+  `*.no-role.spec.ts`, signed in as the account that never holds a role (S-403), so
+  the role gate and the action guard are what answer. Authenticated specs go in
+  `*.spec.ts`; negative specs are named `*guard.spec.ts` / `*unauth.spec.ts`;
+  role-less specs are named `*.no-role.spec.ts`.
+- **Local prerequisites.** Local Supabase running + `pnpm env:local`. Both accounts
+  are provisioned automatically by `pretest:e2e` before `pnpm test:e2e`
+  (`scripts/provision-e2e-author.mjs`, loopback-only): the author, holding the
+  `author` role, and `e2e-no-role@example.test`, whose role row is deleted on every
+  run.
   `.envs/local.vars` must carry `SOLVER_URL` (with `mise run solver:dev` up, for
   `generation.spec.ts`) and Cloudflare's public Turnstile test keys (for the reset
   specs; without them `/auth/forgot` renders "unavailable") — README § Getting Started.
@@ -38,11 +44,18 @@ spec; promote a helper to `support/` only once a second spec needs it.
 
 - **Authenticate via `storageState`, never through the UI in a test.** The `setup`
   project already did the login; authenticated specs start signed in. (The only
-  spec that drives the sign-in UI is `auth.setup.ts` itself.)
+  files that drive the sign-in UI are the two setup files, `auth.setup.ts` and
+  `no-role.setup.ts`.)
 - **Never assert on the sidebar footer's text.** `account.spec.ts` sets the shared
   author's display name while it runs (and clears it in a `finally`), so the footer
   may show a name in parallel specs. Never submit the author's password form either:
   the next run's `setup` would fail to sign in.
+- **The no-role account never gets a role.** `e2e-no-role@example.test`
+  (`e2e/no-role-credentials.mjs`) exists to prove what a user without a role sees;
+  a spec that assigns it one proves nothing, and the provisioner deletes any role
+  row for it anyway. Never submit its password form either (the next run's `setup`
+  could not sign in), and never sign it out: that revokes the session every
+  `chromium-no-role` spec shares.
 - **One sanctioned exception to "never touch users": a throwaway user.** An unauth
   spec whose flow changes a password may create its own user through the
   service-role admin API and delete it in a `finally` — and must refuse any

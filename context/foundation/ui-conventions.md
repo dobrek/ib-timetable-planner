@@ -157,7 +157,7 @@ export const courseActions = {
 };
 ```
 
-`defineDomainAction` (shared/lib) enforces the session, resolves Supabase, and translates `DomainError` → `ActionError`. Domain functions stay `(supabase, input)`-shaped, framework-free, and unit-testable. PostgREST error ladders collapse to `unwrapRow(result, { conflict?, notFound?, failure })` / `unwrapCompleted(result, failure)` from `@/shared/lib/postgrest`; only the per-entity messages live in the slice (`api/constants.ts`).
+`defineDomainAction` (shared/lib) enforces the session, refuses a caller whose role lacks `requires` with `FORBIDDEN` (a `Capability`: `session`, `read` or `edit`; the default, `edit`, keeps an action that declares nothing fail-closed), resolves Supabase, and translates `DomainError` → `ActionError`. Domain functions stay `(supabase, input)`-shaped, framework-free, and unit-testable. PostgREST error ladders collapse to `unwrapRow(result, { conflict?, notFound?, failure })` / `unwrapCompleted(result, failure)` from `@/shared/lib/postgrest`; only the per-entity messages live in the slice (`api/constants.ts`).
 
 ## Loaders & the Result convention
 

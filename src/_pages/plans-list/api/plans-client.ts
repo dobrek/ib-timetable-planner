@@ -4,8 +4,10 @@ import type {
   ClonePlanInput,
   CreatePlanInput,
   DeletePlanInput,
+  MarkCurrentPlanInput,
   ReadGenerationJobStatusesInput,
   RenamePlanInput,
+  UnmarkCurrentPlanInput,
 } from "../model/schemas";
 import type { GenerationIndicator } from "../model/plan-indicators";
 
@@ -19,6 +21,10 @@ export const clonePlan = (values: ClonePlanInput) => callActionForId(actions.clo
 export const renamePlan = (values: RenamePlanInput) => callAction(actions.renamePlan, values);
 
 export const deletePlan = (values: DeletePlanInput) => callAction(actions.deletePlan, values);
+
+export const markCurrentPlan = (values: MarkCurrentPlanInput) => callAction(actions.markCurrentPlan, values);
+
+export const unmarkCurrentPlan = (values: UnmarkCurrentPlanInput) => callAction(actions.unmarkCurrentPlan, values);
 
 /** The hub's poll. Throws on a failed call so the store can keep its last snapshot and retry — see
  *  `createJobProgressStore`, which is the one caller. */

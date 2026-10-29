@@ -1,7 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { clonePlan, type Database, type SupabaseClient } from "@/shared/api";
+import { DomainError } from "@/shared/lib/errors";
 import { createPlan, registerPlan, teardown } from "@/test/factories";
+import { deletePlan } from "./delete-plan";
+import { loadPlans } from "./loader";
+import { markCurrentPlan } from "./mark-current-plan";
+import { unmarkCurrentPlan } from "./unmark-current-plan";
 
 // The current-plan marker (S-404, FR-420), driven against the local Supabase as the service role:
 // the database rules first, then the hub's domain functions.
@@ -141,12 +146,80 @@ const MISSING_PLAN_ID = "00000000-0000-4000-8000-000000000000";
       ]);
     });
   });
+
+  describe("hub domain functions", () => {
+    it("markCurrentPlan returns the plan marked current", async () => {
+      const plan = await createPlan(supabase);
+
+      expect(await markCurrentPlan(supabase, { id: plan })).toMatchObject({ id: plan, is_current: true });
+    });
+
+    it("markCurrentPlan on a pending proposal throws CONFLICT with the pending message", async () => {
+      const pending = await createPendingPlan(supabase);
+
+      const failure = markCurrentPlan(supabase, { id: pending });
+
+      await expect(failure).rejects.toMatchObject({ code: "CONFLICT", message: /still being generated/ });
+      expect(await isCurrent(supabase, pending)).toBe(false);
+    });
+
+    it("markCurrentPlan on a missing plan throws NOT_FOUND 'Plan not found.'", async () => {
+      await expect(markCurrentPlan(supabase, { id: MISSING_PLAN_ID })).rejects.toEqual(
+        new DomainError("NOT_FOUND", "Plan not found."),
+      );
+    });
+
+    // Retried: the one case that needs the marker to stay put between two calls. A parallel file can
+    // move it between the mark and the unmark, and the unmark then rightly finds nothing to clear.
+    it("unmarkCurrentPlan clears the marker on the plan that holds it", { retry: 2 }, async () => {
+      const plan = await createPlan(supabase);
+      const createdAt = await updatedAt(supabase, plan);
+      await markCurrentPlan(supabase, { id: plan });
+
+      // Clearing writes `is_current` alone, so "Last updated" stays where it was.
+      expect(await unmarkCurrentPlan(supabase, { id: plan })).toMatchObject({
+        id: plan,
+        is_current: false,
+        updated_at: createdAt,
+      });
+    });
+
+    it("unmarkCurrentPlan on a plan that is not current throws NOT_FOUND", async () => {
+      const plan = await createPlan(supabase);
+
+      await expect(unmarkCurrentPlan(supabase, { id: plan })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("deletePlan deletes the current plan (no refusal)", async () => {
+      const plan = await createPlan(supabase);
+      expect(await markCurrentPlan(supabase, { id: plan })).toMatchObject({ is_current: true });
+
+      await deletePlan(supabase, { id: plan });
+
+      const { data, error } = await supabase.from("plans").select("id").eq("id", plan);
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    it("the hub loader returns isCurrent, current row first", async () => {
+      const unmarked = await createPlan(supabase);
+
+      const result = await loadPlans(supabase);
+      if (result.kind !== "ok") throw new Error("the hub loader was unavailable");
+
+      // One query, one snapshot: whoever holds the marker, these hold for this read.
+      const currentRows = result.plans.flatMap((row, index) => (row.isCurrent ? [index] : []));
+      expect(currentRows.length).toBeLessThanOrEqual(1);
+      expect(currentRows.every((index) => index === 0)).toBe(true);
+      expect(result.plans.find((row) => row.id === unmarked)).toMatchObject({ isCurrent: false });
+    });
+  });
 });
 
-type PlanRow = Database["public"]["Tables"]["plans"]["Row"];
+type PlanRecord = Database["public"]["Tables"]["plans"]["Row"];
 
 /** The marker move as the service role. Throws on any error, so a case only ever sees rows. */
-const setCurrent = async (supabase: SupabaseClient, planId: string): Promise<PlanRow[]> => {
+const setCurrent = async (supabase: SupabaseClient, planId: string): Promise<PlanRecord[]> => {
   const { data, error } = await supabase.rpc("set_current_plan", { p_plan_id: planId });
   if (error) throw new Error(`set_current_plan: ${error.message}`);
   return data;
@@ -158,7 +231,7 @@ const isCurrent = async (supabase: SupabaseClient, planId: string): Promise<bool
 const updatedAt = async (supabase: SupabaseClient, planId: string): Promise<string> =>
   (await readPlan(supabase, planId)).updated_at;
 
-const readPlan = async (supabase: SupabaseClient, planId: string): Promise<PlanRow> => {
+const readPlan = async (supabase: SupabaseClient, planId: string): Promise<PlanRecord> => {
   const { data, error } = await supabase.from("plans").select().eq("id", planId).single();
   if (error) throw new Error(`read plan ${planId}: ${error.message}`);
   return data;

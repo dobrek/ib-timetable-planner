@@ -455,10 +455,10 @@ Additive only: a `not null default false` column (every existing row becomes not
 
 #### Automated
 
-- [x] 4.1 The new spec passes
-- [x] 4.2 The full e2e suite still passes
-- [x] 4.3 The full local CI gate passes
+- [x] 4.1 The new spec passes — ee9c18e
+- [x] 4.2 The full e2e suite still passes — ee9c18e
+- [x] 4.3 The full local CI gate passes — ee9c18e
 
 #### Manual
 
-- [x] 4.4 Roadmap S-404 entry reads correctly
+- [x] 4.4 Roadmap S-404 entry reads correctly — ee9c18e

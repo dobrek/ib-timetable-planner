@@ -440,25 +440,25 @@ Additive only: a `not null default false` column (every existing row becomes not
 
 #### Automated
 
-- [x] 3.1 Unit tests pass
-- [x] 3.2 Type-check
-- [x] 3.3 Lint and FSD
-- [x] 3.4 Build stays clean
+- [x] 3.1 Unit tests pass — cd93636
+- [x] 3.2 Type-check — cd93636
+- [x] 3.3 Lint and FSD — cd93636
+- [x] 3.4 Build stays clean — cd93636
 
 #### Manual
 
-- [x] 3.5 Board heading shows the badge in every focus and the empty state
-- [x] 3.6 Sidebar label and breadcrumb show it on every single-plan page
-- [x] 3.7 Non-current plans and the collapsed sidebar show no badge
+- [x] 3.5 Board heading shows the badge in every focus and the empty state — cd93636
+- [x] 3.6 Sidebar label and breadcrumb show it on every single-plan page — cd93636
+- [x] 3.7 Non-current plans and the collapsed sidebar show no badge — cd93636
 
 ### Phase 4: End-to-end coverage and docs
 
 #### Automated
 
-- [ ] 4.1 The new spec passes
-- [ ] 4.2 The full e2e suite still passes
-- [ ] 4.3 The full local CI gate passes
+- [x] 4.1 The new spec passes
+- [x] 4.2 The full e2e suite still passes
+- [x] 4.3 The full local CI gate passes
 
 #### Manual
 
-- [ ] 4.4 Roadmap S-404 entry reads correctly
+- [x] 4.4 Roadmap S-404 entry reads correctly

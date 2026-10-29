@@ -182,7 +182,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Parallel with:** F-401, F-402, S-401, S-402, S-403, S-406, S-407, S-408, S-409, S-411, S-310
 - **Blockers:** —
 - **Unknowns:**
-  - What happens to the marker when the current plan is deleted, and whether a pending proposal can carry it. — Owner: plan phase. Block: no.
+  - What happens to the marker when the current plan is deleted, and whether a pending proposal can carry it — **decided (plan, 2026-10-29):** deleting the current plan is allowed and warned in the delete dialog (zero current is legal); a pending proposal can never carry the marker (database CHECK + `assertNotPending`). — Owner: plan phase. Block: no.
 - **Risk:** Small and independent, so it runs beside the first slices; it exists so the viewer slice (S-405) has something to label drafts and proposals against. The PRD accepts that any author can move the marker. If it lands before S-403, any signed-in user can move it (today everyone is an author); S-403's write rules then cover it.
 - **Status:** in-progress
 

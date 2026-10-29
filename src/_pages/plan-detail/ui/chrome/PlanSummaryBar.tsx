@@ -8,6 +8,8 @@ import type { BoardSurface } from "../../lib/board-surface";
 
 type PlanSummaryBarProps = {
   planName: string;
+  /** The plan is the current one (S-404), passed through to the heading's badge. */
+  isCurrent: boolean;
   /** Assembled hours breakdown — headline totals + the per-cohort sections the popover renders. */
   summary: CoursesLeftSummary;
   /** Combined mode groups the popover rows under DP1/DP2 subheaders; focus mode shows one cohort. */
@@ -30,6 +32,7 @@ type PlanSummaryBarProps = {
  *  board-settings menu trailing so there is one header for all modes. */
 export default function PlanSummaryBar({
   planName,
+  isCurrent,
   summary,
   combined,
   parkedCount,
@@ -41,7 +44,7 @@ export default function PlanSummaryBar({
 }: PlanSummaryBarProps) {
   const { hoursLeft, hoursOver } = summary;
   return (
-    <BoardHeader planName={planName} planId={planId} active={active}>
+    <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={active}>
       <div className="ml-auto flex items-center gap-3">
         {parkedCount > 0 && (
           <Badge asChild variant="secondary" className="cursor-pointer">

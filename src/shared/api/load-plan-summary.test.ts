@@ -10,6 +10,7 @@ const summary = (over: Partial<PlanSummary> = {}): PlanSummary => ({
   name: "Year 2026/27",
   slot_grid_preset: "5x8",
   pending_proposal: false,
+  is_current: false,
   ...over,
 });
 

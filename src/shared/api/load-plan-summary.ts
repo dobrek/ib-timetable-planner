@@ -11,7 +11,7 @@ export const isUuid = (id: string | undefined): id is string => !!id && UUID_RE.
 /** Route-param guard: true when the id is a well-formed plan UUID. */
 export const isPlanId = isUuid;
 
-/** The plan context every plan-scoped page resolves: identity + display name + grid preset. */
+/** The plan context every plan-scoped page resolves: identity + display name + grid preset + flags. */
 export type PlanSummary = {
   id: string;
   name: string;
@@ -22,6 +22,8 @@ export type PlanSummary = {
    * may still be running, and an edit to its catalog kills the delivery it is waiting for.
    */
   pending_proposal: boolean;
+  /** True on the one plan the school is using (S-404, FR-420): the sidebar and breadcrumb mark it. */
+  is_current: boolean;
 };
 
 /**
@@ -46,7 +48,7 @@ export const loadPlanSummary = async (
 
   const { data, error } = await supabase
     .from("plans")
-    .select("id, name, slot_grid_preset, pending_proposal")
+    .select("id, name, slot_grid_preset, pending_proposal, is_current")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(`Plan lookup failed: ${error.message}`);

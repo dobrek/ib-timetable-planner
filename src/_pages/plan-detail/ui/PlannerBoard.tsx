@@ -41,6 +41,8 @@ import type { GenerationJobView } from "../api/generation-delivery";
 
 type Props = {
   planName: string;
+  /** The plan is the current one (S-404): both heading render sites carry the badge. */
+  isCurrent: boolean;
   /** The active surface from `?focus=`: one cohort (focus mode) or the combined two-cohort board. */
   focus: BoardSurface;
   shared: SharedBoardProps;
@@ -67,6 +69,7 @@ type Props = {
  */
 export default function PlannerBoard({
   planName,
+  isCurrent,
   focus,
   shared,
   dp1: dp1Props,
@@ -232,7 +235,7 @@ export default function PlannerBoard({
     if (resolvePaletteView({ groupingsCount: state.groupings.length, stale: state.stale }) === "empty") {
       return (
         <>
-          <BoardHeader planName={planName} planId={planId} active={focus} />
+          <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={focus} />
           <div data-slot="planner-board" className="p-6">
             <ComputeGroupingsEmptyState planId={planId} cohort={focus} />
           </div>
@@ -281,6 +284,7 @@ export default function PlannerBoard({
         <>
           <PlanSummaryBar
             planName={planName}
+            isCurrent={isCurrent}
             summary={summary}
             combined={combined}
             parkedCount={parkedBundles.length}

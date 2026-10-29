@@ -61,9 +61,9 @@ Database first, because the invariants live there and the role-matrix rule asks 
 
 ## Critical Implementation Details
 
-**RPC ordering.** `set_current_plan` must lock and validate the **target** row first (`select … for update`, exists, not pending) and return no row without touching anything if that fails. Only then unset the old current row and set the target. Unsetting first would leave zero current when the target turns out to be invalid — the exact failure the RPC exists to prevent. A concurrent mover that loses the race hits the unique index with 23505, which the domain function maps to CONFLICT.
+**RPC ordering.** `set_current_plan` first takes a transaction-scoped advisory lock (`perform pg_advisory_xact_lock(<one constant key>)`), so movers run one at a time. Then it locks and validates the **target** row (`select … for update`, exists, not pending) and returns no row without touching anything if that fails. Only then does it unset the old current row and set the target. Unsetting first would leave zero current when the target turns out to be invalid — the exact failure the RPC exists to prevent. Without the advisory lock, a concurrent mover would read a snapshot from before the other move committed, miss the new current row, and hit the unique index with 23505. With it, the second mover waits; in read-committed mode its later statements take fresh snapshots, so it unsets the first mover's target and wins. "Last write wins" then holds even for a true race. The domain function keeps the 23505 → CONFLICT mapping as a defence only. Unmark is a plain update and does not take the lock: clearing can never make a second plan current.
 
-**Test isolation.** `is_current` is the first fact that spans plans, and the integration lane runs files in parallel (`--maxWorkers=2`). The role matrix's allowed probes will really mark a fresh plan current. So no integration test may assert "plan X is current right now" or "no plan is current" by reading the table after the fact. Assert on the RPC's returned row, on "at most one current", and on the target's own flag after an unmark. Provoke the unique violation in **one** statement (mark two of the test's own plans at once) so it never depends on which plan someone else marked. All marker-moving integration tests live in one new file.
+**Test isolation.** `is_current` is the first fact that spans plans, and the integration lane runs files in parallel (`--maxWorkers=2`). The role matrix's allowed probes will really mark a fresh plan current. So no integration test may assert "plan X is current right now" or "no plan is current" by reading the table after the fact — **the matrix probe included**: it takes the RPC's returned row as proof the write landed, and the read-back is only the fallback. Assert on the RPC's returned row, on "at most one current", and on facts that no other file can change: a plan the test never marked is not current, and in a single query any current row comes first. Provoke the unique violation in **one** statement (mark two of the test's own plans at once) so it never depends on which plan someone else marked. One case still needs the marker to stay put between two calls ("unmark clears the marker on the plan that holds it"); it runs with `{ retry: 2 }`, and its comment says why. All marker-moving integration tests, apart from the matrix probe, live in one new file.
 
 **Trigger condition.** Re-declare `plans_updated_at` with `CREATE OR REPLACE TRIGGER … WHEN (old.is_current is not distinct from new.is_current)`. Both marker writes change only `is_current`, so neither bumps `updated_at`; every other update still does, including future columns. No path updates `is_current` together with another column, and the migration comment must say why that matters.
 
@@ -87,7 +87,9 @@ Add the column, its two invariants, the narrowed trigger and the RPC; state the 
 
 **Intent**: Add the probe the new cell runs.
 
-**Contract**: `RPC_PROBES.set_current_plan` creates a fresh plan with the service role (registered for teardown), calls `client.rpc("set_current_plan", { p_plan_id })` as the principal, and reads `is_current` back with the service role: `true` → allowed, else denied (route it through the existing `probeWrite`/read-back helpers). A comment notes the allowed probe moves the global marker on purpose, and why that is safe (Critical Implementation Details → Test isolation).
+**Contract**: `RPC_PROBES.set_current_plan` creates a fresh plan with the service role (`createPlan(admin)`, which registers it for teardown) and calls `client.rpc("set_current_plan", { p_plan_id })` as the principal through `probeWrite`. Its `attempt` keeps the returned rows, as `cloneProbe` does (`role-matrix.integration.test.ts:820-836`). Its `effectLanded` is true when the RPC returned the target with `is_current = true`; only otherwise does it fall back to reading `is_current` with the service role. A parallel file may move the marker between the call and that read, so the read alone would turn an allowed cell into "denied". A denied principal never gets a row back: a viewer raises 42501, a no-role user and anon get zero rows or 42501. A comment notes that the allowed probe moves the global marker on purpose, and why that is safe (Critical Implementation Details → Test isolation).
+
+Also extend the grant catalog check `roleFunctionExecutors` (`role-matrix.integration.test.ts:260-267`, query at `:493-504`). Widen its `where` to take in `public.set_current_plan(uuid)`, expect `["authenticated"]`, and rename the `it` to name the new function. The `RPCS` anon cell cannot catch a missing `revoke … from anon`: an INVOKER function run as anon meets only `to authenticated` policies, sees no row and returns empty, which reads "denied" either way. Only the catalog proves the grant (lessons: "Granting a role is not excluding the others").
 
 #### 2. Migration
 
@@ -96,11 +98,12 @@ Add the column, its two invariants, the narrowed trigger and the RPC; state the 
 **Intent**: Add the marker and every database-level rule for it, additive-only and safe against live data. Header comment in the house style (`20261028200630` is the model): what changes, why a column (not a table), why the trigger is re-declared rather than dropped, and that no plan is current afterwards (FR-420 migration rule).
 
 **Contract**:
+- `set local lock_timeout = '5s'` first, with the model's reason. Adding the column and the CHECK takes an AccessExclusiveLock on `plans` until commit. A lock waiting behind an in-flight write would stall every hub and board read that arrives after it. A capped wait fails the deploy instead, and the deploy can be re-run.
 - `alter table public.plans add column is_current boolean not null default false` + a column comment ("at most one; never a pending proposal; moved by `set_current_plan`").
 - A global partial unique index allowing one `true` row (e.g. `create unique index plans_one_current on public.plans ((true)) where is_current`).
 - `alter table public.plans add constraint plans_current_not_pending check (not (is_current and pending_proposal))`.
 - `create or replace trigger plans_updated_at before update on public.plans for each row when (old.is_current is not distinct from new.is_current) execute function extensions.moddatetime(updated_at)`.
-- `public.set_current_plan(p_plan_id uuid) returns setof public.plans`, `language plpgsql`, `security invoker`, `set search_path = ''`: lock + validate the target, return nothing if invalid, else unset any other current row, set the target, return it. No role checks in the body (CLAUDE.md: RLS decides).
+- `public.set_current_plan(p_plan_id uuid) returns setof public.plans`, `language plpgsql`, `security invoker`, `set search_path = ''`: take the movers' advisory lock (`pg_advisory_xact_lock`, one constant key, its choice commented), lock + validate the target, return nothing if invalid, else unset any other current row, set the target only `where id = p_plan_id and not is_current`, and return the row with `return query select … where id = p_plan_id`. The trigger's `WHEN` still fires on a `true` → `true` write, so setting an already-current target unconditionally would bump its "Last updated" (re-marking from an out-of-date hub). No role checks in the body (CLAUDE.md: RLS decides).
 - `revoke execute on function public.set_current_plan(uuid) from public, anon; grant execute … to authenticated;` (precedent `20261028140939:134-142`).
 
 #### 3. Generated types
@@ -121,9 +124,11 @@ Add the column, its two invariants, the narrowed trigger and the RPC; state the 
 - "set_current_plan moves the marker: the previously marked plan is no longer current" (mark A, mark B, read A).
 - "set_current_plan on a missing plan returns no row and changes nothing" (A stays marked if it still is — assert only that the call returned zero rows).
 - "set_current_plan on a pending proposal returns no row".
+- "two concurrent set_current_plan calls both succeed" — `Promise.all` marking A and B; both return their row, neither raises 23505 (assert only on the returned rows).
 - "the database refuses two current plans" — one `update … set is_current = true where id in (A, B)` → 23505.
 - "the database refuses a current pending proposal" — set `is_current` on a pending plan → 23514.
 - "moving the marker does not change updated_at on either plan; a rename still does".
+- "marking the plan that is already current returns it and leaves its updated_at unchanged" (mark A, read `updated_at`, mark A again; assert on the second call's returned row).
 
 ### Success Criteria:
 
@@ -135,11 +140,11 @@ Add the column, its two invariants, the narrowed trigger and the RPC; state the 
 - Database-rule suite passes: `pnpm test:integration src/_pages/plans-list/api/current-plan.integration.test.ts`
 - Types regenerated and type-check passes: `pnpm db:types && pnpm check`
 - Lint and FSD: `pnpm lint && pnpm steiger`
+- Only `authenticated` may execute `set_current_plan`, never anon or PUBLIC (catalog check): `pnpm test:integration src/test/role-matrix.integration.test.ts -t "only authenticated may execute"`
 
 #### Manual Verification:
 
 - `select count(*) from plans where is_current` is 0 on a freshly migrated local stack (FR-420 migration rule).
-- `has_function_privilege('anon', 'public.set_current_plan(uuid)', 'EXECUTE')` is false and `…('authenticated', …)` is true.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -197,7 +202,7 @@ The two actions, the hub's row flag and pinning, the shared badge, the menu item
 
 **Intent**: One "Current" badge for all three layers that show it, built on `Badge` with semantic tokens only (lessons: semantic theme tokens). Renders as static SSR markup from `.astro` too.
 
-**Contract**: `CurrentPlanBadge({ className? })` → a `Badge` reading "Current" with an accessible "Current plan" name (e.g. `title` + visually-hidden text, or `aria-label`).
+**Contract**: `CurrentPlanBadge({ className? })` → a `Badge` showing "Current", followed by `<span className="sr-only"> plan</span>`, so it reads "Current plan" to a screen reader. Not `aria-label`: the badge is a plain `span`, and ARIA forbids naming that generic role, so screen readers don't reliably announce it.
 
 #### 6. Hub UI
 
@@ -207,8 +212,9 @@ The two actions, the hub's row flag and pinning, the shared badge, the menu item
 
 **Contract**:
 - Name cell: `<a>{plan.name}</a>` then `{plan.isCurrent && <CurrentPlanBadge />}`.
-- `PlanRowActions` gets a fourth item before Delete: "Mark as current" when `!plan.isCurrent`, "Unmark as current" when `plan.isCurrent`. One click, no dialog: busy-guarded call → error toast on failure → success toast ("'<name>' is now the current plan" / "'<name>' is no longer the current plan") → `refreshPage()`. Reuse `useConfirmAction`'s flow if it fits a menu item cleanly, otherwise a small hook beside it with the same behaviour.
+- `PlanRowActions` gets a fourth item before Delete: "Mark as current" when `!plan.isCurrent`, "Unmark as current" when `plan.isCurrent`. One click, no dialog: busy-guarded call → error toast on failure → success toast ("'<name>' is now the current plan" / "'<name>' is no longer the current plan") → `refreshPage()`. That is exactly `useConfirmAction`'s flow (`src/shared/lib/forms/use-confirm-action.ts`). Call it inside `PlanRowActions`, which stays mounted when the menu closes, so the hook's mounted-check doesn't skip the toast and refresh. Pass the row's name and direction in `successMessage`, a no-op `onDone`, and disable the item while `isBusy`.
 - Update the `PlansHub` docblock: the hub is no longer a list of strict peers — the current plan is pinned.
+- Accepted side effect: `compareHref` (`model/plan-selection.ts:34-42`) lists the selection in row order, so a ticked current plan becomes the first comparison column. That is not a baseline: the comparison scores each plan alone, and the docblock already says "the order here is just the order the rows appear in". No change to `compareHref`.
 
 **File**: `src/_pages/plans-list/ui/DeletePlanDialog.tsx`
 
@@ -224,10 +230,10 @@ The two actions, the hub's row flag and pinning, the shared badge, the menu item
 - "markCurrentPlan returns the plan marked current".
 - "markCurrentPlan on a pending proposal throws CONFLICT with the pending message".
 - "markCurrentPlan on a missing plan throws NOT_FOUND 'Plan not found.'".
-- "unmarkCurrentPlan clears the marker on the plan that holds it".
+- "unmarkCurrentPlan clears the marker on the plan that holds it" — `{ retry: 2 }`, because a parallel file can move the marker between the mark and the unmark (Test isolation).
 - "unmarkCurrentPlan on a plan that is not current throws NOT_FOUND".
 - "deletePlan deletes the current plan (no refusal)".
-- "the hub loader returns isCurrent for each row" (assert the flag on the test's own plan right after marking it via the returned row path — not the ordering, which e2e covers).
+- "the hub loader returns isCurrent, current row first" — only race-free facts: a plan the test created and never marked reads `isCurrent: false`; at most one row reads `true`, and if one does it is row 0 (one query, one snapshot, so this holds whoever moved the marker).
 
 ### Success Criteria:
 
@@ -265,7 +271,7 @@ Carry the flag through `loadPlanSummary` to the sidebar and breadcrumb on every 
 
 **Intent**: Every plan-scoped route gets the flag with no extra query.
 
-**Contract**: `PlanSummary` gains `is_current: boolean` (row-shaped, like its siblings); the select adds `is_current`.
+**Contract**: `PlanSummary` gains `is_current: boolean` (row-shaped, like its siblings); the select adds `is_current`. The hand-built fixture in `src/shared/api/load-plan-summary.test.ts:8-14` gains `is_current: false`, or `pnpm check` fails.
 
 #### 2. Sidebar and breadcrumb
 
@@ -273,7 +279,7 @@ Carry the flag through `loadPlanSummary` to the sidebar and breadcrumb on every 
 
 **Intent**: Badge next to the plan name in the sidebar label (hidden when the sidebar is collapsed, like the label) and in the breadcrumb.
 
-**Contract**: The `plan` prop becomes `{ id: string; name: string; is_current?: boolean }` — matching `PlanSummary`, so the routes that pass the summary (`courses`, `students`, `teachers`, both perspective routes) need no edit. The `role="group"` `aria-label` stays `Plan: <name>`.
+**Contract**: The `plan` prop becomes `{ id: string; name: string; is_current?: boolean }` — matching `PlanSummary`, so the routes that pass the summary (`courses`, `students`, `teachers`, both perspective routes) need no edit. The `role="group"` `aria-label` stays `Plan: <name>`. The sidebar label is a `<p>` styled `truncate … uppercase` (`SidebarLayout.astro:110-114`). Wrap it in a flex row: the name stays truncated, and the badge sits outside the `<p>` with `shrink-0`, so a long name can't clip it and the uppercase style doesn't apply to it. The row keeps `collapsed:hidden`.
 
 #### 3. Board route and heading
 
@@ -281,13 +287,13 @@ Carry the flag through `loadPlanSummary` to the sidebar and breadcrumb on every 
 
 **Intent**: Pass the flag from `settled` (already loaded) to the layout and the board; the board's own loader stays untouched.
 
-**Contract**: The board branch passes `plan={{ id, name, is_current: settled.is_current }}` and `isCurrent={settled.is_current}` to `PlanDetailPage`. The pending branch needs nothing (a pending plan is never current).
+**Contract**: The board branch (`index.astro:125`) builds `plan` from the board loader's result (`result.value.shared.planId`, `result.value.planName`). It adds `is_current: settled.is_current`; `settled` is in scope and non-null there. It also passes `isCurrent={settled.is_current}` to `PlanDetailPage`. The pending branch (`:119`) needs nothing, because the layout prop's flag is optional and a pending plan is never current.
 
 **File**: `src/_pages/plan-detail/ui/PlanDetailPage.astro`, `PlannerBoard.tsx`, `chrome/PlanSummaryBar.tsx`, `chrome/BoardHeader.tsx`
 
 **Intent**: Thread `isCurrent` to both `BoardHeader` render sites (`PlannerBoard.tsx:235`, `PlanSummaryBar.tsx:44`) so the heading is identical across the empty → populated transition.
 
-**Contract**: `BoardHeader` gains `isCurrent: boolean` and renders `<CurrentPlanBadge />` after the `h1` when true.
+**Contract**: `PlanDetailPage.astro` adds `isCurrent` to its Props (`:9-20`) and passes it to the `<PlannerBoard client:load />` island (`:27-38`). `PlannerBoard` adds it to its local `Props` (`PlannerBoard.tsx:41-58`) and destructure (`:69-79`), not to `SharedBoardProps`, whose type `use-cohort-board-state.test.tsx` imports. `PlanSummaryBar` takes it through to its `BoardHeader`. `BoardHeader` gains `isCurrent: boolean` and renders `<CurrentPlanBadge />` after the `h1` when true.
 
 ### Success Criteria:
 
@@ -320,7 +326,7 @@ One Playwright spec walks the user flow; the roadmap records the decided unknown
 
 **File**: `e2e/specs/current-plan.spec.ts` (new); helpers in `e2e/support/planner.ts` only if they are reused
 
-**Intent**: The only spec that moves the marker, so `fullyParallel` locally cannot race it. Serial within the file. Assert only relative to the spec's own plans — a developer's local stack may already have a current plan.
+**Intent**: The only spec that moves the marker, so `fullyParallel` locally cannot race it. Serial within the file. Assert only relative to the spec's own plans — a developer's local stack may already have a current plan. Menu-item locators pass `exact: true`: Playwright matches names by substring by default, and "Unmark as current" contains "Mark as current".
 
 **Contract** — one serial flow:
 1. Create plans A and B (`createPlan`).
@@ -400,17 +406,17 @@ Additive only: a `not null default false` column (every existing row becomes not
 
 #### Automated
 
-- [ ] 1.1 Role matrix is red on the new cell before the migration
-- [ ] 1.2 Migration applies from scratch
-- [ ] 1.3 Role matrix is green after the migration
-- [ ] 1.4 Database-rule suite passes
-- [ ] 1.5 Types regenerated and type-check passes
-- [ ] 1.6 Lint and FSD
+- [x] 1.1 Role matrix is red on the new cell before the migration
+- [x] 1.2 Migration applies from scratch
+- [x] 1.3 Role matrix is green after the migration
+- [x] 1.4 Database-rule suite passes
+- [x] 1.5 Types regenerated and type-check passes
+- [x] 1.6 Lint and FSD
+- [x] 1.7 Only authenticated may execute `set_current_plan` (catalog check)
 
 #### Manual
 
-- [ ] 1.7 No plan is current on a freshly migrated local stack
-- [ ] 1.8 `set_current_plan` EXECUTE: anon false, authenticated true
+- [x] 1.8 No plan is current on a freshly migrated local stack
 
 ### Phase 2: Hub — mark, unmark, show
 

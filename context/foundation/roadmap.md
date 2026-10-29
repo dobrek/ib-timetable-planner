@@ -48,7 +48,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-401 | account-self-service         | change their own password and set a display name; passwords under 15 characters are refused           | —                  | FR-411, FR-413, §NFG (passwords ≥ 15)                                          | done |
 | S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | done |
 | S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | in-progress |
-| S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | planning |
+| S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | in-progress |
 | S-405 | viewer-read-only             | (viewer) read every plan and proposal, export and compare, with no edit affordances                    | S-403, S-404       | FR-409                                                                         | blocked  |
 | S-406 | users-page-roles             | (admin) list the school's users and change anyone's role; the last admin cannot be demoted             | S-403              | FR-405, FR-406, FR-408, FR-413, §NFG (access changes traceable)                | proposed |
 | S-407 | created-by-and-job-ownership | see who created each plan or proposal; only a job's requester or an admin can stop it                  | S-406              | FR-415, FR-416, FR-417                                                         | proposed |
@@ -184,7 +184,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Unknowns:**
   - What happens to the marker when the current plan is deleted, and whether a pending proposal can carry it. — Owner: plan phase. Block: no.
 - **Risk:** Small and independent, so it runs beside the first slices; it exists so the viewer slice (S-405) has something to label drafts and proposals against. The PRD accepts that any author can move the marker. If it lands before S-403, any signed-in user can move it (today everyone is an author); S-403's write rules then cover it.
-- **Status:** planning
+- **Status:** in-progress
 
 ### S-405: Viewer reads everything read-only
 

@@ -26,10 +26,10 @@ On `/plans`, the current plan is the top row with a "Current" badge. Authors mar
 | Where it's moved | Hub row menu only | Matches Clone/Rename/Delete; keeps the board header uncluttered. | Plan |
 | Hub order | Current pinned first, the rest by name | Which plan is current answers itself at a glance. | Plan |
 | Storage | `plans.is_current` + global partial unique index + CHECK | The database enforces both rules, with no new table or matrix obligations. | Research + Plan |
-| Moving the marker | One atomic INVOKER RPC `set_current_plan` | Two updates could leave zero current when the second fails. | Plan |
+| Moving the marker | One atomic INVOKER RPC `set_current_plan`, serialized by an advisory lock | Two updates could leave zero current when the second fails; the lock stops two movers racing into the unique index. | Plan + review |
 | "Last updated" | Unchanged by marker moves (trigger `WHEN` via `CREATE OR REPLACE TRIGGER`) | Keeps the column meaning "someone changed this plan", without a `DROP`. | Plan |
 | Viewer affordance | Shown, refused with FORBIDDEN | Gating every edit affordance is S-405's sweep. | Research |
-| Concurrent / stale movers | Last write wins; a true race gets CONFLICT | The PRD accepted "any author can move the marker". | PRD |
+| Concurrent / stale movers | Last write wins, even for a true race (the lock makes the second mover wait, then win) | The PRD accepted "any author can move the marker", and a race that fails would only make parallel test files flaky. | PRD + review |
 
 ## Scope
 
@@ -63,7 +63,7 @@ The database owns the invariants: a partial unique index (one `true`) and `CHECK
 
 ## Open Risks & Assumptions
 
-- The role matrix's allowed probes mark a fresh plan current while other suites run, so marker tests must assert on returned rows and invariants only. All of them live in one file.
+- The role matrix's allowed probes mark a fresh plan current while other suites run, so marker tests, the matrix probe included, assert on returned rows and on facts no other file can change. The one case that needs the marker to stay put between two calls retries.
 - The trigger's `WHEN` skips the date bump for any update that changes `is_current`. That's safe only while no path changes `is_current` together with another column; the migration comment records this.
 - Viewers see Mark/Unmark until S-405 hides it; they get a FORBIDDEN toast.
 

@@ -27,6 +27,7 @@ import {
 import { decodeAccessClaims, type AccessClaims } from "./access-claims";
 import {
   classifyCall,
+  classifyWrite,
   probeRead,
   probeUserRowRead,
   probeWrite,
@@ -257,12 +258,13 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
     expect(rows).toEqual([{ config: ['search_path=""'], owner_bypasses_rls: true }]);
   });
 
-  it("catalog: only authenticated may execute the private helpers and own_app_role, never anon or PUBLIC", async () => {
+  it("catalog: only authenticated may execute the private helpers, own_app_role and set_current_plan, never anon or PUBLIC", async () => {
     expect(await roleFunctionExecutors(pg)).toEqual({
       "private.can_edit()": ["authenticated"],
       "private.can_read()": ["authenticated"],
       "private.current_app_role()": ["authenticated"],
       "public.own_app_role()": ["authenticated"],
+      "public.set_current_plan(p_plan_id uuid)": ["authenticated"],
     });
   });
 
@@ -486,8 +488,11 @@ const privateFunctionSecurity = async (pg: Client): Promise<Record<string, Funct
 };
 
 /**
- * Which of anon, authenticated and PUBLIC may execute each function in `private`, and the app's
- * role read. Postgres gives PUBLIC EXECUTE on every new function, so a missed revoke shows up here.
+ * Which of anon, authenticated and PUBLIC may execute each function in `private`, the app's role
+ * read, and the current-plan move. Postgres gives PUBLIC EXECUTE on every new function, so a missed
+ * revoke shows up here. The `RPCS` anon cell cannot catch one for `set_current_plan`: run as anon,
+ * an INVOKER function meets only `to authenticated` policies, sees no row and returns empty, which
+ * reads "denied" either way. A function that is gone shows up as a missing key.
  */
 const roleFunctionExecutors = async (pg: Client): Promise<Record<string, string[]>> => {
   const { rows } = await pg.query<{ signature: string; executors: string[] }>(
@@ -496,7 +501,8 @@ const roleFunctionExecutors = async (pg: Client): Promise<Record<string, string[
                    where has_function_privilege(r, p.oid, 'EXECUTE') order by r) as executors
        from pg_proc p
        join pg_namespace n on n.oid = p.pronamespace
-      where n.nspname = 'private' or p.oid = 'public.own_app_role()'::regprocedure`,
+      where n.nspname = 'private'
+         or p.oid = any (array[to_regprocedure('public.own_app_role()'), to_regprocedure('public.set_current_plan(uuid)')])`,
   );
   return Object.fromEntries(rows.map(({ signature, executors }) => [signature, executors]));
 };
@@ -512,6 +518,7 @@ const RPC_PROBES: Record<Rpc, RpcProbe> = {
   // A read: there is no effect to read back, so the call's own answer is the outcome. What it
   // answers is checked per principal, against `HELD_ROLES`.
   own_app_role: async (_admin, client) => classifyCall((await client.rpc("own_app_role")).error),
+  set_current_plan: (admin, client) => setCurrentProbe(admin, client),
 };
 
 /** Builds one write cell's target with the service role, and returns the attempt and its read-back. */
@@ -834,6 +841,25 @@ const cloneProbe = (admin: SupabaseClient, client: SupabaseClient, planId: strin
     // Anchored to this cell's own source, so a wrong or deleted plan id throws instead of reading as "denied".
     deniedWhen: new RegExp(`^clone_plan: source plan ${planId} not found$`),
   };
+};
+
+/**
+ * `set_current_plan` on a fresh plan. An allowed principal really moves the one current-plan marker
+ * there, on purpose: that is the write under test, and it is safe because no suite asserts which
+ * plan is current at a given moment (`current-plan.integration.test.ts`'s isolation rules). For the
+ * same reason the RPC's own answer is the first evidence: a parallel file may move the marker
+ * between the call and a read-back, which would turn an allowed cell into "denied". The read-back
+ * is only the fallback, for a call that returned no marked row. A denied principal never gets one
+ * back: a viewer's write fails WITH CHECK (42501), anon holds no EXECUTE (42501), and a user without
+ * a role sees no plan, so nothing is returned.
+ */
+const setCurrentProbe = async (admin: SupabaseClient, client: SupabaseClient): Promise<AccessOutcome> => {
+  const planId = await createPlan(admin);
+  const { data, error } = await client.rpc("set_current_plan", { p_plan_id: planId });
+  const returnedMarked = (data ?? []).some((row) => row.id === planId && row.is_current);
+  const effectObserved =
+    returnedMarked || readBack(await admin.from("plans").select("is_current").eq("id", planId).single()).is_current;
+  return classifyWrite({ error, effectObserved });
 };
 
 /**

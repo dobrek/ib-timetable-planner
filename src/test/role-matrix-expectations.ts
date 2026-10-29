@@ -54,8 +54,11 @@ export type RowOwner = "own" | "others";
 /** A profile has no DELETE cell: `GRANTS.profiles` holds no DELETE, which the catalog check proves. */
 export type ProfileWriteOperation = "insert" | "update";
 
-/** `clone_plan` writes; `own_app_role` only answers the caller's own role (the app's role read). */
-export type Rpc = "clone_plan" | "own_app_role";
+/**
+ * `clone_plan` and `set_current_plan` write; `own_app_role` only answers the caller's own role (the
+ * app's role read). `set_current_plan` moves the one current-plan marker (S-404).
+ */
+export type Rpc = "clone_plan" | "own_app_role" | "set_current_plan";
 
 /** A principal writing its own `user_roles` row (see `SELF_GRANTS`). */
 export type SelfGrant = "claim admin" | "drop own role";
@@ -209,6 +212,7 @@ export const SELF_GRANT_EVIDENCE: Record<SelfGrant, AccessOutcome> = {
 export const RPCS: Record<Rpc, Cell> = {
   clone_plan: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
   own_app_role: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+  set_current_plan: { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
 };
 
 /** A policy's command, as `pg_policies.cmd` spells it. */

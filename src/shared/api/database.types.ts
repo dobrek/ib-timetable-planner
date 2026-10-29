@@ -491,6 +491,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_current: boolean
           name: string
           pending_proposal: boolean
           slot_grid_preset: string
@@ -499,6 +500,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_current?: boolean
           name: string
           pending_proposal?: boolean
           slot_grid_preset: string
@@ -507,6 +509,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_current?: boolean
           name?: string
           pending_proposal?: boolean
           slot_grid_preset?: string
@@ -920,6 +923,24 @@ export type Database = {
       replace_course_teachers: {
         Args: { p_course_id: string; p_plan_id: string; p_teacher_ids: Json }
         Returns: undefined
+      }
+      set_current_plan: {
+        Args: { p_plan_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_current: boolean
+          name: string
+          pending_proposal: boolean
+          slot_grid_preset: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "plans"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       shelve_bundle: {
         Args: {

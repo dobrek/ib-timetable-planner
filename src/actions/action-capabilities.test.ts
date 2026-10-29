@@ -11,8 +11,9 @@ import type { AccessState, Capability } from "@/shared/config";
 // `createClient` throws a sentinel, so "the guard let it through" is observable without a database:
 // the handler reaches `requireSupabase` only after `requireSession` and `requireCapability` passed.
 //
-// Composed from the slice barrels, as `src/actions/index.ts` composes them — but not from that file,
-// which reads `astro:env/server` for the solver transport. The generation actions get a stub one.
+// It walks `server` from the composition root itself, so an action group wired there can never escape
+// the matrix. `astro:env/server` is aliased in vitest.config.ts; the solver transport's other source,
+// `cloudflare:workers`, exists only inside workerd, so `solver-config` is replaced with a null one.
 const { ReachedClient } = vi.hoisted(() => ({ ReachedClient: class ReachedClient extends Error {} }));
 vi.mock("@/shared/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/shared/api")>();
@@ -23,26 +24,10 @@ vi.mock("@/shared/api", async (importOriginal) => {
     },
   };
 });
+vi.mock("@/entities/timetable/api/solver-config", () => ({ getSolverTransport: () => null }));
 
-const { accountActions } = await import("@/_pages/account/api");
-const { courseActions } = await import("@/_pages/courses/api");
-const { teacherActions } = await import("@/_pages/teachers/api");
-const { studentActions } = await import("@/_pages/students/api");
-const { createGenerationActions, groupingActions, placementActions, shelfActions } =
-  await import("@/_pages/plan-detail/api");
-const { planActions } = await import("@/_pages/plans-list/api");
-
-const ACTIONS: Record<string, unknown> = {
-  ...accountActions,
-  ...courseActions,
-  ...teacherActions,
-  ...studentActions,
-  ...placementActions,
-  ...shelfActions,
-  ...groupingActions,
-  ...planActions,
-  ...createGenerationActions({ getTransport: () => null }),
-};
+const { server } = await import("@/actions");
+const ACTIONS: Record<string, unknown> = server;
 
 // The only actions that declare less than the `edit` default. Everything else must refuse a viewer.
 const NON_EDIT: Record<string, Capability> = {

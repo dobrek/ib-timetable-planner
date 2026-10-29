@@ -77,5 +77,15 @@ const { error: updateError } = await supabase.auth.admin.updateUserById(userId, 
 });
 if (updateError) fail(`Failed to rotate ${email}: ${updateError.message}`);
 
-process.stderr.write(`[provision-solver-user] Rotated ${email} (password + machine_role re-asserted).\n`);
+// A machine user never holds a human role (S-403). An existing account turned into one here drops any
+// role row it held as a human, so a misfiring token hook leaves it no data rather than its old access.
+const { data: dropped, error: roleError } = await supabase
+  .from("user_roles")
+  .delete()
+  .eq("user_id", userId)
+  .select("role");
+if (roleError) fail(`Failed to clear ${email}'s human role: ${roleError.message}`);
+const cleared = dropped.length > 0 ? `; human role ${dropped[0].role} removed` : "";
+
+process.stderr.write(`[provision-solver-user] Rotated ${email} (password + machine_role re-asserted${cleared}).\n`);
 process.exit(0);

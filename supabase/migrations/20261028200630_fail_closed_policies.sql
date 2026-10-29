@@ -135,8 +135,10 @@ create policy "Users read their own profile, readers every profile" on public.pr
 -- Post-conditions. Any failure aborts the whole file, with nothing applied and nothing recorded.
 do $$
 declare
-  open_policies     text[];
-  unreadable_tables text[];
+  open_policies       text[];
+  unreadable_tables   text[];
+  unprotected_tables  text[];
+  unexpected_policies text[];
 begin
   -- No policy a session can fall under keeps a literal `true`. The solver's policies are scoped
   -- `to solver_job_writer`, which no human session holds, so they are out of scope here.
@@ -171,6 +173,47 @@ begin
      );
   if unreadable_tables is not null then
     raise exception 'fail_closed_policies: no SELECT policy reads can_read() on %', unreadable_tables;
+  end if;
+
+  -- Every `public` table has RLS on. Without it the default grants open the table to every
+  -- signed-in session, and none of the checks above would see it.
+  select array_agg(c.relname::text order by c.relname)
+    into unprotected_tables
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relkind in ('r', 'p')
+     and not c.relrowsecurity;
+  if unprotected_tables is not null then
+    raise exception 'fail_closed_policies: RLS is off on %', unprotected_tables;
+  end if;
+
+  -- A session falls under exactly the policies this file means, and no other. Permissive policies
+  -- are OR'd, so one left over on hosted with a condition other than a literal `true` (e.g.
+  -- `auth.uid() is not null`) would keep its table open to every session. The plan-scoped tables
+  -- hold the four this file created, by name. `profiles` and `user_roles` keep own-row policies
+  -- whose names this series does not control, so they are held to their commands.
+  select array_agg(format('%s: %s', live.tablename, live.held) order by live.tablename)
+    into unexpected_policies
+    from (
+      select p.tablename,
+             array_agg(
+               case when p.tablename in ('profiles', 'user_roles') then p.cmd else p.cmd || ' ' || p.policyname end
+               order by p.cmd, p.policyname
+             ) as held
+        from pg_policies p
+       where p.schemaname = 'public'
+         and p.roles && array['authenticated', 'public']::name[]
+       group by p.tablename
+    ) live
+   where live.held is distinct from case live.tablename
+           when 'profiles'   then array['INSERT', 'SELECT', 'UPDATE']
+           when 'user_roles' then array['SELECT']
+           else array['DELETE Editors delete rows', 'INSERT Editors insert rows',
+                      'SELECT Readers read every row', 'UPDATE Editors update rows']
+         end;
+  if unexpected_policies is not null then
+    raise exception 'fail_closed_policies: policies other than the intended ones: %', unexpected_policies;
   end if;
 end;
 $$;

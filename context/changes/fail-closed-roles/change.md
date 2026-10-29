@@ -1,9 +1,9 @@
 ---
 change_id: fail-closed-roles
 title: S-403 fail-closed roles: authors keep access, role-less users see no access
-status: implemented
+status: impl_reviewed
 created: 2026-10-28
-updated: 2026-10-28
+updated: 2026-10-29
 archived_at: null
 ---
 
@@ -14,6 +14,8 @@ as taks S-403 from roadmap
 ## Implementation decisions
 
 - **2026-10-28 — the access model lives in `src/shared/config/`, not `src/shared/lib/access/`.** `src/shared/lib/` already holds 15 top-level modules, and steiger's `fsd/shared-lib-grouping` (threshold 15, a CI gate under `--fail-on-warnings`) fails at 16. The `extract-share-polling-store` precedent says to surface this rather than regroup drive-by, and relaxing the gate is out. `shared/config/cohorts.ts` is the precedent for a generated-enum projection with small pure helpers beside it, and `nav.ts`, which Phase 4 makes capability-aware, already lives there. So `AppRole` (Phase 1) and Phase 4's `capability.ts`, `access-state.ts`, `resolve-access.ts` and `role-gate.ts` are flat files in `shared/config/`, exported through `@/shared/config`. Only the location changes; the plan's contracts stand.
+- **2026-10-29 — the capability-map test walks `server` from `@/actions`, not the slice barrels (impl-review F2).** Phase 4 said to compose it from the slice barrels because `src/actions/index.ts` reads `astro:env/server`. But `vitest.config.ts` already aliases that module, and the only blocker left is `cloudflare:workers` in `solver-config.ts`. A `vi.mock` that hands back a null transport removes it. Iterating the composition root means a new action group can no longer escape the "only four non-edit actions" assertion.
+- **2026-10-29 — migration 2 asserts that its policies are the only ones (impl-review F1).** It still applies on hosted, so two post-conditions were added before PR 2 merges: every `public` table has RLS on, and every table holds exactly its intended policies (the four capability policies by name; `profiles` and `user_roles` by command). Before this, a leftover permissive hosted policy whose condition was not a literal `true` would have passed every check.
 
 ## Deny drill
 

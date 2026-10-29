@@ -332,12 +332,12 @@ The matrix signs in `viewer`, `author` and `admin` alongside `anon` and `noRole`
 
 #### Manual Verification:
 
-- [ ] Before merging PR 1, read-only in the hosted SQL editor: the expected backfill set (`select email, raw_app_meta_data->>'machine_role' from auth.users`), and no solve running
-- [ ] PR 1 opened, CI green, squash-merged; `deploy` green
+- [x] Before merging PR 1, read-only in the hosted SQL editor: the expected backfill set (`select email, raw_app_meta_data->>'machine_role' from auth.users`), and no solve running
+- [x] PR 1 opened, CI green, squash-merged; `deploy` green
 - [ ] After deploy, read-only on hosted: every human holds `author`, the solver machine user holds no row, and hosted's exposed schemas (Dashboard → Data API settings) do not include `private`
-- [ ] Developer promoted: `ASSIGN_ROLE_CONFIRM=yes node scripts/assign-role.mjs <developer email> admin` with the hosted URL and secret key in a human shell; re-query shows `admin`
-- [ ] Stale or test accounts reviewed, and any that should lose access set to `none`
-- [ ] Hosted app unchanged for an author: sign in, edit a plan, open a board
+- [x] Developer promoted: `ASSIGN_ROLE_CONFIRM=yes node scripts/assign-role.mjs <developer email> admin` with the hosted URL and secret key in a human shell; re-query shows `admin`
+- [x] Stale or test accounts reviewed, and any that should lose access set to `none`
+- [x] Hosted app unchanged for an author: sign in, edit a plan, open a board
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase. **PR boundary**: Phases 1–2 are PR 1. Phase 3 starts on a fresh branch from the updated `main`.
 
@@ -652,7 +652,7 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Manual Verification:
 
-- [ ] PR 2 pre-merge, read-only on hosted: no solve running; list humans with no role row (`select u.email from auth.users u left join public.user_roles r on r.user_id = u.id where r.user_id is null and u.raw_app_meta_data->>'machine_role' is null`), and assign or deliberately confirm `none` for each
+- [ ] PR 2 pre-merge, read-only on hosted: no solve running, and merge in a quiet window. Migration 2 locks 17 tables: `lock_timeout` caps the wait, but not a deadlock with a concurrent `clone_plan` or placement write, which Postgres resolves by aborting one side. List humans with no role row (`select u.email from auth.users u left join public.user_roles r on r.user_id = u.id where r.user_id is null and u.raw_app_meta_data->>'machine_role' is null`), and assign or deliberately confirm `none` for each
 - [ ] PR 2 opened with the hosted checklist in its description, CI green, squash-merged; `deploy` green
 - [ ] After deploy, on hosted as an author (and as the admin developer): edit a plan, Generate → solve → proposal → delivery lands on the board
 - [ ] The role-less path on hosted, only if a deliberately role-less account already exists: it sees only the notice and its account. Never create a hosted user for this
@@ -753,12 +753,12 @@ Fix every doc PR 2 makes false, record the role rules in CLAUDE.md, do the roadm
 
 #### Manual
 
-- [ ] 2.9 Pre-merge hosted read-only check: backfill set, no solve running
-- [ ] 2.10 PR 1 merged; `deploy` green
+- [x] 2.9 Pre-merge hosted read-only check: backfill set, no solve running — user-confirmed 2026-10-29
+- [x] 2.10 PR 1 merged; `deploy` green — #166, user-confirmed 2026-10-29
 - [ ] 2.11 Hosted: every human holds `author`, solver user holds no row, `private` not exposed
-- [ ] 2.12 Developer promoted to `admin` on hosted
-- [ ] 2.13 Stale or test accounts reviewed and set to `none` where intended
-- [ ] 2.14 Hosted app unchanged for an author
+- [x] 2.12 Developer promoted to `admin` on hosted — user-confirmed 2026-10-29
+- [x] 2.13 Stale or test accounts reviewed and set to `none` where intended — user-confirmed 2026-10-29
+- [x] 2.14 Hosted app unchanged for an author — user-confirmed 2026-10-29
 
 ### Phase 3: The Flip
 

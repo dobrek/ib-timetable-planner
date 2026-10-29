@@ -232,6 +232,20 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
     expect(await privateFunctionSecurity(pg)).toEqual(PRIVATE_FUNCTIONS);
   });
 
+  it("catalog: current_app_role is the only SECURITY DEFINER function in the schemas this repo owns", async () => {
+    const { rows } = await pg.query<{ signature: string }>(
+      `select ${QUALIFIED_SIGNATURE} as signature
+         from pg_proc p
+         join pg_namespace n on n.oid = p.pronamespace
+        where p.prosecdef
+          and n.nspname in ('public', 'private')
+        order by 1`,
+    );
+    // CLAUDE.md's recorded exception covers one function. A second needs its reason in its migration
+    // and the plan that introduces it, and then a place here.
+    expect(rows.map(({ signature }) => signature)).toEqual(["private.current_app_role()"]);
+  });
+
   it("catalog: current_app_role pins an empty search_path, and its owner bypasses RLS", async () => {
     const { rows } = await pg.query<{ config: string[] | null; owner_bypasses_rls: boolean }>(
       `select p.proconfig as config, o.rolbypassrls as owner_bypasses_rls

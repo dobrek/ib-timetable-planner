@@ -27,6 +27,14 @@ export const deletePlanInput = z.object({
   id: z.uuid(),
 });
 
+export const markCurrentPlanInput = z.object({
+  id: z.uuid(),
+});
+
+export const unmarkCurrentPlanInput = z.object({
+  id: z.uuid(),
+});
+
 /**
  * The hub's status poll. Both lists are optional and both default to empty, because the two serve
  * different moments: `jobIds` refreshes jobs the tab already knows about, `planIds` discovers one
@@ -49,4 +57,6 @@ export type CreatePlanInput = z.output<typeof createPlanInput>;
 export type ClonePlanInput = z.output<typeof clonePlanInput>;
 export type RenamePlanInput = z.output<typeof renamePlanInput>;
 export type DeletePlanInput = z.infer<typeof deletePlanInput>;
+export type MarkCurrentPlanInput = z.infer<typeof markCurrentPlanInput>;
+export type UnmarkCurrentPlanInput = z.infer<typeof unmarkCurrentPlanInput>;
 export type ReadGenerationJobStatusesInput = z.output<typeof readGenerationJobStatusesInput>;

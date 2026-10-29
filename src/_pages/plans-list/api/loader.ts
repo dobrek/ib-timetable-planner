@@ -8,6 +8,9 @@ import { surfacedJobsFor } from "./generation-status";
  * complete / used slots) — still explicitly deferred, because each of those means
  * computing a board per plan on every page load.
  *
+ * `isCurrent` is the one exception to the rows being peers (S-404, FR-420): at most one plan is
+ * current, and the loader pins it first, so it is never cut off by the page limit.
+ *
  * `indicators` is not an exception to that rule; it is what the rule leaves room for.
  * The generation indicator READS a durable, indexed row rather than deriving anything,
  * so it costs one query for the whole page however many plans there are.
@@ -18,6 +21,8 @@ export type PlanRow = {
   slotGridPreset: string;
   /** ISO timestamp of the plans row's last update. */
   updatedAt: string;
+  /** The plan the school is using. True on at most one row, which is always the first. */
+  isCurrent: boolean;
   counts: PlanCounts;
   /** Live-ish activity on this plan, SSR'd. At most one entry today. */
   indicators: PlanIndicator[];
@@ -39,7 +44,13 @@ export const loadPlans = async (supabase: SupabaseClient | null): Promise<PlansR
 
 const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
   const rows = unwrapMany(
-    await client.from("plans").select("id, name, slot_grid_preset, updated_at").order("name").limit(200),
+    await client
+      .from("plans")
+      .select("id, name, slot_grid_preset, updated_at, is_current")
+      // Current first, server-side, so the 200-row limit can never cut it off; the rest by name.
+      .order("is_current", { ascending: false })
+      .order("name")
+      .limit(200),
     "Plans lookup failed",
   );
 
@@ -59,6 +70,7 @@ const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
       name: row.name,
       slotGridPreset: row.slot_grid_preset,
       updatedAt: row.updated_at,
+      isCurrent: row.is_current,
       counts: await fetchCounts(client, row.id),
       indicators: indicatorsOn(surfaced, row.id),
     })),

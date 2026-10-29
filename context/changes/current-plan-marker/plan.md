@@ -406,35 +406,35 @@ Additive only: a `not null default false` column (every existing row becomes not
 
 #### Automated
 
-- [x] 1.1 Role matrix is red on the new cell before the migration
-- [x] 1.2 Migration applies from scratch
-- [x] 1.3 Role matrix is green after the migration
-- [x] 1.4 Database-rule suite passes
-- [x] 1.5 Types regenerated and type-check passes
-- [x] 1.6 Lint and FSD
-- [x] 1.7 Only authenticated may execute `set_current_plan` (catalog check)
+- [x] 1.1 Role matrix is red on the new cell before the migration — 8361b4b
+- [x] 1.2 Migration applies from scratch — 8361b4b
+- [x] 1.3 Role matrix is green after the migration — 8361b4b
+- [x] 1.4 Database-rule suite passes — 8361b4b
+- [x] 1.5 Types regenerated and type-check passes — 8361b4b
+- [x] 1.6 Lint and FSD — 8361b4b
+- [x] 1.7 Only authenticated may execute `set_current_plan` (catalog check) — 8361b4b
 
 #### Manual
 
-- [x] 1.8 No plan is current on a freshly migrated local stack
+- [x] 1.8 No plan is current on a freshly migrated local stack — 8361b4b
 
 ### Phase 2: Hub — mark, unmark, show
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass (schemas, action capabilities)
-- [ ] 2.2 Marker suite passes
-- [ ] 2.3 Existing hub suites still pass
-- [ ] 2.4 Type-check
-- [ ] 2.5 Lint and FSD
-- [ ] 2.6 Build stays clean
+- [x] 2.1 Unit tests pass (schemas, action capabilities)
+- [x] 2.2 Marker suite passes
+- [x] 2.3 Existing hub suites still pass
+- [x] 2.4 Type-check
+- [x] 2.5 Lint and FSD
+- [x] 2.6 Build stays clean
 
 #### Manual
 
-- [ ] 2.7 Mark, move and unmark on the hub; pinning and badge; "Last updated" unchanged
-- [ ] 2.8 Marking a pending proposal shows the pending CONFLICT toast
-- [ ] 2.9 Delete dialog warns for the current plan; delete succeeds
-- [ ] 2.10 Viewer sees the badge; Mark refused with FORBIDDEN
+- [x] 2.7 Mark, move and unmark on the hub; pinning and badge; "Last updated" unchanged
+- [x] 2.8 Marking a pending proposal shows the pending CONFLICT toast
+- [x] 2.9 Delete dialog warns for the current plan; delete succeeds
+- [x] 2.10 Viewer sees the badge; Mark refused with FORBIDDEN
 
 ### Phase 3: The plan itself — board heading, sidebar, breadcrumb
 

@@ -15,6 +15,7 @@ export {
 export { Badge, badgeVariants } from "./badge";
 export { Button, buttonVariants } from "./button";
 export { Checkbox } from "./checkbox";
+export { CurrentPlanBadge } from "./current-plan-badge";
 export {
   Command,
   CommandDialog,

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { clonePlanInput, createPlanInput, deletePlanInput, renamePlanInput } from "./schemas";
+import {
+  clonePlanInput,
+  createPlanInput,
+  deletePlanInput,
+  markCurrentPlanInput,
+  renamePlanInput,
+  unmarkCurrentPlanInput,
+} from "./schemas";
 
 const UUID_A = "11111111-1111-4111-8111-111111111111";
 
@@ -55,5 +62,25 @@ describe("deletePlanInput", () => {
 
   it("rejects a non-uuid id", () => {
     expect(deletePlanInput.safeParse({ id: "nope" }).success).toBe(false);
+  });
+});
+
+describe("markCurrentPlanInput", () => {
+  it("accepts a uuid id", () => {
+    expect(markCurrentPlanInput.safeParse({ id: UUID_A }).success).toBe(true);
+  });
+
+  it("rejects a non-uuid id", () => {
+    expect(markCurrentPlanInput.safeParse({ id: "nope" }).success).toBe(false);
+  });
+});
+
+describe("unmarkCurrentPlanInput", () => {
+  it("accepts a uuid id", () => {
+    expect(unmarkCurrentPlanInput.safeParse({ id: UUID_A }).success).toBe(true);
+  });
+
+  it("rejects a non-uuid id", () => {
+    expect(unmarkCurrentPlanInput.safeParse({ id: "nope" }).success).toBe(false);
   });
 });

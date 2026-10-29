@@ -1,9 +1,11 @@
-import { Copy, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, MoreHorizontal, Pencil, Plus, Star, StarOff, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useConfirmAction } from "@/shared/lib/forms";
 import {
   Button,
   Checkbox,
+  CurrentPlanBadge,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -17,6 +19,7 @@ import {
   Toaster,
 } from "@/shared/ui";
 import type { PlanRow } from "../api/loader";
+import { markCurrentPlan, unmarkCurrentPlan } from "../api/plans-client";
 import type { IndicatorsByPlan } from "../model/job-progress-store";
 import { useGenerationIndicators } from "../model/use-generation-indicators";
 import { indicatorsForRow } from "../model/row-indicators";
@@ -34,7 +37,11 @@ type Props = {
 
 /**
  * The application hub: every plan is a complete scenario (catalog + board), listed
- * with create-blank, clone (the primary creation path), rename, and delete.
+ * with create-blank, clone (the primary creation path), rename, delete, and mark as current.
+ *
+ * The rows are peers but for one: the **current** plan (S-404, FR-420), the one the school is using.
+ * At most one plan is current; the loader pins it first and it carries a badge beside its name, so
+ * which plan is current answers itself at a glance. Any author moves the marker from a row's menu.
  *
  * Still no derived metrics *per row* — a plan is not scored in isolation. Comparison is inherently
  * multi-plan, so it is driven by **ticking rows here** and pressing Compare, not by a picker on the
@@ -150,9 +157,13 @@ export default function PlansHub({ plans }: Props) {
                       />
                     </TableCell>
                     <TableCell>
-                      <a href={`/plans/${plan.id}`} className="text-foreground font-medium hover:underline">
-                        {plan.name}
-                      </a>
+                      {/* The badge sits outside the link, so the link's accessible name stays the plan's name. */}
+                      <div className="flex items-center gap-2">
+                        <a href={`/plans/${plan.id}`} className="text-foreground font-medium hover:underline">
+                          {plan.name}
+                        </a>
+                        {plan.isCurrent && <CurrentPlanBadge />}
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{plan.slotGridPreset}</TableCell>
                     <TableCell className="text-muted-foreground">{plan.updatedAt.slice(0, 10)}</TableCell>
@@ -241,6 +252,18 @@ function PlanRowActions({
   onRename: (plan: PlanRow) => void;
   onDelete: (plan: PlanRow) => void;
 }) {
+  // One click, no dialog. Called here rather than in the menu content, because this component stays
+  // mounted when the menu closes, so the hook's mounted-check never skips the toast and the refresh.
+  const { confirm: toggleCurrent, isBusy } = useConfirmAction(
+    () => (plan.isCurrent ? unmarkCurrentPlan({ id: plan.id }) : markCurrentPlan({ id: plan.id })),
+    {
+      successMessage: plan.isCurrent
+        ? `"${plan.name}" is no longer the current plan`
+        : `"${plan.name}" is now the current plan`,
+      onDone: () => undefined,
+    },
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -264,6 +287,15 @@ function PlanRowActions({
         >
           <Pencil aria-hidden="true" />
           Rename
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={isBusy}
+          onSelect={() => {
+            void toggleCurrent();
+          }}
+        >
+          {plan.isCurrent ? <StarOff aria-hidden="true" /> : <Star aria-hidden="true" />}
+          {plan.isCurrent ? "Unmark as current" : "Mark as current"}
         </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"

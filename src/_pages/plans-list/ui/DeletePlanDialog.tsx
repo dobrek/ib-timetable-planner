@@ -21,6 +21,9 @@ type Props = {
 /**
  * Confirms the catastrophic-by-design delete: a plan cascade removes the entire
  * scenario, so the dialog names the blast radius with real entity counts.
+ *
+ * Deleting the current plan is allowed (S-404: zero current is legal), but the author is told the
+ * consequence, since every viewer loses "the current plan" with it.
  */
 export default function DeletePlanDialog({ plan, onClose }: Props) {
   const { confirm, isBusy } = useConfirmAction(() => deletePlan({ id: plan?.id ?? "" }), {
@@ -42,6 +45,9 @@ export default function DeletePlanDialog({ plan, onClose }: Props) {
             This permanently removes the whole scenario —{" "}
             <span className="text-foreground font-medium">{countsSummary(plan)}</span> — along with its teachers,
             choices, dependencies, and groupings. This cannot be undone.
+            {plan?.isCurrent && (
+              <> This is the current plan. After you delete it, no plan is current until someone marks another.</>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

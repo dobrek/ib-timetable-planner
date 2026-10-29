@@ -18,9 +18,10 @@ import { createPlanInput } from "../model/schemas";
 // barrel (unwrapRow, types) passes through untouched.
 //
 // Scope note — CONFLICT is intentionally absent: `plans.name` has no unique
-// constraint and no plans-list domain fn maps a `conflict` message (only the
-// courses/teachers slices do), so a real CONFLICT is unreachable through any
-// plans-list action. Its 1:1 translation (CONFLICT → ActionError(CONFLICT)) is
+// constraint, and the one plans-list domain fn that maps a `conflict` message
+// (`markCurrentPlan`) does so only as a defence — `set_current_plan`'s advisory
+// lock serialises movers, so its 23505 never fires — so a real CONFLICT is
+// unreachable through any plans-list action. Its 1:1 translation (CONFLICT → ActionError(CONFLICT)) is
 // already unit-covered in define-domain-action.test.ts, and toDomainError's
 // 23505→CONFLICT branch in unwrap/to-domain-error tests — manufacturing it through a
 // cross-slice action here would only duplicate that, and break FSD slice isolation.

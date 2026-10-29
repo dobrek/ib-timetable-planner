@@ -14,7 +14,7 @@ type Props = {
    * When set, the sidebar renders the plan's scenario-local sub-nav + breadcrumb. `is_current` (S-404)
    * adds the "Current" badge to both; its shape matches `PlanSummary`, so a route can pass the summary.
    */
-  plan?: { id: string; name: string; is_current?: boolean };
+  plan?: { id: string; name: string; is_current: boolean };
   /** Full-bleed content mode: no centered max-w wrapper, no breadcrumb (e.g. the planner board). */
   fullWidth?: boolean;
 };

@@ -89,6 +89,8 @@ Add the column, its two invariants, the narrowed trigger and the RPC; state the 
 
 **Contract**: `RPC_PROBES.set_current_plan` creates a fresh plan with the service role (`createPlan(admin)`, which registers it for teardown) and calls `client.rpc("set_current_plan", { p_plan_id })` as the principal through `probeWrite`. Its `attempt` keeps the returned rows, as `cloneProbe` does (`role-matrix.integration.test.ts:820-836`). Its `effectLanded` is true when the RPC returned the target with `is_current = true`; only otherwise does it fall back to reading `is_current` with the service role. A parallel file may move the marker between the call and that read, so the read alone would turn an allowed cell into "denied". A denied principal never gets a row back: a viewer raises 42501, a no-role user and anon get zero rows or 42501. A comment notes that the allowed probe moves the global marker on purpose, and why that is safe (Critical Implementation Details → Test isolation).
 
+> **As built (impl-review F4, accepted):** the probe calls `classifyWrite` itself rather than going through `probeWrite`. `probeWrite` discards `attempt()`'s result, so the `WriteAttempt` shape could hand the returned rows to `effectLanded` only through mutable closure state. Behaviour is as specified: the returned row is the first evidence, the service-role read only the fallback.
+
 Also extend the grant catalog check `roleFunctionExecutors` (`role-matrix.integration.test.ts:260-267`, query at `:493-504`). Widen its `where` to take in `public.set_current_plan(uuid)`, expect `["authenticated"]`, and rename the `it` to name the new function. The `RPCS` anon cell cannot catch a missing `revoke … from anon`: an INVOKER function run as anon meets only `to authenticated` policies, sees no row and returns empty, which reads "denied" either way. Only the catalog proves the grant (lessons: "Granting a role is not excluding the others").
 
 #### 2. Migration
@@ -280,6 +282,8 @@ Carry the flag through `loadPlanSummary` to the sidebar and breadcrumb on every 
 **Intent**: Badge next to the plan name in the sidebar label (hidden when the sidebar is collapsed, like the label) and in the breadcrumb.
 
 **Contract**: The `plan` prop becomes `{ id: string; name: string; is_current?: boolean }` — matching `PlanSummary`, so the routes that pass the summary (`courses`, `students`, `teachers`, both perspective routes) need no edit. The `role="group"` `aria-label` stays `Plan: <name>`. The sidebar label is a `<p>` styled `truncate … uppercase` (`SidebarLayout.astro:110-114`). Wrap it in a flex row: the name stays truncated, and the badge sits outside the `<p>` with `shrink-0`, so a long name can't clip it and the uppercase style doesn't apply to it. The row keeps `collapsed:hidden`.
+
+> **As built (impl-review F6):** `is_current` is required on the layout's `plan` prop, so a future route cannot drop the badge silently; the pending branch passes `settled.is_current` (always false there).
 
 #### 3. Board route and heading
 

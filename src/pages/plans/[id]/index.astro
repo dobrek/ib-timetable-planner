@@ -116,7 +116,10 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
       )}
     </SidebarLayout>
   ) : pending ? (
-    <SidebarLayout title={`${settled.name} — generating`} plan={{ id: settled.id, name: settled.name }}>
+    <SidebarLayout
+      title={`${settled.name} — generating`}
+      plan={{ id: settled.id, name: settled.name, is_current: settled.is_current }}
+    >
       <PendingProposalPage planName={settled.name} planId={settled.id} job={generationJob} client:load />
     </SidebarLayout>
   ) : result?.ok ? (

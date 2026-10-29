@@ -4,7 +4,9 @@
 --   * At most one plan is current: a global partial unique index (23505 on a second one).
 --   * A pending proposal is never current: an in-row CHECK (23514). A pending plan has no board,
 --     the perspective and comparison views refuse it, and up to seven best-effort sweeps delete it
---     (research §3). So with this rule no automatic path ever deletes the current plan.
+--     (research §3). So with this rule no automatic path deletes a plan that was already current.
+--     The one gap is Generate's: a clone marked between `clone_plan` and `markPending` fails the
+--     CHECK and is swept, leaving no plan current. That is legal, and no click can land in it.
 --   * `public.set_current_plan(p_plan_id)` moves the marker in one transaction. Unmarking is a
 --     plain update from the app: clearing can never make a second plan current.
 --   * Moving or clearing the marker leaves "Last updated" alone (the trigger below).
@@ -79,6 +81,8 @@ create or replace trigger plans_updated_at
 --      it spells S-404 / FR-420 so a reader of `pg_locks` can trace it back here.
 --   2. Lock and validate the target. Unsetting first would leave no plan current when the target
 --      turns out to be invalid, the exact failure this function exists to prevent.
+--      `for no key update` is enough: it blocks a concurrent pending flip or delete of the target,
+--      but not the FK checks of a board write on that plan (`is_current` is in no key index).
 --   3. Unset the old current plan, then set the target, skipping one that is already current so
 --      re-marking it (from an out-of-date hub) does not bump its "Last updated".
 create function public.set_current_plan(p_plan_id uuid)
@@ -94,7 +98,7 @@ begin
     from public.plans
    where id = p_plan_id
      and not pending_proposal
-     for update;
+     for no key update;
   if not found then
     return;
   end if;

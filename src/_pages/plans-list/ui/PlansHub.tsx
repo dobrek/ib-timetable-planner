@@ -261,6 +261,9 @@ function PlanRowActions({
         ? `"${plan.name}" is no longer the current plan`
         : `"${plan.name}" is now the current plan`,
       onDone: () => undefined,
+      // Either means the row may be out of date (the marker moved, or the plan is gone or pending):
+      // show the hub as it is now.
+      refreshOn: ["NOT_FOUND", "CONFLICT"],
     },
   );
 

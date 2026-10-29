@@ -8,6 +8,8 @@ import type { GenerationJobView } from "../api/generation-delivery";
 
 type Props = {
   planName: string;
+  /** The plan is the current one (S-404): the board heading carries the badge. */
+  isCurrent: boolean;
   focus: BoardSurface;
   shared: SharedBoardProps;
   dp1: PlannerBoardProps;
@@ -19,13 +21,24 @@ type Props = {
   generationJob: GenerationJobView | null;
 };
 
-const { planName, focus, shared, dp1, dp2, batchExport, paletteCollapsed, initialPaletteCohort, generationJob } =
-  Astro.props;
+const {
+  planName,
+  isCurrent,
+  focus,
+  shared,
+  dp1,
+  dp2,
+  batchExport,
+  paletteCollapsed,
+  initialPaletteCohort,
+  generationJob,
+} = Astro.props;
 ---
 
 <div class="flex h-full min-h-0 flex-1 flex-col">
   <PlannerBoard
     planName={planName}
+    isCurrent={isCurrent}
     focus={focus}
     shared={shared}
     dp1={dp1}

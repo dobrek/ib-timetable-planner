@@ -422,34 +422,34 @@ Additive only: a `not null default false` column (every existing row becomes not
 
 #### Automated
 
-- [x] 2.1 Unit tests pass (schemas, action capabilities)
-- [x] 2.2 Marker suite passes
-- [x] 2.3 Existing hub suites still pass
-- [x] 2.4 Type-check
-- [x] 2.5 Lint and FSD
-- [x] 2.6 Build stays clean
+- [x] 2.1 Unit tests pass (schemas, action capabilities) — cdad1ea
+- [x] 2.2 Marker suite passes — cdad1ea
+- [x] 2.3 Existing hub suites still pass — cdad1ea
+- [x] 2.4 Type-check — cdad1ea
+- [x] 2.5 Lint and FSD — cdad1ea
+- [x] 2.6 Build stays clean — cdad1ea
 
 #### Manual
 
-- [x] 2.7 Mark, move and unmark on the hub; pinning and badge; "Last updated" unchanged
-- [x] 2.8 Marking a pending proposal shows the pending CONFLICT toast
-- [x] 2.9 Delete dialog warns for the current plan; delete succeeds
-- [x] 2.10 Viewer sees the badge; Mark refused with FORBIDDEN
+- [x] 2.7 Mark, move and unmark on the hub; pinning and badge; "Last updated" unchanged — cdad1ea
+- [x] 2.8 Marking a pending proposal shows the pending CONFLICT toast — cdad1ea
+- [x] 2.9 Delete dialog warns for the current plan; delete succeeds — cdad1ea
+- [x] 2.10 Viewer sees the badge; Mark refused with FORBIDDEN — cdad1ea
 
 ### Phase 3: The plan itself — board heading, sidebar, breadcrumb
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass
-- [ ] 3.2 Type-check
-- [ ] 3.3 Lint and FSD
-- [ ] 3.4 Build stays clean
+- [x] 3.1 Unit tests pass
+- [x] 3.2 Type-check
+- [x] 3.3 Lint and FSD
+- [x] 3.4 Build stays clean
 
 #### Manual
 
-- [ ] 3.5 Board heading shows the badge in every focus and the empty state
-- [ ] 3.6 Sidebar label and breadcrumb show it on every single-plan page
-- [ ] 3.7 Non-current plans and the collapsed sidebar show no badge
+- [x] 3.5 Board heading shows the badge in every focus and the empty state
+- [x] 3.6 Sidebar label and breadcrumb show it on every single-plan page
+- [x] 3.7 Non-current plans and the collapsed sidebar show no badge
 
 ### Phase 4: End-to-end coverage and docs
 

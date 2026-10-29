@@ -5,12 +5,16 @@ import SidebarNavLink from "./SidebarNavLink.astro";
 import { profileLabel } from "./profile-label";
 import { createClient, loadOwnProfile } from "@/shared/api";
 import { GLOBAL_NAV_ITEMS, planNavItems, visibleNavItems, type NavItem } from "@/shared/config";
+import { CurrentPlanBadge } from "@/shared/ui";
 import { Sun, Moon, PanelLeft, LogOut } from "lucide-react";
 
 type Props = {
   title?: string;
-  /** When set, the sidebar renders the plan's scenario-local sub-nav + breadcrumb. */
-  plan?: { id: string; name: string };
+  /**
+   * When set, the sidebar renders the plan's scenario-local sub-nav + breadcrumb. `is_current` (S-404)
+   * adds the "Current" badge to both; its shape matches `PlanSummary`, so a route can pass the summary.
+   */
+  plan?: { id: string; name: string; is_current?: boolean };
   /** Full-bleed content mode: no centered max-w wrapper, no breadcrumb (e.g. the planner board). */
   fullWidth?: boolean;
 };
@@ -106,12 +110,17 @@ async function readDisplayName(): Promise<string | null> {
         {
           plan && (
             <div class="collapsed:border-t collapsed:border-sidebar-border pt-4">
-              <p
-                class="text-sidebar-foreground/60 collapsed:hidden truncate px-3 pb-1 text-xs font-medium tracking-wide uppercase"
-                title={plan.name}
-              >
-                {plan.name}
-              </p>
+              {/* The badge sits beside the label, not in it: a long name truncates without clipping it,
+                  and the label's uppercase style does not reach it. */}
+              <div class="collapsed:hidden flex items-center gap-2 px-3 pb-1">
+                <p
+                  class="text-sidebar-foreground/60 min-w-0 truncate text-xs font-medium tracking-wide uppercase"
+                  title={plan.name}
+                >
+                  {plan.name}
+                </p>
+                {plan.is_current && <CurrentPlanBadge />}
+              </div>
               <div class="space-y-1" role="group" aria-label={`Plan: ${plan.name}`}>
                 {planItems.map((item) => (
                   <SidebarNavLink {...item} />
@@ -161,6 +170,7 @@ async function readDisplayName(): Promise<string | null> {
                 </a>
                 <span aria-hidden="true">/</span>
                 <span class="text-foreground font-medium">{plan.name}</span>
+                {plan.is_current && <CurrentPlanBadge />}
               </nav>
             )}
             <slot />

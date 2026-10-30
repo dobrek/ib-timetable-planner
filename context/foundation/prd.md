@@ -395,6 +395,12 @@ Offered as non-goals and left open on purpose — not forgotten: per-plan sharin
    session, and a viewer cannot write. Should delivery wait for the next author/admin visit
    (today's mechanism), or happen regardless of who looks (a bigger change to FR-417)? — Owner:
    user.
+   - _Decision (2026-10-30, user):_ delivery waits for the next author or admin visit, and FR-417
+     is unchanged. A viewer's visit never delivers or writes: a finished, undelivered proposal
+     shows as finished and waiting for an author, and its board appears once an author or admin
+     opens it. Accepted cost: until then, that one proposal's board, comparison and perspective
+     views are closed to a viewer, so FR-409's "every proposal" means every delivered one.
+     Research: `context/changes/viewer-read-only/research.md` §5 and its follow-up.
 2. **Invitation lifetime vs platform cap.** The 72-hour invitation lifetime must be verified
    against what the auth platform allows. — Owner: planning.
    - _Finding (2026-10-10, health check):_ the platform has **one** lifetime for every email link.

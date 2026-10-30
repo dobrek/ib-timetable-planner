@@ -1,7 +1,7 @@
 # E2E Testing Rules
 
 Rules for authoring Playwright specs in this directory. They keep generated/edited
-tests stable by default — apply them rather than reinventing per spec. Of the 29
+tests stable by default — apply them rather than reinventing per spec. Of the 32
 specs here, `seed`, `auth`, `auth-guard` and `action-unauth` are the exemplars;
 model new specs on them.
 
@@ -28,34 +28,52 @@ spec; promote a helper to `support/` only once a second spec needs it.
   (no storageState) hosts the negative/unauth specs so the real server-side gate is
   what rejects them; `chromium-no-role` depends on `setup` and runs only
   `*.no-role.spec.ts`, signed in as the account that never holds a role (S-403), so
-  the role gate and the action guard are what answer. Authenticated specs go in
-  `*.spec.ts`; negative specs are named `*guard.spec.ts` / `*unauth.spec.ts`;
-  role-less specs are named `*.no-role.spec.ts`.
-- **Local prerequisites.** Local Supabase running + `pnpm env:local`. Both accounts
-  are provisioned automatically by `pretest:e2e` before `pnpm test:e2e`
+  the role gate and the action guard are what answer; `chromium-viewer` depends on
+  `setup` and runs only `*.viewer.spec.ts`, signed in as the account that holds
+  `viewer` (S-405), so every page must render with no edit control. Authenticated
+  specs go in `*.spec.ts`; negative specs are named `*guard.spec.ts` /
+  `*unauth.spec.ts`; role-less specs are named `*.no-role.spec.ts`; viewer specs are
+  named `*.viewer.spec.ts`.
+- **Local prerequisites.** Local Supabase running + `pnpm env:local`. All three
+  accounts are provisioned automatically by `pretest:e2e` before `pnpm test:e2e`
   (`scripts/provision-e2e-author.mjs`, loopback-only): the author, holding the
-  `author` role, and `e2e-no-role@example.test`, whose role row is deleted on every
-  run.
+  `author` role, `e2e-no-role@example.test`, whose role row is deleted on every
+  run, and `e2e-viewer@example.test`, whose role is reset to `viewer` on every run.
   `.envs/local.vars` must carry `SOLVER_URL` (with `mise run solver:dev` up, for
-  `generation.spec.ts`) and Cloudflare's public Turnstile test keys (for the reset
-  specs; without them `/auth/forgot` renders "unavailable") — README § Getting Started.
+  `generation.spec.ts` and `generation.viewer.spec.ts`; both dispatch, so a parallel
+  run wants `SOLVER_MAX_CONCURRENT_JOBS=2` or the loser gets a 503) and Cloudflare's
+  public Turnstile test keys (for the reset specs; without them `/auth/forgot`
+  renders "unavailable") — README § Getting Started.
 
 ## Rules
 
 - **Authenticate via `storageState`, never through the UI in a test.** The `setup`
   project already did the login; authenticated specs start signed in. (The only
-  files that drive the sign-in UI are the two setup files, `auth.setup.ts` and
-  `no-role.setup.ts`.)
+  files that drive the sign-in UI are the three setup files, `auth.setup.ts`,
+  `no-role.setup.ts` and `viewer.setup.ts`.)
 - **Never assert on the sidebar footer's text.** `account.spec.ts` sets the shared
   author's display name while it runs (and clears it in a `finally`), so the footer
   may show a name in parallel specs. Never submit the author's password form either:
-  the next run's `setup` would fail to sign in.
+  the next run's `setup` would fail to sign in. One carve-out: a viewer spec may
+  assert the footer's "View only" chip by its own accessible text, exactly
+  (`getByText("View only", { exact: true })`), and never by the name beside it.
 - **The no-role account never gets a role.** `e2e-no-role@example.test`
   (`e2e/no-role-credentials.mjs`) exists to prove what a user without a role sees;
   a spec that assigns it one proves nothing, and the provisioner deletes any role
   row for it anyway. Never submit its password form either (the next run's `setup`
   could not sign in), and never sign it out: that revokes the session every
   `chromium-no-role` spec shares.
+- **The viewer account's role, password and session are never changed.**
+  `e2e-viewer@example.test` (`e2e/viewer-credentials.mjs`) exists to prove that a
+  viewer sees no edit control; a spec that grants it more proves nothing, and the
+  provisioner resets it to `viewer` anyway. Never submit its password form and
+  never sign it out, for the same reasons as the no-role account's. A viewer can
+  create nothing, so a viewer spec arranges its data, and tears it down, in a second
+  context on the author's storageState
+  (`browser.newContext({ storageState: "e2e/.auth/user.json" })`) — see
+  `read-only.viewer.spec.ts`. Pair each absence the viewer asserts with the same
+  locator present on the author's side, so a drifted locator fails rather than
+  passing a `toHaveCount(0)` on nothing.
 - **One sanctioned exception to "never touch users": a throwaway user.** An unauth
   spec whose flow changes a password may create its own user through the
   service-role admin API and delete it in a `finally` — and must refuse any

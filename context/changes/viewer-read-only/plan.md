@@ -659,13 +659,13 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Automated
 
-- [ ] 1.1 Type check passes: `pnpm check`
-- [ ] 1.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 1.3 Unit suite passes, including `action-capabilities.test.ts` with `readPlanJob` in `NON_EDIT`: `pnpm test`
-- [ ] 1.4 Viewer-read integration suite passes: `pnpm test:integration src/_pages/plan-detail/api/generation-read.integration.test.ts`
-- [ ] 1.5 Existing delivery and proposal suites still pass: `pnpm test:integration src/_pages/plan-detail/api/generation-delivery.integration.test.ts src/test/generation-proposal.integration.test.ts`
-- [ ] 1.6 Role matrix passes with the two new RPC cells: `pnpm test:integration src/test/role-matrix.integration.test.ts`
-- [ ] 1.7 Production build is clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check`
+- [x] 1.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 1.3 Unit suite passes, including `action-capabilities.test.ts` with `readPlanJob` in `NON_EDIT`: `pnpm test`
+- [x] 1.4 Viewer-read integration suite passes: `pnpm test:integration src/_pages/plan-detail/api/generation-read.integration.test.ts`
+- [x] 1.5 Existing delivery and proposal suites still pass: `pnpm test:integration src/_pages/plan-detail/api/generation-delivery.integration.test.ts src/test/generation-proposal.integration.test.ts`
+- [x] 1.6 Role matrix passes with the two new RPC cells: `pnpm test:integration src/test/role-matrix.integration.test.ts`
+- [x] 1.7 Production build is clean: `pnpm build`
 
 #### Manual
 

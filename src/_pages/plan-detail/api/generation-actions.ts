@@ -1,5 +1,6 @@
 import { defineDomainAction } from "@/shared/lib/actions";
-import { checkPlan, checkPlanInput } from "./generation-delivery";
+import { checkPlan } from "./generation-delivery";
+import { checkPlanInput, readPlanJob } from "./generation-read";
 import { startGeneration, startGenerationInput, type GenerationDeps } from "./generation-job";
 import { stopGeneration, stopGenerationInput } from "./generation-stop";
 
@@ -25,9 +26,12 @@ export const createGenerationActions = (deps: GenerationDeps) => ({
   // No injected dependency: delivery never talks to the solver. It reads the row the solver already
   // wrote, and everything after that is the database and the pure oracle. Dual-keyed since S-306:
   // the same action answers a visit to the source plan and a visit to the proposal.
-  // `read` (S-403), because it is the pending page's poll. The writes it may make (reclaim, deliver,
-  // notify) are author behaviour that RLS refuses a viewer; what a viewer's poll should do is S-405's.
-  checkPlan: defineDomainAction({ input: checkPlanInput, run: checkPlan, requires: "read" }),
+  // `edit` (the default) since S-405, because it writes: reclaim, deliver, sweep, notify. It is an
+  // editor's poll and Refresh; a viewer's go through `readPlanJob` below.
+  checkPlan: defineDomainAction({ input: checkPlanInput, run: checkPlan }),
+  // The write-free half of the same visit (S-405): the dual-keyed read and nothing after it. A
+  // stale or finished job comes back flagged rather than settled, and waits for an editor's visit.
+  readPlanJob: defineDomainAction({ input: checkPlanInput, run: readPlanJob, requires: "read" }),
   // Nor does stopping (S-305): it writes a flag on the row and the solver's own heartbeat reads it.
   // Routing the stop through the database rather than through the transport is what makes it work
   // from a closed tab, and what keeps the app free of any dependency on reaching the container.

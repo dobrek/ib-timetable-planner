@@ -1,7 +1,11 @@
 import { useState } from "react";
 import type { SolvePolicy } from "@/entities/timetable";
-import type { GenerationJobView } from "../../api/generation-delivery";
-import { checkPlan as checkPlanAction, startGeneration as startGenerationAction } from "../../api/generation-client";
+import type { GenerationJobView } from "../../api/generation-read";
+import {
+  checkPlan as checkPlanAction,
+  readPlanJob as readPlanJobAction,
+  startGeneration as startGenerationAction,
+} from "../../api/generation-client";
 
 /**
  * The CP-SAT generation job's client-side lifecycle — the hook behind the Generate button (S-301).
@@ -16,13 +20,15 @@ import { checkPlan as checkPlanAction, startGeneration as startGenerationAction 
  * already known.
  *
  * **The on-visit check is NOT here — it already happened.** `src/pages/plans/[id]/index.astro` runs
- * `checkPlan` in the page render and seeds `initialJob`, which means the visit itself is the
- * trigger: no client round-trip, no frame of empty strip, and no fetch-and-set-state effect (which
- * React 19's rules reject and the React Compiler refuses to optimize around). This hook only handles
- * what the author does AFTER the page exists — launching, and asking again.
+ * `checkPlan` (for a non-editor, `readPlanJob`) in the page render and seeds `initialJob`, which
+ * means the visit itself is the trigger: no client round-trip, no frame of empty strip, and no
+ * fetch-and-set-state effect (which React 19's rules reject and the React Compiler refuses to
+ * optimize around). This hook only handles what the author does AFTER the page exists — launching,
+ * and asking again.
  *
- * `refresh` is not a passive read either: on a job that has succeeded, that call is what verifies the
- * board server-side and applies it to the proposal plan.
+ * `refresh` is not a passive read either — for an editor: on a job that has succeeded, that call is
+ * what verifies the board server-side and applies it to the proposal plan. A non-editor's refresh is
+ * the write-free `readPlanJob` (S-405), because every write `checkPlan` may make needs edit.
  *
  * **Nothing here loops, and S-303 deliberately did not change that.** The live stage-by-stage view is
  * on the plans list, where there is no board for a poll to contend with; this island keeps the static
@@ -42,7 +48,10 @@ export type UseGenerationJobDeps = {
   initialJob: GenerationJobView | null;
   /** True while other board writes are unsettled — Generate participates in the same gating. */
   busy: boolean;
-  /** Injectable for tests; default to the Astro Action clients. */
+  /** The route's `allows(access, "edit")` (S-405): picks the default `check`. */
+  canEdit: boolean;
+  /** Injectable for tests; default to the Astro Action clients (`check`: `checkPlan` for an editor,
+   *  `readPlanJob` for everyone else). */
   start?: (planId: string, policy: SolvePolicy) => Promise<GenerationJob>;
   check?: (planId: string) => Promise<GenerationJobView | null>;
 };
@@ -61,8 +70,9 @@ export function useGenerationJob({
   planId,
   initialJob,
   busy,
+  canEdit,
   start = startGenerationAction,
-  check = checkPlanAction,
+  check = canEdit ? checkPlanAction : readPlanJobAction,
 }: UseGenerationJobDeps): GenerationJobControls {
   const [state, setState] = useState<GenerationJobState>(
     initialJob ? { status: "tracking", job: initialJob } : { status: "idle" },

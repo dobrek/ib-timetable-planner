@@ -6,9 +6,11 @@ import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import PendingProposalPage from "@/_pages/plan-detail/ui/PendingProposalPage";
 import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
+import { allows } from "@/shared/config";
 import {
   checkPlan,
   loadCombinedPlannerData,
+  readPlanJob,
   releaseOrphanProposal,
   type GenerationJobView,
 } from "@/_pages/plan-detail/api";
@@ -21,6 +23,8 @@ const supabase = createClient(Astro.request.headers, Astro.cookies);
 // default landing — "combined is the board"). Both cohorts always load (one loader for every mode).
 const focus = boardSurfaceSchema.parse(Astro.url.searchParams.get("focus"));
 const planId = isPlanId(Astro.params.id) ? Astro.params.id : undefined;
+// Computed once, here, and passed down: islands never read the role (S-405).
+const canEdit = allows(Astro.locals.access, "edit");
 
 /*
  * The plans row FIRST, then the generation check, then — only if this is not a pending proposal —
@@ -38,6 +42,13 @@ const planId = isPlanId(Astro.params.id) ? Astro.params.id : undefined;
  *
  * Never fatal. A delivery failure must not take the board down with it, so it degrades to "no job"
  * and the author can hit Refresh.
+ *
+ * **A visit is a write only for an editor (S-405).** An editor's visit runs `checkPlan`, which may
+ * reclaim, deliver, sweep and stamp `notified_at`, and then the orphan release below. Everyone else
+ * runs `readPlanJob`, the same read with none of those writes — every one of them needs `can_edit`,
+ * and RLS refusing them used to surface as errors and as views that lied about the row. What an
+ * editor's visit would have settled stays as it is, and the pending page says so: stalled, waiting
+ * for an author, or stranded.
  */
 const summary = supabase ? await loadPlanSummary(supabase, planId) : null;
 
@@ -45,9 +56,10 @@ const summary = supabase ? await loadPlanSummary(supabase, planId) : null;
 // matched, so no job references this plan" is a FACT, while "the check threw and we degraded" is an
 // absence of information. Only the first licenses a write, so the outcome carries both — a mutated
 // flag would not, since the assignment lives inside the catch closure.
+const readJob = canEdit ? checkPlan : readPlanJob;
 const checked: { job: GenerationJobView | null; failed: boolean } =
   supabase && summary
-    ? await checkPlan(supabase, { planId: summary.id })
+    ? await readJob(supabase, { planId: summary.id })
         .then((job) => ({ job, failed: false }))
         .catch((error: unknown) => {
           // eslint-disable-next-line no-console -- the server log is the only trace a delivery failed
@@ -62,23 +74,31 @@ const generationJob = checked.job;
 // plan becomes ordinary and renders the board it already holds. Guarded by the plan's own age inside
 // the UPDATE, because "pending with no job" is also the transient mid-enqueue state — see
 // `releaseOrphanProposal`. Best-effort here, exactly like the check above: a failed release renders
-// today's pending panel rather than taking the page down.
-if (supabase && summary && isPendingProposal(summary) && generationJob === null && !checked.failed) {
+// today's pending panel rather than taking the page down. An editor's visit only: the release is a
+// write, so a non-editor's visit leaves the orphan pending and the page calls it stranded instead.
+if (canEdit && supabase && summary && isPendingProposal(summary) && generationJob === null && !checked.failed) {
   await releaseOrphanProposal(supabase, summary.id).catch((error: unknown) => {
     // eslint-disable-next-line no-console -- the server log is the only trace a release failed
     console.error("[plans/:id] orphan proposal release failed:", error);
   });
 }
 
+// The non-editor's version of the state the release above would have ended: pending, no job names
+// it, and the read did not fail.
+const stranded =
+  !canEdit && summary !== null && isPendingProposal(summary) && generationJob === null && !checked.failed;
+
 // Re-read ONLY when the row arrived pending: the check may have just cleared the flag (it delivered),
 // or deleted the plan outright (a terminal job with nothing to deliver sweeps its clone) — or the
 // release above just un-pended a stranded orphan. Nothing can make a non-pending plan pending, so the
-// ordinary board visit skips this second read entirely.
+// ordinary board visit skips this second read entirely. A non-editor's read writes nothing, but it
+// re-reads all the same: an author's visit may have delivered between the two reads.
 const settled =
   supabase && summary && isPendingProposal(summary) ? await loadPlanSummary(supabase, summary.id) : summary;
 const pending = settled !== null && isPendingProposal(settled);
 // The row arrived pending and left the check gone: this visit swept a failed job's clone. The job row
 // survives the sweep (role-tagged, source named), so the page can say so instead of "not found".
+// Only `checkPlan` sweeps, so this is an editor's visit — or a viewer's that an editor's raced.
 const swept =
   summary && isPendingProposal(summary) && settled === null && generationJob?.role === "proposal"
     ? generationJob
@@ -120,7 +140,14 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
       title={`${settled.name} — generating`}
       plan={{ id: settled.id, name: settled.name, is_current: settled.is_current }}
     >
-      <PendingProposalPage planName={settled.name} planId={settled.id} job={generationJob} client:load />
+      <PendingProposalPage
+        planName={settled.name}
+        planId={settled.id}
+        job={generationJob}
+        canEdit={canEdit}
+        stranded={stranded}
+        client:load
+      />
     </SidebarLayout>
   ) : result?.ok ? (
     <SidebarLayout
@@ -139,6 +166,7 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
         paletteCollapsed={paletteCollapsed}
         initialPaletteCohort={initialPaletteCohort}
         generationJob={generationJob}
+        canEdit={canEdit}
       />
     </SidebarLayout>
   ) : (

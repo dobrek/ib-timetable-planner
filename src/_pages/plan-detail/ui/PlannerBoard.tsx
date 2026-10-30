@@ -37,7 +37,7 @@ import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohor
 import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { BoardSurface } from "../lib/board-surface";
 import type { ExportCohortData } from "../lib/export-workbook";
-import type { GenerationJobView } from "../api/generation-delivery";
+import type { GenerationJobView } from "../api/generation-read";
 
 type Props = {
   planName: string;
@@ -53,9 +53,12 @@ type Props = {
   paletteCollapsed: boolean;
   /** SSR seed (from cookie) for the combined-mode palette cohort, so a recompute refresh keeps it. */
   initialPaletteCohort: Cohort;
-  /** The plan's latest generation job, already checked — and, if it was ready, DELIVERED — during
-   *  the page render. Seeding the strip from here is what makes the visit itself the trigger. */
+  /** The plan's latest generation job, already checked — and, if it was ready and the caller may
+   *  edit, DELIVERED — during the page render. Seeding the strip from here is what makes the visit
+   *  itself the trigger. */
   generationJob: GenerationJobView | null;
+  /** The route's `allows(access, "edit")` (S-405). Islands never read the role themselves. */
+  canEdit: boolean;
 };
 
 /**
@@ -78,6 +81,7 @@ export default function PlannerBoard({
   paletteCollapsed,
   initialPaletteCohort,
   generationJob,
+  canEdit,
 }: Props) {
   const { planId, days, periods } = shared;
   // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
@@ -90,6 +94,7 @@ export default function PlannerBoard({
     focus,
     lens.effectiveCriteria,
     generationJob,
+    canEdit,
   );
   const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
   const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
@@ -324,7 +329,7 @@ export default function PlannerBoard({
           {/* The generation job's window. It replaces the greedy engine's post-solve review panel,
               which went with its engine (S-301): a CP-SAT result lands on a PROPOSAL plan minutes
               later, so there is nothing to review in place here. */}
-          <GenerationStatusStrip generation={generation} />
+          <GenerationStatusStrip generation={generation} canEdit={canEdit} />
           {lens.criteria.length > 0 && (
             <LensBar
               criteria={lens.criteria}

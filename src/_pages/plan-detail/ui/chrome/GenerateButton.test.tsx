@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SOLVE_POLICY, LADDER_CEILING_MINUTES, type SolvePolicy } from "@/entities/timetable";
-import type { GenerationJobView } from "../../api/generation-delivery";
+import type { GenerationJobView } from "../../api/generation-read";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 import GenerateButton from "./GenerateButton";
 
@@ -39,6 +39,8 @@ const trackedJob = (status: GenerationJobView["status"], policy: SolvePolicy = D
   stageName: null,
   stopRequestedAt: null,
   policy,
+  stalled: false,
+  awaitingDelivery: false,
 });
 
 const openDialog = () => {

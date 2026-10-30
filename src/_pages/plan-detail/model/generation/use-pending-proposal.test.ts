@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
-import type { GenerationJobView } from "../../api/generation-delivery";
+import { checkPlan, readPlanJob } from "../../api/generation-client";
+import type { GenerationJobView } from "../../api/generation-read";
 import { createPendingProposalStore } from "./use-pending-proposal";
+
+// The default transports, so a test can tell which one a store picked without a server.
+vi.mock("../../api/generation-client", () => ({ checkPlan: vi.fn(), readPlanJob: vi.fn() }));
 
 /**
  * The pending page's ticker, driven at the STORE level rather than through the hook.
@@ -27,6 +31,8 @@ const view = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageName: "teacherHoles",
   stopRequestedAt: null,
   policy: DEFAULT_SOLVE_POLICY,
+  stalled: false,
+  awaitingDelivery: false,
   ...over,
 });
 
@@ -44,7 +50,13 @@ describe("createPendingProposalStore", () => {
     // Not the hub's status-only read: this page's whole content is the job, and the author is looking
     // at the plan the board lands on. See the store's docblock for why that inverts S-303's rule.
     const check = vi.fn().mockResolvedValue(view({ stageIndex: 4 }));
-    const store = createPendingProposalStore({ planId: "plan-2", initial: view(), check, onDelivered: vi.fn() });
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: true,
+      initial: view(),
+      check,
+      onDelivered: vi.fn(),
+    });
     store.subscribe(vi.fn());
 
     await vi.advanceTimersByTimeAsync(INTERVAL);
@@ -60,6 +72,7 @@ describe("createPendingProposalStore", () => {
     const check = vi.fn();
     const store = createPendingProposalStore({
       planId: "plan-2",
+      canEdit: true,
       initial: view({ status: "failed" }),
       check,
       onDelivered: vi.fn(),
@@ -74,7 +87,13 @@ describe("createPendingProposalStore", () => {
 
   it("does not tick before anyone subscribes, nor after the last subscriber leaves", () => {
     const check = vi.fn();
-    const store = createPendingProposalStore({ planId: "plan-2", initial: view(), check, onDelivered: vi.fn() });
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: true,
+      initial: view(),
+      check,
+      onDelivered: vi.fn(),
+    });
 
     vi.advanceTimersByTime(INTERVAL * 2);
     expect(check).not.toHaveBeenCalled();
@@ -92,7 +111,7 @@ describe("createPendingProposalStore", () => {
     // client-side board bootstrap to keep in step with the server's.
     const onDelivered = vi.fn();
     const check = vi.fn().mockResolvedValue(view({ status: "succeeded", delivered: true }));
-    const store = createPendingProposalStore({ planId: "plan-2", initial: view(), check, onDelivered });
+    const store = createPendingProposalStore({ planId: "plan-2", canEdit: true, initial: view(), check, onDelivered });
     store.subscribe(vi.fn());
 
     await vi.advanceTimersByTimeAsync(INTERVAL * 3);
@@ -103,7 +122,13 @@ describe("createPendingProposalStore", () => {
 
   it("stops ticking after it has announced, so a slow navigation cannot re-deliver", async () => {
     const check = vi.fn().mockResolvedValue(view({ status: "succeeded", delivered: true }));
-    const store = createPendingProposalStore({ planId: "plan-2", initial: view(), check, onDelivered: vi.fn() });
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: true,
+      initial: view(),
+      check,
+      onDelivered: vi.fn(),
+    });
     store.subscribe(vi.fn());
 
     await vi.advanceTimersByTimeAsync(INTERVAL);
@@ -119,7 +144,13 @@ describe("createPendingProposalStore", () => {
     // every tick, so publishing it unconditionally would re-render the island twelve times a minute.
     const listener = vi.fn();
     const check = vi.fn().mockResolvedValue(view());
-    const store = createPendingProposalStore({ planId: "plan-2", initial: view(), check, onDelivered: vi.fn() });
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: true,
+      initial: view(),
+      check,
+      onDelivered: vi.fn(),
+    });
     store.subscribe(listener);
 
     await vi.advanceTimersByTimeAsync(INTERVAL * 2);
@@ -143,7 +174,13 @@ describe("createPendingProposalStore", () => {
     const listener = vi.fn();
     const base = view({ cleanLabel: { kind: "not-clean", softHits: 3, floor: 1, cleanRequested: true } });
     const check = vi.fn().mockResolvedValue(base);
-    const store = createPendingProposalStore({ planId: "plan-2", initial: base, check, onDelivered: vi.fn() });
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: true,
+      initial: base,
+      check,
+      onDelivered: vi.fn(),
+    });
     store.subscribe(listener);
 
     await vi.advanceTimersByTimeAsync(INTERVAL);
@@ -163,7 +200,13 @@ describe("createPendingProposalStore", () => {
       .fn()
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValue(view({ stageIndex: 9 }));
-    const store = createPendingProposalStore({ planId: "plan-2", initial: view(), check, onDelivered: vi.fn() });
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: true,
+      initial: view(),
+      check,
+      onDelivered: vi.fn(),
+    });
     store.subscribe(vi.fn());
 
     await vi.advanceTimersByTimeAsync(INTERVAL);
@@ -174,9 +217,144 @@ describe("createPendingProposalStore", () => {
     store.dispose();
   });
 
+  /**
+   * A viewer's store (S-405). Its read never writes, so a finished board does not land on its tick —
+   * it waits for an author's or admin's visit. The store keeps watching while it waits, which is what
+   * turns the viewer's page into the board on its own.
+   */
+  describe("for a viewer", () => {
+    const finished = (over: Partial<GenerationJobView> = {}) =>
+      view({ status: "succeeded", stageIndex: 10, awaitingDelivery: true, ...over });
+
+    it("defaults to the write-free read, never the delivering check", async () => {
+      vi.mocked(readPlanJob).mockResolvedValue(view());
+      const store = createPendingProposalStore({
+        planId: "plan-2",
+        canEdit: false,
+        initial: view(),
+        onDelivered: vi.fn(),
+      });
+      store.subscribe(vi.fn());
+
+      await vi.advanceTimersByTimeAsync(INTERVAL);
+
+      expect(readPlanJob).toHaveBeenCalledWith("plan-2");
+      expect(checkPlan).not.toHaveBeenCalled();
+      store.dispose();
+    });
+
+    it("keeps ticking while a finished board waits for an author", async () => {
+      const check = vi.fn().mockResolvedValue(finished());
+      const store = createPendingProposalStore({
+        planId: "plan-2",
+        canEdit: false,
+        initial: finished(),
+        check,
+        onDelivered: vi.fn(),
+      });
+      store.subscribe(vi.fn());
+
+      await vi.advanceTimersByTimeAsync(INTERVAL * 3);
+
+      expect(check).toHaveBeenCalledTimes(3);
+      store.dispose();
+    });
+
+    it("reloads into the board on the first tick that finds it delivered — and only once", async () => {
+      const onDelivered = vi.fn();
+      const check = vi
+        .fn()
+        .mockResolvedValueOnce(finished())
+        .mockResolvedValue(finished({ delivered: true, awaitingDelivery: false }));
+      const store = createPendingProposalStore({
+        planId: "plan-2",
+        canEdit: false,
+        initial: finished(),
+        check,
+        onDelivered,
+      });
+      store.subscribe(vi.fn());
+
+      await vi.advanceTimersByTimeAsync(INTERVAL);
+      expect(onDelivered).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(INTERVAL * 3);
+      expect(onDelivered).toHaveBeenCalledOnce();
+      expect(check).toHaveBeenCalledTimes(2);
+      store.dispose();
+    });
+
+    it("an editor's store stops on the same snapshot — its own tick is what delivers", () => {
+      const check = vi.fn();
+      const store = createPendingProposalStore({
+        planId: "plan-2",
+        canEdit: true,
+        initial: finished(),
+        check,
+        onDelivered: vi.fn(),
+      });
+      store.subscribe(vi.fn());
+
+      vi.advanceTimersByTime(INTERVAL * 4);
+
+      expect(check).not.toHaveBeenCalled();
+      store.dispose();
+    });
+
+    it("still stops on a terminal job with no board to wait for", () => {
+      const check = vi.fn();
+      const store = createPendingProposalStore({
+        planId: "plan-2",
+        canEdit: false,
+        initial: view({ status: "failed" }),
+        check,
+        onDelivered: vi.fn(),
+      });
+      store.subscribe(vi.fn());
+
+      vi.advanceTimersByTime(INTERVAL * 4);
+
+      expect(check).not.toHaveBeenCalled();
+      store.dispose();
+    });
+  });
+
+  it.each([
+    ["stalled", { stalled: true }],
+    ["awaitingDelivery", { awaitingDelivery: true }],
+  ] as const)("notices %s changing alone — a viewer's panel turns on it", async (_field, change) => {
+    // The S-405 flags change panels while every other field stays put, so the gate must name them.
+    const listener = vi.fn();
+    const base = view();
+    const check = vi.fn().mockResolvedValue(base);
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: false,
+      initial: base,
+      check,
+      onDelivered: vi.fn(),
+    });
+    store.subscribe(listener);
+
+    await vi.advanceTimersByTimeAsync(INTERVAL);
+    expect(listener).not.toHaveBeenCalled();
+
+    check.mockResolvedValue({ ...base, ...change });
+    await vi.advanceTimersByTimeAsync(INTERVAL);
+
+    expect(listener).toHaveBeenCalled();
+    store.dispose();
+  });
+
   it("serves the SSR'd view as the server snapshot, so hydration matches by construction", () => {
     const initial = view();
-    const store = createPendingProposalStore({ planId: "plan-2", initial, check: vi.fn(), onDelivered: vi.fn() });
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: true,
+      initial,
+      check: vi.fn(),
+      onDelivered: vi.fn(),
+    });
 
     expect(store.getServerSnapshot()).toBe(initial);
   });

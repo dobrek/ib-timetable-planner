@@ -21,6 +21,9 @@ import type { CohortMetricRow, MetricHelpText, PlanMetricRow } from "./metric-ca
 export type ScoreboardColumn = {
   planId: string;
   planName: string;
+  /** The column's plan is the current one: its header carries the badge beside the name, and nothing
+   *  else changes — not the order, not a cell, not an emphasis. Current is a marker, not a baseline. */
+  isCurrent: boolean;
   /** Present on the cohort-grain sections, absent on the board-wide ones. */
   cohort?: Cohort;
 };
@@ -45,6 +48,7 @@ export type ScoreboardRow = {
 export type AnalyzedPlan = {
   id: string;
   name: string;
+  isCurrent: boolean;
   features: PlanQualityFeatures;
   /** The analyzer speaks in ids; these turn a worst-case key into a name and a link. */
   naturalKeys: PlanNaturalKeys;
@@ -60,7 +64,12 @@ export const buildCohortSection = (
 
   return {
     title,
-    columns: cells.map(({ plan, cohort }) => ({ planId: plan.id, planName: plan.name, cohort })),
+    columns: cells.map(({ plan, cohort }) => ({
+      planId: plan.id,
+      planName: plan.name,
+      isCurrent: plan.isCurrent,
+      cohort,
+    })),
     rows: rows.map((row) => ({
       id: row.id,
       label: row.label,
@@ -73,7 +82,7 @@ export const buildCohortSection = (
 /** Plan-grain section: N plans = N columns. */
 export const buildPlanSection = (title: string, rows: PlanMetricRow[], plans: AnalyzedPlan[]): ScoreboardSection => ({
   title,
-  columns: plans.map((plan) => ({ planId: plan.id, planName: plan.name })),
+  columns: plans.map((plan) => ({ planId: plan.id, planName: plan.name, isCurrent: plan.isCurrent })),
   rows: rows.map((row) => ({
     id: row.id,
     label: row.label,

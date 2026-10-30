@@ -41,6 +41,9 @@ export type { CourseInfo };
 export type StudentPlanViewData = {
   planId: string;
   planName: string;
+  /** The plan is the current one (S-404): the page's plan line carries the badge, on screen and on
+   *  paper, and the export's file name carries `-current` (S-405). */
+  isCurrent: boolean;
   days: number;
   periods: number;
   student: StudentSummary;
@@ -79,7 +82,7 @@ export const loadStudentPlanView = async (
 
   const { data: plan, error: planError } = await supabase
     .from("plans")
-    .select("id, name, slot_grid_preset, pending_proposal")
+    .select("id, name, slot_grid_preset, pending_proposal, is_current")
     .eq("id", planId)
     .maybeSingle();
   if (planError) throw new Error(`Plan lookup failed: ${planError.message}`);
@@ -113,6 +116,7 @@ export const loadStudentPlanView = async (
   return ok({
     planId: plan.id,
     planName: plan.name,
+    isCurrent: plan.is_current,
     days,
     periods,
     student,

@@ -1,5 +1,5 @@
 import type { CourseMerge, PlanTeacher } from "@/shared/api";
-import { slugify } from "@/shared/lib/slugify";
+import { planFileStem } from "@/shared/lib/slugify";
 import {
   buildPerspectiveCourseItems,
   buildPerspectiveWorkbook,
@@ -31,6 +31,8 @@ export type BatchExportCohort = ExportCohortData & { hours: Map<string, HoursSta
 
 export type BatchExportInput = {
   planName: string;
+  /** The plan is the current one (S-404): the zip and every workbook in it carry `-current` (S-405). */
+  isCurrent: boolean;
   days: number;
   periods: number;
   teacherNames: Record<string, string>;
@@ -56,6 +58,7 @@ export type BatchExportResult = { zipFileName: string; files: BatchExportFile[] 
 export const buildBatchExportWorkbooks = (input: BatchExportInput): BatchExportResult => {
   const combined = buildExportWorkbook({
     planName: input.planName,
+    isCurrent: input.isCurrent,
     view: "combined",
     days: input.days,
     periods: input.periods,
@@ -72,7 +75,7 @@ export const buildBatchExportWorkbooks = (input: BatchExportInput): BatchExportR
     .filter((file): file is BatchExportFile => file !== null);
 
   const files = dedupeFileNames([{ fileName: combined.fileName, sheets: combined.sheets }, ...teacherFiles]);
-  return { zipFileName: `${slugify(input.planName)}.zip`, files };
+  return { zipFileName: `${planFileStem(input.planName, input.isCurrent)}.zip`, files };
 };
 
 /**
@@ -112,6 +115,7 @@ const teacherWorkbook = (
 
   const { sheets, fileName } = buildPerspectiveWorkbook({
     planName: input.planName,
+    isCurrent: input.isCurrent,
     fileCode: teacher.code,
     days: input.days,
     periods: input.periods,

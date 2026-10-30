@@ -44,6 +44,7 @@ export const buildComparisonData = async (
   const analyzed: AnalyzedPlan[] = plans.map((plan) => ({
     id: plan.id,
     name: plan.name,
+    isCurrent: plan.isCurrent,
     features: analyzePlan(plan.input),
     naturalKeys: plan.naturalKeys,
   }));
@@ -62,7 +63,7 @@ export const buildComparisonData = async (
   );
 
   return {
-    plans: analyzed.map((plan) => ({ id: plan.id, name: plan.name })),
+    plans: analyzed.map((plan) => ({ id: plan.id, name: plan.name, isCurrent: plan.isCurrent })),
     missingPlanIds,
     sections: [
       buildCohortSection("Cohort scoreboard", COHORT_SCOREBOARD, analyzed),
@@ -82,8 +83,9 @@ export const buildComparisonData = async (
 };
 
 export type PlanComparisonData = {
-  /** The compared plans, in the order the URL named them. None is privileged. */
-  plans: { id: string; name: string }[];
+  /** The compared plans, in the order the URL named them. None is privileged — `isCurrent` marks the
+   *  plan, it does not rank it (S-405). */
+  plans: { id: string; name: string; isCurrent: boolean }[];
   missingPlanIds: string[];
   sections: ScoreboardSection[];
   perPlan: PlanDetail[];
@@ -97,6 +99,7 @@ export type PlanComparisonData = {
 export type PlanDetail = {
   planId: string;
   planName: string;
+  isCurrent: boolean;
   verdict: { ok: boolean; softWarnCount: number; reasons: string[] };
   warnings: PlanWarning[];
   /** Pre-formatted distribution lines — "the signal totals hide". */
@@ -127,6 +130,7 @@ const toPlanDetail = (loaded: LoadedPlan | undefined, analyzed: AnalyzedPlan): P
   return {
     planId: analyzed.id,
     planName: analyzed.name,
+    isCurrent: analyzed.isCurrent,
     verdict: { ok: verdict.ok, softWarnCount: verdict.softWarnCount, reasons: verdict.reasons },
     // Catalog anomalies are part of the product, not diagnostics: an unflagged `zero-hours` course
     // reads as a complete one. They render beside the numbers.

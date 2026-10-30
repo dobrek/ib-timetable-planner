@@ -18,6 +18,8 @@ import { buildExportWorkbook, type ExportCohortData } from "../../lib/export-wor
 
 type Props = {
   planName: string;
+  /** The plan is the current one (S-404): every export's file name carries `-current` (S-405). */
+  isCurrent: boolean;
   /** The active focus — listed first and marked current; also the default single-view export. */
   focus: BoardSurface;
   days: number;
@@ -37,15 +39,35 @@ const VIEW_ORDER: readonly BoardSurface[] = ["combined", "dp1", "dp2"];
  * active focus first and marked current) plus "Download all (zip)". Selecting a view builds the workbook
  * from **live** board state (`buildExportWorkbook`) and saves it; the batch item builds the combined plan
  * plus one workbook per conducting teacher (`buildBatchExportWorkbooks`), serializes each to a Blob, zips
- * them at compression level 0 (xlsx is already deflated), and downloads one `<plan-slug>.zip`. This is
+ * them at compression level 0 (xlsx is already deflated), and downloads one `<plan-stem>.zip` (the plan
+ * slug, plus `-current` for the current plan — `planFileStem`). This is
  * the sole site binding both `write-excel-file` and `fflate`; any failure aborts the whole batch (no
  * partial zip) and surfaces as a toast — success is silent (the board mounts no `Toaster`, so it brings
  * its own).
  */
-export default function ExportMenu({ planName, focus, days, periods, teacherNames, dp1, dp2, batchExport }: Props) {
+export default function ExportMenu({
+  planName,
+  isCurrent,
+  focus,
+  days,
+  periods,
+  teacherNames,
+  dp1,
+  dp2,
+  batchExport,
+}: Props) {
   async function exportView(view: BoardSurface) {
     try {
-      const { sheets, fileName } = buildExportWorkbook({ planName, view, days, periods, teacherNames, dp1, dp2 });
+      const { sheets, fileName } = buildExportWorkbook({
+        planName,
+        isCurrent,
+        view,
+        days,
+        periods,
+        teacherNames,
+        dp1,
+        dp2,
+      });
       await writeXlsxFile(sheets).toFile(fileName);
     } catch {
       toast.error("Export failed — try again.");
@@ -56,6 +78,7 @@ export default function ExportMenu({ planName, focus, days, periods, teacherName
     try {
       const { zipFileName, files } = buildBatchExportWorkbooks({
         planName,
+        isCurrent,
         days,
         periods,
         teacherNames,

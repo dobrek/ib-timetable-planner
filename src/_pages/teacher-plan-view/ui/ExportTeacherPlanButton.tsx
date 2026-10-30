@@ -20,6 +20,8 @@ type ExportCohort = {
 
 type Props = {
   planName: string;
+  /** The plan is the current one (S-404): the file name carries `-current` (S-405). */
+  isCurrent: boolean;
   teacherCode: string;
   days: number;
   periods: number;
@@ -42,6 +44,7 @@ type Props = {
  */
 export default function ExportTeacherPlanButton({
   planName,
+  isCurrent,
   teacherCode,
   days,
   periods,
@@ -61,6 +64,7 @@ export default function ExportTeacherPlanButton({
     try {
       const { sheets, fileName } = buildPerspectiveWorkbook({
         planName,
+        isCurrent,
         fileCode: teacherCode,
         days,
         periods,

@@ -39,6 +39,7 @@ const cohortData = (cohort: Cohort, over: Partial<ExportCohortData> = {}): Expor
 
 const input = (view: BoardSurface, over: Partial<ExportWorkbookInput> = {}): ExportWorkbookInput => ({
   planName: "IB 2027",
+  isCurrent: false,
   view,
   days: 5,
   periods: 6,
@@ -72,6 +73,10 @@ describe("buildExportWorkbook", () => {
 
     expect(sheets.map((s) => s.sheet)).toEqual(["DP2", "DP2 subjects"]);
     expect(fileName).toBe("ib-2027-dp2.xlsx");
+  });
+
+  it("names the current plan's export with the -current stem", () => {
+    expect(buildExportWorkbook(input("combined", { isCurrent: true })).fileName).toBe("ib-2027-current-combined.xlsx");
   });
 
   it("routes a cohort's live placements into the grid and its catalog into the roster", () => {

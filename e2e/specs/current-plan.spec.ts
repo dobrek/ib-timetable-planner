@@ -37,10 +37,14 @@ test.describe("current-plan marker", () => {
         await expect(planRow(page, a.name).getByText(CURRENT, { exact: true })).toHaveCount(0);
 
         // B's board: the heading carries the badge, and so does the sidebar plan label. The board
-        // starts with the sidebar collapsed, which hides the label, so it is expanded first.
+        // starts with the sidebar collapsed, which hides the label, so it is expanded first. The board
+        // also renders a print-only heading with its own badge (S-405), hidden on screen, so the
+        // on-screen one is picked by visibility.
         await gotoStable(page, `/plans/${b.id}`);
         await expect(page.getByRole("heading", { level: 1, name: b.name })).toBeVisible();
-        await expect(page.getByRole("main").getByText(CURRENT, { exact: true })).toBeVisible();
+        await expect(
+          page.getByRole("main").getByText(CURRENT, { exact: true }).filter({ visible: true }),
+        ).toBeVisible();
         await page.getByRole("button", { name: "Toggle sidebar" }).click();
         await expect(page.getByRole("complementary").getByText(CURRENT, { exact: true })).toBeVisible();
 

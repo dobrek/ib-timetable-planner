@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { cohortLabel, type Cohort } from "@/shared/config";
-import { PrintButton } from "@/shared/ui";
+import { CurrentPlanBadge, PrintButton } from "@/shared/ui";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import {
   BoardHeader,
@@ -41,7 +41,8 @@ import type { GenerationJobView } from "../api/generation-read";
 
 type Props = {
   planName: string;
-  /** The plan is the current one (S-404): both heading render sites carry the badge. */
+  /** The plan is the current one (S-404): both heading render sites and the print-only heading carry
+   *  the badge, and every export's file name carries `-current` (S-405). */
   isCurrent: boolean;
   /** The active surface from `?focus=`: one cohort (focus mode) or the combined two-cohort board. */
   focus: BoardSurface;
@@ -334,6 +335,7 @@ export default function PlannerBoard({
                 />
                 <ExportMenu
                   planName={planName}
+                  isCurrent={isCurrent}
                   focus={focus}
                   days={days}
                   periods={periods}
@@ -381,9 +383,14 @@ export default function PlannerBoard({
         <div className="flex min-h-0 flex-col gap-3">
           {/* Print-only plan-name title: the top bar (which carries the on-screen title) is
               print:hidden, so re-add a heading that appears only on paper — parity with the
-              student/teacher printouts. Inert on screen (`hidden`), token-styled only. */}
+              student/teacher printouts. Inert on screen (`hidden`), token-styled only. The Current
+              badge sits beside the heading, not in it, as in `BoardHeader`: the heading's name stays
+              the plan's name, and a printed current plan still says so on paper (S-405). */}
           <div className="hidden print:block">
-            <h1 className="text-foreground text-base font-semibold">{planName}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-foreground text-base font-semibold">{planName}</h1>
+              {isCurrent && <CurrentPlanBadge />}
+            </div>
             <p className="text-muted-foreground text-sm">
               Timetable — {focus === "combined" ? "DP1 & DP2" : cohortLabel(focus)}
             </p>

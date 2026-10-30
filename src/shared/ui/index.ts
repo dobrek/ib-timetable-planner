@@ -91,3 +91,4 @@ export { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, Tabl
 export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants } from "./tabs";
 export { ToggleGroup, ToggleGroupItem, toggleGroupItemVariants } from "./toggle-group";
 export { Toaster } from "./sonner";
+export { ViewOnlyBadge } from "./view-only-badge";

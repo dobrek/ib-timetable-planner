@@ -10,6 +10,7 @@ import type { LoadedPlan } from "../../api/load-plan-analysis";
 export type PlanSpec = {
   id?: string;
   name?: string;
+  isCurrent?: boolean;
   days?: number;
   periods?: number;
   /** id prefix for every course/teacher/student — vary it to simulate a clone's re-minted UUIDs. */
@@ -92,6 +93,7 @@ export const buildLoadedPlan = (spec: PlanSpec = {}): LoadedPlan => {
   return {
     id: spec.id ?? `${prefix}-plan`,
     name: spec.name ?? "Plan",
+    isCurrent: spec.isCurrent ?? false,
     input,
     snapshot: {
       days: input.days,

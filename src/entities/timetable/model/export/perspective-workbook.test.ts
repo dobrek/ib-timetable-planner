@@ -26,6 +26,7 @@ const item = (courseId: string, cohort: Cohort, over: Partial<PerspectiveCourseI
 
 const baseInput = (over: Partial<PerspectiveWorkbookInput> = {}): PerspectiveWorkbookInput => ({
   planName: "IB 2027 Draft",
+  isCurrent: false,
   fileCode: "KK",
   days: 5,
   periods: 8,
@@ -126,6 +127,13 @@ describe("buildPerspectiveWorkbook — filename", () => {
   it("builds the filename from the plan slug and file code", () => {
     const { fileName } = buildPerspectiveWorkbook(baseInput({ planName: "IB 2027 Draft", fileCode: "KK" }));
     expect(fileName).toBe("ib-2027-draft-kk.xlsx");
+  });
+
+  it("marks the current plan between the plan slug and the file code", () => {
+    const { fileName } = buildPerspectiveWorkbook(
+      baseInput({ planName: "IB 2027 Draft", isCurrent: true, fileCode: "KK" }),
+    );
+    expect(fileName).toBe("ib-2027-draft-current-kk.xlsx");
   });
 
   it("folds diacritics in the plan name (shared slugify — intended behavior change vs. the old ASCII-only copy)", () => {

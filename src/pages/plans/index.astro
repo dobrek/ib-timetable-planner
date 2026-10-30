@@ -3,13 +3,16 @@ import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
 import PlansListPage from "@/_pages/plans-list/ui/PlansListPage.astro";
 import { createClient } from "@/shared/api";
 import { loadPlans } from "@/_pages/plans-list/api";
+import { allows } from "@/shared/config";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 const result = await loadPlans(supabase);
 if (result.kind === "unavailable") Astro.response.status = 503;
 const plans = result.kind === "ok" ? result.plans : null;
+// Computed once, here, and passed down: islands never read the role (S-405).
+const canEdit = allows(Astro.locals.access, "edit");
 ---
 
 <AppShellLayout title="Plans">
-  <PlansListPage plans={plans} />
+  <PlansListPage plans={plans} canEdit={canEdit} />
 </AppShellLayout>

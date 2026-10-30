@@ -10,6 +10,8 @@ import {
 
 type Props = {
   indicators: readonly PlanIndicator[];
+  /** Whether the reader's visit would reclaim or deliver — it decides what the badge promises (S-405). */
+  canEdit: boolean;
 };
 
 /**
@@ -22,7 +24,7 @@ type Props = {
  * that announced every terminal badge on load would read the whole table aloud, while an advancing
  * stage is exactly the kind of unprompted change assistive tech should hear about.
  */
-export default function PlanIndicatorsCell({ indicators }: Props) {
+export default function PlanIndicatorsCell({ indicators, canEdit }: Props) {
   // One hook for the whole cell rather than one per badge: whether we are past hydration is a
   // property of the render, not of an indicator.
   const hydrated = useHydrated();
@@ -32,7 +34,7 @@ export default function PlanIndicatorsCell({ indicators }: Props) {
       {indicators.map((indicator) => (
         <IndicatorBadge
           key={indicator.jobId}
-          description={describeGenerationIndicator(indicator)}
+          description={describeGenerationIndicator(indicator, canEdit)}
           hydrated={hydrated}
         />
       ))}

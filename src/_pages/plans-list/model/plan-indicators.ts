@@ -49,8 +49,9 @@ export type GenerationIndicator = {
   startedAt: string;
   /**
    * An active job that has gone quiet past `HEARTBEAT_GRACE_MS` (S-304). DISPLAY ONLY — this path
-   * stays a pure read, and the reclaim happens where the failure is felt: the plan visit the stalled
-   * badge links to. Computed at the mapping edge so the loader and the poll agree.
+   * stays a pure read, and the reclaim happens where the failure is felt: an editor's visit to the
+   * plan the stalled badge links to (a non-editor's visit writes nothing, S-405). Computed at the
+   * mapping edge so the loader and the poll agree.
    */
   stale: boolean;
 };
@@ -104,29 +105,41 @@ export type IndicatorDescription = {
  * is what reclaims it — reclaim keys off the plan whose Generate the wedged row is blocking. And a
  * **failed** job, because its clone has been swept and the source's strip is where the diagnostic
  * lives (FR-308).
+ *
+ * **`canEdit` changes what a visit does, so it changes what the badge promises (S-405).** Only an
+ * editor's visit writes: it reclaims a stalled row and delivers a finished one. A non-editor's visit
+ * reads, so "open plan" and "open to deliver" would be promises it cannot keep. For a non-editor the
+ * stalled badge loses its call to act and points at the proposal like every other active badge (its
+ * page says the job stopped reporting progress), and the undelivered badge says who it is waiting
+ * for. Delivered and failed read the same for everyone: neither asks the visit to write.
  */
-export const describeGenerationIndicator = (indicator: GenerationIndicator): IndicatorDescription => {
-  const openSource = `/plans/${indicator.planId}`;
-  const openProposal = indicator.proposalPlanId === null ? openSource : `/plans/${indicator.proposalPlanId}`;
+export const describeGenerationIndicator = (indicator: GenerationIndicator, canEdit: boolean): IndicatorDescription => {
+  const openSource = sourceHref(indicator);
+  const openProposal = proposalHref(indicator);
   switch (indicator.status) {
     case "queued":
       return indicator.stale
-        ? // Tone `other`, not `failed`: the row still says `queued` and nothing here has written to it.
-          { tone: "other", label: "Queued — stalled, open plan", href: openSource, startedAt: indicator.startedAt }
+        ? stalledBadge("Queued", indicator, canEdit)
         : { tone: "active", label: "Queued — started", href: openProposal, startedAt: indicator.startedAt };
     case "running":
       return indicator.stale
-        ? { tone: "other", label: "Generating — stalled, open plan", href: openSource, startedAt: indicator.startedAt }
+        ? stalledBadge("Generating", indicator, canEdit)
         : { tone: "active", label: stageLabel(indicator), href: openProposal, startedAt: indicator.startedAt };
     case "succeeded":
     case "stopped":
     case "interrupted":
       // Three statuses, one question: has the board landed? A delivered proposal is an ordinary plan
-      // and the badge is an invitation to open it; an undelivered one needs a visit to complete, and
-      // says so in the same words the delete guard's refusal uses.
+      // and the badge is an invitation to open it; an undelivered one needs an editor's visit to
+      // complete. An editor reads that in the same words the delete guard's refusal uses; anyone
+      // else reads that it is waiting for one.
       return indicator.delivered
         ? { tone: "done", label: "Ready — open", href: openProposal, startedAt: null }
-        : { tone: "done", label: "Finished — open to deliver", href: openProposal, startedAt: null };
+        : {
+            tone: "done",
+            label: canEdit ? "Finished — open to deliver" : "Finished — waiting for an author",
+            href: openProposal,
+            startedAt: null,
+          };
     case "failed":
       return { tone: "failed", label: "Failed — open plan", href: openSource, startedAt: null };
   }
@@ -196,3 +209,31 @@ const stageLabel = (indicator: GenerationIndicator): string => {
   const named = indicator.stageName === null ? "" : ` · ${tierLabel(indicator.stageName)}`;
   return `Generating — stage ${String(indicator.stageIndex)} of ${String(LADDER_TIER_COUNT)}${named}`;
 };
+
+/**
+ * An active row that has gone quiet. Tone `other`, not `failed`: the row still says `queued` or
+ * `running`, and nothing here has written to it.
+ *
+ * An editor is sent to the SOURCE, because their visit there is what reclaims it. Anyone else is sent
+ * to the proposal like any active badge, with no call to act: their visit would reclaim nothing, and
+ * the proposal's page is where an editor's eventual reclaim (or the job coming back) shows up.
+ */
+const stalledBadge = (
+  subject: "Queued" | "Generating",
+  indicator: GenerationIndicator,
+  canEdit: boolean,
+): IndicatorDescription =>
+  canEdit
+    ? {
+        tone: "other",
+        label: `${subject} — stalled, open plan`,
+        href: sourceHref(indicator),
+        startedAt: indicator.startedAt,
+      }
+    : { tone: "other", label: `${subject} — stalled`, href: proposalHref(indicator), startedAt: indicator.startedAt };
+
+const sourceHref = (indicator: GenerationIndicator): string => `/plans/${indicator.planId}`;
+
+/** The proposal, or the source once the proposal is gone (`proposal_plan_id` is `on delete set null`). */
+const proposalHref = (indicator: GenerationIndicator): string =>
+  indicator.proposalPlanId === null ? sourceHref(indicator) : `/plans/${indicator.proposalPlanId}`;

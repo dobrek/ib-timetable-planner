@@ -4,15 +4,17 @@ import PlansHub from "./PlansHub";
 
 type Props = {
   plans: PlanRow[] | null;
+  /** The route's `allows(access, "edit")` (S-405). */
+  canEdit: boolean;
 };
 
-const { plans } = Astro.props;
+const { plans, canEdit } = Astro.props;
 ---
 
 {
   plans === null ? (
     <p class="text-muted-foreground text-sm">Plans are unavailable — Supabase is not configured.</p>
   ) : (
-    <PlansHub plans={plans} client:load />
+    <PlansHub plans={plans} canEdit={canEdit} client:load />
   )
 }

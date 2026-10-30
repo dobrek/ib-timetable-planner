@@ -34,20 +34,24 @@ export const announcementsFor = (
   previous: IndicatorsByPlan,
   current: IndicatorsByPlan,
   nameOf: (planId: string) => string | undefined,
+  canEdit: boolean,
 ): GenerationAnnouncement[] =>
   [...current.values()].flatMap((indicator) => {
     const before = previous.get(indicator.planId);
     // Never seen before, or was already terminal: nothing transitioned in this tick.
     if (before?.jobId !== indicator.jobId) return [];
     if (!isActiveJobStatus(before.status) || isActiveJobStatus(indicator.status)) return [];
-    return [toAnnouncement(indicator, nameOf)];
+    return [toAnnouncement(indicator, nameOf, canEdit)];
   });
 
 const toAnnouncement = (
   indicator: GenerationIndicator,
   nameOf: (planId: string) => string | undefined,
+  canEdit: boolean,
 ): GenerationAnnouncement => {
-  const { href } = describeGenerationIndicator(indicator);
+  // The badge's own destination, described for the same caller (S-405), so the toast's Open and the
+  // badge beside it can never point at different plans.
+  const { href } = describeGenerationIndicator(indicator, canEdit);
   const failed = indicator.status === "failed";
   return {
     jobId: indicator.jobId,

@@ -22,6 +22,9 @@ type Props = {
   rows: StudentRow[];
   totalCount: number;
   coursesById: Map<string, CourseOption>;
+  /** Without it there is no create call, no selection column, and the row menu holds only "View plan"
+   *  (S-405) — selection exists only to feed the bulk edit. */
+  canEdit: boolean;
   selectedIds: ReadonlySet<string>;
   onToggleRow: (id: string) => void;
   onToggleAll: () => void;
@@ -35,6 +38,7 @@ export default function StudentTable({
   rows,
   totalCount,
   coursesById,
+  canEdit,
   selectedIds,
   onToggleRow,
   onToggleAll,
@@ -45,11 +49,15 @@ export default function StudentTable({
   if (totalCount === 0) {
     return (
       <div className="py-12 text-center">
-        <p className="text-muted-foreground text-sm">No students yet — create your first student.</p>
-        <Button className="mt-4 gap-2" onClick={onCreateFirst}>
-          <Plus aria-hidden="true" />
-          New student
-        </Button>
+        <p className="text-muted-foreground text-sm">
+          {canEdit ? "No students yet — create your first student." : "No students yet."}
+        </p>
+        {canEdit && (
+          <Button className="mt-4 gap-2" onClick={onCreateFirst}>
+            <Plus aria-hidden="true" />
+            New student
+          </Button>
+        )}
       </div>
     );
   }
@@ -67,9 +75,11 @@ export default function StudentTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-10">
-              <Checkbox checked={headerState} onCheckedChange={onToggleAll} aria-label="Select all students" />
-            </TableHead>
+            {canEdit && (
+              <TableHead className="w-10">
+                <Checkbox checked={headerState} onCheckedChange={onToggleAll} aria-label="Select all students" />
+              </TableHead>
+            )}
             <TableHead>Name</TableHead>
             <TableHead>Choices</TableHead>
             <TableHead className="text-right">#</TableHead>
@@ -81,15 +91,17 @@ export default function StudentTable({
             const selected = selectedIds.has(row.id);
             return (
               <TableRow key={row.id} data-state={selected ? "selected" : undefined}>
-                <TableCell>
-                  <Checkbox
-                    checked={selected}
-                    onCheckedChange={() => {
-                      onToggleRow(row.id);
-                    }}
-                    aria-label={`Select ${row.fullName}`}
-                  />
-                </TableCell>
+                {canEdit && (
+                  <TableCell>
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={() => {
+                        onToggleRow(row.id);
+                      }}
+                      aria-label={`Select ${row.fullName}`}
+                    />
+                  </TableCell>
+                )}
                 <TableCell>
                   <StudentViewLink planId={planId} row={row}>
                     {row.fullName}
@@ -100,7 +112,7 @@ export default function StudentTable({
                 </TableCell>
                 <TableCell className="text-right">{row.choiceCourseIds.length}</TableCell>
                 <TableCell className="text-right">
-                  <StudentRowActions planId={planId} row={row} onEdit={onEdit} onDelete={onDelete} />
+                  <StudentRowActions planId={planId} row={row} edit={canEdit ? { onEdit, onDelete } : undefined} />
                 </TableCell>
               </TableRow>
             );
@@ -134,17 +146,14 @@ function ChoiceBadges({
   );
 }
 
-function StudentRowActions({
-  planId,
-  row,
-  onEdit,
-  onDelete,
-}: {
-  planId: string;
-  row: StudentRow;
+/** The row menu's write items' handlers — absent for a caller who may not edit (S-405). */
+type StudentRowEdits = {
   onEdit: (student: StudentRow) => void;
   onDelete: (student: StudentRow) => void;
-}) {
+};
+
+/** Per-row kebab: "View plan" for everyone, then — only with `edit` — Edit and Delete. */
+function StudentRowActions({ planId, row, edit }: { planId: string; row: StudentRow; edit?: StudentRowEdits }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -156,21 +165,25 @@ function StudentRowActions({
         <DropdownMenuItem asChild>
           <a href={studentViewHref(planId, row.id)}>View plan</a>
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            onEdit(row);
-          }}
-        >
-          Edit
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          onSelect={() => {
-            onDelete(row);
-          }}
-        >
-          Delete
-        </DropdownMenuItem>
+        {edit && (
+          <>
+            <DropdownMenuItem
+              onSelect={() => {
+                edit.onEdit(row);
+              }}
+            >
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => {
+                edit.onDelete(row);
+              }}
+            >
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

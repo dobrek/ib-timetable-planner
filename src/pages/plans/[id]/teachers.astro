@@ -4,6 +4,7 @@ import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
 import PendingProposalNotice from "@/app/layouts/PendingProposalNotice.astro";
 import TeacherCatalog from "@/_pages/teachers/ui/TeacherCatalog";
 import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
+import { allows } from "@/shared/config";
 import { parseGridPreset } from "@/shared/lib/grid";
 import { loadTeacherCatalog } from "@/_pages/teachers/api";
 
@@ -24,7 +25,10 @@ else if (!plan) Astro.response.status = 404;
 const pending = plan !== null && isPendingProposal(plan);
 
 const catalog = result?.ok ? result.value : null;
-// Size the availability authoring grid to the plan's actual grid (falls back safely on null).
+// Computed once, here, and passed down: islands never read the role (S-405).
+const canEdit = allows(Astro.locals.access, "edit");
+// Size the availability grid (authoring, or read-only for a viewer) to the plan's actual grid (falls back
+// safely on null).
 const { days, periods } = parseGridPreset(plan?.slot_grid_preset);
 ---
 
@@ -39,7 +43,14 @@ const { days, periods } = parseGridPreset(plan?.slot_grid_preset);
     ) : catalog === null ? (
       <p class="text-muted-foreground text-sm">Teachers are unavailable — Supabase is not configured.</p>
     ) : (
-      <TeacherCatalog planId={plan.id} teachers={catalog.teachers} days={days} periods={periods} client:load />
+      <TeacherCatalog
+        planId={plan.id}
+        teachers={catalog.teachers}
+        days={days}
+        periods={periods}
+        canEdit={canEdit}
+        client:load
+      />
     )
   }
 </AppShellLayout>

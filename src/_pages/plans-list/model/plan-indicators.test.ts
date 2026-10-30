@@ -18,6 +18,10 @@ const STARTED = "2026-08-20T14:02:31.000Z";
 const NOW = Date.parse(STARTED) + 8_000;
 const STALE_BEAT = new Date(Date.parse(STARTED) - HEARTBEAT_GRACE_MS).toISOString();
 
+/** `describeGenerationIndicator`'s second argument: the reader may edit (S-405). */
+const AUTHOR = true;
+const VIEWER = false;
+
 const row = (overrides: Partial<GenerationJobStatusRow> = {}): GenerationJobStatusRow => ({
   id: JOB_ID,
   plan_id: PLAN_ID,
@@ -121,7 +125,7 @@ describe("describeGenerationIndicator", () => {
     // The href used to be null here: before S-306 the clone had no reader, so there was nowhere to
     // send the author mid-solve. It is now a listed plan that renders its own progress, so the badge
     // is a link from the first second.
-    expect(describeGenerationIndicator(indicator())).toEqual({
+    expect(describeGenerationIndicator(indicator(), AUTHOR)).toEqual({
       tone: "active",
       label: "Generating — stage 4 of 10 · teacher holes",
       href: `/plans/${PROPOSAL_ID}`,
@@ -130,30 +134,32 @@ describe("describeGenerationIndicator", () => {
   });
 
   it("says 'starting' before the first stage has been reported", () => {
-    const description = describeGenerationIndicator(indicator({ stageIndex: null, stageName: null }));
+    const description = describeGenerationIndicator(indicator({ stageIndex: null, stageName: null }), AUTHOR);
     expect(description.label).toBe("Generating — starting");
     expect(description.tone).toBe("active");
   });
 
   it("omits the tier name when the row has an index but no name", () => {
-    expect(describeGenerationIndicator(indicator({ stageName: null })).label).toBe("Generating — stage 4 of 10");
+    expect(describeGenerationIndicator(indicator({ stageName: null }), AUTHOR).label).toBe(
+      "Generating — stage 4 of 10",
+    );
   });
 
   it("falls back to the engine's raw name for a tier the label map does not know", () => {
-    expect(describeGenerationIndicator(indicator({ stageName: "someFutureTier" })).label).toBe(
+    expect(describeGenerationIndicator(indicator({ stageName: "someFutureTier" }), AUTHOR).label).toBe(
       "Generating — stage 4 of 10 · someFutureTier",
     );
   });
 
   it("shows a queued job as queued, with its start time", () => {
-    const description = describeGenerationIndicator(indicator({ status: "queued" }));
+    const description = describeGenerationIndicator(indicator({ status: "queued" }), AUTHOR);
     expect(description).toMatchObject({ tone: "active", label: "Queued — started", startedAt: STARTED });
   });
 
   it("says 'stalled' for a running job that has gone quiet, and offers a way in", () => {
     // Tone `other`, not `failed`: nothing has been written and the row still says `running`. The href
     // is the actionable half — opening the plan is what performs the reclaim.
-    expect(describeGenerationIndicator(indicator({ stale: true }))).toEqual({
+    expect(describeGenerationIndicator(indicator({ stale: true }), AUTHOR)).toEqual({
       tone: "other",
       label: "Generating — stalled, open plan",
       href: `/plans/${PLAN_ID}`,
@@ -162,7 +168,7 @@ describe("describeGenerationIndicator", () => {
   });
 
   it("says 'stalled' for a stranded queued job too — nothing ever claimed it", () => {
-    expect(describeGenerationIndicator(indicator({ status: "queued", stale: true }))).toMatchObject({
+    expect(describeGenerationIndicator(indicator({ status: "queued", stale: true }), AUTHOR)).toMatchObject({
       tone: "other",
       label: "Queued — stalled, open plan",
       href: `/plans/${PLAN_ID}`,
@@ -171,7 +177,7 @@ describe("describeGenerationIndicator", () => {
 
   it("ignores staleness on a terminal job, which cannot have any", () => {
     // Belt and braces: the predicate never sets it, and the switch never reads it here.
-    expect(describeGenerationIndicator(indicator({ status: "succeeded", stale: true })).label).toBe(
+    expect(describeGenerationIndicator(indicator({ status: "succeeded", stale: true }), AUTHOR).label).toBe(
       "Finished — open to deliver",
     );
   });
@@ -180,7 +186,7 @@ describe("describeGenerationIndicator", () => {
     // Replaces "points a finished job at the SOURCE plan, because delivery happens on a visit there"
     // (S-301). Both halves of that reason expired: `checkPlan` is dual-keyed, so a visit to the
     // proposal delivers, and the board is on the proposal — the source is never written to.
-    expect(describeGenerationIndicator(indicator({ status: "succeeded", delivered: true }))).toEqual({
+    expect(describeGenerationIndicator(indicator({ status: "succeeded", delivered: true }), AUTHOR)).toEqual({
       tone: "done",
       label: "Ready — open",
       href: `/plans/${PROPOSAL_ID}`,
@@ -191,7 +197,7 @@ describe("describeGenerationIndicator", () => {
   it("tells an UNDELIVERED finished job apart, in the delete guard's own words", () => {
     // "open to deliver" is exactly what `assertNotPending` refuses a delete with, so the badge and
     // the refusal say the same thing.
-    expect(describeGenerationIndicator(indicator({ status: "succeeded", delivered: false }))).toMatchObject({
+    expect(describeGenerationIndicator(indicator({ status: "succeeded", delivered: false }), AUTHOR)).toMatchObject({
       tone: "done",
       label: "Finished — open to deliver",
       href: `/plans/${PROPOSAL_ID}`,
@@ -201,7 +207,7 @@ describe("describeGenerationIndicator", () => {
   it("offers a failed job a way into the SOURCE, where the diagnostic lives", () => {
     // The one terminal state that keeps the old destination: a failed job's clone has been swept, so
     // there is no proposal to open, and FR-308 puts the failure on the source's strip.
-    expect(describeGenerationIndicator(indicator({ status: "failed" }))).toMatchObject({
+    expect(describeGenerationIndicator(indicator({ status: "failed" }), AUTHOR)).toMatchObject({
       tone: "failed",
       label: "Failed — open plan",
       href: `/plans/${PLAN_ID}`,
@@ -211,12 +217,12 @@ describe("describeGenerationIndicator", () => {
   it.each([["stopped" as const], ["interrupted" as const]])(
     "treats %s exactly as succeeded — the question is whether a board landed",
     (status) => {
-      expect(describeGenerationIndicator(indicator({ status, delivered: true }))).toMatchObject({
+      expect(describeGenerationIndicator(indicator({ status, delivered: true }), AUTHOR)).toMatchObject({
         tone: "done",
         label: "Ready — open",
         href: `/plans/${PROPOSAL_ID}`,
       });
-      expect(describeGenerationIndicator(indicator({ status, delivered: false })).label).toBe(
+      expect(describeGenerationIndicator(indicator({ status, delivered: false }), AUTHOR).label).toBe(
         "Finished — open to deliver",
       );
     },
@@ -225,7 +231,7 @@ describe("describeGenerationIndicator", () => {
   it("falls back to the source when the proposal is gone", () => {
     // `proposal_plan_id` is `on delete set null`, so a swept or hand-deleted clone leaves the badge
     // with nowhere else to point.
-    expect(describeGenerationIndicator(indicator({ status: "succeeded", proposalPlanId: null })).href).toBe(
+    expect(describeGenerationIndicator(indicator({ status: "succeeded", proposalPlanId: null }), AUTHOR).href).toBe(
       `/plans/${PLAN_ID}`,
     );
   });
@@ -233,9 +239,88 @@ describe("describeGenerationIndicator", () => {
   it("never pre-formats the start time — the cell renders it, to avoid a hydration mismatch", () => {
     // SSR runs on workerd (UTC) and hydration in the reader's zone, so a `toLocaleTimeString` here
     // would produce two different strings for the same instant.
-    const description = describeGenerationIndicator(indicator());
+    const description = describeGenerationIndicator(indicator(), AUTHOR);
     expect(description.startedAt).toBe(STARTED);
     expect(description.label).not.toMatch(/\d{2}:\d{2}/);
+  });
+});
+
+/**
+ * The same badges, for a reader whose visit writes nothing (S-405). An author's visit reclaims a
+ * stalled row and delivers a finished one; a viewer's reclaims and delivers nothing, so no badge may
+ * promise either — and the stalled one stops pointing at the source, whose visit was the reclaim.
+ */
+describe("describeGenerationIndicator for a reader who may not edit", () => {
+  const TERMINAL = ["succeeded", "stopped", "interrupted"] as const;
+
+  it.each([["queued" as const], ["running" as const]])("reads a healthy %s job exactly as an author does", (status) => {
+    expect(describeGenerationIndicator(indicator({ status }), VIEWER)).toEqual(
+      describeGenerationIndicator(indicator({ status }), AUTHOR),
+    );
+  });
+
+  it.each([
+    ["running" as const, "Generating — stalled"],
+    ["queued" as const, "Queued — stalled"],
+  ])("says a stale %s job is stalled, with no call to act, and points at the PROPOSAL", (status, label) => {
+    expect(describeGenerationIndicator(indicator({ status, stale: true }), VIEWER)).toEqual({
+      tone: "other",
+      label,
+      href: `/plans/${PROPOSAL_ID}`,
+      startedAt: STARTED,
+    });
+  });
+
+  it("falls back to the source for a stalled job whose proposal is gone", () => {
+    expect(describeGenerationIndicator(indicator({ stale: true, proposalPlanId: null }), VIEWER).href).toBe(
+      `/plans/${PLAN_ID}`,
+    );
+  });
+
+  it.each(TERMINAL)("says an undelivered %s job is waiting for an author, and points at the proposal", (status) => {
+    expect(describeGenerationIndicator(indicator({ status, delivered: false }), VIEWER)).toEqual({
+      tone: "done",
+      label: "Finished — waiting for an author",
+      href: `/plans/${PROPOSAL_ID}`,
+      startedAt: null,
+    });
+  });
+
+  it.each(TERMINAL)("reads a delivered %s job exactly as an author does", (status) => {
+    const delivered = indicator({ status, delivered: true });
+    expect(describeGenerationIndicator(delivered, VIEWER)).toEqual({
+      tone: "done",
+      label: "Ready — open",
+      href: `/plans/${PROPOSAL_ID}`,
+      startedAt: null,
+    });
+    expect(describeGenerationIndicator(delivered, VIEWER)).toEqual(describeGenerationIndicator(delivered, AUTHOR));
+  });
+
+  it("reads a failed job exactly as an author does — the source, where the diagnostic lives", () => {
+    const failed = indicator({ status: "failed" });
+    expect(describeGenerationIndicator(failed, VIEWER)).toEqual({
+      tone: "failed",
+      label: "Failed — open plan",
+      href: `/plans/${PLAN_ID}`,
+      startedAt: null,
+    });
+    expect(describeGenerationIndicator(failed, VIEWER)).toEqual(describeGenerationIndicator(failed, AUTHOR));
+  });
+
+  it("never promises a visit that writes, whatever the row says", () => {
+    // The two phrases are the author's calls to reclaim and to deliver. Every status, stale or not,
+    // delivered or not — a viewer reads neither. ("Failed — open plan" asks for no write: the source
+    // is where the diagnostic is, for everyone.)
+    const statuses = ["queued", "running", "succeeded", "stopped", "interrupted", "failed"] as const;
+    const labels = statuses.flatMap((status) =>
+      [true, false].flatMap((stale) =>
+        [true, false].map(
+          (delivered) => describeGenerationIndicator(indicator({ status, stale, delivered }), VIEWER).label,
+        ),
+      ),
+    );
+    expect(labels.filter((label) => /stalled, open plan|open to deliver/.test(label))).toEqual([]);
   });
 });
 

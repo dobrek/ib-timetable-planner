@@ -33,6 +33,8 @@ import PlanFormDialog from "./PlanFormDialog";
 
 type Props = {
   plans: PlanRow[];
+  /** Computed once by the route (`allows(access, "edit")`); the island never reads the role (S-405). */
+  canEdit: boolean;
 };
 
 /**
@@ -42,6 +44,10 @@ type Props = {
  * The rows are peers but for one: the **current** plan (S-404, FR-420), the one the school is using.
  * At most one plan is current; the loader pins it first and it carries a badge beside its name, so
  * which plan is current answers itself at a glance. Any author moves the marker from a row's menu.
+ *
+ * **A non-editor reads the same hub with every write left out (S-405):** no "New plan", no row menu
+ * (each of its items writes), and job badges that promise only what a non-editor's visit does — see
+ * `describeGenerationIndicator`. Ticking rows and Compare are reads, so they stay.
  *
  * Still no derived metrics *per row* — a plan is not scored in isolation. Comparison is inherently
  * multi-plan, so it is driven by **ticking rows here** and pressing Compare, not by a picker on the
@@ -54,7 +60,7 @@ type Props = {
  * `PlansHub` is this page's only island — so the question of a poll re-rendering the grid cannot
  * arise, instead of being answered by a memoization argument nobody can verify by reading.
  */
-export default function PlansHub({ plans }: Props) {
+export default function PlansHub({ plans, canEdit }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<PlanRow | null>(null);
   const [cloneSource, setCloneSource] = useState<PlanRow | null>(null);
@@ -70,7 +76,7 @@ export default function PlansHub({ plans }: Props) {
     plans.flatMap((plan) => plan.indicators),
     planIds,
   );
-  useGenerationAnnouncements(liveIndicators, plans);
+  useGenerationAnnouncements(liveIndicators, plans, canEdit);
   const allSelected = planIds.length > 0 && planIds.every((id) => selectedIds.has(id));
   const someSelected = planIds.some((id) => selectedIds.has(id));
   const headerState: boolean | "indeterminate" = allSelected ? true : someSelected ? "indeterminate" : false;
@@ -97,13 +103,16 @@ export default function PlansHub({ plans }: Props) {
         <div>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Plans</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Each plan is a complete scenario — catalog and timetable. Clone one to explore a what-if.
+            Each plan is a complete scenario — catalog and timetable.
+            {canEdit && " Clone one to explore a what-if."}
           </p>
         </div>
-        <Button className="gap-2" onClick={openCreate}>
-          <Plus aria-hidden="true" />
-          New plan
-        </Button>
+        {canEdit && (
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus aria-hidden="true" />
+            New plan
+          </Button>
+        )}
       </header>
 
       <ComparePlansBar
@@ -115,11 +124,15 @@ export default function PlansHub({ plans }: Props) {
 
       {plans.length === 0 ? (
         <div className="py-12 text-center">
-          <p className="text-muted-foreground text-sm">No plans yet — create your first plan.</p>
-          <Button className="mt-4 gap-2" onClick={openCreate}>
-            <Plus aria-hidden="true" />
-            New plan
-          </Button>
+          <p className="text-muted-foreground text-sm">
+            {canEdit ? "No plans yet — create your first plan." : "No plans yet."}
+          </p>
+          {canEdit && (
+            <Button className="mt-4 gap-2" onClick={openCreate}>
+              <Plus aria-hidden="true" />
+              New plan
+            </Button>
+          )}
         </div>
       ) : (
         <div className="border-border overflow-hidden rounded-lg border">
@@ -139,7 +152,7 @@ export default function PlansHub({ plans }: Props) {
                 <TableHead>Grid</TableHead>
                 <TableHead>Last updated</TableHead>
                 <TableHead>Activity</TableHead>
-                <TableHead className="w-12" aria-label="Actions" />
+                {canEdit && <TableHead className="w-12" aria-label="Actions" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -168,16 +181,21 @@ export default function PlansHub({ plans }: Props) {
                     <TableCell className="text-muted-foreground">{plan.slotGridPreset}</TableCell>
                     <TableCell className="text-muted-foreground">{plan.updatedAt.slice(0, 10)}</TableCell>
                     <TableCell>
-                      <PlanIndicatorsCell indicators={indicatorsForRow(plan.id, liveIndicators, planIds)} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <PlanRowActions
-                        plan={plan}
-                        onClone={setCloneSource}
-                        onRename={openRename}
-                        onDelete={setDeleteTarget}
+                      <PlanIndicatorsCell
+                        indicators={indicatorsForRow(plan.id, liveIndicators, planIds)}
+                        canEdit={canEdit}
                       />
                     </TableCell>
+                    {canEdit && (
+                      <TableCell className="text-right">
+                        <PlanRowActions
+                          plan={plan}
+                          onClone={setCloneSource}
+                          onRename={openRename}
+                          onDelete={setDeleteTarget}
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -217,12 +235,12 @@ export default function PlansHub({ plans }: Props) {
  * The diff itself is pure and lives in `generation-toasts.ts`, so the rule about WHAT counts as an
  * event (active → terminal, once) is tested without a DOM.
  */
-const useGenerationAnnouncements = (live: IndicatorsByPlan, plans: readonly PlanRow[]): void => {
+const useGenerationAnnouncements = (live: IndicatorsByPlan, plans: readonly PlanRow[], canEdit: boolean): void => {
   const previous = useRef<IndicatorsByPlan>(live);
 
   useEffect(() => {
     const nameOf = (planId: string) => plans.find((plan) => plan.id === planId)?.name;
-    for (const { tone, title, description, href } of announcementsFor(previous.current, live, nameOf)) {
+    for (const { tone, title, description, href } of announcementsFor(previous.current, live, nameOf, canEdit)) {
       const notify = tone === "error" ? toast.error : toast.success;
       notify(title, {
         description,
@@ -238,7 +256,7 @@ const useGenerationAnnouncements = (live: IndicatorsByPlan, plans: readonly Plan
       });
     }
     previous.current = live;
-  }, [live, plans]);
+  }, [live, plans, canEdit]);
 };
 
 function PlanRowActions({

@@ -21,13 +21,24 @@ import { LEVEL_NONE, type CourseRow } from "../model/course";
 type Props = {
   rows: CourseRow[];
   coursesById: Map<string, CourseRow>;
+  /** Without it the row menu is absent — every item in it writes (S-405). */
+  canEdit: boolean;
   onEdit: (course: CourseRow) => void;
-  onManageOverlaps: (course: CourseRow) => void;
+  /** Opens the overlaps dialog — read-only without `canEdit`, so the badge works for everyone. */
+  onOpenOverlaps: (course: CourseRow) => void;
   onManageMerge: (course: CourseRow) => void;
   onDelete: (course: CourseRow) => void;
 };
 
-export default function CourseTable({ rows, coursesById, onEdit, onManageOverlaps, onManageMerge, onDelete }: Props) {
+export default function CourseTable({
+  rows,
+  coursesById,
+  canEdit,
+  onEdit,
+  onOpenOverlaps,
+  onManageMerge,
+  onDelete,
+}: Props) {
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No courses match the current filter.</p>;
   }
@@ -42,7 +53,7 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
             <TableHead>Group</TableHead>
             <TableHead className="text-right">Hours</TableHead>
             <TableHead>Teacher</TableHead>
-            <TableHead className="w-12" aria-label="Actions" />
+            {canEdit && <TableHead className="w-12" aria-label="Actions" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -55,7 +66,7 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
                   {row.isMerged && <Badge variant="secondary">Merged</Badge>}
                   {row.weekMode === "biweekly" && <Badge variant="outline">Bi-weekly</Badge>}
                   {row.finishesEarly && <Badge variant="outline">Finishes early</Badge>}
-                  <OverlapBadge row={row} coursesById={coursesById} onManageOverlaps={onManageOverlaps} />
+                  <OverlapBadge row={row} coursesById={coursesById} canEdit={canEdit} onOpenOverlaps={onOpenOverlaps} />
                 </span>
               </TableCell>
               <TableCell>{row.level === LEVEL_NONE ? "—" : row.level}</TableCell>
@@ -70,15 +81,17 @@ export default function CourseTable({ rows, coursesById, onEdit, onManageOverlap
                   ))}
                 </span>
               </TableCell>
-              <TableCell className="text-right">
-                <CourseRowActions
-                  row={row}
-                  onEdit={onEdit}
-                  onManageOverlaps={onManageOverlaps}
-                  onManageMerge={onManageMerge}
-                  onDelete={onDelete}
-                />
-              </TableCell>
+              {canEdit && (
+                <TableCell className="text-right">
+                  <CourseRowActions
+                    row={row}
+                    onEdit={onEdit}
+                    onOpenOverlaps={onOpenOverlaps}
+                    onManageMerge={onManageMerge}
+                    onDelete={onDelete}
+                  />
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -106,16 +119,19 @@ function CourseColorDot({ color }: { color: SubjectColor | null }) {
 
 /**
  * Names the base course(s) this course's students also attend; hidden when there are none.
- * Clicking opens the overlap manager for the row.
+ * Clicking opens the overlap manager for the row — or, without `canEdit`, the same list read-only,
+ * which is why the badge stays for everyone and only its accessible name follows the capability.
  */
 function OverlapBadge({
   row,
   coursesById,
-  onManageOverlaps,
+  canEdit,
+  onOpenOverlaps,
 }: {
   row: CourseRow;
   coursesById: Map<string, CourseRow>;
-  onManageOverlaps: (course: CourseRow) => void;
+  canEdit: boolean;
+  onOpenOverlaps: (course: CourseRow) => void;
 }) {
   if (row.overlaps.length === 0) return null;
   const labels = row.overlaps.map((id) => {
@@ -131,9 +147,9 @@ function OverlapBadge({
       <button
         type="button"
         onClick={() => {
-          onManageOverlaps(row);
+          onOpenOverlaps(row);
         }}
-        aria-label={`Manage overlaps for ${row.name}`}
+        aria-label={`${canEdit ? "Manage" : "View"} overlaps for ${row.name}`}
       >
         <Link2 className="size-3" aria-hidden="true" />
         Overlap: {labels.join(", ")}
@@ -144,10 +160,10 @@ function OverlapBadge({
 
 type CourseRowActionsProps = {
   row: CourseRow;
-} & Pick<Props, "onEdit" | "onManageOverlaps" | "onManageMerge" | "onDelete">;
+} & Pick<Props, "onEdit" | "onOpenOverlaps" | "onManageMerge" | "onDelete">;
 
-/** Per-row kebab — present on every course. "Manage merge" shows only on composite parents. */
-function CourseRowActions({ row, onEdit, onManageOverlaps, onManageMerge, onDelete }: CourseRowActionsProps) {
+/** Per-row kebab — on every course for an editor. "Manage merge" shows only on composite parents. */
+function CourseRowActions({ row, onEdit, onOpenOverlaps, onManageMerge, onDelete }: CourseRowActionsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -165,7 +181,7 @@ function CourseRowActions({ row, onEdit, onManageOverlaps, onManageMerge, onDele
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
-            onManageOverlaps(row);
+            onOpenOverlaps(row);
           }}
         >
           Manage overlaps

@@ -669,9 +669,9 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Manual
 
-- [ ] 1.8 As a viewer, a finished undelivered proposal shows "finished — waiting for an author", no Stop, and no 42501 / `[checkPlan]` errors in the server log
-- [ ] 1.9 With the viewer's tab open, the author opening the proposal flips the viewer's page into the board within ~5 s
-- [ ] 1.10 As a viewer, a delivered proposal's hub badge stays "Ready — open" until the author opens it
+- [x] 1.8 As a viewer, a finished undelivered proposal shows "finished — waiting for an author", no Stop, and no 42501 / `[checkPlan]` errors in the server log — b94bb77
+- [x] 1.9 With the viewer's tab open, the author opening the proposal flips the viewer's page into the board within ~5 s — b94bb77
+- [x] 1.10 As a viewer, a delivered proposal's hub badge stays "Ready — open" until the author opens it — b94bb77
 
 ### Phase 2: A Read-Only Board
 
@@ -685,10 +685,10 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Manual
 
-- [ ] 2.6 As a viewer, combined and both focus modes render the timetable, including a focus mode with no groupings
-- [ ] 2.7 As a viewer, nothing drags, and no cell action, A/B toggle, chip menu, palette, shelf, parked button, Generate or undo/redo appears; ⌘Z does nothing
-- [ ] 2.8 As a viewer, Group/Ungroup, collision inspector, lens, zoom, hint mode, export and print work
-- [ ] 2.9 As an author, the board is unchanged and a drag validates within budget
+- [x] 2.6 As a viewer, combined and both focus modes render the timetable, including a focus mode with no groupings — b8eb106
+- [x] 2.7 As a viewer, nothing drags, and no cell action, A/B toggle, chip menu, palette, shelf, parked button, Generate or undo/redo appears; ⌘Z does nothing — b8eb106
+- [x] 2.8 As a viewer, Group/Ungroup, collision inspector, lens, zoom, hint mode, export and print work — b8eb106
+- [x] 2.9 As an author, the board is unchanged and a drag validates within budget — b8eb106
 
 ### Phase 3: Read-Only Hub and Catalogs
 
@@ -702,9 +702,9 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Manual
 
-- [ ] 3.6 As a viewer, `/plans` has no New plan or row menus, Compare works, and job badges read as specified
-- [ ] 3.7 As a viewer, the catalogs show no write controls, "View plan" works, and the overlap and availability dialogs are read-only
-- [ ] 3.8 As an author, the hub and all three catalogs are unchanged
+- [x] 3.6 As a viewer, `/plans` has no New plan or row menus, Compare works, and job badges read as specified — 362fc98
+- [x] 3.7 As a viewer, the catalogs show no write controls, "View plan" works, and the overlap and availability dialogs are read-only — 362fc98
+- [x] 3.8 As an author, the hub and all three catalogs are unchanged — 362fc98
 
 ### Phase 4: Labelling and the "View Only" Chip
 
@@ -718,10 +718,10 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Manual
 
-- [ ] 4.6 The comparison page badges only the current plan and changes nothing else
-- [ ] 4.7 Printed board, student and teacher headings of the current plan carry "Current"; a non-current plan's do not
-- [ ] 4.8 The current plan's tab titles end with "· Current" and its exports are named `<plan>-current-…`
-- [ ] 4.9 "View only" shows in the sidebar footer for a viewer, expanded and collapsed, and never for an author or admin
+- [x] 4.6 The comparison page badges only the current plan and changes nothing else — 61f9e83
+- [x] 4.7 Printed board, student and teacher headings of the current plan carry "Current"; a non-current plan's do not — 61f9e83
+- [x] 4.8 The current plan's tab titles end with "· Current" and its exports are named `<plan>-current-…` — 61f9e83
+- [x] 4.9 "View only" shows in the sidebar footer for a viewer, expanded and collapsed, and never for an author or admin — 61f9e83
 
 ### Phase 5: Viewer E2E and Docs
 
@@ -734,5 +734,5 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Manual
 
-- [ ] 5.5 Temporarily un-gating one control makes the tripwire spec fail naming it, then revert
-- [ ] 5.6 Docs read correctly in `e2e/CLAUDE.md`, `CLAUDE.md` and `README.md`
+- [x] 5.5 Temporarily un-gating one control makes the tripwire spec fail naming it, then revert — 2699676
+- [x] 5.6 Docs read correctly in `e2e/CLAUDE.md`, `CLAUDE.md` and `README.md` — 2699676

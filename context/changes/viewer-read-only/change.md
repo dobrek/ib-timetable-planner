@@ -17,7 +17,7 @@ as S-405 from @context/foundation/roadmap.md
 
 ## Browser verification of the manual rows (Playwright, local)
 
-On 2026-10-30, on `pnpm build && pnpm preview` (workerd) at HEAD `2699676`, against the local stack with the native solver up. The viewer is the e2e account `e2e-viewer@example.test` and the author is `e2e-author@example.test`, each in its own `playwright-cli` session. Throwaway Playwright scripts arranged the data through the author's UI and `e2e/support` helpers. Every plan they created was deleted through the app afterwards, leaving only Seed Plan A and Seed Plan B. **This is evidence for the human sign-off.** The Manual Progress rows stay unchecked until a human confirms them.
+On 2026-10-30, on `pnpm build && pnpm preview` (workerd) at HEAD `2699676`, against the local stack with the native solver up. The viewer is the e2e account `e2e-viewer@example.test` and the author is `e2e-author@example.test`, each in its own `playwright-cli` session. Throwaway Playwright scripts arranged the data through the author's UI and `e2e/support` helpers. Every plan they created was deleted through the app afterwards, leaving only Seed Plan A and Seed Plan B. **This is evidence for the human sign-off.** The user signed off on 2026-10-30, and the Manual Progress rows are checked, each with its phase's commit.
 
 - **1.8:** A finished, undelivered proposal, opened by the viewer:
   - The status reads "Finished — waiting for an author", followed by "This proposal has finished. Its board appears here once an author or admin opens it."

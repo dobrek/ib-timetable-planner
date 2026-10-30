@@ -26,9 +26,12 @@ type Props = {
   rows: TeacherRow[];
   totalCount: number;
   cohortFilter: CohortFilter;
+  /** Without it there is no create call and the row menu holds only "View plan" (S-405). */
+  canEdit: boolean;
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
-  onEditAvailability: (teacher: TeacherRow) => void;
+  /** Opens the availability dialog — read-only without `canEdit`, so the badge works for everyone. */
+  onOpenAvailability: (teacher: TeacherRow) => void;
   onCreateFirst: () => void;
 };
 
@@ -37,19 +40,24 @@ export default function TeacherTable({
   rows,
   totalCount,
   cohortFilter,
+  canEdit,
   onEdit,
   onDelete,
-  onEditAvailability,
+  onOpenAvailability,
   onCreateFirst,
 }: Props) {
   if (totalCount === 0) {
     return (
       <div className="py-12 text-center">
-        <p className="text-muted-foreground text-sm">No teachers yet — create your first teacher.</p>
-        <Button className="mt-4 gap-2" onClick={onCreateFirst}>
-          <Plus aria-hidden="true" />
-          New teacher
-        </Button>
+        <p className="text-muted-foreground text-sm">
+          {canEdit ? "No teachers yet — create your first teacher." : "No teachers yet."}
+        </p>
+        {canEdit && (
+          <Button className="mt-4 gap-2" onClick={onCreateFirst}>
+            <Plus aria-hidden="true" />
+            New teacher
+          </Button>
+        )}
       </div>
     );
   }
@@ -89,7 +97,7 @@ export default function TeacherTable({
                     <TeacherViewLink planId={planId} row={row}>
                       {row.code}
                     </TeacherViewLink>
-                    <AvailabilityBadge row={row} onEditAvailability={onEditAvailability} />
+                    <AvailabilityBadge row={row} canEdit={canEdit} onOpenAvailability={onOpenAvailability} />
                   </span>
                 </TableCell>
                 <TableCell>
@@ -114,9 +122,7 @@ export default function TeacherTable({
                   <TeacherRowActions
                     planId={planId}
                     row={row}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onEditAvailability={onEditAvailability}
+                    edit={canEdit ? { onEdit, onDelete, onEditAvailability: onOpenAvailability } : undefined}
                   />
                 </TableCell>
               </TableRow>
@@ -142,19 +148,15 @@ function AssignmentBadges({ assignments }: { assignments: CourseAssignment[] }) 
   );
 }
 
-function TeacherRowActions({
-  planId,
-  row,
-  onEdit,
-  onDelete,
-  onEditAvailability,
-}: {
-  planId: string;
-  row: TeacherRow;
+/** The row menu's write items' handlers — absent for a caller who may not edit (S-405). */
+type TeacherRowEdits = {
   onEdit: (teacher: TeacherRow) => void;
   onDelete: (teacher: TeacherRow) => void;
   onEditAvailability: (teacher: TeacherRow) => void;
-}) {
+};
+
+/** Per-row kebab: "View plan" for everyone, then — only with `edit` — the three write items. */
+function TeacherRowActions({ planId, row, edit }: { planId: string; row: TeacherRow; edit?: TeacherRowEdits }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -166,28 +168,32 @@ function TeacherRowActions({
         <DropdownMenuItem asChild>
           <a href={teacherViewHref(planId, row.id)}>View plan</a>
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            onEdit(row);
-          }}
-        >
-          Edit
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            onEditAvailability(row);
-          }}
-        >
-          Edit availability
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          onSelect={() => {
-            onDelete(row);
-          }}
-        >
-          Delete
-        </DropdownMenuItem>
+        {edit && (
+          <>
+            <DropdownMenuItem
+              onSelect={() => {
+                edit.onEdit(row);
+              }}
+            >
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                edit.onEditAvailability(row);
+              }}
+            >
+              Edit availability
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => {
+                edit.onDelete(row);
+              }}
+            >
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -196,15 +202,18 @@ function TeacherRowActions({
 /**
  * At-a-glance signal that a teacher carries availability constraints, with the constrained-
  * cell count. Modeled on the clickable `OverlapBadge` — clicking opens the availability
- * dialog. Deliberately neutral (no destructive/warning coloring): a presence/shortcut
+ * dialog (read-only without `canEdit`, so only the accessible name follows the capability).
+ * Deliberately neutral (no destructive/warning coloring): a presence/shortcut
  * affordance, not a severity signal — the strong/soft breakdown lives in the dialog.
  */
 function AvailabilityBadge({
   row,
-  onEditAvailability,
+  canEdit,
+  onOpenAvailability,
 }: {
   row: TeacherRow;
-  onEditAvailability: (teacher: TeacherRow) => void;
+  canEdit: boolean;
+  onOpenAvailability: (teacher: TeacherRow) => void;
 }) {
   if (row.availability.length === 0) return null;
   return (
@@ -216,9 +225,9 @@ function AvailabilityBadge({
       <button
         type="button"
         onClick={() => {
-          onEditAvailability(row);
+          onOpenAvailability(row);
         }}
-        aria-label={`Edit availability for ${row.fullName ?? row.code} (${row.availability.length} constrained cells)`}
+        aria-label={`${canEdit ? "Edit" : "View"} availability for ${row.fullName ?? row.code} (${row.availability.length} constrained cells)`}
       >
         <CalendarOff className="size-3" aria-hidden="true" />
         {row.availability.length}

@@ -13,17 +13,23 @@ import TeacherTable from "./TeacherTable";
 type Props = {
   planId: string;
   teachers: TeacherRow[];
-  /** The plan's grid dimensions — sizes the availability authoring grid. */
+  /** The plan's grid dimensions — sizes the availability grid (authoring, or read-only without `canEdit`). */
   days: number;
   periods: number;
+  /** The route's `allows(access, "edit")` (S-405); the island never reads the role. */
+  canEdit: boolean;
 };
 
 /**
  * Teacher catalog island for one plan: flat table with DP1/DP2 assignment columns,
  * text+cohort filters, and create/edit/delete + availability via dialogs. Assignments are
  * read-only (authored on the plan's courses page).
+ *
+ * Without `canEdit` the same catalog renders with every write left out (S-405): no "New teacher",
+ * and a row menu holding only "View plan". The availability badge stays and opens the dialog
+ * read-only, since it is where a teacher's availability is shown.
  */
-export default function TeacherCatalog({ planId, teachers, days, periods }: Props) {
+export default function TeacherCatalog({ planId, teachers, days, periods, canEdit }: Props) {
   const filters = useCatalogFilters();
   const dialogs = useCatalogDialogs();
   const rows = filterTeachers(teachers, filters.query, filters.cohort);
@@ -40,10 +46,12 @@ export default function TeacherCatalog({ planId, teachers, days, periods }: Prop
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Teachers</h1>
           <p className="text-muted-foreground mt-1 text-sm">Manage teachers and view course assignments.</p>
         </div>
-        <Button className="gap-2" onClick={dialogs.openCreate}>
-          <Plus aria-hidden="true" />
-          New teacher
-        </Button>
+        {canEdit && (
+          <Button className="gap-2" onClick={dialogs.openCreate}>
+            <Plus aria-hidden="true" />
+            New teacher
+          </Button>
+        )}
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -78,9 +86,10 @@ export default function TeacherCatalog({ planId, teachers, days, periods }: Prop
         rows={rows}
         totalCount={teachers.length}
         cohortFilter={filters.cohort}
+        canEdit={canEdit}
         onEdit={dialogs.openEdit}
         onDelete={dialogs.openDelete}
-        onEditAvailability={dialogs.openAvailability}
+        onOpenAvailability={dialogs.openAvailability}
         onCreateFirst={dialogs.openCreate}
       />
 
@@ -97,6 +106,7 @@ export default function TeacherCatalog({ planId, teachers, days, periods }: Prop
         days={days}
         periods={periods}
         onClose={dialogs.closeAvailability}
+        canEdit={canEdit}
       />
       <Toaster />
     </div>

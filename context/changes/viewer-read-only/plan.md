@@ -677,11 +677,11 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Automated
 
-- [x] 2.1 Type check passes: `pnpm check`
-- [x] 2.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 2.3 Unit suite passes: `pnpm test`
-- [x] 2.4 Existing board e2e specs stay green for the author: `pnpm test:e2e e2e/specs/combined-view.spec.ts e2e/specs/undo-redo.spec.ts e2e/specs/bundle-operations.spec.ts`
-- [x] 2.5 Production build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check` — b8eb106
+- [x] 2.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger` — b8eb106
+- [x] 2.3 Unit suite passes: `pnpm test` — b8eb106
+- [x] 2.4 Existing board e2e specs stay green for the author: `pnpm test:e2e e2e/specs/combined-view.spec.ts e2e/specs/undo-redo.spec.ts e2e/specs/bundle-operations.spec.ts` — b8eb106
+- [x] 2.5 Production build is clean: `pnpm build` — b8eb106
 
 #### Manual
 
@@ -694,11 +694,11 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Automated
 
-- [ ] 3.1 Type check passes: `pnpm check`
-- [ ] 3.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 3.3 Unit suite passes: `pnpm test`
-- [ ] 3.4 Existing hub and catalog e2e specs stay green for the author: `pnpm test:e2e e2e/specs/current-plan.spec.ts e2e/specs/bulk-edit-choices.spec.ts e2e/specs/co-teaching.spec.ts e2e/specs/plan-comparison.spec.ts`
-- [ ] 3.5 Production build is clean: `pnpm build`
+- [x] 3.1 Type check passes: `pnpm check`
+- [x] 3.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 3.3 Unit suite passes: `pnpm test`
+- [x] 3.4 Existing hub and catalog e2e specs stay green for the author: `pnpm test:e2e e2e/specs/current-plan.spec.ts e2e/specs/bulk-edit-choices.spec.ts e2e/specs/co-teaching.spec.ts e2e/specs/plan-comparison.spec.ts`
+- [x] 3.5 Production build is clean: `pnpm build`
 
 #### Manual
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { toPlannerPlacement, type PlannerPlacement } from "@/entities/timetable";
-import { unwrapRow, type SupabaseClient } from "@/shared/api";
+import { unwrapMany, unwrapRow, type SupabaseClient } from "@/shared/api";
 import { cohortSchema, placementWeekSchema } from "@/shared/config";
 import { GRID_BOUNDS } from "@/shared/lib/grid";
 import { DomainError } from "@/shared/lib/errors";
@@ -113,19 +113,23 @@ export const applyGeneratedPlacements = async (
   supabase: Supabase,
   input: ApplyGeneratedPlacementsInput,
 ): Promise<ApplyGeneratedPlacementsResult> => {
-  const { data, error } = await supabase.rpc("apply_generated_placements", {
-    p_plan_id: input.planId,
-    p_cells: input.cells,
-    p_placements: input.placements.map((row) => ({
-      cohort: row.cohort,
-      course_id: row.courseId,
-      day: row.day,
-      period: row.period,
-      week: row.week,
-      is_optional: row.isOptional,
-    })),
-  });
-  if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to apply generated placements: ${error.message}`);
+  // Through the shared PostgREST mapping, so a write RLS refuses (42501) surfaces as FORBIDDEN rather
+  // than a raw server error — this RPC is INVOKER, and delivery reaches it from a plan visit (S-405).
+  const data = unwrapMany(
+    await supabase.rpc("apply_generated_placements", {
+      p_plan_id: input.planId,
+      p_cells: input.cells,
+      p_placements: input.placements.map((row) => ({
+        cohort: row.cohort,
+        course_id: row.courseId,
+        day: row.day,
+        period: row.period,
+        week: row.week,
+        is_optional: row.isOptional,
+      })),
+    }),
+    "Failed to apply generated placements",
+  );
   return {
     dp1: data.filter((row) => row.cohort === "dp1").map(toPlannerPlacement),
     dp2: data.filter((row) => row.cohort === "dp2").map(toPlannerPlacement),

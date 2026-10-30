@@ -4,7 +4,7 @@ import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
 import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { BoardSurface } from "../lib/board-surface";
 import type { Cohort } from "@/shared/config";
-import type { GenerationJobView } from "../api/generation-delivery";
+import type { GenerationJobView } from "../api/generation-read";
 
 type Props = {
   planName: string;
@@ -17,8 +17,10 @@ type Props = {
   batchExport: BatchExportSources;
   paletteCollapsed: boolean;
   initialPaletteCohort: Cohort;
-  /** The plan's latest generation job, already checked (and delivered) server-side. */
+  /** The plan's latest generation job, already read server-side (and, for an editor, delivered). */
   generationJob: GenerationJobView | null;
+  /** The route's `allows(access, "edit")` (S-405). */
+  canEdit: boolean;
 };
 
 const {
@@ -32,6 +34,7 @@ const {
   paletteCollapsed,
   initialPaletteCohort,
   generationJob,
+  canEdit,
 } = Astro.props;
 ---
 
@@ -47,6 +50,7 @@ const {
     paletteCollapsed={paletteCollapsed}
     initialPaletteCohort={initialPaletteCohort}
     generationJob={generationJob}
+    canEdit={canEdit}
     client:load
   />
 </div>

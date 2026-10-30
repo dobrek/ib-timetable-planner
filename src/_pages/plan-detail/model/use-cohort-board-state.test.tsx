@@ -9,7 +9,7 @@ import {
   placement as buildPlacement,
   DEFAULT_SOLVE_POLICY,
 } from "@/entities/timetable";
-import type { GenerationJobView } from "../api/generation-delivery";
+import type { GenerationJobView } from "../api/generation-read";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
 import { indexFromPlacements, useCohortBoardState, useCombinedBoardState } from "./use-cohort-board-state";
 import type { GroupingCourse } from "./grouping/grouping";
@@ -181,6 +181,8 @@ describe("useCombinedBoardState — why Generate is disabled", () => {
     stageName: null,
     stopRequestedAt: null,
     policy: DEFAULT_SOLVE_POLICY,
+    stalled: false,
+    awaitingDelivery: false,
   });
 
   /** dp1 holds two courses that share a teacher in one cell — a BLOCKING violation, so this board

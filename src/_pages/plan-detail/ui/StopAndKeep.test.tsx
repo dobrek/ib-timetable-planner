@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
-import type { GenerationJobView } from "../api/generation-delivery";
+import type { GenerationJobView } from "../api/generation-read";
 import StopAndKeep from "./StopAndKeep";
 
 /**
@@ -25,6 +25,8 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageName: "teacherHoles",
   stopRequestedAt: null,
   policy: DEFAULT_SOLVE_POLICY,
+  stalled: false,
+  awaitingDelivery: false,
   ...over,
 });
 

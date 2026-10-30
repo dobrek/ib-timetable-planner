@@ -1,5 +1,4 @@
-import { z } from "zod";
-import { loadCohortCourses, type SupabaseClient } from "@/shared/api";
+import { loadCohortCourses, unwrapCompleted, type SupabaseClient } from "@/shared/api";
 import { COHORT_VALUES, type Cohort, type PlacementWeek } from "@/shared/config";
 import { DomainError } from "@/shared/lib/errors";
 import {
@@ -7,24 +6,25 @@ import {
   computePinnedSoftFloor,
   deriveCleanLabel,
   runVerifiedGeneration,
-  parseStoredPolicy,
-  parseStoredStages,
-  isActiveJobStatus,
   isDeliverableJob,
   isHaltedJobStatus,
   isSweepableJob,
-  softHitsAchieved,
   translateCourseIds,
-  type CleanLabel,
   type CourseIdentityIndex,
   type GeneratedPlacement,
   type GenerationJobDelivery,
-  type GenerationJobStatus,
   type GenerationResult,
   type GeneratorSnapshot,
-  type SolvePolicy,
-  type StoredStageReport,
 } from "@/entities/timetable";
+import {
+  findPlanJob,
+  labelOf,
+  planName,
+  toView,
+  type CheckPlanInput,
+  type GenerationJobView,
+  type StatusRow,
+} from "./generation-read";
 import { reclaimStaleJob } from "./generation-reclaim";
 import { applyGeneratedPlacements } from "./placements";
 
@@ -32,13 +32,18 @@ import { applyGeneratedPlacements } from "./placements";
  * The delivery half of S-301: read a plan's latest job back, and if it succeeded and has not been
  * delivered, verify the board SERVER-SIDE, translate it into the clone's id space, and apply it.
  *
- * **The trigger is a visit to EITHER plan.** This satisfies FR-313's *location* requirement — the
- * oracle runs server-side in the delivery pipeline, not in a browser. Nothing here polls on the hub:
- * S-303's plans-list poll is status-only and never calls this function, because running delivery on a
- * timer from a page the author is not looking at is exactly what that separation avoids. S-306 adds
- * the second key: the proposal plan's own page also reaches this file, and while that plan is pending
- * it renders progress instead of a board — so it may poll, and the poll may deliver, because delivery
- * from that page is delivery *to* that page.
+ * **The trigger is an editor's visit to EITHER plan.** This satisfies FR-313's *location* requirement
+ * — the oracle runs server-side in the delivery pipeline, not in a browser. Nothing here polls on the
+ * hub: S-303's plans-list poll is status-only and never calls this function, because running delivery
+ * on a timer from a page the author is not looking at is exactly what that separation avoids. S-306
+ * adds the second key: the proposal plan's own page also reaches this file, and while that plan is
+ * pending it renders progress instead of a board — so it may poll, and the poll may deliver, because
+ * delivery from that page is delivery *to* that page.
+ *
+ * **Only an editor's visit reaches this file (S-405).** Every write below needs `can_edit`, so a
+ * viewer's visit reads through `readPlanJob` (`generation-read.ts`) instead: the same dual-keyed read,
+ * and none of what follows it. A finished board then waits for the next author or admin to open
+ * either plan. The read half itself lives in that file, and this one imports it.
  *
  * **The board lands on the PROPOSAL, never on the source.** That is the whole of S-306's delivery
  * rule (PRD FR-307, re-grounded twice on 2026-08-28): there is no merge and no drift gate, so the
@@ -76,120 +81,23 @@ import { applyGeneratedPlacements } from "./placements";
  * to `unavailable` for a transcript that never reached tier 5, which is the honest label for a partial
  * board. Without one there is nothing to deliver, and the clone is swept exactly as a failed job's is.
  */
-export const checkPlanInput = z.object({ planId: z.uuid() });
-
-export type CheckPlanInput = z.infer<typeof checkPlanInput>;
 
 /**
- * Which side of the job the plan being visited is on.
+ * An editor's visit, whichever plan it is a visit to.
  *
- * The same job row is rendered by two different pages with two different stories, so the view has to
- * say which one it is answering. On the **source** the job is something the author launched and can
- * leave — an advisory, and a home for failures. On the **proposal** it is what the page IS: progress
- * while pending, provenance once delivered.
- */
-export type GenerationJobRole = "source" | "proposal";
-
-export type GenerationJobView = {
-  jobId: string;
-  status: GenerationJobStatus;
-  role: GenerationJobRole;
-  /** The plan the snapshot was assembled from. Always present — `plan_id` is `not null`. */
-  sourcePlanId: string;
-  /** Read only on the `proposal` role, where the strip needs it for "Generated from <name>". */
-  sourcePlanName: string | null;
-  /** Null once a failed job's orphan clone has been removed (`on delete set null` does the rest). */
-  proposalPlanId: string | null;
-  /** True once the verified board has landed on the proposal plan. */
-  delivered: boolean;
-  error: string | null;
-  createdAt: string;
-  finishedAt: string | null;
-  /** `unavailable` until the board is delivered — there is nothing to be clean about before then. */
-  cleanLabel: CleanLabel;
-  /** The ladder POSITION (1-based, "stage N of 10") whose checkpoint a halted job kept, or null when
-   *  it kept nothing. A position, not a tier, since S-307: under a permuted policy the two differ, and
-   *  the count the author reads must never run backwards. Tier identity lives in `stages[].tier`. */
-  checkpointStageIndex: number | null;
-  /** The ladder POSITION now running, 1-based — the pending page's live progress. Null before the
-   *  first stage. Same rule as above: a position, never a tier. */
-  stageIndex: number | null;
-  stageName: string | null;
-  /** When the author asked this job to stop (S-305), or null. Non-null on a still-active row is the
-   *  "Stopping…" state: the request is durable and the solver has not finished reacting to it. */
-  stopRequestedAt: string | null;
-  /** The solve policy this job ran under (S-307) — the picker's seed and the provenance line's noun.
-   *  Legacy rows (`{ clean: true }`) read as clean, which is what every one of them was solved as. */
-  policy: SolvePolicy;
-};
-
-/** Everything the strip renders, and none of the ~160 KB of payload beside it. `heartbeat_at` is the
- *  staleness clock, `checkpoint_stage_index` the free existence proxy for the ~35 KB checkpoint, and
- *  `stop_requested_at` one narrow scalar that lets the pending page render "Stopping…" across ticks
- *  and reloads rather than from a client-side memory a refresh would lose. */
-const STATUS_COLUMNS =
-  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at,stage_index,stage_name,stop_requested_at,policy";
-
-type StatusRow = {
-  id: string;
-  plan_id: string;
-  status: GenerationJobStatus;
-  proposal_plan_id: string | null;
-  delivered_plan_id: string | null;
-  delivery: string | null;
-  notified_at: string | null;
-  stages: StoredStageReport[];
-  error: string | null;
-  created_at: string;
-  finished_at: string | null;
-  heartbeat_at: string | null;
-  checkpoint_stage_index: number | null;
-  stage_index: number | null;
-  stage_name: string | null;
-  stop_requested_at: string | null;
-  policy: SolvePolicy;
-};
-
-/**
- * The visit, whichever plan it is a visit to.
- *
- * **One entry point, two keys.** `generation_jobs` names two plans — the `plan_id` it solved from and
- * the `proposal_plan_id` it solves onto — and both are now pages an author can be standing on. Rather
- * than two functions racing to deliver the same board, there is one dual-keyed read and one shared
- * `settle` core; the only thing the key decides is the `role` the view is tagged with, and therefore
- * which story the strip tells.
- *
- * **Two narrow reads, not one `.or(…)`.** A single newest-row query cannot express the precedence
- * below, because "newest" and "the row this plan is the proposal of" are different questions. Both
- * reads are by an indexed column (`generation_jobs_plan_idx`, `generation_jobs_proposal_plan_idx`),
- * project `STATUS_COLUMNS` only, and run concurrently — one round trip in wall-clock terms.
- *
- * **Precedence, for the plan that is both.** A delivered proposal can itself be generated FROM, at
- * which point it is the `proposal_plan_id` of one job and the `plan_id` of another. The rule:
- *
- *   1. the plan's own job, when it is active or undelivered — a live solve the author launched here
- *      is the most urgent thing this page can say, and it is the only one with anything to deliver.
- *      *Undelivered* is asked of BOTH markers: `delivered_plan_id` can be re-nulled by its
- *      `on delete set null` FK when the proposal is deleted, and a row that outranked its provenance
- *      on that basis alone would permanently hide an A→B→C chain's "generated from A" strip.
- *      `delivery` is the durable fact and it settles the tie;
- *   2. otherwise the job that produced this plan — so a proposal keeps its provenance strip for good,
- *      rather than losing it the moment the author generates from it;
- *   3. otherwise the plan's own newest job.
+ * **One read, one settle path.** `findPlanJob` (`generation-read.ts`) is the dual-keyed read and its
+ * precedence, shared with the viewer's `readPlanJob`; what this adds is the shared `settle` core, so
+ * the two keys never race two different delivery paths for the same board. The key decides only the
+ * `role` the view is tagged with, and therefore which story the strip tells.
  *
  * Returns null when neither key matches — a plan that has never been generated and never was one.
  */
 export const checkPlan = async (supabase: SupabaseClient, input: CheckPlanInput): Promise<GenerationJobView | null> => {
-  const [asSource, asProposal] = await Promise.all([
-    latestJobBy(supabase, "plan_id", input.planId),
-    latestJobBy(supabase, "proposal_plan_id", input.planId),
-  ]);
+  const found = await findPlanJob(supabase, input.planId);
+  if (!found) return null;
 
-  const row = pickJob(asSource, asProposal);
-  if (!row) return null;
-
-  const role: GenerationJobRole = row === asSource ? "source" : "proposal";
-  const view = await settle(supabase, row);
+  const { row, role } = found;
+  const view = await settle(supabase, row, Date.now());
   if (role === "source") return { ...view, role };
 
   // Looking at the delivered proposal IS the notification (FR-309), so this visit is what stamps it.
@@ -207,7 +115,8 @@ export const checkPlan = async (supabase: SupabaseClient, input: CheckPlanInput)
  *
  * Only on the PROPOSAL role, and deliberately: the author has to have opened the plan the board
  * landed on for the announcement to have been made. Visiting the source tells them nothing about it —
- * the source's strip says nothing at all once a job is delivered.
+ * the source's strip says nothing at all once a job is delivered. A viewer's look is not that
+ * announcement either (S-405): `readPlanJob` never reaches here, so the badge stays up for the authors.
  *
  * A plain update, not a CAS. Two tabs racing this write the same fact a few milliseconds apart, and a
  * later instant overwriting an earlier one is harmless: the only reader asks whether it is null.
@@ -228,13 +137,6 @@ const markNotified = async (
   if (error) console.error(`[checkPlan] could not stamp notified_at on job ${view.jobId}:`, error.message);
 };
 
-/** The precedence in the docblock above, as one expression. */
-const pickJob = (asSource: StatusRow | null, asProposal: StatusRow | null): StatusRow | null => {
-  const undelivered = asSource !== null && asSource.delivered_plan_id === null && asSource.delivery === null;
-  if (asSource && (isActiveJobStatus(asSource.status) || undelivered)) return asSource;
-  return asProposal ?? asSource;
-};
-
 /**
  * Reclaim → deliver | sweep | label: everything that happens to a job row once a visit has found it.
  *
@@ -242,13 +144,16 @@ const pickJob = (asSource: StatusRow | null, asProposal: StatusRow | null): Stat
  * in step. It takes no plan id of its own: the source plan is `row.plan_id` by definition, and using
  * the visited plan's id here would translate course ids against the wrong catalog whenever the visit
  * came in through the proposal.
+ *
+ * `nowMs` is ONE instant for the whole visit: the reclaim judges staleness by it, and so does the
+ * view's `stalled` flag, so the two cannot disagree about a row a heartbeat renewed in between.
  */
-const settle = async (supabase: SupabaseClient, latest: StatusRow): Promise<GenerationJobView> => {
+const settle = async (supabase: SupabaseClient, latest: StatusRow, nowMs: number): Promise<GenerationJobView> => {
   // BEFORE the delivery branch, so a crash-wedged row becomes `interrupted` and delivers its
   // checkpoint in the SAME visit rather than making the author come back a second time.
-  const row = await reclaimIfStale(supabase, latest);
+  const row = await reclaimIfStale(supabase, latest, nowMs);
 
-  if (isDeliverableJob(row)) return deliver(supabase, row.plan_id, row);
+  if (isDeliverableJob(row)) return deliver(supabase, row.plan_id, row, nowMs);
 
   // An orphan clone is one nothing will ever be delivered onto, and leaving it clutters the plans
   // list with a half-made proposal. Guarded twice over — only this job's own `proposal_plan_id`, and
@@ -258,17 +163,17 @@ const settle = async (supabase: SupabaseClient, latest: StatusRow): Promise<Gene
   // halted the run. A swept clone needs no `pending_proposal` clear: the row is gone.
   if (isSweepableJob(row) && row.delivered_plan_id === null && row.proposal_plan_id !== null) {
     await deleteOrphanClone(supabase, row.proposal_plan_id);
-    return toView({ ...row, proposal_plan_id: null }, { kind: "unavailable" });
+    return toView({ ...row, proposal_plan_id: null }, { kind: "unavailable" }, nowMs);
   }
 
-  return toView(row, await labelOf(supabase, row));
+  return toView(row, await labelOf(supabase, row), nowMs);
 };
 
 // --- reclaim ----------------------------------------------------------------------------------
 
 /** The shared CAS, applied to the row this visit just read. See `generation-reclaim.ts`. */
-const reclaimIfStale = async (supabase: SupabaseClient, row: StatusRow): Promise<StatusRow> => {
-  const reclaimed = await reclaimStaleJob(supabase, row);
+const reclaimIfStale = async (supabase: SupabaseClient, row: StatusRow, nowMs: number): Promise<StatusRow> => {
+  const reclaimed = await reclaimStaleJob(supabase, row, nowMs);
   return reclaimed === null
     ? row
     : { ...row, status: "interrupted", error: reclaimed.error, finished_at: reclaimed.finishedAt };
@@ -286,7 +191,12 @@ const reclaimIfStale = async (supabase: SupabaseClient, row: StatusRow): Promise
  * differs — S-303 shaped a checkpoint through `wire_result(to_generation_result(...))`, the exact path
  * the terminal write uses, precisely so that this chain would not need a second branch.
  */
-const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow): Promise<GenerationJobView> => {
+const deliver = async (
+  supabase: SupabaseClient,
+  planId: string,
+  row: StatusRow,
+  nowMs: number,
+): Promise<GenerationJobView> => {
   const proposalPlanId = row.proposal_plan_id;
   if (proposalPlanId === null) {
     // The clone is gone — deleted by hand, or nulled by `on delete set null`. Nowhere to deliver to.
@@ -298,7 +208,7 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
     // caused the failure, and the explanation only from the next visit on.
     const reason = "the proposal plan no longer exists, so the result cannot be delivered";
     await failJob(supabase, row.id, reason);
-    return toView({ ...row, status: "failed", error: reason }, { kind: "unavailable" });
+    return toView({ ...row, status: "failed", error: reason }, { kind: "unavailable" }, nowMs);
   }
 
   const { snapshot, result } = await loadPayload(supabase, row.id, payloadColumn(row));
@@ -309,7 +219,7 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
   if (result.placements.length === 0) {
     await failJob(supabase, row.id, "the solver returned a result with no placements");
     await deleteOrphanClone(supabase, proposalPlanId);
-    return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" });
+    return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" }, nowMs);
   }
 
   // The relocated runner seam (FR-313), with a trivial engine handing back the already-solved board.
@@ -324,7 +234,7 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
       `the returned board did not pass verification: ${outcome.verdict.reasons.join("; ")}`,
     );
     await deleteOrphanClone(supabase, proposalPlanId);
-    return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" });
+    return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" }, nowMs);
   }
 
   let translated: GeneratedPlacement[];
@@ -352,7 +262,7 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
     await failJob(supabase, row.id, `the result could not be translated onto the proposal plan: ${reason}`, {
       detachClone: true,
     });
-    return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" });
+    return toView({ ...row, status: "failed", proposal_plan_id: null }, { kind: "unavailable" }, nowMs);
   }
   await applyToProposal(supabase, proposalPlanId, translated);
   // BETWEEN the apply and the marker, and that ordering is the same argument the marker's own
@@ -365,6 +275,7 @@ const deliver = async (supabase: SupabaseClient, planId: string, row: StatusRow)
   return toView(
     { ...row, delivered_plan_id: proposalPlanId },
     deriveCleanLabel(row.stages, computePinnedSoftFloor(snapshot), row.policy),
+    nowMs,
   );
 };
 
@@ -466,29 +377,6 @@ const rowKey = (row: { cohort: Cohort; courseId: string; day: number; period: nu
 
 // --- row access -------------------------------------------------------------------------------
 
-const latestJobBy = async (
-  supabase: SupabaseClient,
-  column: "plan_id" | "proposal_plan_id",
-  planId: string,
-): Promise<StatusRow | null> => {
-  const { data, error } = await supabase
-    .from("generation_jobs")
-    .select(STATUS_COLUMNS)
-    .eq(column, planId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to read the generation job: ${error.message}`);
-  if (data === null) return null;
-  // `stages` and `policy` are the two columns here that arrive as untyped jsonb, so they are parsed
-  // rather than cast: a malformed transcript degrades the clean label to `unavailable` instead of
-  // feeding `deriveCleanLabel` a shape it will read a confident wrong number out of, and a legacy or
-  // malformed policy reads as the clean default every pre-S-307 row was solved under. Everything else
-  // in STATUS_COLUMNS is a scalar the check constraints already pin.
-  const row = data as unknown as Omit<StatusRow, "stages" | "policy"> & { stages: unknown; policy: unknown };
-  return { ...row, stages: parseStoredStages(row.stages), policy: parseStoredPolicy(row.policy) };
-};
-
 /** Which column holds the board this job is delivering. `result` stays the succeeded-only one. */
 type PayloadColumn = "result" | "checkpoint";
 
@@ -513,28 +401,6 @@ const loadPayload = async (
 };
 
 /**
- * The label for a job this call did not just deliver.
- *
- * Short-circuits before touching `snapshot`: an undelivered job has nothing to be clean about, and a
- * tier-5 `best` of 0 is clean regardless of the floor. Only a non-zero value has to be interpreted
- * against the floor, and only then is the ~124 KB column worth reading.
- */
-const labelOf = async (supabase: SupabaseClient, row: StatusRow): Promise<CleanLabel> => {
-  if (row.delivered_plan_id === null) return { kind: "unavailable" };
-  const achieved = softHitsAchieved(row.stages);
-  if (achieved === undefined) return { kind: "unavailable" };
-  if (achieved === 0) return { kind: "clean" };
-
-  const { data, error } = await supabase.from("generation_jobs").select("snapshot").eq("id", row.id).single();
-  if (error) return { kind: "unavailable" };
-  return deriveCleanLabel(
-    row.stages,
-    computePinnedSoftFloor(data.snapshot as unknown as GeneratorSnapshot),
-    row.policy,
-  );
-};
-
-/**
  * Un-pend the proposal: it stops being a job artifact and becomes an ordinary plan.
  *
  * Loud rather than best-effort, unlike `failJob`/`deleteOrphanClone` beside it. A clone left pending
@@ -542,22 +408,26 @@ const labelOf = async (supabase: SupabaseClient, row: StatusRow): Promise<CleanL
  * permanently stranded row, not a bit of litter — so the caller must hear about it.
  */
 const clearPending = async (supabase: SupabaseClient, proposalPlanId: string): Promise<void> => {
-  const { error } = await supabase.from("plans").update({ pending_proposal: false }).eq("id", proposalPlanId);
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to release the proposal plan: ${error.message}`);
-  }
+  // Through the shared PostgREST mapping, so a write RLS refuses (42501) surfaces as FORBIDDEN rather
+  // than a raw server error. Only an editor's visit reaches this file (S-405); this is the backstop.
+  unwrapCompleted(
+    await supabase.from("plans").update({ pending_proposal: false }).eq("id", proposalPlanId),
+    "Failed to release the proposal plan",
+  );
 };
 
 const markDelivered = async (supabase: SupabaseClient, jobId: string, proposalPlanId: string): Promise<void> => {
   // Losing this CAS is not an error: it means another tab delivered the identical verified board.
   // `delivery` rides along in the SAME update so the pair can never disagree — the vocabulary has
   // exactly one value (`'proposal'`, checked in the schema) because the source is never a target.
-  const { error } = await supabase
-    .from("generation_jobs")
-    .update({ delivered_plan_id: proposalPlanId, delivery: "proposal" satisfies GenerationJobDelivery })
-    .eq("id", jobId)
-    .is("delivered_plan_id", null);
-  if (error) throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to mark the job delivered: ${error.message}`);
+  unwrapCompleted(
+    await supabase
+      .from("generation_jobs")
+      .update({ delivered_plan_id: proposalPlanId, delivery: "proposal" satisfies GenerationJobDelivery })
+      .eq("id", jobId)
+      .is("delivered_plan_id", null),
+    "Failed to mark the job delivered",
+  );
 };
 
 const failJob = async (
@@ -584,33 +454,3 @@ const deleteOrphanClone = async (supabase: SupabaseClient, proposalPlanId: strin
   // eslint-disable-next-line no-console
   if (error) console.error(`[checkPlan] could not delete orphan clone ${proposalPlanId}:`, error.message);
 };
-
-/** The source plan's display name, for the proposal strip's "Generated from <name>" provenance. */
-const planName = async (supabase: SupabaseClient, planId: string): Promise<string | null> => {
-  const { data } = await supabase.from("plans").select("name").eq("id", planId).maybeSingle();
-  return data?.name ?? null;
-};
-
-/**
- * `role` defaults to `source` and `checkPlan` overrides it, because every path INSIDE this file
- * describes the job from the source's point of view — it is the source's snapshot, the source's
- * catalog the ids translate from. Only the entry point knows which page asked.
- */
-const toView = (row: StatusRow, cleanLabel: CleanLabel): GenerationJobView => ({
-  jobId: row.id,
-  status: row.status,
-  role: "source",
-  sourcePlanId: row.plan_id,
-  sourcePlanName: null,
-  proposalPlanId: row.proposal_plan_id,
-  delivered: row.delivered_plan_id !== null,
-  error: row.error,
-  createdAt: row.created_at,
-  finishedAt: row.finished_at,
-  cleanLabel,
-  checkpointStageIndex: row.checkpoint_stage_index,
-  stageIndex: row.stage_index,
-  stageName: row.stage_name,
-  stopRequestedAt: row.stop_requested_at,
-  policy: row.policy,
-});

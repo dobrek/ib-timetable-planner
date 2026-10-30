@@ -14,7 +14,7 @@ import {
   Button,
 } from "@/shared/ui";
 import { stopGeneration as stopGenerationAction } from "../api/generation-client";
-import type { GenerationJobView } from "../api/generation-delivery";
+import type { GenerationJobView } from "../api/generation-read";
 import type { StopGenerationResult } from "../api/generation-stop";
 
 type Props = {

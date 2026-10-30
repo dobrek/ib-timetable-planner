@@ -24,7 +24,9 @@ On 2026-10-30, on `pnpm build && pnpm preview` (workerd) at HEAD `2699676`, agai
   - The page's only buttons are Toggle sidebar, Toggle theme, Sign out and Refresh. There is no Stop.
   - Server log, from baseline to the end of the walk: no 42501 and no `[checkPlan]` or `[plans/:id]` error. The only failures are 4 `auth.getUser failed: Auth session missing!` lines, from the two signed-out `playwright-cli open` calls made before each session loaded its storage state.
   - The viewer's polls went through `readPlanJob` only.
-- **1.9:** With the viewer's tab open, the author opened the proposal. The viewer's untouched page turned into the board (4 chips) 7 s after the author's navigation started. That includes the author's page load and the delivery, against the 5 s poll interval. `notified_at` was stamped by the author's visit only.
+- **1.9:** With the viewer's tab open, the author opened the proposal, and the viewer's untouched page turned into the board on its own. `notified_at` was stamped by the author's visit only.
+  - First walk: 7 s from the start of the author's navigation. That includes the author's page load and the delivery.
+  - Re-timed: the viewer's page flipped **4.85 s** after the author's delivered board was on screen (the author's navigation took 0.3 s). That is within the 5 s poll interval.
 - **1.10:** A proposal delivered by an author's visit to its source, so `notified_at` was still null:
   - Its hub badge reads "Ready — open" for the viewer.
   - It still reads "Ready — open" after the viewer opened the delivered board.
@@ -35,7 +37,12 @@ On 2026-10-30, on `pnpm build && pnpm preview` (workerd) at HEAD `2699676`, agai
   - `Actions for …` chip menus, Week A/B radios;
   - Duplicate, Lift to shelf, Remove all, parked button, Compute groupings.
 
-  Every placed chip carries `aria-disabled="true"` from dnd-kit, and its cursor is pointer, not grab. The only buttons are navigation, Highlight (lens), Board settings, Export plan and Print. ⌘Z needs no separate check: there is nothing to undo, and the key map is disabled (unit-tested).
+  Every placed chip carries `aria-disabled="true"` from dnd-kit, and its cursor is pointer, not grab. The only buttons are navigation, Highlight (lens), Board settings, Export plan and Print. ⌘Z, Ctrl+Z, ⌘⇧Z and Ctrl+⇧Z, pressed on a delivered proposal's board:
+  - fired no `/_actions/` request;
+  - left the board unchanged (4 chips, same cells);
+  - were not intercepted (`defaultPrevented` false on every `z` keydown).
+
+  There are no Undo/Redo buttons.
 - **2.8:** On a colliding two-occupant cell, the viewer could do every read action:
   - Ungroup toggles to "Group slot".
   - "Show collision details" opens the "Collisions — Wed P5" inspector.
@@ -43,13 +50,14 @@ On 2026-10-30, on `pnpm build && pnpm preview` (workerd) at HEAD `2699676`, agai
   - Zoom moves from 1 to 1.05.
   - The hint-mode tabs ("Mark collisions" / "Highlight free") are present.
   - Export downloads `…-current-combined.xlsx` and the zip `…-current.zip`.
-  - Print is checked under 4.7.
+  - Print: the button calls `window.print()` (stubbed to count the call, so no dialog opened). The printed result is checked under 4.7.
   - **Finding (accessibility, recorded, not fixed):** the controls inside the viewer's cells and chips are exposed as **disabled** in the accessibility tree. That covers Group/Ungroup and "Show collision details", and Playwright refuses to click them. They work with a real pointer and stay focusable, but a screen reader announces them as unavailable.
   - Cause: dnd-kit's accessibility plugin writes `aria-disabled="true"` onto a disabled draggable's activator (the gridcell, or the chip), and descendants inherit it.
-  - This predates S-405 for authors. An author's exploded cell reads "Group slot [disabled]", and a bundled cell's "Show collision details" reads `[disabled]`.
+  - This predates S-405 for authors. An author's exploded cell reads "Group slot [disabled]", and a bundled cell's "Show collision details" reads `[disabled]`. `e2e/support/board.ts` already documents it: `clickBundleToggle` clicks with `force: true` for exactly this reason.
   - S-405 makes every viewer cell and chip a disabled draggable, so it now covers all of a viewer's in-cell read controls.
   - A follow-up would stop a disabled draggable from setting `aria-disabled`, or not register viewer cells as draggables at all. Either touches the author's drag path.
-- **2.9:** The author's board is unchanged: Generate, Undo, the palette toggle and chip menus are present, and chips report `aria-disabled="false"`. The full author e2e suite passed 59/59, `drag-validate-feedback` included. The drag latency itself was not timed by hand.
+- **2.9:** The author's board is unchanged: Generate, Undo, the palette toggle and chip menus are present, and chips report `aria-disabled="false"`. The full author e2e suite passed 59/59, `drag-validate-feedback` included.
+  - Drag latency, timed in the page from `pointerup` to the chip rendered in the target cell: palette → cell **13–15 ms**, and cell → cell (bundle move) **16 ms**. The budget is 200 ms.
 - **3.6:** On `/plans`, the viewer has no "New plan" and no `Actions for …` row menus. Every row has its Select checkbox, and Compare works (see 4.6). A waiting proposal reads "Finished — waiting for an author" and links to `/plans/<proposal id>`; a delivered one reads "Ready — open".
 - **3.7:** On Seed Plan A, as the viewer:
   - **Courses:** no New button and no row menus. The overlap badge, "View overlaps for Biology", opens "Overlaps — Biology", which lists "Biology (SL)" with only Close. The author's dialog lists the same entry, plus the combobox, Add and remove.
@@ -59,6 +67,15 @@ On 2026-10-30, on `pnpm build && pnpm preview` (workerd) at HEAD `2699676`, agai
 - **4.6:** Comparing the current proposal with its non-current source shows "Current plan" in the proposal's column headers only. The columns keep the URL's order.
 - **4.7:** Under print media, one "Current plan" badge is visible on each of the current plan's board heading, student view and teacher view. The non-current source shows none.
 - **4.8:** The current plan's tab titles end "· Current" on the board, the student view and the teacher view. The source's title does not. Exports are named `proposal-e2e-mv-current-…-current-combined.xlsx` and `…-current.zip`.
-- **4.9:** The viewer's sidebar footer shows the outline "View only" chip with an eye icon. On the collapsed rail it shows the icon alone, and the name stays in the accessibility tree. The author's footer has no chip.
+- **4.9:** The viewer's sidebar footer shows the outline "View only" chip with an eye icon. On the collapsed rail it shows the icon alone, and the name stays in the accessibility tree.
+  - Neither the author's footer nor an admin's has the chip, expanded or collapsed.
+  - The admin check promoted the e2e author with `scripts/assign-role.mjs … admin`, then restored it to `author`. The admin's hub kept "New plan" and its row menus.
 - **5.5:** Covered by Phase 5's deliberate-break gate. With Generate un-gated for viewers, `read-only.viewer.spec.ts` failed on `getByRole('button', { name: 'Generate plan' })` (expected 0, received 1). The change was reverted, the app rebuilt and the spec re-run green.
-- **5.6:** Not checked by the agent: the docs wording is for a human to read.
+- **5.6:** The agent read `e2e/CLAUDE.md`, the `CLAUDE.md` § Roles bullet and the `README.md` § Auth routes line, and checked their claims against the repo:
+  - 32 specs;
+  - three setup files;
+  - the provisioner resets the viewer to `viewer` on every run;
+  - `canEdit` comes from `allows(Astro.locals.access, "edit")`;
+  - `readPlanJob` vs `checkPlan` as described.
+
+  Whether the wording reads well is still for a human to judge.

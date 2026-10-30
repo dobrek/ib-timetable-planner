@@ -727,10 +727,10 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Automated
 
-- [x] 5.1 Viewer specs pass: `pnpm test:e2e --project=chromium-viewer`
-- [x] 5.2 The full e2e suite passes (the solver up per README): `pnpm test:e2e`
-- [x] 5.3 Lint passes on the new specs and config: `pnpm lint`
-- [x] 5.4 Full local CI gate passes: `/verify`
+- [x] 5.1 Viewer specs pass: `pnpm test:e2e --project=chromium-viewer` — 2699676
+- [x] 5.2 The full e2e suite passes (the solver up per README): `pnpm test:e2e` — 2699676
+- [x] 5.3 Lint passes on the new specs and config: `pnpm lint` — 2699676
+- [x] 5.4 Full local CI gate passes: `/verify` — 2699676
 
 #### Manual
 

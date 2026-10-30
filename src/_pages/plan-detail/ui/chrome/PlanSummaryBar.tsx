@@ -16,8 +16,9 @@ type PlanSummaryBarProps = {
   combined: boolean;
   /** Number of parked (shelved) bundles — the always-visible durability cue. */
   parkedCount: number;
-  /** Open the shelf drawer (the badge doubles as the expand affordance). */
-  onExpandShelf: () => void;
+  /** Open the shelf drawer (the badge doubles as the expand affordance). Absent when the board has no
+   *  shelf (a caller who may not edit, S-405), and so is the badge. */
+  onExpandShelf?: () => void;
   planId: string;
   /** The current `?focus=` surface (a cohort or combined), driving the switcher's active segment. */
   active: BoardSurface;
@@ -46,7 +47,7 @@ export default function PlanSummaryBar({
   return (
     <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={active}>
       <div className="ml-auto flex items-center gap-3">
-        {parkedCount > 0 && (
+        {onExpandShelf && parkedCount > 0 && (
           <Badge asChild variant="secondary" className="cursor-pointer">
             <button
               type="button"

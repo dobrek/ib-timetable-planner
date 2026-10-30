@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import { defaultPreset, Feedback } from "@dnd-kit/dom";
+import { cn } from "@/shared/lib/class-names";
 
 type Props = {
   onDragStart: (event: DragStartEvent) => void;
@@ -10,12 +11,13 @@ type Props = {
   gridDataSlot: string;
   /** Header block above the grid: the `PlanSummaryBar` fragment (plus lens bar / live region). */
   header: ReactNode;
-  /** 1st column — the one palette panel (`CombinedPalettePanel`, with an optional cohort switcher). */
-  palette: ReactNode;
+  /** 1st column — the one palette panel (`CombinedPalettePanel`, with an optional cohort switcher).
+   *  Omitted, together with `shelf`, for a caller who may not edit (S-405). */
+  palette?: ReactNode;
   /** 2nd column (the board column): error banner(s), optional hint toggle, and the grid. */
   center: ReactNode;
-  /** 3rd column — the shelf. */
-  shelf: ReactNode;
+  /** 3rd column — the shelf. Omitted, together with `palette`, for a caller who may not edit. */
+  shelf?: ReactNode;
   /** The collision-inspection dialog — each board owns its own inspection, so it passes a wired node. */
   dialog: ReactNode;
   /** The shared drag overlay (combined passes `placementsByCohort`; single does not). */
@@ -33,7 +35,10 @@ type Props = {
  *   combined), the active-lens bar while lens criteria exist, and the lens's live region;
  * - the `center` carries up-to-2 error banners (the hidden cohort never errors in focus) + the grid;
  * - the `overlay` always passes `placementsByCohort`;
- * - the board owns its inspection wiring and passes a fully-built `dialog`.
+ * - the board owns its inspection wiring and passes a fully-built `dialog`;
+ * - a read-only board (S-405) omits `palette` and `shelf`, and the grid collapses to the board
+ *   column alone — a lone child in the 3-column template would land in the `auto` palette track
+ *   and size to the timetable's full width instead of scrolling.
  */
 export default function BoardShell({
   onDragStart,
@@ -46,6 +51,7 @@ export default function BoardShell({
   dialog,
   overlay,
 }: Props) {
+  const sideColumns = palette !== undefined || shelf !== undefined;
   return (
     <DragDropProvider plugins={PLUGINS} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <div className="flex min-h-0 flex-1 flex-col">
@@ -54,7 +60,13 @@ export default function BoardShell({
         {/* `minmax(0,1fr)` on the board column (not bare `1fr`, whose min is min-content): lets the
             timetable track shrink + scroll instead of forcing the grid wider than the viewport — so
             the `auto` palette/shelf columns are never cropped when both are expanded. */}
-        <div data-slot={gridDataSlot} className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+        <div
+          data-slot={gridDataSlot}
+          className={cn(
+            "grid min-h-0 flex-1 gap-3 p-3",
+            sideColumns ? "lg:grid-cols-[auto_minmax(0,1fr)_auto]" : "lg:grid-cols-[minmax(0,1fr)]",
+          )}
+        >
           {palette}
           {center}
           {shelf}

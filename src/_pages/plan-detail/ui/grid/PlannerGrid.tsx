@@ -1,7 +1,7 @@
 import { Fragment, type CSSProperties } from "react";
-import { cohortLabel, type Cohort, type PlacementWeek } from "@/shared/config";
+import { cohortLabel, type Cohort } from "@/shared/config";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
-import SlotCell from "./slot-cell/SlotCell";
+import SlotCell, { type CellEditHandlers } from "./slot-cell/SlotCell";
 import {
   breaksAfterPeriod,
   type CellCollisions,
@@ -17,17 +17,22 @@ import { isBundled } from "../../model/exploded-cells";
 import type { HintMode } from "../../lib/drag-hint-mode";
 
 /**
- * The cell wiring shared by every column the grid renders — the cell-level drag-hint state plus the
- * per-chip handlers. One `CellWiring` object is built per column at the board level (`buildColumn`) and
- * passed down as a single `wiring` prop instead of re-listing the 12 fields at every hop; the grid
+ * The cell wiring shared by every column the grid renders — the cell-level drag-hint state, the two
+ * read handlers (`onToggleBundle`, a local view toggle, and `onInspect`) and, under `edit`, the six
+ * write handlers. One `CellWiring` object is built per column at the board level (`buildColumn`) and
+ * passed down as a single `wiring` prop instead of re-listing its fields at every hop; the grid
  * resolves the per-cell values (this cell's hint, `bundled`, the `justDuplicated` pulse match) from it
  * inline, so `SlotCell` stays a dumb presentational component taking already-resolved scalars. A shared
  * Context was rejected because a broadcast Context re-renders every cell consumer whenever its value
  * changes (React Compiler memoization does not shrink that fan-out), while the bundle already solves the
- * actual pain — re-listing the 12 fields at every hop. The cadence is low, not per-tick: `dropHints` is
+ * actual pain — re-listing the fields at every hop. The cadence is low, not per-tick: `dropHints` is
  * set once at drag start and cleared at drag end, `hintMode` changes on user toggle, and per-hover
  * reactivity is per-cell `useDroppable` — no board-wide re-render (see `ui-conventions.md`
  * §"State management").
+ *
+ * `edit` is the read-only seam (S-405): `buildColumn` sets it only for a caller who may edit, and a
+ * cell or chip without it renders no write control and enables no drag — the absent-handler idiom of
+ * `ScheduleGrid`'s `onInspect`, rather than a `readOnly` flag on every leaf.
  */
 export type CellWiring = {
   /** cellKey → drag hint (sparse: absent = free); null when no drag is active. */
@@ -41,14 +46,11 @@ export type CellWiring = {
   /** Placement ids matched by the active highlight lens; null = lens inactive. Membership is
    *  resolved per chip in `PlacedChip` (the set is shared by every cell in the column). */
   lensMatched: Set<string> | null;
-  onRemove: (placementId: string) => void;
-  onSetWeek: (placementId: string, week: PlacementWeek) => void;
-  onSetOptional: (placementId: string, isOptional: boolean) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
-  onRemoveBundle: (day: number, period: number) => void;
-  onDuplicateBundle: (day: number, period: number) => void;
-  onLiftBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
+  /** The write handlers (remove, week, optional; the slot's duplicate, lift and remove-all) — absent
+   *  for a caller who may not edit. */
+  edit?: CellEditHandlers;
 };
 
 /** One cohort column's render inputs: its placements + name/collision maps and its cell wiring. */

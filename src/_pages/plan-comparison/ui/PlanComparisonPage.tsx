@@ -1,3 +1,4 @@
+import { CurrentPlanBadge } from "@/shared/ui";
 import type { PlanComparisonData, PlanDetail } from "../api/load-comparison";
 import { MAX_COMPARE_PLANS } from "../lib/compare-params";
 import { DriftBanner } from "./DriftBanner";
@@ -124,7 +125,11 @@ function Comparison({ data }: { data: PlanComparisonData }) {
 function PlanDetailCard({ plan }: { plan: PlanDetail }) {
   return (
     <article className="space-y-3 rounded-md border p-3 text-sm">
-      <h3 className="font-medium">{plan.planName}</h3>
+      {/* Beside the heading, not in it, as on the board: the heading's name stays the plan's name. */}
+      <div className="flex items-center gap-2">
+        <h3 className="font-medium">{plan.planName}</h3>
+        {plan.isCurrent && <CurrentPlanBadge />}
+      </div>
 
       <div className="space-y-1">
         <div className="flex items-center gap-1.5">

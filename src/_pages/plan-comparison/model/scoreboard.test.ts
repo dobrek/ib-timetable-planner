@@ -17,7 +17,13 @@ const analyzed = (id: string, name: string, idPrefix: string): AnalyzedPlan => {
   };
   const plan = buildLoadedPlan(spec);
 
-  return { id: plan.id, name: plan.name, features: analyzePlan(plan.input), naturalKeys: plan.naturalKeys };
+  return {
+    id: plan.id,
+    name: plan.name,
+    isCurrent: plan.isCurrent,
+    features: analyzePlan(plan.input),
+    naturalKeys: plan.naturalKeys,
+  };
 };
 
 const expert = analyzed("plan-a", "Expert", "aaa");
@@ -105,5 +111,34 @@ describe("buildPlanSection", () => {
       expect(row.cells[0].href).toContain("/plans/plan-a/");
       expect(row.cells[1].href).toContain("/plans/plan-b/");
     }
+  });
+});
+
+// "Current" is a marker beside a plan's name, not a baseline (S-405): it may flag the current plan's
+// columns, and nothing else — no reordering, and no cell that reads differently because of it.
+describe("the current-plan marker", () => {
+  const current = { ...engine, isCurrent: true };
+
+  it("flags exactly the current plan's columns, in both grains", () => {
+    const cohort = buildCohortSection("Cohort scoreboard", COHORT_SCOREBOARD, [expert, current]);
+    const plan = buildPlanSection("Board-wide", BOARD_WIDE, [expert, current]);
+
+    expect(cohort.columns.map((column) => [column.planName, column.isCurrent])).toEqual([
+      ["Expert", false],
+      ["Expert", false],
+      ["Engine", true],
+      ["Engine", true],
+    ]);
+    expect(plan.columns.map((column) => [column.planName, column.isCurrent])).toEqual([
+      ["Expert", false],
+      ["Engine", true],
+    ]);
+  });
+
+  it("changes no row and no cell", () => {
+    const unmarked = buildCohortSection("Cohort scoreboard", COHORT_SCOREBOARD, [expert, engine]);
+    const marked = buildCohortSection("Cohort scoreboard", COHORT_SCOREBOARD, [expert, current]);
+
+    expect(marked.rows).toEqual(unmarked.rows);
   });
 });

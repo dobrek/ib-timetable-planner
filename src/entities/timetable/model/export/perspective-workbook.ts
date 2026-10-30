@@ -1,5 +1,5 @@
 import type { Cohort } from "@/shared/config";
-import { slugify } from "@/shared/lib/slugify";
+import { planFileStem, slugify } from "@/shared/lib/slugify";
 import { resolveCourseDisplay, type CourseDisplay } from "../course-display";
 import type { PerspectiveCourseItem } from "../perspective-course-list";
 import type { PlannerPlacement } from "../placement";
@@ -17,6 +17,8 @@ export type PerspectiveWorkbookCohort = {
 
 export type PerspectiveWorkbookInput = {
   planName: string;
+  /** The plan is the current one (S-404): the file name carries `-current` after the plan slug (S-405). */
+  isCurrent: boolean;
   /** Slug component after the plan slug — the teacher code now, a student code later. */
   fileCode: string;
   days: number;
@@ -55,7 +57,7 @@ export const buildPerspectiveWorkbook = (
   ]);
   return {
     sheets: [buildGridSheet(input, gridName), ...buildCourseSheets(input, sorted, courseNames)],
-    fileName: `${slugify(input.planName)}-${slugify(input.fileCode)}.xlsx`,
+    fileName: `${planFileStem(input.planName, input.isCurrent)}-${slugify(input.fileCode)}.xlsx`,
   };
 };
 

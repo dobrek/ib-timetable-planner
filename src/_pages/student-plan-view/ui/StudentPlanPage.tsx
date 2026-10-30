@@ -5,7 +5,7 @@ import {
   perspectivePlacements,
   studentCourses,
 } from "@/entities/timetable";
-import { PrintButton } from "@/shared/ui";
+import { CurrentPlanBadge, PrintButton } from "@/shared/ui";
 import { PerspectiveCourseList, ScheduleGrid, type PerspectiveCard } from "@/widgets/timetable-board";
 import type { StudentPlanViewData } from "../api/loader";
 import { studentExportFileName } from "../lib/export-file-name";
@@ -23,7 +23,7 @@ type Props = { data: StudentPlanViewData };
  * dataset is one cohort's board data).
  */
 export default function StudentPlanPage({ data }: Props) {
-  const { student, planName } = data;
+  const { student, planName, isCurrent } = data;
 
   const mineIds = new Set(studentCourses(data.courses, student.id).map((course) => course.id));
   // The grid narrows placements to the student; the course-item builder gets the FULL
@@ -56,7 +56,12 @@ export default function StudentPlanPage({ data }: Props) {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">{student.fullName}</h1>
-          <p className="text-muted-foreground text-sm">{planName} — student schedule</p>
+          {/* The page's one plan-identity line, so the Current badge sits here: the sidebar and
+              breadcrumb that also carry it are print:hidden, and a printout must still say so. */}
+          <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+            {planName} — student schedule
+            {isCurrent && <CurrentPlanBadge />}
+          </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <StudentSwitcher
@@ -66,7 +71,7 @@ export default function StudentPlanPage({ data }: Props) {
             cohortLeads={data.cohortLeads}
           />
           <ExportStudentPlanButton
-            fileName={studentExportFileName(planName, student.cohort, student.fullName)}
+            fileName={studentExportFileName(planName, isCurrent, student.cohort, student.fullName)}
             days={data.days}
             periods={data.periods}
             cohort={student.cohort}

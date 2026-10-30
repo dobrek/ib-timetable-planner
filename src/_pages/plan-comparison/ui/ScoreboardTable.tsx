@@ -1,4 +1,4 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
+import { CurrentPlanBadge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
 import type { ScoreboardSection } from "../model/scoreboard";
 import { MetricHelp } from "./MetricHelp";
 
@@ -37,7 +37,13 @@ export function ScoreboardTable({ section }: Props) {
                   scope="col"
                   className="text-right align-bottom"
                 >
-                  <span className="block font-medium">{column.planName}</span>
+                  {/* The badge marks the current plan beside its name and nothing more (S-405): the
+                      columns keep the URL's order and every cell stays the bare value — current is
+                      not a baseline, so it earns no emphasis and no delta. */}
+                  <span className="flex items-center justify-end gap-1.5 font-medium">
+                    {column.planName}
+                    {column.isCurrent && <CurrentPlanBadge />}
+                  </span>
                   {column.cohort ? (
                     <span className="text-muted-foreground block text-xs font-normal">{column.cohort}</span>
                   ) : null}

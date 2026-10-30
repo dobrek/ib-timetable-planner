@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PlacementWeek } from "@/shared/config";
@@ -37,14 +37,16 @@ const renderCell = (occupants: CellOccupant[], bundled: boolean, overrides: Part
     bundled,
     justDuplicated: false,
     lensMatched: null,
-    onRemove: vi.fn(),
-    onSetWeek: vi.fn(),
-    onSetOptional: vi.fn(),
     onToggleBundle: vi.fn(),
-    onRemoveBundle: vi.fn(),
-    onDuplicateBundle,
-    onLiftBundle: vi.fn(),
     onInspect: vi.fn(),
+    edit: {
+      onRemove: vi.fn(),
+      onSetWeek: vi.fn(),
+      onSetOptional: vi.fn(),
+      onRemoveBundle: vi.fn(),
+      onDuplicateBundle,
+      onLiftBundle: vi.fn(),
+    },
     ...overrides,
   };
   render(
@@ -54,6 +56,8 @@ const renderCell = (occupants: CellOccupant[], bundled: boolean, overrides: Part
   );
   return { onDuplicateBundle };
 };
+
+const isPlacementChip = (element: HTMLElement): boolean => element.getAttribute("aria-roledescription") === "placement";
 
 const headerDuplicate = () => screen.getByRole("button", { name: "Duplicate slot to next free slot" });
 const trash = () => screen.queryByRole("button", { name: "Remove all from slot" });
@@ -100,5 +104,89 @@ describe("SlotCell — duplicate affordance", () => {
   it("renders no duplicate control on an empty cell", () => {
     renderCell([], false);
     expect(screen.queryByRole("button", { name: /Duplicate/ })).not.toBeInTheDocument();
+  });
+});
+
+// S-405: a cell without `edit` (a viewer's board) renders only its read affordances. Every absence
+// below is paired with the same cell WITH `edit`, so the test cannot pass on a cell that never
+// rendered the control in the first place.
+describe("SlotCell — without edit (a viewer)", () => {
+  const readOnly = { edit: undefined };
+  const writeButtons = () => [
+    screen.queryByRole("button", { name: /^Duplicate/ }),
+    screen.queryByRole("button", { name: "Lift to shelf" }),
+    trash(),
+  ];
+  // An exploded opposite-week pair: each chip would carry the A/B toggle and its "⋯" menu, and the
+  // blocking one the collision badge.
+  const opposedPair = [{ ...occupant("A", "Alpha", "a"), blocking: true }, occupant("B", "Bravo", "b")];
+  const weekRadios = () => [
+    ...screen.queryAllByRole("radio", { name: "Week A" }),
+    ...screen.queryAllByRole("radio", { name: "Week B" }),
+  ];
+  const chipMenus = () => screen.queryAllByRole("button", { name: /^Actions for / });
+
+  it("a bundled cell keeps Ungroup and renders no Duplicate, Lift to shelf or Remove all", () => {
+    renderCell([occupant("A", "Alpha"), occupant("B", "Bravo")], true, readOnly);
+    expect(screen.getByRole("button", { name: "Ungroup slot" })).toBeInTheDocument();
+    expect(writeButtons()).toEqual([null, null, null]);
+  });
+
+  it("the same bundled cell with edit renders all three", () => {
+    renderCell([occupant("A", "Alpha"), occupant("B", "Bravo")], true);
+    expect(writeButtons().every((button) => button !== null)).toBe(true);
+  });
+
+  it("a bundled cell is not grabbable without edit", () => {
+    renderCell([occupant("A", "Alpha"), occupant("B", "Bravo")], true, readOnly);
+    expect(screen.getByRole("gridcell")).not.toHaveClass("cursor-grab");
+  });
+
+  it("the same bundled cell with edit is grabbable", () => {
+    renderCell([occupant("A", "Alpha"), occupant("B", "Bravo")], true);
+    expect(screen.getByRole("gridcell")).toHaveClass("cursor-grab");
+  });
+
+  // dnd-kit's accessibility plugin mirrors each draggable's `disabled` onto `aria-disabled`, so this
+  // is the drag itself, not the cursor that hints at it.
+  const placementChips = () => screen.getAllByRole("button").filter(isPlacementChip);
+
+  it("an exploded cell's chips do not drag without edit", async () => {
+    renderCell(opposedPair, false, readOnly);
+    await waitFor(() => {
+      expect(placementChips().map((chip) => chip.getAttribute("aria-disabled"))).toEqual(["true", "true"]);
+    });
+  });
+
+  it("the same exploded cell's chips drag with edit", async () => {
+    renderCell(opposedPair, false);
+    await waitFor(() => {
+      expect(placementChips().map((chip) => chip.getAttribute("aria-disabled"))).toEqual(["false", "false"]);
+    });
+  });
+
+  it("an exploded cell renders no week toggle and no chip menu, and keeps Group and the inspect badge", () => {
+    renderCell(opposedPair, false, readOnly);
+    expect(weekRadios()).toEqual([]);
+    expect(chipMenus()).toEqual([]);
+    expect(screen.getByRole("button", { name: "Group slot" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show collision details" })).toBeInTheDocument();
+  });
+
+  it("the same exploded cell with edit renders both week toggles and both chip menus", () => {
+    renderCell(opposedPair, false);
+    expect(weekRadios()).toHaveLength(4);
+    expect(chipMenus()).toHaveLength(2);
+  });
+
+  it("a single-occupant cell renders no control strip (its only controls are writes)", () => {
+    renderCell([occupant("A", "Alpha")], false, readOnly);
+    expect(screen.getByRole("gridcell").querySelector('[data-slot="slot-header"]')).toBeNull();
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+  });
+
+  it("the same single-occupant cell with edit renders its control strip", () => {
+    renderCell([occupant("A", "Alpha")], false);
+    expect(screen.getByRole("gridcell").querySelector('[data-slot="slot-header"]')).not.toBeNull();
   });
 });

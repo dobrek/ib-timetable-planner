@@ -54,7 +54,9 @@ export default function CombinedPalettePanel({
   onCollapsedChange,
 }: Props) {
   const active = cohorts.find((cohort) => cohort.cohort === activeCohort) ?? cohorts[0];
-  const view = resolvePaletteView({ groupingsCount: active.groupings.length, stale: active.stale });
+  // The panel mounts only for a caller who may edit: the board leaves it out on `"hidden"` (S-405),
+  // so its body never resolves to that outcome.
+  const view = resolvePaletteView({ groupingsCount: active.groupings.length, stale: active.stale, canEdit: true });
   const showSwitcher = cohorts.length > 1;
 
   return (

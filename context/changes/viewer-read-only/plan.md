@@ -659,13 +659,13 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Automated
 
-- [x] 1.1 Type check passes: `pnpm check`
-- [x] 1.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 1.3 Unit suite passes, including `action-capabilities.test.ts` with `readPlanJob` in `NON_EDIT`: `pnpm test`
-- [x] 1.4 Viewer-read integration suite passes: `pnpm test:integration src/_pages/plan-detail/api/generation-read.integration.test.ts`
-- [x] 1.5 Existing delivery and proposal suites still pass: `pnpm test:integration src/_pages/plan-detail/api/generation-delivery.integration.test.ts src/test/generation-proposal.integration.test.ts`
-- [x] 1.6 Role matrix passes with the two new RPC cells: `pnpm test:integration src/test/role-matrix.integration.test.ts`
-- [x] 1.7 Production build is clean: `pnpm build`
+- [x] 1.1 Type check passes: `pnpm check` — b94bb77
+- [x] 1.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger` — b94bb77
+- [x] 1.3 Unit suite passes, including `action-capabilities.test.ts` with `readPlanJob` in `NON_EDIT`: `pnpm test` — b94bb77
+- [x] 1.4 Viewer-read integration suite passes: `pnpm test:integration src/_pages/plan-detail/api/generation-read.integration.test.ts` — b94bb77
+- [x] 1.5 Existing delivery and proposal suites still pass: `pnpm test:integration src/_pages/plan-detail/api/generation-delivery.integration.test.ts src/test/generation-proposal.integration.test.ts` — b94bb77
+- [x] 1.6 Role matrix passes with the two new RPC cells: `pnpm test:integration src/test/role-matrix.integration.test.ts` — b94bb77
+- [x] 1.7 Production build is clean: `pnpm build` — b94bb77
 
 #### Manual
 
@@ -677,11 +677,11 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Automated
 
-- [ ] 2.1 Type check passes: `pnpm check`
-- [ ] 2.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 2.3 Unit suite passes: `pnpm test`
-- [ ] 2.4 Existing board e2e specs stay green for the author: `pnpm test:e2e e2e/specs/combined-view.spec.ts e2e/specs/undo-redo.spec.ts e2e/specs/bundle-operations.spec.ts`
-- [ ] 2.5 Production build is clean: `pnpm build`
+- [x] 2.1 Type check passes: `pnpm check`
+- [x] 2.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 2.3 Unit suite passes: `pnpm test`
+- [x] 2.4 Existing board e2e specs stay green for the author: `pnpm test:e2e e2e/specs/combined-view.spec.ts e2e/specs/undo-redo.spec.ts e2e/specs/bundle-operations.spec.ts`
+- [x] 2.5 Production build is clean: `pnpm build`
 
 #### Manual
 

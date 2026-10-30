@@ -69,6 +69,11 @@ type Props = {
  * cohort-switcher palette + sibling-dim; `focus = "dp1"|"dp2"` renders one column, the palette locked
  * to that cohort, the shelf filtered to it, no sibling-dim, and a full-screen empty state. One
  * `DragDropProvider`, one drop router, one canonical `applyDropAction` dispatch.
+ *
+ * With `canEdit` false (a viewer, S-405) the same board renders read-only: no palette (the palette
+ * view resolves to `"hidden"`, so the focus-mode empty state never replaces the timetable), no shelf
+ * or parked badge, no Generate, no undo/redo or ⌘Z, and each column's wiring carries no `edit` — so
+ * nothing drags and no cell or chip renders a write control. Edit controls are absent, never greyed.
  */
 export default function PlannerBoard({
   planName,
@@ -99,7 +104,7 @@ export default function PlannerBoard({
   const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
   const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
 
-  useUndoKeymap(history);
+  useUndoKeymap(history, { enabled: canEdit });
 
   const { hintMode, setHintMode } = useHintMode();
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
@@ -219,34 +224,46 @@ export default function PlannerBoard({
         isExploded: state.isExploded,
         justDuplicated: state.justDuplicated,
         lensMatched: state.lensMatches?.matched ?? null,
-        onRemove: state.actions.removePlacement,
-        onSetWeek: state.actions.setWeek,
-        onSetOptional: state.actions.setOptional,
         onToggleBundle: state.toggleExploded,
-        onRemoveBundle: state.actions.removeBundle,
-        onDuplicateBundle: state.actions.duplicateBundle,
-        onLiftBundle: (day, period) => {
-          applyDropAction({ kind: "liftBundle", cohort, day, period }, resolveState, { collapseUnlessPinned });
-        },
         onInspect: (target) => {
           setInspection({ cohort, target });
         },
+        // Absent for a caller who may not edit (S-405): the cells and chips then render no write
+        // control and enable no drag.
+        edit: canEdit
+          ? {
+              onRemove: state.actions.removePlacement,
+              onSetWeek: state.actions.setWeek,
+              onSetOptional: state.actions.setOptional,
+              onRemoveBundle: state.actions.removeBundle,
+              onDuplicateBundle: state.actions.duplicateBundle,
+              onLiftBundle: (day, period) => {
+                applyDropAction({ kind: "liftBundle", cohort, day, period }, resolveState, { collapseUnlessPinned });
+              },
+            }
+          : undefined,
       },
     };
   }
 
-  if (focus !== "combined") {
-    const state = resolveState(focus);
-    if (resolvePaletteView({ groupingsCount: state.groupings.length, stale: state.stale }) === "empty") {
-      return (
-        <>
-          <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={focus} />
-          <div data-slot="planner-board" className="p-6">
-            <ComputeGroupingsEmptyState planId={planId} cohort={focus} />
-          </div>
-        </>
-      );
-    }
+  // The palette's cohort (the focused one in focus mode). A viewer resolves to "hidden" — no palette
+  // node — which also keeps the compute-prompt early return below from replacing their timetable.
+  const paletteState = resolveState(activeCohort);
+  const paletteView = resolvePaletteView({
+    groupingsCount: paletteState.groupings.length,
+    stale: paletteState.stale,
+    canEdit,
+  });
+
+  if (focus !== "combined" && paletteView === "empty") {
+    return (
+      <>
+        <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={focus} />
+        <div data-slot="planner-board" className="p-6">
+          <ComputeGroupingsEmptyState planId={planId} cohort={focus} />
+        </div>
+      </>
+    );
   }
 
   const states = combined ? [dp1, dp2] : [resolveState(focus)];
@@ -293,15 +310,19 @@ export default function PlannerBoard({
             summary={summary}
             combined={combined}
             parkedCount={parkedBundles.length}
-            onExpandShelf={() => {
-              setExpanded(true);
-            }}
+            onExpandShelf={
+              canEdit
+                ? () => {
+                    setExpanded(true);
+                  }
+                : undefined
+            }
             planId={planId}
             active={focus}
-            undoRedo={history}
+            undoRedo={canEdit ? history : undefined}
             trailing={
               <>
-                <GenerateButton generation={generation} />
+                {canEdit && <GenerateButton generation={generation} />}
                 <LensPicker
                   open={lens.open}
                   setOpen={lens.setOpen}
@@ -346,13 +367,15 @@ export default function PlannerBoard({
         </>
       }
       palette={
-        <CombinedPalettePanel
-          cohorts={cohorts}
-          activeCohort={activeCohort}
-          onActiveCohortChange={combined ? setPaletteCohort : undefined}
-          collapsed={paletteCollapsedState}
-          onCollapsedChange={setPaletteCollapsed}
-        />
+        paletteView === "hidden" ? undefined : (
+          <CombinedPalettePanel
+            cohorts={cohorts}
+            activeCohort={activeCohort}
+            onActiveCohortChange={combined ? setPaletteCohort : undefined}
+            collapsed={paletteCollapsedState}
+            onCollapsedChange={setPaletteCollapsed}
+          />
+        )
       }
       center={
         <div className="flex min-h-0 flex-col gap-3">
@@ -384,16 +407,18 @@ export default function PlannerBoard({
         </div>
       }
       shelf={
-        <ShelfDrawer
-          parkedBundles={parkedBundles}
-          courseDisplay={combined ? overlayCourseDisplay : resolveState(focus).courseDisplay}
-          expanded={shelfExpanded}
-          pinned={pinned}
-          cohortById={shelfCohortById}
-          onExpandedChange={setExpanded}
-          onPinnedChange={setPinned}
-          onRemoveParked={removeParked}
-        />
+        canEdit ? (
+          <ShelfDrawer
+            parkedBundles={parkedBundles}
+            courseDisplay={combined ? overlayCourseDisplay : resolveState(focus).courseDisplay}
+            expanded={shelfExpanded}
+            pinned={pinned}
+            cohortById={shelfCohortById}
+            onExpandedChange={setExpanded}
+            onPinnedChange={setPinned}
+            onRemoveParked={removeParked}
+          />
+        ) : undefined
       }
       dialog={
         <CollisionDetailsDialog

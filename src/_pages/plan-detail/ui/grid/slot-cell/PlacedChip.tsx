@@ -33,10 +33,17 @@ export type ChipWiring = {
   /** Placement ids matched by the active highlight lens; null = lens inactive. Each chip resolves
    *  its own membership from this shared set — no per-chip boolean threads through the cell. */
   lensMatched: Set<string> | null;
+  onInspect: (target: CollisionInspectionTarget) => void;
+  /** The chip's write handlers — absent for a caller who may not edit (S-405): the chip then does
+   *  not drag and renders neither the A/B toggle nor the "⋯" menu. */
+  edit?: ChipEditHandlers;
+};
+
+/** The per-placement write handlers behind the chip's drag, A/B toggle and "⋯" menu. */
+export type ChipEditHandlers = {
   onRemove: (placementId: string) => void;
   onSetWeek: (placementId: string, week: PlacementWeek) => void;
   onSetOptional: (placementId: string, isOptional: boolean) => void;
-  onInspect: (target: CollisionInspectionTarget) => void;
 };
 
 /**
@@ -44,7 +51,9 @@ export type ChipWiring = {
  * warn-only chip reads amber. The collision badge opens the details dialog; the A/B control (only
  * on a bi-weekly placement) moves the chip between week lanes. While the cell is bundled the chip's
  * own drag and per-member "⋯" menu go inert — the whole slot drags as one unit. An optional member
- * composes a dashed/dimmed/tagged axis BELOW the tone ladder (a collision is never masked).
+ * composes a dashed/dimmed/tagged axis BELOW the tone ladder (a collision is never masked). Without
+ * `edit` (a viewer, S-405) the chip is read-only: no drag, no A/B toggle, no menu — its week still
+ * reads from the lane it sits in, and the optional tag and the inspect badge stay.
  */
 export function PlacedChip({
   occupant,
@@ -53,10 +62,8 @@ export function PlacedChip({
   cohort,
   bundled,
   lensMatched,
-  onRemove,
-  onSetWeek,
-  onSetOptional,
   onInspect,
+  edit,
 }: ChipWiring & { occupant: CellOccupant }) {
   const { placement, name, color, blocking, warning, unavailable } = occupant;
   // Menu open state lives here so the chip's own drag can go inert while its portal-rendered menu
@@ -66,7 +73,7 @@ export function PlacedChip({
   const { ref, isDragging } = useDraggable<PlacementDrag>({
     id: placement.id,
     data: { kind: "placement", placementId: placement.id, courseId: placement.courseId, cohort },
-    disabled: bundled || placement.pending === true || menuOpen,
+    disabled: bundled || placement.pending === true || menuOpen || edit === undefined,
   });
 
   // A bi-weekly placement always resolves to a single week (a/b); agnostic stays `both`.
@@ -85,7 +92,7 @@ export function PlacedChip({
         // Optional axis composes below the tone — see optionalChipClass for the saturate-vs-opacity rationale.
         placement.isOptional && optionalChipClass,
         placement.pending && "opacity-60",
-        !placement.pending && !bundled && "cursor-grab active:cursor-grabbing",
+        edit && !placement.pending && !bundled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
         // Highlight lens: matches keep full strength plus the semantic ring (static — the pulse
         // stays exclusive to `justDuplicated`); the rest recedes on the shared opacity axis, which
@@ -118,15 +125,16 @@ export function PlacedChip({
       )}
       {/* The A/B control gates on week only (it opts out of drag), so a bundled opposite-week
           pair stays adjustable; the "⋯" member menu (Mark as optional / Accept / Remove) is
-          bundled-gated exactly like the inline remove it replaced. */}
-      {(biweekly || !bundled) && (
+          bundled-gated exactly like the inline remove it replaced. Both are writes, so both need
+          `edit`. */}
+      {edit && (biweekly || !bundled) && (
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
           {biweekly && (
             <WeekToggle
               week={placement.week}
               pending={placement.pending === true}
               onSelect={(week) => {
-                onSetWeek(placement.id, week);
+                edit.onSetWeek(placement.id, week);
               }}
             />
           )}
@@ -138,10 +146,10 @@ export function PlacedChip({
               open={menuOpen}
               onOpenChange={setMenuOpen}
               onSetOptional={(isOptional) => {
-                onSetOptional(placement.id, isOptional);
+                edit.onSetOptional(placement.id, isOptional);
               }}
               onRemove={() => {
-                onRemove(placement.id);
+                edit.onRemove(placement.id);
               }}
             />
           )}

@@ -273,8 +273,8 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      # `pretest:e2e` provisions the author and the role-less account (URL + service-role from $GITHUB_ENV) and
-      # `test:e2e`'s webServer runs `pnpm build && pnpm preview` on real workerd.
+      # `pretest:e2e` provisions the author, the role-less account and the viewer (URL + service-role from
+      # $GITHUB_ENV) and `test:e2e`'s webServer runs `pnpm build && pnpm preview` on real workerd.
       - run: pnpm test:e2e
 
       # Same reason as the integration job's: a solver that died mid-suite would otherwise present

@@ -11,6 +11,10 @@ import { defineConfig, devices } from "@playwright/test";
 //   - `chromium-no-role` `*.no-role.spec.ts` only, signed in as the account that never
 //                      holds a role (S-403), so the role gate and the action guard
 //                      are what answer.
+//   - `chromium-viewer` `*.viewer.spec.ts` only, signed in as the account that holds
+//                      `viewer` (S-405): every page must render with no edit control.
+//                      Its specs arrange data in a second context on the author's
+//                      storageState, because a viewer can create nothing.
 //
 // `webServer` builds then previews on REAL workerd (`astro preview` = `wrangler
 // dev ./dist`), because the boundary under test (`/_actions/*` + `astro:env/server`
@@ -40,7 +44,7 @@ export default defineConfig({
     { name: "setup", testMatch: /.*\.setup\.ts/ },
     {
       name: "chromium",
-      testIgnore: [/.*(guard|unauth)\.spec\.ts/, /.*\.no-role\.spec\.ts/],
+      testIgnore: [/.*(guard|unauth)\.spec\.ts/, /.*\.no-role\.spec\.ts/, /.*\.viewer\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/user.json" },
       dependencies: ["setup"],
     },
@@ -53,6 +57,12 @@ export default defineConfig({
       name: "chromium-no-role",
       testMatch: /.*\.no-role\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/no-role.json" },
+      dependencies: ["setup"],
+    },
+    {
+      name: "chromium-viewer",
+      testMatch: /.*\.viewer\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/viewer.json" },
       dependencies: ["setup"],
     },
   ],

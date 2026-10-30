@@ -710,11 +710,11 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Automated
 
-- [x] 4.1 Type check passes: `pnpm check`
-- [x] 4.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 4.3 Unit suite passes: `pnpm test`
-- [x] 4.4 Existing label and export e2e specs stay green: `pnpm test:e2e e2e/specs/current-plan.spec.ts e2e/specs/export-xlsx.spec.ts e2e/specs/printable-version.spec.ts e2e/specs/plan-comparison.spec.ts`
-- [x] 4.5 Production build is clean: `pnpm build`
+- [x] 4.1 Type check passes: `pnpm check` — 61f9e83
+- [x] 4.2 Lint and FSD structure pass: `pnpm lint && pnpm steiger` — 61f9e83
+- [x] 4.3 Unit suite passes: `pnpm test` — 61f9e83
+- [x] 4.4 Existing label and export e2e specs stay green: `pnpm test:e2e e2e/specs/current-plan.spec.ts e2e/specs/export-xlsx.spec.ts e2e/specs/printable-version.spec.ts e2e/specs/plan-comparison.spec.ts` — 61f9e83
+- [x] 4.5 Production build is clean: `pnpm build` — 61f9e83
 
 #### Manual
 
@@ -727,10 +727,10 @@ None. No schema, policy, function or wire change, and no data touched. Rollback 
 
 #### Automated
 
-- [ ] 5.1 Viewer specs pass: `pnpm test:e2e --project=chromium-viewer`
-- [ ] 5.2 The full e2e suite passes (the solver up per README): `pnpm test:e2e`
-- [ ] 5.3 Lint passes on the new specs and config: `pnpm lint`
-- [ ] 5.4 Full local CI gate passes: `/verify`
+- [x] 5.1 Viewer specs pass: `pnpm test:e2e --project=chromium-viewer`
+- [x] 5.2 The full e2e suite passes (the solver up per README): `pnpm test:e2e`
+- [x] 5.3 Lint passes on the new specs and config: `pnpm lint`
+- [x] 5.4 Full local CI gate passes: `/verify`
 
 #### Manual
 

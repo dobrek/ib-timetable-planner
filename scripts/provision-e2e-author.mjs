@@ -1,28 +1,32 @@
 #!/usr/bin/env node
 // Provisions the e2e accounts programmatically so `pnpm test:e2e` can sign in as them: the author,
-// which holds the `author` role, and the no-role account, which holds none (S-403, FR-410). Runs
-// automatically via the `pretest:e2e` hook (locally and in CI). Idempotent: a re-run against an
-// existing account is a success, not an error, and re-asserts its role.
+// which holds the `author` role, the no-role account, which holds none (S-403, FR-410), and the
+// viewer, which holds `viewer` (S-405, FR-409). Runs automatically via the `pretest:e2e` hook
+// (locally and in CI). Idempotent: a re-run against an existing account is a success, not an error,
+// and re-asserts its role.
 //
 // The app has no self-service signup (`enable_signup = false`); the admin API
 // (`auth.admin.createUser`) bypasses that gate. Locally `enable_confirmations =
 // false`, so `email_confirm: true` makes the user immediately sign-in-ready.
 //
-// Roles are set here because both accounts are created after the migrations ran, so S-403's
+// Roles are set here because every account is created after the migrations ran, so S-403's
 // backfill never sees them. Both paths, created and `email_exists`, set the role, so a stack whose
 // author predates the role still gets one. The no-role account's role row is DELETED on every run:
-// a stale grant must never let `no-access.no-role.spec.ts` pass as someone with access.
+// a stale grant must never let `no-access.no-role.spec.ts` pass as someone with access. The viewer's
+// is upserted back to `viewer` on every run for the same reason: a stray `author` row would let the
+// `*.viewer.spec.ts` tripwire pass while looking at edit controls it was meant to prove absent.
 //
-// Loopback only. Both passwords are public literals (e2e/author-credentials.mjs,
-// e2e/no-role-credentials.mjs), and the author role gives data access, so any non-local
-// SUPABASE_URL is refused before a request is sent: a mis-pointed URL must never mint a hosted
-// account that anyone can sign in as.
+// Loopback only. Every password is a public literal (e2e/author-credentials.mjs,
+// e2e/no-role-credentials.mjs, e2e/viewer-credentials.mjs), and the author and viewer roles give data
+// access, so any non-local SUPABASE_URL is refused before a request is sent: a mis-pointed URL must
+// never mint a hosted account that anyone can sign in as.
 //
 // Runs in Node on the host (CI runner or dev machine) — workerd constraints do
 // not apply, so `@supabase/supabase-js` + `node:fs` are fine.
 import { createClient } from "@supabase/supabase-js";
 import { authorEmail, authorPassword } from "../e2e/author-credentials.mjs";
 import { noRoleEmail, noRolePassword } from "../e2e/no-role-credentials.mjs";
+import { viewerEmail, viewerPassword } from "../e2e/viewer-credentials.mjs";
 import { findUserIdByEmail } from "./lib/find-user-id-by-email.mjs";
 import { isLoopbackUrl } from "./lib/is-loopback-url.mjs";
 import { loadTestEnvFallback } from "./lib/load-test-env-fallback.mjs";
@@ -31,6 +35,7 @@ import { loadTestEnvFallback } from "./lib/load-test-env-fallback.mjs";
 const ACCOUNTS = [
   { email: authorEmail, password: authorPassword, role: "author" },
   { email: noRoleEmail, password: noRolePassword, role: null },
+  { email: viewerEmail, password: viewerPassword, role: "viewer" },
 ];
 
 function fail(message) {

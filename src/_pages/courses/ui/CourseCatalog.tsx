@@ -43,7 +43,9 @@ export default function CourseCatalog({ planId, courses: initialCourses, teacher
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Courses</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage the plan&apos;s cross-cohort course catalog.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {canEdit ? "Manage the plan's cross-cohort course catalog." : "The plan's cross-cohort course catalog."}
+          </p>
         </div>
         {canEdit && (
           <div className="flex flex-wrap items-center gap-2">
@@ -88,11 +90,12 @@ export default function CourseCatalog({ planId, courses: initialCourses, teacher
               <CourseTable
                 rows={rows}
                 coursesById={dialogs.coursesById}
-                canEdit={canEdit}
-                onEdit={dialogs.openEdit}
                 onOpenOverlaps={dialogs.openOverlaps}
-                onManageMerge={dialogs.openMergeManage}
-                onDelete={dialogs.openDelete}
+                edit={
+                  canEdit
+                    ? { onEdit: dialogs.openEdit, onManageMerge: dialogs.openMergeManage, onDelete: dialogs.openDelete }
+                    : undefined
+                }
               />
             </TabsContent>
           );

@@ -1,8 +1,22 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
 import type { GenerationJobView } from "../api/generation-read";
 import PendingProposalPage from "./PendingProposalPage";
+
+// The ticker stays real; a test may force the view a later tick returns, to drive "the proposal is
+// gone" without a network. The real hook still runs underneath, so the hook order never changes.
+const nextTick = vi.hoisted(() => ({ view: undefined as GenerationJobView | null | undefined }));
+vi.mock("../model/generation/use-pending-proposal", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../model/generation/use-pending-proposal")>();
+  return {
+    ...actual,
+    usePendingProposal: (...args: Parameters<typeof actual.usePendingProposal>) => {
+      const view = actual.usePendingProposal(...args);
+      return nextTick.view === undefined ? view : nextTick.view;
+    },
+  };
+});
 
 /**
  * The page's three panels, driven off the SSR'd snapshot alone.
@@ -33,16 +47,18 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   ...over,
 });
 
-const renderPage = (view: GenerationJobView | null, { canEdit = true, stranded = false } = {}) =>
-  render(
-    <PendingProposalPage
-      planName="Proposal — Year 2026/27"
-      planId="plan-2"
-      job={view}
-      canEdit={canEdit}
-      stranded={stranded}
-    />,
-  );
+const page = (view: GenerationJobView | null, { canEdit = true, stranded = false } = {}) => (
+  <PendingProposalPage
+    planName="Proposal — Year 2026/27"
+    planId="plan-2"
+    job={view}
+    canEdit={canEdit}
+    stranded={stranded}
+  />
+);
+
+const renderPage = (view: GenerationJobView | null, options: { canEdit?: boolean; stranded?: boolean } = {}) =>
+  render(page(view, options));
 
 describe("PendingProposalPage", () => {
   it("offers Stop & keep while the job is active", () => {
@@ -164,6 +180,34 @@ describe("PendingProposalPage", () => {
       asViewer(null);
 
       expect(screen.getByRole("status")).toHaveTextContent(/status could not be read just now — refresh to try again/);
+    });
+  });
+
+  /**
+   * A later read that finds no job, after the page held one: an editor's visit swept the proposal (a
+   * stalled run that kept nothing, a board that failed verification, a failed job). A failed read
+   * throws and keeps the last snapshot, so this null is a fact, and "refresh" would land on a 404.
+   */
+  describe("when a later read finds the proposal gone", () => {
+    afterEach(() => {
+      nextTick.view = undefined;
+    });
+
+    it.each([
+      { who: "a viewer watching a stalled run", canEdit: false, view: job({ status: "running", stalled: true }) },
+      { who: "an editor watching a running job", canEdit: true, view: job({ status: "running" }) },
+    ])("tells $who it was removed, and offers no refresh", ({ canEdit, view }) => {
+      const { rerender } = renderPage(view, { canEdit });
+      expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
+
+      nextTick.view = null;
+      rerender(page(view, { canEdit }));
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "This proposal's generation ended without a board, so it has been removed.",
+      );
+      expect(screen.queryByText(/could not be read/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
     });
   });
 });

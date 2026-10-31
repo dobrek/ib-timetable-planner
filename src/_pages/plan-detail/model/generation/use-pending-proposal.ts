@@ -26,7 +26,10 @@ import type { GenerationJobView } from "../../api/generation-read";
  * non-editor's ticker calls `readPlanJob`, which is as light as the hub's poll. It keeps ticking
  * while a finished board waits for an author (`awaitingDelivery`), and the tick that finds it
  * delivered navigates exactly as an editor's does — so the viewer's page turns into the board on its
- * own once an author or admin opens the plan.
+ * own once an author or admin opens the plan. That wait lasts as long as no author visits — days, on a
+ * tab left open — so after its first ten minutes the ticker reads at most once a minute
+ * (`WAITING_BACKOFF_AFTER_MS`, `WAITING_POLL_INTERVAL_MS`). The first stretch keeps the five-second
+ * cadence, which is when an author is likeliest back and the viewer is watching.
  *
  * **Lifecycle shared with `plans-list/model/job-progress-store.ts`, in
  * `@/shared/lib/polling-store`.** React 19's `react-hooks/set-state-in-effect` rule rules out
@@ -64,6 +67,12 @@ export type PendingProposalStoreOptions = {
 
 export const PENDING_POLL_INTERVAL_MS = DEFAULT_POLL_INTERVAL_MS;
 
+/** How long a viewer's wait keeps the full cadence before backing off. */
+export const WAITING_BACKOFF_AFTER_MS = 10 * 60_000;
+
+/** At most one read this often, once a viewer's wait has backed off. */
+export const WAITING_POLL_INTERVAL_MS = 60_000;
+
 export const createPendingProposalStore = (options: PendingProposalStoreOptions): PendingProposalStore => {
   const {
     planId,
@@ -80,10 +89,22 @@ export const createPendingProposalStore = (options: PendingProposalStoreOptions)
   // "announced" means, and gains nothing from learning.
   let announced = false;
 
+  // The viewer's back-off (see the header). A tick that is not due returns the snapshot unchanged
+  // without reaching the network, which the factory's `read` contract sanctions and its equality gate
+  // turns into a no-op.
+  let waitingSince: number | null = null;
+  let lastReadAt = Number.NEGATIVE_INFINITY;
+
   return createPollingStore<GenerationJobView | null>({
     initial,
     isEqual: sameView,
-    read: () => check(planId),
+    read: (current) => {
+      const nowMs = Date.now();
+      waitingSince = isWaitingForAuthor(current, canEdit) ? (waitingSince ?? nowMs) : null;
+      if (!isReadDue(nowMs, waitingSince, lastReadAt)) return Promise.resolve(current);
+      lastReadAt = nowMs;
+      return check(planId);
+    },
     isActive: (snapshot) => !announced && snapshot !== null && boardStillComing(snapshot, canEdit),
     // AFTER the publish and outside the listeners guard, both deliberately: the delivery already
     // happened server-side inside `check`, so a subscriber leaving mid-flight is a reason to publish
@@ -116,12 +137,37 @@ export const usePendingProposal = (
 };
 
 /**
+ * Whether this page has ever held a job for its proposal — `resolvePendingPanel`'s `tracked`.
+ *
+ * A failed read throws and the store keeps its last snapshot, so a null AFTER a job is a successful
+ * read that found nothing: an editor's visit swept the proposal (a stalled run with nothing kept, a
+ * board that failed verification, a failed job). The page says "removed" then, not "refresh" — a
+ * refresh of a deleted plan is a 404. Remembered with React's "information from previous renders"
+ * state adjustment, which keeps the island Compiler-clean (no ref read during render).
+ */
+export const useHasTrackedJob = (job: GenerationJobView | null): boolean => {
+  const [tracked, setTracked] = useState(job !== null);
+  if (job !== null && !tracked) setTracked(true);
+  return tracked;
+};
+
+/**
  * Whether the board may still arrive while the page watches: the ladder is running, or — for a
  * non-editor only — it finished and waits for an author or admin to deliver it. An editor's own tick
  * delivers such a board, so for them a deliverable snapshot is the reload's round trip, not a wait.
  */
 const boardStillComing = (snapshot: GenerationJobView, canEdit: boolean): boolean =>
   isActiveJobStatus(snapshot.status) || (!canEdit && snapshot.awaitingDelivery);
+
+/** A viewer's page waiting on an author's visit: a stalled job to reclaim, or a board to deliver. */
+const isWaitingForAuthor = (snapshot: GenerationJobView | null, canEdit: boolean): boolean =>
+  !canEdit && snapshot !== null && (snapshot.stalled || snapshot.awaitingDelivery);
+
+/** Every tick reads, except once a wait has outlasted the back-off: then once a minute. */
+const isReadDue = (nowMs: number, waitingSince: number | null, lastReadAt: number): boolean =>
+  waitingSince === null ||
+  nowMs - waitingSince < WAITING_BACKOFF_AFTER_MS ||
+  nowMs - lastReadAt >= WAITING_POLL_INTERVAL_MS;
 
 /**
  * Re-request the same URL so the board renders through the normal SSR path.

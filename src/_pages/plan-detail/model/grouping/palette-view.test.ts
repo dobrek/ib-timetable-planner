@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolvePaletteView } from "./palette-view";
+import { resolvePaletteContent, resolvePaletteView } from "./palette-view";
 
 describe("resolvePaletteView", () => {
   it("no groupings → empty (the compute prompt)", () => {
@@ -29,5 +29,16 @@ describe("resolvePaletteView — a caller who may not edit (S-405)", () => {
     { input: "ready", groupingsCount: 3, stale: false },
   ])("$input input → hidden", ({ groupingsCount, stale }) => {
     expect(resolvePaletteView({ groupingsCount, stale, canEdit: false })).toBe("hidden");
+  });
+});
+
+describe("resolvePaletteContent — the panel's own body", () => {
+  it.each([
+    { groupingsCount: 0, stale: false, content: "empty" },
+    { groupingsCount: 0, stale: true, content: "empty" },
+    { groupingsCount: 3, stale: true, content: "stale" },
+    { groupingsCount: 3, stale: false, content: "ready" },
+  ] as const)("$groupingsCount groupings, stale $stale → $content", ({ groupingsCount, stale, content }) => {
+    expect(resolvePaletteContent({ groupingsCount, stale })).toBe(content);
   });
 });

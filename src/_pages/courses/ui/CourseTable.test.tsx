@@ -30,16 +30,17 @@ const maths = course({ id: "maths", name: "Mathematics AA", level: "SL" });
 const physics = course({ id: "physics", name: "Physics", level: "HL", overlaps: ["maths"] });
 
 const renderTable = (canEdit: boolean) => {
-  const handlers = { onEdit: vi.fn(), onOpenOverlaps: vi.fn(), onManageMerge: vi.fn(), onDelete: vi.fn() };
+  const onOpenOverlaps = vi.fn();
+  const edit = { onEdit: vi.fn(), onManageMerge: vi.fn(), onDelete: vi.fn() };
   const { unmount } = render(
     <CourseTable
       rows={[physics]}
       coursesById={new Map([maths, physics].map((row) => [row.id, row]))}
-      canEdit={canEdit}
-      {...handlers}
+      onOpenOverlaps={onOpenOverlaps}
+      edit={canEdit ? edit : undefined}
     />,
   );
-  return { ...handlers, unmount };
+  return { onOpenOverlaps, ...edit, unmount };
 };
 
 describe("CourseTable", () => {

@@ -4,7 +4,7 @@ import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../api/generation-read";
 import { resolvePendingPanel, type PendingPanel } from "../model/generation/pending-panel";
-import { usePendingProposal } from "../model/generation/use-pending-proposal";
+import { useHasTrackedJob, usePendingProposal } from "../model/generation/use-pending-proposal";
 import StopAndKeep from "./StopAndKeep";
 
 type Props = {
@@ -46,8 +46,9 @@ type Props = {
  */
 export default function PendingProposalPage({ planName, planId, job: initialJob, canEdit, stranded }: Props) {
   const job = usePendingProposal(planId, initialJob, { canEdit });
+  const tracked = useHasTrackedJob(job);
   const hydrated = useHydrated();
-  const panel = resolvePendingPanel(job, { canEdit, stranded });
+  const panel = resolvePendingPanel(job, { canEdit, stranded, tracked });
 
   return (
     <div className="mx-auto max-w-2xl py-16">
@@ -57,7 +58,8 @@ export default function PendingProposalPage({ planName, planId, job: initialJob,
       <PanelFor panel={panel} job={job} canEdit={canEdit} hydrated={hydrated} />
 
       <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <RefreshButton />
+        {/* A removed proposal has no page to refresh into: the request would 404. */}
+        {panel !== "removed" && <RefreshButton />}
         <a
           href="/plans"
           className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
@@ -94,6 +96,18 @@ const PanelFor = ({ panel, job, canEdit, hydrated }: PanelForProps) => {
         <span role="status" className="text-muted-foreground">
           This proposal&apos;s generation is no longer on record. An author&apos;s or admin&apos;s visit will release it
           as an ordinary plan.
+        </span>
+      </Panel>
+    );
+  }
+  if (panel === "removed") {
+    // The page held a job, then a read found none: an editor's visit swept this proposal. Worded like
+    // the route's own swept notice (`SweptProposalNotice.astro`), which an editor's visit renders.
+    return (
+      <Panel>
+        <span role="status" className="text-foreground flex items-start gap-2">
+          <TriangleAlert className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>This proposal&apos;s generation ended without a board, so it has been removed.</span>
         </span>
       </Panel>
     );

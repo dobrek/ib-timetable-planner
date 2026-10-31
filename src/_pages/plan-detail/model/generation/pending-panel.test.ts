@@ -34,6 +34,7 @@ type Case = {
   name: string;
   job: GenerationJobView | null;
   stranded?: boolean;
+  tracked?: boolean;
   editor: PendingPanel;
   viewer: PendingPanel;
 };
@@ -42,6 +43,23 @@ const CASES: Case[] = [
   { name: "a read that failed", job: null, editor: "unreadable", viewer: "unreadable" },
   // The route sets `stranded` for a non-editor only; the dispatch keeps the kind viewer-only anyway.
   { name: "a pending plan no job references", job: null, stranded: true, editor: "unreadable", viewer: "stranded" },
+  // The page held a job and a later read found none: an editor's visit swept the proposal. Gone wins
+  // over stranded, which the route only ever set for a page that started with no job.
+  {
+    name: "a proposal gone after the page held its job",
+    job: null,
+    tracked: true,
+    editor: "removed",
+    viewer: "removed",
+  },
+  {
+    name: "a proposal gone, on a page the route called stranded",
+    job: null,
+    stranded: true,
+    tracked: true,
+    editor: "removed",
+    viewer: "removed",
+  },
   {
     name: "a delivered board",
     job: view({ status: "succeeded", delivered: true }),
@@ -95,17 +113,17 @@ const CASES: Case[] = [
 ];
 
 describe("resolvePendingPanel", () => {
-  it.each(CASES)("$name, read by an editor → $editor", ({ job, stranded = false, editor }) => {
-    expect(resolvePendingPanel(job, { canEdit: true, stranded })).toBe(editor);
+  it.each(CASES)("$name, read by an editor → $editor", ({ job, stranded = false, tracked = false, editor }) => {
+    expect(resolvePendingPanel(job, { canEdit: true, stranded, tracked })).toBe(editor);
   });
 
-  it.each(CASES)("$name, read by a viewer → $viewer", ({ job, stranded = false, viewer }) => {
-    expect(resolvePendingPanel(job, { canEdit: false, stranded })).toBe(viewer);
+  it.each(CASES)("$name, read by a viewer → $viewer", ({ job, stranded = false, tracked = false, viewer }) => {
+    expect(resolvePendingPanel(job, { canEdit: false, stranded, tracked })).toBe(viewer);
   });
 
   it("names a delivered board ahead of every other flag, so the reload's round trip never flashes a wait", () => {
     const delivered = view({ status: "succeeded", delivered: true, awaitingDelivery: true, stalled: true });
 
-    expect(resolvePendingPanel(delivered, { canEdit: false, stranded: false })).toBe("delivered");
+    expect(resolvePendingPanel(delivered, { canEdit: false, stranded: false, tracked: true })).toBe("delivered");
   });
 });

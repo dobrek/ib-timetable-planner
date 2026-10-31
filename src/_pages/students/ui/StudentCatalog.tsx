@@ -55,7 +55,9 @@ export default function StudentCatalog({ planId, students, courses, canEdit }: P
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Students</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage students and their course choices.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {canEdit ? "Manage students and their course choices." : "Students and their course choices."}
+          </p>
         </div>
         {canEdit && (
           <Button className="gap-2" onClick={dialogs.openCreate}>

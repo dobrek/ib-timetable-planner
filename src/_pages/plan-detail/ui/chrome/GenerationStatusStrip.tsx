@@ -9,6 +9,7 @@ import {
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../../api/generation-read";
+import { resolveStatusStrip } from "../../model/generation/status-strip";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 
 type Props = {
@@ -61,106 +62,94 @@ export default function GenerationStatusStrip({ generation, canEdit }: Props) {
   if (state.status !== "tracking") return null;
   const { job } = state;
 
-  if (job.role === "proposal") return <ProposalStrip job={job} hydrated={hydrated} canEdit={canEdit} />;
-
-  // A viewer's read cannot reclaim a quiet row, so it says so rather than "Generating" forever. An
-  // editor's visit has already reclaimed it — unless a heartbeat won the race, when it is alive.
-  if (!canEdit && job.stalled) {
-    return (
-      <Strip>
-        <span role="status" className="text-muted-foreground flex items-center gap-1.5">
-          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-          Stopped reporting progress — an author&apos;s visit will settle it
-        </span>
-        <RefreshButton checking={checking} onRefresh={refresh} />
-      </Strip>
-    );
-  }
-
-  if (job.status === "queued" || job.status === "running") {
-    return (
-      <Strip>
-        <span role="status" className="text-muted-foreground flex items-center gap-1.5">
-          <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          Generating a proposal from the{" "}
-          <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time> state
-        </span>
-        {/* Always present while active: the clone is created before the job row exists, and only a
-            terminal branch ever detaches or sweeps it. */}
-        {job.proposalPlanId && (
-          <a
-            href={`/plans/${job.proposalPlanId}`}
-            className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
-          >
-            Open proposal
-            <ExternalLink className="size-3.5" aria-hidden />
+  // Which line is decided in `model/` (`resolveStatusStrip`), next to the pending page's own dispatch.
+  switch (resolveStatusStrip(job, canEdit)) {
+    case "provenance":
+      return <ProposalStrip job={job} hydrated={hydrated} canEdit={canEdit} />;
+    case "stalled":
+      return (
+        <Strip>
+          <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+            <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+            Stopped reporting progress — an author&apos;s or admin&apos;s visit will settle it
+          </span>
+          <RefreshButton checking={checking} onRefresh={refresh} />
+        </Strip>
+      );
+    case "active":
+      return (
+        <Strip>
+          <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            Generating a proposal from the{" "}
+            <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time> state
+          </span>
+          {/* Always present while active: the clone is created before the job row exists, and only a
+              terminal branch ever detaches or sweeps it. */}
+          {job.proposalPlanId && (
+            <a
+              href={`/plans/${job.proposalPlanId}`}
+              className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
+            >
+              Open proposal
+              <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          )}
+          <RefreshButton checking={checking} onRefresh={refresh} />
+          <a href="/plans" className="text-foreground hover:text-primary font-medium underline underline-offset-2">
+            Watch progress in Plans
           </a>
-        )}
-        <RefreshButton checking={checking} onRefresh={refresh} />
-        <a href="/plans" className="text-foreground hover:text-primary font-medium underline underline-offset-2">
-          Watch progress in Plans
-        </a>
-        <span className="text-muted-foreground/80">
-          This runs for up to about {LADDER_CEILING_MINUTES} minutes — you can leave the page.
-        </span>
-      </Strip>
-    );
+          <span className="text-muted-foreground/80">
+            This runs for up to about {LADDER_CEILING_MINUTES} minutes{canEdit ? " — you can leave the page." : "."}
+          </span>
+        </Strip>
+      );
+    case "failed":
+      return (
+        <Strip tone="destructive">
+          <span role="alert" className="text-destructive flex items-center gap-1.5">
+            <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+            Generation failed{job.error ? `: ${job.error}` : "."}
+          </span>
+          <RefreshButton checking={checking} onRefresh={refresh} />
+        </Strip>
+      );
+    case "halted":
+      // Advisory rather than destructive: the run was cut short, which is not the author's data
+      // being wrong.
+      return (
+        <Strip>
+          <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+            <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+            {haltedSummary(job, canEdit)}
+            {canEdit ? " Generate again when you are ready." : ""}
+          </span>
+          <RefreshButton checking={checking} onRefresh={refresh} />
+        </Strip>
+      );
+    case "awaiting-author":
+      return (
+        <Strip>
+          <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+            <Hourglass className="size-3.5 shrink-0" aria-hidden />
+            Finished — waiting for an author or admin to open it
+          </span>
+          {job.proposalPlanId && (
+            <a
+              href={`/plans/${job.proposalPlanId}`}
+              className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
+            >
+              Open proposal
+              <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          )}
+          <RefreshButton checking={checking} onRefresh={refresh} />
+        </Strip>
+      );
+    case "none":
+      // The result is on the PROPOSAL and not here, so the source says nothing at all.
+      return null;
   }
-
-  if (job.status === "failed") {
-    return (
-      <Strip tone="destructive">
-        <span role="alert" className="text-destructive flex items-center gap-1.5">
-          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-          Generation failed{job.error ? `: ${job.error}` : "."}
-        </span>
-        <RefreshButton checking={checking} onRefresh={refresh} />
-      </Strip>
-    );
-  }
-
-  // Halted with nothing kept: the container died, or the author stopped it, before a single stage
-  // finished — so there is no board to deliver and the clone has already been swept. Advisory rather
-  // than destructive: the run was cut short, which is not the author's data being wrong.
-  if (isHaltedJobStatus(job.status) && job.checkpointStageIndex === null) {
-    return (
-      <Strip>
-        <span role="status" className="text-muted-foreground flex items-center gap-1.5">
-          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-          {haltedSummary(job, canEdit)}
-          {canEdit ? " Generate again when you are ready." : ""}
-        </span>
-        <RefreshButton checking={checking} onRefresh={refresh} />
-      </Strip>
-    );
-  }
-
-  // Finished, and the board has not landed: only an editor's visit delivers it, and a viewer's read
-  // is not one. The proposal is openable, and its own page turns into the board once an author does.
-  if (!canEdit && job.awaitingDelivery) {
-    return (
-      <Strip>
-        <span role="status" className="text-muted-foreground flex items-center gap-1.5">
-          <Hourglass className="size-3.5 shrink-0" aria-hidden />
-          Finished — waiting for an author to open it
-        </span>
-        {job.proposalPlanId && (
-          <a
-            href={`/plans/${job.proposalPlanId}`}
-            className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
-          >
-            Open proposal
-            <ExternalLink className="size-3.5" aria-hidden />
-          </a>
-        )}
-        <RefreshButton checking={checking} onRefresh={refresh} />
-      </Strip>
-    );
-  }
-
-  // Delivered, or terminal-with-a-board that the check is still landing. Either way the result is on
-  // the PROPOSAL and not here, so the source says nothing at all — see the split above.
-  return null;
 }
 
 /**

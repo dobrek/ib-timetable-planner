@@ -44,7 +44,9 @@ export default function TeacherCatalog({ planId, teachers, days, periods, canEdi
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Teachers</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage teachers and view course assignments.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {canEdit ? "Manage teachers and view course assignments." : "Teachers and their course assignments."}
+          </p>
         </div>
         {canEdit && (
           <Button className="gap-2" onClick={dialogs.openCreate}>

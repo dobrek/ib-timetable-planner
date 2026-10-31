@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
 import { checkPlan, readPlanJob } from "../../api/generation-client";
 import type { GenerationJobView } from "../../api/generation-read";
-import { createPendingProposalStore } from "./use-pending-proposal";
+import { createPendingProposalStore, WAITING_BACKOFF_AFTER_MS, WAITING_POLL_INTERVAL_MS } from "./use-pending-proposal";
 
 // The default transports, so a test can tell which one a store picked without a server.
 vi.mock("../../api/generation-client", () => ({ checkPlan: vi.fn(), readPlanJob: vi.fn() }));
@@ -222,6 +222,23 @@ describe("createPendingProposalStore", () => {
    * it waits for an author's or admin's visit. The store keeps watching while it waits, which is what
    * turns the viewer's page into the board on its own.
    */
+  it("never backs off an editor's ticker, which ends with the ladder", async () => {
+    const check = vi.fn().mockImplementation(() => Promise.resolve(view({ status: "running" })));
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: true,
+      initial: view({ status: "running" }),
+      check,
+      onDelivered: vi.fn(),
+    });
+    store.subscribe(vi.fn());
+
+    await vi.advanceTimersByTimeAsync(WAITING_BACKOFF_AFTER_MS + WAITING_POLL_INTERVAL_MS);
+
+    expect(check).toHaveBeenCalledTimes((WAITING_BACKOFF_AFTER_MS + WAITING_POLL_INTERVAL_MS) / INTERVAL);
+    store.dispose();
+  });
+
   describe("for a viewer", () => {
     const finished = (over: Partial<GenerationJobView> = {}) =>
       view({ status: "succeeded", stageIndex: 10, awaitingDelivery: true, ...over });
@@ -257,6 +274,35 @@ describe("createPendingProposalStore", () => {
       await vi.advanceTimersByTimeAsync(INTERVAL * 3);
 
       expect(check).toHaveBeenCalledTimes(3);
+      store.dispose();
+    });
+
+    // The wait lasts as long as no author visits — days, on a tab left open. The first stretch keeps
+    // the full cadence; after it, at most one read a minute.
+    it.each([
+      { what: "a finished board", waiting: () => finished() },
+      { what: "a stalled run", waiting: () => view({ status: "running", stalled: true }) },
+    ])("backs off a long wait on $what to one read a minute", async ({ waiting }) => {
+      const check = vi.fn().mockImplementation(() => Promise.resolve(waiting()));
+      const store = createPendingProposalStore({
+        planId: "plan-2",
+        canEdit: false,
+        initial: waiting(),
+        check,
+        onDelivered: vi.fn(),
+      });
+      store.subscribe(vi.fn());
+
+      // The first tick starts the wait's clock, and every tick of the first stretch reads.
+      await vi.advanceTimersByTimeAsync(WAITING_BACKOFF_AFTER_MS);
+      const fullCadence = WAITING_BACKOFF_AFTER_MS / INTERVAL;
+      expect(check).toHaveBeenCalledTimes(fullCadence);
+
+      // Then no read until a minute after the last one, and exactly one when it is due.
+      await vi.advanceTimersByTimeAsync(WAITING_POLL_INTERVAL_MS - INTERVAL);
+      expect(check).toHaveBeenCalledTimes(fullCadence);
+      await vi.advanceTimersByTimeAsync(INTERVAL);
+      expect(check).toHaveBeenCalledTimes(fullCadence + 1);
       store.dispose();
     });
 

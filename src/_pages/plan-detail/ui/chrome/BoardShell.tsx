@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
-import { defaultPreset, Feedback } from "@dnd-kit/dom";
+import { Accessibility, defaultPreset, Feedback } from "@dnd-kit/dom";
 import { cn } from "@/shared/lib/class-names";
 
 type Props = {
+  /** The caller may edit (`allows(access, "edit")`, computed by the route). Without it the provider
+   *  runs without dnd-kit's Accessibility plugin — see `READ_ONLY_PLUGINS`. */
+  canEdit: boolean;
   onDragStart: (event: DragStartEvent) => void;
   onDragEnd: (event: DragEndEvent) => void;
   /** data-slot on the 3-column grid. The one board passes "planner-board" in every mode. */
@@ -26,7 +29,7 @@ type Props = {
 
 /**
  * The shared board scaffold the one planner board renders into: ONE `DragDropProvider` (with the
- * shared `PLUGINS`), the flex column, and the 3-column `auto | minmax(0,1fr) | auto` grid (palette |
+ * shared `PLUGINS`, or `READ_ONLY_PLUGINS` for a caller who may not edit), the flex column, and the 3-column `auto | minmax(0,1fr) | auto` grid (palette |
  * board | shelf), with the dialog + overlay as siblings inside the provider. The board supplies its
  * slot content; the `focus`-conditioned variation lives OUTSIDE the shell:
  *
@@ -41,6 +44,7 @@ type Props = {
  *   and size to the timetable's full width instead of scrolling.
  */
 export default function BoardShell({
+  canEdit,
   onDragStart,
   onDragEnd,
   gridDataSlot,
@@ -53,7 +57,7 @@ export default function BoardShell({
 }: Props) {
   const sideColumns = palette !== undefined || shelf !== undefined;
   return (
-    <DragDropProvider plugins={PLUGINS} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+    <DragDropProvider plugins={canEdit ? PLUGINS : READ_ONLY_PLUGINS} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <div className="flex min-h-0 flex-1 flex-col">
         {header}
 
@@ -85,3 +89,10 @@ export default function BoardShell({
 const PLUGINS = defaultPreset.plugins.map((plugin) =>
   plugin === Feedback ? Feedback.configure({ dropAnimation: null }) : plugin,
 );
+
+// A read-only board (S-405) still registers its cells and chips as draggables, disabled. dnd-kit's
+// Accessibility plugin decorates every registered draggable, enabled or not: a tab stop, `role=button`,
+// "draggable" with pick-up instructions, and `aria-disabled` — which every control inside inherits, so
+// a viewer's Group/Ungroup and collision badge would be announced as unavailable. With nothing to drag,
+// the plugin has nothing to announce, so a viewer's board runs without it.
+const READ_ONLY_PLUGINS = PLUGINS.filter((plugin) => plugin !== Accessibility);

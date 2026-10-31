@@ -99,6 +99,16 @@ Interactive and grid components must carry roles + accessible names sufficient f
 - **`data-*` is for component identity only** (`data-slot`) — never the test contract. Stateful/coordinate `data-*` (`data-collision`, `data-day`, …) is removed; ARIA + accessible names are the single source of truth.
 - **Visual-only logic** (tone precedence, hint encoding, ring colors) is **unit-tested** (`model/cell-tone`, `ui/slot-cell/tone-class`, `model/drop-hints`), not e2e-asserted; e2e asserts the *outcome* (placement landed/rejected), not the intermediate coloring.
 
+## Capability gating (read-only callers)
+
+S-405's viewer reads every page and edits nothing. RLS already refuses the writes; the app's job is to show no control that would be refused.
+
+- **The route decides, once.** Each route computes `canEdit = allows(Astro.locals.access, "edit")` and passes it down as a prop (through the slice `.astro` wrapper where one exists). Islands never read the role.
+- **Absent, never disabled.** A read-only caller gets no write control at all, not a greyed-out one. The idiom is an optional handler record: write handlers arrive as `edit?: {...}` (or one optional handler), and the control renders only when it is present — `CellWiring.edit`, `CourseTable`'s `edit` (the whole row menu), the student and teacher row menus, `LinkedBaseList`'s `onRemove`, `AvailabilityCell`'s `onClick`. It extends `ScheduleGrid`'s absent-`onInspect` precedent.
+- **A state that differs by capability is a `model/` dispatch**, not an inline `!canEdit &&` ladder: `resolvePaletteView`'s `"hidden"`, `resolvePendingPanel`, `resolveStatusStrip`, `describeGenerationIndicator(…, canEdit)`.
+- **A page-load or poll path writes only for an editor.** A non-editor reads through the write-free twin (`readPlanJob`, not `checkPlan`), because a domain action's `run` never sees the caller's access, so one action cannot branch on role.
+- **A read-only board carries no drag decoration.** dnd-kit's Accessibility plugin decorates every registered draggable, disabled or not, and its `aria-disabled` is inherited by every control inside; so `BoardShell` runs a non-editor's provider without it (`READ_ONLY_PLUGINS`).
+
 ## Root page component
 
 The page island root (`CourseCatalog`) is a **thin orchestrator**:
@@ -244,7 +254,7 @@ When a new plan-detail view flag arrives, pick its transport by **where it is co
 | a **persisted device preference** | a `lib/` `useSyncExternalStore` micro-store + a chrome hook | `drag-hint-mode.ts` |
 | **per-cohort derived data** | the derivation pipeline, exposed via `toCohortState` | `dropHints`, `justDuplicated` |
 
-The board threads its ~11 per-cell handlers + drag-hint state (`CellWiring`) as a **bundled object + `{...wiring}` spread** — built per column in `buildColumn` (`PlannerBoard.tsx:150-166`) and resolved per cell in the grid — rather than re-listing the fields at every hop. That is the fix for the prop-drill, and it stands **not** on any per-tick frequency claim but on two facts: a broadcast Context would re-render every cell on each change (fan-out, above), and the bundle removes the per-hop re-listing that was the real authoring cost. The cadence is in fact low: `dropHints` is set once at drag start and cleared at drag end (`use-board-derivations.ts:52-65`), `hintMode` changes on user toggle, and per-hover reactivity is per-cell `useDroppable` (`SlotCell.tsx:174`) — not a board-wide re-render.
+The board threads its per-cell read handlers and view state (`CellWiring`, `PlannerGrid.tsx:37`), plus an optional `edit` group of the six write handlers that a read-only board leaves out (S-405, see [Capability gating](#capability-gating-read-only-callers)), as a **bundled object + `{...wiring}` spread** — built per column in `buildColumn` (`PlannerBoard.tsx:215`) and resolved per cell in the grid — rather than re-listing the fields at every hop. That is the fix for the prop-drill, and it stands **not** on any per-tick frequency claim but on two facts: a broadcast Context would re-render every cell on each change (fan-out, above), and the bundle removes the per-hop re-listing that was the real authoring cost. The cadence is in fact low: `dropHints` is set once at drag start and cleared at drag end (`use-board-derivations.ts:52-65`), `hintMode` changes on user toggle, and per-hover reactivity is per-cell `useDroppable` (`SlotCell.tsx:174`) — not a board-wide re-render.
 
 ### Where the real per-flag cost sits
 

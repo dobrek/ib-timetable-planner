@@ -1,9 +1,9 @@
 ---
 change_id: viewer-read-only
 title: S-405 viewer role: read every plan and proposal, no edit affordances
-status: implemented
+status: impl_reviewed
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-10-31
 archived_at: null
 ---
 
@@ -14,6 +14,9 @@ as S-405 from @context/foundation/roadmap.md
 ## Decisions
 
 - **2026-10-30: Open Question 1 is (a), wait for an author.** A viewer's visit never delivers or writes. A finished, undelivered proposal shows as finished and waiting for an author, and its board appears once an author or admin opens it. Accepted cost: until then, that proposal's board, comparison and perspective views are closed to a viewer, so FR-409's "every proposal" means every delivered one. No migration, no RLS change, no new DEFINER function. Recorded in PRD Open Question 1 and the roadmap (S-405 is no longer blocked). Research: `research.md` §5 and its follow-up.
+- **2026-10-31: `generation.viewer.spec.ts` reroutes the author's one post-Generate read** (impl review F3). The source board makes a single `checkPlan` read right after Generate, and a solve that finishes in about a second could be delivered by it before the viewer ever sees "waiting for an author". So, on the author's source page only, that request is rerouted to `readPlanJob`, the write-free twin that returns the same view. The proposal's URL is read from the viewer's hub, because an editor's strip shows nothing for a finished, undelivered job. The viewer's page is never intercepted, so a viewer regression to `checkPlan` still fails the spec. It is the first e2e spec to intercept a request.
+- **2026-10-30: `planFileStem` lives in `src/shared/lib/slugify/`, not a new `shared/lib/plan-file-stem/`** (Phase 4; recorded on 2026-10-31 per impl review F7). A new folder would have taken `shared/lib` to 16 modules, past steiger's `fsd/shared-lib-grouping` limit of 15, which CI runs with `--fail-on-warnings`. The stem is built on `slugify`, so it sits beside it as its own concept file (`plan-file-stem.ts`), exported from that folder's barrel.
+- **2026-10-31: the `-current` stem can collide, accepted.** A non-current plan named "X current" exports as `x-current-…`, the same stem as the current plan "X". Disambiguating would need a separator that `slugify` cannot produce, for a case that needs a plan named after the marker itself. The file name is a convenience label, a snapshot taken at export (the plan's Critical Implementation Details), and the plan's name inside the app is the source of truth.
 
 ## Browser verification of the manual rows (Playwright, local)
 
@@ -51,7 +54,7 @@ On 2026-10-30, on `pnpm build && pnpm preview` (workerd) at HEAD `2699676`, agai
   - The hint-mode tabs ("Mark collisions" / "Highlight free") are present.
   - Export downloads `…-current-combined.xlsx` and the zip `…-current.zip`.
   - Print: the button calls `window.print()` (stubbed to count the call, so no dialog opened). The printed result is checked under 4.7.
-  - **Finding (accessibility, recorded, not fixed):** the controls inside the viewer's cells and chips are exposed as **disabled** in the accessibility tree. That covers Group/Ungroup and "Show collision details", and Playwright refuses to click them. They work with a real pointer and stay focusable, but a screen reader announces them as unavailable.
+  - **Finding (accessibility; fixed on 2026-10-31 by impl review F1: a viewer's board now runs without dnd-kit's Accessibility plugin, so its cells and chips carry no `aria-disabled`):** the controls inside the viewer's cells and chips are exposed as **disabled** in the accessibility tree. That covers Group/Ungroup and "Show collision details", and Playwright refuses to click them. They work with a real pointer and stay focusable, but a screen reader announces them as unavailable.
   - Cause: dnd-kit's accessibility plugin writes `aria-disabled="true"` onto a disabled draggable's activator (the gridcell, or the chip), and descendants inherit it.
   - This predates S-405 for authors. An author's exploded cell reads "Group slot [disabled]", and a bundled cell's "Show collision details" reads `[disabled]`. `e2e/support/board.ts` already documents it: `clickBundleToggle` clicks with `force: true` for exactly this reason.
   - S-405 makes every viewer cell and chip a disabled draggable, so it now covers all of a viewer's in-cell read controls.

@@ -63,7 +63,7 @@ type Props = {
 };
 
 /**
- * The ONE plan-detail board. `useCombinedBoardState(shared, dp1, dp2, focus)` runs UNCONDITIONALLY in every
+ * The ONE plan-detail board. `useCombinedBoardState(shared, dp1, dp2, canEdit, focus)` runs UNCONDITIONALLY in every
  * mode (constant hook count of 2 — the cross-index cycle is built for exactly 2 and keeps working);
  * `focus` only selects each cohort's cross-index input (the hidden cohort idles on its static seed),
  * and the *render* branches on `focus`. `focus = "combined"` renders both cohort columns with the
@@ -97,10 +97,10 @@ export default function PlannerBoard({
     shared,
     dp1Props,
     dp2Props,
+    canEdit,
     focus,
     lens.effectiveCriteria,
     generationJob,
-    canEdit,
   );
   const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
   const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
@@ -300,6 +300,7 @@ export default function PlannerBoard({
 
   return (
     <BoardShell
+      canEdit={canEdit}
       onDragStart={handleDragStart}
       onDragEnd={handleDrop}
       gridDataSlot="planner-board"

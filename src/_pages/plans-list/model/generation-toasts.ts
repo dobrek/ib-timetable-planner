@@ -22,7 +22,8 @@ import type { IndicatorsByPlan } from "./job-progress-store";
 export type GenerationAnnouncement = {
   jobId: string;
   tone: "success" | "error";
-  /** "Proposal ready" / "Generation failed" — the headline. */
+  /** "Proposal ready" / "Generation failed" — the headline. A non-editor watching a board that has
+   *  not landed reads that it waits for an author (S-405): only an editor's visit delivers it. */
   title: string;
   /** The plan name the author will recognise, when the hub has one for the row this points at. */
   description: string | undefined;
@@ -56,10 +57,15 @@ const toAnnouncement = (
   return {
     jobId: indicator.jobId,
     tone: failed ? "error" : "success",
-    title: failed ? "Generation failed" : "Proposal ready",
+    title: headline(indicator, canEdit),
     // The name of the plan the toast POINTS at, which is the proposal for a result and the source for
     // a failure — the same split the badge's href makes, for the same reason.
     description: nameOf(failed || indicator.proposalPlanId === null ? indicator.planId : indicator.proposalPlanId),
     href,
   };
+};
+
+const headline = (indicator: GenerationIndicator, canEdit: boolean): string => {
+  if (indicator.status === "failed") return "Generation failed";
+  return canEdit || indicator.delivered ? "Proposal ready" : "Proposal finished — waiting for an author";
 };

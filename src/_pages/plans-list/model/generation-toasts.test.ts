@@ -104,4 +104,30 @@ describe("announcementsFor", () => {
     expect(hrefs).toEqual([describeGenerationIndicator(finished, false).href]);
     expect(hrefs).toEqual([`/plans/${PROPOSAL}`]);
   });
+
+  describe("for a reader who may not edit", () => {
+    it("says a finished, undelivered board is waiting for an author, not ready", () => {
+      const finished = indicator({ status: "succeeded", delivered: false });
+
+      expect(announcementsFor(snapshot(indicator()), snapshot(finished), nameOf, false)).toMatchObject([
+        { title: "Proposal finished — waiting for an author", tone: "success" },
+      ]);
+    });
+
+    it("calls it ready once an author's visit has delivered it", () => {
+      const delivered = indicator({ status: "succeeded", delivered: true });
+
+      expect(announcementsFor(snapshot(indicator()), snapshot(delivered), nameOf, false)[0]?.title).toBe(
+        "Proposal ready",
+      );
+    });
+
+    it("leaves an editor's headline as it was, since their open delivers", () => {
+      const finished = indicator({ status: "succeeded", delivered: false });
+
+      expect(announcementsFor(snapshot(indicator()), snapshot(finished), nameOf, true)[0]?.title).toBe(
+        "Proposal ready",
+      );
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { display } from "../support/board";
 import { createCourse, createStudent } from "../support/catalog";
 import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../support/planner";
@@ -17,10 +17,16 @@ import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../s
  * Generate (to show the strip). The fixture solves in under a second, so that read could land after
  * the solve and deliver before the viewer ever looks — and the waiting state this spec exists for
  * would be a race. So the author's source page has that one read pointed at `readPlanJob`, the
- * write-free twin that returns the same view: the strip still shows the proposal link. The page is
- * closed as soon as the link is read, so no author page is open while the viewer waits, and nothing
- * else delivers: the solver writes only the job row, and the hub's poll (another spec's author may
- * have the hub open) is status-only. The board lands when step 3 opens the proposal, on purpose.
+ * write-free twin that returns the same view, and the page is closed as soon as the Generate action
+ * has returned, so no author page is open while the viewer waits. The proposal's URL comes from the
+ * viewer's hub, not the author's strip: an editor's strip shows nothing for a finished, undelivered
+ * job, so a solve that beat that one read would leave no link to follow. Nothing else delivers: the
+ * solver writes only the job row, and the hub's poll is status-only. The board lands when step 3
+ * opens the proposal, on purpose.
+ *
+ * **Teardown never masks a failure.** An undelivered proposal is delete-guarded ("open it to deliver
+ * first"), so teardown opens it as the author — which delivers it — before deleting, and deletes each
+ * plan only if the hub still lists it.
  *
  * Runs in `chromium-viewer`, so the default `page` is the viewer's; the author works in a second
  * context on its storageState. Like `generation.spec.ts`, the waits are generous `toBeVisible`s on
@@ -46,20 +52,24 @@ test.describe("generation, as a viewer", () => {
     const dp1Course = `GenV DP1 ${suffix}`;
     const dp2Course = `GenV DP2 ${suffix}`;
     // A placed chip: scoped to the grid's cells, so an author's palette chip of the same name never
-    // stands in for it.
+    // stands in for it. On the author's board it is a `role=button` draggable.
     const dp1Chip = (target: Page) =>
       target
         .getByRole("gridcell")
         .getByRole("button", { name: new RegExp(`^${display(dp1Course)}`) })
         .first();
+    // The same chip on the viewer's read-only board, by its text: it carries no draggable semantics.
+    const viewerDp1Chip = page.getByRole("gridcell").getByText(display(dp1Course), { exact: true }).first();
 
     const author = await browser.newContext({ storageState: AUTHOR_STATE });
+    let planName: string | undefined;
 
     try {
-      // --- 1. The author generates, reads the proposal's URL, and closes the page ---------------
+      // --- 1. The author generates, and closes the page -----------------------------------------
       // Same fixture as generation.spec.ts: one course and one student per cohort, about a second.
       const source = await author.newPage();
       const plan = await createPlan(source, "viewer-generation");
+      planName = plan.name;
       await createTeacher(source, plan.id, teacher);
       await createCourse(source, plan.id, { name: dp1Course, cohort: "DP1", teacher });
       await createStudent(source, plan.id, { name: `GenV S1 ${suffix}`, cohort: "DP1", course: dp1Course });
@@ -74,61 +84,82 @@ test.describe("generation, as a viewer", () => {
       const generate = source.getByRole("button", { name: "Generate plan" });
       await expect(generate).toBeEnabled();
       await generate.click();
+      const started = source.waitForResponse((response) => response.url().includes("/_actions/startGeneration"));
       await source
         .getByRole("alertdialog")
         .getByRole("button", { name: /^Generate — / })
         .click();
-      const openProposal = source.getByRole("link", { name: /Open proposal/ });
-      await expect(openProposal).toBeVisible();
-      const proposalPath = (await openProposal.getAttribute("href")) ?? "";
-      expect(proposalPath).toMatch(/^\/plans\/[0-9a-f-]{36}$/);
+      expect((await started).ok()).toBe(true);
       await source.close();
 
+      // --- 2. The viewer finds the proposal on the hub and opens it: finished, waiting -----------
       const proposalName = `Proposal — ${plan.name}`;
+      await gotoStable(page, "/plans");
+      const proposalLink = page.getByRole("link", { name: proposalName, exact: true });
+      await expect(proposalLink).toBeVisible();
+      const proposalPath = (await proposalLink.getAttribute("href")) ?? "";
+      expect(proposalPath).toMatch(/^\/plans\/[0-9a-f-]{36}$/);
 
-      try {
-        // --- 2. The viewer opens the proposal: finished, and waiting for an author ---------------
-        await page.goto(proposalPath);
-        await expect(page.getByRole("heading", { name: proposalName, level: 1 })).toBeVisible();
-        // `role="status"` takes no name from its content, so the text is matched with `hasText`. The
-        // timeout covers a solve still running when the page loads: the poll reports it finished.
-        await expect(page.getByRole("status").filter({ hasText: "Finished — waiting for an author" })).toBeVisible({
-          timeout: 120_000,
-        });
-        await expect(
-          page.getByText("This proposal has finished. Its board appears here once an author or admin opens it."),
-        ).toBeVisible();
-        // Stopping is an editor's act ("Stop & keep", or "Stop anyway" with nothing to keep).
-        await expect(page.getByRole("button", { name: /^Stop/ })).toHaveCount(0);
+      await page.goto(proposalPath);
+      await expect(page.getByRole("heading", { name: proposalName, level: 1 })).toBeVisible();
+      // `role="status"` takes no name from its content, so the text is matched with `hasText`. The
+      // timeout covers a solve still running when the page loads: the poll reports it finished.
+      await expect(page.getByRole("status").filter({ hasText: "Finished — waiting for an author" })).toBeVisible({
+        timeout: 120_000,
+      });
+      await expect(
+        page.getByText("This proposal has finished. Its board appears here once an author or admin opens it."),
+      ).toBeVisible();
+      // Stopping is an editor's act ("Stop & keep", or "Stop anyway" with nothing to keep).
+      await expect(page.getByRole("button", { name: /^Stop/ })).toHaveCount(0);
 
-        // --- 3. An author opens the proposal, which delivers it --------------------------------
-        const deliverer = await author.newPage();
-        await gotoStable(deliverer, proposalPath);
-        await expect(dp1Chip(deliverer)).toBeVisible({ timeout: 60_000 });
-        // The author's board carries every write control the viewer's must not, by these locators.
-        for (const control of boardWriteControls(deliverer)) await expect(control).toBeVisible();
-        await deliverer.close();
+      // --- 3. An author opens the proposal, which delivers it ----------------------------------
+      const deliverer = await author.newPage();
+      await gotoStable(deliverer, proposalPath);
+      await expect(dp1Chip(deliverer)).toBeVisible({ timeout: 60_000 });
+      // The author's board carries every write control the viewer's must not, by these locators.
+      for (const control of boardWriteControls(deliverer)) await expect(control).toBeVisible();
+      await deliverer.close();
 
-        // --- 4. The viewer's page, untouched, turns into the board -----------------------------
-        await expect(dp1Chip(page)).toBeVisible({ timeout: FLIP_TIMEOUT_MS });
-        await expect(page.getByRole("heading", { name: proposalName, level: 1 })).toBeVisible();
-        // Read-only: the chip does not drag (dnd-kit mirrors `disabled` onto `aria-disabled`), and the
-        // board's write controls are absent while its read controls render.
-        await expect(dp1Chip(page)).toHaveAttribute("aria-disabled", "true");
-        await expect(page.getByRole("button", { name: "Export plan" })).toBeVisible();
-        for (const control of boardWriteControls(page)) await expect(control).toHaveCount(0);
-      } finally {
-        // Teardown, as the author: the proposal first, because deleting the source while its job row
-        // is alive is exactly what `assertNoActiveJob` refuses.
-        const cleanup = await author.newPage();
-        await deletePlan(cleanup, proposalName);
-        await deletePlan(cleanup, plan.name);
-      }
+      // --- 4. The viewer's page, untouched, turns into the board -------------------------------
+      await expect(viewerDp1Chip).toBeVisible({ timeout: FLIP_TIMEOUT_MS });
+      await expect(page.getByRole("heading", { name: proposalName, level: 1 })).toBeVisible();
+      // Read-only: the chip is not a draggable (the author's was, by the same locator — that the
+      // viewer's does not drag is proven by behaviour in `read-only.viewer.spec.ts`), and the board's
+      // write controls are absent while its read controls render.
+      await expect(dp1Chip(page)).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Export plan" })).toBeVisible();
+      for (const control of boardWriteControls(page)) await expect(control).toHaveCount(0);
     } finally {
+      if (planName !== undefined) await tearDown(author, planName);
       await author.close();
     }
   });
 });
+
+/**
+ * Teardown, as the author, safe from any step: the proposal first (deleting the source while its job
+ * row is alive is what `assertNoActiveJob` refuses), each plan only if the hub still lists it. An
+ * undelivered proposal is delete-guarded, so it is opened first — an editor's visit delivers it, and
+ * its page turns into the board once it has.
+ */
+async function tearDown(author: BrowserContext, planName: string): Promise<void> {
+  const cleanup = await author.newPage();
+  const proposalName = `Proposal — ${planName}`;
+  if (await isListed(cleanup, proposalName)) {
+    await cleanup.getByRole("link", { name: proposalName, exact: true }).click();
+    await cleanup.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
+    await expect(cleanup.getByRole("gridcell").first()).toBeVisible({ timeout: 120_000 });
+    await deletePlan(cleanup, proposalName);
+  }
+  if (await isListed(cleanup, planName)) await deletePlan(cleanup, planName);
+}
+
+/** Whether the hub lists `name` as a plan link. */
+async function isListed(page: Page, name: string): Promise<boolean> {
+  await gotoStable(page, "/plans");
+  return (await page.getByRole("link", { name, exact: true }).count()) > 0;
+}
 
 /**
  * Generate, undo, the palette's toggle, the shelf and a chip's "⋯" menu (every placed chip carries one,

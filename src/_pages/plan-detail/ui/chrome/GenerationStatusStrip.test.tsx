@@ -239,12 +239,20 @@ describe("GenerationStatusStrip", () => {
    * the wait. None of its copy asks the viewer to generate, or says they stopped anything.
    */
   describe("for a viewer", () => {
-    it("a stalled job says an author's visit will settle it, instead of Generating forever", () => {
+    it("an active job's line points at the proposal without inviting them to leave", () => {
+      render(<GenerationStatusStrip canEdit={false} generation={tracking(job({ status: "running" }))} />);
+
+      expect(screen.getByRole("status")).toHaveTextContent(/Generating a proposal from the/);
+      expect(screen.getByText(/This runs for up to about \d+ minutes\./)).toBeInTheDocument();
+      expect(screen.queryByText(/you can leave the page/)).not.toBeInTheDocument();
+    });
+
+    it("a stalled job says an author's or admin's visit will settle it, instead of Generating forever", () => {
       const generation = tracking(job({ status: "running", stalled: true }));
       render(<GenerationStatusStrip canEdit={false} generation={generation} />);
 
       expect(screen.getByRole("status")).toHaveTextContent(
-        "Stopped reporting progress — an author's visit will settle it",
+        "Stopped reporting progress — an author's or admin's visit will settle it",
       );
       expect(screen.queryByText(/Generating a proposal/)).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: /Refresh/ }));
@@ -257,11 +265,11 @@ describe("GenerationStatusStrip", () => {
       expect(screen.getByRole("status")).toHaveTextContent(/Generating a proposal from the/);
     });
 
-    it("a finished, undelivered board is waiting for an author, and links to its proposal", () => {
+    it("a finished, undelivered board is waiting for an author or admin, and links to its proposal", () => {
       const view = job({ status: "succeeded", delivered: false, awaitingDelivery: true });
       render(<GenerationStatusStrip canEdit={false} generation={tracking(view)} />);
 
-      expect(screen.getByRole("status")).toHaveTextContent("Finished — waiting for an author to open it");
+      expect(screen.getByRole("status")).toHaveTextContent("Finished — waiting for an author or admin to open it");
       expect(screen.getByRole("link", { name: /Open proposal/ })).toHaveAttribute("href", "/plans/plan-2");
     });
 

@@ -56,12 +56,13 @@ export function useCombinedBoardState(
   shared: SharedBoardProps,
   dp1Props: PlannerBoardProps,
   dp2Props: PlannerBoardProps,
+  /** The route's `allows(access, "edit")` (S-405): an editor's Refresh delivers, anyone else's reads.
+   *  Required, and ahead of the defaulted parameters, so no caller can fall back to editing. */
+  canEdit: boolean,
   focus: BoardSurface = "combined",
   lensCriteria: LensCriterion[] = NO_LENS_CRITERIA,
   /** The server-side on-visit generation check's result — seeds the status strip flash-free. */
   generationJob: GenerationJobView | null = null,
-  /** The route's `allows(access, "edit")` (S-405): an editor's Refresh delivers, anyone else's reads. */
-  canEdit = true,
 ) {
   // History recorder built FIRST: its stable `record` exists before either `usePlacements` runs, so
   // each cohort can receive it as `onRecord` (the upstream half of the ordering cycle).

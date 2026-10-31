@@ -4,7 +4,10 @@
  * seam the next palette state plugs into without touching the board's JSX (the board renders;
  * the guards/transitions live here, per the repo's model/-owns-decisions lesson).
  */
-export type PaletteView = "hidden" | "empty" | "stale" | "ready";
+export type PaletteView = "hidden" | PaletteContent;
+
+/** What the palette panel's body shows, once there is a palette at all. */
+export type PaletteContent = "empty" | "stale" | "ready";
 
 /**
  * Total precedence: a caller who may not edit → `"hidden"` (no palette at all, S-405: every one of
@@ -23,8 +26,19 @@ export const resolvePaletteView = ({
   groupingsCount: number;
   stale: boolean;
   canEdit: boolean;
-}): PaletteView => {
-  if (!canEdit) return "hidden";
+}): PaletteView => (canEdit ? resolvePaletteContent({ groupingsCount, stale }) : "hidden");
+
+/**
+ * The palette panel's own body: the same precedence below `"hidden"`. The panel mounts only when the
+ * board resolved a palette, so it asks this — never a capability it does not hold.
+ */
+export const resolvePaletteContent = ({
+  groupingsCount,
+  stale,
+}: {
+  groupingsCount: number;
+  stale: boolean;
+}): PaletteContent => {
   if (groupingsCount === 0) return "empty";
   if (stale) return "stale";
   return "ready";

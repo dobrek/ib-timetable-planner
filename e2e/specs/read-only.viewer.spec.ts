@@ -1,5 +1,14 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { cell, chipMenuTrigger, computeGroupings, display, placeFromPalette, placedChip } from "../support/board";
+import {
+  cell,
+  chipMenuTrigger,
+  computeGroupings,
+  display,
+  expectNoDrag,
+  placeFromPalette,
+  placedChip,
+  readOnlyChip,
+} from "../support/board";
 import { createCourse, createStudent, selectFromCombobox } from "../support/catalog";
 import {
   clickToReveal,
@@ -31,6 +40,8 @@ import {
 
 const AUTHOR_STATE = "e2e/.auth/user.json";
 const SLOT = "Wed, P5";
+// Nothing is ever placed here: the viewer's drag target.
+const EMPTY_SLOT = "Thu, P6";
 
 test.describe("viewer: every gated page is read-only", () => {
   // Catalog authoring on three pages, availability, an overlap, a grouping compute, a drag and a clone
@@ -193,13 +204,17 @@ const boardWriteControls = (page: Page, chip: string): Locator[] => {
 /** The board renders the placed chip, read-only (no drag), and its read controls, and no write control. */
 async function expectReadOnlyBoard(page: Page, chip: string): Promise<void> {
   // The chip and the toolbar first, so every absence below is on a board that has rendered.
-  await expect(placedChip(page, SLOT, chip)).toBeVisible();
-  // dnd-kit mirrors a draggable's `disabled` onto `aria-disabled`: this is the drag itself.
-  await expect(placedChip(page, SLOT, chip)).toHaveAttribute("aria-disabled", "true");
+  const placed = readOnlyChip(page, SLOT, chip);
+  await expect(placed).toBeVisible();
   await expect(page.getByRole("button", { name: "Export plan" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Print" })).toBeVisible();
   await expect(page.getByText("View only", { exact: true })).toBeVisible();
   for (const control of boardWriteControls(page, chip)) await expect(control).toHaveCount(0);
+  // No draggable semantics: the author's chip is a `role=button` draggable (asserted on their board),
+  // the viewer's is not — so no read control inside it inherits a disabled draggable's `aria-disabled`.
+  await expect(placedChip(page, SLOT, chip)).toHaveCount(0);
+  // And it does not drag: dropped on an empty cell, it stays put and nothing is sent.
+  await expectNoDrag(page, placed, cell(page, EMPTY_SLOT));
 }
 
 /** Open a catalog row's kebab and assert "View plan" is its only item, then close it. */

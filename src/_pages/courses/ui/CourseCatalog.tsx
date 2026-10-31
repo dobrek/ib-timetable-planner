@@ -18,6 +18,8 @@ type Props = {
   planId: string;
   courses: CourseRow[];
   teachers: TeacherOption[];
+  /** The route's `allows(access, "edit")` (S-405); the island never reads the role. */
+  canEdit: boolean;
 };
 
 /**
@@ -26,8 +28,12 @@ type Props = {
  * authoring via dialogs. Composite merge parents carry a "Merged" badge beside the name
  * but remain fully editable. Overlap edits update in-memory so the catalog stays live
  * without a page reload.
+ *
+ * Without `canEdit` the same catalog renders with every write left out (S-405): no New buttons and
+ * no row menu (each of its items writes), while the filter, the tabs and the overlap badge stay — the
+ * badge opens the overlaps dialog read-only, since it is the only place overlaps are shown.
  */
-export default function CourseCatalog({ planId, courses: initialCourses, teachers }: Props) {
+export default function CourseCatalog({ planId, courses: initialCourses, teachers, canEdit }: Props) {
   const [courses, setCourses] = useState(initialCourses);
   const filters = useCatalogFilters(teachers);
   const dialogs = useCatalogDialogs(courses, setCourses);
@@ -37,18 +43,22 @@ export default function CourseCatalog({ planId, courses: initialCourses, teacher
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Courses</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage the plan&apos;s cross-cohort course catalog.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {canEdit ? "Manage the plan's cross-cohort course catalog." : "The plan's cross-cohort course catalog."}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" className="gap-2" onClick={dialogs.openMergeBuilder}>
-            <Combine aria-hidden="true" />
-            New merge
-          </Button>
-          <Button className="gap-2" onClick={dialogs.openCreate}>
-            <Plus aria-hidden="true" />
-            New course
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" className="gap-2" onClick={dialogs.openMergeBuilder}>
+              <Combine aria-hidden="true" />
+              New merge
+            </Button>
+            <Button className="gap-2" onClick={dialogs.openCreate}>
+              <Plus aria-hidden="true" />
+              New course
+            </Button>
+          </div>
+        )}
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -80,10 +90,12 @@ export default function CourseCatalog({ planId, courses: initialCourses, teacher
               <CourseTable
                 rows={rows}
                 coursesById={dialogs.coursesById}
-                onEdit={dialogs.openEdit}
-                onManageOverlaps={dialogs.openOverlaps}
-                onManageMerge={dialogs.openMergeManage}
-                onDelete={dialogs.openDelete}
+                onOpenOverlaps={dialogs.openOverlaps}
+                edit={
+                  canEdit
+                    ? { onEdit: dialogs.openEdit, onManageMerge: dialogs.openMergeManage, onDelete: dialogs.openDelete }
+                    : undefined
+                }
               />
             </TabsContent>
           );
@@ -106,6 +118,7 @@ export default function CourseCatalog({ planId, courses: initialCourses, teacher
         coursesById={dialogs.coursesById}
         onOverlapsChange={dialogs.updateOverlaps}
         onClose={dialogs.closeOverlaps}
+        canEdit={canEdit}
       />
       <MergeBuilderDialog
         open={dialogs.mergeOpen}

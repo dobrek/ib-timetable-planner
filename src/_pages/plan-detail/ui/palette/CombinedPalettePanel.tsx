@@ -7,7 +7,7 @@ import PaletteBody from "./PaletteBody";
 import CollapsibleEdgePanel from "../chrome/CollapsibleEdgePanel";
 import type { CourseDisplay, HoursStat } from "@/entities/timetable";
 import type { PlannerGrouping } from "../../model/grouping/grouping";
-import { resolvePaletteView } from "../../model/grouping/palette-view";
+import { resolvePaletteContent } from "../../model/grouping/palette-view";
 
 // Re-exported so the palette test and any consumer keep a stable import site even though the filter
 // state lives in `PaletteBody`.
@@ -39,7 +39,7 @@ type Props = {
 
 /**
  * The one palette panel: a shared `CollapsibleEdgePanel` whose **header is constant** across all three
- * states; only the **body** swaps on `resolvePaletteView(active)` → ready (filter+list) / stale
+ * states; only the **body** swaps on `resolvePaletteContent(active)` → ready (filter+list) / stale
  * (recompute) / empty (compute prompt). With more than one cohort the cohort-switcher `Tabs` fill the
  * shell's `toolbar` slot (below the header, expanded-only); with a single cohort there is no toolbar —
  * the focus-mode render then matches the pre-merge single palette exactly. Because the header (+
@@ -54,7 +54,9 @@ export default function CombinedPalettePanel({
   onCollapsedChange,
 }: Props) {
   const active = cohorts.find((cohort) => cohort.cohort === activeCohort) ?? cohorts[0];
-  const view = resolvePaletteView({ groupingsCount: active.groupings.length, stale: active.stale });
+  // The board mounts this panel only once it has resolved a palette (S-405), so the body asks for its
+  // content alone.
+  const view = resolvePaletteContent({ groupingsCount: active.groupings.length, stale: active.stale });
   const showSwitcher = cohorts.length > 1;
 
   return (

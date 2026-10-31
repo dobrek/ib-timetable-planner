@@ -9,7 +9,7 @@ import {
   projectFromPlacements,
 } from "@/entities/timetable";
 import { useGenerationJob, type GenerationJobControls } from "./generation/use-generation-job";
-import type { GenerationJobView } from "../api/generation-delivery";
+import type { GenerationJobView } from "../api/generation-read";
 import { type LensCriterion } from "./lens";
 import type { BoardSurface } from "../lib/board-surface";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
@@ -56,6 +56,9 @@ export function useCombinedBoardState(
   shared: SharedBoardProps,
   dp1Props: PlannerBoardProps,
   dp2Props: PlannerBoardProps,
+  /** The route's `allows(access, "edit")` (S-405): an editor's Refresh delivers, anyone else's reads.
+   *  Required, and ahead of the defaulted parameters, so no caller can fall back to editing. */
+  canEdit: boolean,
   focus: BoardSurface = "combined",
   lensCriteria: LensCriterion[] = NO_LENS_CRITERIA,
   /** The server-side on-visit generation check's result — seeds the status strip flash-free. */
@@ -121,7 +124,12 @@ export function useCombinedBoardState(
   // S-301: Generate enqueues a durable CP-SAT job instead of running the greedy engine in a Web
   // Worker. The snapshot is assembled SERVER-side from the plan's own loader, so nothing is captured
   // at click time here — the launch carries only the plan id and the author's solve policy (S-307).
-  const generateControls = useGenerationJob({ planId: shared.planId, initialJob: generationJob, busy: combinedBusy });
+  const generateControls = useGenerationJob({
+    planId: shared.planId,
+    initialJob: generationJob,
+    busy: combinedBusy,
+    canEdit,
+  });
   // A live job takes PRECEDENCE over the board-derived reasons (S-306), and the order is the point:
   // "one active job per plan" is enforced server-side by a partial unique index, so a second click
   // would come back a `CONFLICT`. Ranking it first means the author reads why they cannot Generate

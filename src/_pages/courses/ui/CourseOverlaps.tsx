@@ -18,6 +18,8 @@ type Props = {
   /** Apply an overlap change to the island's in-memory state (keeps the dialog open). */
   onOverlapsChange: (courseId: string, nextOverlaps: string[]) => void;
   onClose: () => void;
+  /** Without it the dialog only lists the course's overlaps — no add, no remove (S-405). */
+  canEdit: boolean;
 };
 
 /**
@@ -26,8 +28,21 @@ type Props = {
  * and already-linked); self-links and duplicates are rejected by the schema + DB unique.
  * Mutations update island state in place (no page reload) so the dialog stays open across
  * repeated edits.
+ *
+ * Without `canEdit` the dialog is the read-only view of the same relation (S-405): the row's overlap
+ * badge is the only place overlaps are shown, so a viewer still needs it to open something. Both
+ * bodies render the list through `LinkedBaseList`, so what a viewer reads cannot drift from what an
+ * author manages — the read-only one simply never mounts the write path.
  */
-export default function CourseOverlaps({ planId, course, courses, coursesById, onOverlapsChange, onClose }: Props) {
+export default function CourseOverlaps({
+  planId,
+  course,
+  courses,
+  coursesById,
+  onOverlapsChange,
+  onClose,
+  canEdit,
+}: Props) {
   return (
     <Dialog
       open={course !== null}
@@ -36,16 +51,19 @@ export default function CourseOverlaps({ planId, course, courses, coursesById, o
       }}
     >
       <DialogContent>
-        {course && (
-          <OverlapsBody
-            key={course.id}
-            planId={planId}
-            course={course}
-            courses={courses}
-            coursesById={coursesById}
-            onOverlapsChange={onOverlapsChange}
-          />
-        )}
+        {course &&
+          (canEdit ? (
+            <OverlapsBody
+              key={course.id}
+              planId={planId}
+              course={course}
+              courses={courses}
+              coursesById={coursesById}
+              onOverlapsChange={onOverlapsChange}
+            />
+          ) : (
+            <ReadOnlyOverlapsBody key={course.id} course={course} coursesById={coursesById} />
+          ))}
       </DialogContent>
     </Dialog>
   );
@@ -74,29 +92,7 @@ function OverlapsBody({ planId, course, courses, coursesById, onOverlapsChange }
 
       <div className="space-y-4">
         <div className="space-y-2">
-          {linkedBases.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No overlaps yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {linkedBases.map((base) => (
-                <li
-                  key={base.id}
-                  className="border-border flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                >
-                  <span>{formatCourseLabel(base)}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remove overlap with ${base.name}`}
-                    disabled={busy}
-                    onClick={() => void removeOverlap(base.id)}
-                  >
-                    <X aria-hidden="true" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <LinkedBaseList bases={linkedBases} busy={busy} onRemove={removeOverlap} />
         </div>
 
         <div className={cn("flex items-end gap-2", candidates.length === 0 && "hidden")}>
@@ -128,6 +124,58 @@ function OverlapsBody({ planId, course, courses, coursesById, onOverlapsChange }
   );
 }
 
+function ReadOnlyOverlapsBody({ course, coursesById }: { course: CourseRow; coursesById: Map<string, CourseRow> }) {
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Overlaps — {course.name}</DialogTitle>
+        <DialogDescription>Base courses that share students with this one.</DialogDescription>
+      </DialogHeader>
+
+      <LinkedBaseList bases={linkedBasesOf(course, coursesById)} />
+    </>
+  );
+}
+
+/**
+ * The course's linked bases, one row each. The remove control renders only with `onRemove` — the
+ * absent-handler idiom (S-405) — so the read-only body passes none and gets the same rows without it.
+ */
+function LinkedBaseList({
+  bases,
+  busy = false,
+  onRemove,
+}: {
+  bases: CourseRow[];
+  busy?: boolean;
+  onRemove?: (baseCourseId: string) => Promise<void>;
+}) {
+  if (bases.length === 0) return <p className="text-muted-foreground text-sm">No overlaps yet.</p>;
+  return (
+    <ul className="space-y-2">
+      {bases.map((base) => (
+        <li
+          key={base.id}
+          className="border-border flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+        >
+          <span>{formatCourseLabel(base)}</span>
+          {onRemove && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Remove overlap with ${base.name}`}
+              disabled={busy}
+              onClick={() => void onRemove(base.id)}
+            >
+              <X aria-hidden="true" />
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function useOverlapActions(
   planId: string,
   course: CourseRow,
@@ -138,7 +186,7 @@ function useOverlapActions(
   const [selectedBaseId, setSelectedBaseId] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const linkedBases = course.overlaps.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);
+  const linkedBases = linkedBasesOf(course, coursesById);
 
   const candidates = useMemo(
     () => courses.filter((c) => c.cohort === course.cohort && c.id !== course.id && !course.overlaps.includes(c.id)),
@@ -176,3 +224,7 @@ function useOverlapActions(
 
   return { selectedBaseId, setSelectedBaseId, busy, linkedBases, candidates, addOverlap, removeOverlap };
 }
+
+/** The course's overlap targets as rows, in link order; a dangling id (no such course) is skipped. */
+const linkedBasesOf = (course: CourseRow, coursesById: Map<string, CourseRow>): CourseRow[] =>
+  course.overlaps.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);

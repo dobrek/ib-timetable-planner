@@ -1,6 +1,6 @@
 import { actions } from "astro:actions";
 import type { SolvePolicy } from "@/entities/timetable";
-import type { GenerationJobView } from "./generation-delivery";
+import type { GenerationJobView } from "./generation-read";
 import type { StopGenerationResult } from "./generation-stop";
 import { callActionData } from "./call-action";
 
@@ -20,7 +20,8 @@ export function startGeneration(
 
 /**
  * Read this plan's job back — and, when it has a deliverable board, DELIVER it: the verify →
- * translate → apply pass runs inside this call, server-side.
+ * translate → apply pass runs inside this call, server-side. An editor's call since S-405; anyone
+ * else reads through `readPlanJob` below.
  *
  * Dual-keyed (S-306): `planId` may be the job's SOURCE plan or its PROPOSAL plan, and the returned
  * view is tagged with which. Null when the plan is neither. Safe to call concurrently — the delivered
@@ -28,6 +29,17 @@ export function startGeneration(
  */
 export function checkPlan(planId: string): Promise<GenerationJobView | null> {
   return callActionData(actions.checkPlan, { planId });
+}
+
+/**
+ * Read this plan's job back, and nothing else — a non-editor's poll and Refresh (S-405).
+ *
+ * The same dual-keyed view as `checkPlan`, from a call that never writes: a stale job comes back
+ * `stalled` and a finished one `awaitingDelivery`, and both stay as they are until an author or admin
+ * opens the plan. `checkPlan` answers a viewer FORBIDDEN, because every write it may make needs edit.
+ */
+export function readPlanJob(planId: string): Promise<GenerationJobView | null> {
+  return callActionData(actions.readPlanJob, { planId });
 }
 
 /**

@@ -37,6 +37,9 @@ import type { AnalyzerCourse, AnalyzerRow, GeneratorSnapshot, PlanAnalysisInput 
 export type LoadedPlan = {
   id: string;
   name: string;
+  /** The plan is the current one (S-404). Identity, not catalog: the fingerprint never reads it, and
+   *  the comparison page only marks it beside the plan's name (S-405). */
+  isCurrent: boolean;
   /** The extractor's input. Carries the parsed grid (`days`, `periods`) — which is what the drift
    *  tier compares, since a differing `slot_grid_preset` is only *meaningful* through those two. */
   input: PlanAnalysisInput;
@@ -109,6 +112,7 @@ export const loadPlanAnalysis = async (supabase: SupabaseClient, planId: string)
   return {
     id: plan.id,
     name: plan.name,
+    isCurrent: plan.is_current,
     input: { days, periods, courses, rows: board, availability: cells, parkedCourseIds: parked },
     snapshot: assembleGeneratorSnapshot(
       {
@@ -131,10 +135,10 @@ export const loadPlanAnalysis = async (supabase: SupabaseClient, planId: string)
 const fetchPlan = async (
   supabase: SupabaseClient,
   planId: string,
-): Promise<{ id: string; name: string; slot_grid_preset: string }> => {
+): Promise<{ id: string; name: string; slot_grid_preset: string; is_current: boolean }> => {
   const { data, error } = await supabase
     .from("plans")
-    .select("id, name, slot_grid_preset, pending_proposal")
+    .select("id, name, slot_grid_preset, pending_proposal, is_current")
     .eq("id", planId)
     .single();
   // Only zero rows means the plan is absent. Anything else (a rejected key, a malformed id, a network

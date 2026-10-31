@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { cohortLabel, type Cohort } from "@/shared/config";
-import { PrintButton } from "@/shared/ui";
+import { CurrentPlanBadge, PrintButton } from "@/shared/ui";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
 import {
   BoardHeader,
@@ -37,11 +37,12 @@ import { useCombinedBoardState, type CohortBoardState } from "../model/use-cohor
 import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { BoardSurface } from "../lib/board-surface";
 import type { ExportCohortData } from "../lib/export-workbook";
-import type { GenerationJobView } from "../api/generation-delivery";
+import type { GenerationJobView } from "../api/generation-read";
 
 type Props = {
   planName: string;
-  /** The plan is the current one (S-404): both heading render sites carry the badge. */
+  /** The plan is the current one (S-404): both heading render sites and the print-only heading carry
+   *  the badge, and every export's file name carries `-current` (S-405). */
   isCurrent: boolean;
   /** The active surface from `?focus=`: one cohort (focus mode) or the combined two-cohort board. */
   focus: BoardSurface;
@@ -53,19 +54,27 @@ type Props = {
   paletteCollapsed: boolean;
   /** SSR seed (from cookie) for the combined-mode palette cohort, so a recompute refresh keeps it. */
   initialPaletteCohort: Cohort;
-  /** The plan's latest generation job, already checked — and, if it was ready, DELIVERED — during
-   *  the page render. Seeding the strip from here is what makes the visit itself the trigger. */
+  /** The plan's latest generation job, already checked — and, if it was ready and the caller may
+   *  edit, DELIVERED — during the page render. Seeding the strip from here is what makes the visit
+   *  itself the trigger. */
   generationJob: GenerationJobView | null;
+  /** The route's `allows(access, "edit")` (S-405). Islands never read the role themselves. */
+  canEdit: boolean;
 };
 
 /**
- * The ONE plan-detail board. `useCombinedBoardState(shared, dp1, dp2, focus)` runs UNCONDITIONALLY in every
+ * The ONE plan-detail board. `useCombinedBoardState(shared, dp1, dp2, canEdit, focus)` runs UNCONDITIONALLY in every
  * mode (constant hook count of 2 — the cross-index cycle is built for exactly 2 and keeps working);
  * `focus` only selects each cohort's cross-index input (the hidden cohort idles on its static seed),
  * and the *render* branches on `focus`. `focus = "combined"` renders both cohort columns with the
  * cohort-switcher palette + sibling-dim; `focus = "dp1"|"dp2"` renders one column, the palette locked
  * to that cohort, the shelf filtered to it, no sibling-dim, and a full-screen empty state. One
  * `DragDropProvider`, one drop router, one canonical `applyDropAction` dispatch.
+ *
+ * With `canEdit` false (a viewer, S-405) the same board renders read-only: no palette (the palette
+ * view resolves to `"hidden"`, so the focus-mode empty state never replaces the timetable), no shelf
+ * or parked badge, no Generate, no undo/redo or ⌘Z, and each column's wiring carries no `edit` — so
+ * nothing drags and no cell or chip renders a write control. Edit controls are absent, never greyed.
  */
 export default function PlannerBoard({
   planName,
@@ -78,6 +87,7 @@ export default function PlannerBoard({
   paletteCollapsed,
   initialPaletteCohort,
   generationJob,
+  canEdit,
 }: Props) {
   const { planId, days, periods } = shared;
   // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
@@ -87,6 +97,7 @@ export default function PlannerBoard({
     shared,
     dp1Props,
     dp2Props,
+    canEdit,
     focus,
     lens.effectiveCriteria,
     generationJob,
@@ -94,7 +105,7 @@ export default function PlannerBoard({
   const resolveState = (cohort: Cohort): CohortBoardState => (cohort === "dp1" ? dp1 : dp2);
   const resolveProps = (cohort: Cohort): PlannerBoardProps => (cohort === "dp1" ? dp1Props : dp2Props);
 
-  useUndoKeymap(history);
+  useUndoKeymap(history, { enabled: canEdit });
 
   const { hintMode, setHintMode } = useHintMode();
   const { shelfExpanded, pinned, setExpanded, setPinned, collapseUnlessPinned } = useShelfDisclosure();
@@ -214,34 +225,46 @@ export default function PlannerBoard({
         isExploded: state.isExploded,
         justDuplicated: state.justDuplicated,
         lensMatched: state.lensMatches?.matched ?? null,
-        onRemove: state.actions.removePlacement,
-        onSetWeek: state.actions.setWeek,
-        onSetOptional: state.actions.setOptional,
         onToggleBundle: state.toggleExploded,
-        onRemoveBundle: state.actions.removeBundle,
-        onDuplicateBundle: state.actions.duplicateBundle,
-        onLiftBundle: (day, period) => {
-          applyDropAction({ kind: "liftBundle", cohort, day, period }, resolveState, { collapseUnlessPinned });
-        },
         onInspect: (target) => {
           setInspection({ cohort, target });
         },
+        // Absent for a caller who may not edit (S-405): the cells and chips then render no write
+        // control and enable no drag.
+        edit: canEdit
+          ? {
+              onRemove: state.actions.removePlacement,
+              onSetWeek: state.actions.setWeek,
+              onSetOptional: state.actions.setOptional,
+              onRemoveBundle: state.actions.removeBundle,
+              onDuplicateBundle: state.actions.duplicateBundle,
+              onLiftBundle: (day, period) => {
+                applyDropAction({ kind: "liftBundle", cohort, day, period }, resolveState, { collapseUnlessPinned });
+              },
+            }
+          : undefined,
       },
     };
   }
 
-  if (focus !== "combined") {
-    const state = resolveState(focus);
-    if (resolvePaletteView({ groupingsCount: state.groupings.length, stale: state.stale }) === "empty") {
-      return (
-        <>
-          <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={focus} />
-          <div data-slot="planner-board" className="p-6">
-            <ComputeGroupingsEmptyState planId={planId} cohort={focus} />
-          </div>
-        </>
-      );
-    }
+  // The palette's cohort (the focused one in focus mode). A viewer resolves to "hidden" — no palette
+  // node — which also keeps the compute-prompt early return below from replacing their timetable.
+  const paletteState = resolveState(activeCohort);
+  const paletteView = resolvePaletteView({
+    groupingsCount: paletteState.groupings.length,
+    stale: paletteState.stale,
+    canEdit,
+  });
+
+  if (focus !== "combined" && paletteView === "empty") {
+    return (
+      <>
+        <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={focus} />
+        <div data-slot="planner-board" className="p-6">
+          <ComputeGroupingsEmptyState planId={planId} cohort={focus} />
+        </div>
+      </>
+    );
   }
 
   const states = combined ? [dp1, dp2] : [resolveState(focus)];
@@ -277,6 +300,7 @@ export default function PlannerBoard({
 
   return (
     <BoardShell
+      canEdit={canEdit}
       onDragStart={handleDragStart}
       onDragEnd={handleDrop}
       gridDataSlot="planner-board"
@@ -288,15 +312,19 @@ export default function PlannerBoard({
             summary={summary}
             combined={combined}
             parkedCount={parkedBundles.length}
-            onExpandShelf={() => {
-              setExpanded(true);
-            }}
+            onExpandShelf={
+              canEdit
+                ? () => {
+                    setExpanded(true);
+                  }
+                : undefined
+            }
             planId={planId}
             active={focus}
-            undoRedo={history}
+            undoRedo={canEdit ? history : undefined}
             trailing={
               <>
-                <GenerateButton generation={generation} />
+                {canEdit && <GenerateButton generation={generation} />}
                 <LensPicker
                   open={lens.open}
                   setOpen={lens.setOpen}
@@ -308,6 +336,7 @@ export default function PlannerBoard({
                 />
                 <ExportMenu
                   planName={planName}
+                  isCurrent={isCurrent}
                   focus={focus}
                   days={days}
                   periods={periods}
@@ -324,7 +353,7 @@ export default function PlannerBoard({
           {/* The generation job's window. It replaces the greedy engine's post-solve review panel,
               which went with its engine (S-301): a CP-SAT result lands on a PROPOSAL plan minutes
               later, so there is nothing to review in place here. */}
-          <GenerationStatusStrip generation={generation} />
+          <GenerationStatusStrip generation={generation} canEdit={canEdit} />
           {lens.criteria.length > 0 && (
             <LensBar
               criteria={lens.criteria}
@@ -341,21 +370,28 @@ export default function PlannerBoard({
         </>
       }
       palette={
-        <CombinedPalettePanel
-          cohorts={cohorts}
-          activeCohort={activeCohort}
-          onActiveCohortChange={combined ? setPaletteCohort : undefined}
-          collapsed={paletteCollapsedState}
-          onCollapsedChange={setPaletteCollapsed}
-        />
+        paletteView === "hidden" ? undefined : (
+          <CombinedPalettePanel
+            cohorts={cohorts}
+            activeCohort={activeCohort}
+            onActiveCohortChange={combined ? setPaletteCohort : undefined}
+            collapsed={paletteCollapsedState}
+            onCollapsedChange={setPaletteCollapsed}
+          />
+        )
       }
       center={
         <div className="flex min-h-0 flex-col gap-3">
           {/* Print-only plan-name title: the top bar (which carries the on-screen title) is
               print:hidden, so re-add a heading that appears only on paper — parity with the
-              student/teacher printouts. Inert on screen (`hidden`), token-styled only. */}
+              student/teacher printouts. Inert on screen (`hidden`), token-styled only. The Current
+              badge sits beside the heading, not in it, as in `BoardHeader`: the heading's name stays
+              the plan's name, and a printed current plan still says so on paper (S-405). */}
           <div className="hidden print:block">
-            <h1 className="text-foreground text-base font-semibold">{planName}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-foreground text-base font-semibold">{planName}</h1>
+              {isCurrent && <CurrentPlanBadge />}
+            </div>
             <p className="text-muted-foreground text-sm">
               Timetable — {focus === "combined" ? "DP1 & DP2" : cohortLabel(focus)}
             </p>
@@ -379,16 +415,18 @@ export default function PlannerBoard({
         </div>
       }
       shelf={
-        <ShelfDrawer
-          parkedBundles={parkedBundles}
-          courseDisplay={combined ? overlayCourseDisplay : resolveState(focus).courseDisplay}
-          expanded={shelfExpanded}
-          pinned={pinned}
-          cohortById={shelfCohortById}
-          onExpandedChange={setExpanded}
-          onPinnedChange={setPinned}
-          onRemoveParked={removeParked}
-        />
+        canEdit ? (
+          <ShelfDrawer
+            parkedBundles={parkedBundles}
+            courseDisplay={combined ? overlayCourseDisplay : resolveState(focus).courseDisplay}
+            expanded={shelfExpanded}
+            pinned={pinned}
+            cohortById={shelfCohortById}
+            onExpandedChange={setExpanded}
+            onPinnedChange={setPinned}
+            onRemoveParked={removeParked}
+          />
+        ) : undefined
       }
       dialog={
         <CollisionDetailsDialog

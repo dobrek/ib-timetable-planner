@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { cohortLabel, type Cohort, type PlacementWeek } from "@/shared/config";
+import { cohortLabel, type Cohort } from "@/shared/config";
 import { cn } from "@/shared/lib/class-names";
 import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import {
@@ -15,8 +15,8 @@ import type { DropHint } from "../../../model/drop-hints";
 import type { HintMode } from "../../../lib/drag-hint-mode";
 import { resolveCellTone } from "../../../model/collision/cell-tone";
 import { toneClass } from "./tone-class";
-import { SlotHeader } from "./SlotHeader";
-import { PlacedChip, type ChipWiring } from "./PlacedChip";
+import { SlotHeader, type SlotEditHandlers } from "./SlotHeader";
+import { PlacedChip, type ChipEditHandlers, type ChipWiring } from "./PlacedChip";
 import { WeekLane } from "./WeekLane";
 
 type Props = {
@@ -42,15 +42,14 @@ type Props = {
   /** Placement ids matched by the active highlight lens; null = lens inactive. Shared by every
    *  chip in the cell — each `PlacedChip` resolves its own membership. */
   lensMatched: Set<string> | null;
-  onRemove: (placementId: string) => void;
-  onSetWeek: (placementId: string, week: PlacementWeek) => void;
-  onSetOptional: (placementId: string, isOptional: boolean) => void;
   onToggleBundle: (day: number, period: number, bundled: boolean) => void;
-  onRemoveBundle: (day: number, period: number) => void;
-  onDuplicateBundle: (day: number, period: number) => void;
-  onLiftBundle: (day: number, period: number) => void;
   onInspect: (target: CollisionInspectionTarget) => void;
+  /** The cell's and its chips' write handlers — absent for a caller who may not edit (S-405). */
+  edit?: CellEditHandlers;
 };
+
+/** Every write handler a cell and its chips take: the header's slot verbs plus the chip's own. */
+export type CellEditHandlers = SlotEditHandlers & ChipEditHandlers;
 
 /**
  * A droppable time-slot cell. Cells are multi-occupancy — they render every
@@ -61,6 +60,10 @@ type Props = {
  * Every non-empty cell renders a `SlotHeader` control strip: a duplicate control always, a
  * group/ungroup toggle once it holds >=2 courses, and a bulk-remove trash while bundled. While
  * bundled the whole cell is the drag surface and the per-chip drag/remove affordances go inert.
+ *
+ * Without `edit` (a viewer, S-405) the cell is read-only: nothing drags, the strip keeps only the
+ * group/ungroup toggle (so a single-occupant cell has no strip at all), and the chips render their
+ * read affordances only. It stays a droppable, which is inert with no draggable to drop.
  */
 export default function SlotCell({
   day,
@@ -74,16 +77,13 @@ export default function SlotCell({
   justDuplicated,
   dimmed,
   lensMatched,
-  onRemove,
-  onSetWeek,
-  onSetOptional,
   onToggleBundle,
-  onRemoveBundle,
-  onDuplicateBundle,
-  onLiftBundle,
   onInspect,
+  edit,
 }: Props) {
-  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, bundled, cohort);
+  // The whole-slot drag is a move, so it needs `edit` as well as a bundle.
+  const draggable = bundled && edit !== undefined;
+  const { setCellRef, isDropTarget, isDragging } = useCellDnd(day, period, draggable, cohort);
 
   // Cell tone is an exact derivation of the per-occupant flags: `hasBlocking ≡ any occupant
   // blocking`, same for warning — so the cell needs no `CellCollisions` record of its own.
@@ -92,8 +92,10 @@ export default function SlotCell({
   // Sparse map: no entry while a drag is active means "free"; no active drag means "no hint".
   const hintState = hintActive ? (dropHint ?? "free") : undefined;
   // Every non-empty cell shows the control strip; the toggle only matters once grouping does (>=2).
+  // Without `edit` the toggle is the strip's only control, so a cell with no toggle shows no strip.
   const hasOccupants = occupants.length > 0;
   const showToggle = occupants.length >= 2;
+  const showHeader = hasOccupants && (showToggle || edit !== undefined);
   // A single occupant names itself in the duplicate label; a bundle just says "slot".
   const duplicateLabel =
     occupants.length === 1 ? `Duplicate ${occupants[0].name} to next free slot` : "Duplicate slot to next free slot";
@@ -116,10 +118,8 @@ export default function SlotCell({
     cohort,
     bundled,
     lensMatched,
-    onRemove,
-    onSetWeek,
-    onSetOptional,
     onInspect,
+    edit,
   };
 
   return (
@@ -137,7 +137,7 @@ export default function SlotCell({
         toneClass(tone, hintMode),
         // The whole bundled cell is grabbable; interactive children opt out of the drag. This is
         // an interaction affordance, not a tone, so it composes independently of the cell tone.
-        bundled && "cursor-grab active:cursor-grabbing",
+        draggable && "cursor-grab active:cursor-grabbing",
         // Opacity axis is independent of tone: a dragging origin cell dims regardless of its tone.
         isDragging && "opacity-60",
         // One-shot "the copy landed here" highlight (semantic ring token). Pulse is motion-safe;
@@ -147,7 +147,7 @@ export default function SlotCell({
         dimmed && "opacity-40",
       )}
     >
-      {hasOccupants && (
+      {showHeader && (
         <SlotHeader
           day={day}
           period={period}
@@ -155,9 +155,7 @@ export default function SlotCell({
           showToggle={showToggle}
           duplicateLabel={duplicateLabel}
           onToggleBundle={onToggleBundle}
-          onDuplicateBundle={onDuplicateBundle}
-          onLiftBundle={onLiftBundle}
-          onRemoveBundle={onRemoveBundle}
+          edit={edit}
         />
       )}
 
@@ -184,7 +182,7 @@ export default function SlotCell({
  * component body declarative — no raw `useMemo` — and names the dnd flow the way the slice's
  * design goals ask for.
  */
-function useCellDnd(day: number, period: number, bundled: boolean, cohort: Cohort) {
+function useCellDnd(day: number, period: number, draggable: boolean, cohort: Cohort) {
   // Cohort namespaces the dnd ids so two columns sharing day/period space don't collide under one
   // provider (and the single board's one cohort tags identically). The collision/hint map key stays
   // `cellKey` (cohort never enters it) — each column keeps its own Map.
@@ -196,11 +194,11 @@ function useCellDnd(day: number, period: number, bundled: boolean, cohort: Cohor
   // target inside a handle, so header buttons would start a drag instead of clicking. With no
   // handle, the interactive `<button>`s (toggle, trash, conflict badge) are auto-excluded from
   // activation, while grabbing a chip or the cell body moves the slot as one unit. Only active
-  // while bundled, so loose chips keep their own per-chip drags.
+  // while bundled (and editable), so loose chips keep their own per-chip drags.
   const { ref: dragRef, isDragging } = useDraggable<BundleDrag>({
     id: `bundle:${scopedKey}`,
     data: { kind: "bundle", day, period, cohort },
-    disabled: !bundled,
+    disabled: !draggable,
   });
   // The cell is both a droppable and a bundle draggable; merge the two stable callback refs.
   // Kept local (a single consumer today) per "promote on second consumer".

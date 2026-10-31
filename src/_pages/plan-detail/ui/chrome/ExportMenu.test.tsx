@@ -62,10 +62,12 @@ const renderMenu = (
   focus: Cohort | "combined",
   batchExport: BatchExportSources = emptyBatch,
   dp1 = cohortData("dp1"),
+  isCurrent = false,
 ) =>
   render(
     <ExportMenu
       planName="IB 2027"
+      isCurrent={isCurrent}
       focus={focus}
       days={5}
       periods={6}
@@ -140,6 +142,15 @@ describe("ExportMenu", () => {
     // combined = 1 grid + 2 rosters; dp1 focus = 1 grid + 1 roster
     const sheets = writeXlsxMock.mock.lastCall?.[0] ?? [];
     expect(sheets.map((s) => s.sheet)).toEqual(["DP1", "DP1 subjects"]);
+  });
+
+  it("names the current plan's view export with the -current stem", async () => {
+    renderMenu("combined", emptyBatch, cohortData("dp1"), true);
+    fireEvent.click(screen.getByRole("menuitem", { name: "DP1" }));
+
+    await waitFor(() => {
+      expect(toFileMock).toHaveBeenCalledWith("ib-2027-current-dp1.xlsx");
+    });
   });
 
   it("surfaces a failed view export as a toast", async () => {

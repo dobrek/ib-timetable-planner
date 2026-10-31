@@ -514,10 +514,12 @@ const QUALIFIED_SIGNATURE = "format('%s.%s(%s)', n.nspname, p.proname, pg_get_fu
 type RpcProbe = (admin: SupabaseClient, client: SupabaseClient, planId: string) => Promise<AccessOutcome>;
 
 const RPC_PROBES: Record<Rpc, RpcProbe> = {
+  apply_generated_placements: async (admin, client) => probeWrite(await applyGeneratedProbe(admin, client)),
   clone_plan: (admin, client, planId) => probeWrite(cloneProbe(admin, client, planId)),
   // A read: there is no effect to read back, so the call's own answer is the outcome. What it
   // answers is checked per principal, against `HELD_ROLES`.
   own_app_role: async (_admin, client) => classifyCall((await client.rpc("own_app_role")).error),
+  replace_cohort_groupings: async (admin, client) => probeWrite(await replaceGroupingsProbe(admin, client)),
   set_current_plan: (admin, client) => setCurrentProbe(admin, client),
 };
 
@@ -840,6 +842,52 @@ const cloneProbe = (admin: SupabaseClient, client: SupabaseClient, planId: strin
     },
     // Anchored to this cell's own source, so a wrong or deleted plan id throws instead of reading as "denied".
     deniedWhen: new RegExp(`^clone_plan: source plan ${planId} not found$`),
+  };
+};
+
+/**
+ * `apply_generated_placements` on one cell of a fresh plan: the region replace a delivery lands a
+ * generated board with (S-405 records that a viewer's visit cannot). A fresh plan per cell, because a
+ * region replace states a cell's whole content and would otherwise rewrite the fixture's rows. A
+ * viewer's or role-less user's bundle INSERT fails WITH CHECK (42501), and anon holds no grant on the
+ * tables the body writes (42501). The effect is the placement row, read back by its course.
+ */
+const applyGeneratedProbe = async (admin: SupabaseClient, client: SupabaseClient): Promise<WriteAttempt> => {
+  const planId = await createPlan(admin);
+  const courseId = await addProbeCourse(admin, planId);
+  return {
+    attempt: () =>
+      client.rpc("apply_generated_placements", {
+        p_plan_id: planId,
+        p_cells: [{ cohort: "dp1", day: 4, period: 4 }],
+        p_placements: [{ cohort: "dp1", course_id: courseId, day: 4, period: 4, week: "both", is_optional: false }],
+      }),
+    effectLanded: async () =>
+      readBack(await admin.from("placements").select("id").eq("course_id", courseId)).length > 0,
+  };
+};
+
+/**
+ * `replace_cohort_groupings` on a fresh plan: the write behind computing a cohort's groupings. A fresh
+ * plan per cell, because the call deletes the cohort's groupings first and the fixture's must survive.
+ * The payload needs one grouping, or a refused principal would only meet the DELETE, which matches
+ * no rows rather than failing; with one, its INSERT fails WITH CHECK (42501). The effect is a grouping
+ * row carrying the cell's own catalog hash.
+ */
+const replaceGroupingsProbe = async (admin: SupabaseClient, client: SupabaseClient): Promise<WriteAttempt> => {
+  const planId = await createPlan(admin);
+  const courseId = await addProbeCourse(admin, planId);
+  const catalogHash = `probe-${randomUUID()}`;
+  return {
+    attempt: () =>
+      client.rpc("replace_cohort_groupings", {
+        p_plan_id: planId,
+        p_cohort: "dp1",
+        p_catalog_hash: catalogHash,
+        p_groupings: [{ coverage_count: 1, score: 1, member_ids: [courseId], opposite_week: false }],
+      }),
+    effectLanded: async () =>
+      readBack(await admin.from("course_groupings").select("id").eq("catalog_hash", catalogHash)).length > 0,
   };
 };
 

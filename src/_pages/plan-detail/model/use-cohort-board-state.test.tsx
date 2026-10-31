@@ -9,7 +9,7 @@ import {
   placement as buildPlacement,
   DEFAULT_SOLVE_POLICY,
 } from "@/entities/timetable";
-import type { GenerationJobView } from "../api/generation-delivery";
+import type { GenerationJobView } from "../api/generation-read";
 import type { PlannerBoardProps, SharedBoardProps } from "./drag";
 import { indexFromPlacements, useCohortBoardState, useCombinedBoardState } from "./use-cohort-board-state";
 import type { GroupingCourse } from "./grouping/grouping";
@@ -118,7 +118,7 @@ describe("useCombinedBoardState (live cross-cohort re-validation)", () => {
     // dp2 already holds c2 (teacher "shared") at (1,1); dp1 starts empty → no cross-cohort clash yet.
     const dp2Seed = [buildPlacement("p2", "c2", 1, 1)];
     const { result } = renderHook(() =>
-      useCombinedBoardState(shared, props("dp1", [], "c1"), props("dp2", dp2Seed, "c2")),
+      useCombinedBoardState(shared, props("dp1", [], "c1"), props("dp2", dp2Seed, "c2"), true),
     );
 
     expect(result.current.dp2.collisions.has(cellKey(1, 1))).toBe(false);
@@ -181,6 +181,8 @@ describe("useCombinedBoardState — why Generate is disabled", () => {
     stageName: null,
     stopRequestedAt: null,
     policy: DEFAULT_SOLVE_POLICY,
+    stalled: false,
+    awaitingDelivery: false,
   });
 
   /** dp1 holds two courses that share a teacher in one cell — a BLOCKING violation, so this board
@@ -191,8 +193,9 @@ describe("useCombinedBoardState — why Generate is disabled", () => {
   });
 
   const reasonWith = (job: GenerationJobView | null) =>
-    renderHook(() => useCombinedBoardState(shared, clashingProps(), props("dp2", [], "c2"), "combined", undefined, job))
-      .result.current.generation.disabledReason;
+    renderHook(() =>
+      useCombinedBoardState(shared, clashingProps(), props("dp2", [], "c2"), true, "combined", undefined, job),
+    ).result.current.generation.disabledReason;
 
   it("reports `generating` while a job is active, ahead of the board's own reason", () => {
     // This fixture has a blocking violation, so `violations` is ALSO true — which is exactly the

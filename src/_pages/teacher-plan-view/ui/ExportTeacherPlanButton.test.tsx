@@ -31,10 +31,11 @@ const item = (courseId: string): PerspectiveCourseItem => ({
 
 const courseDisplay: Record<string, CourseDisplay> = { math: { name: "Math", color: null } };
 
-const renderButton = (items: PerspectiveCourseItem[]) =>
+const renderButton = (items: PerspectiveCourseItem[], isCurrent = false) =>
   render(
     <ExportTeacherPlanButton
       planName="IB 2027"
+      isCurrent={isCurrent}
       teacherCode="KK"
       days={5}
       periods={6}
@@ -75,6 +76,15 @@ describe("ExportTeacherPlanButton", () => {
     });
     const sheets = writeXlsxMock.mock.lastCall?.[0] ?? [];
     expect(sheets.map((sheet) => sheet.sheet)).toEqual(["Timetable", "Math · DP1"]);
+  });
+
+  it("saves the current plan's export under the -current stem", async () => {
+    renderButton([item("math")], true);
+    fireEvent.click(screen.getByRole("button", { name: "Export teacher plan" }));
+
+    await waitFor(() => {
+      expect(toFileMock).toHaveBeenCalledWith("ib-2027-current-kk.xlsx");
+    });
   });
 
   it("surfaces a failed export as a toast", async () => {

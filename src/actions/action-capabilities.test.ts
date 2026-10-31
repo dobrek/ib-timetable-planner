@@ -34,7 +34,7 @@ const NON_EDIT: Record<string, Capability> = {
   updatePassword: "session", // the caller's own account (FR-410)
   updateDisplayName: "session", // the caller's own account (FR-410)
   readGenerationJobStatuses: "read", // the hub's poll
-  checkPlan: "read", // the pending page's poll; its writes are author behaviour (S-405)
+  readPlanJob: "read", // a viewer's plan visit, poll and Refresh; it never writes (S-405)
 };
 
 type Outcome = "reached" | "FORBIDDEN" | "SERVICE_UNAVAILABLE";

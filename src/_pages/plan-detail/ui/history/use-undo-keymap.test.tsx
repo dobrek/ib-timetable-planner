@@ -5,12 +5,12 @@ import { useUndoKeymap } from "./use-undo-keymap";
 const keydown = (init: KeyboardEventInit): KeyboardEvent =>
   new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
 
-const mount = (overrides: Partial<Parameters<typeof useUndoKeymap>[0]> = {}) => {
+const mount = (overrides: Partial<Parameters<typeof useUndoKeymap>[0]> = {}, enabled = true) => {
   const undo = vi.fn();
   const redo = vi.fn();
   const utils = renderHook(
     (props: Parameters<typeof useUndoKeymap>[0]) => {
-      useUndoKeymap(props);
+      useUndoKeymap(props, { enabled });
     },
     {
       initialProps: { undo, redo, canUndo: true, canRedo: true, ...overrides },
@@ -86,6 +86,18 @@ describe("useUndoKeymap — disabled stacks", () => {
     const { redo } = mount({ canRedo: false });
     document.body.dispatchEvent(keydown({ key: "y", ctrlKey: true }));
     expect(redo).not.toHaveBeenCalled();
+  });
+});
+
+describe("useUndoKeymap — disabled for a caller who may not edit (S-405)", () => {
+  it("binds no chord, and leaves the browser default intact", () => {
+    const { undo, redo } = mount({}, false);
+    const undoChord = keydown({ key: "z", metaKey: true });
+    document.body.dispatchEvent(undoChord);
+    document.body.dispatchEvent(keydown({ key: "y", ctrlKey: true }));
+    expect(undo).not.toHaveBeenCalled();
+    expect(redo).not.toHaveBeenCalled();
+    expect(undoChord.defaultPrevented).toBe(false);
   });
 });
 

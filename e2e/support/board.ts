@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
 // Shared planner-board E2E helpers — role-based locators, the grouping-compute step, the
 // dnd-kit stepped-pointer drag, and the bundle operations (move/merge/remove/ungroup) layered on
@@ -42,6 +42,14 @@ export const groupingBox = (page: Page, count: number): Locator =>
 /** The placed chip in `slot` for `display` (a draggable with role=button, name starts with the course). */
 export const placedChip = (page: Page, slot: string, displayName: string, cohort: "DP1" | "DP2" = "DP1"): Locator =>
   cell(page, slot, cohort).getByRole("button", { name: new RegExp(`^${escapeRegExp(displayName)}`) });
+
+/**
+ * A placed chip on a READ-ONLY board (S-405), by its text. A viewer's board runs without dnd-kit's
+ * Accessibility plugin, so its chips carry no `role=button` and `placedChip` finds none — which is
+ * itself the assertion that a viewer's chip is not announced as a (disabled) draggable.
+ */
+export const readOnlyChip = (page: Page, slot: string, displayName: string, cohort: "DP1" | "DP2" = "DP1"): Locator =>
+  cell(page, slot, cohort).getByText(displayName, { exact: true });
 
 /** The chip's collision badge — present only when the cell is in a blocking violation. */
 export const collisionBadge = (page: Page, slot: string, cohort: "DP1" | "DP2" = "DP1"): Locator =>
@@ -344,3 +352,32 @@ export const combinedCell = (page: Page, cohort: "DP1" | "DP2", slot: string): L
 /** The placed chip for `displayName` inside a combined-view cohort cell. */
 export const combinedChip = (page: Page, cohort: "DP1" | "DP2", slot: string, displayName: string): Locator =>
   combinedCell(page, cohort, slot).getByRole("button", { name: new RegExp(`^${escapeRegExp(displayName)}`) });
+
+/**
+ * Drag `chip` onto `target` on a READ-ONLY board and assert nothing happened: the chip is still where
+ * it was (pass a locator scoped to its own cell) and no action request left the page (S-405). Behaviour
+ * is the proof here, because a read-only board carries no draggable semantics to assert on.
+ *
+ * Opening Board settings after the drop is the ordering point: that render lands after any drop
+ * handling, so a regression's optimistic move and its action request are both observable by the time
+ * the assertions run — no timed wait.
+ */
+export async function expectNoDrag(page: Page, chip: Locator, target: Locator): Promise<void> {
+  const actions: string[] = [];
+  const onRequest = (request: Request): void => {
+    if (request.url().includes("/_actions/")) actions.push(request.url());
+  };
+  page.on("request", onRequest);
+  try {
+    await steppedDrag(page, chip, target);
+    const zoom = page.getByRole("slider", { name: "Zoom level" });
+    await page.getByRole("button", { name: "Board settings" }).click();
+    await expect(zoom).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(zoom).toBeHidden();
+    await expect(chip).toBeVisible();
+    expect(actions).toEqual([]);
+  } finally {
+    page.off("request", onRequest);
+  }
+}

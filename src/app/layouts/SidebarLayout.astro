@@ -4,15 +4,16 @@ import SidebarAccountLink from "./SidebarAccountLink.astro";
 import SidebarNavLink from "./SidebarNavLink.astro";
 import { profileLabel } from "./profile-label";
 import { createClient, loadOwnProfile } from "@/shared/api";
-import { GLOBAL_NAV_ITEMS, planNavItems, visibleNavItems, type NavItem } from "@/shared/config";
-import { CurrentPlanBadge } from "@/shared/ui";
+import { allows, GLOBAL_NAV_ITEMS, planNavItems, visibleNavItems, type NavItem } from "@/shared/config";
+import { CurrentPlanBadge, ViewOnlyBadge } from "@/shared/ui";
 import { Sun, Moon, PanelLeft, LogOut } from "lucide-react";
 
 type Props = {
   title?: string;
   /**
    * When set, the sidebar renders the plan's scenario-local sub-nav + breadcrumb. `is_current` (S-404)
-   * adds the "Current" badge to both; its shape matches `PlanSummary`, so a route can pass the summary.
+   * adds the "Current" badge to both, and " · Current" to the tab title (S-405); its shape matches
+   * `PlanSummary`, so a route can pass the summary.
    */
   plan?: { id: string; name: string; is_current: boolean };
   /** Full-bleed content mode: no centered max-w wrapper, no breadcrumb (e.g. the planner board). */
@@ -37,6 +38,15 @@ const planItems = plan ? planNavItems(plan.id).map(withActive) : [];
 
 const accountLabel = profileLabel({ displayName: await readDisplayName(), email: user?.email ?? "" });
 
+// Every plan-scoped route passes `plan`, so this one suffix marks the tab of every page about the
+// current plan (S-405).
+const documentTitle = plan?.is_current && title ? `${title} · Current` : title;
+
+// An account that reads but does not edit (S-405) — a viewer today — carries the "View only" chip
+// beside its account label, so a user whose role was changed knows the controls are gone on purpose.
+// A role-less or unavailable state reads nothing, so it gets no chip.
+const viewOnly = allows(access, "read") && !allows(access, "edit");
+
 const iconButtonClass =
   "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors";
 
@@ -58,7 +68,7 @@ async function readDisplayName(): Promise<string | null> {
 }
 ---
 
-<BaseLayout title={title}>
+<BaseLayout title={documentTitle}>
   <script is:inline>
     // Runs during parse, before the aside below exists, so the rail renders at the
     // correct width on first paint. Below lg it always starts collapsed; otherwise
@@ -134,6 +144,11 @@ async function readDisplayName(): Promise<string | null> {
       <div class="border-sidebar-border border-t p-3">
         <div class="collapsed:flex-col collapsed:gap-1 flex items-center gap-2 pb-2">
           <SidebarAccountLink {...accountLabel} active={pathname === "/account"} />
+          {
+            // Print-hidden with the rest of the aside. On the collapsed rail the label turns sr-only, so
+            // the eye shows alone and "View only" stays readable.
+            viewOnly && <ViewOnlyBadge className="border-sidebar-border" labelClassName="collapsed:sr-only" />
+          }
           <button type="button" id="theme-toggle" aria-label="Toggle theme" class:list={iconButtonClass}>
             <span class="dark:hidden"><Moon size={16} aria-hidden="true" /></span>
             <span class="hidden dark:block"><Sun size={16} aria-hidden="true" /></span>

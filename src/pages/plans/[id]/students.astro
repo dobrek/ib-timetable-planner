@@ -4,6 +4,7 @@ import PlanScopedError from "@/app/layouts/PlanScopedError.astro";
 import PendingProposalNotice from "@/app/layouts/PendingProposalNotice.astro";
 import StudentCatalog from "@/_pages/students/ui/StudentCatalog";
 import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
+import { allows } from "@/shared/config";
 import { loadStudentCatalog } from "@/_pages/students/api";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
@@ -23,6 +24,8 @@ else if (!plan) Astro.response.status = 404;
 const pending = plan !== null && isPendingProposal(plan);
 
 const catalog = result?.ok ? result.value : null;
+// Computed once, here, and passed down: islands never read the role (S-405).
+const canEdit = allows(Astro.locals.access, "edit");
 ---
 
 <AppShellLayout title={plan ? `${plan.name} — Students` : "Students"} plan={plan ?? undefined}>
@@ -36,7 +39,13 @@ const catalog = result?.ok ? result.value : null;
     ) : catalog === null ? (
       <p class="text-muted-foreground text-sm">Students are unavailable — Supabase is not configured.</p>
     ) : (
-      <StudentCatalog planId={plan.id} students={catalog.students} courses={catalog.courses} client:load />
+      <StudentCatalog
+        planId={plan.id}
+        students={catalog.students}
+        courses={catalog.courses}
+        canEdit={canEdit}
+        client:load
+      />
     )
   }
 </AppShellLayout>

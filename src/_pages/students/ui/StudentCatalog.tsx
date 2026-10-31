@@ -18,14 +18,20 @@ type Props = {
   planId: string;
   students: StudentRow[];
   courses: CourseOption[];
+  /** The route's `allows(access, "edit")` (S-405); the island never reads the role. */
+  canEdit: boolean;
 };
 
 /**
  * Students catalog island for one plan: students partitioned by cohort tabs with their
  * course choices as badge chips, a name search, and create/edit/delete via dialogs. The
  * active tab seeds the create form's default cohort.
+ *
+ * Without `canEdit` the same catalog renders with every write left out (S-405): no "New student",
+ * no selection (it exists only to feed the bulk edit) and so no bulk bar, and a row menu holding
+ * only "View plan". The search, the course filter and the tabs stay.
  */
-export default function StudentCatalog({ planId, students, courses }: Props) {
+export default function StudentCatalog({ planId, students, courses, canEdit }: Props) {
   const filters = useCatalogFilters(courses);
   const dialogs = useCatalogDialogs();
   // WYSIWYG selection: any change to cohort/query/course-filter discards the selection.
@@ -49,12 +55,16 @@ export default function StudentCatalog({ planId, students, courses }: Props) {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Students</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage students and their course choices.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {canEdit ? "Manage students and their course choices." : "Students and their course choices."}
+          </p>
         </div>
-        <Button className="gap-2" onClick={dialogs.openCreate}>
-          <Plus aria-hidden="true" />
-          New student
-        </Button>
+        {canEdit && (
+          <Button className="gap-2" onClick={dialogs.openCreate}>
+            <Plus aria-hidden="true" />
+            New student
+          </Button>
+        )}
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -75,7 +85,7 @@ export default function StudentCatalog({ planId, students, courses }: Props) {
         />
       </div>
 
-      <BulkActionBar count={selectedStudents.length} onEdit={dialogs.openBulk} onClear={selection.clear} />
+      {canEdit && <BulkActionBar count={selectedStudents.length} onEdit={dialogs.openBulk} onClear={selection.clear} />}
 
       <Tabs
         value={filters.activeCohort}
@@ -101,6 +111,7 @@ export default function StudentCatalog({ planId, students, courses }: Props) {
                 rows={rows}
                 totalCount={cohortTotal}
                 coursesById={coursesById}
+                canEdit={canEdit}
                 selectedIds={selection.selectedIds}
                 onToggleRow={selection.toggle}
                 onToggleAll={() => {

@@ -511,6 +511,8 @@ The CP-SAT solver reaches the database as a **machine** Auth user whose token ca
 
 Route protection is deny-by-default in `src/middleware.ts` — every route requires an authenticated session except the sign-in page, the two password-reset pages, the `/api/auth/` endpoints, and static assets. Each public entry carries its reason there. Signed in, a user also needs a role (S-403): without one, the middleware sends them to `/dashboard`, which shows a "no access yet" notice, and a failed role lookup renders a 503 page. Only the role-exempt paths in `src/shared/config/role-gate.ts` (`/account` among them) skip that check, each with its reason.
 
+A viewer reads everything an author can, including exports, comparison and the teacher and student views, with every edit control left out (S-405). Delivery writes the board, so a finished proposal waits for an author or admin to open it: until then a viewer sees "Finished — waiting for an author", and their page turns into the board once one does.
+
 ## License
 
 MIT

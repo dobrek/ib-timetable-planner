@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-10-28 (S-403: the role matrix flipped to fail-closed roles with five principals; Risk #5 is now about preserving that posture; §4 and §6.3 gain the `chromium-no-role` project). Previous: 2026-10-12 (F-401: the role matrix supersedes the cross-author "Phase 2.5" deferral; §6.2 gains access-control claims). Before that: 2026-06-23 (Phase 3 complete + archived; all rollout phases 0–4 done)
+> Last updated: 2026-10-31 (S-405: §4 and §6.3 gain the viewer account and the `chromium-viewer` project). Before that, 2026-10-28 (S-403: the role matrix flipped to fail-closed roles with five principals; Risk #5 is now about preserving that posture; §4 and §6.3 gain the `chromium-no-role` project). Previous: 2026-10-12 (F-401: the role matrix supersedes the cross-author "Phase 2.5" deferral; §6.2 gains access-control claims). Before that: 2026-06-23 (Phase 3 complete + archived; all rollout phases 0–4 done)
 
 ## 1. Strategy
 
@@ -207,7 +207,7 @@ The classic test base for this project. AI-native tools (if any) carry a
 |-------|------|---------|-------|
 | unit | Vitest | 4.1.9 | `vitest.config.ts`; **55 unit** test files — 53 co-located `*.test.ts` siblings under the FSD slices + 2 infra-guard suites in `src/test/` (`no-seed-coupling`, `seed-transcode-identity`). |
 | integration | Vitest | 4.1.9 | `vitest.integration.config.ts`; **10 integration** suites (the Phase 2 `action-boundary.integration.test.ts` is the +1 over the prior refresh's 9); plan-rooted scenario factory harness at `src/test/factories/`; requires the local Supabase stack (`pnpm test:integration`). Live **CI integration lane**: regenerate seed → boot a trimmed Supabase stack → `pnpm test:integration --maxWorkers=2` (the 2-worker cap is a CI runner-resource hedge). Mutations/compute flow through **Astro Actions only** — a real Action over `/_actions/*`; the placements/grouping API route is gone. |
-| e2e | Playwright (`@playwright/test`) | 1.61.0 | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). **7 e2e specs** in `e2e/specs/` (`auth`, `auth-guard`, `action-unauth`, `seed`, `cohort-switching`, `co-teaching`, `drag-validate-feedback`); the two setup files, `e2e/auth.setup.ts` (the author) and `e2e/no-role.setup.ts` (an account that never holds a role, S-403), make up the **setup project**; they are not specs. Shared board/catalog plumbing lives in `e2e/support/` (`planner.ts`, `board.ts`, `catalog.ts`). Four Playwright **projects** — `setup` (logs in once per account → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs), `chromium-no-role` (`*.no-role.spec.ts`, signed in without a role) — distinct from the spec count. `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e landed in §3 Phase 3 (`drag-validate-feedback.spec.ts`). |
+| e2e | Playwright (`@playwright/test`) | 1.61.0 | First harness shipped in §3 Phase 2 (`testing-auth-actions-boundary-rls`): root `playwright.config.ts` + top-level `e2e/` (invisible to steiger + Vitest). **7 e2e specs** in `e2e/specs/` (`auth`, `auth-guard`, `action-unauth`, `seed`, `cohort-switching`, `co-teaching`, `drag-validate-feedback`); the three setup files, `e2e/auth.setup.ts` (the author), `e2e/no-role.setup.ts` (an account that never holds a role, S-403) and `e2e/viewer.setup.ts` (the viewer, S-405), make up the **setup project**; they are not specs. Shared board/catalog plumbing lives in `e2e/support/` (`planner.ts`, `board.ts`, `catalog.ts`). Five Playwright **projects** — `setup` (logs in once per account → `storageState`), `chromium` (authenticated), `chromium-guard` (no cookies, negative/unauth specs), `chromium-no-role` (`*.no-role.spec.ts`, signed in without a role), `chromium-viewer` (`*.viewer.spec.ts`, signed in as a viewer, S-405) — distinct from the spec count. `webServer` runs `pnpm build && pnpm preview` for true **workerd** fidelity; chromium-only. `pnpm test:e2e` locally + a CI `e2e` job that gates deploy. `@playwright/cli` stays the authoring/healing aid (not the runner). Drag→feedback e2e landed in §3 Phase 3 (`drag-validate-feedback.spec.ts`). |
 | edge runtime | n/a | — | Code runs on Cloudflare Workers (workerd) in dev and prod — edge-safe libs only, no Node APIs (`fs`, `child_process`, native). |
 
 **Versions pinned (verified 2026-06-18):** astro **6.4.8**, vitest **4.1.9**,
@@ -365,13 +365,19 @@ Copy it rather than reinventing:
     starts with **no** cookies, so the real server-side gate is what rejects);
   - signed in without a role (the role gate, an action's `FORBIDDEN`) → name it
     `*.no-role.spec.ts` (runs under `chromium-no-role`, which reuses
-    `e2e/.auth/no-role.json`).
-- **Auth reuse:** the two setup files, `e2e/auth.setup.ts` and
-  `e2e/no-role.setup.ts`, each sign in once through the real UI and write
-  `storageState`. Both accounts are provisioned idempotently by
-  `scripts/provision-e2e-author.mjs` (the `pretest:e2e` hook): the author holds
-  `author`, and `e2e-no-role@example.test` never holds a role. Creds come from
-  the shared `e2e/author-credentials.mjs` and `e2e/no-role-credentials.mjs`.
+    `e2e/.auth/no-role.json`);
+  - signed in as a viewer (every page read-only) → name it `*.viewer.spec.ts`
+    (runs under `chromium-viewer`, which reuses `e2e/.auth/viewer.json`). A
+    viewer can create nothing, so arrange and tear down the data in a second
+    context on the author's `storageState` (`read-only.viewer.spec.ts`).
+- **Auth reuse:** the three setup files, `e2e/auth.setup.ts`,
+  `e2e/no-role.setup.ts` and `e2e/viewer.setup.ts`, each sign in once through
+  the real UI and write `storageState`. All three accounts are provisioned
+  idempotently by `scripts/provision-e2e-author.mjs` (the `pretest:e2e` hook):
+  the author holds `author`, `e2e-no-role@example.test` never holds a role, and
+  `e2e-viewer@example.test` is reset to `viewer` on every run. Creds come from
+  the shared `e2e/author-credentials.mjs`, `e2e/no-role-credentials.mjs` and
+  `e2e/viewer-credentials.mjs`.
 - **Fidelity:** `webServer` runs `pnpm build && pnpm preview` on real **workerd**
   (not Vite dev) — the worker reads `SUPABASE_URL`/`SUPABASE_KEY` from `.dev.vars`
   (written by `pnpm env:local` locally; by the CI `e2e` job from what the
@@ -382,11 +388,13 @@ Copy it rather than reinventing:
   happy-path mutation e2e is **deferred**. Access control is proven at the
   integration layer by the role matrix (§6.2), not by an e2e cross-author flow,
   which is superseded (see §3 notes). S-403 added the role-less account
-  (`no-access.no-role.spec.ts`); viewer and admin accounts arrive with S-405 and
-  S-406.
+  (`no-access.no-role.spec.ts`); S-405 added the viewer account
+  (`read-only.viewer.spec.ts`, `generation.viewer.spec.ts`); the admin account
+  arrives with S-406.
 - **Board drag/locators are shared, not copied.** The dnd-kit stepped-pointer
   drag (`placeFromPalette`) and the role-based board locators (`cell`,
-  `paletteChip`, `placedChip`, `collisionBadge`, `computeGroupings`) live in
+  `paletteChip`, `placedChip`, `collisionBadge`, `computeGroupings`), plus a
+  read-only board's `readOnlyChip` and its behavioural `expectNoDrag`, live in
   `e2e/support/board.ts`; course/student authoring lives in
   `e2e/support/catalog.ts`. dnd-kit's pointer sensor is **not** driven by
   Playwright's high-level `dragTo` — reuse `placeFromPalette` (the canonical

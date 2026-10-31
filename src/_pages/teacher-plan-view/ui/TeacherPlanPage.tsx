@@ -21,7 +21,7 @@ import {
   type HoursStat,
   type PlannerPlacement,
 } from "@/entities/timetable";
-import { PrintButton } from "@/shared/ui";
+import { CurrentPlanBadge, PrintButton } from "@/shared/ui";
 import {
   PerspectiveCourseList,
   ScheduleGrid,
@@ -43,7 +43,7 @@ type Props = { data: TeacherPlanViewData };
  * already loads on the board page).
  */
 export default function TeacherPlanPage({ data }: Props) {
-  const { teacher, planName } = data;
+  const { teacher, planName, isCurrent } = data;
   const [inspection, setInspection] = useState<{ cohort: Cohort; target: CollisionInspectionTarget } | null>(null);
 
   const availabilityIndex = buildAvailabilityIndex(data.availability);
@@ -113,12 +113,18 @@ export default function TeacherPlanPage({ data }: Props) {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">{teacherTitle}</h1>
-          <p className="text-muted-foreground text-sm">{planName} — teacher schedule</p>
+          {/* The page's one plan-identity line, so the Current badge sits here: the sidebar and
+              breadcrumb that also carry it are print:hidden, and a printout must still say so. */}
+          <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+            {planName} — teacher schedule
+            {isCurrent && <CurrentPlanBadge />}
+          </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <TeacherSwitcher planId={data.planId} teachers={data.teachers} current={teacher} />
           <ExportTeacherPlanButton
             planName={planName}
+            isCurrent={isCurrent}
             teacherCode={teacher.code}
             days={data.days}
             periods={data.periods}

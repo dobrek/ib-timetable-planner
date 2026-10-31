@@ -42,6 +42,7 @@ const teacher = (id: string, code: string, fullName: string | null = null): Plan
 
 const input = (over: Partial<BatchExportInput> = {}): BatchExportInput => ({
   planName: "IB 2027",
+  isCurrent: false,
   days: 5,
   periods: 6,
   teacherNames: {},
@@ -194,5 +195,23 @@ describe("buildBatchExportWorkbooks", () => {
     const fallback = buildBatchExportWorkbooks(input({ planName: "***" }));
     expect(fallback.zipFileName).toBe("plan.zip");
     expect(fallback.files[0].fileName).toBe("plan-combined.xlsx");
+  });
+
+  it("marks the current plan's zip and every workbook inside it with the -current stem", () => {
+    const dp1 = cohort("dp1", {
+      catalog: [course("a", ["t1"])],
+      placements: [placement("a", 1, 1)],
+      courseDisplay: { a: { name: "Alpha", color: null } },
+      hours: new Map([["a", { placed: 1, required: 4 }]]),
+    });
+    const result = buildBatchExportWorkbooks(
+      input({ isCurrent: true, dp1, batch: { teachers: [teacher("t1", "T1")], merges: [], courseLevels: {} } }),
+    );
+
+    expect(result.zipFileName).toBe("ib-2027-current.zip");
+    expect(result.files.map((file) => file.fileName)).toEqual([
+      "ib-2027-current-combined.xlsx",
+      "ib-2027-current-t1.xlsx",
+    ]);
   });
 });

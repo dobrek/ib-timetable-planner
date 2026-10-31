@@ -28,6 +28,8 @@ export type ExportCohortData = {
 
 export type ExportWorkbookInput = {
   planName: string;
+  /** The plan is the current one (S-404): the file name carries `-current` (S-405). */
+  isCurrent: boolean;
   view: BoardSurface;
   days: number;
   periods: number;
@@ -70,7 +72,7 @@ export const buildExportWorkbook = (input: ExportWorkbookInput): { sheets: Workb
 
   return {
     sheets: [descriptor(timetable, gridSheetName(input.view)), ...rosters],
-    fileName: exportFileName(input.planName, input.view),
+    fileName: exportFileName(input.planName, input.isCurrent, input.view),
   };
 };
 

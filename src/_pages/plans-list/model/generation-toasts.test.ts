@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { announcementsFor } from "./generation-toasts";
 import type { IndicatorsByPlan } from "./job-progress-store";
-import type { GenerationIndicator } from "./plan-indicators";
+import { describeGenerationIndicator, type GenerationIndicator } from "./plan-indicators";
 
 /**
  * FR-309's in-app half, as a pure diff. What is worth pinning is the definition of the EVENT — one
@@ -37,7 +37,7 @@ describe("announcementsFor", () => {
   it("announces a job that finished while the hub was open, pointing at the proposal", () => {
     const done = indicator({ status: "succeeded", delivered: true });
 
-    expect(announcementsFor(snapshot(indicator()), snapshot(done), nameOf)).toEqual([
+    expect(announcementsFor(snapshot(indicator()), snapshot(done), nameOf, true)).toEqual([
       {
         jobId: JOB,
         tone: "success",
@@ -51,7 +51,7 @@ describe("announcementsFor", () => {
   it("announces a failure as an error, pointing at the SOURCE where the diagnostic is", () => {
     const failed = indicator({ status: "failed", proposalPlanId: null });
 
-    expect(announcementsFor(snapshot(indicator()), snapshot(failed), nameOf)).toEqual([
+    expect(announcementsFor(snapshot(indicator()), snapshot(failed), nameOf, true)).toEqual([
       { jobId: JOB, tone: "error", title: "Generation failed", description: "Year 2026/27", href: `/plans/${PLAN}` },
     ]);
   });
@@ -60,14 +60,14 @@ describe("announcementsFor", () => {
     const before = snapshot(indicator({ stageIndex: 4 }));
     const after = snapshot(indicator({ stageIndex: 5 }));
 
-    expect(announcementsFor(before, after, nameOf)).toEqual([]);
+    expect(announcementsFor(before, after, nameOf, true)).toEqual([]);
   });
 
   it("says nothing when the job was ALREADY terminal in the previous snapshot", () => {
     // Otherwise the badge would re-toast every five seconds for as long as the hub stayed open.
     const done = indicator({ status: "succeeded", delivered: true });
 
-    expect(announcementsFor(snapshot(done), snapshot(done), nameOf)).toEqual([]);
+    expect(announcementsFor(snapshot(done), snapshot(done), nameOf, true)).toEqual([]);
   });
 
   it("says nothing about a job the hub is seeing for the first time", () => {
@@ -75,7 +75,7 @@ describe("announcementsFor", () => {
     // discovery read returns terminal-undelivered rows precisely so the BADGE can show them.
     const done = indicator({ status: "succeeded", delivered: true });
 
-    expect(announcementsFor(new Map(), snapshot(done), nameOf)).toEqual([]);
+    expect(announcementsFor(new Map(), snapshot(done), nameOf, true)).toEqual([]);
   });
 
   it("says nothing when the plan's indicator is a different job than before", () => {
@@ -84,12 +84,50 @@ describe("announcementsFor", () => {
     const before = snapshot(indicator({ jobId: "old-job", status: "running" }));
     const after = snapshot(indicator({ jobId: "new-job", status: "succeeded", delivered: true }));
 
-    expect(announcementsFor(before, after, nameOf)).toEqual([]);
+    expect(announcementsFor(before, after, nameOf, true)).toEqual([]);
   });
 
   it("falls back to no description rather than inventing a name for a row it cannot see", () => {
     const done = indicator({ status: "succeeded", delivered: true });
 
-    expect(announcementsFor(snapshot(indicator()), snapshot(done), () => undefined)[0]?.description).toBeUndefined();
+    expect(
+      announcementsFor(snapshot(indicator()), snapshot(done), () => undefined, true)[0]?.description,
+    ).toBeUndefined();
+  });
+
+  it("points a viewer's Open exactly where the viewer's badge points (S-405)", () => {
+    // The toast's href is the badge's, described for the same reader, so the two can never disagree
+    // about where a finished job is — for an undelivered one, the proposal that waits for an author.
+    const finished = indicator({ status: "succeeded", delivered: false });
+    const hrefs = announcementsFor(snapshot(indicator()), snapshot(finished), nameOf, false).map(({ href }) => href);
+
+    expect(hrefs).toEqual([describeGenerationIndicator(finished, false).href]);
+    expect(hrefs).toEqual([`/plans/${PROPOSAL}`]);
+  });
+
+  describe("for a reader who may not edit", () => {
+    it("says a finished, undelivered board is waiting for an author, not ready", () => {
+      const finished = indicator({ status: "succeeded", delivered: false });
+
+      expect(announcementsFor(snapshot(indicator()), snapshot(finished), nameOf, false)).toMatchObject([
+        { title: "Proposal finished — waiting for an author", tone: "success" },
+      ]);
+    });
+
+    it("calls it ready once an author's visit has delivered it", () => {
+      const delivered = indicator({ status: "succeeded", delivered: true });
+
+      expect(announcementsFor(snapshot(indicator()), snapshot(delivered), nameOf, false)[0]?.title).toBe(
+        "Proposal ready",
+      );
+    });
+
+    it("leaves an editor's headline as it was, since their open delivers", () => {
+      const finished = indicator({ status: "succeeded", delivered: false });
+
+      expect(announcementsFor(snapshot(indicator()), snapshot(finished), nameOf, true)[0]?.title).toBe(
+        "Proposal ready",
+      );
+    });
   });
 });

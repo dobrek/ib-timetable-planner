@@ -1,4 +1,4 @@
-import { ExternalLink, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
+import { ExternalLink, Hourglass, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 import {
   describeCleanLabel,
   isHaltedJobStatus,
@@ -8,11 +8,14 @@ import {
 } from "@/entities/timetable";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
-import type { GenerationJobView } from "../../api/generation-delivery";
+import type { GenerationJobView } from "../../api/generation-read";
+import { resolveStatusStrip } from "../../model/generation/status-strip";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 
 type Props = {
   generation: GenerationControls;
+  /** The route's `allows(access, "edit")` (S-405). A viewer's strip reads; it never delivers or stops. */
+  canEdit: boolean;
 };
 
 /**
@@ -37,6 +40,12 @@ type Props = {
  *
  * The pending proposal has no strip at all — it has `PendingProposalPage`, which IS the strip.
  *
+ * **A viewer's strip says what an editor's visit would have done (S-405).** Its Refresh is the
+ * write-free `readPlanJob`, so a job that went quiet stays `running` and a finished board stays
+ * undelivered until an author or admin opens the plan. Where an editor's source falls silent or shows
+ * progress, a viewer's names that wait instead — and none of its copy asks them to generate, or says
+ * they stopped anything.
+ *
  * **Static by design, and it stays that way.** This is FR-308's advisory — status plus a start time,
  * SSR'd from the page's frontmatter — and S-303 deliberately did NOT make it live. Stage-by-stage
  * progress lives on the plans list and on the proposal's own page, both of which have no board, so
@@ -47,74 +56,100 @@ type Props = {
  * Semantic theme tokens only — no palette-named or arbitrary colours, so the whole light/dark theme
  * stays drivable from `global.css`.
  */
-export default function GenerationStatusStrip({ generation }: Props) {
+export default function GenerationStatusStrip({ generation, canEdit }: Props) {
   const { state, checking, refresh } = generation;
   const hydrated = useHydrated();
   if (state.status !== "tracking") return null;
   const { job } = state;
 
-  if (job.role === "proposal") return <ProposalStrip job={job} hydrated={hydrated} />;
-
-  if (job.status === "queued" || job.status === "running") {
-    return (
-      <Strip>
-        <span role="status" className="text-muted-foreground flex items-center gap-1.5">
-          <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          Generating a proposal from the{" "}
-          <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time> state
-        </span>
-        {/* Always present while active: the clone is created before the job row exists, and only a
-            terminal branch ever detaches or sweeps it. */}
-        {job.proposalPlanId && (
-          <a
-            href={`/plans/${job.proposalPlanId}`}
-            className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
-          >
-            Open proposal
-            <ExternalLink className="size-3.5" aria-hidden />
+  // Which line is decided in `model/` (`resolveStatusStrip`), next to the pending page's own dispatch.
+  switch (resolveStatusStrip(job, canEdit)) {
+    case "provenance":
+      return <ProposalStrip job={job} hydrated={hydrated} canEdit={canEdit} />;
+    case "stalled":
+      return (
+        <Strip>
+          <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+            <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+            Stopped reporting progress — an author&apos;s or admin&apos;s visit will settle it
+          </span>
+          <RefreshButton checking={checking} onRefresh={refresh} />
+        </Strip>
+      );
+    case "active":
+      return (
+        <Strip>
+          <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            Generating a proposal from the{" "}
+            <time dateTime={job.createdAt}>{hydrated ? formatStarted(job.createdAt) : null}</time> state
+          </span>
+          {/* Always present while active: the clone is created before the job row exists, and only a
+              terminal branch ever detaches or sweeps it. */}
+          {job.proposalPlanId && (
+            <a
+              href={`/plans/${job.proposalPlanId}`}
+              className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
+            >
+              Open proposal
+              <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          )}
+          <RefreshButton checking={checking} onRefresh={refresh} />
+          <a href="/plans" className="text-foreground hover:text-primary font-medium underline underline-offset-2">
+            Watch progress in Plans
           </a>
-        )}
-        <RefreshButton checking={checking} onRefresh={refresh} />
-        <a href="/plans" className="text-foreground hover:text-primary font-medium underline underline-offset-2">
-          Watch progress in Plans
-        </a>
-        <span className="text-muted-foreground/80">
-          This runs for up to about {LADDER_CEILING_MINUTES} minutes — you can leave the page.
-        </span>
-      </Strip>
-    );
+          <span className="text-muted-foreground/80">
+            This runs for up to about {LADDER_CEILING_MINUTES} minutes{canEdit ? " — you can leave the page." : "."}
+          </span>
+        </Strip>
+      );
+    case "failed":
+      return (
+        <Strip tone="destructive">
+          <span role="alert" className="text-destructive flex items-center gap-1.5">
+            <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+            Generation failed{job.error ? `: ${job.error}` : "."}
+          </span>
+          <RefreshButton checking={checking} onRefresh={refresh} />
+        </Strip>
+      );
+    case "halted":
+      // Advisory rather than destructive: the run was cut short, which is not the author's data
+      // being wrong.
+      return (
+        <Strip>
+          <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+            <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+            {haltedSummary(job, canEdit)}
+            {canEdit ? " Generate again when you are ready." : ""}
+          </span>
+          <RefreshButton checking={checking} onRefresh={refresh} />
+        </Strip>
+      );
+    case "awaiting-author":
+      return (
+        <Strip>
+          <span role="status" className="text-muted-foreground flex items-center gap-1.5">
+            <Hourglass className="size-3.5 shrink-0" aria-hidden />
+            Finished — waiting for an author or admin to open it
+          </span>
+          {job.proposalPlanId && (
+            <a
+              href={`/plans/${job.proposalPlanId}`}
+              className="text-foreground hover:text-primary inline-flex items-center gap-1 font-medium underline underline-offset-2"
+            >
+              Open proposal
+              <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          )}
+          <RefreshButton checking={checking} onRefresh={refresh} />
+        </Strip>
+      );
+    case "none":
+      // The result is on the PROPOSAL and not here, so the source says nothing at all.
+      return null;
   }
-
-  if (job.status === "failed") {
-    return (
-      <Strip tone="destructive">
-        <span role="alert" className="text-destructive flex items-center gap-1.5">
-          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-          Generation failed{job.error ? `: ${job.error}` : "."}
-        </span>
-        <RefreshButton checking={checking} onRefresh={refresh} />
-      </Strip>
-    );
-  }
-
-  // Halted with nothing kept: the container died, or the author stopped it, before a single stage
-  // finished — so there is no board to deliver and the clone has already been swept. Advisory rather
-  // than destructive: the run was cut short, which is not the author's data being wrong.
-  if (isHaltedJobStatus(job.status) && job.checkpointStageIndex === null) {
-    return (
-      <Strip>
-        <span role="status" className="text-muted-foreground flex items-center gap-1.5">
-          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-          {haltedSummary(job)} Generate again when you are ready.
-        </span>
-        <RefreshButton checking={checking} onRefresh={refresh} />
-      </Strip>
-    );
-  }
-
-  // Delivered, or terminal-with-a-board that the check is still landing. Either way the result is on
-  // the PROPOSAL and not here, so the source says nothing at all — see the split above.
-  return null;
 }
 
 /**
@@ -126,7 +161,7 @@ export default function GenerationStatusStrip({ generation }: Props) {
  * surface that shows the policy afterwards — the hub and the pending page do not — because two
  * proposals from the same source differ in nothing else the author can see.
  */
-const ProposalStrip = ({ job, hydrated }: { job: GenerationJobView; hydrated: boolean }) => {
+const ProposalStrip = ({ job, hydrated, canEdit }: { job: GenerationJobView; hydrated: boolean; canEdit: boolean }) => {
   if (!job.delivered) return null;
   return (
     <Strip>
@@ -145,7 +180,7 @@ const ProposalStrip = ({ job, hydrated }: { job: GenerationJobView; hydrated: bo
           transcript rarely reaches tier 5, so `describeCleanLabel` would honestly but unhelpfully say
           "unavailable" where the author wants to know how far the solve got. */}
       <span className="text-muted-foreground">
-        {isHaltedJobStatus(job.status) ? haltedSummary(job) : describeCleanLabel(job.cleanLabel)}
+        {isHaltedJobStatus(job.status) ? haltedSummary(job, canEdit) : describeCleanLabel(job.cleanLabel)}
       </span>
     </Strip>
   );
@@ -189,13 +224,17 @@ const formatStarted = (createdAt: string): string =>
  * `interrupted` were one vocabulary here while only one of them had a producer; now that the author
  * can stop a solve, reading "Stopped" over a run the PLATFORM killed would attribute their own act to
  * them wrongly — and reading it over a run they did stop would say nothing about it at all.
+ *
+ * Only an editor can stop a run (S-405), so only an editor reads it as their own act; a viewer gets
+ * the neutral subject.
  */
-const haltedSummary = (job: GenerationJobView): string => {
+const haltedSummary = (job: GenerationJobView, canEdit: boolean): string => {
   const authored = job.status === "stopped";
   if (job.checkpointStageIndex === null) {
-    return authored
+    if (!authored) return "Generation was interrupted before any stage finished — nothing was kept.";
+    return canEdit
       ? "You stopped this generation — nothing was kept."
-      : "Generation was interrupted before any stage finished — nothing was kept.";
+      : "This generation was stopped — nothing was kept.";
   }
   const kept = `kept the board from stage ${String(job.checkpointStageIndex)} of ${String(LADDER_TIER_COUNT)}.`;
   return authored ? `Stopped early — ${kept}` : `Interrupted — ${kept}`;

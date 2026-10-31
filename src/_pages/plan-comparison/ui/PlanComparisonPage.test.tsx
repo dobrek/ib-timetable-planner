@@ -249,3 +249,67 @@ describe("PlanComparisonPage", () => {
     expect(screen.queryByText(/left out/)).toBeNull();
   });
 });
+
+/**
+ * "Current" marks the current plan beside its name (S-405) and does nothing else: the page names no
+ * baseline, so the marker may not reorder a column, privilege one, or change a single cell.
+ */
+describe("PlanComparisonPage — the current-plan marker", () => {
+  let cleanPair: PlanComparisonData;
+  let markedPair: PlanComparisonData;
+
+  beforeAll(async () => {
+    [cleanPair, markedPair] = await Promise.all([build(cloneSpec), build({ ...cloneSpec, isCurrent: true })]);
+  });
+
+  it("badges every column header of the current plan, and no other", () => {
+    render(<PlanComparisonPage data={markedPair} />);
+
+    const cohort = within(screen.getByRole("region", { name: "Cohort scoreboard" })).getAllByRole("columnheader");
+    const boardWide = within(screen.getByRole("region", { name: /Board-wide/ })).getAllByRole("columnheader");
+
+    // "Metric", Expert dp1/dp2, Engine dp1/dp2 — the URL's order, unchanged.
+    expect(cohort.map(hasBadge)).toEqual([false, false, false, true, true]);
+    expect(cohort[3].textContent).toMatch(/^Engine/);
+    expect(boardWide.map(hasBadge)).toEqual([false, false, true]);
+  });
+
+  it("badges the current plan's distributions card beside its heading", () => {
+    render(<PlanComparisonPage data={markedPair} />);
+
+    expect(hasBadge(cardOf("Engine"))).toBe(true);
+    expect(hasBadge(cardOf("Expert"))).toBe(false);
+    // Beside the heading, not in it: the heading's name stays the plan's name.
+    expect(screen.getByRole("heading", { level: 3, name: "Engine" })).toBeTruthy();
+  });
+
+  it("renders no badge when no compared plan is current", () => {
+    render(<PlanComparisonPage data={cleanPair} />);
+
+    expect(screen.queryByText("Current")).toBeNull();
+  });
+
+  it("changes no cell", () => {
+    const { unmount } = render(<PlanComparisonPage data={cleanPair} />);
+    const unmarked = cellTexts();
+    unmount();
+
+    render(<PlanComparisonPage data={markedPair} />);
+
+    expect(cellTexts()).toEqual(unmarked);
+  });
+});
+
+/** The badge's own text node reads "Current"; the visually hidden " plan" is a child of it. */
+const hasBadge = (element: HTMLElement): boolean => within(element).queryByText("Current") !== null;
+
+/** A distributions card, found by its heading (the verdict cards carry no heading). */
+const cardOf = (planName: string): HTMLElement => {
+  const card = screen
+    .getAllByRole("article")
+    .find((article) => within(article).queryByRole("heading", { name: planName }) !== null);
+  if (!card) throw new Error(`No card for ${planName}`);
+  return card;
+};
+
+const cellTexts = (): (string | null)[] => screen.getAllByRole("cell").map((cell) => cell.textContent);

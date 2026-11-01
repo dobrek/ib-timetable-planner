@@ -1,10 +1,10 @@
 ---
 change_id: viewer-read-only
 title: S-405 viewer role: read every plan and proposal, no edit affordances
-status: impl_reviewed
+status: archived
 created: 2026-10-30
-updated: 2026-10-31
-archived_at: null
+updated: 2026-11-01
+archived_at: 2026-11-01T16:52:34Z
 ---
 
 ## Notes

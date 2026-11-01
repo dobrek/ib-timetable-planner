@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-10-30
+updated: 2026-11-01
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -49,7 +49,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | done |
 | S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | in-progress |
 | S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | done |
-| S-405 | viewer-read-only             | (viewer) read every plan and proposal, export and compare, with no edit affordances                    | S-403, S-404       | FR-409                                                                         | in-progress |
+| S-405 | viewer-read-only             | (viewer) read every plan and proposal, export and compare, with no edit affordances                    | S-403, S-404       | FR-409                                                                         | done |
 | S-406 | users-page-roles             | (admin) list the school's users and change anyone's role; the last admin cannot be demoted             | S-403              | FR-405, FR-406, FR-408, FR-413, §NFG (access changes traceable)                | proposed |
 | S-407 | created-by-and-job-ownership | see who created each plan or proposal; only a job's requester or an admin can stop it                  | S-406              | FR-415, FR-416, FR-417                                                         | proposed |
 | S-408 | deactivate-reactivate        | (admin) deactivate and reactivate a user, with data access ending on their next action                 | S-406              | FR-407                                                                         | proposed |
@@ -197,7 +197,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Unknowns:**
   - Delivery when a viewer is the first to open a finished proposal: delivery runs under the visitor's own session, and a viewer cannot write (Open Roadmap Question 1) — **decided (user, 2026-10-30):** wait for the next author or admin visit. A viewer's visit never delivers or writes; it shows the proposal as finished and waiting for an author, and the board appears once an author or admin opens it. — Owner: user. Block: no.
 - **Risk:** A wide UI sweep — plan detail (drag-drop, shelf, Generate/Stop), the catalog pages and the plans list all need gating, and nav gains per-item gating. The read-only board the perspective views already share keeps it from becoming a rebuild. The hidden hazard is the writes that run under the visitor's session on page load (proposal delivery, the delivered-notice flag, interrupted-job marking): under a viewer they would fail or must be skipped, which is exactly what Question 1 decides. Adds a viewer e2e account.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-406: Users page — list and roles
 
@@ -340,3 +340,4 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 - **S-401: Any user can open an account page from the sidebar, change their own password and set a display name; a password shorter than 15 characters is refused.** — Archived 2026-10-19 → `context/archive/2026-10-16-account-self-service/`. Lesson: —.
 - **S-402: Any user can request a password reset from the sign-in page, receive the email in a real school inbox, open a confirm page that consumes the link only on a deliberate click (a mail scanner opening it does not), and set a new password; a flood of reset requests cannot stop a genuine staff member from resetting, and the email carries no student data.** — Archived 2026-10-22 → `context/archive/2026-10-19-forgot-password-by-email/`. Lesson: —.
 - **S-404: An author can mark one plan as the current one, and every user sees which plan is current, on the plans list and on the plan itself.** — Archived 2026-10-29 → `context/archive/2026-10-29-current-plan-marker/`. Lesson: —.
+- **S-405: A viewer can read every plan and proposal, including the teacher and student perspective views, export timetables and use the comparison page, with no edit affordance anywhere, and can always tell a proposal or draft from the plan marked current.** — Archived 2026-11-01 → `context/archive/2026-10-30-viewer-read-only/`. Lesson: —.

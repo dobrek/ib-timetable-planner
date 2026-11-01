@@ -5,7 +5,7 @@ import { dayLabel, periodLabel } from "@/shared/lib/slot-labels";
 import { cn } from "@/shared/lib/class-names";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
-import { severityAt } from "../model/availability";
+import { severityAt as storedSeverityAt } from "../model/availability";
 import { useTeacherAvailability } from "../model/use-teacher-availability";
 import type { TeacherRow } from "../model/teacher";
 
@@ -32,10 +32,10 @@ type Props = {
  * state re-seeds whenever a different teacher is opened.
  *
  * Without `canEdit` the dialog is the read-only view of the same grid (S-405): the row's badge is
- * where availability is shown, so a viewer still needs it to open something. That body never mounts
- * `useTeacherAvailability` (the write path), and renders each slot as a named, non-interactive
- * gridcell through the same `AvailabilityCell`, so what a viewer reads cannot drift from what an
- * author toggles.
+ * where availability is shown, so a viewer still needs it to open something. One `AvailabilityPanel`
+ * renders both modes — the absent-handler idiom: with `edit` the headers and cells are the cycle
+ * buttons, without it they are static, named ARIA grid cells — so what a viewer reads cannot drift
+ * from what an author toggles. Only the editable mode mounts `useTeacherAvailability`, the write path.
  */
 export default function TeacherAvailabilityDialog({ teacher, planId, days, periods, onClose, canEdit }: Props) {
   const dirtyRef = useRef(false);
@@ -57,7 +57,7 @@ export default function TeacherAvailabilityDialog({ teacher, planId, days, perio
       <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col gap-4 overflow-hidden">
         {teacher &&
           (canEdit ? (
-            <AvailabilityBody
+            <EditableAvailability
               key={teacher.id}
               teacher={teacher}
               planId={planId}
@@ -69,11 +69,12 @@ export default function TeacherAvailabilityDialog({ teacher, planId, days, perio
               onDone={handleClose}
             />
           ) : (
-            <ReadOnlyAvailabilityBody
+            <AvailabilityPanel
               key={teacher.id}
               teacher={teacher}
               days={days}
               periods={periods}
+              severityAt={(day, period) => storedSeverityAt(teacher.availability, day, period)}
               onDone={handleClose}
             />
           ))}
@@ -82,7 +83,8 @@ export default function TeacherAvailabilityDialog({ teacher, planId, days, perio
   );
 }
 
-function AvailabilityBody({
+/** The editable mode: mounts the write path and hands the panel its optimistic state and cyclers. */
+function EditableAvailability({
   teacher,
   planId,
   days,
@@ -98,121 +100,64 @@ function AvailabilityBody({
   onDone: () => void;
 }) {
   const availability = useTeacherAvailability(teacher.availability, { planId, teacherId: teacher.id, days, periods });
-  const dayList = Array.from({ length: days }, (_, i) => i + 1);
-  const periodList = Array.from({ length: periods }, (_, i) => i + 1);
-
-  const cycleCell = (day: number, period: number) => {
-    onChange();
-    availability.cycleCell(day, period);
-  };
-
-  const cycleColumn = (day: number) => {
-    onChange();
-    availability.cycleColumn(day);
-  };
-
-  const cycleRow = (period: number) => {
-    onChange();
-    availability.cycleRow(period);
-  };
 
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Availability — {teacher.fullName ?? teacher.code}</DialogTitle>
-        <DialogDescription>
-          Click a cell to cycle available → soft (prefers not) → strong (cannot). Click a day header or a period label
-          to bulk-set the whole column or row. Changes save automatically.
-        </DialogDescription>
-      </DialogHeader>
-
-      {availability.error && (
-        <div
-          role="alert"
-          className="border-destructive/50 bg-destructive/10 text-destructive flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-        >
-          <span>{availability.error}</span>
-          <Button
-            variant="link"
-            onClick={availability.clearError}
-            className="text-destructive h-auto p-0 text-xs underline"
-          >
-            Dismiss
-          </Button>
-        </div>
-      )}
-
-      <div className="min-h-0 flex-1 overflow-auto">
-        <div
-          className="bg-border grid gap-px rounded-lg"
-          style={{ gridTemplateColumns: `auto repeat(${days}, minmax(2.25rem, 1fr))` }}
-        >
-          <div className="bg-background p-1.5" />
-          {dayList.map((day) => (
-            <button
-              key={day}
-              type="button"
-              onClick={() => {
-                cycleColumn(day);
-              }}
-              className="bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground p-1.5 text-center text-xs font-medium"
-              aria-label={`Cycle the whole ${dayLabel(day)} column`}
-            >
-              {dayLabel(day)}
-            </button>
-          ))}
-
-          {periodList.map((period) => (
-            <div key={period} className="contents">
-              <button
-                type="button"
-                onClick={() => {
-                  cycleRow(period);
-                }}
-                className="bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center justify-center px-2 text-xs font-medium"
-                aria-label={`Cycle the whole ${periodLabel(period)} row`}
-              >
-                {periodLabel(period)}
-              </button>
-              {dayList.map((day) => (
-                <AvailabilityCell
-                  key={day}
-                  severity={availability.severityAt(day, period)}
-                  onClick={() => {
-                    cycleCell(day, period);
-                  }}
-                  label={`${dayLabel(day)} ${periodLabel(period)}`}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Legend />
-
-      <DialogFooter>
-        <Button onClick={onDone}>Done</Button>
-      </DialogFooter>
-    </>
+    <AvailabilityPanel
+      teacher={teacher}
+      days={days}
+      periods={periods}
+      severityAt={availability.severityAt}
+      error={availability.error}
+      onDismissError={availability.clearError}
+      edit={{
+        cycleCell: (day, period) => {
+          onChange();
+          availability.cycleCell(day, period);
+        },
+        cycleColumn: (day) => {
+          onChange();
+          availability.cycleColumn(day);
+        },
+        cycleRow: (period) => {
+          onChange();
+          availability.cycleRow(period);
+        },
+      }}
+      onDone={onDone}
+    />
   );
 }
 
+/** The grid's write handlers — absent for a caller who may not edit (S-405). */
+type AvailabilityEdits = {
+  cycleCell: (day: number, period: number) => void;
+  cycleColumn: (day: number) => void;
+  cycleRow: (period: number) => void;
+};
+
 /**
- * The same day×period grid with nothing to press: a labelled ARIA grid (the `ScheduleGrid` contract —
- * `grid`/`row`/`columnheader`/`rowheader`/`gridcell`, every cell named) whose cells carry the very
- * accessible names the editable cells do. Severity is read straight off the teacher row, since there
- * are no optimistic writes to reconcile.
+ * The dialog's body in both modes: a labelled ARIA grid (`grid`/`row`/`columnheader`/`rowheader`/
+ * `gridcell`, every cell named) over the plan's days and periods. With `edit`, each header holds the
+ * bulk-cycle button and each cell IS the cycle button; without it, the same elements are static and
+ * the grid is `aria-readonly`.
  */
-function ReadOnlyAvailabilityBody({
+function AvailabilityPanel({
   teacher,
   days,
   periods,
+  severityAt,
+  edit,
+  error,
+  onDismissError,
   onDone,
 }: {
   teacher: TeacherRow;
   days: number;
   periods: number;
+  severityAt: (day: number, period: number) => AvailabilitySeverity | null;
+  edit?: AvailabilityEdits;
+  error?: string | null;
+  onDismissError?: () => void;
   onDone: () => void;
 }) {
   const name = teacher.fullName ?? teacher.code;
@@ -224,44 +169,79 @@ function ReadOnlyAvailabilityBody({
       <DialogHeader>
         <DialogTitle>Availability — {name}</DialogTitle>
         <DialogDescription>
-          When this teacher can teach, period by period: available, soft (prefers not) or strong (cannot).
+          {edit
+            ? "Click a cell to cycle available → soft (prefers not) → strong (cannot). Click a day header or a period label to bulk-set the whole column or row. Changes save automatically."
+            : "When this teacher can teach, period by period: available, soft (prefers not) or strong (cannot)."}
         </DialogDescription>
       </DialogHeader>
+
+      {error && (
+        <div
+          role="alert"
+          className="border-destructive/50 bg-destructive/10 text-destructive flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+        >
+          <span>{error}</span>
+          <Button variant="link" onClick={onDismissError} className="text-destructive h-auto p-0 text-xs underline">
+            Dismiss
+          </Button>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 overflow-auto">
         <div
           role="grid"
           aria-label={`Availability — ${name}`}
-          aria-readonly="true"
+          aria-readonly={edit ? undefined : "true"}
           className="bg-border grid gap-px rounded-lg"
           style={{ gridTemplateColumns: `auto repeat(${days}, minmax(2.25rem, 1fr))` }}
         >
           <div role="row" className="contents">
             <div role="presentation" className="bg-background p-1.5" />
             {dayList.map((day) => (
-              <div
+              <LineHeader
                 key={day}
                 role="columnheader"
-                className="bg-background text-muted-foreground p-1.5 text-center text-xs font-medium"
-              >
-                {dayLabel(day)}
-              </div>
+                label={dayLabel(day)}
+                className="p-1.5"
+                cycleLabel={`Cycle the whole ${dayLabel(day)} column`}
+                onCycle={
+                  edit
+                    ? () => {
+                        edit.cycleColumn(day);
+                      }
+                    : undefined
+                }
+              />
             ))}
           </div>
 
           {periodList.map((period) => (
             <div key={period} role="row" className="contents">
-              <div
+              <LineHeader
                 role="rowheader"
-                className="bg-background text-muted-foreground flex items-center justify-center px-2 text-xs font-medium"
-              >
-                {periodLabel(period)}
-              </div>
+                label={periodLabel(period)}
+                className="px-2"
+                cycleLabel={`Cycle the whole ${periodLabel(period)} row`}
+                onCycle={
+                  edit
+                    ? () => {
+                        edit.cycleRow(period);
+                      }
+                    : undefined
+                }
+              />
               {dayList.map((day) => (
                 <AvailabilityCell
                   key={day}
-                  severity={severityAt(teacher.availability, day, period)}
+                  severity={severityAt(day, period)}
                   label={`${dayLabel(day)} ${periodLabel(period)}`}
+                  onClick={
+                    edit
+                      ? () => {
+                          edit.cycleCell(day, period);
+                        }
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -279,8 +259,46 @@ function ReadOnlyAvailabilityBody({
 }
 
 /**
- * One slot. With `onClick` it is the cycle button an editor presses; without it (the read-only grid)
- * it is a named gridcell — the absent-handler idiom (S-405). Both share the name, tone and glyph.
+ * A day or period header. With `onCycle` it holds the bulk-cycle button an editor presses; without it
+ * (the read-only grid) it is the static label — the absent-handler idiom (S-405).
+ */
+function LineHeader({
+  role,
+  label,
+  className,
+  cycleLabel,
+  onCycle,
+}: {
+  role: "columnheader" | "rowheader";
+  label: string;
+  className: string;
+  cycleLabel: string;
+  onCycle?: () => void;
+}) {
+  if (!onCycle) {
+    return (
+      <div role={role} className={cn(HEADER_CLASS, "bg-background", className)}>
+        {label}
+      </div>
+    );
+  }
+  return (
+    <div role={role} className="bg-background flex">
+      <button
+        type="button"
+        onClick={onCycle}
+        aria-label={cycleLabel}
+        className={cn(HEADER_CLASS, "hover:bg-accent hover:text-accent-foreground flex-1", className)}
+      >
+        {label}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * One slot. With `onClick` it holds the cycle button an editor presses; without it (the read-only
+ * grid) it is a named gridcell — the absent-handler idiom (S-405). Both share the name, tone and glyph.
  */
 function AvailabilityCell({
   severity,
@@ -308,15 +326,17 @@ function AvailabilityCell({
     );
   }
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-severity={state}
-      aria-label={accessibleName}
-      className={cn(CELL_CLASS, "transition-colors", SEVERITY_TONE[state], SEVERITY_HOVER[state])}
-    >
-      {glyph}
-    </button>
+    <div role="gridcell" className="flex">
+      <button
+        type="button"
+        onClick={onClick}
+        data-severity={state}
+        aria-label={accessibleName}
+        className={cn(CELL_CLASS, "flex-1 transition-colors", SEVERITY_TONE[state], SEVERITY_HOVER[state])}
+      >
+        {glyph}
+      </button>
+    </div>
   );
 }
 
@@ -347,6 +367,8 @@ const SEVERITY_LABEL: Record<AvailabilitySeverity | "available", string> = {
   soft: "soft (prefers not)",
   strong: "strong (cannot)",
 };
+
+const HEADER_CLASS = "text-muted-foreground flex items-center justify-center text-xs font-medium";
 
 const CELL_CLASS = "flex h-8 items-center justify-center";
 

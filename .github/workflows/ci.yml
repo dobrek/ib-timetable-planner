@@ -130,7 +130,7 @@ jobs:
 
       # Same resolver pin as the `solver` job: `version` pins the uv RESOLVER, and must move with
       # `mise.toml`'s `uv = "..."` — see the note there.
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.12.3"
           working-directory: services/solver
@@ -223,7 +223,7 @@ jobs:
 
       # Same resolver pin as the `solver` and `integration` jobs: `version` pins the uv RESOLVER and
       # must move with `mise.toml`'s `uv = "..."`.
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.12.3"
           working-directory: services/solver
@@ -336,7 +336,7 @@ jobs:
       # floats to latest. It must equal `mise.toml`'s `uv = "..."`, which is what makes "a developer
       # and the gate build the venv with the same resolver" a fact rather than an aspiration. Move
       # the two together, by hand.
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.12.3"
           working-directory: services/solver

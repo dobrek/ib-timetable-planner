@@ -30,9 +30,10 @@ type Props = {
  * repeated edits.
  *
  * Without `canEdit` the dialog is the read-only view of the same relation (S-405): the row's overlap
- * badge is the only place overlaps are shown, so a viewer still needs it to open something. Both
- * bodies render the list through `LinkedBaseList`, so what a viewer reads cannot drift from what an
- * author manages — the read-only one simply never mounts the write path.
+ * badge is the only place overlaps are shown, so a viewer still needs it to open something. One body
+ * renders both modes — the list rows are the same, and only with `canEdit` do they carry a remove
+ * control or is the add control rendered — so what a viewer reads cannot drift from what an author
+ * manages.
  */
 export default function CourseOverlaps({
   planId,
@@ -51,19 +52,17 @@ export default function CourseOverlaps({
       }}
     >
       <DialogContent>
-        {course &&
-          (canEdit ? (
-            <OverlapsBody
-              key={course.id}
-              planId={planId}
-              course={course}
-              courses={courses}
-              coursesById={coursesById}
-              onOverlapsChange={onOverlapsChange}
-            />
-          ) : (
-            <ReadOnlyOverlapsBody key={course.id} course={course} coursesById={coursesById} />
-          ))}
+        {course && (
+          <OverlapsBody
+            key={course.id}
+            planId={planId}
+            course={course}
+            courses={courses}
+            coursesById={coursesById}
+            onOverlapsChange={onOverlapsChange}
+            canEdit={canEdit}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -75,9 +74,10 @@ type OverlapsBodyProps = {
   courses: CourseRow[];
   coursesById: Map<string, CourseRow>;
   onOverlapsChange: (courseId: string, nextOverlaps: string[]) => void;
+  canEdit: boolean;
 };
 
-function OverlapsBody({ planId, course, courses, coursesById, onOverlapsChange }: OverlapsBodyProps) {
+function OverlapsBody({ planId, course, courses, coursesById, onOverlapsChange, canEdit }: OverlapsBodyProps) {
   const { selectedBaseId, setSelectedBaseId, busy, linkedBases, candidates, addOverlap, removeOverlap } =
     useOverlapActions(planId, course, courses, coursesById, onOverlapsChange);
 
@@ -86,68 +86,61 @@ function OverlapsBody({ planId, course, courses, coursesById, onOverlapsChange }
       <DialogHeader>
         <DialogTitle>Overlaps — {course.name}</DialogTitle>
         <DialogDescription>
-          Link base courses that share students with this one. Both courses must be in the same cohort.
+          {canEdit
+            ? "Link base courses that share students with this one. Both courses must be in the same cohort."
+            : "Base courses that share students with this one."}
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <LinkedBaseList bases={linkedBases} busy={busy} onRemove={removeOverlap} />
+          <LinkedBaseList bases={linkedBases} busy={busy} onRemove={canEdit ? removeOverlap : undefined} />
         </div>
 
-        <div className={cn("flex items-end gap-2", candidates.length === 0 && "hidden")}>
-          <div className="flex-1 space-y-1">
-            <span className="text-sm font-medium">Add overlap</span>
-            <Select value={selectedBaseId || undefined} onValueChange={setSelectedBaseId} disabled={busy}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a base course" />
-              </SelectTrigger>
-              <SelectContent>
-                {candidates.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {formatCourseLabel(c)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button onClick={() => void addOverlap()} disabled={busy || !selectedBaseId}>
-            Add
-          </Button>
-        </div>
+        {canEdit && (
+          <>
+            <div className={cn("flex items-end gap-2", candidates.length === 0 && "hidden")}>
+              <div className="flex-1 space-y-1">
+                <span className="text-sm font-medium">Add overlap</span>
+                <Select value={selectedBaseId || undefined} onValueChange={setSelectedBaseId} disabled={busy}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a base course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {candidates.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {formatCourseLabel(c)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={() => void addOverlap()} disabled={busy || !selectedBaseId}>
+                Add
+              </Button>
+            </div>
 
-        {candidates.length === 0 && (
-          <p className="text-muted-foreground text-sm">No other courses in this cohort to link.</p>
+            {candidates.length === 0 && (
+              <p className="text-muted-foreground text-sm">No other courses in this cohort to link.</p>
+            )}
+          </>
         )}
       </div>
     </>
   );
 }
 
-function ReadOnlyOverlapsBody({ course, coursesById }: { course: CourseRow; coursesById: Map<string, CourseRow> }) {
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Overlaps — {course.name}</DialogTitle>
-        <DialogDescription>Base courses that share students with this one.</DialogDescription>
-      </DialogHeader>
-
-      <LinkedBaseList bases={linkedBasesOf(course, coursesById)} />
-    </>
-  );
-}
-
 /**
  * The course's linked bases, one row each. The remove control renders only with `onRemove` — the
- * absent-handler idiom (S-405) — so the read-only body passes none and gets the same rows without it.
+ * absent-handler idiom (S-405) — so a viewer gets the same rows without it.
  */
 function LinkedBaseList({
   bases,
-  busy = false,
+  busy,
   onRemove,
 }: {
   bases: CourseRow[];
-  busy?: boolean;
+  busy: boolean;
   onRemove?: (baseCourseId: string) => Promise<void>;
 }) {
   if (bases.length === 0) return <p className="text-muted-foreground text-sm">No overlaps yet.</p>;
@@ -186,7 +179,8 @@ function useOverlapActions(
   const [selectedBaseId, setSelectedBaseId] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const linkedBases = linkedBasesOf(course, coursesById);
+  // The course's overlap targets as rows, in link order; a dangling id (no such course) is skipped.
+  const linkedBases = course.overlaps.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);
 
   const candidates = useMemo(
     () => courses.filter((c) => c.cohort === course.cohort && c.id !== course.id && !course.overlaps.includes(c.id)),
@@ -224,7 +218,3 @@ function useOverlapActions(
 
   return { selectedBaseId, setSelectedBaseId, busy, linkedBases, candidates, addOverlap, removeOverlap };
 }
-
-/** The course's overlap targets as rows, in link order; a dangling id (no such course) is skipped. */
-const linkedBasesOf = (course: CourseRow, coursesById: Map<string, CourseRow>): CourseRow[] =>
-  course.overlaps.map((id) => coursesById.get(id)).filter((c): c is CourseRow => c !== undefined);

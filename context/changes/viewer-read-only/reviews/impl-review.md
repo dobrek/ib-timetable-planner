@@ -194,6 +194,7 @@ Everything ran on HEAD `f9fd62c` on 2026-10-31:
   - **Behaviour:** a viewer's wait (stalled or awaiting delivery) keeps the 5 s cadence for `WAITING_BACKOFF_AFTER_MS` (10 min), then reads at most once per `WAITING_POLL_INTERVAL_MS` (60 s). An editor's ticker is untouched.
   - **Mechanism:** a tick that isn't due returns the snapshot unchanged without reaching the network, which `createPollingStore`'s `read` contract sanctions, so the shared store needs no change.
   - **Tests:** 3 new store tests, a finished-board wait, a stalled wait and an editor that never backs off. The viewer cases go red when the back-off is disabled.
+- **Reverted (2026-11-01, simplification pass):** the back-off was removed again, with its two constants, two helpers and three tests. It was mutable clock state and a tick that pretended to read, serving a cost (`plan-brief.md`'s accepted risk) the visibility rule already bounds: a hidden tab ticks nothing, and a visible one costs two narrow indexed reads per tick. The ticker keeps its cadence for the whole wait. If a ceiling is ever wanted, it belongs in the shared store as a snapshot-dependent interval, not here.
 
 ### F9 — Two components gate capability differently from the rest
 

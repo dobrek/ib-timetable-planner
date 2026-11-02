@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-01
+updated: 2026-11-02
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -47,7 +47,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | F-402 | ci-publishable-key-and-pinned-cli | (foundation) every CI lane uses the `sb_publishable_` key production uses, on a pinned Supabase CLI | — | §Constraints (CI lanes stay green) | done |
 | S-401 | account-self-service         | change their own password and set a display name; passwords under 15 characters are refused           | —                  | FR-411, FR-413, §NFG (passwords ≥ 15)                                          | done |
 | S-402 | forgot-password-by-email     | reset a forgotten password by email, through a scanner-safe confirm page, into a real school inbox     | S-401              | FR-412, FR-418, §NFG (link lifetime, reset flood, no student data, inbox delivery) | done |
-| S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | in-progress |
+| S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | done        |
 | S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | done |
 | S-405 | viewer-read-only             | (viewer) read every plan and proposal, export and compare, with no edit affordances                    | S-403, S-404       | FR-409                                                                         | done |
 | S-406 | users-page-roles             | (admin) list the school's users and change anyone's role; the last admin cannot be demoted             | S-403              | FR-405, FR-406, FR-408, FR-413, §NFG (access changes traceable)                | proposed |
@@ -171,7 +171,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** The riskiest slice, and the reason it comes first under `main_goal: quality`: it rewrites every human-facing database rule (17 `using (true)` policies: 16 `ALL` plus `profiles`' read-all SELECT; the solver's own `using (true)` SELECT stays) to fail-closed on live school data, and migrations auto-deploy on merge, so the migration must be safe on its own. Two things make it verifiable rather than hopeful. First, F-401's harness is already in place: this slice's first phase adds `user_roles` and role assignment, then flips the role matrix's expectations so it goes red before the policy change turns it green (today no test can fail on a human role having too much access). The `user_roles` migration must revoke all eight privileges from `anon` (default privileges still hand it TRUNCATE, REFERENCES, TRIGGER and MAINTAIN on new tables). Second, the e2e account gets its role in the same PR, or `e2e` goes red and blocks `deploy`. The live role-reading helper is the repo's first scoped exception to "no SECURITY DEFINER", recorded per CLAUDE.md. Side effect worth naming: the role-less solver machine user loses its fallback to full read if the token hook is ever off. Restricting who may stop a job is not here — that is S-407.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-404: Current-plan marker
 
@@ -341,3 +341,4 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 - **S-402: Any user can request a password reset from the sign-in page, receive the email in a real school inbox, open a confirm page that consumes the link only on a deliberate click (a mail scanner opening it does not), and set a new password; a flood of reset requests cannot stop a genuine staff member from resetting, and the email carries no student data.** — Archived 2026-10-22 → `context/archive/2026-10-19-forgot-password-by-email/`. Lesson: —.
 - **S-404: An author can mark one plan as the current one, and every user sees which plan is current, on the plans list and on the plan itself.** — Archived 2026-10-29 → `context/archive/2026-10-29-current-plan-marker/`. Lesson: —.
 - **S-405: A viewer can read every plan and proposal, including the teacher and student perspective views, export timetables and use the comparison page, with no edit affordance anywhere, and can always tell a proposal or draft from the plan marked current.** — Archived 2026-11-01 → `context/archive/2026-10-30-viewer-read-only/`. Lesson: —.
+- **S-403: Every person's access follows the one role an admin assigned. On the day it goes live, every existing author sees and edits everything as before — Generate → solve → proposal → delivery included — the developer is admin through a documented operator step, and a signed-in user without a role sees only a "no access yet — ask your admin" notice plus their own account. A role change takes effect on the person's next action, and drag-drop validation stays under 200 ms.** — Archived 2026-11-02 → `context/archive/2026-10-28-fail-closed-roles/`. Lesson: —.

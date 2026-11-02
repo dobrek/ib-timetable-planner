@@ -1,10 +1,10 @@
 ---
 change_id: fail-closed-roles
 title: S-403 fail-closed roles: authors keep access, role-less users see no access
-status: impl_reviewed
+status: archived
 created: 2026-10-28
-updated: 2026-10-29
-archived_at: null
+updated: 2026-11-02
+archived_at: 2026-11-02T21:51:39Z
 ---
 
 ## Notes

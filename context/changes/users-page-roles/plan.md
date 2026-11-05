@@ -837,18 +837,18 @@ This phase adds the admin e2e principal and specs, the cross-role tripwires, and
 
 #### Automated
 
-- [ ] 1.1 The matrix diff for `user_directory` runs red against the pre-migration schema (deny drill), then green after
+- [x] 1.1 The matrix diff for `user_directory` runs red against the pre-migration schema (deny drill), then green after
 - [ ] 1.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
-- [ ] 1.3 The directory integration test passes
-- [ ] 1.4 The solver credential suite stays green
-- [ ] 1.5 Type checking passes: `pnpm check`
-- [ ] 1.6 Unit tests pass (schema case for U+061C): `pnpm test`
-- [ ] 1.7 Lint and FSD pass: `pnpm lint && pnpm steiger`
-- [ ] 1.8 The advisors show no new ERROR or WARN locally
+- [x] 1.3 The directory integration test passes
+- [x] 1.4 The solver credential suite stays green
+- [x] 1.5 Type checking passes: `pnpm check`
+- [x] 1.6 Unit tests pass (schema case for U+061C): `pnpm test`
+- [x] 1.7 Lint and FSD pass: `pnpm lint && pnpm steiger`
+- [x] 1.8 The advisors show no new ERROR or WARN locally
 
 #### Manual
 
-- [ ] 1.9 A local Studio user is mirrored, untouched by sign-in, and removed on delete
+- [x] 1.9 A local Studio user is mirrored, untouched by sign-in, and removed on delete
 
 ### Phase 2: Role Writes, Last-Admin Guard and Access Record (write side)
 

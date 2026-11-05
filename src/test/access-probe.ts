@@ -36,14 +36,14 @@ export type AccessOutcome = "allowed" | "denied";
 export type PublicTable = keyof Database["public"]["Tables"];
 
 /** The tables whose rows belong to a user through `user_id`, not to a plan. */
-export type UserKeyedTable = "profiles" | "user_roles";
+export type UserKeyedTable = "profiles" | "user_directory" | "user_roles";
 
 /** An error as supabase-js reports one: PostgREST's (with a SQLSTATE), or a fetch failure (no code). */
 export type ProbeError = { code?: string; message: string };
 
 /**
- * The fixture's rows, by what owns them: most tables hang off a plan, `profiles` and `user_roles`
- * off a user. Each table finds its fixture rows through one of these (see `fixtureKey`).
+ * The fixture's rows, by what owns them: most tables hang off a plan, the user-keyed tables off a
+ * user. Each table finds its fixture rows through one of these (see `fixtureKey`).
  */
 export type FixtureRef = { planId: string; profileOwnerId: string };
 
@@ -174,7 +174,9 @@ const fixtureKey = (table: PublicTable, fixture: FixtureRef): FixtureKey => {
   return { column: "plan_id", value: fixture.planId };
 };
 
-const isUserKeyed = (table: PublicTable): table is UserKeyedTable => table === "profiles" || table === "user_roles";
+const USER_KEYED_TABLES: ReadonlySet<string> = new Set<UserKeyedTable>(["profiles", "user_directory", "user_roles"]);
+
+const isUserKeyed = (table: PublicTable): table is UserKeyedTable => USER_KEYED_TABLES.has(table);
 
 const fixtureRowsQuery = (client: SupabaseClient, table: PublicTable, fixture: FixtureRef) => {
   const { column, value } = fixtureKey(table, fixture);

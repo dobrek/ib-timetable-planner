@@ -10,8 +10,8 @@ import type { TablePrivilege } from "./postgres-client";
  *
  * The posture since S-403:
  *
- * - Every `public` table but `profiles` and `user_roles` has RLS on and the four policies in
- *   `CAPABILITY_POLICIES`. Reading needs a role (`private.can_read()`); writing needs `admin` or
+ * - Every `public` table but the user-keyed ones (`profiles`, `user_directory`, `user_roles`) has
+ *   RLS on and the four policies in `CAPABILITY_POLICIES`. Reading needs a role (`private.can_read()`); writing needs `admin` or
  *   `author` (`private.can_edit()`). So a viewer reads every plan and writes none, and a signed-in
  *   user without a role reaches none of it. The behavioural cells cover five representative tables,
  *   and the suite's structural check proves the four policies on all sixteen.
@@ -22,19 +22,23 @@ import type { TablePrivilege } from "./postgres-client";
  *   `PROFILE_WRITES` holds the "whose row" cells.
  * - `user_roles`: a signed-in human reads only their own role row, and nobody writes one through
  *   the Data API (`SELF_GRANTS`).
+ * - `user_directory` (S-406): the Auth trigger's mirror of `auth.users`. It is read like `profiles`
+ *   (own row, or any row with a role), never shows a machine user to anyone
+ *   (`MACHINE_DIRECTORY_READ`), and no session writes it (`DIRECTORY_WRITES`).
  * - admin holds exactly an author's access: admin surfaces are S-406's.
  * - `anon` holds no DML grant on any table, so PostgREST refuses it outright (42501). It still holds
  *   Supabase's auto-granted TRUNCATE, REFERENCES, TRIGGER and MAINTAIN on 15 tables, which
  *   PostgREST cannot reach; `generation_jobs`, `profiles` and `user_roles` revoked all eight
  *   (lessons.md, "granting a role is not excluding the others").
  * - `authenticated` holds all eight privileges everywhere except `profiles` (INSERT, SELECT and
- *   UPDATE only) and `user_roles` (SELECT only). So, for a signed-in user, RLS is the lock, and the
- *   role it holds is what RLS judges.
+ *   UPDATE only), `user_directory` and `user_roles` (SELECT only). So, for a signed-in user, RLS is
+ *   the lock, and the role it holds is what RLS judges.
  *
  * Completeness is enforced: a missing principal or table is a type error, so a new principal, or a
  * new table in `database.types.ts`, fails `pnpm check` until every cell is declared. A table that
- * exists live but not in `GRANTS` fails the suite's catalog check, and a plan-scoped table without
- * exactly the four capability policies fails its structural check.
+ * exists live but not in `GRANTS` fails the suite's catalog check, a plan-scoped table without
+ * exactly the four capability policies fails its structural check, and a user-keyed table whose
+ * policies differ from `USER_KEYED_POLICIES` fails its own.
  */
 
 /** Who attempts the access: no session, a session without a role, and a session per app role. */
@@ -86,8 +90,8 @@ export type TableGrants = { anon: readonly TablePrivilege[]; authenticated: read
 
 export const PRINCIPAL_NOTES: Record<Principal, string> = {
   anon: "no session is denied everywhere, at the grant layer",
-  noRole: "a signed-in user without a role reaches only its own profile, and no plan data at all",
-  viewer: "a viewer reads every plan and profile, and writes only its own profile",
+  noRole: "a signed-in user without a role reaches only its own profile and directory row, and no plan data at all",
+  viewer: "a viewer reads every plan, profile and directory row, and writes only its own profile",
   author: "an author reads and writes every plan, and writes only its own profile",
   admin: "an admin holds exactly an author's access until S-406",
 };
@@ -127,10 +131,27 @@ export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCel
     own: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
     others: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
   },
+  user_directory: {
+    own: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
+    others: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
+  },
   user_roles: {
     own: { anon: "denied", noRole: "no-row", viewer: "allowed", author: "allowed", admin: "allowed" },
     others: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
   },
+};
+
+/**
+ * A machine user's directory row, which the read policy hides from every human session: the list a
+ * role-holder reads is the school's people, never the solver. The row exists (the suite proves it
+ * as the service role before probing), so an empty read can only mean the policy refused it.
+ */
+export const MACHINE_DIRECTORY_READ: Cell = {
+  anon: "denied",
+  noRole: "denied",
+  viewer: "denied",
+  author: "denied",
+  admin: "denied",
 };
 
 export const WRITES: Record<RepresentativeTable, Record<WriteOperation, Cell>> = {
@@ -217,6 +238,25 @@ export const SELF_GRANT_EVIDENCE: Record<SelfGrant, AccessOutcome> = {
   "drop own role": "allowed",
 };
 
+/**
+ * Writes to the directory, each against a fresh user's row. Only the Auth trigger and the
+ * migration's backfill write it: `authenticated` holds SELECT alone, so the grant layer refuses
+ * every cell, whoever's row it names. No app principal is allowed, so `DIRECTORY_WRITE_EVIDENCE`
+ * evidences the payloads.
+ */
+export const DIRECTORY_WRITES: Record<WriteOperation, Cell> = {
+  insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+  update: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+  delete: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+};
+
+/** The same directory writes, sent by the service role to a fresh user: each payload's evidence. */
+export const DIRECTORY_WRITE_EVIDENCE: Record<WriteOperation, AccessOutcome> = {
+  insert: "allowed",
+  update: "allowed",
+  delete: "allowed",
+};
+
 export const RPCS: Record<Rpc, Cell> = {
   apply_generated_placements: {
     anon: "denied",
@@ -268,6 +308,58 @@ export const CAPABILITY_POLICIES: readonly PolicyShape[] = [
   { name: "Editors update rows", command: "UPDATE", roles: ["authenticated"], using: CAN_READ, withCheck: CAN_EDIT },
 ];
 
+const OWN_ROW = "(user_id = ( SELECT auth.uid() AS uid))";
+
+/**
+ * Every policy on each user-keyed table, whatever role it names, as `pg_policies` deparses it and
+ * sorted by command, then name. These tables do not fit the four capability policies: a user owns
+ * their row whatever their role. The structural check compares the live catalog against this map,
+ * so a new policy, a drifted predicate or a widened role list fails it. Only the solver's
+ * `to solver_job_writer` policies, which no human session holds, are left out.
+ *
+ * `user_directory`'s mirror policy names `supabase_auth_admin`, the role GoTrue writes `auth.users`
+ * as and the Auth trigger therefore runs as: the recorded exception to "every policy names
+ * `to authenticated`". It is never PUBLIC, and the grant layer withholds DELETE from it.
+ */
+export const USER_KEYED_POLICIES: Record<UserKeyedTable, readonly PolicyShape[]> = {
+  profiles: [
+    {
+      name: "Users insert their own profile",
+      command: "INSERT",
+      roles: ["authenticated"],
+      using: null,
+      withCheck: OWN_ROW,
+    },
+    {
+      name: "Users read their own profile, readers every profile",
+      command: "SELECT",
+      roles: ["authenticated"],
+      using: `(${OWN_ROW} OR ${CAN_READ})`,
+      withCheck: null,
+    },
+    {
+      name: "Users update their own profile",
+      command: "UPDATE",
+      roles: ["authenticated"],
+      using: OWN_ROW,
+      withCheck: OWN_ROW,
+    },
+  ],
+  user_directory: [
+    { name: "Auth mirrors users", command: "ALL", roles: ["supabase_auth_admin"], using: "true", withCheck: "true" },
+    {
+      name: "Readers read the directory",
+      command: "SELECT",
+      roles: ["authenticated"],
+      using: `((NOT is_machine) AND (${OWN_ROW} OR ${CAN_READ}))`,
+      withCheck: null,
+    },
+  ],
+  user_roles: [
+    { name: "Users read their own role", command: "SELECT", roles: ["authenticated"], using: OWN_ROW, withCheck: null },
+  ],
+};
+
 // Sorted the way `heldPrivileges` returns them, so the catalog check compares like with like.
 const NONE: readonly TablePrivilege[] = [];
 const ANON_AUTO_GRANT_RESIDUE: readonly TablePrivilege[] = ["MAINTAIN", "REFERENCES", "TRIGGER", "TRUNCATE"];
@@ -302,5 +394,6 @@ export const GRANTS: Record<PublicTable, TableGrants> = {
   students: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   teacher_availability: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   teachers: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
+  user_directory: { anon: NONE, authenticated: READ_ONLY },
   user_roles: { anon: NONE, authenticated: READ_ONLY },
 };

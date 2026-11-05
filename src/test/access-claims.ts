@@ -1,5 +1,9 @@
 /** The access-token claims the integration lane asserts on. */
-export type AccessClaims = { role?: string; sub?: string; app_metadata?: { machine_role?: string } };
+export type AccessClaims = {
+  role?: string;
+  sub?: string;
+  app_metadata?: { machine_role?: string; service_account?: unknown };
+};
 
 /**
  * An access token's payload, decoded WITHOUT verification: the signature is GoTrue's business, and

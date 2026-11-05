@@ -1,0 +1,42 @@
+# Phase 1 deny drill: the user_directory cells, run against the pre-migration schema (HEAD 132224a + the Phase 1 expectations diff, 2026-11-05).
+# pnpm test:integration src/test/role-matrix.integration.test.ts
+
+     × fixture: the service role sees a fixture row in every public table
+     × catalog: grants and RLS on every public table are exactly as declared
+     × catalog: every user-keyed table holds exactly its declared policies, whatever role they name
+     × catalog: private holds the role helpers, and only current_app_role is SECURITY DEFINER
+     × catalog: only authenticated may execute the private helpers, own_app_role and set_current_plan, never anon or PUBLIC
+       × anon SELECT own user_directory row → denied
+       × anon SELECT others user_directory row → denied
+       × anon SELECT a machine user's user_directory row → denied
+       × anon INSERT a user's user_directory row → denied
+       × anon UPDATE a user's user_directory row → denied
+       × anon DELETE a user's user_directory row → denied
+       × noRole SELECT own user_directory row → allowed
+       × noRole SELECT others user_directory row → denied
+       × noRole SELECT a machine user's user_directory row → denied
+       × noRole INSERT a user's user_directory row → denied
+       × noRole UPDATE a user's user_directory row → denied
+       × noRole DELETE a user's user_directory row → denied
+       × viewer SELECT own user_directory row → allowed
+       × viewer SELECT others user_directory row → allowed
+       × viewer SELECT a machine user's user_directory row → denied
+       × viewer INSERT a user's user_directory row → denied
+       × viewer UPDATE a user's user_directory row → denied
+       × viewer DELETE a user's user_directory row → denied
+       × author SELECT own user_directory row → allowed
+       × author SELECT others user_directory row → allowed
+       × author SELECT a machine user's user_directory row → denied
+       × author INSERT a user's user_directory row → denied
+       × author UPDATE a user's user_directory row → denied
+       × author DELETE a user's user_directory row → denied
+       × admin SELECT own user_directory row → allowed
+       × admin SELECT others user_directory row → allowed
+       × admin SELECT a machine user's user_directory row → denied
+       × admin INSERT a user's user_directory row → denied
+       × admin UPDATE a user's user_directory row → denied
+       × admin DELETE a user's user_directory row → denied
+       × service role INSERT a fresh user's user_directory row → allowed
+       × service role UPDATE a fresh user's user_directory row → allowed
+       × service role DELETE a fresh user's user_directory row → allowed
+      Tests  38 failed | 259 passed (297)

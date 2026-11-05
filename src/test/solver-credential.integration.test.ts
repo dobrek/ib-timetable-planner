@@ -193,6 +193,8 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     expect(await heldPrivileges(pg, "solver_job_writer", "public.generation_jobs")).toEqual([]);
     expect(await heldPrivileges(pg, "solver_job_writer", "public.plans")).toEqual([]);
     expect(await heldPrivileges(pg, "solver_job_writer", "public.profiles")).toEqual([]);
+    // S-406's directory mirrors every user's email: the solver reaches none of it.
+    expect(await heldPrivileges(pg, "solver_job_writer", "public.user_directory")).toEqual([]);
   });
 
   it("holds SELECT on exactly the five readable columns — never on the payload", async () => {

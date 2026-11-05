@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  DIRECTORY_WRITE_EVIDENCE,
+  DIRECTORY_WRITES,
   GRANTS,
   PROFILE_WRITES,
   RPCS,
@@ -10,6 +12,7 @@ import {
   type OwnRowOutcome,
   type ProfileWriteOperation,
   type SelfGrant,
+  type WriteOperation,
 } from "./role-matrix-expectations";
 
 /**
@@ -23,9 +26,9 @@ import {
  *
  * - A `PROFILE_WRITES.others` row or `PROFILE_REKEY`, whose payload differs from its `own`
  *   counterpart only in whose `user_id` it names. The `own` row's allowed principal is its evidence.
- * - A `SELF_GRANTS` row, which no app principal may send at all. The service role sends the same
- *   payload to a fresh user in the same starting state instead, and `SELF_GRANT_EVIDENCE` records
- *   that it lands.
+ * - A `SELF_GRANTS` or `DIRECTORY_WRITES` row, which no app principal may send at all. The service
+ *   role sends the same payload to a fresh user in the same starting state instead, and
+ *   `SELF_GRANT_EVIDENCE` or `DIRECTORY_WRITE_EVIDENCE` records that it lands.
  *
  * `"no-row"` states that a principal lacks the row its cell targets. Only noRole's own `user_roles`
  * row can be missing, since every other principal holds the row its cells aim at, so the marker
@@ -48,6 +51,10 @@ const othersProfileRows = [
 // Each all-denied self-grant row, paired with the service role's outcome for the same payload.
 const selfGrantRows = (Object.keys(SELF_GRANTS) as SelfGrant[]).map(
   (grant) => [grant, SELF_GRANT_EVIDENCE[grant]] as const,
+);
+// Each all-denied directory write, paired with the service role's outcome for the same payload.
+const directoryWriteRows = (Object.keys(DIRECTORY_WRITES) as WriteOperation[]).map(
+  (operation) => [operation, DIRECTORY_WRITE_EVIDENCE[operation]] as const,
 );
 const rpcRows = Object.entries(RPCS);
 const grantLists = Object.entries(GRANTS).flatMap(([table, grants]) =>
@@ -74,6 +81,10 @@ describe("role-matrix expectations", () => {
   });
 
   it.each(selfGrantRows)("self-grant %s is evidenced by the service role sending its payload", (_row, evidence) => {
+    expect(evidence).toBe("allowed");
+  });
+
+  it.each(directoryWriteRows)("directory %s is evidenced by the service role sending its payload", (_row, evidence) => {
     expect(evidence).toBe("allowed");
   });
 

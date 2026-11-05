@@ -42,7 +42,10 @@ import { createPublishableClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 import {
   CAPABILITY_POLICIES,
+  DIRECTORY_WRITE_EVIDENCE,
+  DIRECTORY_WRITES,
   GRANTS,
+  MACHINE_DIRECTORY_READ,
   PRINCIPAL_NOTES,
   PROFILE_REKEY,
   PROFILE_WRITES,
@@ -50,6 +53,7 @@ import {
   RPCS,
   SELF_GRANT_EVIDENCE,
   SELF_GRANTS,
+  USER_KEYED_POLICIES,
   USER_KEYED_READS,
   WRITES,
   type PlanScopedTable,
@@ -78,7 +82,8 @@ import {
  * own profile. An author and an admin read and write every plan. Behavioural cells cover five
  * representative tables, so a structural check over `pg_policies` proves the other eleven: every
  * plan-scoped table holds exactly `CAPABILITY_POLICIES`, and no policy a session can fall under is
- * a literal `true`.
+ * a literal `true`. The user-keyed tables hold their own declared shapes (`USER_KEYED_POLICIES`),
+ * which pins the directory's one policy for another role, the Auth trigger's.
  *
  * S-403 flipped the expectations before its policy migration existed. Their red run against the old
  * policies (the `fail-closed-roles` change's deny drill) is the proof that this suite can fail, as
@@ -137,6 +142,8 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
   let signedIn: Record<SignedInPrincipal, SignedInUser>;
   let principals: Record<Principal, SupabaseClient>;
   let fixture: FixtureRef;
+  // A machine user, never signed in: its directory row exists, and no human session may see it.
+  let machineUserId: string;
 
   // Anon holds no session, so it owns no row.
   const ownUserIdOf = (principal: Principal): string | null => (principal === "anon" ? null : signedIn[principal].id);
@@ -179,6 +186,7 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
       admin: signedIn.admin.client,
     };
     fixture = await buildFixture(admin);
+    ({ id: machineUserId } = await createAuthUser(admin, { appMetadata: { machine_role: "solver_job_writer" } }));
   }, 30_000);
 
   afterAll(async () => {
@@ -214,6 +222,11 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
 
     // A new table without the four, a fifth policy, a drifted name or an unwrapped helper all differ.
     expect(await humanPolicies(pg)).toEqual(declared);
+  });
+
+  it("catalog: every user-keyed table holds exactly its declared policies, whatever role they name", async () => {
+    // A policy for another role (the directory's Auth mirror) is pinned here, not left unchecked.
+    expect(await userKeyedPolicies(pg)).toEqual(USER_KEYED_POLICIES);
   });
 
   it("catalog: no policy that authenticated or PUBLIC falls under is a literal `true`", async () => {
@@ -263,6 +276,8 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
       "private.can_edit()": ["authenticated"],
       "private.can_read()": ["authenticated"],
       "private.current_app_role()": ["authenticated"],
+      // A trigger function: EXECUTE is checked when the trigger is created, never when it fires.
+      "private.mirror_auth_user()": [],
       "public.own_app_role()": ["authenticated"],
       "public.set_current_plan(p_plan_id uuid)": ["authenticated"],
     });
@@ -320,6 +335,20 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
             });
           }
         }
+      }
+
+      const machineExpected = MACHINE_DIRECTORY_READ[principal];
+      it(`${principal} SELECT a machine user's user_directory row → ${machineExpected}`, async () => {
+        const userId = await requireUserRow(admin, "user_directory", machineUserId);
+        expect(await probeUserRowRead(principals[principal], "user_directory", userId)).toBe(machineExpected);
+      });
+
+      for (const operation of OPERATIONS) {
+        const expected = DIRECTORY_WRITES[operation][principal];
+        it(`${principal} ${operation.toUpperCase()} a user's user_directory row → ${expected}`, async () => {
+          const attempt = await DIRECTORY_WRITE_PROBES[operation](admin, principals[principal]);
+          expect(await probeWrite(attempt)).toBe(expected);
+        });
       }
 
       for (const table of REPRESENTATIVES) {
@@ -389,6 +418,17 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
           expect(await probeWrite(attempt)).toBe(expected);
         });
       }
+    }
+  });
+
+  // Nor may any app principal write the directory: the evidence that each payload is valid.
+  describe("service role — the evidence for the directory write rows", () => {
+    for (const operation of OPERATIONS) {
+      const expected = DIRECTORY_WRITE_EVIDENCE[operation];
+      it(`service role ${operation.toUpperCase()} a fresh user's user_directory row → ${expected}`, async () => {
+        const attempt = await DIRECTORY_WRITE_PROBES[operation](admin, admin);
+        expect(await probeWrite(attempt)).toBe(expected);
+      });
     }
   });
 });
@@ -463,6 +503,35 @@ const humanPolicies = async (pg: Client): Promise<Record<string, PolicyShape[]>>
   return Object.fromEntries(rows.map(({ relname, policies }) => [relname, policies]));
 };
 
+/**
+ * Every policy on each user-keyed table, whatever role it names, sorted by command and then name.
+ * Only the solver's `to solver_job_writer` policies are left out, as everywhere in this suite.
+ */
+const userKeyedPolicies = async (pg: Client): Promise<Record<string, PolicyShape[]>> => {
+  const { rows } = await pg.query<{ relname: string; policies: PolicyShape[] }>(
+    `select c.relname,
+            coalesce(
+              jsonb_agg(
+                jsonb_build_object(
+                  'name', p.policyname, 'command', p.cmd, 'roles', p.roles, 'using', p.qual, 'withCheck', p.with_check
+                )
+                order by p.cmd, p.policyname
+              ) filter (where p.policyname is not null),
+              '[]'
+            ) as policies
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       left join pg_policies p
+         on p.schemaname = n.nspname and p.tablename = c.relname and p.roles <> '{solver_job_writer}'
+      where n.nspname = 'public'
+        and c.relkind in ('r', 'p')
+        and c.relname = any ($1::text[])
+      group by c.relname`,
+    [USER_KEYED_TABLES],
+  );
+  return Object.fromEntries(rows.map(({ relname, policies }) => [relname, policies]));
+};
+
 type FunctionSecurity = "definer" | "invoker";
 
 /**
@@ -474,6 +543,7 @@ const PRIVATE_FUNCTIONS: Record<string, FunctionSecurity> = {
   "private.can_edit()": "invoker",
   "private.can_read()": "invoker",
   "private.current_app_role()": "definer",
+  "private.mirror_auth_user()": "invoker",
 };
 
 /** Every function in `private`, by schema-qualified signature, with how it runs. */
@@ -761,6 +831,43 @@ const hasUserRow = async (admin: UntypedSupabaseClient, table: UserKeyedTable, u
 const requireUserRow = async (admin: UntypedSupabaseClient, table: UserKeyedTable, userId: string): Promise<string> => {
   if (!(await hasUserRow(admin, table, userId))) throw new Error(`setup failed: no ${table} row for ${userId}`);
   return userId;
+};
+
+/** One directory write cell, against a fresh user's row, sent by `client`. */
+type DirectoryWriteProbe = (admin: SupabaseClient, client: SupabaseClient) => Promise<WriteAttempt>;
+
+/**
+ * Each probe builds a fresh user, whose directory row the Auth trigger has already written, and
+ * puts it in the state the write needs: no row to INSERT, the row to UPDATE or DELETE. The UPDATE
+ * writes a sentinel email the read-back compares against.
+ */
+const DIRECTORY_WRITE_PROBES: Record<WriteOperation, DirectoryWriteProbe> = {
+  insert: async (admin, client) => {
+    const { id, email } = await createAuthUser(admin);
+    setUp(await admin.from("user_directory").delete().eq("user_id", id));
+    return {
+      attempt: () => client.from("user_directory").insert({ user_id: id, email }),
+      effectLanded: () => hasUserRow(admin, "user_directory", id),
+    };
+  },
+  update: async (admin, client) => {
+    const id = await requireUserRow(admin, "user_directory", (await createAuthUser(admin)).id);
+    const sentinel = `probe-${randomUUID()}@example.test`;
+    return {
+      attempt: () => client.from("user_directory").update({ email: sentinel }).eq("user_id", id),
+      effectLanded: async () =>
+        readBack(await admin.from("user_directory").select("email").eq("user_id", id)).some(
+          (row) => row.email === sentinel,
+        ),
+    };
+  },
+  delete: async (admin, client) => {
+    const id = await requireUserRow(admin, "user_directory", (await createAuthUser(admin)).id);
+    return {
+      attempt: () => client.from("user_directory").delete().eq("user_id", id),
+      effectLanded: async () => !(await hasUserRow(admin, "user_directory", id)),
+    };
+  },
 };
 
 /** One self-grant write against `userId`'s role row, sent by `client`. */

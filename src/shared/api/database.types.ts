@@ -770,6 +770,27 @@ export type Database = {
           },
         ]
       }
+      user_directory: {
+        Row: {
+          email: string | null
+          is_machine: boolean
+          is_service_account: boolean
+          user_id: string
+        }
+        Insert: {
+          email?: string | null
+          is_machine?: boolean
+          is_service_account?: boolean
+          user_id: string
+        }
+        Update: {
+          email?: string | null
+          is_machine?: boolean
+          is_service_account?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

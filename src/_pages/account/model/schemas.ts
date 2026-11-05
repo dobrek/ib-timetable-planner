@@ -5,7 +5,7 @@ import { z } from "zod";
  * authoritative server gate) and the react-hook-form resolvers.
  *
  * Neither is the real enforcement point. The password floor lives in Supabase Auth's config and the
- * name rules in the `profiles` CHECK, because a user can call either API directly with their own
+ * name rules in the `profiles` CHECKs, because a user can call either API directly with their own
  * token. These rules mirror them so the form catches a mistake before the round trip.
  */
 
@@ -22,15 +22,18 @@ const MAX_PASSWORD_BYTES = 72;
 const MAX_DISPLAY_NAME_LENGTH = 60;
 
 /**
- * Characters that let a name hide or reorder text, mirroring the `profiles` CHECK. Written as
- * escapes, never as the literal characters, so a reviewer can see them:
+ * Characters that let a name hide or reorder text, mirroring the two `profiles` CHECKs
+ * (`profiles_display_name_check`, and `profiles_display_name_no_letter_mark` for U+061C, added by
+ * S-406). Keep the two in step. Written as escapes, never as the literal characters, so a reviewer
+ * can see them:
  *   \p{Cc}               C0 and C1 control characters
+ *   \u{061C}             Arabic letter mark
  *   \u{200B}-\u{200F}    zero-width space, non-joiner and joiner; LRM and RLM marks
  *   \u{202A}-\u{202E}    bidi embeddings and overrides
  *   \u{2066}-\u{2069}    bidi isolates
  *   \u{FEFF}             byte-order mark / zero-width no-break space
  */
-const FORBIDDEN_NAME_CHARACTERS = /[\p{Cc}\u{200B}-\u{200F}\u{202A}-\u{202E}\u{2066}-\u{2069}\u{FEFF}]/u;
+const FORBIDDEN_NAME_CHARACTERS = /[\p{Cc}\u{061C}\u{200B}-\u{200F}\u{202A}-\u{202E}\u{2066}-\u{2069}\u{FEFF}]/u;
 
 export const updatePasswordInput = z.object({
   password: z

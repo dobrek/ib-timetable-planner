@@ -59,6 +59,7 @@ describe("updateDisplayNameInput", () => {
 
   it.each([
     ["a bidi override", 0x202e],
+    ["an Arabic letter mark", 0x061c],
     ["a zero-width space", 0x200b],
     ["a bidi isolate", 0x2066],
     ["a byte-order mark", 0xfeff],

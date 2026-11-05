@@ -645,22 +645,22 @@ This phase delivers the admin-facing page: the route with its 404 gate, the nav 
 
 #### Automated Verification:
 
-- [ ] Unit and component tests pass: `pnpm test`
-- [ ] Type checking passes: `pnpm check`
-- [ ] Lint and FSD pass: `pnpm lint && pnpm steiger`
-- [ ] The build is clean: `pnpm build`
+- [x] Unit and component tests pass: `pnpm test`
+- [x] Type checking passes: `pnpm check`
+- [x] Lint and FSD pass: `pnpm lint && pnpm steiger`
+- [x] The build is clean: `pnpm build`
 
 #### Manual Verification:
 
-- [ ] As an admin (`pnpm build && pnpm preview`):
+- [x] As an admin (`pnpm build && pnpm preview`):
   - **Users** shows in the sidebar and as a dashboard tile, and the list shows display names with emails beneath;
   - a role-less user reads "No access";
   - the latest-change line shows a local date.
-- [ ] Change another user's role: you get a toast, the row updates, and "Changed by \<you\>" appears.
-- [ ] Choose **No access**: a confirm appears, and on confirm the status reads "No access".
-- [ ] With a second admin present, demote yourself: a confirm appears, then you land on `/dashboard` with no Users item.
-- [ ] As the only admin, demote yourself: the toast reads "The school must keep at least one admin", and the picker reverts.
-- [ ] As an author: there is no Users item, and `/users` shows the 404 body.
+- [x] Change another user's role: you get a toast, the row updates, and "Changed by \<you\>" appears.
+- [x] Choose **No access**: a confirm appears, and on confirm the status reads "No access".
+- [x] With a second admin present, demote yourself: a confirm appears, then you land on `/dashboard` with no Users item.
+- [x] As the only admin, demote yourself: the toast reads "The school must keep at least one admin", and the picker reverts.
+- [x] As an author: there is no Users item, and `/users` shows the 404 body.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -871,33 +871,33 @@ This phase adds the admin e2e principal and specs, the cross-role tripwires, and
 
 #### Automated
 
-- [x] 3.1 Type checking passes (every `Record<Capability, …>` filled): `pnpm check`
-- [x] 3.2 Unit tests pass: `pnpm test`
-- [x] 3.3 The action integration test passes
-- [x] 3.4 Lint and FSD pass (no upward import; `shared/lib` stays at 15)
-- [x] 3.5 The build is clean: `pnpm build`
+- [x] 3.1 Type checking passes (every `Record<Capability, …>` filled): `pnpm check` — f30a6b3
+- [x] 3.2 Unit tests pass: `pnpm test` — f30a6b3
+- [x] 3.3 The action integration test passes — f30a6b3
+- [x] 3.4 Lint and FSD pass (no upward import; `shared/lib` stays at 15) — f30a6b3
+- [x] 3.5 The build is clean: `pnpm build` — f30a6b3
 
 #### Manual
 
-- [x] 3.6 The sidebar footer label is unchanged after the `profileLabel` move
+- [x] 3.6 The sidebar footer label is unchanged after the `profileLabel` move — f30a6b3
 
 ### Phase 4: Users Page
 
 #### Automated
 
-- [ ] 4.1 Unit and component tests pass: `pnpm test`
-- [ ] 4.2 Type checking passes: `pnpm check`
-- [ ] 4.3 Lint and FSD pass: `pnpm lint && pnpm steiger`
-- [ ] 4.4 The build is clean: `pnpm build`
+- [x] 4.1 Unit and component tests pass: `pnpm test`
+- [x] 4.2 Type checking passes: `pnpm check`
+- [x] 4.3 Lint and FSD pass: `pnpm lint && pnpm steiger`
+- [x] 4.4 The build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 4.5 Admin sees the Users item and tile, the list with labels, "No access" and local dates
-- [ ] 4.6 Changing another user's role toasts, updates the row and shows "Changed by \<you\>"
-- [ ] 4.7 No access confirms and updates the status
-- [ ] 4.8 Self-demotion with a second admin confirms and lands on `/dashboard`
-- [ ] 4.9 Self-demotion as the only admin is refused and the picker reverts
-- [ ] 4.10 An author sees no Users item, and `/users` is 404
+- [x] 4.5 Admin sees the Users item and tile, the list with labels, "No access" and local dates
+- [x] 4.6 Changing another user's role toasts, updates the row and shows "Changed by \<you\>"
+- [x] 4.7 No access confirms and updates the status
+- [x] 4.8 Self-demotion with a second admin confirms and lands on `/dashboard`
+- [x] 4.9 Self-demotion as the only admin is refused and the picker reverts
+- [x] 4.10 An author sees no Users item, and `/users` is 404
 
 ### Phase 5: Admin E2E Account, Specs and Documentation
 

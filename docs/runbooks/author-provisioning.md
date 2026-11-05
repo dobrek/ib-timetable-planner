@@ -111,8 +111,10 @@ makes the created user immediately sign-in-ready.
    floor — see [`hosted-auth-settings.md`](hosted-auth-settings.md)). Enable
    **Auto Confirm User** so the author can sign in without an email round-trip
    (hosted keeps `mailer_autoconfirm` on; that runbook records what it implies).
-4. Give the account a role from a human shell, with the hosted URL and **secret**
-   key exported ([b-bis](#b-bis-assign-or-change-a-role-script)):
+4. Give the account a role. An admin does it on the Users page (`/users`). To
+   bootstrap the first admin, or when no admin can sign in, use the script from a
+   human shell with the hosted URL and **secret** key exported
+   ([b-bis](#b-bis-assign-or-change-a-role-script)):
 
    ```bash
    ASSIGN_ROLE_CONFIRM=yes node scripts/assign-role.mjs <email> author
@@ -133,8 +135,13 @@ the fallback is the dashboard (**Authentication → Users**) until S-409.
 ## b-bis) Assign or change a role (script)
 
 Every human account holds one role, `admin`, `author` or `viewer`, in
-`public.user_roles` (S-403). Until S-406 ships a Users page, the only way to set
-one is `scripts/assign-role.mjs`, run by someone with the service-role key:
+`public.user_roles` (S-403). **The normal path is the Users page** (`/users`,
+S-406): an admin gives, changes or removes anyone's role there, and the page shows
+who made the last change and when.
+
+`scripts/assign-role.mjs` stays for **bootstrap and recovery**: the first admin of
+a fresh stack (after a local `db reset`), or a school whose admins cannot sign in.
+It runs with the service-role key:
 
 ```bash
 node scripts/assign-role.mjs <email> <admin|author|viewer|none>
@@ -143,17 +150,24 @@ node scripts/assign-role.mjs <email> <admin|author|viewer|none>
 - **`none`** deletes the role row; any other role creates or replaces it. The
   script prints the target host and the role before → after.
 - **Machine accounts are refused.** An account with `app_metadata.machine_role`
-  (the solver's) must never hold a human role.
-- **Keys.** Nobody writes a role through the Data API, so the script needs the
-  **secret** key: export `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your
-  shell, never a committed file. For the local stack both fall back to
-  `.env.test.local`.
+  (the solver's) must never hold a human role. The database refuses it too.
+- **Recorded as the Operator.** Every role write lands in `public.access_changes`.
+  A write from the script has no signed-in actor, so the Users page shows it as
+  "Changed by Operator".
+- **The last admin is guarded.** Demoting the school's only admin, or setting them
+  to `none`, is refused ("refused: the school must keep at least one admin"), and
+  the role stays as it was. Promote another admin first, then step the first one
+  down. The same rule binds the Users page. Deleting an account is not guarded
+  here; S-411 owns that.
+- **Keys.** The script writes outside any session, so it needs the **secret** key:
+  export `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, never a
+  committed file. For the local stack both fall back to `.env.test.local`.
 - **A non-local host** needs `ASSIGN_ROLE_CONFIRM=yes`, or the script refuses
   before it changes anything.
 
 S-403's first migration made every human who existed when it ran an `author`.
-The developer's `admin`, and the role of every account created since, are this
-script's job.
+Since S-406, the first admin is the script's job, and every role after that is
+the Users page's.
 
 ---
 

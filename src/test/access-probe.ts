@@ -35,8 +35,19 @@ export type AccessOutcome = "allowed" | "denied";
 
 export type PublicTable = keyof Database["public"]["Tables"];
 
-/** The tables whose rows belong to a user through `user_id`, not to a plan. */
-export type UserKeyedTable = "profiles" | "user_directory" | "user_roles";
+/**
+ * The column through which each user-keyed table's rows belong to a user rather than to a plan:
+ * `user_id`, or, for the access-change record, the user the change was made to.
+ */
+export const USER_KEY_COLUMN = {
+  access_changes: "target_id",
+  profiles: "user_id",
+  user_directory: "user_id",
+  user_roles: "user_id",
+} as const satisfies Partial<Record<PublicTable, string>>;
+
+/** The tables whose rows belong to a user, not to a plan. */
+export type UserKeyedTable = keyof typeof USER_KEY_COLUMN;
 
 /** An error as supabase-js reports one: PostgREST's (with a SQLSTATE), or a fetch failure (no code). */
 export type ProbeError = { code?: string; message: string };
@@ -124,18 +135,19 @@ export async function probeRead(
 }
 
 /**
- * Read one user's row of a user-keyed table as the principal, named by its `user_id`. A targeted
- * read cannot see "other rows but not this one", so an own-row policy reads as allowed on the
- * principal's own row and denied on another user's, never as partial visibility. The row must
- * exist, which the caller proves as the service role: otherwise an empty read could not tell a
- * denial from an absence.
+ * Read one user's row of a user-keyed table as the principal, named by its user key
+ * (`USER_KEY_COLUMN`). A targeted read cannot see "other rows but not this one", so an own-row
+ * policy reads as allowed on the principal's own row and denied on another user's, never as partial
+ * visibility. The row must exist, which the caller proves as the service role: otherwise an empty
+ * read could not tell a denial from an absence.
  */
 export async function probeUserRowRead(
   client: SupabaseClient,
   table: UserKeyedTable,
   userId: string,
 ): Promise<AccessOutcome> {
-  const { error, seen } = await sight(untyped(client).from(table).select("user_id").eq("user_id", userId).limit(1));
+  const column = USER_KEY_COLUMN[table];
+  const { error, seen } = await sight(untyped(client).from(table).select(column).eq(column, userId).limit(1));
   return classifyRead({ error, seesFixtureRows: seen, seesAnyRow: seen });
 }
 
@@ -164,19 +176,17 @@ const sight = async (query: PromiseLike<{ data: unknown[] | null; error: ProbeEr
   return { error, seen: (data?.length ?? 0) > 0 };
 };
 
-type FixtureKey = { column: "id" | "plan_id" | "user_id"; value: string };
+type FixtureKey = { column: "id" | "plan_id" | (typeof USER_KEY_COLUMN)[UserKeyedTable]; value: string };
 
 // A table's rows belong to a plan through `plan_id`, except the root itself and the user-keyed
 // tables, whose rows belong to a user.
 const fixtureKey = (table: PublicTable, fixture: FixtureRef): FixtureKey => {
   if (table === "plans") return { column: "id", value: fixture.planId };
-  if (isUserKeyed(table)) return { column: "user_id", value: fixture.profileOwnerId };
+  if (isUserKeyed(table)) return { column: USER_KEY_COLUMN[table], value: fixture.profileOwnerId };
   return { column: "plan_id", value: fixture.planId };
 };
 
-const USER_KEYED_TABLES: ReadonlySet<string> = new Set<UserKeyedTable>(["profiles", "user_directory", "user_roles"]);
-
-const isUserKeyed = (table: PublicTable): table is UserKeyedTable => USER_KEYED_TABLES.has(table);
+const isUserKeyed = (table: PublicTable): table is UserKeyedTable => Object.hasOwn(USER_KEY_COLUMN, table);
 
 const fixtureRowsQuery = (client: SupabaseClient, table: PublicTable, fixture: FixtureRef) => {
   const { column, value } = fixtureKey(table, fixture);

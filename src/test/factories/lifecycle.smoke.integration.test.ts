@@ -5,6 +5,7 @@ import { readPublishableKey } from "@/test/publishable-key";
 import {
   addMerge,
   addStudentWithChoices,
+  createAuthUser,
   createPlan,
   createSignedInUser,
   placeCourse,
@@ -18,7 +19,8 @@ import {
 // cascade-removes the plan and everything under it. Plan-rooted isolation means
 // this suite depends on NOTHING already in the dev DB. Skips when env is absent.
 // A second case does the same for `createSignedInUser`: create, sign in, tear down
-// (skipped when there is no publishable key).
+// (skipped when there is no publishable key). A third proves that deleting a user who made and
+// received role changes (S-406's access record) still succeeds, and keeps the records.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -144,4 +146,41 @@ const hasPublishableKey = Boolean(readPublishableKey());
     expect(after.user).toBeNull();
     expect(lookupError?.code).toBe("user_not_found");
   });
+
+  (hasPublishableKey ? it : it.skip)(
+    "deletes a user who is the actor and the target of access records, and keeps the records with the ids nulled",
+    async () => {
+      // The factory's grant names the admin as its target; the admin's own change names it as actor.
+      const actor = await createSignedInUser(supabase, { role: "admin" });
+      const { id: other } = await createAuthUser(supabase);
+      expect((await actor.client.from("user_roles").insert({ user_id: other, role: "viewer" })).error).toBeNull();
+      const records = await recordIdsNaming(supabase, actor.id);
+
+      // Through the guard (the last-admin exemption for a cascade) and the recorder's skip.
+      expect((await supabase.auth.admin.deleteUser(actor.id)).error).toBeNull();
+
+      const { data, error } = await supabase
+        .from("access_changes")
+        .select("id, actor_kind, actor_id, target_id")
+        .in("id", records)
+        .order("id");
+      expect(error).toBeNull();
+      expect(data).toEqual([
+        { id: records[0], actor_kind: "operator", actor_id: null, target_id: null },
+        { id: records[1], actor_kind: "user", actor_id: null, target_id: other },
+      ]);
+    },
+  );
 });
+
+/** The ids of the records naming `userId` as their target or actor, oldest first. */
+const recordIdsNaming = async (supabase: SupabaseClient<Database>, userId: string): Promise<number[]> => {
+  const { data, error } = await supabase
+    .from("access_changes")
+    .select("id")
+    .or(`target_id.eq.${userId},actor_id.eq.${userId}`)
+    .order("id");
+  if (error) throw new Error(`read-back failed: ${error.message}`);
+  if (data.length !== 2) throw new Error(`setup failed: expected two records naming ${userId}, found ${data.length}`);
+  return data.map(({ id }) => id);
+};

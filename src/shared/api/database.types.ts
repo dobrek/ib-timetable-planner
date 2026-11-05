@@ -34,6 +34,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_changes: {
+        Row: {
+          actor_id: string | null
+          actor_kind: Database["public"]["Enums"]["access_actor_kind"]
+          id: number
+          kind: Database["public"]["Enums"]["access_change_kind"]
+          new_role: Database["public"]["Enums"]["app_role"] | null
+          occurred_at: string
+          old_role: Database["public"]["Enums"]["app_role"] | null
+          target_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_kind: Database["public"]["Enums"]["access_actor_kind"]
+          id?: never
+          kind: Database["public"]["Enums"]["access_change_kind"]
+          new_role?: Database["public"]["Enums"]["app_role"] | null
+          occurred_at?: string
+          old_role?: Database["public"]["Enums"]["app_role"] | null
+          target_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_kind?: Database["public"]["Enums"]["access_actor_kind"]
+          id?: never
+          kind?: Database["public"]["Enums"]["access_change_kind"]
+          new_role?: Database["public"]["Enums"]["app_role"] | null
+          occurred_at?: string
+          old_role?: Database["public"]["Enums"]["app_role"] | null
+          target_id?: string | null
+        }
+        Relationships: []
+      }
       bundles: {
         Row: {
           cohort: Database["public"]["Enums"]["cohort"]
@@ -1033,6 +1066,8 @@ export type Database = {
       }
     }
     Enums: {
+      access_actor_kind: "user" | "operator"
+      access_change_kind: "role_granted" | "role_changed" | "role_removed"
       app_role: "admin" | "author" | "viewer"
       availability_severity: "strong" | "soft"
       cohort: "dp1" | "dp2"
@@ -1168,6 +1203,8 @@ export const Constants = {
   },
   public: {
     Enums: {
+      access_actor_kind: ["user", "operator"],
+      access_change_kind: ["role_granted", "role_changed", "role_removed"],
       app_role: ["admin", "author", "viewer"],
       availability_severity: ["strong", "soft"],
       cohort: ["dp1", "dp2"],

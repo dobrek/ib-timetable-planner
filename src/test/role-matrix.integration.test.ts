@@ -32,6 +32,7 @@ import {
   probeUserRowRead,
   probeWrite,
   seesFixtureRows,
+  USER_KEY_COLUMN,
   type AccessOutcome,
   type FixtureRef,
   type UserKeyedTable,
@@ -41,15 +42,19 @@ import { connectPostgres, heldPrivileges } from "./postgres-client";
 import { createPublishableClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 import {
+  ACCESS_CHANGE_WRITE_EVIDENCE,
+  ACCESS_CHANGE_WRITES,
   CAPABILITY_POLICIES,
   DIRECTORY_WRITE_EVIDENCE,
   DIRECTORY_WRITES,
   GRANTS,
   MACHINE_DIRECTORY_READ,
+  MACHINE_ROLE_GRANT,
   PRINCIPAL_NOTES,
   PROFILE_REKEY,
   PROFILE_WRITES,
   READS,
+  ROLE_WRITES,
   RPCS,
   SELF_GRANT_EVIDENCE,
   SELF_GRANTS,
@@ -64,6 +69,7 @@ import {
   type RowOwner,
   type Rpc,
   type SelfGrant,
+  type SelfGrantPrincipal,
   type TableGrants,
   type WriteOperation,
 } from "./role-matrix-expectations";
@@ -77,9 +83,12 @@ import {
  * themselves. App roles live in rows (`user_roles`) rather than Postgres roles, so only the first
  * instrument tells admin, author and viewer apart.
  *
- * The matrix pins S-403's fail-closed posture. Anon is denied everywhere. A signed-in user without
- * a role reaches only its own profile. A viewer reads every plan and profile, and writes only its
- * own profile. An author and an admin read and write every plan. Behavioural cells cover five
+ * The matrix pins S-403's fail-closed posture, with S-406's admin write path. Anon is denied
+ * everywhere. A signed-in user without a role reaches only its own profile and directory row. A
+ * viewer reads every plan and profile, and writes only its own profile. An author and an admin read
+ * and write every plan, and only an admin reads every role and access change, and gives, changes or
+ * removes another user's role. The admin principal's own role row is never written here: demoting
+ * it would change every later cell, so its self-change belongs to the guard and record suites. Behavioural cells cover five
  * representative tables, so a structural check over `pg_policies` proves the other eleven: every
  * plan-scoped table holds exactly `CAPABILITY_POLICIES`, and no policy a session can fall under is
  * a literal `true`. The user-keyed tables hold their own declared shapes (`USER_KEYED_POLICIES`),
@@ -120,12 +129,14 @@ const SELF_GRANT_WRITES: Record<SelfGrant, WriteOperation[]> = {
  * The write a principal's self-grant sends. Claiming `admin` INSERTs a role row when the principal
  * holds none, and UPDATEs the one it holds; dropping its role DELETEs that row.
  */
-const selfGrantWrite = (grant: SelfGrant, principal: Principal): WriteOperation => {
+const selfGrantWrite = (grant: SelfGrant, principal: SelfGrantPrincipal): WriteOperation => {
   if (grant === "drop own role") return "delete";
   return principal !== "anon" && HELD_ROLES[principal] !== null ? "update" : "insert";
 };
 
 const PRINCIPALS = Object.keys(PRINCIPAL_NOTES) as Principal[];
+// The shared admin principal never writes its own role row (see `SELF_GRANTS`).
+const isSelfGrantPrincipal = (principal: Principal): principal is SelfGrantPrincipal => principal !== "admin";
 const SIGNED_IN_PRINCIPALS = Object.keys(HELD_ROLES) as SignedInPrincipal[];
 const PLAN_SCOPED_TABLES = Object.keys(READS) as PlanScopedTable[];
 const USER_KEYED_TABLES = Object.keys(USER_KEYED_READS) as UserKeyedTable[];
@@ -176,6 +187,9 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
     if (!SUPABASE_URL || !SERVICE_KEY || !PUBLISHABLE_KEY) return;
     admin = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
     pg = await connectPostgres();
+    // `user_roles`' policies recurse only once the planner picks a seq scan, which it does on an
+    // analyzed table: without this, a recursing policy would pass on a fresh stack (S-403 §2.3).
+    await pg.query("analyze public.user_roles");
     signedIn = await signInEveryPrincipal(admin);
     principals = {
       // The publishable key and no session: never signed in.
@@ -274,10 +288,13 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
   it("catalog: only authenticated may execute the private helpers, own_app_role and set_current_plan, never anon or PUBLIC", async () => {
     expect(await roleFunctionExecutors(pg)).toEqual({
       "private.can_edit()": ["authenticated"],
+      "private.can_manage_users()": ["authenticated"],
       "private.can_read()": ["authenticated"],
       "private.current_app_role()": ["authenticated"],
-      // A trigger function: EXECUTE is checked when the trigger is created, never when it fires.
+      // Trigger functions: EXECUTE is checked when a trigger is created, never when it fires.
+      "private.guard_last_admin()": [],
       "private.mirror_auth_user()": [],
+      "private.record_role_change()": [],
       "public.own_app_role()": ["authenticated"],
       "public.set_current_plan(p_plan_id uuid)": ["authenticated"],
     });
@@ -351,6 +368,37 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
         });
       }
 
+      for (const operation of OPERATIONS) {
+        const expected = ROLE_WRITES[operation][principal];
+        it(`${principal} ${operation.toUpperCase()} another user's user_roles row → ${expected}`, async () => {
+          const attempt = await ROLE_WRITE_PROBES[operation](
+            admin,
+            principals[principal],
+            await freshRoleTarget(admin, operation),
+            "viewer",
+          );
+          expect(await probeWrite(attempt)).toBe(expected);
+        });
+      }
+
+      const machineGrantExpected = MACHINE_ROLE_GRANT[principal];
+      it(`${principal} INSERT a role for a machine user → ${machineGrantExpected}`, async () => {
+        const attempt = await ROLE_WRITE_PROBES.insert(admin, principals[principal], machineUserId, "viewer");
+        expect(await probeWrite(attempt)).toBe(machineGrantExpected);
+      });
+
+      for (const operation of OPERATIONS) {
+        const expected = ACCESS_CHANGE_WRITES[operation][principal];
+        it(`${principal} ${operation.toUpperCase()} an access_changes row directly → ${expected}`, async () => {
+          const attempt = await ACCESS_CHANGE_WRITE_PROBES[operation](
+            admin,
+            principals[principal],
+            ownUserIdOf(principal),
+          );
+          expect(await probeWrite(attempt)).toBe(expected);
+        });
+      }
+
       for (const table of REPRESENTATIVES) {
         for (const operation of OPERATIONS) {
           const expected = WRITES[table][operation][principal];
@@ -381,20 +429,23 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
         expect(await probeWrite(attempt)).toBe(rekeyExpected);
       });
 
-      for (const grant of SELF_GRANT_NAMES) {
-        const expected = SELF_GRANTS[grant][principal];
-        if (expected === "no-row") {
-          it(`${principal} ${grant} → no-row: it holds no role row`, async () => {
-            expect(await lacksOwnRow(principal, "user_roles")).toBe(true);
-          });
-        } else {
-          const write = selfGrantWrite(grant, principal);
-          const whose = principal === "anon" ? "a fresh user's" : "own";
-          it(`${principal} ${grant} (${write.toUpperCase()} ${whose} role row) → ${expected}`, async () => {
-            const target = ownUserIdOf(principal) ?? (await freshRoleTarget(admin, write));
-            const attempt = await ROLE_WRITE_PROBES[write](admin, principals[principal], target);
-            expect(await probeWrite(attempt)).toBe(expected);
-          });
+      // The admin principal has no self-grant cell: see `SELF_GRANTS`.
+      if (isSelfGrantPrincipal(principal)) {
+        for (const grant of SELF_GRANT_NAMES) {
+          const expected = SELF_GRANTS[grant][principal];
+          if (expected === "no-row") {
+            it(`${principal} ${grant} → no-row: it holds no role row`, async () => {
+              expect(await lacksOwnRow(principal, "user_roles")).toBe(true);
+            });
+          } else {
+            const write = selfGrantWrite(grant, principal);
+            const whose = principal === "anon" ? "a fresh user's" : "own";
+            it(`${principal} ${grant} (${write.toUpperCase()} ${whose} role row) → ${expected}`, async () => {
+              const target = ownUserIdOf(principal) ?? (await freshRoleTarget(admin, write));
+              const attempt = await ROLE_WRITE_PROBES[write](admin, principals[principal], target, "admin");
+              expect(await probeWrite(attempt)).toBe(expected);
+            });
+          }
         }
       }
 
@@ -414,10 +465,21 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
       for (const write of SELF_GRANT_WRITES[grant]) {
         const expected = SELF_GRANT_EVIDENCE[grant];
         it(`service role ${grant} (${write.toUpperCase()} a fresh user's role row) → ${expected}`, async () => {
-          const attempt = await ROLE_WRITE_PROBES[write](admin, admin, await freshRoleTarget(admin, write));
+          const attempt = await ROLE_WRITE_PROBES[write](admin, admin, await freshRoleTarget(admin, write), "admin");
           expect(await probeWrite(attempt)).toBe(expected);
         });
       }
+    }
+  });
+
+  // Nor may any app principal write the access record directly: the evidence for each payload.
+  describe("service role — the evidence for the direct access_changes write rows", () => {
+    for (const operation of OPERATIONS) {
+      const expected = ACCESS_CHANGE_WRITE_EVIDENCE[operation];
+      it(`service role ${operation.toUpperCase()} a fresh user's access_changes row → ${expected}`, async () => {
+        const attempt = await ACCESS_CHANGE_WRITE_PROBES[operation](admin, admin, null);
+        expect(await probeWrite(attempt)).toBe(expected);
+      });
     }
   });
 
@@ -506,6 +568,7 @@ const humanPolicies = async (pg: Client): Promise<Record<string, PolicyShape[]>>
 /**
  * Every policy on each user-keyed table, whatever role it names, sorted by command and then name.
  * Only the solver's `to solver_job_writer` policies are left out, as everywhere in this suite.
+ * Predicates have each run of whitespace collapsed to one space: a subquery deparses over lines.
  */
 const userKeyedPolicies = async (pg: Client): Promise<Record<string, PolicyShape[]>> => {
   const { rows } = await pg.query<{ relname: string; policies: PolicyShape[] }>(
@@ -513,7 +576,9 @@ const userKeyedPolicies = async (pg: Client): Promise<Record<string, PolicyShape
             coalesce(
               jsonb_agg(
                 jsonb_build_object(
-                  'name', p.policyname, 'command', p.cmd, 'roles', p.roles, 'using', p.qual, 'withCheck', p.with_check
+                  'name', p.policyname, 'command', p.cmd, 'roles', p.roles,
+                  'using', regexp_replace(p.qual, '\\s+', ' ', 'g'),
+                  'withCheck', regexp_replace(p.with_check, '\\s+', ' ', 'g')
                 )
                 order by p.cmd, p.policyname
               ) filter (where p.policyname is not null),
@@ -541,9 +606,12 @@ type FunctionSecurity = "definer" | "invoker";
  */
 const PRIVATE_FUNCTIONS: Record<string, FunctionSecurity> = {
   "private.can_edit()": "invoker",
+  "private.can_manage_users()": "invoker",
   "private.can_read()": "invoker",
   "private.current_app_role()": "definer",
+  "private.guard_last_admin()": "invoker",
   "private.mirror_auth_user()": "invoker",
+  "private.record_role_change()": "invoker",
 };
 
 /** Every function in `private`, by schema-qualified signature, with how it runs. */
@@ -823,9 +891,11 @@ const profileRekeyProbe = async (
 // Unique per call and within the CHECK's 60 characters.
 const probeName = (): string => `Probe ${randomUUID()}`;
 
-/** Whether the service role sees `userId`'s row in `table`. Throws on any error. */
-const hasUserRow = async (admin: UntypedSupabaseClient, table: UserKeyedTable, userId: string): Promise<boolean> =>
-  readBack(await admin.from(table).select("user_id").eq("user_id", userId)).length > 0;
+/** Whether the service role sees a row of `userId`'s in `table`, by its user key. Throws on any error. */
+const hasUserRow = async (admin: UntypedSupabaseClient, table: UserKeyedTable, userId: string): Promise<boolean> => {
+  const column = USER_KEY_COLUMN[table];
+  return readBack(await admin.from(table).select(column).eq(column, userId)).length > 0;
+};
 
 /** `userId`, once the service role sees its row in `table`. A missing row is a setup failure. */
 const requireUserRow = async (admin: UntypedSupabaseClient, table: UserKeyedTable, userId: string): Promise<string> => {
@@ -870,8 +940,16 @@ const DIRECTORY_WRITE_PROBES: Record<WriteOperation, DirectoryWriteProbe> = {
   },
 };
 
-/** One self-grant write against `userId`'s role row, sent by `client`. */
-type RoleWriteProbe = (admin: SupabaseClient, client: SupabaseClient, userId: string) => Promise<WriteAttempt>;
+/**
+ * One write against `userId`'s role row, sent by `client`: a self-grant (`role` is `admin`) or an
+ * admin's write to another user (`viewer`). DELETE ignores `role`.
+ */
+type RoleWriteProbe = (
+  admin: SupabaseClient,
+  client: SupabaseClient,
+  userId: string,
+  role: AppRole,
+) => Promise<WriteAttempt>;
 
 /**
  * Each probe first checks that its target is in the state the write needs: no role row to INSERT,
@@ -879,19 +957,19 @@ type RoleWriteProbe = (admin: SupabaseClient, client: SupabaseClient, userId: st
  * stray row is a setup failure rather than an outcome.
  */
 const ROLE_WRITE_PROBES: Record<WriteOperation, RoleWriteProbe> = {
-  insert: async (admin, client, userId) => {
+  insert: async (admin, client, userId, role) => {
     if (await roleRowOf(admin, userId)) throw new Error(`setup failed: ${userId} already holds a role row`);
     return {
-      attempt: () => client.from("user_roles").insert({ user_id: userId, role: "admin" }),
+      attempt: () => client.from("user_roles").insert({ user_id: userId, role }),
       effectLanded: async () => (await roleRowOf(admin, userId)) !== null,
     };
   },
-  // Every UPDATE moves `updated_at` (the moddatetime trigger), so the effect shows even on a row
-  // that already reads `admin`, which is what an admin's self-grant sends.
-  update: async (admin, client, userId) => {
+  // Every UPDATE moves `updated_at` (the moddatetime trigger), so the effect shows whatever role the
+  // row held before.
+  update: async (admin, client, userId, role) => {
     const before = await requireRoleRow(admin, userId);
     return {
-      attempt: () => client.from("user_roles").update({ role: "admin" }).eq("user_id", userId),
+      attempt: () => client.from("user_roles").update({ role }).eq("user_id", userId),
       effectLanded: async () => (await requireRoleRow(admin, userId)).updated_at !== before.updated_at,
     };
   },
@@ -906,12 +984,84 @@ const ROLE_WRITE_PROBES: Record<WriteOperation, RoleWriteProbe> = {
 
 /**
  * A fresh user in the state `write` needs: no role row to INSERT, an `author` row to UPDATE or
- * DELETE. The target of anon's self-grants, which owns no row, and of the service role's evidence.
+ * DELETE. The target of anon's self-grants, which owns no row, of the service role's evidence, and of
+ * every admin write to another user's role.
  */
 const freshRoleTarget = async (admin: SupabaseClient, write: WriteOperation): Promise<string> => {
   const { id } = await createAuthUser(admin);
   if (write !== "insert") setUp(await admin.from("user_roles").insert({ user_id: id, role: "author" }));
   return id;
+};
+
+/**
+ * One direct write to the access record, sent by `client`. `actorId` is the principal's own id, so
+ * an admin's INSERT names itself as the actor, exactly as its trigger would: only the trigger-context
+ * clause can refuse it. Anon and the service role have no id and send the operator's shape.
+ */
+type AccessChangeWriteProbe = (
+  admin: SupabaseClient,
+  client: SupabaseClient,
+  actorId: string | null,
+) => Promise<WriteAttempt>;
+
+/**
+ * INSERT names a fresh role-less user, so no record names it yet; UPDATE and DELETE act on the
+ * operator's record of a fresh user being given `author`, found by its target. UPDATE writes a
+ * sentinel `new_role` the read-back compares against.
+ */
+const ACCESS_CHANGE_WRITE_PROBES: Record<WriteOperation, AccessChangeWriteProbe> = {
+  insert: async (admin, client, actorId) => {
+    const { id: targetId } = await createAuthUser(admin);
+    if (await recordsOf(admin, targetId)) throw new Error(`setup failed: a record already names ${targetId}`);
+    const row = {
+      kind: "role_granted" as const,
+      actor_kind: actorId ? ("user" as const) : ("operator" as const),
+      actor_id: actorId,
+      target_id: targetId,
+      new_role: "viewer" as const,
+    };
+    return {
+      attempt: () => client.from("access_changes").insert(row),
+      effectLanded: async () => (await recordsOf(admin, targetId)) > 0,
+    };
+  },
+  update: async (admin, client) => {
+    const recordId = await operatorGrantRecord(admin);
+    return {
+      attempt: () => client.from("access_changes").update({ new_role: "viewer" }).eq("id", recordId),
+      effectLanded: async () =>
+        readBack(await admin.from("access_changes").select("new_role").eq("id", recordId).single()).new_role ===
+        "viewer",
+    };
+  },
+  delete: async (admin, client) => {
+    const recordId = await operatorGrantRecord(admin);
+    return {
+      attempt: () => client.from("access_changes").delete().eq("id", recordId),
+      effectLanded: async () =>
+        readBack(await admin.from("access_changes").select("id").eq("id", recordId)).length === 0,
+    };
+  },
+};
+
+/** How many records name `targetId`, as the service role sees them. Throws on any error. */
+const recordsOf = async (admin: SupabaseClient, targetId: string): Promise<number> =>
+  readBack(await admin.from("access_changes").select("id").eq("target_id", targetId)).length;
+
+/** A fresh user given `author` by the service role, and the id of the one record that writes. */
+const operatorGrantRecord = async (admin: SupabaseClient): Promise<number> => {
+  const targetId = await freshRoleTarget(admin, "update");
+  const records = readBack(
+    await admin.from("access_changes").select("id, kind, actor_kind, new_role").eq("target_id", targetId),
+  );
+  const isOperatorGrant = (record: (typeof records)[number]): boolean =>
+    record.kind === "role_granted" && record.actor_kind === "operator" && record.new_role === "author";
+  if (records.length !== 1 || !records.every(isOperatorGrant)) {
+    throw new Error(
+      `setup failed: expected one operator grant record for ${targetId}, found ${JSON.stringify(records)}`,
+    );
+  }
+  return records[0].id;
 };
 
 type RoleRow = { role: AppRole; updated_at: string };

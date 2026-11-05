@@ -5,6 +5,7 @@ import { createGenerationActions, groupingActions, placementActions, shelfAction
 import { planActions } from "@/_pages/plans-list/api";
 import { studentActions } from "@/_pages/students/api";
 import { teacherActions } from "@/_pages/teachers/api";
+import { userActions } from "@/_pages/users/api";
 
 /**
  * The Actions composition root — and, since S-301, the place environment-bound dependencies are
@@ -26,5 +27,6 @@ export const server = {
   ...shelfActions,
   ...groupingActions,
   ...planActions,
+  ...userActions,
   ...createGenerationActions({ getTransport: getSolverTransport }),
 };

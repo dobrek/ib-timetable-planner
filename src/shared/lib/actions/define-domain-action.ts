@@ -14,7 +14,8 @@ import { runDomain } from "./run-domain";
  * tables.
  *
  * `requires` defaults to `edit` (S-403), so an action that forgets to declare one fails closed:
- * only the caller's own-account actions (`session`) and pure reads (`read`) declare less.
+ * only the caller's own-account actions (`session`) and pure reads (`read`) declare less, and the
+ * Users page's role change (`manage_users`, S-406) declares more.
  */
 export function defineDomainAction<TInputSchema extends z.$ZodType, TOutput>(options: {
   input: TInputSchema;

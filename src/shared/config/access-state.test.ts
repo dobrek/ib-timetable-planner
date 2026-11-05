@@ -9,14 +9,15 @@ const UNAVAILABLE: AccessState = { status: "unavailable" };
 
 describe("allows", () => {
   it.each([
-    ["admin", ADMIN, { session: true, read: true, edit: true }],
-    ["author", AUTHOR, { session: true, read: true, edit: true }],
-    ["viewer", VIEWER, { session: true, read: true, edit: false }],
-    ["no role", NONE, { session: true, read: false, edit: false }],
-    ["a failed lookup", UNAVAILABLE, { session: true, read: false, edit: false }],
+    ["admin", ADMIN, { session: true, read: true, edit: true, manage_users: true }],
+    ["author", AUTHOR, { session: true, read: true, edit: true, manage_users: false }],
+    ["viewer", VIEWER, { session: true, read: true, edit: false, manage_users: false }],
+    ["no role", NONE, { session: true, read: false, edit: false, manage_users: false }],
+    ["a failed lookup", UNAVAILABLE, { session: true, read: false, edit: false, manage_users: false }],
   ] as const)("%s", (_label, access, expected) => {
     expect(allows(access, "session")).toBe(expected.session);
     expect(allows(access, "read")).toBe(expected.read);
     expect(allows(access, "edit")).toBe(expected.edit);
+    expect(allows(access, "manage_users")).toBe(expected.manage_users);
   });
 });

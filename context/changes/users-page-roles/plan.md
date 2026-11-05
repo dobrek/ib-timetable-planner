@@ -562,15 +562,15 @@ This phase makes the app speak `manage_users`, moves `profileLabel` where a page
 
 #### Automated Verification:
 
-- [ ] Type checking passes (every `Record<Capability, …>` filled): `pnpm check`
-- [ ] Unit tests pass (capability, access-state, require-capability, action-capabilities, user-rows, schemas, profile-label): `pnpm test`
-- [ ] The action integration test passes: `pnpm test:integration src/_pages/users/api/change-user-role.integration.test.ts`
-- [ ] Lint and FSD pass (no upward import; `shared/lib` stays at 15): `pnpm lint && pnpm steiger`
-- [ ] The build is clean: `pnpm build`
+- [x] Type checking passes (every `Record<Capability, …>` filled): `pnpm check`
+- [x] Unit tests pass (capability, access-state, require-capability, action-capabilities, user-rows, schemas, profile-label): `pnpm test`
+- [x] The action integration test passes: `pnpm test:integration src/_pages/users/api/change-user-role.integration.test.ts`
+- [x] Lint and FSD pass (no upward import; `shared/lib` stays at 15): `pnpm lint && pnpm steiger`
+- [x] The build is clean: `pnpm build`
 
 #### Manual Verification:
 
-- [ ] The sidebar footer still shows the display name with the email beneath it, or the email alone: `pnpm build && pnpm preview`, as an author.
+- [x] The sidebar footer still shows the display name with the email beneath it, or the email alone: `pnpm build && pnpm preview`, as an author.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -838,7 +838,7 @@ This phase adds the admin e2e principal and specs, the cross-role tripwires, and
 #### Automated
 
 - [x] 1.1 The matrix diff for `user_directory` runs red against the pre-migration schema (deny drill), then green after — 2224da5
-- [x] 1.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
+- [x] 1.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset` — dc32c4a
 - [x] 1.3 The directory integration test passes — 2224da5
 - [x] 1.4 The solver credential suite stays green — 2224da5
 - [x] 1.5 Type checking passes: `pnpm check` — 2224da5
@@ -854,32 +854,32 @@ This phase adds the admin e2e principal and specs, the cross-role tripwires, and
 
 #### Automated
 
-- [x] 2.1 The matrix flip runs red against Phase 1's schema (deny drill), then green after the migration
-- [x] 2.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
-- [x] 2.3 The guard and lock tests pass
-- [x] 2.4 The recorder tests pass
-- [x] 2.5 The lifecycle smoke and the full integration lane pass
-- [x] 2.6 Types regenerate cleanly, then `pnpm check`
-- [x] 2.7 The advisors show no new ERROR or WARN
+- [x] 2.1 The matrix flip runs red against Phase 1's schema (deny drill), then green after the migration — dc32c4a
+- [x] 2.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset` — dc32c4a
+- [x] 2.3 The guard and lock tests pass — dc32c4a
+- [x] 2.4 The recorder tests pass — dc32c4a
+- [x] 2.5 The lifecycle smoke and the full integration lane pass — dc32c4a
+- [x] 2.6 Types regenerate cleanly, then `pnpm check` — dc32c4a
+- [x] 2.7 The advisors show no new ERROR or WARN — dc32c4a
 
 #### Manual
 
-- [x] 2.8 `assign-role.mjs` demoting the only local admin is refused with the last-admin message
-- [x] 2.9 `access_changes` shows the factories' and the script's writes as `operator`
+- [x] 2.8 `assign-role.mjs` demoting the only local admin is refused with the last-admin message — dc32c4a
+- [x] 2.9 `access_changes` shows the factories' and the script's writes as `operator` — dc32c4a
 
 ### Phase 3: App Capability, Loader and Action
 
 #### Automated
 
-- [ ] 3.1 Type checking passes (every `Record<Capability, …>` filled): `pnpm check`
-- [ ] 3.2 Unit tests pass: `pnpm test`
-- [ ] 3.3 The action integration test passes
-- [ ] 3.4 Lint and FSD pass (no upward import; `shared/lib` stays at 15)
-- [ ] 3.5 The build is clean: `pnpm build`
+- [x] 3.1 Type checking passes (every `Record<Capability, …>` filled): `pnpm check`
+- [x] 3.2 Unit tests pass: `pnpm test`
+- [x] 3.3 The action integration test passes
+- [x] 3.4 Lint and FSD pass (no upward import; `shared/lib` stays at 15)
+- [x] 3.5 The build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.6 The sidebar footer label is unchanged after the `profileLabel` move
+- [x] 3.6 The sidebar footer label is unchanged after the `profileLabel` move
 
 ### Phase 4: Users Page
 

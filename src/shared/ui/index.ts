@@ -73,6 +73,7 @@ export {
   PopoverTrigger,
 } from "./popover";
 export { PrintButton } from "./print-button";
+export { profileLabel, type ProfileLabel } from "./profile-label";
 export {
   Select,
   SelectContent,

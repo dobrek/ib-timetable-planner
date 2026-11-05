@@ -6,11 +6,18 @@ import { GLOBAL_NAV_ITEMS, visibleNavItems, type NavItem } from "./nav";
 const labels = (items: readonly NavItem[]) => items.map((item) => item.label);
 
 describe("visibleNavItems", () => {
+  it("shows an admin every global section, Users included", () => {
+    expect(labels(visibleNavItems(GLOBAL_NAV_ITEMS, { status: "granted", role: "admin" }))).toEqual([
+      "Home",
+      "Plans",
+      "Users",
+    ]);
+  });
+
   it.each([
-    ["an admin", { status: "granted", role: "admin" }],
     ["an author", { status: "granted", role: "author" }],
     ["a viewer", { status: "granted", role: "viewer" }],
-  ] as const)("shows %s every global section", (_label, access) => {
+  ] as const)("shows %s Home and Plans, never Users", (_label, access) => {
     expect(labels(visibleNavItems(GLOBAL_NAV_ITEMS, access))).toEqual(["Home", "Plans"]);
   });
 

@@ -1,0 +1,49 @@
+---
+import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
+import UsersPage from "@/_pages/users/ui/UsersPage";
+import { loadUserDirectory } from "@/_pages/users/api";
+import { createClient } from "@/shared/api";
+import { allows } from "@/shared/config";
+import type { UserRow } from "@/_pages/users";
+
+const { user, access } = Astro.locals;
+
+// Decided once, here (S-406). The middleware's role gate is unchanged: an author or a viewer passes
+// it and is told the page does not exist. RLS is the enforcement either way.
+const canManageUsers = allows(access, "manage_users");
+const rows = canManageUsers ? await loadRows() : null;
+if (!canManageUsers) Astro.response.status = 404;
+else if (rows === null) Astro.response.status = 503;
+
+/** The rows, or null when Supabase is not configured or the load failed (logged, then a 503). */
+async function loadRows(): Promise<UserRow[] | null> {
+  try {
+    const result = await loadUserDirectory(createClient(Astro.request.headers, Astro.cookies));
+    return result.ok ? result.value : null;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("[users] loading the directory failed:", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+---
+
+<AppShellLayout title={canManageUsers ? "Users" : "Page not found"}>
+  {
+    !canManageUsers ? (
+      <div class="py-16 text-center">
+        <h1 class="text-foreground text-2xl font-semibold tracking-tight">Page not found</h1>
+        <p class="text-muted-foreground mt-2 text-sm">
+          This page doesn't exist.{" "}
+          <a href="/dashboard" class="text-foreground underline">
+            Back to Home
+          </a>
+        </p>
+      </div>
+    ) : rows === null || !user ? (
+      <p class="text-muted-foreground text-sm">Users are unavailable right now. Reload the page in a moment.</p>
+    ) : (
+      <UsersPage rows={rows} currentUserId={user.id} client:load />
+    )
+  }
+</AppShellLayout>

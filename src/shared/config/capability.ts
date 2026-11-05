@@ -2,10 +2,11 @@ import type { AppRole } from "./app-role";
 
 /**
  * What a request needs (S-403). `session` is any signed-in user, role or not: their own account.
- * `read` and `edit` mirror the SQL wrappers `private.can_read()` and `private.can_edit()`, which are
- * the enforcement. This map only lets the app say "no" clearly before RLS says it silently.
+ * `read`, `edit` and `manage_users` (S-406) mirror the SQL wrappers `private.can_read()`,
+ * `private.can_edit()` and `private.can_manage_users()`, which are the enforcement. This map only
+ * lets the app say "no" clearly before RLS says it silently.
  */
-export type Capability = "session" | "read" | "edit";
+export type Capability = "session" | "read" | "edit" | "manage_users";
 
 /** Whether `role` holds `capability`. The role matrix pins the SQL side of the same map. */
 export function grants(role: AppRole, capability: Capability): boolean {
@@ -14,7 +15,7 @@ export function grants(role: AppRole, capability: Capability): boolean {
 
 // A `Record` over the generated enum, so a new role does not compile until it is placed here.
 const CAPABILITIES_BY_ROLE: Record<AppRole, readonly Capability[]> = {
-  admin: ["session", "read", "edit"],
+  admin: ["session", "read", "edit", "manage_users"],
   author: ["session", "read", "edit"],
   viewer: ["session", "read"],
 };

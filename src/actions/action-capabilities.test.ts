@@ -29,12 +29,14 @@ vi.mock("@/entities/timetable/api/solver-config", () => ({ getSolverTransport: (
 const { server } = await import("@/actions");
 const ACTIONS: Record<string, unknown> = server;
 
-// The only actions that declare less than the `edit` default. Everything else must refuse a viewer.
-const NON_EDIT: Record<string, Capability> = {
+// The only actions declaring a capability other than the `edit` default, less or more. Every other
+// action must refuse a viewer.
+const NOT_EDIT: Record<string, Capability> = {
   updatePassword: "session", // the caller's own account (FR-410)
   updateDisplayName: "session", // the caller's own account (FR-410)
   readGenerationJobStatuses: "read", // the hub's poll
   readPlanJob: "read", // a viewer's plan visit, poll and Refresh; it never writes (S-405)
+  changeUserRole: "manage_users", // the Users page: an admin only (S-406)
 };
 
 type Outcome = "reached" | "FORBIDDEN" | "SERVICE_UNAVAILABLE";
@@ -64,15 +66,22 @@ const OUTCOMES: Record<Capability, Record<AccessLabel, Outcome>> = {
     none: "FORBIDDEN",
     unavailable: "SERVICE_UNAVAILABLE",
   },
+  manage_users: {
+    admin: "reached",
+    author: "FORBIDDEN",
+    viewer: "FORBIDDEN",
+    none: "FORBIDDEN",
+    unavailable: "SERVICE_UNAVAILABLE",
+  },
 };
 
 describe("action capabilities", () => {
-  it("declares every non-edit exception on an action that exists", () => {
-    expect(Object.keys(ACTIONS)).toEqual(expect.arrayContaining(Object.keys(NON_EDIT)));
+  it("declares every exception to the edit default on an action that exists", () => {
+    expect(Object.keys(ACTIONS)).toEqual(expect.arrayContaining(Object.keys(NOT_EDIT)));
   });
 
   it.each(Object.keys(ACTIONS))("%s", async (name) => {
-    const capability = NON_EDIT[name] ?? "edit";
+    const capability = NOT_EDIT[name] ?? "edit";
     const outcomes = await probe(ACTIONS[name]);
 
     expect(outcomes).toEqual(OUTCOMES[capability]);

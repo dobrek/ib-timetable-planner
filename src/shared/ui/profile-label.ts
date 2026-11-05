@@ -5,8 +5,9 @@ export type ProfileLabel = {
 };
 
 /**
- * How the sidebar names the signed-in user (FR-413): the display name when set, with the email
- * beneath it so a look-alike name can't pass for a colleague; the email alone otherwise.
+ * How the app names a person (FR-413), in the sidebar and on the Users page alike: the display name
+ * when set, with the email beneath it so a look-alike name can't pass for a colleague; the email
+ * alone otherwise.
  */
 export function profileLabel({ displayName, email }: { displayName: string | null; email: string }): ProfileLabel {
   return displayName ? { primary: displayName, secondary: email } : { primary: email, secondary: null };

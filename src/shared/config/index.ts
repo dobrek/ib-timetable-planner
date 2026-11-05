@@ -38,7 +38,7 @@ export {
   type SubjectColor,
 } from "./subject-colors";
 export { optionalChipClass } from "./optional-chip";
-export type { AppRole } from "./app-role";
+export { APP_ROLE_VALUES, type AppRole } from "./app-role";
 export { grants, type Capability } from "./capability";
 export { allows, type AccessState } from "./access-state";
 export { resolveAccess } from "./resolve-access";

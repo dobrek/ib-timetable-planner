@@ -18,6 +18,7 @@ export {
   CHECK_VIOLATION,
   NOT_FOUND_ROW,
   INSUFFICIENT_PRIVILEGE,
+  RAISED_CONFLICT,
   unwrapRow,
   unwrapMaybeRow,
   unwrapMany,

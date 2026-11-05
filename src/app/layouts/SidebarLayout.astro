@@ -2,10 +2,9 @@
 import BaseLayout from "./BaseLayout.astro";
 import SidebarAccountLink from "./SidebarAccountLink.astro";
 import SidebarNavLink from "./SidebarNavLink.astro";
-import { profileLabel } from "./profile-label";
 import { createClient, loadOwnProfile } from "@/shared/api";
 import { allows, GLOBAL_NAV_ITEMS, planNavItems, visibleNavItems, type NavItem } from "@/shared/config";
-import { CurrentPlanBadge, ViewOnlyBadge } from "@/shared/ui";
+import { CurrentPlanBadge, profileLabel, ViewOnlyBadge } from "@/shared/ui";
 import { Sun, Moon, PanelLeft, LogOut } from "lucide-react";
 
 type Props = {

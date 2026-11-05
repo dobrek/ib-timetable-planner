@@ -49,11 +49,32 @@ const deletePlans = async (supabase: SupabaseClient, planIds: string[]): Promise
   return error ? [`failed to delete plans: ${error.message}`] : [];
 };
 
+/**
+ * At most this many deletions in flight. GoTrue opens a database connection per request, and a
+ * suite that registers dozens of users (the role matrix) would otherwise exhaust the local stack's
+ * `max_connections` at once, failing the deletes with 53300.
+ */
+const USER_DELETE_BATCH = 8;
+
+type UserDeleteOutcome = { userId: string; error: { code?: string; message: string } | null };
+
 const deleteUsers = async (supabase: SupabaseClient, userIds: string[]): Promise<string[]> => {
-  const outcomes = await Promise.all(
-    userIds.map(async (userId) => ({ userId, error: (await supabase.auth.admin.deleteUser(userId)).error })),
+  const outcomes = await batches(userIds, USER_DELETE_BATCH).reduce<Promise<UserDeleteOutcome[]>>(
+    async (done, batch) => [
+      ...(await done),
+      ...(await Promise.all(batch.map((userId) => deleteUser(supabase, userId)))),
+    ],
+    Promise.resolve([]),
   );
   return outcomes.flatMap(({ userId, error }) =>
     error && error.code !== "user_not_found" ? [`failed to delete user ${userId}: ${error.message}`] : [],
   );
 };
+
+const deleteUser = async (supabase: SupabaseClient, userId: string): Promise<UserDeleteOutcome> => ({
+  userId,
+  error: (await supabase.auth.admin.deleteUser(userId)).error,
+});
+
+const batches = <T>(items: readonly T[], size: number): T[][] =>
+  Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));

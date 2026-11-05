@@ -119,13 +119,23 @@ type DirectoryRow = { email: string | null; is_machine: boolean; is_service_acco
     ]);
   });
 
-  it("every auth user has exactly one directory row", async () => {
-    // One statement, so one snapshot: a user and its mirror row commit in the same transaction.
-    const { rows } = await pg.query<{ users: string; mirrored: string }>(
-      `select (select count(*) from auth.users) as users,
-              (select count(*) from auth.users u join public.user_directory d on d.user_id = u.id) as mirrored`,
+  it("every user created through GoTrue here has exactly one directory row", async () => {
+    // Scoped to this file's users, not a global count: the role matrix, running in parallel,
+    // deletes a fresh user's row on purpose to probe INSERT. The migration's post-condition proves
+    // the backfill's global count; this proves the trigger never misses a user GoTrue creates.
+    const users = await Promise.all([createAuthUser(admin), createSignedInUser(admin)]);
+    const ids = users.map(({ id }) => id);
+    const { rows } = await pg.query<{ user_id: string; mirrored: number }>(
+      `select u.id::text as user_id, count(d.user_id)::int as mirrored
+         from auth.users u
+         left join public.user_directory d on d.user_id = u.id
+        where u.id = any ($1::uuid[])
+        group by u.id`,
+      [ids],
     );
-    expect(rows[0]?.mirrored).toBe(rows[0]?.users);
+    expect(Object.fromEntries(rows.map(({ user_id, mirrored }) => [user_id, mirrored]))).toEqual(
+      Object.fromEntries(ids.map((id) => [id, 1])),
+    );
   });
 });
 

@@ -8,31 +8,38 @@ import type { TablePrivilege } from "./postgres-client";
  * old policies (the `fail-closed-roles` change's deny drill), and then
  * `20261028200630_fail_closed_policies.sql` turned them green.
  *
- * The posture since S-403:
+ * The posture since S-403, with S-406's admin write path:
  *
- * - Every `public` table but the user-keyed ones (`profiles`, `user_directory`, `user_roles`) has
- *   RLS on and the four policies in `CAPABILITY_POLICIES`. Reading needs a role (`private.can_read()`); writing needs `admin` or
- *   `author` (`private.can_edit()`). So a viewer reads every plan and writes none, and a signed-in
- *   user without a role reaches none of it. The behavioural cells cover five representative tables,
- *   and the suite's structural check proves the four policies on all sixteen.
+ * - Every `public` table but the user-keyed ones (`USER_KEY_COLUMN`) has RLS on and the four
+ *   policies in `CAPABILITY_POLICIES`. Reading needs a role (`private.can_read()`); writing needs
+ *   `admin` or `author` (`private.can_edit()`). So a viewer reads every plan and writes none, and a
+ *   signed-in user without a role reaches none of it. The behavioural cells cover five
+ *   representative tables, and the suite's structural check proves the four policies on all sixteen.
  * - A viewer's INSERT and UPDATE fail with 42501 and its DELETE matches no rows, so its write cells
  *   read "denied" either way: the probe judges a write by the service role's read-back.
  * - `profiles` (S-401): a user reads their own row, and anyone holding a role reads every row. A
  *   user inserts and updates only their own row, whatever their role, and nobody deletes one.
  *   `PROFILE_WRITES` holds the "whose row" cells.
- * - `user_roles`: a signed-in human reads only their own role row, and nobody writes one through
- *   the Data API (`SELF_GRANTS`).
+ * - `user_roles`: a signed-in human reads their own role row; an admin (`private.can_manage_users()`)
+ *   reads every row, and gives, changes and removes anyone's role (`ROLE_WRITES`), never a machine
+ *   user's (`MACHINE_ROLE_GRANT`). Nobody else writes one, their own included (`SELF_GRANTS`). An
+ *   admin's own row is never probed here: the last-admin guard's suite owns that, on a throwaway
+ *   admin, so this file never demotes its own principal.
+ * - `access_changes` (S-406): the record of every role write, written by `user_roles`' trigger. Only
+ *   an admin reads it, and no session writes it directly, an admin included (`ACCESS_CHANGE_WRITES`).
+ *   A row is "a user's" through `target_id`, the user the change was made to.
  * - `user_directory` (S-406): the Auth trigger's mirror of `auth.users`. It is read like `profiles`
  *   (own row, or any row with a role), never shows a machine user to anyone
  *   (`MACHINE_DIRECTORY_READ`), and no session writes it (`DIRECTORY_WRITES`).
- * - admin holds exactly an author's access: admin surfaces are S-406's.
+ * - admin holds an author's access to every plan, plus the two admin-only tables above.
  * - `anon` holds no DML grant on any table, so PostgREST refuses it outright (42501). It still holds
  *   Supabase's auto-granted TRUNCATE, REFERENCES, TRIGGER and MAINTAIN on 15 tables, which
- *   PostgREST cannot reach; `generation_jobs`, `profiles` and `user_roles` revoked all eight
+ *   PostgREST cannot reach; `generation_jobs` and the user-keyed tables revoked all eight
  *   (lessons.md, "granting a role is not excluding the others").
- * - `authenticated` holds all eight privileges everywhere except `profiles` (INSERT, SELECT and
- *   UPDATE only), `user_directory` and `user_roles` (SELECT only). So, for a signed-in user, RLS is
- *   the lock, and the role it holds is what RLS judges.
+ * - `authenticated` holds all eight privileges everywhere except the user-keyed tables: `profiles`
+ *   (INSERT, SELECT, UPDATE), `user_directory` (SELECT), `user_roles` (the four DML verbs) and
+ *   `access_changes` (INSERT, SELECT: no UPDATE or DELETE, so the record is append-only). So, for a
+ *   signed-in user, RLS is the lock, and the role it holds is what RLS judges.
  *
  * Completeness is enforced: a missing principal or table is a type error, so a new principal, or a
  * new table in `database.types.ts`, fails `pnpm check` until every cell is declared. A table that
@@ -75,10 +82,14 @@ export type Rpc =
 /** A principal writing its own `user_roles` row (see `SELF_GRANTS`). */
 export type SelfGrant = "claim admin" | "drop own role";
 
+/** Every principal but admin, whose own role row the matrix never writes (see `SELF_GRANTS`). */
+export type SelfGrantPrincipal = Exclude<Principal, "admin">;
+
 /**
  * A cell that targets the principal's own row, which the principal may not hold. noRole holds no
- * `user_roles` row, so its cells there are `"no-row"`: stated rather than faked as `denied`, and
- * checked live as the row's absence instead of probed.
+ * `user_roles` row, and so no `access_changes` record names it either: its cells there are
+ * `"no-row"`, stated rather than faked as `denied`, and checked live as the row's absence instead of
+ * probed.
  */
 export type OwnRowOutcome = AccessOutcome | "no-row";
 
@@ -93,7 +104,7 @@ export const PRINCIPAL_NOTES: Record<Principal, string> = {
   noRole: "a signed-in user without a role reaches only its own profile and directory row, and no plan data at all",
   viewer: "a viewer reads every plan, profile and directory row, and writes only its own profile",
   author: "an author reads and writes every plan, and writes only its own profile",
-  admin: "an admin holds exactly an author's access until S-406",
+  admin: "an admin holds an author's access, and also reads every role and access change and writes others' roles",
 };
 
 export const READS: Record<PlanScopedTable, Cell> = {
@@ -124,9 +135,15 @@ export const READS: Record<PlanScopedTable, Cell> = {
 /**
  * Reads of the user-keyed tables, by whose row the read names. A targeted read never sees "other
  * rows but not this one", so an own-row policy reads as allowed on the principal's own row and
- * denied on another user's. `others` is the fixture owner, who holds a profile and a role row.
+ * denied on another user's. `others` is the fixture owner, who holds a profile, a role row, and the
+ * operator's record of that role being given. Each principal holding a role is named by the same
+ * record of its own, from its factory's insert.
  */
 export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCell>> = {
+  access_changes: {
+    own: { anon: "denied", noRole: "no-row", viewer: "denied", author: "denied", admin: "allowed" },
+    others: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "allowed" },
+  },
   profiles: {
     own: { anon: "denied", noRole: "allowed", viewer: "allowed", author: "allowed", admin: "allowed" },
     others: { anon: "denied", noRole: "denied", viewer: "allowed", author: "allowed", admin: "allowed" },
@@ -137,7 +154,7 @@ export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCel
   },
   user_roles: {
     own: { anon: "denied", noRole: "no-row", viewer: "allowed", author: "allowed", admin: "allowed" },
-    others: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+    others: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "allowed" },
   },
 };
 
@@ -212,20 +229,22 @@ export const PROFILE_REKEY: Cell = {
 };
 
 /**
- * Self-grants: a principal writing its own `user_roles` row, which nobody may do through the Data
- * API until S-406. `GRANTS.user_roles` gives `authenticated` SELECT alone, so the grant layer
- * refuses every cell.
+ * Self-grants: a principal without `manage_users` writing its own `user_roles` row. Since S-406
+ * `authenticated` holds the write grants, so RLS refuses these: an INSERT fails its WITH CHECK
+ * (42501), and an UPDATE or DELETE matches no row.
  *
  * - **claim admin.** A principal holding no role row INSERTs one as `admin` (noRole); one holding
- *   a row UPDATEs it to `admin` (viewer, author, admin).
+ *   a row UPDATEs it to `admin` (viewer, author).
  * - **drop own role.** A principal holding a role row DELETEs it. noRole holds none: `"no-row"`.
  *
- * Anon owns no row, so its cells aim at a fresh user in the state each write needs. No app
- * principal is allowed, so no cell here evidences its payload: `SELF_GRANT_EVIDENCE` does.
+ * Admin has no cell. It may write its own row, and doing so through the shared principal would
+ * demote it mid-file, so its self-change is proven on a throwaway admin by the last-admin guard's
+ * and the access record's suites. Anon owns no row, so its cells aim at a fresh user in the state
+ * each write needs. No principal here is allowed, so `SELF_GRANT_EVIDENCE` evidences the payloads.
  */
-export const SELF_GRANTS: Record<SelfGrant, OwnRowCell> = {
-  "claim admin": { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
-  "drop own role": { anon: "denied", noRole: "no-row", viewer: "denied", author: "denied", admin: "denied" },
+export const SELF_GRANTS: Record<SelfGrant, Record<SelfGrantPrincipal, OwnRowOutcome>> = {
+  "claim admin": { anon: "denied", noRole: "denied", viewer: "denied", author: "denied" },
+  "drop own role": { anon: "denied", noRole: "no-row", viewer: "denied", author: "denied" },
 };
 
 /**
@@ -236,6 +255,50 @@ export const SELF_GRANTS: Record<SelfGrant, OwnRowCell> = {
 export const SELF_GRANT_EVIDENCE: Record<SelfGrant, AccessOutcome> = {
   "claim admin": "allowed",
   "drop own role": "allowed",
+};
+
+/**
+ * An admin's role writes, each against a fresh user in the state the write needs: give a role to a
+ * user holding none (INSERT), change one (UPDATE), remove one (DELETE). None ever names an admin's
+ * row, so the last-admin guard never binds here. The role written is `viewer`, so the matrix makes
+ * no extra admins either. Only `manage_users` (admin) may; every other principal is refused by RLS.
+ */
+export const ROLE_WRITES: Record<WriteOperation, Cell> = {
+  insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "allowed" },
+  update: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "allowed" },
+  delete: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "allowed" },
+};
+
+/**
+ * Giving the machine fixture a role, which even an admin may not: the INSERT policy's WITH CHECK
+ * asks for the target's directory row, and the directory's read policy hides every machine. Its
+ * payload differs from `ROLE_WRITES.insert` only in whose `user_id` it names, which is its evidence.
+ */
+export const MACHINE_ROLE_GRANT: Cell = {
+  anon: "denied",
+  noRole: "denied",
+  viewer: "denied",
+  author: "denied",
+  admin: "denied",
+};
+
+/**
+ * Direct writes to the access-change record. Only `user_roles`' trigger writes it: the INSERT policy
+ * holds only in trigger context (`pg_trigger_depth() > 0`), so a direct INSERT is refused even for
+ * an admin naming itself as the actor, and `authenticated` holds no UPDATE or DELETE grant. No app
+ * principal is allowed, so `ACCESS_CHANGE_WRITE_EVIDENCE` evidences the payloads.
+ */
+export const ACCESS_CHANGE_WRITES: Record<WriteOperation, Cell> = {
+  insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+  update: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+  delete: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+};
+
+/** The same record writes, sent by the service role to a fresh user's record: each payload's evidence. */
+export const ACCESS_CHANGE_WRITE_EVIDENCE: Record<WriteOperation, AccessOutcome> = {
+  insert: "allowed",
+  update: "allowed",
+  delete: "allowed",
 };
 
 /**
@@ -293,6 +356,7 @@ export type PolicyShape = {
 // which makes the helper an InitPlan, run once per table reference rather than once per row.
 const CAN_READ = "( SELECT private.can_read() AS can_read)";
 const CAN_EDIT = "( SELECT private.can_edit() AS can_edit)";
+const CAN_MANAGE_USERS = "( SELECT private.can_manage_users() AS can_manage_users)";
 
 /**
  * The policies a human session falls under on every plan-scoped table, and nothing else: reading
@@ -310,6 +374,10 @@ export const CAPABILITY_POLICIES: readonly PolicyShape[] = [
 
 const OWN_ROW = "(user_id = ( SELECT auth.uid() AS uid))";
 
+// A role row's target must be a user the admin can see in the directory, which no machine is.
+// Whitespace-normalised, as the structural check reads it: Postgres deparses a subquery over lines.
+const LISTED_TARGET = `(${CAN_MANAGE_USERS} AND (EXISTS ( SELECT 1 FROM user_directory d WHERE (d.user_id = user_roles.user_id))))`;
+
 /**
  * Every policy on each user-keyed table, whatever role it names, as `pg_policies` deparses it and
  * sorted by command, then name. These tables do not fit the four capability policies: a user owns
@@ -320,8 +388,27 @@ const OWN_ROW = "(user_id = ( SELECT auth.uid() AS uid))";
  * `user_directory`'s mirror policy names `supabase_auth_admin`, the role GoTrue writes `auth.users`
  * as and the Auth trigger therefore runs as: the recorded exception to "every policy names
  * `to authenticated`". It is never PUBLIC, and the grant layer withholds DELETE from it.
+ *
+ * Predicates are compared with runs of whitespace collapsed to one space, because Postgres deparses
+ * a subquery across several lines.
  */
 export const USER_KEYED_POLICIES: Record<UserKeyedTable, readonly PolicyShape[]> = {
+  access_changes: [
+    {
+      name: "Role triggers record changes",
+      command: "INSERT",
+      roles: ["authenticated"],
+      using: null,
+      withCheck: `((pg_trigger_depth() > 0) AND (NOT (actor_id IS DISTINCT FROM ( SELECT auth.uid() AS uid))) AND ${CAN_MANAGE_USERS})`,
+    },
+    {
+      name: "Admins read access changes",
+      command: "SELECT",
+      roles: ["authenticated"],
+      using: CAN_MANAGE_USERS,
+      withCheck: null,
+    },
+  ],
   profiles: [
     {
       name: "Users insert their own profile",
@@ -356,7 +443,28 @@ export const USER_KEYED_POLICIES: Record<UserKeyedTable, readonly PolicyShape[]>
     },
   ],
   user_roles: [
-    { name: "Users read their own role", command: "SELECT", roles: ["authenticated"], using: OWN_ROW, withCheck: null },
+    {
+      name: "Admins remove roles",
+      command: "DELETE",
+      roles: ["authenticated"],
+      using: CAN_MANAGE_USERS,
+      withCheck: null,
+    },
+    { name: "Admins grant roles", command: "INSERT", roles: ["authenticated"], using: null, withCheck: LISTED_TARGET },
+    {
+      name: "Users read their own role, admins every role",
+      command: "SELECT",
+      roles: ["authenticated"],
+      using: `(${OWN_ROW} OR ${CAN_MANAGE_USERS})`,
+      withCheck: null,
+    },
+    {
+      name: "Admins change roles",
+      command: "UPDATE",
+      roles: ["authenticated"],
+      using: CAN_MANAGE_USERS,
+      withCheck: LISTED_TARGET,
+    },
   ],
 };
 
@@ -375,8 +483,11 @@ const ALL_EIGHT: readonly TablePrivilege[] = [
 ];
 const OWN_ROW_DML: readonly TablePrivilege[] = ["INSERT", "SELECT", "UPDATE"];
 const READ_ONLY: readonly TablePrivilege[] = ["SELECT"];
+const DML: readonly TablePrivilege[] = ["DELETE", "INSERT", "SELECT", "UPDATE"];
+const APPEND_ONLY: readonly TablePrivilege[] = ["INSERT", "SELECT"];
 
 export const GRANTS: Record<PublicTable, TableGrants> = {
+  access_changes: { anon: NONE, authenticated: APPEND_ONLY },
   bundles: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   course_grouping_members: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   course_groupings: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
@@ -395,5 +506,5 @@ export const GRANTS: Record<PublicTable, TableGrants> = {
   teacher_availability: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   teachers: { anon: ANON_AUTO_GRANT_RESIDUE, authenticated: ALL_EIGHT },
   user_directory: { anon: NONE, authenticated: READ_ONLY },
-  user_roles: { anon: NONE, authenticated: READ_ONLY },
+  user_roles: { anon: NONE, authenticated: DML },
 };

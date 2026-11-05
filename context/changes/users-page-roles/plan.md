@@ -285,18 +285,18 @@ This phase makes the school's users readable through the Data API: emails, the m
 
 #### Automated Verification:
 
-- [ ] The matrix diff for `user_directory` runs red against the pre-migration schema (deny drill), then green after: `pnpm test:integration src/test/role-matrix.integration.test.ts`
-- [ ] Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
-- [ ] The directory integration test passes: `pnpm test:integration src/test/user-directory.integration.test.ts`
-- [ ] The solver credential suite stays green: `pnpm test:integration src/test/solver-credential.integration.test.ts`
-- [ ] Type checking passes: `pnpm check`
-- [ ] Unit tests pass (schema case for U+061C): `pnpm test`
-- [ ] Lint and FSD pass: `pnpm lint && pnpm steiger`
-- [ ] The advisors show no new ERROR or WARN locally: `pnpm exec supabase db advisors`
+- [x] The matrix diff for `user_directory` runs red against the pre-migration schema (deny drill), then green after: `pnpm test:integration src/test/role-matrix.integration.test.ts`
+- [x] Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
+- [x] The directory integration test passes: `pnpm test:integration src/test/user-directory.integration.test.ts`
+- [x] The solver credential suite stays green: `pnpm test:integration src/test/solver-credential.integration.test.ts`
+- [x] Type checking passes: `pnpm check`
+- [x] Unit tests pass (schema case for U+061C): `pnpm test`
+- [x] Lint and FSD pass: `pnpm lint && pnpm steiger`
+- [x] The advisors show no new ERROR or WARN locally: `pnpm exec supabase db advisors`
 
 #### Manual Verification:
 
-- [ ] Create a user in local Studio (**Authentication → Users → Add user**). Their `user_directory` row appears. Signing in as them leaves the row untouched. Deleting them removes it.
+- [x] Create a user in local Studio (**Authentication → Users → Add user**). Their `user_directory` row appears. Signing in as them leaves the row untouched. Deleting them removes it.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -466,18 +466,18 @@ This phase lets a `manage_users` holder (admin) read every role and give, change
 
 #### Automated Verification:
 
-- [ ] The matrix flip runs red against Phase 1's schema (deny drill), then green after the migration: `pnpm test:integration src/test/role-matrix.integration.test.ts`
-- [ ] Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
-- [ ] The guard and lock tests pass: `pnpm test:integration src/test/last-admin-guard.integration.test.ts`
-- [ ] The recorder tests pass: `pnpm test:integration src/test/access-changes.integration.test.ts`
-- [ ] The lifecycle smoke and the full integration lane pass (teardown survives the guard and the FKs): `pnpm test:integration`
-- [ ] Types regenerate cleanly: `pnpm db:types`, then `pnpm check`
-- [ ] The advisors show no new ERROR or WARN: `pnpm exec supabase db advisors`
+- [x] The matrix flip runs red against Phase 1's schema (deny drill), then green after the migration: `pnpm test:integration src/test/role-matrix.integration.test.ts`
+- [x] Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
+- [x] The guard and lock tests pass: `pnpm test:integration src/test/last-admin-guard.integration.test.ts`
+- [x] The recorder tests pass: `pnpm test:integration src/test/access-changes.integration.test.ts`
+- [x] The lifecycle smoke and the full integration lane pass (teardown survives the guard and the FKs): `pnpm test:integration`
+- [x] Types regenerate cleanly: `pnpm db:types`, then `pnpm check`
+- [x] The advisors show no new ERROR or WARN: `pnpm exec supabase db advisors`
 
 #### Manual Verification:
 
-- [ ] Locally, with yourself the only admin, `node scripts/assign-role.mjs <you> author` is refused with the last-admin message, and your role is unchanged.
-- [ ] `select * from public.access_changes order by occurred_at desc limit 5` in Studio shows the factories' and the script's writes as `operator`.
+- [x] Locally, with yourself the only admin, `node scripts/assign-role.mjs <you> author` is refused with the last-admin message, and your role is unchanged.
+- [x] `select * from public.access_changes order by occurred_at desc limit 5` in Studio shows the factories' and the script's writes as `operator`.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -837,35 +837,35 @@ This phase adds the admin e2e principal and specs, the cross-role tripwires, and
 
 #### Automated
 
-- [x] 1.1 The matrix diff for `user_directory` runs red against the pre-migration schema (deny drill), then green after
-- [ ] 1.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
-- [x] 1.3 The directory integration test passes
-- [x] 1.4 The solver credential suite stays green
-- [x] 1.5 Type checking passes: `pnpm check`
-- [x] 1.6 Unit tests pass (schema case for U+061C): `pnpm test`
-- [x] 1.7 Lint and FSD pass: `pnpm lint && pnpm steiger`
-- [x] 1.8 The advisors show no new ERROR or WARN locally
+- [x] 1.1 The matrix diff for `user_directory` runs red against the pre-migration schema (deny drill), then green after — 2224da5
+- [x] 1.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
+- [x] 1.3 The directory integration test passes — 2224da5
+- [x] 1.4 The solver credential suite stays green — 2224da5
+- [x] 1.5 Type checking passes: `pnpm check` — 2224da5
+- [x] 1.6 Unit tests pass (schema case for U+061C): `pnpm test` — 2224da5
+- [x] 1.7 Lint and FSD pass: `pnpm lint && pnpm steiger` — 2224da5
+- [x] 1.8 The advisors show no new ERROR or WARN locally — 2224da5
 
 #### Manual
 
-- [x] 1.9 A local Studio user is mirrored, untouched by sign-in, and removed on delete
+- [x] 1.9 A local Studio user is mirrored, untouched by sign-in, and removed on delete — 2224da5
 
 ### Phase 2: Role Writes, Last-Admin Guard and Access Record (write side)
 
 #### Automated
 
-- [ ] 2.1 The matrix flip runs red against Phase 1's schema (deny drill), then green after the migration
-- [ ] 2.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
-- [ ] 2.3 The guard and lock tests pass
-- [ ] 2.4 The recorder tests pass
-- [ ] 2.5 The lifecycle smoke and the full integration lane pass
-- [ ] 2.6 Types regenerate cleanly, then `pnpm check`
-- [ ] 2.7 The advisors show no new ERROR or WARN
+- [x] 2.1 The matrix flip runs red against Phase 1's schema (deny drill), then green after the migration
+- [x] 2.2 Migrations apply cleanly from scratch: `pnpm exec supabase db reset`
+- [x] 2.3 The guard and lock tests pass
+- [x] 2.4 The recorder tests pass
+- [x] 2.5 The lifecycle smoke and the full integration lane pass
+- [x] 2.6 Types regenerate cleanly, then `pnpm check`
+- [x] 2.7 The advisors show no new ERROR or WARN
 
 #### Manual
 
-- [ ] 2.8 `assign-role.mjs` demoting the only local admin is refused with the last-admin message
-- [ ] 2.9 `access_changes` shows the factories' and the script's writes as `operator`
+- [x] 2.8 `assign-role.mjs` demoting the only local admin is refused with the last-admin message
+- [x] 2.9 `access_changes` shows the factories' and the script's writes as `operator`
 
 ### Phase 3: App Capability, Loader and Action
 

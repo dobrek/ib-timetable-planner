@@ -1,0 +1,41 @@
+# Phase 2 deny drill: the admin write path and access_changes cells, run against Phase 1's schema (2224da5 + the Phase 2 expectations diff, 2026-11-05).
+# pnpm test:integration src/test/role-matrix.integration.test.ts
+
+     × fixture: the service role sees a fixture row in every public table
+     × catalog: grants and RLS on every public table are exactly as declared
+     × catalog: every user-keyed table holds exactly its declared policies, whatever role they name
+     × catalog: private holds the role helpers, and only current_app_role is SECURITY DEFINER
+     × catalog: only authenticated may execute the private helpers, own_app_role and set_current_plan, never anon or PUBLIC
+       × anon SELECT own access_changes row → denied
+       × anon SELECT others access_changes row → denied
+       × anon INSERT an access_changes row directly → denied
+       × anon UPDATE an access_changes row directly → denied
+       × anon DELETE an access_changes row directly → denied
+       × noRole SELECT own access_changes row → no-row: it holds none
+       × noRole SELECT others access_changes row → denied
+       × noRole INSERT an access_changes row directly → denied
+       × noRole UPDATE an access_changes row directly → denied
+       × noRole DELETE an access_changes row directly → denied
+       × viewer SELECT own access_changes row → denied
+       × viewer SELECT others access_changes row → denied
+       × viewer INSERT an access_changes row directly → denied
+       × viewer UPDATE an access_changes row directly → denied
+       × viewer DELETE an access_changes row directly → denied
+       × author SELECT own access_changes row → denied
+       × author SELECT others access_changes row → denied
+       × author INSERT an access_changes row directly → denied
+       × author UPDATE an access_changes row directly → denied
+       × author DELETE an access_changes row directly → denied
+       × admin SELECT own access_changes row → allowed
+       × admin SELECT others access_changes row → allowed
+       × admin SELECT others user_roles row → allowed
+       × admin INSERT another user's user_roles row → allowed
+       × admin UPDATE another user's user_roles row → allowed
+       × admin DELETE another user's user_roles row → allowed
+       × admin INSERT an access_changes row directly → denied
+       × admin UPDATE an access_changes row directly → denied
+       × admin DELETE an access_changes row directly → denied
+       × service role INSERT a fresh user's access_changes row → allowed
+       × service role UPDATE a fresh user's access_changes row → allowed
+       × service role DELETE a fresh user's access_changes row → allowed
+      Tests  37 failed | 306 passed (343)

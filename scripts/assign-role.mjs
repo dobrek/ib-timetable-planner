@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Gives a human account its one app role, or takes it away: the operator step until S-406 ships a
-// Users page. It makes the developer `admin` on hosted, and gives every account created by hand
-// (Studio, the hosted dashboard, a local account after `db reset`) the role it needs. Once S-403
-// enforces roles, an account without one sees only the "no access yet" notice and its own account.
+// Gives a human account its one app role, or takes it away: the operator's path. Since S-406 an admin
+// does this from the Users page (/users); the script stays for bootstrap and recovery: the first
+// admin of a fresh stack (a local account after `db reset`), or a school whose admins cannot sign
+// in. An account without a role sees only the "no access yet" notice and its own account.
 //
 //   node scripts/assign-role.mjs <email> <admin|author|viewer|none>
 //   ASSIGN_ROLE_CONFIRM=yes node scripts/assign-role.mjs <email> <role>   # any non-local SUPABASE_URL
@@ -11,8 +11,10 @@
 // `app_metadata.machine_role`, such as the solver's) is refused: it must never hold a human role,
 // or a misfired token hook would sign it in with that role's access.
 //
-// It needs the service-role (secret) key, because nobody writes a role through the Data API:
-// `user_roles` has no write policy, and `authenticated` holds SELECT alone. On hosted, export
+// It needs the service-role (secret) key, because it writes outside any session: RLS lets only an
+// admin's own session write `user_roles`. Its writes are recorded in `access_changes` as the
+// "Operator". The last-admin guard binds it too: demoting the school's last admin, or setting them
+// to `none`, is refused (SQLSTATE PT409), so promote another admin first. On hosted, export
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from your shell, never a committed file; for the local
 // stack both fall back to .env.test.local. A non-local host needs ASSIGN_ROLE_CONFIRM=yes, as
 // `mise run solver:hosted` needs SOLVER_HOSTED_CONFIRM. Mirrors scripts/provision-solver-user.mjs.
@@ -25,6 +27,8 @@ import { loadTestEnvFallback } from "./lib/load-test-env-fallback.mjs";
 
 const ROLES = ["admin", "author", "viewer"];
 const NO_ROLE = "none";
+/** The SQLSTATE the last-admin guard raises (20261105080343_role_management.sql). */
+const LAST_ADMIN = "PT409";
 const USAGE = `Usage: node scripts/assign-role.mjs <email> <${[...ROLES, NO_ROLE].join("|")}>`;
 
 function fail(message) {
@@ -85,6 +89,9 @@ const { error: writeError } =
   role === NO_ROLE
     ? await supabase.from("user_roles").delete().eq("user_id", userId)
     : await supabase.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id" });
+if (writeError?.code === LAST_ADMIN) {
+  fail(`refused: the school must keep at least one admin — promote another admin first (${email} stays ${before}).`);
+}
 if (writeError) fail(`Failed to set ${email} to ${role}: ${writeError.message}`);
 const after = await roleOf(supabase, userId);
 if (after !== role) fail(`${email} reads back as ${after} after setting ${role}.`);

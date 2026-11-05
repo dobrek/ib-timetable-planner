@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACCESS_CHANGE_WRITE_EVIDENCE,
+  ACCESS_CHANGE_WRITES,
   DIRECTORY_WRITE_EVIDENCE,
   DIRECTORY_WRITES,
   GRANTS,
   PROFILE_WRITES,
+  ROLE_WRITES,
   RPCS,
   SELF_GRANT_EVIDENCE,
   SELF_GRANTS,
@@ -24,38 +27,49 @@ import {
  * every principal is denied would pass on a broken payload, so the table may never hold one,
  * with two kinds of exception:
  *
- * - A `PROFILE_WRITES.others` row or `PROFILE_REKEY`, whose payload differs from its `own`
- *   counterpart only in whose `user_id` it names. The `own` row's allowed principal is its evidence.
- * - A `SELF_GRANTS` or `DIRECTORY_WRITES` row, which no app principal may send at all. The service
- *   role sends the same payload to a fresh user in the same starting state instead, and
- *   `SELF_GRANT_EVIDENCE` or `DIRECTORY_WRITE_EVIDENCE` records that it lands.
+ * - A `PROFILE_WRITES.others` row, `PROFILE_REKEY` or `MACHINE_ROLE_GRANT`, whose payload differs
+ *   from its counterpart (the `own` row; `ROLE_WRITES.insert`) only in whose `user_id` it names.
+ *   The counterpart's allowed principal is its evidence.
+ * - A `SELF_GRANTS`, `DIRECTORY_WRITES` or `ACCESS_CHANGE_WRITES` row, which no app principal may
+ *   send at all. The service role sends the same payload to a fresh user in the same starting state
+ *   instead, and the matching `…_EVIDENCE` table records that it lands.
  *
  * `"no-row"` states that a principal lacks the row its cell targets. Only noRole's own `user_roles`
- * row can be missing, since every other principal holds the row its cells aim at, so the marker
- * may appear nowhere else.
+ * row can be missing, and with it the record of that role being given (`access_changes`); every
+ * other principal holds the rows its cells aim at, so the marker may appear nowhere else.
  */
-const writeRows = Object.entries(WRITES).flatMap(([table, operations]) =>
-  Object.entries(operations).map(([operation, cell]) => [`${operation} ${table}`, cell] as const),
-);
+const writeRows = [
+  ...Object.entries(WRITES).flatMap(([table, operations]) =>
+    Object.entries(operations).map(([operation, cell]) => [`${operation} ${table}`, cell] as const),
+  ),
+  ...Object.entries(ROLE_WRITES).map(([operation, cell]) => [`${operation} another user's role`, cell] as const),
+];
 const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
 const ownProfileRows = PROFILE_OPERATIONS.map(
   (operation) => [`${operation} own profile`, PROFILE_WRITES.own[operation]] as const,
 );
-// Each all-denied profile row, paired with the `own` cell that evidences its payload.
-const othersProfileRows = [
+// Each all-denied row whose payload differs from a counterpart's only in the user it names, paired
+// with that counterpart's cell: the `own` profile row, or an admin giving a listed user a role.
+const counterpartRows = [
   ...PROFILE_OPERATIONS.map(
     (operation) => [`${operation} another user's profile`, PROFILE_WRITES.own[operation]] as const,
   ),
   ["re-key own profile onto another user", PROFILE_WRITES.own.update] as const,
+  ["give the machine fixture a role", ROLE_WRITES.insert] as const,
 ];
 // Each all-denied self-grant row, paired with the service role's outcome for the same payload.
 const selfGrantRows = (Object.keys(SELF_GRANTS) as SelfGrant[]).map(
   (grant) => [grant, SELF_GRANT_EVIDENCE[grant]] as const,
 );
-// Each all-denied directory write, paired with the service role's outcome for the same payload.
-const directoryWriteRows = (Object.keys(DIRECTORY_WRITES) as WriteOperation[]).map(
-  (operation) => [operation, DIRECTORY_WRITE_EVIDENCE[operation]] as const,
-);
+// Each all-denied directory or record write, paired with the service role's outcome for its payload.
+const serviceEvidencedRows = [
+  ...(Object.keys(DIRECTORY_WRITES) as WriteOperation[]).map(
+    (operation) => [`${operation} user_directory`, DIRECTORY_WRITE_EVIDENCE[operation]] as const,
+  ),
+  ...(Object.keys(ACCESS_CHANGE_WRITES) as WriteOperation[]).map(
+    (operation) => [`${operation} access_changes`, ACCESS_CHANGE_WRITE_EVIDENCE[operation]] as const,
+  ),
+];
 const rpcRows = Object.entries(RPCS);
 const grantLists = Object.entries(GRANTS).flatMap(([table, grants]) =>
   Object.entries(grants).map(([role, privileges]) => [`${role} on ${table}`, privileges] as const),
@@ -76,7 +90,7 @@ describe("role-matrix expectations", () => {
     expect(Object.values(cell)).toContain("allowed");
   });
 
-  it.each(othersProfileRows)("%s is evidenced by its own-row counterpart", (_row, ownCell) => {
+  it.each(counterpartRows)("%s is evidenced by its counterpart", (_row, ownCell) => {
     expect(Object.values(ownCell)).toContain("allowed");
   });
 
@@ -84,12 +98,16 @@ describe("role-matrix expectations", () => {
     expect(evidence).toBe("allowed");
   });
 
-  it.each(directoryWriteRows)("directory %s is evidenced by the service role sending its payload", (_row, evidence) => {
+  it.each(serviceEvidencedRows)("%s is evidenced by the service role sending its payload", (_row, evidence) => {
     expect(evidence).toBe("allowed");
   });
 
-  it("only noRole's own user_roles row is no-row: the one row a principal's cell can lack", () => {
-    expect(noRowCells).toEqual(["noRole reading the own user_roles row", "noRole attempting drop own role"]);
+  it("only noRole's own role row, and its record, are no-row: the rows a principal's cell can lack", () => {
+    expect(noRowCells).toEqual([
+      "noRole reading the own access_changes row",
+      "noRole reading the own user_roles row",
+      "noRole attempting drop own role",
+    ]);
   });
 
   it.each(grantLists)("the grant list for %s is sorted and free of duplicates", (_list, privileges) => {

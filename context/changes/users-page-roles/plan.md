@@ -748,14 +748,14 @@ This phase adds the admin e2e principal and specs, the cross-role tripwires, and
 
 #### Automated Verification:
 
-- [ ] The full e2e suite passes, including `chromium-admin`: `pnpm test:e2e`
-- [ ] The full local CI gate passes: run the `/verify` skill (install → astro sync → check → lint → steiger → audit → test → build)
-- [ ] The integration lane passes: `pnpm test:integration`
-- [ ] Formatting is clean: `pnpm format` leaves no diff
+- [x] The full e2e suite passes, including `chromium-admin`: `pnpm test:e2e`
+- [x] The full local CI gate passes: run the `/verify` skill (install → astro sync → check → lint → steiger → audit → test → build)
+- [x] The integration lane passes: `pnpm test:integration`
+- [x] Formatting is clean: `pnpm format` leaves no diff
 
 #### Manual Verification:
 
-- [ ] Pre-merge, on hosted, read-only: `select count(*) from public.profiles where display_name ~ '\x061C'` returns 0, so migration B's `validate` cannot fail the deploy.
+- [x] Pre-merge, on hosted, read-only: `select count(*) from public.profiles where display_name ~ '\x061C'` returns 0, so migration B's `validate` cannot fail the deploy.
 - [ ] Post-deploy on hosted:
   - `has_table_privilege` shows anon with nothing, and authenticated with exactly SELECT on `user_directory` and exactly INSERT and SELECT on `access_changes`;
   - `supabase_auth_admin` holds SELECT, INSERT and UPDATE on `user_directory`;
@@ -885,32 +885,32 @@ This phase adds the admin e2e principal and specs, the cross-role tripwires, and
 
 #### Automated
 
-- [x] 4.1 Unit and component tests pass: `pnpm test`
-- [x] 4.2 Type checking passes: `pnpm check`
-- [x] 4.3 Lint and FSD pass: `pnpm lint && pnpm steiger`
-- [x] 4.4 The build is clean: `pnpm build`
+- [x] 4.1 Unit and component tests pass: `pnpm test` — a9c3acd
+- [x] 4.2 Type checking passes: `pnpm check` — a9c3acd
+- [x] 4.3 Lint and FSD pass: `pnpm lint && pnpm steiger` — a9c3acd
+- [x] 4.4 The build is clean: `pnpm build` — a9c3acd
 
 #### Manual
 
-- [x] 4.5 Admin sees the Users item and tile, the list with labels, "No access" and local dates
-- [x] 4.6 Changing another user's role toasts, updates the row and shows "Changed by \<you\>"
-- [x] 4.7 No access confirms and updates the status
-- [x] 4.8 Self-demotion with a second admin confirms and lands on `/dashboard`
-- [x] 4.9 Self-demotion as the only admin is refused and the picker reverts
-- [x] 4.10 An author sees no Users item, and `/users` is 404
+- [x] 4.5 Admin sees the Users item and tile, the list with labels, "No access" and local dates — a9c3acd
+- [x] 4.6 Changing another user's role toasts, updates the row and shows "Changed by \<you\>" — a9c3acd
+- [x] 4.7 No access confirms and updates the status — a9c3acd
+- [x] 4.8 Self-demotion with a second admin confirms and lands on `/dashboard` — a9c3acd
+- [x] 4.9 Self-demotion as the only admin is refused and the picker reverts — a9c3acd
+- [x] 4.10 An author sees no Users item, and `/users` is 404 — a9c3acd
 
 ### Phase 5: Admin E2E Account, Specs and Documentation
 
 #### Automated
 
-- [ ] 5.1 The full e2e suite passes, including `chromium-admin`: `pnpm test:e2e`
-- [ ] 5.2 The full local CI gate passes (`/verify`)
-- [ ] 5.3 The integration lane passes: `pnpm test:integration`
-- [ ] 5.4 Formatting is clean: `pnpm format` leaves no diff
+- [x] 5.1 The full e2e suite passes, including `chromium-admin`: `pnpm test:e2e`
+- [x] 5.2 The full local CI gate passes (`/verify`)
+- [x] 5.3 The integration lane passes: `pnpm test:integration`
+- [x] 5.4 Formatting is clean: `pnpm format` leaves no diff
 
 #### Manual
 
-- [ ] 5.5 Pre-merge hosted check: no display name contains U+061C
+- [x] 5.5 Pre-merge hosted check: no display name contains U+061C
 - [ ] 5.6 Post-deploy hosted grants and advisors are as specified
 - [ ] 5.7 Post-deploy hosted directory count matches, you hold admin, and `/users` lists staff with no machine
 - [ ] 5.8 Post-deploy: the DP coordinator is promoted in-app, and the row shows "Changed by \<you\>"

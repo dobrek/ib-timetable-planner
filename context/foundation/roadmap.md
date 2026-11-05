@@ -246,7 +246,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Blockers:** —
 - **Unknowns:**
   - Hosted signing-key state — hosted publishes only an ES256 key, but the dashboard must confirm it is the current key and that the new API keys are enabled, because the lifecycle component rejects legacy tokens. — Owner: developer. Block: no.
-- **Risk:** Introduces the milestone's one new trusted component. Account operations need the platform's secret key, and the decision of record keeps that key out of the app Worker, so it lives in a separate secret-holding component with a live admin check — a new runtime, a new toolchain boundary and a new CI deploy step. Proving it on the simplest operation (no email) leaves the north star with email as its only new risk. The PRD frames this path as a fallback only, not a second normal onboarding route, and machine users must be untouchable through it.
+- **Risk:** Introduces the milestone's one new trusted component. Account operations need the platform's secret key, and the decision of record keeps that key out of the app Worker, so it lives in a separate secret-holding component with a live admin check — a new runtime, a new toolchain boundary and a new CI deploy step. Proving it on the simplest operation (no email) leaves the north star with email as its only new risk. The PRD frames this path as a fallback only, not a second normal onboarding route, and machine users must be untouchable through it. S-406's access record attributes a write to `auth.uid()`, so it records any secret-key write as the Operator: this component must write its own `access_changes` records, with the verified admin as the actor.
 - **Status:** proposed
 
 ### S-410: Invite a colleague by email _(north star)_
@@ -272,7 +272,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Blockers:** —
 - **Unknowns:**
   - Whether hosted auth rejects tokens issued before a ban (the platform's latest source does; local v2.189.0 does not). The one-hour guardrail holds either way through token expiry. — Owner: plan phase. Block: no.
-- **Risk:** Delete is irreversible, which is why it reuses the component S-409 already proved instead of introducing it. Both operations maintain existing accounts and share one risk: keeping the Users list in step with the platform's own user records. Revoking a pending invitation belongs to S-410.
+- **Risk:** Delete is irreversible, which is why it reuses the component S-409 already proved instead of introducing it. Both operations maintain existing accounts and share one risk: keeping the Users list in step with the platform's own user records. Revoking a pending invitation belongs to S-410. As for S-409, its secret-key writes reach S-406's record as the Operator's, so it writes its own `access_changes` records with an explicit actor. It must also refuse deleting the last admin itself: S-406's last-admin guard deliberately lets an account deletion's cascade through, which keeps teardown and account deletion working.
 - **Status:** proposed
 
 ### S-310: Job-completion email _(carried from M-01)_

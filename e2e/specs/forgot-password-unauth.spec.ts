@@ -1,19 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { deleteMessages, readMessage, waitForMessageTo } from "../../src/test/mailpit";
 import { readPublishableKey } from "../../src/test/publishable-key";
 import { waitForAccountHydration } from "../support/account";
+import { adminClient, loopbackUrl, strongPassword } from "../support/admin-api";
 
 // S-402 (FR-412) end to end, signed out, in `chromium-guard`: request a link, let a simulated mail
 // scanner fetch it, spend it with Continue, set a new password, and get told it changed.
 //
 // - **Its own throwaway user**, created and deleted here through the admin API. The flow changes a
-//   password, and the shared author's must never change (e2e/CLAUDE.md). This is the one sanctioned
-//   use of the service-role key in a spec, and it refuses any non-loopback SUPABASE_URL: it must
-//   never create users on hosted.
+//   password, and the shared author's must never change (e2e/CLAUDE.md). The service-role client
+//   (`support/admin-api.ts`) refuses any non-loopback SUPABASE_URL: it must never create users on
+//   hosted.
 // - **Mail through Mailpit's API** (`src/test/mailpit.ts`, loopback-only), deleting only this
 //   test's own messages, by id.
 // - **Turnstile runs for real** with Cloudflare's always-pass test keys, which the app accepts only
@@ -112,48 +111,9 @@ function confirmLinkIn(html: string): string {
   return href;
 }
 
-// 40 characters, all four classes, no `#`, quotes or whitespace — like the integration lane's.
-const strongPassword = (): string => `${randomUUID()}Aa1!`;
-
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
-
-/** The service-role client, local stack only: env first (CI), then `.env.test.local`. */
-function adminClient() {
-  const url = loopbackUrl();
-  return createClient(url, requiredEnv("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
-}
-
 function signIn(email: string, password: string) {
   const key = readPublishableKey();
   if (!key) throw new Error("no publishable key (SUPABASE_KEY, .dev.vars or .env.local)");
   const client = createClient(loopbackUrl(), key, { auth: { persistSession: false, autoRefreshToken: false } });
   return client.auth.signInWithPassword({ email, password });
-}
-
-function loopbackUrl(): string {
-  const url = requiredEnv("SUPABASE_URL");
-  const { hostname } = new URL(url);
-  if (!LOOPBACK_HOSTS.has(hostname)) {
-    throw new Error(`refusing non-loopback SUPABASE_URL host "${hostname}": this spec creates users`);
-  }
-  return url;
-}
-
-function requiredEnv(name: string): string {
-  const value = process.env[name] ?? fromTestEnvFile(name);
-  if (!value) throw new Error(`${name} is not set (export it, or add it to .env.test.local)`);
-  return value;
-}
-
-// The same file and format `scripts/provision-e2e-author.mjs` falls back to.
-function fromTestEnvFile(name: string): string | undefined {
-  try {
-    const line = readFileSync(resolve(process.cwd(), ".env.test.local"), "utf-8")
-      .split("\n")
-      .map((entry) => entry.trim())
-      .find((entry) => entry.startsWith(`${name}=`));
-    return line?.slice(name.length + 1).trim();
-  } catch {
-    return undefined;
-  }
 }

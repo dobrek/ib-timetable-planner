@@ -26,6 +26,8 @@ test("the dashboard shows the no-access notice, and no Plans entry anywhere", as
 for (const [label, path] of [
   ["the plans hub", () => "/plans"],
   ["a plan URL", () => `/plans/${randomUUID()}`],
+  // S-406: the role gate answers before the page's own 404, as for every gated page.
+  ["the users page", () => "/users"],
 ] as const) {
   test(`${label} lands on the dashboard notice`, async ({ page }) => {
     await page.goto(path());

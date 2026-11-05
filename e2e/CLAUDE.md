@@ -1,7 +1,7 @@
 # E2E Testing Rules
 
 Rules for authoring Playwright specs in this directory. They keep generated/edited
-tests stable by default — apply them rather than reinventing per spec. Of the 32
+tests stable by default — apply them rather than reinventing per spec. Of the 35
 specs here, `seed`, `auth`, `auth-guard` and `action-unauth` are the exemplars;
 model new specs on them.
 
@@ -10,7 +10,10 @@ hydration-race `clickToReveal`, the `gotoStable` navigation retry, `shortId`, an
 `createPlan`/`createTeacher`/`deletePlan` entity lifecycle) lives in
 `e2e/support/planner.ts`; the account page's hydration gate
 (`waitForAccountHydration`) lives in `e2e/support/account.ts`; the setup files'
-UI sign-in (`signInThroughUi`) lives in `e2e/support/sign-in.ts`. Import from
+UI sign-in (`signInThroughUi`) lives in `e2e/support/sign-in.ts`; the throwaway
+user's loopback-only service-role client (`adminClient`) lives in
+`e2e/support/admin-api.ts`, and the Users page's absence check, paired with the
+admin's presence (`expectUsersPageHidden`), in `e2e/support/users.ts`. Import from
 there rather than re-declaring per spec — these are plumbing with no test-specific meaning, and copies drift. `support/*.ts`
 is not a `*.spec.ts`/`*.setup.ts` file, so Playwright does not collect it as a test.
 Keep feature-specific authoring (course/student forms, board locators) local to the
@@ -30,15 +33,19 @@ spec; promote a helper to `support/` only once a second spec needs it.
   `*.no-role.spec.ts`, signed in as the account that never holds a role (S-403), so
   the role gate and the action guard are what answer; `chromium-viewer` depends on
   `setup` and runs only `*.viewer.spec.ts`, signed in as the account that holds
-  `viewer` (S-405), so every page must render with no edit control. Authenticated
+  `viewer` (S-405), so every page must render with no edit control;
+  `chromium-admin` depends on `setup` and runs only `*.admin.spec.ts`, signed in as
+  the account that holds `admin` (S-406), for the Users page. Authenticated
   specs go in `*.spec.ts`; negative specs are named `*guard.spec.ts` /
   `*unauth.spec.ts`; role-less specs are named `*.no-role.spec.ts`; viewer specs are
-  named `*.viewer.spec.ts`.
-- **Local prerequisites.** Local Supabase running + `pnpm env:local`. All three
+  named `*.viewer.spec.ts`; admin specs are named `*.admin.spec.ts`.
+- **Local prerequisites.** Local Supabase running + `pnpm env:local`. All four
   accounts are provisioned automatically by `pretest:e2e` before `pnpm test:e2e`
   (`scripts/provision-e2e-author.mjs`, loopback-only): the author, holding the
   `author` role, `e2e-no-role@example.test`, whose role row is deleted on every
-  run, and `e2e-viewer@example.test`, whose role is reset to `viewer` on every run.
+  run, `e2e-viewer@example.test`, whose role is reset to `viewer` on every run, and
+  `e2e-admin@example.test`, whose role is reset to `admin`. So after a run the local
+  stack holds a second admin besides your own account.
   `.envs/local.vars` must carry `SOLVER_URL` (with `mise run solver:dev` up, for
   `generation.spec.ts` and `generation.viewer.spec.ts`; both dispatch, so a parallel
   run wants `SOLVER_MAX_CONCURRENT_JOBS=2` or the loser gets a 503) and Cloudflare's
@@ -49,8 +56,8 @@ spec; promote a helper to `support/` only once a second spec needs it.
 
 - **Authenticate via `storageState`, never through the UI in a test.** The `setup`
   project already did the login; authenticated specs start signed in. (The only
-  files that drive the sign-in UI are the three setup files, `auth.setup.ts`,
-  `no-role.setup.ts` and `viewer.setup.ts`.)
+  files that drive the sign-in UI are the four setup files, `auth.setup.ts`,
+  `no-role.setup.ts`, `viewer.setup.ts` and `admin.setup.ts`.)
 - **Never assert on the sidebar footer's text.** `account.spec.ts` sets the shared
   author's display name while it runs (and clears it in a `finally`), so the footer
   may show a name in parallel specs. Never submit the author's password form either:
@@ -74,11 +81,18 @@ spec; promote a helper to `support/` only once a second spec needs it.
   `read-only.viewer.spec.ts`. Pair each absence the viewer asserts with the same
   locator present on the author's side, so a drifted locator fails rather than
   passing a `toHaveCount(0)` on nothing.
+- **The admin account's role, password and session are never changed.**
+  `e2e-admin@example.test` (`e2e/admin-credentials.mjs`) is the Users page's
+  signed-in admin, and the other projects' specs open a second context on its
+  `storageState` to pair an absence with its presence. Never change its role on
+  the page (a demotion would also take the Users page away from every parallel
+  spec), never submit its password form, and never sign it out.
 - **One sanctioned exception to "never touch users": a throwaway user.** An unauth
-  spec whose flow changes a password may create its own user through the
-  service-role admin API and delete it in a `finally` — and must refuse any
-  non-loopback `SUPABASE_URL` first, so it can never create users on hosted. See
-  `forgot-password-unauth.spec.ts`.
+  spec whose flow changes a password, or an admin spec that changes a role, may
+  create its own user through the service-role admin API
+  (`e2e/support/admin-api.ts`) and delete it in a `finally`. That client refuses
+  any non-loopback `SUPABASE_URL` first, so it can never create users on hosted.
+  See `forgot-password-unauth.spec.ts` and `users.admin.spec.ts`.
 - **Read mail through Mailpit's API** (`src/test/mailpit.ts`, loopback-only), with a
   unique address per test, and delete only your own messages, by id. Mailpit's
   `DELETE /api/v1/messages` with no ids empties the whole mailbox, including mail

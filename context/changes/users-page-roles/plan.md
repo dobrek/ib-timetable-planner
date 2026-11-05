@@ -903,14 +903,14 @@ This phase adds the admin e2e principal and specs, the cross-role tripwires, and
 
 #### Automated
 
-- [x] 5.1 The full e2e suite passes, including `chromium-admin`: `pnpm test:e2e`
-- [x] 5.2 The full local CI gate passes (`/verify`)
-- [x] 5.3 The integration lane passes: `pnpm test:integration`
-- [x] 5.4 Formatting is clean: `pnpm format` leaves no diff
+- [x] 5.1 The full e2e suite passes, including `chromium-admin`: `pnpm test:e2e` — e5d99ef
+- [x] 5.2 The full local CI gate passes (`/verify`) — e5d99ef
+- [x] 5.3 The integration lane passes: `pnpm test:integration` — e5d99ef
+- [x] 5.4 Formatting is clean: `pnpm format` leaves no diff — e5d99ef
 
 #### Manual
 
-- [x] 5.5 Pre-merge hosted check: no display name contains U+061C
+- [x] 5.5 Pre-merge hosted check: no display name contains U+061C — e5d99ef
 - [ ] 5.6 Post-deploy hosted grants and advisors are as specified
 - [ ] 5.7 Post-deploy hosted directory count matches, you hold admin, and `/users` lists staff with no machine
 - [ ] 5.8 Post-deploy: the DP coordinator is promoted in-app, and the row shows "Changed by \<you\>"

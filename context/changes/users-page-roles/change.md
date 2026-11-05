@@ -24,3 +24,6 @@ as S-406 from @context/foundation/roadmap.md
   `NOT_FOUND` and `FORBIDDEN` keep the repo's toast-then-reload, so the updated row, not a toast, is
   the feedback there, and manual check 4.6 and the Phase 5 spec assert the row. Follow-up, outside
   S-406: carry a toast across the reload, or mount `<ClientRouter />`, for every page.
+- 2026-11-05: Phase 5's `lessons.md` entry (BEFORE/AFTER trigger depth in a cascade, BEFORE INSERT
+  under upsert) was skipped by the user's decision. The rule is recorded in CLAUDE.md § Database &
+  auth instead.

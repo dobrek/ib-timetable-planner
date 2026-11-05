@@ -62,13 +62,13 @@ pnpm dev
 
 The app is served at `http://localhost:4321`. Local Supabase Studio is at `http://127.0.0.1:54323` and Mailpit (email capture) at `http://127.0.0.1:54324`.
 
-6. Create your local account in Studio (**Authentication → Users → Add user**, a password of at least 15 characters — [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md)), then give it a role:
+6. Create your local account in Studio (**Authentication → Users → Add user**, a password of at least 15 characters — [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md)), then make it the stack's first admin:
 
 ```bash
-node scripts/assign-role.mjs <email> author
+node scripts/assign-role.mjs <email> admin
 ```
 
-> Repeat both after every `pnpm exec supabase db reset`: a reset leaves no users and no roles. The script needs the local **Secret** key; it takes `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, or falls back to `.env.test.local`. Since S-403, an account without one sees only a "no access yet" notice and its own account page.
+> Repeat both after every `pnpm exec supabase db reset`: a reset leaves no users and no roles. From then on, give other accounts their roles on the Users page (`/users`); the script stays for bootstrap and recovery. It needs the local **Secret** key; it takes `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, or falls back to `.env.test.local`. Since S-403, an account without a role sees only a "no access yet" notice and its own account page.
 
 ## Available Scripts
 
@@ -492,7 +492,7 @@ pnpm exec supabase db push             # apply pending migrations to the linked 
 pnpm exec supabase db diff             # should report clean afterward
 ```
 
-> Table reachability is pinned explicitly in migrations, not left to Supabase's legacy auto-grant for new `public` tables (the platform is moving to opt-in grants). `authenticated` and `service_role` are granted DML on the public schema — current and future tables, via `alter default privileges` — while `anon` is revoked (least privilege). When adding a `public` table, the default-privilege rules carry these grants forward automatically; if a table is ever unexpectedly unreachable, run `pnpm exec supabase db advisors` and confirm the Postgres role holds a grant. Grants control whether the table is reachable at all; RLS controls which rows are visible, and since S-403 every human-facing policy also asks for an app role (`private.can_read()` to read, `private.can_edit()` to write). A signed-in user needs all three: the grant, the policy, and a row in `public.user_roles`. A new table also needs its four capability policies (CLAUDE.md § Database & auth).
+> Table reachability is pinned explicitly in migrations, not left to Supabase's legacy auto-grant for new `public` tables (the platform is moving to opt-in grants). `authenticated` and `service_role` are granted DML on the public schema — current and future tables, via `alter default privileges` — while `anon` is revoked (least privilege). When adding a `public` table, the default-privilege rules carry these grants forward automatically; if a table is ever unexpectedly unreachable, run `pnpm exec supabase db advisors` and confirm the Postgres role holds a grant. Grants control whether the table is reachable at all; RLS controls which rows are visible, and since S-403 every human-facing policy also asks for an app role (`private.can_read()` to read, `private.can_edit()` to write, and `private.can_manage_users()` to write `user_roles`). A signed-in user needs all three: the grant, the policy, and a row in `public.user_roles`. A new table also needs its four capability policies (CLAUDE.md § Database & auth).
 
 **Rollback.** Hosted holds real school data, so migrations are **additive only** (nullable new columns, no `DROP`), and hosted is never dropped and re-pushed. A code rollback does not undo an applied migration — recover by rolling forward with a new additive migration.
 
@@ -504,8 +504,9 @@ pnpm exec supabase db diff             # should report clean afterward
 | `/auth/forgot`  | Request a password-reset email (public; Turnstile-guarded, one neutral answer)             |
 | `/auth/confirm` | Scanner-safe landing for the emailed link; only its **Continue** button spends it (public) |
 | `/dashboard`    | Protected page (redirects to `/auth/signin` if unauthenticated)                            |
+| `/users`        | Admin only: every human user, their role and the latest change to it (404 to anyone else)  |
 
-There is no self-service signup: accounts are provisioned manually, and each one also needs a role (`node scripts/assign-role.mjs <email> <admin|author|viewer>`). See [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md). Password reset by email (S-402) is self-service; its sender, DNS and smoke test are in [`docs/runbooks/email-delivery.md`](docs/runbooks/email-delivery.md), and its hosted Auth values in [`docs/runbooks/hosted-auth-settings.md`](docs/runbooks/hosted-auth-settings.md).
+There is no self-service signup: accounts are provisioned manually, and each one also needs a role. An admin gives it on the Users page (S-406), where every change is recorded with who made it and when. The school always keeps at least one admin: demoting the last one is refused, on the page and by `node scripts/assign-role.mjs`, which stays for bootstrap and recovery. See [`docs/runbooks/author-provisioning.md`](docs/runbooks/author-provisioning.md). Password reset by email (S-402) is self-service; its sender, DNS and smoke test are in [`docs/runbooks/email-delivery.md`](docs/runbooks/email-delivery.md), and its hosted Auth values in [`docs/runbooks/hosted-auth-settings.md`](docs/runbooks/hosted-auth-settings.md).
 
 The CP-SAT solver reaches the database as a **machine** Auth user whose token carries a narrow Postgres role (`solver_job_writer`, reaching only `generation_jobs`) via a Custom Access Token Hook — it never holds a secret key. Provisioning, rotation, hosted enablement, and the kill-switch drill are in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
 

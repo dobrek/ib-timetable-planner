@@ -32,6 +32,24 @@ Create an author account on the hosted project for the runner, following
   action the runner sends is refused.
 - **Do not give it a `machine_role`.** That `app_metadata` key is what turns an account into the
   solver's narrow database role, so this must stay an ordinary author.
+- **Flag it as a service account** (S-406). The Users page then labels it "Service account", so an
+  admin can tell it is not a person. The flag is `app_metadata.service_account = true`, which only
+  the Admin API can set (`PUT /auth/v1/admin/users/<id>`), so set it from the operator's shell with
+  the secret key, exported there and never written to a file. supabase-js's `updateUserById` makes
+  that request, and GoTrue merges the key into the account's existing `app_metadata`:
+
+  ```bash
+  # From the repo root, with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY exported, as for assign-role.mjs
+  node --input-type=module -e '
+    import { createClient } from "@supabase/supabase-js";
+    const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const { error } = await admin.auth.admin.updateUserById(process.argv[1], { app_metadata: { service_account: true } });
+    if (error) throw error;' <campaign-account-id>
+  ```
+
+  It is a label only. The Custom Access Token Hook ignores it, and the account's role stays
+  changeable on the Users page.
+
 - **Use a dedicated account, not your own.** Signing out in a browser ends the session globally, so
   if you shared an account with the runner, signing out on your laptop would sign the runner out
   mid-campaign.

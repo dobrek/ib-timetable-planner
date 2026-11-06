@@ -509,28 +509,28 @@ Pin the visible attribution in the browser, re-prove generation end to end, and 
 
 #### Automated
 
-- [x] 3.1 Unit tests pass (`canStopJob`, `stoppedBy`, capability, PendingProposalPage, GenerationStatusStrip): `pnpm test`
-- [x] 3.2 The stop suite with signed-in cases is green
-- [x] 3.3 The generation suites are green
-- [x] 3.4 Type check passes: `pnpm check`
-- [x] 3.5 Lint and FSD checks pass: `pnpm lint && pnpm steiger`
-- [x] 3.6 The build is clean: `pnpm build`
+- [x] 3.1 Unit tests pass (`canStopJob`, `stoppedBy`, capability, PendingProposalPage, GenerationStatusStrip): `pnpm test` — c06fbaba
+- [x] 3.2 The stop suite with signed-in cases is green — c06fbaba
+- [x] 3.3 The generation suites are green — c06fbaba
+- [x] 3.4 Type check passes: `pnpm check` — c06fbaba
+- [x] 3.5 Lint and FSD checks pass: `pnpm lint && pnpm steiger` — c06fbaba
+- [x] 3.6 The build is clean: `pnpm build` — c06fbaba
 
 #### Manual
 
-- [x] 3.7 Author B sees "Requested by A" and no Stop; the admin sees Stop
-- [x] 3.8 After the admin stops A's job, A sees "Stopped by <admin>" and the admin sees "You stopped"
-- [x] 3.9 A legacy job (null requester) is stoppable by B, with neutral copy
+- [x] 3.7 Author B sees "Requested by A" and no Stop; the admin sees Stop — c06fbaba
+- [x] 3.8 After the admin stops A's job, A sees "Stopped by <admin>" and the admin sees "You stopped" — c06fbaba
+- [x] 3.9 A legacy job (null requester) is stoppable by B, with neutral copy — c06fbaba
 
 ### Phase 4: E2E, FR-417 Guardrail and Docs
 
 #### Automated
 
-- [ ] 4.1 The new and changed specs pass with the solver up
-- [ ] 4.2 The full E2E suite passes: `pnpm test:e2e`
-- [ ] 4.3 The full integration lane passes: `pnpm test:integration`
-- [ ] 4.4 The local CI gate passes: `/verify`
+- [x] 4.1 The new and changed specs pass with the solver up
+- [x] 4.2 The full E2E suite passes: `pnpm test:e2e`
+- [x] 4.3 The full integration lane passes: `pnpm test:integration`
+- [x] 4.4 The local CI gate passes: `/verify`
 
 #### Manual
 
-- [ ] 4.5 The CLAUDE.md, README and roadmap edits read correctly
+- [x] 4.5 The CLAUDE.md, README and roadmap edits read correctly

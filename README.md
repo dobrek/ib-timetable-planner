@@ -514,6 +514,8 @@ Route protection is deny-by-default in `src/middleware.ts` — every route requi
 
 A viewer reads everything an author can, including exports, comparison and the teacher and student views, with every edit control left out (S-405). Delivery writes the board, so a finished proposal waits for an author or admin to open it: until then a viewer sees "Finished — waiting for an author", and their page turns into the board once one does.
 
+Every plan records who created it, and every generation job who requested it (S-407): a running job can be stopped only by its requester or an admin, and jobs from before S-407 stay stoppable by any author.
+
 ## License
 
 MIT

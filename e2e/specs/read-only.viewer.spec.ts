@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { authorEmail } from "../author-credentials.mjs";
 import {
   cell,
   chipMenuTrigger,
@@ -92,6 +93,13 @@ test.describe("viewer: every gated page is read-only", () => {
           await gotoStable(page, "/plans");
           await expect(page.getByRole("link", { name: plan.name, exact: true })).toBeVisible();
           await expect(page.getByText("View only", { exact: true })).toBeVisible();
+          // Who made a plan is a read (S-407): the viewer sees the author credited, by email.
+          await expect(
+            page
+              .getByRole("row")
+              .filter({ has: page.getByRole("link", { name: plan.name, exact: true }) })
+              .getByText(authorEmail, { exact: true }),
+          ).toBeVisible();
           await expect(page.getByRole("button", { name: "New plan" })).toHaveCount(0);
           // Not this plan's alone: no row on the hub may carry a menu.
           await expect(page.getByRole("button", { name: /^Actions for / })).toHaveCount(0);

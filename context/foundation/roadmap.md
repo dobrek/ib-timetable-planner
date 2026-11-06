@@ -272,6 +272,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Blockers:** —
 - **Unknowns:**
   - Whether hosted auth rejects tokens issued before a ban (the platform's latest source does; local v2.189.0 does not). The one-hour guardrail holds either way through token expiry. — Owner: plan phase. Block: no.
+  - A deleted creator or requester reads "Unknown", and their running job becomes stoppable by any author (S-407): `plans.created_by`, `generation_jobs.requested_by` and `stop_requested_by` are set to null on delete, which a pre-S-407 row also is. Whether deletion should read "Deleted user" instead needs a kind column beside each, as S-406's `access_changes.actor_kind`. — Owner: plan phase. Block: no.
 - **Risk:** Delete is irreversible, which is why it reuses the component S-409 already proved instead of introducing it. Both operations maintain existing accounts and share one risk: keeping the Users list in step with the platform's own user records. Revoking a pending invitation belongs to S-410. As for S-409, its secret-key writes reach S-406's record as the Operator's, so it writes its own `access_changes` records with an explicit actor. It must also refuse deleting the last admin itself: S-406's last-admin guard deliberately lets an account deletion's cascade through, which keeps teardown and account deletion working.
 - **Status:** proposed
 

@@ -186,19 +186,19 @@ The access spec changes first and is run red against today's schema. Then one ad
 
 #### Automated Verification
 
-- [ ] The role-matrix suite runs red on the expectations diff alone, before the migration exists: `pnpm test:integration src/test/role-matrix.integration.test.ts`. Record which cells fail.
-- [ ] The migration applies from scratch: `pnpm exec supabase db reset`
-- [ ] Types regenerate cleanly, with only the three new columns in the diff: `pnpm db:types`
-- [ ] The role matrix is green: `pnpm test:integration src/test/role-matrix.integration.test.ts`
-- [ ] The attribution suite is green: `pnpm test:integration src/test/job-attribution.integration.test.ts`
-- [ ] The solver and stop suites are unchanged and green: `pnpm test:integration src/test/solver-credential.integration.test.ts src/_pages/plan-detail/api/generation-stop.integration.test.ts src/test/generation-jobs.integration.test.ts`
-- [ ] No unindexed-FK advisory: `pnpm exec supabase db advisors`
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint and unit tests pass: `pnpm lint && pnpm test`
+- [x] The role-matrix suite runs red on the expectations diff alone, before the migration exists: `pnpm test:integration src/test/role-matrix.integration.test.ts`. Record which cells fail.
+- [x] The migration applies from scratch: `pnpm exec supabase db reset`
+- [x] Types regenerate cleanly, with only the three new columns in the diff: `pnpm db:types`
+- [x] The role matrix is green: `pnpm test:integration src/test/role-matrix.integration.test.ts`
+- [x] The attribution suite is green: `pnpm test:integration src/test/job-attribution.integration.test.ts`
+- [x] The solver and stop suites are unchanged and green: `pnpm test:integration src/test/solver-credential.integration.test.ts src/_pages/plan-detail/api/generation-stop.integration.test.ts src/test/generation-jobs.integration.test.ts`
+- [x] No unindexed-FK advisory: `pnpm exec supabase db advisors`
+- [x] Type check passes: `pnpm check`
+- [x] Lint and unit tests pass: `pnpm lint && pnpm test`
 
 #### Manual Verification
 
-- [ ] The migration header states the reason for an identity check in a trigger, the cascade argument, and the "never write `created_by` with another column" warning.
+- [x] The migration header states the reason for an identity check in a trigger, the cascade argument, and the "never write `created_by` with another column" warning.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human before proceeding to the next phase.
 
@@ -259,19 +259,19 @@ Extract the person-naming concept into `src/entities/user/`, then show the creat
 
 #### Automated Verification
 
-- [ ] Unit tests pass, including `creditFor`, the moved `profileLabel` test, `UserCredit`, and the PlansHub "Created by" cell (user, unknown, service account): `pnpm test`
-- [ ] FSD structure is clean (no `insignificant-slice`, no upward import): `pnpm steiger`
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint passes: `pnpm lint`
-- [ ] The production build stays clean, with no Supabase key in `dist/client`: `pnpm build`
+- [x] Unit tests pass, including `creditFor`, the moved `profileLabel` test, `UserCredit`, and the PlansHub "Created by" cell (user, unknown, service account): `pnpm test`
+- [x] FSD structure is clean (no `insignificant-slice`, no upward import): `pnpm steiger`
+- [x] Type check passes: `pnpm check`
+- [x] Lint passes: `pnpm lint`
+- [x] The production build stays clean, with no Supabase key in `dist/client`: `pnpm build`
 
 #### Manual Verification
 
-- [ ] On `pnpm build && pnpm preview`, a plan you create shows your display name with your email beneath under "Created by". Seed plans show "Unknown".
-- [ ] A plan you duplicate is credited to you, not to the source's creator.
-- [ ] The board header shows the creator on a populated board and on an empty one.
-- [ ] A user flagged `is_service_account` shows the "Service account" badge.
-- [ ] At phone width the hub table still scrolls inside its container, with no page-level horizontal scroll.
+- [x] On `pnpm build && pnpm preview`, a plan you create shows your display name with your email beneath under "Created by". Seed plans show "Unknown".
+- [x] A plan you duplicate is credited to you, not to the source's creator.
+- [x] The board header shows the creator on a populated board and on an empty one.
+- [x] A user flagged `is_service_account` shows the "Service account" badge.
+- [x] At phone width the hub table still scrolls inside its container, with no page-level horizontal scroll.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human before proceeding to the next phase.
 
@@ -348,18 +348,18 @@ The app mirrors the new capability. The job view carries the requester and the s
 
 #### Automated Verification
 
-- [ ] Unit tests pass, including `canStopJob` (requester, other author, admin, legacy, viewer, demoted requester, terminal job), `stoppedBy`, the capability map, PendingProposalPage (Stop absent for a non-owner editor, "Requested by" rendered, stopper copy), and GenerationStatusStrip copy: `pnpm test`
-- [ ] The stop suite with signed-in cases is green: `pnpm test:integration src/_pages/plan-detail/api/generation-stop.integration.test.ts`
-- [ ] The generation suites are green: `pnpm test:integration src/test/generation-lifecycle.integration.test.ts src/_pages/plan-detail/api/generation-enqueue.integration.test.ts`
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint and FSD checks pass: `pnpm lint && pnpm steiger`
-- [ ] The build is clean: `pnpm build`
+- [x] Unit tests pass, including `canStopJob` (requester, other author, admin, legacy, viewer, demoted requester, terminal job), `stoppedBy`, the capability map, PendingProposalPage (Stop absent for a non-owner editor, "Requested by" rendered, stopper copy), and GenerationStatusStrip copy: `pnpm test`
+- [x] The stop suite with signed-in cases is green: `pnpm test:integration src/_pages/plan-detail/api/generation-stop.integration.test.ts`
+- [x] The generation suites are green: `pnpm test:integration src/test/generation-lifecycle.integration.test.ts src/_pages/plan-detail/api/generation-enqueue.integration.test.ts`
+- [x] Type check passes: `pnpm check`
+- [x] Lint and FSD checks pass: `pnpm lint && pnpm steiger`
+- [x] The build is clean: `pnpm build`
 
 #### Manual Verification
 
-- [ ] Locally, with author A, author B and an admin, `SOLVER_STAGE_BUDGET_S=5 mise run solver:dev`, and `pnpm build && pnpm preview`, A generates. B's pending page shows "Requested by A (email)" and no Stop. The admin's shows Stop.
-- [ ] The admin stops A's job. A then sees "Stopped by <admin> (email)…", and the admin sees "You stopped…".
-- [ ] A job started before the migration is stopped by B, and its copy is neutral. Simulate it by nulling `requested_by` in Studio.
+- [x] Locally, with author A, author B and an admin, `SOLVER_STAGE_BUDGET_S=5 mise run solver:dev`, and `pnpm build && pnpm preview`, A generates. B's pending page shows "Requested by A (email)" and no Stop. The admin's shows Stop.
+- [x] The admin stops A's job. A then sees "Stopped by <admin> (email)…", and the admin sees "You stopped…".
+- [x] A job started before the migration is stopped by B, and its copy is neutral. Simulate it by nulling `requested_by` in Studio.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human before proceeding to the next phase.
 
@@ -402,14 +402,14 @@ Pin the visible attribution in the browser, re-prove generation end to end, and 
 
 #### Automated Verification
 
-- [ ] The new and changed specs pass with the solver up: `pnpm test:e2e e2e/specs/created-by.spec.ts e2e/specs/read-only.viewer.spec.ts e2e/specs/generation.spec.ts`
-- [ ] The full E2E suite passes: `pnpm test:e2e`
-- [ ] The full integration lane passes, with `SOLVER_MAX_CONCURRENT_JOBS=2`: `pnpm test:integration`
-- [ ] The local CI gate passes: `/verify`
+- [x] The new and changed specs pass with the solver up: `pnpm test:e2e e2e/specs/created-by.spec.ts e2e/specs/read-only.viewer.spec.ts e2e/specs/generation.spec.ts`
+- [x] The full E2E suite passes: `pnpm test:e2e`
+- [x] The full integration lane passes, with `SOLVER_MAX_CONCURRENT_JOBS=2`: `pnpm test:integration`
+- [x] The local CI gate passes: `/verify`
 
 #### Manual Verification
 
-- [ ] The CLAUDE.md, README and roadmap edits read correctly.
+- [x] The CLAUDE.md, README and roadmap edits read correctly.
 
 **Implementation Note**: After this phase passes, the change is ready for `/10x-impl-review`. The merge deploys, so the no-solve-running rule applies.
 
@@ -526,11 +526,11 @@ Pin the visible attribution in the browser, re-prove generation end to end, and 
 
 #### Automated
 
-- [x] 4.1 The new and changed specs pass with the solver up
-- [x] 4.2 The full E2E suite passes: `pnpm test:e2e`
-- [x] 4.3 The full integration lane passes: `pnpm test:integration`
-- [x] 4.4 The local CI gate passes: `/verify`
+- [x] 4.1 The new and changed specs pass with the solver up — c03de1c0
+- [x] 4.2 The full E2E suite passes: `pnpm test:e2e` — c03de1c0
+- [x] 4.3 The full integration lane passes: `pnpm test:integration` — c03de1c0
+- [x] 4.4 The local CI gate passes: `/verify` — c03de1c0
 
 #### Manual
 
-- [x] 4.5 The CLAUDE.md, README and roadmap edits read correctly
+- [x] 4.5 The CLAUDE.md, README and roadmap edits read correctly — c03de1c0

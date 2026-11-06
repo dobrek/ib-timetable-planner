@@ -1,7 +1,7 @@
 ---
 change_id: created-by-and-job-ownership
 title: Created by and job ownership
-status: implementing
+status: implemented
 created: 2026-11-06
 updated: 2026-11-06
 archived_at: null

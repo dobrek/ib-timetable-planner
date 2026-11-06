@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PlanRow } from "../api/loader";
 import PlansHub from "./PlansHub";
@@ -30,6 +30,7 @@ const plan = (over: Partial<PlanRow>): PlanRow => ({
   slotGridPreset: "5x8",
   updatedAt: "2026-10-01T09:00:00.000Z",
   isCurrent: false,
+  createdBy: { kind: "unknown" },
   counts: { students: 0, courses: 0, placements: 0 },
   indicators: [],
   ...over,
@@ -73,5 +74,44 @@ describe("PlansHub", () => {
     render(<PlansHub plans={[]} canEdit={false} />);
     expect(screen.getByText("No plans yet.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "New plan" })).not.toBeInTheDocument();
+  });
+
+  it("names each plan's creator, with the email beside the name, a service account's badge, or Unknown", () => {
+    render(
+      <PlansHub
+        plans={[
+          plan({
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Ada's plan",
+            createdBy: {
+              kind: "user",
+              user: {
+                id: "a",
+                label: { primary: "Ada Lovelace", secondary: "ada@example.test" },
+                isServiceAccount: false,
+              },
+            },
+          }),
+          plan({
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Campaign proposal",
+            createdBy: {
+              kind: "user",
+              user: { id: "c", label: { primary: "campaign@example.test", secondary: null }, isServiceAccount: true },
+            },
+          }),
+          plan({ id: "33333333-3333-4333-8333-333333333333", name: "Seed plan" }),
+        ]}
+        canEdit={false}
+      />,
+    );
+
+    expect(screen.getByRole("columnheader", { name: "Created by" })).toBeInTheDocument();
+    const rowOf = (name: string) => within(screen.getByRole("link", { name }).closest("tr") as HTMLElement);
+    expect(rowOf("Ada's plan").getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(rowOf("Ada's plan").getByText("ada@example.test")).toBeInTheDocument();
+    expect(rowOf("Campaign proposal").getByText("campaign@example.test")).toBeInTheDocument();
+    expect(rowOf("Campaign proposal").getByText("Service account")).toBeInTheDocument();
+    expect(rowOf("Seed plan").getByText("Unknown")).toBeInTheDocument();
   });
 });

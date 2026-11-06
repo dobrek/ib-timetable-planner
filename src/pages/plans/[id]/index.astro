@@ -6,6 +6,7 @@ import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import PendingProposalPage from "@/_pages/plan-detail/ui/PendingProposalPage";
 import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
+import { loadCredit, type Credit } from "@/entities/user";
 import { allows } from "@/shared/config";
 import {
   checkPlan,
@@ -110,6 +111,17 @@ if (!supabase) Astro.response.status = 503;
 else if (settled === null && !swept) Astro.response.status = 404;
 else if (result && !result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
 
+// Who created the plan (S-407), for the board header. Best-effort, like the generation check: the
+// creator is a label, so a failed lookup logs and renders no creator line rather than an error page.
+const createdBy: Credit | null =
+  supabase && settled
+    ? await loadCredit(supabase, settled.created_by).catch((error: unknown) => {
+        // eslint-disable-next-line no-console -- the server log is the only trace a lookup failed
+        console.error("[plans/:id] creator lookup failed:", error);
+        return null;
+      })
+    : null;
+
 // Narrowed once, so the markup below reads as three states rather than re-deriving the union twice.
 const boardError = result !== null && !result.ok ? result.error : null;
 
@@ -158,6 +170,7 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
       <PlanDetailPage
         planName={result.value.planName}
         isCurrent={settled.is_current}
+        createdBy={createdBy}
         focus={focus}
         shared={result.value.shared}
         dp1={result.value.dp1}

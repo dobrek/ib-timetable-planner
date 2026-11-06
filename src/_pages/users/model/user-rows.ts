@@ -1,6 +1,6 @@
+import { profileLabel, type ProfileLabel } from "@/entities/user";
 import type { Database } from "@/shared/api";
 import type { AppRole } from "@/shared/config";
-import { profileLabel, type ProfileLabel } from "@/shared/ui";
 
 type Tables = Database["public"]["Tables"];
 type DirectoryEntry = Pick<Tables["user_directory"]["Row"], "user_id" | "email" | "is_service_account">;

@@ -1,6 +1,7 @@
 import { Copy, MoreHorizontal, Pencil, Plus, Star, StarOff, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { UserCredit } from "@/entities/user";
 import { useConfirmAction } from "@/shared/lib/forms";
 import {
   Button,
@@ -44,6 +45,10 @@ type Props = {
  * The rows are peers but for one: the **current** plan (S-404, FR-420), the one the school is using.
  * At most one plan is current; the loader pins it first and it carries a badge beside its name, so
  * which plan is current answers itself at a glance. Any author moves the marker from a row's menu.
+ *
+ * **Created by** names whoever made each plan (S-407): its creator, its duplicator, or whoever
+ * pressed Generate for a proposal, with the email beside the name (FR-413), or "Unknown" for a plan
+ * from before the change.
  *
  * **A non-editor reads the same hub with every write left out (S-405):** no "New plan", no row menu
  * (each of its items writes), and job badges that promise only what a non-editor's visit does — see
@@ -149,6 +154,7 @@ export default function PlansHub({ plans, canEdit }: Props) {
                   />
                 </TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Created by</TableHead>
                 <TableHead>Grid</TableHead>
                 <TableHead>Last updated</TableHead>
                 <TableHead>Activity</TableHead>
@@ -177,6 +183,9 @@ export default function PlansHub({ plans, canEdit }: Props) {
                         </a>
                         {plan.isCurrent && <CurrentPlanBadge />}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <UserCredit credit={plan.createdBy} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">{plan.slotGridPreset}</TableCell>
                     <TableCell className="text-muted-foreground">{plan.updatedAt.slice(0, 10)}</TableCell>

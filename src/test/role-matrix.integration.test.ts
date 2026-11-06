@@ -48,6 +48,9 @@ import {
   DIRECTORY_WRITE_EVIDENCE,
   DIRECTORY_WRITES,
   GRANTS,
+  JOB_ATTRIBUTION_REWRITE_EVIDENCE,
+  JOB_ATTRIBUTION_REWRITES,
+  JOB_STOPS,
   MACHINE_DIRECTORY_READ,
   MACHINE_ROLE_GRANT,
   PRINCIPAL_NOTES,
@@ -61,6 +64,8 @@ import {
   USER_KEYED_POLICIES,
   USER_KEYED_READS,
   WRITES,
+  type JobAttributionColumn,
+  type JobRequester,
   type PlanScopedTable,
   type PolicyShape,
   type Principal,
@@ -70,6 +75,7 @@ import {
   type Rpc,
   type SelfGrant,
   type SelfGrantPrincipal,
+  type StopWrite,
   type TableGrants,
   type WriteOperation,
 } from "./role-matrix-expectations";
@@ -87,8 +93,10 @@ import {
  * everywhere. A signed-in user without a role reaches only its own profile and directory row. A
  * viewer reads every plan and profile, and writes only its own profile. An author and an admin read
  * and write every plan, and only an admin reads every role and access change, and gives, changes or
- * removes another user's role. The admin principal's own role row is never written here: demoting
- * it would change every later cell, so its self-change belongs to the guard and record suites. Behavioural cells cover five
+ * removes another user's role. Only a job's requester or an admin stops it, unless it records no
+ * requester (S-407), and nobody rewrites who requested or stopped it. The admin principal's own role
+ * row is never written here: demoting it would change every later cell, so its self-change belongs
+ * to the guard and record suites. Behavioural cells cover five
  * representative tables, so a structural check over `pg_policies` proves the other eleven: every
  * plan-scoped table holds exactly `CAPABILITY_POLICIES`, and no policy a session can fall under is
  * a literal `true`. The user-keyed tables hold their own declared shapes (`USER_KEYED_POLICIES`),
@@ -146,6 +154,9 @@ const ROW_OWNERS: RowOwner[] = ["own", "others"];
 const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
 const SELF_GRANT_NAMES = Object.keys(SELF_GRANTS) as SelfGrant[];
 const RPC_NAMES = Object.keys(RPCS) as Rpc[];
+const JOB_REQUESTERS = Object.keys(JOB_STOPS) as JobRequester[];
+const STOP_WRITES = Object.keys(JOB_STOPS.own) as StopWrite[];
+const ATTRIBUTION_COLUMNS = Object.keys(JOB_ATTRIBUTION_REWRITES) as JobAttributionColumn[];
 
 (hasEnv ? describe : describe.skip)("role matrix (local Supabase)", () => {
   let admin: SupabaseClient;
@@ -174,6 +185,15 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
       setUp(await admin.from("profiles").upsert({ user_id: ownUserId, display_name: "Probe start" }));
     }
     return requireUserRow(admin, table, ownUserId);
+  };
+
+  /** The requester a stop cell's job records: the principal itself, the fixture owner, or nobody. */
+  const requesterOf = (principal: Principal, requester: JobRequester): string | null => {
+    if (requester === "others") return fixture.profileOwnerId;
+    if (requester === "legacy") return null;
+    const ownUserId = ownUserIdOf(principal);
+    if (!ownUserId) throw new Error(`${principal} has no id, so it requests no job`);
+    return ownUserId;
   };
 
   // A "no-row" cell is not probed. Its premise is checked instead, so the marker can never hide a cell.
@@ -290,8 +310,10 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
       "private.can_edit()": ["authenticated"],
       "private.can_manage_users()": ["authenticated"],
       "private.can_read()": ["authenticated"],
+      "private.can_stop_any_job()": ["authenticated"],
       "private.current_app_role()": ["authenticated"],
       // Trigger functions: EXECUTE is checked when a trigger is created, never when it fires.
+      "private.guard_job_attribution()": [],
       "private.guard_last_admin()": [],
       "private.mirror_auth_user()": [],
       "private.record_role_change()": [],
@@ -409,6 +431,34 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
         }
       }
 
+      for (const requester of JOB_REQUESTERS) {
+        for (const write of STOP_WRITES) {
+          const expected = JOB_STOPS[requester][write][principal];
+          if (expected === "no-row") {
+            it(`${principal} ${write} (${requester} job) → no-row: it has no id to request a job with`, () => {
+              expect(ownUserIdOf(principal)).toBeNull();
+            });
+          } else {
+            it(`${principal} ${write} (${requester} job) → ${expected}`, async () => {
+              const attempt = await STOP_PROBES[write](admin, principals[principal], requesterOf(principal, requester));
+              expect(await probeWrite(attempt)).toBe(expected);
+            });
+          }
+        }
+      }
+
+      for (const column of ATTRIBUTION_COLUMNS) {
+        const expected = JOB_ATTRIBUTION_REWRITES[column][principal];
+        it(`${principal} UPDATE another user's job ${column} onto itself → ${expected}`, async () => {
+          const claimantId = ownUserIdOf(principal) ?? (await createAuthUser(admin)).id;
+          const attempt = await attributionRewriteProbe(admin, principals[principal], column, {
+            requesterId: fixture.profileOwnerId,
+            claimantId,
+          });
+          expect(await probeWrite(attempt)).toBe(expected);
+        });
+      }
+
       for (const owner of ROW_OWNERS) {
         for (const operation of PROFILE_OPERATIONS) {
           const expected = PROFILE_WRITES[owner][operation][principal];
@@ -478,6 +528,21 @@ const RPC_NAMES = Object.keys(RPCS) as Rpc[];
       const expected = ACCESS_CHANGE_WRITE_EVIDENCE[operation];
       it(`service role ${operation.toUpperCase()} a fresh user's access_changes row → ${expected}`, async () => {
         const attempt = await ACCESS_CHANGE_WRITE_PROBES[operation](admin, admin, null);
+        expect(await probeWrite(attempt)).toBe(expected);
+      });
+    }
+  });
+
+  // Nor may any app principal rewrite a job's attribution. The guard lets the service role through,
+  // which is the evidence that each payload is valid.
+  describe("service role — the evidence for the job attribution rewrite rows", () => {
+    for (const column of ATTRIBUTION_COLUMNS) {
+      const expected = JOB_ATTRIBUTION_REWRITE_EVIDENCE[column];
+      it(`service role UPDATE another user's job ${column} onto a fresh user → ${expected}`, async () => {
+        const attempt = await attributionRewriteProbe(admin, admin, column, {
+          requesterId: fixture.profileOwnerId,
+          claimantId: (await createAuthUser(admin)).id,
+        });
         expect(await probeWrite(attempt)).toBe(expected);
       });
     }
@@ -608,7 +673,9 @@ const PRIVATE_FUNCTIONS: Record<string, FunctionSecurity> = {
   "private.can_edit()": "invoker",
   "private.can_manage_users()": "invoker",
   "private.can_read()": "invoker",
+  "private.can_stop_any_job()": "invoker",
   "private.current_app_role()": "definer",
+  "private.guard_job_attribution()": "invoker",
   "private.guard_last_admin()": "invoker",
   "private.mirror_auth_user()": "invoker",
   "private.record_role_change()": "invoker",
@@ -811,6 +878,71 @@ const deleteProbe = (
   attempt: () => client.from(table).delete().eq("id", id),
   effectLanded: async () => readBack(await admin.from(table).select("id").eq("id", id)).length === 0,
 });
+
+/** One stop cell: the stop write as the principal, against a job recording `requestedBy`. */
+type StopProbe = (admin: SupabaseClient, client: SupabaseClient, requestedBy: string | null) => Promise<WriteAttempt>;
+
+/**
+ * Each probe sends exactly the UPDATE `stopGeneration` sends (`generation-stop.ts`), its status
+ * filter included, to a fresh job the service role made in the state that write needs, on a plan of
+ * its own: a plan holds at most one queued or running job. The effect is the job stopped, or its
+ * flag set. A timestamp sentinel cannot be compared as a string: Postgres writes `+00:00` where
+ * `toISOString()` writes `Z`.
+ */
+const STOP_PROBES: Record<StopWrite, StopProbe> = {
+  "stop queued": async (admin, client, requestedBy) => {
+    const jobId = await addGenerationJob(admin, { planId: await createPlan(admin), status: "queued", requestedBy });
+    const now = new Date().toISOString();
+    return {
+      attempt: () =>
+        client
+          .from("generation_jobs")
+          .update({
+            status: "stopped",
+            error: "stopped by the author: probe",
+            finished_at: now,
+            stop_requested_at: now,
+          })
+          .eq("id", jobId)
+          .eq("status", "queued"),
+      effectLanded: async () =>
+        readBack(await admin.from("generation_jobs").select("status").eq("id", jobId).single()).status === "stopped",
+    };
+  },
+  "stop running": async (admin, client, requestedBy) => {
+    const jobId = await addGenerationJob(admin, { planId: await createPlan(admin), status: "running", requestedBy });
+    return {
+      attempt: () =>
+        client
+          .from("generation_jobs")
+          .update({ stop_requested_at: new Date().toISOString() })
+          .eq("id", jobId)
+          .eq("status", "running"),
+      effectLanded: async () =>
+        readBack(await admin.from("generation_jobs").select("stop_requested_at").eq("id", jobId).single())
+          .stop_requested_at !== null,
+    };
+  },
+};
+
+/**
+ * Point one attribution column of `requesterId`'s finished job at `claimantId`, as the principal.
+ * The job is finished so it never holds its plan's active-job slot, and it records no stop, so a
+ * `stop_requested_by` rewrite is never a stop write in disguise.
+ */
+const attributionRewriteProbe = async (
+  admin: SupabaseClient,
+  client: SupabaseClient,
+  column: JobAttributionColumn,
+  { requesterId, claimantId }: { requesterId: string; claimantId: string },
+): Promise<WriteAttempt> => {
+  const jobId = await addGenerationJob(admin, {
+    planId: await createPlan(admin),
+    status: "failed",
+    requestedBy: requesterId,
+  });
+  return updateProbe(admin, client, "generation_jobs", jobId, column, claimantId);
+};
 
 /** Builds one profile write cell's target with the service role. `ownUserId` is null for anon. */
 type ProfileWriteProbeBuilder = (

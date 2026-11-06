@@ -473,37 +473,37 @@ Pin the visible attribution in the browser, re-prove generation end to end, and 
 
 #### Automated
 
-- [x] 1.1 The role-matrix suite runs red on the expectations diff alone, before the migration exists (failing cells recorded)
-- [x] 1.2 The migration applies from scratch: `pnpm exec supabase db reset`
-- [x] 1.3 Types regenerate cleanly, with only the three new columns in the diff: `pnpm db:types`
-- [x] 1.4 The role matrix is green: `pnpm test:integration src/test/role-matrix.integration.test.ts`
-- [x] 1.5 The attribution suite is green: `pnpm test:integration src/test/job-attribution.integration.test.ts`
-- [x] 1.6 The solver and stop suites are unchanged and green
-- [x] 1.7 No unindexed-FK advisory: `pnpm exec supabase db advisors`
-- [x] 1.8 Type check passes: `pnpm check`
-- [x] 1.9 Lint and unit tests pass: `pnpm lint && pnpm test`
+- [x] 1.1 The role-matrix suite runs red on the expectations diff alone, before the migration exists (failing cells recorded) — ddeab46
+- [x] 1.2 The migration applies from scratch: `pnpm exec supabase db reset` — ddeab46
+- [x] 1.3 Types regenerate cleanly, with only the three new columns in the diff: `pnpm db:types` — ddeab46
+- [x] 1.4 The role matrix is green: `pnpm test:integration src/test/role-matrix.integration.test.ts` — ddeab46
+- [x] 1.5 The attribution suite is green: `pnpm test:integration src/test/job-attribution.integration.test.ts` — ddeab46
+- [x] 1.6 The solver and stop suites are unchanged and green — ddeab46
+- [x] 1.7 No unindexed-FK advisory: `pnpm exec supabase db advisors` — ddeab46
+- [x] 1.8 Type check passes: `pnpm check` — ddeab46
+- [x] 1.9 Lint and unit tests pass: `pnpm lint && pnpm test` — ddeab46
 
 #### Manual
 
-- [x] 1.10 The migration header states the reason for an identity check in a trigger, the cascade argument, and the `created_by` write warning
+- [x] 1.10 The migration header states the reason for an identity check in a trigger, the cascade argument, and the `created_by` write warning — ddeab46
 
 ### Phase 2: `entities/user` and "Created by"
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass (`creditFor`, `profileLabel`, `UserCredit`, the PlansHub cell): `pnpm test`
-- [ ] 2.2 FSD structure is clean: `pnpm steiger`
-- [ ] 2.3 Type check passes: `pnpm check`
-- [ ] 2.4 Lint passes: `pnpm lint`
-- [ ] 2.5 The production build stays clean: `pnpm build`
+- [x] 2.1 Unit tests pass (`creditFor`, `profileLabel`, `UserCredit`, the PlansHub cell): `pnpm test`
+- [x] 2.2 FSD structure is clean: `pnpm steiger`
+- [x] 2.3 Type check passes: `pnpm check`
+- [x] 2.4 Lint passes: `pnpm lint`
+- [x] 2.5 The production build stays clean: `pnpm build`
 
 #### Manual
 
-- [ ] 2.6 A new plan is credited to you (name and email); seed plans show "Unknown"
-- [ ] 2.7 A duplicate is credited to the duplicator
-- [ ] 2.8 The board header shows the creator on a populated board and on an empty one
-- [ ] 2.9 A service account shows its badge
-- [ ] 2.10 No page-level horizontal scroll at phone width
+- [x] 2.6 A new plan is credited to you (name and email); seed plans show "Unknown"
+- [x] 2.7 A duplicate is credited to the duplicator
+- [x] 2.8 The board header shows the creator on a populated board and on an empty one
+- [x] 2.9 A service account shows its badge
+- [x] 2.10 No page-level horizontal scroll at phone width
 
 ### Phase 3: Stop Ownership in the App
 

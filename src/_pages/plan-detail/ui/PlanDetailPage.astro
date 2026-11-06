@@ -1,6 +1,7 @@
 ---
 import PlannerBoard from "./PlannerBoard";
 import type { PlannerBoardProps, SharedBoardProps } from "../model/drag";
+import type { Credit } from "@/entities/user";
 import type { BatchExportSources } from "../lib/batch-export-workbooks";
 import type { BoardSurface } from "../lib/board-surface";
 import type { Cohort } from "@/shared/config";
@@ -10,6 +11,8 @@ type Props = {
   planName: string;
   /** The plan is the current one (S-404): the board heading carries the badge. */
   isCurrent: boolean;
+  /** Who created the plan (S-407), resolved by the route; null when the lookup failed. */
+  createdBy: Credit | null;
   focus: BoardSurface;
   shared: SharedBoardProps;
   dp1: PlannerBoardProps;
@@ -26,6 +29,7 @@ type Props = {
 const {
   planName,
   isCurrent,
+  createdBy,
   focus,
   shared,
   dp1,
@@ -42,6 +46,7 @@ const {
   <PlannerBoard
     planName={planName}
     isCurrent={isCurrent}
+    createdBy={createdBy}
     focus={focus}
     shared={shared}
     dp1={dp1}

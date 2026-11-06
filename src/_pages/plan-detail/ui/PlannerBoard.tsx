@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { Credit } from "@/entities/user";
 import { cohortLabel, type Cohort } from "@/shared/config";
 import { CurrentPlanBadge, PrintButton } from "@/shared/ui";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
@@ -44,6 +45,8 @@ type Props = {
   /** The plan is the current one (S-404): both heading render sites and the print-only heading carry
    *  the badge, and every export's file name carries `-current` (S-405). */
   isCurrent: boolean;
+  /** Who created the plan (S-407), for both heading render sites; null shows no creator line. */
+  createdBy: Credit | null;
   /** The active surface from `?focus=`: one cohort (focus mode) or the combined two-cohort board. */
   focus: BoardSurface;
   shared: SharedBoardProps;
@@ -79,6 +82,7 @@ type Props = {
 export default function PlannerBoard({
   planName,
   isCurrent,
+  createdBy,
   focus,
   shared,
   dp1: dp1Props,
@@ -259,7 +263,7 @@ export default function PlannerBoard({
   if (focus !== "combined" && paletteView === "empty") {
     return (
       <>
-        <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={focus} />
+        <BoardHeader planName={planName} isCurrent={isCurrent} createdBy={createdBy} planId={planId} active={focus} />
         <div data-slot="planner-board" className="p-6">
           <ComputeGroupingsEmptyState planId={planId} cohort={focus} />
         </div>
@@ -309,6 +313,7 @@ export default function PlannerBoard({
           <PlanSummaryBar
             planName={planName}
             isCurrent={isCurrent}
+            createdBy={createdBy}
             summary={summary}
             combined={combined}
             parkedCount={parkedBundles.length}

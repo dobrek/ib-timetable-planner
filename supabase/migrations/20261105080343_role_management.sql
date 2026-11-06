@@ -27,14 +27,21 @@
 --   * Concurrency. Two admins demoting each other at once would each see the other still admin and
 --     both commit, leaving none (plan probe P9). So the guard takes a transaction-scoped advisory
 --     lock before it counts: the second waits, and PL/pgSQL's fresh snapshot per statement then
---     sees the first one's commit. Only a demotion of an admin takes the lock.
+--     sees the first one's commit. That holds under READ COMMITTED, the default every writer
+--     uses: under REPEATABLE READ the count reads the snapshot taken before the wait, and two
+--     cross-demotions both commit. Only a demotion of an admin takes the lock.
 --   * The count runs as the invoker, through RLS. That is correct only because every writer of
 --     `user_roles` reads every role row: a `can_manage_users()` holder (by its own read policy), the
 --     service role (BYPASSRLS) or the owner. A future writer that cannot must revisit the guard.
 --   * Account deletion is exempt. Deleting a user cascades into `user_roles`, and refusing that
 --     would break `auth.admin.deleteUser`, the test teardown and S-411's delete. The cascade is told
---     apart by `pg_trigger_depth() > 1`, which only a BEFORE trigger sees (an AFTER trigger on a
---     cascade fires at depth 1, plan probe P7). FR-408 names demotion and deactivation; refusing to
+--     apart by two facts together: `pg_trigger_depth() > 1`, which only a BEFORE trigger sees (an
+--     AFTER trigger on a cascade fires at depth 1, plan probe P7), and the user's `auth.users` row
+--     being gone already. Depth alone would also exempt a DELETE issued from another trigger, which
+--     would then remove the last admin with no refusal and no record. `auth.users` is read only at
+--     depth > 1: an FK cascade runs as the referencing table's owner, which the post-conditions
+--     assert may read it, while a nested DELETE under a signed-in session cannot, and fails with
+--     42501 rather than slipping through. FR-408 names demotion and deactivation; refusing to
 --     delete the last admin's account belongs to S-411's own component. S-408 must change the guard
 --     to count only active admins.
 --
@@ -60,7 +67,10 @@
 --
 -- ATOMIC, AND LOCKS CAPPED. One implicit transaction, as every file here. Policy changes take an
 -- AccessExclusiveLock on `user_roles`, which every request's role read touches, so the wait is
--- capped and a busy moment fails the deploy, which can be re-run. `set local` prints "WARNING: SET
+-- capped and a busy moment fails the deploy, which can be re-run. The two foreign keys on
+-- `access_changes` also take a SHARE ROW EXCLUSIVE lock on `auth.users`, which holds GoTrue's writes
+-- (a sign-in's `last_sign_in_at`) until this file commits; the wait to take it is under the same
+-- cap. `set local` prints "WARNING: SET
 -- LOCAL can only be used in transaction blocks"; the setting holds for the rest of the file.
 
 set local lock_timeout = '5s';
@@ -136,9 +146,15 @@ begin
     raise exception using errcode = '42501', message = 'A role cannot move to another user.';
   end if;
 
-  if old.role <> 'admin'
-     or (tg_op = 'UPDATE' and new.role = 'admin')
-     or (tg_op = 'DELETE' and pg_trigger_depth() > 1) then
+  -- The account-deletion cascade (see THE GUARD above). Nested, not one `and`, so `auth.users` is
+  -- read only at depth > 1: a depth-1 writer may not be able to read it, and must not need to.
+  if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
+    if not exists (select 1 from auth.users u where u.id = old.user_id) then
+      return old;
+    end if;
+  end if;
+
+  if old.role <> 'admin' or (tg_op = 'UPDATE' and new.role = 'admin') then
     if tg_op = 'DELETE' then
       return old;
     end if;
@@ -193,6 +209,9 @@ comment on table public.access_changes is
 -- The Users page reads the latest record per user.
 create index access_changes_target_id_occurred_at on public.access_changes (target_id, occurred_at desc);
 
+-- Deleting an account sets its records' `actor_id` to null: indexed, so that is no scan.
+create index access_changes_actor_id on public.access_changes (actor_id);
+
 alter table public.access_changes enable row level security;
 
 create policy "Admins read access changes" on public.access_changes
@@ -211,6 +230,8 @@ create policy "Role triggers record changes" on public.access_changes
 
 -- anon: all eight privileges.
 revoke all on public.access_changes from anon;
+-- Supabase's default sequence grants give anon USAGE on the identity's sequence too.
+revoke all on sequence public.access_changes_id_seq from anon;
 
 -- authenticated: INSERT and SELECT only. No UPDATE or DELETE grant is what makes it append-only.
 revoke update, delete, truncate, references, trigger, maintain on public.access_changes from authenticated;
@@ -225,9 +246,12 @@ set search_path = ''
 as $$
 begin
   -- The cascade from an account deletion: not a role write, and recording it would abort the
-  -- deletion (see THE RECORD above).
+  -- deletion (see THE RECORD above). Told apart as the guard does: a DELETE issued from another
+  -- trigger runs at depth 2 as well, but its user still exists, so it is recorded.
   if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
-    return old;
+    if not exists (select 1 from auth.users u where u.id = old.user_id) then
+      return old;
+    end if;
   end if;
 
   if tg_op = 'UPDATE' and new.role = old.role then
@@ -277,8 +301,9 @@ revoke execute on function private.record_role_change() from public, anon, authe
 do $$
 declare
   definer_functions text[];
-  invoker_functions text[];
-  anon_privileges   text[];
+  invoker_functions  text[];
+  unpinned_functions text[];
+  anon_privileges    text[];
   user_privileges   text[];
   privileges constant text[] :=
     array['DELETE', 'INSERT', 'MAINTAIN', 'REFERENCES', 'SELECT', 'TRIGGER', 'TRUNCATE', 'UPDATE'];
@@ -302,6 +327,15 @@ begin
   if invoker_functions is distinct from
      array['private.can_manage_users()', 'private.guard_last_admin()', 'private.record_role_change()'] then
     raise exception 'role_management: only % of the new functions are INVOKER', invoker_functions;
+  end if;
+
+  select array_agg(f order by f) into unpinned_functions
+    from unnest(array[
+      'private.can_manage_users()', 'private.guard_last_admin()', 'private.record_role_change()'
+    ]) as f
+   where not ('search_path=""' = any (coalesce((select proconfig from pg_proc where oid = f::regprocedure), '{}')));
+  if unpinned_functions is not null then
+    raise exception 'role_management: % do not pin search_path to empty', unpinned_functions;
   end if;
 
   select array_agg(p order by p) into user_privileges
@@ -328,8 +362,24 @@ begin
     raise exception 'role_management: anon holds %', anon_privileges;
   end if;
 
+  select array_agg(p order by p) into anon_privileges
+    from unnest(array['SELECT', 'UPDATE', 'USAGE']) as p
+   where has_sequence_privilege('anon', 'public.access_changes_id_seq', p);
+  if anon_privileges is not null then
+    raise exception 'role_management: anon holds % on public.access_changes_id_seq', anon_privileges;
+  end if;
+
   if has_function_privilege('anon', 'private.can_manage_users()', 'EXECUTE') then
     raise exception 'role_management: anon may execute private.can_manage_users()';
+  end if;
+
+  -- The cascade exemption reads `auth.users` as the cascade's identity, the owner of `user_roles`.
+  -- Without that privilege, deleting any account that holds a role would fail.
+  if not has_table_privilege(
+    (select c.relowner::regrole::text from pg_class c where c.oid = 'public.user_roles'::regclass),
+    'auth.users', 'SELECT'
+  ) then
+    raise exception 'role_management: the owner of public.user_roles cannot read auth.users';
   end if;
 end;
 $$;

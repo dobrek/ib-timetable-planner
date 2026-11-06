@@ -22,6 +22,9 @@ export type PendingConfirmation = { row: UserRow; role: AppRole | null; reason: 
  */
 const REFRESH_ON: readonly ActionErrorCode[] = ["NOT_FOUND", "FORBIDDEN"];
 
+/** The request never completed (a network drop, a Worker restart), so nothing is known to have saved. */
+const UNREACHABLE_MESSAGE = "Role change failed — try again.";
+
 /**
  * The Users page's role-change flow (S-406). A choice saves at once, unless it is the admin's own
  * role or No access: those wait for `confirm`. While a row saves, `saving` holds the role chosen
@@ -32,6 +35,8 @@ const REFRESH_ON: readonly ActionErrorCode[] = ["NOT_FOUND", "FORBIDDEN"];
  *   what the admin sees, since the toast goes with the reload, as on every page today.
  * - Saved for yourself: a full load of `/dashboard`, since this page is no longer yours.
  * - Refused: the server's message, and a reload only for the codes in `REFRESH_ON`.
+ * - Never answered (the request rejected): a generic failure and no reload. The row is freed and
+ *   its picker falls back, so the admin can try again.
  */
 export function useRoleChange(currentUserId: string) {
   const [saving, setSaving] = useState<ReadonlyMap<string, AppRole | null>>(new Map());
@@ -44,9 +49,10 @@ export function useRoleChange(currentUserId: string) {
     inFlight.current = new Set([...inFlight.current, row.userId]);
     setSaving((current) => new Map([...current, [row.userId, role]]));
 
-    const { error } = await changeUserRole({ userId: row.userId, role });
+    // A rejected request (it never completed) becomes null: Astro's action client does not catch one.
+    const result = await changeUserRole({ userId: row.userId, role }).catch(() => null);
     // Leaving at once, so the picker keeps showing the new role until the page goes.
-    if (!error && row.userId === currentUserId) {
+    if (result && !result.error && row.userId === currentUserId) {
       goToDashboard();
       return;
     }
@@ -54,9 +60,13 @@ export function useRoleChange(currentUserId: string) {
     inFlight.current = new Set([...inFlight.current].filter((userId) => userId !== row.userId));
     setSaving((current) => new Map([...current].filter(([userId]) => userId !== row.userId)));
     setConfirmation((current) => (current?.row.userId === row.userId ? null : current));
-    if (error) {
-      toast.error(error.message);
-      if (REFRESH_ON.includes(error.code)) await refreshPage();
+    if (!result) {
+      toast.error(UNREACHABLE_MESSAGE);
+      return;
+    }
+    if (result.error) {
+      toast.error(result.error.message);
+      if (REFRESH_ON.includes(result.error.code)) await refreshPage();
       return;
     }
     toast.success("Role changed");

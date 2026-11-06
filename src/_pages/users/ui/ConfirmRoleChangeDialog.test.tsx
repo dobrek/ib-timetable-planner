@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PendingConfirmation } from "../model/use-role-change";
 import ConfirmRoleChangeDialog from "./ConfirmRoleChangeDialog";
-import { ADMIN_ROW, AUTHOR_ROW } from "./fixtures";
+import { ADMIN_ROW, AUTHOR_ROW } from "./__fixtures__/user-rows";
 
 const renderDialog = (confirmation: PendingConfirmation | null, isBusy = false) => {
   const handlers = { onConfirm: vi.fn(), onClose: vi.fn() };

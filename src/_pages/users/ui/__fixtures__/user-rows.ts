@@ -1,4 +1,4 @@
-import type { UserRow } from "../model/user-rows";
+import type { UserRow } from "../../model/user-rows";
 
 /** Rows for the component tests: the signed-in admin, a named author, and a role-less user. */
 export const ADMIN_ID = "00000000-0000-4000-8000-00000000000a";

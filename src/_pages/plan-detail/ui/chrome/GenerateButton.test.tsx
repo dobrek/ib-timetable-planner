@@ -38,6 +38,8 @@ const trackedJob = (status: GenerationJobView["status"], policy: SolvePolicy = D
   stageIndex: null,
   stageName: null,
   stopRequestedAt: null,
+  requestedBy: null,
+  stoppedBy: null,
   policy,
   stalled: false,
   awaitingDelivery: false,

@@ -24,6 +24,8 @@ type Props = {
   generationJob: GenerationJobView | null;
   /** The route's `allows(access, "edit")` (S-405). */
   canEdit: boolean;
+  /** The signed-in user's id (S-407), for the strip's stopper copy. */
+  viewerId: string | null;
 };
 
 const {
@@ -39,6 +41,7 @@ const {
   initialPaletteCohort,
   generationJob,
   canEdit,
+  viewerId,
 } = Astro.props;
 ---
 
@@ -56,6 +59,7 @@ const {
     initialPaletteCohort={initialPaletteCohort}
     generationJob={generationJob}
     canEdit={canEdit}
+    viewerId={viewerId}
     client:load
   />
 </div>

@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-05
+updated: 2026-11-06
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -50,7 +50,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-403 | fail-closed-roles            | keep everything as an existing author, while someone without a role sees only "no access yet"          | S-401, F-401       | FR-410, FR-416, FR-417, FR-418, §Guardrails, §NFG (role change on next action, < 200 ms) | done        |
 | S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | done |
 | S-405 | viewer-read-only             | (viewer) read every plan and proposal, export and compare, with no edit affordances                    | S-403, S-404       | FR-409                                                                         | done |
-| S-406 | users-page-roles             | (admin) list the school's users and change anyone's role; the last admin cannot be demoted             | S-403              | FR-405, FR-406, FR-408, FR-413, §NFG (access changes traceable)                | in-progress |
+| S-406 | users-page-roles             | (admin) list the school's users and change anyone's role; the last admin cannot be demoted             | S-403              | FR-405, FR-406, FR-408, FR-413, §NFG (access changes traceable)                | done |
 | S-407 | created-by-and-job-ownership | see who created each plan or proposal; only a job's requester or an admin can stop it                  | S-406              | FR-415, FR-416, FR-417                                                         | proposed |
 | S-408 | deactivate-reactivate        | (admin) deactivate and reactivate a user, with data access ending on their next action                 | S-406              | FR-407                                                                         | proposed |
 | S-409 | create-account-fallback      | (admin) create an account with a temporary password that must be changed at first sign-in              | S-401, S-406, F-402 | FR-403                                                                         | proposed |
@@ -210,7 +210,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Unknowns:**
   - Where the access-change record is shown — on the Users page, or only queryable. — Owner: plan phase. Block: no.
 - **Risk:** The first admin-only surface, and it needs no secret: role writes run under the admin's own session with the database rules deciding. It introduces the readable list of school users that "Created by" (S-407) and every lifecycle slice reuse, and starts the access-change record those slices append to. It can run beside S-405; until S-405 lands, a user switched to viewer is refused every write but still sees edit controls — acceptable while no real viewers exist. Adds an admin e2e account.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-407: Created-by and job ownership
 
@@ -342,3 +342,4 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 - **S-404: An author can mark one plan as the current one, and every user sees which plan is current, on the plans list and on the plan itself.** — Archived 2026-10-29 → `context/archive/2026-10-29-current-plan-marker/`. Lesson: —.
 - **S-405: A viewer can read every plan and proposal, including the teacher and student perspective views, export timetables and use the comparison page, with no edit affordance anywhere, and can always tell a proposal or draft from the plan marked current.** — Archived 2026-11-01 → `context/archive/2026-10-30-viewer-read-only/`. Lesson: —.
 - **S-403: Every person's access follows the one role an admin assigned. On the day it goes live, every existing author sees and edits everything as before — Generate → solve → proposal → delivery included — the developer is admin through a documented operator step, and a signed-in user without a role sees only a "no access yet — ask your admin" notice plus their own account. A role change takes effect on the person's next action, and drag-drop validation stays under 200 ms.** — Archived 2026-11-02 → `context/archive/2026-10-28-fail-closed-roles/`. Lesson: —.
+- **S-406: An admin can open a Users page listing the school's users — display name beside email, role and status; machine users never appear, and the calibration-campaign account appears labelled as a service account — and can change anyone's role. The last active admin cannot be demoted, and every role change records who made it and when.** — Archived 2026-11-06 → `context/archive/2026-11-03-users-page-roles/`. Lesson: —.

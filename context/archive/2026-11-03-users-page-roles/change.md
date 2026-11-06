@@ -1,10 +1,10 @@
 ---
 change_id: users-page-roles
 title: "S-406 Users page: list users and change roles, last-admin guard"
-status: impl_reviewed
+status: archived
 created: 2026-11-03
 updated: 2026-11-06
-archived_at: null
+archived_at: 2026-11-06T14:23:16Z
 ---
 
 ## Notes

@@ -122,7 +122,7 @@ const execute = async (
         ? { kind: "await-stopped" }
         : null;
     case "dispatch":
-      return dispatch(context, state, action, intentAt);
+      return dispatch(context, state, intentAt);
     case "await-terminal":
       return awaitTerminal(context, state, action.jobId);
     case "deliver":
@@ -159,12 +159,7 @@ const execute = async (
  * whether the laptop closed before its outcome was written or the request timed out after the server
  * acted. Anything else active on the plan is someone else's solve, and the runner will not race it.
  */
-const dispatch = async (
-  context: Context,
-  state: CampaignState,
-  action: Extract<JournalAction, { kind: "dispatch" }>,
-  intentAt: string,
-): Promise<ActionResult> => {
+const dispatch = async (context: Context, state: CampaignState, intentAt: string): Promise<ActionResult> => {
   const { client, controller } = context;
   const campaignPlanId = state.setup?.campaignPlanId ?? "";
   const adoptable = (view: JobView): boolean => isAdoptable(state, view, intentAt);

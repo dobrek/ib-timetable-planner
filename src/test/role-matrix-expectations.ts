@@ -31,6 +31,12 @@ import type { TablePrivilege } from "./postgres-client";
  * - `user_directory` (S-406): the Auth trigger's mirror of `auth.users`. It is read like `profiles`
  *   (own row, or any row with a role), never shows a machine user to anyone
  *   (`MACHINE_DIRECTORY_READ`), and no session writes it (`DIRECTORY_WRITES`).
+ * - `generation_jobs` (S-407): a job records who requested it and who first asked it to stop.
+ *   Stopping it, by either of `stopGeneration`'s two writes, is allowed to its requester or an admin
+ *   (`private.can_stop_any_job()`), and to any editor when the job records no requester (`JOB_STOPS`).
+ *   No session rewrites either column (`JOB_ATTRIBUTION_REWRITES`). A trigger enforces both: RLS
+ *   judges rows, not column changes, and the job keeps the four capability policies, so delivery
+ *   and reclaim stay open to any editor.
  * - admin holds an author's access to every plan, plus the two admin-only tables above.
  * - `anon` holds no DML grant on any table, so PostgREST refuses it outright (42501). It still holds
  *   Supabase's auto-granted TRUNCATE, REFERENCES, TRIGGER and MAINTAIN on 15 tables, which
@@ -78,6 +84,18 @@ export type Rpc =
   | "own_app_role"
   | "replace_cohort_groupings"
   | "set_current_plan";
+
+/**
+ * Whose job a stop targets: the principal's own, another user's, or a legacy job that records no
+ * requester (it predates S-407, or its requester was deleted).
+ */
+export type JobRequester = "own" | "others" | "legacy";
+
+/** The two writes `stopGeneration` sends: `queued → stopped`, and the flag on a `running` job. */
+export type StopWrite = "stop queued" | "stop running";
+
+/** The attribution columns on a job, which only the guard trigger and the service role write. */
+export type JobAttributionColumn = "requested_by" | "stop_requested_by";
 
 /** A principal writing its own `user_roles` row (see `SELF_GRANTS`). */
 export type SelfGrant = "claim admin" | "drop own role";
@@ -213,6 +231,55 @@ export const PROFILE_WRITES: Record<RowOwner, Record<ProfileWriteOperation, Cell
     insert: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
     update: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
   },
+};
+
+/**
+ * Stopping a job (S-407), by whose job it is. Each cell stops a fresh job the service role made with
+ * an explicit requester, by sending exactly the UPDATE `stopGeneration` sends.
+ *
+ * - **own.** The principal's own job. An author or admin stops it. A viewer is refused by the UPDATE
+ *   policy before the guard is reached, so a requester demoted to viewer loses Stop, and noRole
+ *   matches no row. Anon has no id, so it requests no job: `"no-row"`.
+ * - **others.** Another user's job: only `stop_any_job` (admin) stops it. An author is refused by
+ *   the guard trigger, with 42501.
+ * - **legacy.** A job with no requester stays stoppable by every editor, exactly as any job was
+ *   before S-407: the same cell as `WRITES.generation_jobs.update`, which the expectations test checks.
+ */
+export const JOB_STOPS: Record<JobRequester, Record<StopWrite, OwnRowCell>> = {
+  own: {
+    "stop queued": { anon: "no-row", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    "stop running": { anon: "no-row", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+  },
+  others: {
+    "stop queued": { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "allowed" },
+    "stop running": { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "allowed" },
+  },
+  legacy: {
+    "stop queued": { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+    "stop running": { anon: "denied", noRole: "denied", viewer: "denied", author: "allowed", admin: "allowed" },
+  },
+};
+
+/**
+ * Rewriting a job's attribution: an UPDATE of another user's job that points the column at the
+ * principal (anon, which has no id, at a fresh user). The guard refuses it for every signed-in
+ * session, an admin included: claiming a job's requester would hand its Stop to the claimant, and
+ * the stopper is recorded only by the stop itself. A viewer is refused by the UPDATE policy first,
+ * and noRole matches no row. No app principal is allowed, so `JOB_ATTRIBUTION_REWRITE_EVIDENCE`
+ * evidences the payloads.
+ */
+export const JOB_ATTRIBUTION_REWRITES: Record<JobAttributionColumn, Cell> = {
+  requested_by: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+  stop_requested_by: { anon: "denied", noRole: "denied", viewer: "denied", author: "denied", admin: "denied" },
+};
+
+/**
+ * The same rewrites, sent by the service role, which the guard lets through so the factories and
+ * the matrix can name explicit ids: each payload's evidence.
+ */
+export const JOB_ATTRIBUTION_REWRITE_EVIDENCE: Record<JobAttributionColumn, AccessOutcome> = {
+  requested_by: "allowed",
+  stop_requested_by: "allowed",
 };
 
 /**

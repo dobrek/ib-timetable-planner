@@ -491,36 +491,36 @@ Pin the visible attribution in the browser, re-prove generation end to end, and 
 
 #### Automated
 
-- [x] 2.1 Unit tests pass (`creditFor`, `profileLabel`, `UserCredit`, the PlansHub cell): `pnpm test`
-- [x] 2.2 FSD structure is clean: `pnpm steiger`
-- [x] 2.3 Type check passes: `pnpm check`
-- [x] 2.4 Lint passes: `pnpm lint`
-- [x] 2.5 The production build stays clean: `pnpm build`
+- [x] 2.1 Unit tests pass (`creditFor`, `profileLabel`, `UserCredit`, the PlansHub cell): `pnpm test` — 846f227
+- [x] 2.2 FSD structure is clean: `pnpm steiger` — 846f227
+- [x] 2.3 Type check passes: `pnpm check` — 846f227
+- [x] 2.4 Lint passes: `pnpm lint` — 846f227
+- [x] 2.5 The production build stays clean: `pnpm build` — 846f227
 
 #### Manual
 
-- [x] 2.6 A new plan is credited to you (name and email); seed plans show "Unknown"
-- [x] 2.7 A duplicate is credited to the duplicator
-- [x] 2.8 The board header shows the creator on a populated board and on an empty one
-- [x] 2.9 A service account shows its badge
-- [x] 2.10 No page-level horizontal scroll at phone width
+- [x] 2.6 A new plan is credited to you (name and email); seed plans show "Unknown" — 846f227
+- [x] 2.7 A duplicate is credited to the duplicator — 846f227
+- [x] 2.8 The board header shows the creator on a populated board and on an empty one — 846f227
+- [x] 2.9 A service account shows its badge — 846f227
+- [x] 2.10 No page-level horizontal scroll at phone width — 846f227
 
 ### Phase 3: Stop Ownership in the App
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass (`canStopJob`, `stoppedBy`, capability, PendingProposalPage, GenerationStatusStrip): `pnpm test`
-- [ ] 3.2 The stop suite with signed-in cases is green
-- [ ] 3.3 The generation suites are green
-- [ ] 3.4 Type check passes: `pnpm check`
-- [ ] 3.5 Lint and FSD checks pass: `pnpm lint && pnpm steiger`
-- [ ] 3.6 The build is clean: `pnpm build`
+- [x] 3.1 Unit tests pass (`canStopJob`, `stoppedBy`, capability, PendingProposalPage, GenerationStatusStrip): `pnpm test`
+- [x] 3.2 The stop suite with signed-in cases is green
+- [x] 3.3 The generation suites are green
+- [x] 3.4 Type check passes: `pnpm check`
+- [x] 3.5 Lint and FSD checks pass: `pnpm lint && pnpm steiger`
+- [x] 3.6 The build is clean: `pnpm build`
 
 #### Manual
 
-- [ ] 3.7 Author B sees "Requested by A" and no Stop; the admin sees Stop
-- [ ] 3.8 After the admin stops A's job, A sees "Stopped by <admin>" and the admin sees "You stopped"
-- [ ] 3.9 A legacy job (null requester) is stoppable by B, with neutral copy
+- [x] 3.7 Author B sees "Requested by A" and no Stop; the admin sees Stop
+- [x] 3.8 After the admin stops A's job, A sees "Stopped by <admin>" and the admin sees "You stopped"
+- [x] 3.9 A legacy job (null requester) is stoppable by B, with neutral copy
 
 ### Phase 4: E2E, FR-417 Guardrail and Docs
 

@@ -34,6 +34,13 @@ const EXPECTED: Record<Capability, Record<AccessLabel, Outcome>> = {
     none: "FORBIDDEN",
     unavailable: "SERVICE_UNAVAILABLE",
   },
+  stop_any_job: {
+    admin: "pass",
+    author: "FORBIDDEN",
+    viewer: "FORBIDDEN",
+    none: "FORBIDDEN",
+    unavailable: "SERVICE_UNAVAILABLE",
+  },
 };
 
 const CASES = (Object.keys(EXPECTED) as Capability[]).flatMap((capability) =>

@@ -180,6 +180,8 @@ describe("useCombinedBoardState — why Generate is disabled", () => {
     stageIndex: null,
     stageName: null,
     stopRequestedAt: null,
+    requestedBy: null,
+    stoppedBy: null,
     policy: DEFAULT_SOLVE_POLICY,
     stalled: false,
     awaitingDelivery: false,

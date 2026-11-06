@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { SupabaseClient } from "@/shared/api";
+import { INSUFFICIENT_PRIVILEGE, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 
 /**
@@ -11,6 +11,13 @@ import { DomainError } from "@/shared/lib/errors";
  * container that could clear its own flag cannot exist — and S-304 already refused every
  * session-free credential for row writes. What is left is exactly this: the author's own
  * authenticated request, through an Astro Action.
+ *
+ * **And only the job's requester, or an admin (S-407).** The database enforces it:
+ * `generation_jobs_guard_attribution` refuses a stop write from anyone else, unless the job records
+ * no requester (it predates S-407, or its requester was deleted), and stamps `stop_requested_by`
+ * with whoever asked first. A refusal is a 42501, which reads as FORBIDDEN here rather than as a
+ * server error: the pending page hides Stop from everyone else (`canStopJob`), so only a race reaches
+ * it.
  *
  * **Two writes, and the order is the contract.** A `queued` row has no solver to ask, so it is
  * terminalised here, app-side; a `running` row is asked, by writing the flag the solver's heartbeat
@@ -51,6 +58,9 @@ export type StopGenerationResult = { outcome: StopGenerationOutcome };
 const STOPPED_BEFORE_START =
   "stopped by the author: the solve was stopped before any stage finished — nothing was kept";
 
+/** What the guard's refusal means to the person who clicked. */
+export const STOP_FORBIDDEN_MESSAGE = "Only whoever started this generation, or an admin, can stop it.";
+
 export const stopGeneration = async (
   supabase: SupabaseClient,
   input: StopGenerationInput,
@@ -84,9 +94,7 @@ const terminaliseQueued = async (supabase: SupabaseClient, jobId: string): Promi
     // `select` is what makes a matched-nothing observable: PostgREST answers 204 without it, and a
     // lost CAS would be indistinguishable from a won one.
     .select("id");
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to stop the generation job: ${error.message}`);
-  }
+  if (error) throw stopFailure(error, "Failed to stop the generation job");
   return data.length > 0;
 };
 
@@ -108,8 +116,12 @@ const requestStop = async (supabase: SupabaseClient, jobId: string): Promise<boo
     .eq("id", jobId)
     .eq("status", "running")
     .select("id");
-  if (error) {
-    throw new DomainError("INTERNAL_SERVER_ERROR", `Failed to request a stop for the generation job: ${error.message}`);
-  }
+  if (error) throw stopFailure(error, "Failed to request a stop for the generation job");
   return data.length > 0;
 };
+
+/** A refused stop is FORBIDDEN with its own reason; any other failure is the server's. */
+const stopFailure = (error: { code: string; message: string }, failure: string): DomainError =>
+  error.code === INSUFFICIENT_PRIVILEGE
+    ? new DomainError("FORBIDDEN", STOP_FORBIDDEN_MESSAGE)
+    : new DomainError("INTERNAL_SERVER_ERROR", `${failure}: ${error.message}`);

@@ -73,6 +73,13 @@ const OUTCOMES: Record<Capability, Record<AccessLabel, Outcome>> = {
     none: "FORBIDDEN",
     unavailable: "SERVICE_UNAVAILABLE",
   },
+  stop_any_job: {
+    admin: "reached",
+    author: "FORBIDDEN",
+    viewer: "FORBIDDEN",
+    none: "FORBIDDEN",
+    unavailable: "SERVICE_UNAVAILABLE",
+  },
 };
 
 describe("action capabilities", () => {

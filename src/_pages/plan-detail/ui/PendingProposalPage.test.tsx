@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
+import type { Credit } from "@/entities/user";
 import type { GenerationJobView } from "../api/generation-read";
 import PendingProposalPage from "./PendingProposalPage";
 
@@ -41,24 +42,49 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageIndex: 4,
   stageName: "teacherHoles",
   stopRequestedAt: null,
+  requestedBy: null,
+  stoppedBy: null,
   policy: DEFAULT_SOLVE_POLICY,
   stalled: false,
   awaitingDelivery: false,
   ...over,
 });
 
-const page = (view: GenerationJobView | null, { canEdit = true, stranded = false } = {}) => (
+/** The signed-in viewer, a colleague, and credits naming each. */
+const ME = "11111111-1111-4111-8111-111111111111";
+const COLLEAGUE = "22222222-2222-4222-8222-222222222222";
+const credit = (id: string, primary: string, secondary: string): Credit => ({
+  kind: "user",
+  user: { id, label: { primary, secondary }, isServiceAccount: false },
+});
+const ME_CREDIT = credit(ME, "Ada Lovelace", "ada@example.test");
+const COLLEAGUE_CREDIT = credit(COLLEAGUE, "Grace Hopper", "grace@example.test");
+
+type PageOptions = {
+  canEdit?: boolean;
+  stranded?: boolean;
+  requestedBy?: Credit | null;
+  viewerId?: string | null;
+  canStopAnyJob?: boolean;
+};
+
+const page = (
+  view: GenerationJobView | null,
+  { canEdit = true, stranded = false, requestedBy = null, viewerId = ME, canStopAnyJob = false }: PageOptions = {},
+) => (
   <PendingProposalPage
     planName="Proposal — Year 2026/27"
     planId="plan-2"
     job={view}
     canEdit={canEdit}
     stranded={stranded}
+    requestedBy={requestedBy}
+    viewerId={viewerId}
+    canStopAnyJob={canStopAnyJob}
   />
 );
 
-const renderPage = (view: GenerationJobView | null, options: { canEdit?: boolean; stranded?: boolean } = {}) =>
-  render(page(view, options));
+const renderPage = (view: GenerationJobView | null, options: PageOptions = {}) => render(page(view, options));
 
 describe("PendingProposalPage", () => {
   it("offers Stop & keep while the job is active", () => {
@@ -81,7 +107,9 @@ describe("PendingProposalPage", () => {
   it("a job the author stopped before any stage gets a neutral panel, not a failure", () => {
     // The author did this on purpose. The destructive tone is for a run that broke, and a
     // `stopped` row WITH a checkpoint never reaches this branch — it delivers and navigates.
-    renderPage(job({ status: "stopped", error: "stopped by the author: …", proposalPlanId: null }));
+    renderPage(
+      job({ status: "stopped", error: "stopped by the author: …", proposalPlanId: null, stoppedBy: ME_CREDIT }),
+    );
 
     expect(screen.getByRole("status")).toHaveTextContent(
       "You stopped this generation before any stage finished — nothing was kept.",
@@ -208,6 +236,59 @@ describe("PendingProposalPage", () => {
       );
       expect(screen.queryByText(/could not be read/)).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Whose Stop it is, and who stopped it (S-407). The control renders for whoever the database's stop
+   * guard lets stop: the requester, an admin, or any editor on a job that records no requester.
+   * Everyone else reads "Requested by" and finds no control at all.
+   */
+  describe("whose stop it is", () => {
+    const stopButton = () => screen.queryByRole("button", { name: /Stop & keep/ });
+
+    it("gives the requester Stop & keep on their own job", () => {
+      renderPage(job({ requestedBy: ME }), { requestedBy: ME_CREDIT });
+
+      expect(stopButton()).toBeInTheDocument();
+    });
+
+    it("gives another editor no Stop, only who requested it, with the email beside the name", () => {
+      renderPage(job({ requestedBy: COLLEAGUE }), { requestedBy: COLLEAGUE_CREDIT });
+
+      expect(stopButton()).not.toBeInTheDocument();
+      expect(screen.getByText("Requested by")).toBeInTheDocument();
+      expect(screen.getByText("Grace Hopper")).toBeInTheDocument();
+      expect(screen.getByText("(grace@example.test)")).toBeInTheDocument();
+    });
+
+    it("gives an admin Stop & keep on anyone's job", () => {
+      renderPage(job({ requestedBy: COLLEAGUE }), { requestedBy: COLLEAGUE_CREDIT, canStopAnyJob: true });
+
+      expect(stopButton()).toBeInTheDocument();
+    });
+
+    it("gives any editor Stop & keep on a job that records no requester", () => {
+      renderPage(job({ requestedBy: null }), { requestedBy: { kind: "unknown" } });
+
+      expect(stopButton()).toBeInTheDocument();
+      expect(screen.getByText("Unknown")).toBeInTheDocument();
+    });
+
+    it("names whoever stopped the run, to anyone else", () => {
+      renderPage(job({ status: "stopped", proposalPlanId: null, stoppedBy: COLLEAGUE_CREDIT }));
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Stopped by Grace Hopper (grace@example.test) before any stage finished — nothing was kept.",
+      );
+    });
+
+    it("falls back to the neutral line when no stopper is recorded", () => {
+      renderPage(job({ status: "stopped", proposalPlanId: null, stoppedBy: null }));
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "This generation was stopped before any stage finished — nothing was kept.",
+      );
     });
   });
 });

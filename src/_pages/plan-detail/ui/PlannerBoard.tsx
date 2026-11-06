@@ -63,6 +63,8 @@ type Props = {
   generationJob: GenerationJobView | null;
   /** The route's `allows(access, "edit")` (S-405). Islands never read the role themselves. */
   canEdit: boolean;
+  /** The signed-in user's id (S-407), so the strip says "You stopped" only to whoever did. */
+  viewerId: string | null;
 };
 
 /**
@@ -92,6 +94,7 @@ export default function PlannerBoard({
   initialPaletteCohort,
   generationJob,
   canEdit,
+  viewerId,
 }: Props) {
   const { planId, days, periods } = shared;
   // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
@@ -358,7 +361,7 @@ export default function PlannerBoard({
           {/* The generation job's window. It replaces the greedy engine's post-solve review panel,
               which went with its engine (S-301): a CP-SAT result lands on a PROPOSAL plan minutes
               later, so there is nothing to review in place here. */}
-          <GenerationStatusStrip generation={generation} canEdit={canEdit} />
+          <GenerationStatusStrip generation={generation} canEdit={canEdit} viewerId={viewerId} />
           {lens.criteria.length > 0 && (
             <LensBar
               criteria={lens.criteria}

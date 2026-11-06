@@ -70,8 +70,8 @@ type Statement = { sql: string; params?: unknown[] };
       await pg.query("lock table public.user_roles in exclusive mode");
       // From here the target is the only admin, in this transaction alone.
       await pg.query("update public.user_roles set role = 'author' where role = 'admin' and user_id <> $1", [target]);
+      await installNestedRoleDelete(pg);
 
-      const recordsBefore = await recordsNaming(pg, [mover, roleless]);
       const lastRecordId = await lastAccessChangeId(pg);
 
       return {
@@ -84,10 +84,12 @@ type Statement = { sql: string; params?: unknown[] };
           },
         ]),
         removal: await sqlstateOf(pg, [{ sql: "delete from public.user_roles where user_id = $1", params: [target] }]),
+        // Depth 2 like the account-deletion cascade, but the user still exists: guarded and recorded.
+        nestedRemoval: await sqlstateOf(pg, [nestedRoleDelete(target)]),
+        nestedRemovalRecorded: await nestedRemovalRecords(pg, mover, lastRecordId),
         moveToAnotherUser: await sqlstateOf(pg, [
           { sql: "update public.user_roles set user_id = $1 where user_id = $2", params: [roleless, mover] },
         ]),
-        moveRecorded: (await recordsNaming(pg, [mover, roleless])) - recordsBefore,
         // The RLS-counted path: the guard counts the other admins as the admin's own session.
         adminSession: await sqlstateOf(pg, [
           { sql: "set local role authenticated" },
@@ -104,8 +106,9 @@ type Statement = { sql: string; params?: unknown[] };
       demotion: LAST_ADMIN,
       multiRowDemotion: LAST_ADMIN,
       removal: LAST_ADMIN,
+      nestedRemoval: LAST_ADMIN,
+      nestedRemovalRecorded: 1,
       moveToAnotherUser: INSUFFICIENT_PRIVILEGE,
-      moveRecorded: 0,
       adminSession: LAST_ADMIN,
       accountDeletion: null,
       cascadeRecorded: 0,
@@ -212,14 +215,6 @@ const sqlstateFrom = (error: unknown): string => {
   throw error;
 };
 
-const recordsNaming = async (pg: Client, userIds: string[]): Promise<number> => {
-  const { rows } = await pg.query<{ count: number }>(
-    "select count(*)::int as count from public.access_changes where target_id = any ($1::uuid[])",
-    [userIds],
-  );
-  return rows[0]?.count ?? 0;
-};
-
 const lastAccessChangeId = async (pg: Client): Promise<number> => {
   const { rows } = await pg.query<{ id: number }>("select coalesce(max(id), 0)::int as id from public.access_changes");
   return rows[0]?.id ?? 0;
@@ -238,6 +233,43 @@ const cascadeRecordsAfterDeletion = async (pg: Client, userId: string, afterId: 
       `select count(*)::int as count
          from public.access_changes
         where id > $1 and kind = 'role_removed' and (target_id is null or target_id = $2)`,
+      [afterId, userId],
+    );
+    return rows[0]?.count ?? 0;
+  });
+
+/**
+ * A DELETE on `user_roles` issued from another trigger: inserting a user id into the temporary
+ * `nested_role_delete` table deletes that user's role at trigger depth 2, the depth of the
+ * account-deletion cascade, while the user still exists. Temporary objects created inside the
+ * rolled-back transaction, so nothing outlives the case.
+ */
+const installNestedRoleDelete = async (pg: Client): Promise<void> => {
+  await pg.query("create temp table nested_role_delete (user_id uuid)");
+  await pg.query(`
+    create function pg_temp.delete_role_from_trigger() returns trigger language plpgsql as $$
+    begin
+      delete from public.user_roles where user_id = new.user_id;
+      return null;
+    end $$`);
+  await pg.query(`
+    create trigger delete_role_from_trigger after insert on nested_role_delete
+      for each row execute function pg_temp.delete_role_from_trigger()`);
+};
+
+const nestedRoleDelete = (userId: string): Statement => ({
+  sql: "insert into nested_role_delete (user_id) values ($1)",
+  params: [userId],
+});
+
+/** `role_removed` records newer than `afterId` that a nested DELETE of `userId`'s role leaves. */
+const nestedRemovalRecords = async (pg: Client, userId: string, afterId: number): Promise<number> =>
+  inSavepoint(pg, async () => {
+    await pg.query(nestedRoleDelete(userId).sql, nestedRoleDelete(userId).params);
+    const { rows } = await pg.query<{ count: number }>(
+      `select count(*)::int as count
+         from public.access_changes
+        where id > $1 and kind = 'role_removed' and target_id = $2`,
       [afterId, userId],
     );
     return rows[0]?.count ?? 0;

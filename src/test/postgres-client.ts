@@ -17,8 +17,11 @@ import { Client } from "pg";
 /** The Supabase CLI's fixed local Postgres endpoint (`supabase/config.toml` -> `[db] port`). */
 const LOCAL_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
+/** The hosts a test connection may name: the local stack only, as `e2e/support/admin-api.ts` allows. */
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
 export const connectPostgres = async (): Promise<Client> => {
-  const client = new Client({ connectionString: process.env.SUPABASE_DB_URL ?? LOCAL_DB_URL });
+  const client = new Client({ connectionString: loopbackDbUrl() });
   await client.connect();
   return client;
 };
@@ -84,3 +87,15 @@ export const heldColumnPrivileges = async (
   );
   return rows.map((row) => row.column_name);
 };
+
+/** `SUPABASE_DB_URL`, else the local default, refused unless it names the local stack. */
+function loopbackDbUrl(): string {
+  const url = process.env.SUPABASE_DB_URL ?? LOCAL_DB_URL;
+  const { hostname } = new URL(url);
+  if (!LOOPBACK_HOSTS.has(hostname)) {
+    throw new Error(
+      `refusing non-loopback SUPABASE_DB_URL host "${hostname}": integration suites lock and rewrite rows`,
+    );
+  }
+  return url;
+}

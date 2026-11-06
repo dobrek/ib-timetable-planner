@@ -200,5 +200,11 @@ begin
   if has_function_privilege('anon', 'private.mirror_auth_user()', 'EXECUTE') then
     raise exception 'user_directory: anon may execute private.mirror_auth_user()';
   end if;
+
+  if not ('search_path=""' = any (coalesce(
+    (select proconfig from pg_proc where oid = 'private.mirror_auth_user()'::regprocedure), '{}'
+  ))) then
+    raise exception 'user_directory: private.mirror_auth_user() does not pin search_path to empty';
+  end if;
 end;
 $$;

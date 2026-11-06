@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppRole } from "@/shared/config";
-import { ADMIN_ID, AUTHOR_ID, AUTHOR_ROW, NO_ROLE_ROW, ROWS } from "./fixtures";
+import { ADMIN_ID, AUTHOR_ID, AUTHOR_ROW, NO_ROLE_ROW, ROWS } from "./__fixtures__/user-rows";
 import UserTable from "./UserTable";
 
 const renderTable = (saving: ReadonlyMap<string, AppRole | null> = new Map()) => {

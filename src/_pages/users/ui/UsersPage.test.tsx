@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshPage } from "@/shared/lib/forms";
 import { changeUserRole } from "../api/user-client";
 import { goToDashboard } from "../lib/go-to-dashboard";
-import { ADMIN_ID, AUTHOR_ID, ROWS } from "./fixtures";
+import { ADMIN_ID, AUTHOR_ID, ROWS } from "./__fixtures__/user-rows";
 import UsersPage from "./UsersPage";
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
@@ -97,6 +97,23 @@ describe("UsersPage", () => {
       expect(refreshPage).toHaveBeenCalledOnce();
     });
     expect(toastError).toHaveBeenCalledWith("That user already has no access.");
+  });
+
+  it("frees the row and closes the dialog when the request never completes", async () => {
+    vi.mocked(changeUserRole).mockRejectedValue(new TypeError("Failed to fetch"));
+    renderPage();
+
+    choose("Role for Bea Author", "No access");
+    fireEvent.click(screen.getByRole("button", { name: "Remove access" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(toastError).toHaveBeenCalledWith("Role change failed — try again.");
+    const picker = screen.getByRole("combobox", { name: "Role for Bea Author" });
+    expect(picker).toBeEnabled();
+    expect(picker).toHaveTextContent("Author");
+    expect(refreshPage).not.toHaveBeenCalled();
   });
 });
 

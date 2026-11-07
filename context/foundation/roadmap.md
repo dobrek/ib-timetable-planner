@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-06
+updated: 2026-11-07
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -51,7 +51,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-404 | current-plan-marker          | (author) mark one plan as current; everyone sees which plan is current                                 | —                  | FR-420                                                                         | done |
 | S-405 | viewer-read-only             | (viewer) read every plan and proposal, export and compare, with no edit affordances                    | S-403, S-404       | FR-409                                                                         | done |
 | S-406 | users-page-roles             | (admin) list the school's users and change anyone's role; the last admin cannot be demoted             | S-403              | FR-405, FR-406, FR-408, FR-413, §NFG (access changes traceable)                | done |
-| S-407 | created-by-and-job-ownership | see who created each plan or proposal; only a job's requester or an admin can stop it                  | S-406              | FR-415, FR-416, FR-417                                                         | in-progress |
+| S-407 | created-by-and-job-ownership | see who created each plan or proposal; only a job's requester or an admin can stop it                  | S-406              | FR-415, FR-416, FR-417                                                         | done        |
 | S-408 | deactivate-reactivate        | (admin) deactivate and reactivate a user, with data access ending on their next action                 | S-406              | FR-407                                                                         | proposed |
 | S-409 | create-account-fallback      | (admin) create an account with a temporary password that must be changed at first sign-in              | S-401, S-406, F-402 | FR-403                                                                         | proposed |
 | S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | blocked  |
@@ -222,7 +222,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Touches the generation path (the proposal clone and the job record), so FR-417's "generation works end to end" guardrail is the one to re-prove. Attribution on shared data must never take timetables with it: deleting a person clears the credit, never the plan. The job's recorded requester is also the recipient S-310 needs.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-408: Deactivate and reactivate
 
@@ -344,3 +344,4 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 - **S-405: A viewer can read every plan and proposal, including the teacher and student perspective views, export timetables and use the comparison page, with no edit affordance anywhere, and can always tell a proposal or draft from the plan marked current.** — Archived 2026-11-01 → `context/archive/2026-10-30-viewer-read-only/`. Lesson: —.
 - **S-403: Every person's access follows the one role an admin assigned. On the day it goes live, every existing author sees and edits everything as before — Generate → solve → proposal → delivery included — the developer is admin through a documented operator step, and a signed-in user without a role sees only a "no access yet — ask your admin" notice plus their own account. A role change takes effect on the person's next action, and drag-drop validation stays under 200 ms.** — Archived 2026-11-02 → `context/archive/2026-10-28-fail-closed-roles/`. Lesson: —.
 - **S-406: An admin can open a Users page listing the school's users — display name beside email, role and status; machine users never appear, and the calibration-campaign account appears labelled as a service account — and can change anyone's role. The last active admin cannot be demoted, and every role change records who made it and when.** — Archived 2026-11-06 → `context/archive/2026-11-03-users-page-roles/`. Lesson: —.
+- **S-407: Any user can see who created each plan and proposal — a proposal is credited to whoever pressed Generate, and plans that predate the change show "unknown" — and a running generation job can be stopped only by the person who requested it or an admin; jobs that predate the change stay stoppable by any author.** — Archived 2026-11-07 → `context/archive/2026-11-06-created-by-and-job-ownership/`. Lesson: —.

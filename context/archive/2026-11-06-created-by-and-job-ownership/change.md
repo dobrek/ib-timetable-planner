@@ -1,10 +1,10 @@
 ---
 change_id: created-by-and-job-ownership
 title: Created by and job ownership
-status: impl_reviewed
+status: archived
 created: 2026-11-06
 updated: 2026-11-07
-archived_at: null
+archived_at: 2026-11-07T16:07:22Z
 ---
 
 ## Notes

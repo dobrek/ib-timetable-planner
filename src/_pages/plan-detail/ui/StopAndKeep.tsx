@@ -70,20 +70,7 @@ export default function StopAndKeep({ job, stop = stopGenerationAction }: Props)
     }
   };
 
-  // The request is durable and the solver has not finished reacting to it. The stage line beside this
-  // keeps advancing, and truthfully so: the ladder genuinely is still running.
-  if (job.stopRequestedAt !== null) {
-    return (
-      <span
-        data-slot="stopping-indicator"
-        role="status"
-        className="text-muted-foreground inline-flex items-center gap-1.5 text-sm font-medium"
-      >
-        <Loader2 className="size-3.5 animate-spin" aria-hidden />
-        Stopping…
-      </span>
-    );
-  }
+  if (job.stopRequestedAt !== null) return <StoppingIndicator />;
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -123,6 +110,27 @@ export default function StopAndKeep({ job, stop = stopGenerationAction }: Props)
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/**
+ * The request is durable and the solver has not finished reacting to it. The stage line beside this
+ * keeps advancing, and truthfully so: the ladder genuinely is still running.
+ *
+ * Status, not a control (S-407): the pending page shows it to everyone watching the run, including an
+ * editor who may not stop this job and a viewer, so nobody reads a stop already asked for as a run
+ * still going.
+ */
+export function StoppingIndicator() {
+  return (
+    <span
+      data-slot="stopping-indicator"
+      role="status"
+      className="text-muted-foreground inline-flex items-center gap-1.5 text-sm font-medium"
+    >
+      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+      Stopping…
+    </span>
   );
 }
 

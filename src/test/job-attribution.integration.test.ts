@@ -188,6 +188,22 @@ const acceptingTransport: SolverTransport = {
         new Date(first.stop_requested_at ?? Infinity).getTime(),
       );
     });
+
+    it("refuses withdrawing a stop, to the requester and to an admin alike", async () => {
+      const jobId = await runningJobOf(admin, author.id);
+      await stopGeneration(schoolAdmin.client, { jobId });
+      const stopped = await attributionOf(jobId);
+
+      for (const caller of [author, schoolAdmin]) {
+        const { error } = await caller.client
+          .from("generation_jobs")
+          .update({ stop_requested_at: null })
+          .eq("id", jobId);
+        expect(error?.code).toBe("42501");
+      }
+
+      expect(await attributionOf(jobId)).toEqual(stopped);
+    });
   });
 
   it("deleting a user clears their credit and nothing else, and leaves Last updated alone", async () => {

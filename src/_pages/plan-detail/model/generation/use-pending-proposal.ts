@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from "react";
 import { isActiveJobStatus, type CleanLabel } from "@/entities/timetable";
+import { creditText, type Credit } from "@/entities/user";
 import { createPollingStore, DEFAULT_POLL_INTERVAL_MS, type PollingStore } from "@/shared/lib/polling-store";
 import { checkPlan as checkPlanAction, readPlanJob as readPlanJobAction } from "../../api/generation-client";
 import type { GenerationJobView } from "../../api/generation-read";
@@ -159,7 +160,9 @@ const reloadIntoBoard = (): void => {
  *  projection carries but this gate ignores changes silently: the store sees "same view", publishes
  *  nothing, and the UI that depends on it never updates. `stopRequestedAt` is exactly such a field —
  *  it is what flips the button to "Stopping…" while status, stage and error all stay put. So are
- *  `stalled` and `awaitingDelivery` (S-405): a viewer's page changes panel on them alone. */
+ *  `stalled` and `awaitingDelivery` (S-405): a viewer's page changes panel on them alone. And so are
+ *  `requestedBy`, `stopRequestedBy` and `stoppedBy` (S-407): who may stop, and whom the stopped copy
+ *  names. */
 const sameView = (a: GenerationJobView | null, b: GenerationJobView | null): boolean => {
   if (a === null || b === null) return a === b;
   return (
@@ -175,9 +178,20 @@ const sameView = (a: GenerationJobView | null, b: GenerationJobView | null): boo
     a.stopRequestedAt === b.stopRequestedAt &&
     a.stalled === b.stalled &&
     a.awaitingDelivery === b.awaitingDelivery &&
+    a.requestedBy === b.requestedBy &&
+    a.stopRequestedBy === b.stopRequestedBy &&
+    sameCredit(a.stoppedBy, b.stoppedBy) &&
     a.policy.preset === b.policy.preset &&
     sameCleanLabel(a.cleanLabel, b.cleanLabel)
   );
+};
+
+/** Structural, because each read's stopper lookup builds a fresh credit. The id decides "You"; the
+ *  text is what the copy prints, so a rename between ticks still republishes. */
+const sameCredit = (a: Credit | null, b: Credit | null): boolean => {
+  if (a === null || b === null) return a === b;
+  if (a.kind === "user" && b.kind === "user") return a.user.id === b.user.id && creditText(a) === creditText(b);
+  return a.kind === b.kind;
 };
 
 /** Structural, because `deriveCleanLabel` builds a fresh object every tick — `===` would never hold. */

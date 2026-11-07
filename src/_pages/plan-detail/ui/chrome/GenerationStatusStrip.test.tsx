@@ -38,6 +38,7 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageName: null,
   stopRequestedAt: null,
   requestedBy: null,
+  stopRequestedBy: null,
   stoppedBy: null,
   policy: DEFAULT_SOLVE_POLICY,
   stalled: false,
@@ -164,6 +165,7 @@ describe("GenerationStatusStrip", () => {
           status,
           delivered: false,
           checkpointStageIndex: null,
+          stopRequestedBy: status === "stopped" ? ME : null,
           stoppedBy: status === "stopped" ? STOPPED_BY_ME : null,
         });
         const { unmount } = render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
@@ -377,6 +379,7 @@ describe("GenerationStatusStrip", () => {
         status: "stopped",
         delivered: checkpointStageIndex !== null,
         checkpointStageIndex,
+        stopRequestedBy: stoppedBy?.kind === "user" ? stoppedBy.user.id : null,
         stoppedBy,
       });
 

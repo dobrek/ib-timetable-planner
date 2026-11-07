@@ -4,11 +4,11 @@ import { UserCredit, type Credit } from "@/entities/user";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../api/generation-read";
-import { canStopJob, type StopPermission } from "../model/generation/can-stop-job";
+import { stopAffordance, type StopPermission } from "../model/generation/can-stop-job";
 import { resolvePendingPanel, type PendingPanel } from "../model/generation/pending-panel";
 import { stoppedBy } from "../model/generation/stopped-by";
 import { useHasTrackedJob, usePendingProposal } from "../model/generation/use-pending-proposal";
-import StopAndKeep from "./StopAndKeep";
+import StopAndKeep, { StoppingIndicator } from "./StopAndKeep";
 
 type Props = {
   planName: string;
@@ -54,8 +54,10 @@ type Props = {
  *
  * **Since S-407 the Stop is the requester's, or an admin's** (`canStopJob`, mirroring the database's
  * stop guard), and a job from before S-407 stays any editor's. Every other editor sees "Requested by
- * <name>" under the heading and no control at all: they know whom to ask. The stopped panel names
- * whoever stopped the run, rather than telling every editor "You stopped".
+ * <name>" under the heading and no control at all: they know whom to ask. Once anyone has asked,
+ * everyone watching, a viewer included, reads "Stopping…" (`stopAffordance`): that is status, not a
+ * control. The stopped panel names whoever stopped the run, rather than telling every editor "You
+ * stopped".
  *
  * Semantic theme tokens only — no palette-named or arbitrary colours.
  */
@@ -186,9 +188,9 @@ const PanelFor = ({ panel, job, canEdit, hydrated, stop }: PanelForProps) => {
             for up to about {LADDER_CEILING_MINUTES} minutes — the board appears here on its own
             {canEdit ? ", and you can leave the page." : "."}
           </p>
-          {canStopJob(job, stop) && (
+          {stopAffordance(job, stop) !== "none" && (
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-              <StopAndKeep job={job} />
+              {stopAffordance(job, stop) === "stopping" ? <StoppingIndicator /> : <StopAndKeep job={job} />}
             </div>
           )}
         </Panel>

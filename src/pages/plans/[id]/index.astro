@@ -110,23 +110,24 @@ const swept =
     : null;
 
 // A pending proposal has no board to load, and a swept one has no plan at all.
-const result = supabase && settled && !pending ? await loadCombinedPlannerData(supabase, planId) : null;
-if (!supabase) Astro.response.status = 503;
-else if (settled === null && !swept) Astro.response.status = 404;
-else if (result && !result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
-
-// Who created the plan (S-407): the board header's creator, and on a pending proposal "Requested by",
-// since the session that pressed Generate wrote both the clone and the job. Best-effort, like the
-// generation check: the creator is a label, so a failed lookup logs and renders no line rather than
-// an error page.
-const createdBy: Credit | null =
+//
+// Who created the plan (S-407) is read alongside the board, since it needs only `settled`: the board
+// header's creator, and on a pending proposal "Requested by", because the session that pressed
+// Generate wrote both the clone and the job. Best-effort, like the generation check: the creator is a
+// label, so a failed lookup logs and renders no line rather than an error page.
+const [result, createdBy] = await Promise.all([
+  supabase && settled && !pending ? loadCombinedPlannerData(supabase, planId) : null,
   supabase && settled
-    ? await loadCredit(supabase, settled.created_by).catch((error: unknown) => {
+    ? loadCredit(supabase, settled.created_by).catch((error: unknown): Credit | null => {
         // eslint-disable-next-line no-console -- the server log is the only trace a lookup failed
         console.error("[plans/:id] creator lookup failed:", error);
         return null;
       })
-    : null;
+    : null,
+]);
+if (!supabase) Astro.response.status = 503;
+else if (settled === null && !swept) Astro.response.status = 404;
+else if (result && !result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
 
 // Narrowed once, so the markup below reads as three states rather than re-deriving the union twice.
 const boardError = result !== null && !result.ok ? result.error : null;

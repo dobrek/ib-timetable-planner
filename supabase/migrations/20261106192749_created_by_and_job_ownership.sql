@@ -46,14 +46,17 @@
 --   * UPDATE: `requested_by` never changes. A stop write (one that changes `stop_requested_at`) is
 --     refused with 42501 unless the job records no requester, the caller requested it, or the
 --     caller holds `stop_any_job`. The first stopper is recorded, and a later re-stamp keeps it.
+--     A stop is never withdrawn: clearing `stop_requested_at` is refused for every signed-in caller.
 --     `stop_requested_by` is never written directly.
 --   The order is load-bearing. The early return comes before anything reads `auth.uid()`. The
 --   requester pin comes before the stop check, which judges ownership against OLD. The refusal of a
 --   direct `stop_requested_by` write comes last, because the stamp is what legitimately changes it.
 --   Values are compared with `is distinct from`: an `update of` column list fires whenever a column
 --   is in the SET list, changed or not, and PostgREST sends exactly the columns it is given.
---   A viewer never reaches the ownership check: the UPDATE policy refuses it first (42501). So a
---   requester demoted to viewer loses Stop, and an admin can still stop the job.
+--   A viewer does reach this guard: the UPDATE policy's USING is `can_read()`, and its WITH CHECK
+--   (`can_edit()`) runs only after BEFORE row triggers. On another user's job the guard refuses a
+--   viewer; on their own job the guard passes and WITH CHECK refuses them. Either way it is 42501, so
+--   a requester demoted to viewer loses Stop, and an admin can still stop the job.
 --
 -- EVERY OTHER CALLER PASSES, the account-deletion cascade included.
 --   * The service role keeps explicit ids, which the factories and the role matrix rely on.
@@ -67,8 +70,9 @@
 --     assert the owners, and `src/test/job-attribution.integration.test.ts` deletes a user who
 --     requested and stopped a job.
 --
--- THE RESIDUAL GAP IS ACCEPTED. The standard policies still let any editor set `status = 'failed'`
--- on, or DELETE, someone else's running job by a direct write. Closing it would mean gating every
+-- THE RESIDUAL GAP IS ACCEPTED. The standard policies still let any editor set any terminal status
+-- (`failed`, `stopped`, `interrupted`) on, or DELETE, someone else's running job by a direct write:
+-- `status` is not in the trigger's column list. Closing it would mean gating every
 -- active-to-terminal change, which collides with reclaim. Only the app's server-side actions write,
 -- and the publishable key never reaches a browser.
 --
@@ -183,6 +187,13 @@ begin
   end if;
 
   if new.stop_requested_at is distinct from old.stop_requested_at then
+    -- A stop is never withdrawn, not even by the requester or an admin. Clearing the flag would leave
+    -- a stopper with no stop, let a requester undo an admin's stop before the solver sees it, and let
+    -- a later stop record a new "first" stopper. No app path clears it (only `stopGeneration` writes
+    -- the flag, and always with a timestamp).
+    if new.stop_requested_at is null then
+      raise exception using errcode = '42501', message = 'A requested stop cannot be withdrawn.';
+    end if;
     -- `is not true`, not `not`: the wrapper answers null for a caller with no role, and a null must
     -- refuse here, never fall through as a pass.
     if old.requested_by is not null
@@ -205,8 +216,8 @@ end;
 $$;
 
 comment on function private.guard_job_attribution() is
-  'Stamps a job''s requester and first stopper, refuses rewriting either, and refuses a stop by '
-  'anyone but the requester or a stop_any_job holder, for signed-in sessions only (S-407).';
+  'Stamps a job''s requester and first stopper, refuses rewriting either or withdrawing a stop, and '
+  'refuses a stop by anyone but the requester or a stop_any_job holder, for signed-in sessions only (S-407).';
 
 create trigger generation_jobs_guard_attribution
   before insert or update of requested_by, stop_requested_at, stop_requested_by on public.generation_jobs

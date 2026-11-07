@@ -43,6 +43,7 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageName: "teacherHoles",
   stopRequestedAt: null,
   requestedBy: null,
+  stopRequestedBy: null,
   stoppedBy: null,
   policy: DEFAULT_SOLVE_POLICY,
   stalled: false,
@@ -108,7 +109,13 @@ describe("PendingProposalPage", () => {
     // The author did this on purpose. The destructive tone is for a run that broke, and a
     // `stopped` row WITH a checkpoint never reaches this branch — it delivers and navigates.
     renderPage(
-      job({ status: "stopped", error: "stopped by the author: …", proposalPlanId: null, stoppedBy: ME_CREDIT }),
+      job({
+        status: "stopped",
+        error: "stopped by the author: …",
+        proposalPlanId: null,
+        stopRequestedBy: ME,
+        stoppedBy: ME_CREDIT,
+      }),
     );
 
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -154,10 +161,12 @@ describe("PendingProposalPage", () => {
       expect(screen.queryByRole("button", { name: /Stop & keep/ })).not.toBeInTheDocument();
     });
 
-    it("never offers Stop & keep, even while a stop is already pending", () => {
+    it("never offers Stop & keep, but reads Stopping… once a stop is pending", () => {
       asViewer(job({ status: "running", stopRequestedAt: "2026-09-01T07:41:00.000Z" }));
 
       expect(screen.queryByRole("button", { name: /Stop & keep/ })).not.toBeInTheDocument();
+      const statuses = screen.getAllByRole("status").map((node) => node.textContent);
+      expect(statuses).toContainEqual(expect.stringContaining("Stopping…"));
     });
 
     it("a stalled job says an author's or admin's visit will settle it", () => {
@@ -262,6 +271,16 @@ describe("PendingProposalPage", () => {
       expect(screen.getByText("(grace@example.test)")).toBeInTheDocument();
     });
 
+    it("tells another editor a stop is pending, still with no control", () => {
+      renderPage(job({ requestedBy: COLLEAGUE, stopRequestedAt: "2026-09-01T07:41:00.000Z" }), {
+        requestedBy: COLLEAGUE_CREDIT,
+      });
+
+      expect(stopButton()).not.toBeInTheDocument();
+      const statuses = screen.getAllByRole("status").map((node) => node.textContent);
+      expect(statuses).toContainEqual(expect.stringContaining("Stopping…"));
+    });
+
     it("gives an admin Stop & keep on anyone's job", () => {
       renderPage(job({ requestedBy: COLLEAGUE }), { requestedBy: COLLEAGUE_CREDIT, canStopAnyJob: true });
 
@@ -276,7 +295,9 @@ describe("PendingProposalPage", () => {
     });
 
     it("names whoever stopped the run, to anyone else", () => {
-      renderPage(job({ status: "stopped", proposalPlanId: null, stoppedBy: COLLEAGUE_CREDIT }));
+      renderPage(
+        job({ status: "stopped", proposalPlanId: null, stopRequestedBy: COLLEAGUE, stoppedBy: COLLEAGUE_CREDIT }),
+      );
 
       expect(screen.getByRole("status")).toHaveTextContent(
         "Stopped by Grace Hopper (grace@example.test) before any stage finished — nothing was kept.",

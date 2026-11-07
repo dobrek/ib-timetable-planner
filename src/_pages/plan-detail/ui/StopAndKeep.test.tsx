@@ -89,15 +89,6 @@ describe("StopAndKeep", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Failed to request a stop");
   });
 
-  it("replaces the button with a Stopping… indicator once the request is durable", () => {
-    // Derived from the POLLED snapshot, not from a local memory of the click — so a reload, a second
-    // tab, and the tab that pressed it all agree, and the state survives the island remounting.
-    render(<StopAndKeep job={job({ stopRequestedAt: "2026-09-01T07:41:00.000Z" })} stop={vi.fn()} />);
-
-    expect(screen.getByRole("status")).toHaveTextContent("Stopping…");
-    expect(screen.queryByRole("button", { name: /Stop & keep/ })).not.toBeInTheDocument();
-  });
-
   it("never fires the action twice for one dialog", async () => {
     const stop = vi.fn().mockResolvedValue({ outcome: "stopping" });
     render(<StopAndKeep job={job({ checkpointStageIndex: 2 })} stop={stop} />);

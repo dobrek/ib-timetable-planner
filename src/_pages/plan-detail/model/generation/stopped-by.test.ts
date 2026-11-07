@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
 import type { Credit, CreditedUser } from "@/entities/user";
 import type { GenerationJobView } from "../../api/generation-read";
-import { stoppedBy } from "./stopped-by";
+import { stoppedBy, stoppedSentence } from "./stopped-by";
 
 const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
 const grace: CreditedUser = {
@@ -48,7 +48,6 @@ describe("stoppedBy", () => {
   it("names the stopper to everyone else, a viewer included", () => {
     expect(stoppedBy(stoppedJob(adminCredit), "33333333-3333-4333-8333-333333333333")).toEqual({
       kind: "user",
-      user: grace,
       text: "Grace Hopper (grace@example.test)",
     });
   });
@@ -73,5 +72,21 @@ describe("stoppedBy", () => {
 
   it("names nobody when the stopper is unknown to the directory", () => {
     expect(stoppedBy(stoppedJob({ kind: "unknown" }), ADMIN_ID)).toEqual({ kind: "unknown" });
+  });
+});
+
+describe("stoppedSentence", () => {
+  const tail = "early — kept the board from stage 3 of 10.";
+
+  it.each([
+    ["the viewer", { kind: "you" }, "You stopped this generation early — kept the board from stage 3 of 10."],
+    [
+      "someone else",
+      { kind: "user", text: "Grace Hopper (grace@example.test)" },
+      "Stopped by Grace Hopper (grace@example.test) early — kept the board from stage 3 of 10.",
+    ],
+    ["nobody known", { kind: "unknown" }, "This generation was stopped early — kept the board from stage 3 of 10."],
+  ] as const)("names the stopper, then what it cost: %s", (_who, by, expected) => {
+    expect(stoppedSentence(by, tail)).toBe(expected);
   });
 });

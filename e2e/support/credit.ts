@@ -4,6 +4,9 @@
  * Match it on the email alone, never the name: `account.spec.ts` renames the shared author while
  * other specs run (e2e/CLAUDE.md).
  */
-export const creditedTo = (email: string): RegExp => new RegExp(`^Created by (.+ \\()?${escapeRegExp(email)}\\)?$`);
+export const creditedTo = (email: string): RegExp => {
+  const exact = escapeRegExp(email);
+  return new RegExp(`^Created by (?:.+ \\(${exact}\\)|${exact})$`);
+};
 
 const escapeRegExp = (text: string): string => text.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");

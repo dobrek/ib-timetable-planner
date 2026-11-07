@@ -10,7 +10,7 @@ import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../../api/generation-read";
 import { resolveStatusStrip } from "../../model/generation/status-strip";
-import { stoppedBy } from "../../model/generation/stopped-by";
+import { stoppedBy, stoppedSentence } from "../../model/generation/stopped-by";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 
 type Props = {
@@ -237,9 +237,10 @@ const formatStarted = (createdAt: string): string =>
  * can stop a solve, reading "Stopped" over a run the PLATFORM killed would attribute their own act to
  * them wrongly — and reading it over a run they did stop would say nothing about it at all.
  *
- * Since S-407 a stopped run names its recorded stopper (`stoppedBy`): "You" to that person alone,
- * "<name> (<email>)" to everyone else, a viewer included, and the neutral subject when no stopper is
- * recorded. Several editors can see one job, and an admin can stop someone else's.
+ * Since S-407 a stopped run names its recorded stopper (`stoppedSentence` over `stoppedBy`): "You"
+ * to that person alone, "<name> (<email>)" to everyone else, a viewer included, and the neutral
+ * subject when no stopper is recorded. Several editors can see one job, and an admin can stop
+ * someone else's.
  */
 const haltedSummary = (job: GenerationJobView, viewerId: string | null): string => {
   const kept =
@@ -251,14 +252,5 @@ const haltedSummary = (job: GenerationJobView, viewerId: string | null): string 
       ? "Generation was interrupted before any stage finished — nothing was kept."
       : `Interrupted — ${kept}`;
   }
-
-  const by = stoppedBy(job, viewerId);
-  if (kept === null) {
-    if (by.kind === "you") return "You stopped this generation — nothing was kept.";
-    if (by.kind === "user") return `Stopped by ${by.text} — nothing was kept.`;
-    return "This generation was stopped — nothing was kept.";
-  }
-  if (by.kind === "you") return `You stopped this generation early — ${kept}`;
-  if (by.kind === "user") return `Stopped early by ${by.text} — ${kept}`;
-  return `Stopped early — ${kept}`;
+  return stoppedSentence(stoppedBy(job, viewerId), kept === null ? "— nothing was kept." : `early — ${kept}`);
 };

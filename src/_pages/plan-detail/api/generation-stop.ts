@@ -58,7 +58,12 @@ export type StopGenerationResult = { outcome: StopGenerationOutcome };
 const STOPPED_BEFORE_START =
   "stopped by the author: the solve was stopped before any stage finished — nothing was kept";
 
-/** What the guard's refusal means to the person who clicked. */
+/**
+ * What the guard's refusal means to the person who clicked. The same sentence the guard raises
+ * (`private.guard_job_attribution`, 20261106192749), kept as a constant here because the 42501 can
+ * also be the UPDATE policy's WITH CHECK refusing a demoted requester, whose message is not for a
+ * person to read. Change both together.
+ */
 export const STOP_FORBIDDEN_MESSAGE = "Only whoever started this generation, or an admin, can stop it.";
 
 export const stopGeneration = async (

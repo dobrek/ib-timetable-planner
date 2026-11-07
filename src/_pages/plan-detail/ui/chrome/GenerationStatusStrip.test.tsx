@@ -252,7 +252,7 @@ describe("GenerationStatusStrip", () => {
       // something the author did on purpose, the other something that happened to them. Saying
       // "Stopped" over both would attribute the platform's act to the author.
       for (const [status, expected] of [
-        ["stopped", "Stopped early — kept the board from stage 4 of 10."],
+        ["stopped", "This generation was stopped early — kept the board from stage 4 of 10."],
         ["interrupted", "Interrupted — kept the board from stage 4 of 10."],
       ] as const) {
         const view = proposal({ status, checkpointStageIndex: 4 });
@@ -361,7 +361,9 @@ describe("GenerationStatusStrip", () => {
       render(<GenerationStatusStrip viewerId={ME} canEdit={false} generation={tracking(view)} />);
 
       expect(screen.getByRole("link", { name: "Year 2026/27" })).toHaveAttribute("href", "/plans/plan-1");
-      expect(screen.getByText("Stopped early — kept the board from stage 4 of 10.")).toBeInTheDocument();
+      expect(
+        screen.getByText("This generation was stopped early — kept the board from stage 4 of 10."),
+      ).toBeInTheDocument();
     });
   });
 
@@ -398,9 +400,9 @@ describe("GenerationStatusStrip", () => {
       [
         "someone else",
         STOPPED_BY_ADMIN,
-        "Stopped early by Grace Hopper (grace@example.test) — kept the board from stage 4 of 10.",
+        "Stopped by Grace Hopper (grace@example.test) early — kept the board from stage 4 of 10.",
       ],
-      ["nobody recorded", null, "Stopped early — kept the board from stage 4 of 10."],
+      ["nobody recorded", null, "This generation was stopped early — kept the board from stage 4 of 10."],
     ] as const)("with a board kept, stopped by %s", (_who, stoppedBy, expected) => {
       render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(halted(stoppedBy, 4))} />);
 

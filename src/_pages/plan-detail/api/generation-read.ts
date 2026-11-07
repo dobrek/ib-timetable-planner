@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { loadCredit, type Credit } from "@/entities/user";
 import type { SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 import {
@@ -76,6 +77,16 @@ export type GenerationJobView = {
   /** When the author asked this job to stop (S-305), or null. Non-null on a still-active row is the
    *  "Stopping…" state: the request is durable and the solver has not finished reacting to it. */
   stopRequestedAt: string | null;
+  /** Who pressed Generate (S-407), by id; null for a job from before S-407 or whose requester was
+   *  deleted. The island decides from it whether this viewer may stop the job (`canStopJob`), on
+   *  every poll tick, so a degraded first read never hides Stop for good. */
+  requestedBy: string | null;
+  /** Who first asked the job to stop (S-407), by id; null when nobody has, or the stopper was
+   *  deleted. "You stopped" is decided from it, so it holds even when the name lookup failed. */
+  stopRequestedBy: string | null;
+  /** Who first asked the job to stop (S-407), named. Resolved only for a `stopped` row that records a
+   *  stopper (`withStopper`); null otherwise, and when the lookup failed. */
+  stoppedBy: Credit | null;
   /** The solve policy this job ran under (S-307) — the picker's seed and the provenance line's noun.
    *  Legacy rows (`{ clean: true }`) read as clean, which is what every one of them was solved as. */
   policy: SolvePolicy;
@@ -90,9 +101,10 @@ export type GenerationJobView = {
 /** Everything the strip renders, and none of the ~160 KB of payload beside it. `heartbeat_at` is the
  *  staleness clock, `checkpoint_stage_index` the free existence proxy for the ~35 KB checkpoint, and
  *  `stop_requested_at` one narrow scalar that lets the pending page render "Stopping…" across ticks
- *  and reloads rather than from a client-side memory a refresh would lose. */
+ *  and reloads rather than from a client-side memory a refresh would lose. `requested_by` and
+ *  `stop_requested_by` are two ids (S-407): whose Stop it is, and whom the stopped copy names. */
 const STATUS_COLUMNS =
-  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at,stage_index,stage_name,stop_requested_at,policy";
+  "id,plan_id,status,proposal_plan_id,delivered_plan_id,delivery,stages,error,created_at,finished_at,heartbeat_at,checkpoint_stage_index,notified_at,stage_index,stage_name,stop_requested_at,requested_by,stop_requested_by,policy";
 
 export type StatusRow = {
   id: string;
@@ -111,6 +123,8 @@ export type StatusRow = {
   stage_index: number | null;
   stage_name: string | null;
   stop_requested_at: string | null;
+  requested_by: string | null;
+  stop_requested_by: string | null;
   policy: SolvePolicy;
 };
 
@@ -135,7 +149,7 @@ export const readPlanJob = async (
   if (!found) return null;
 
   const { row, role } = found;
-  const view = toView(row, await labelOf(supabase, row), Date.now());
+  const view = await withStopper(supabase, row, toView(row, await labelOf(supabase, row), Date.now()));
   if (role === "source") return view;
   return { ...view, role, sourcePlanName: await planName(supabase, view.sourcePlanId) };
 };
@@ -200,6 +214,29 @@ export const labelOf = async (supabase: SupabaseClient, row: StatusRow): Promise
   );
 };
 
+/**
+ * Name who stopped a `stopped` job (S-407), so its copy can say "Stopped by <name>" rather than
+ * credit every editor with "You stopped". One lookup, made only for a stopped row that records a
+ * stopper, after `toView`, which stays pure. A failed lookup leaves `stoppedBy` null, never fails the
+ * read: the copy falls back to its neutral line.
+ *
+ * Not while the board waits for delivery: nothing names the stopper until the board lands (the
+ * waiting panel and strip don't), and a viewer's page polls that state every tick, possibly for hours.
+ */
+export const withStopper = async (
+  supabase: SupabaseClient,
+  row: StatusRow,
+  view: GenerationJobView,
+): Promise<GenerationJobView> => {
+  if (view.status !== "stopped" || view.awaitingDelivery || row.stop_requested_by === null) return view;
+  const stoppedBy = await loadCredit(supabase, row.stop_requested_by).catch((error: unknown) => {
+    // eslint-disable-next-line no-console -- the server log is the only trace a lookup failed
+    console.error("[generation] stopper lookup failed:", error);
+    return null;
+  });
+  return { ...view, stoppedBy };
+};
+
 /** The source plan's display name, for the proposal strip's "Generated from <name>" provenance. */
 export const planName = async (supabase: SupabaseClient, planId: string): Promise<string | null> => {
   const { data } = await supabase.from("plans").select("name").eq("id", planId).maybeSingle();
@@ -230,6 +267,9 @@ export const toView = (row: StatusRow, cleanLabel: CleanLabel, nowMs: number): G
   stageIndex: row.stage_index,
   stageName: row.stage_name,
   stopRequestedAt: row.stop_requested_at,
+  requestedBy: row.requested_by,
+  stopRequestedBy: row.stop_requested_by,
+  stoppedBy: null,
   policy: row.policy,
   stalled: isStaleActiveJob(row, nowMs),
   awaitingDelivery: isDeliverableJob(row),

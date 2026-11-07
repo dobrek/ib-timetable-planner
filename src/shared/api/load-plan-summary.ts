@@ -24,6 +24,8 @@ export type PlanSummary = {
   pending_proposal: boolean;
   /** True on the one plan the school is using (S-404, FR-420): the sidebar and breadcrumb mark it. */
   is_current: boolean;
+  /** Who created the plan (S-407); null when that predates S-407 or the person was deleted. */
+  created_by: string | null;
 };
 
 /**
@@ -48,7 +50,7 @@ export const loadPlanSummary = async (
 
   const { data, error } = await supabase
     .from("plans")
-    .select("id, name, slot_grid_preset, pending_proposal, is_current")
+    .select("id, name, slot_grid_preset, pending_proposal, is_current, created_by")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(`Plan lookup failed: ${error.message}`);

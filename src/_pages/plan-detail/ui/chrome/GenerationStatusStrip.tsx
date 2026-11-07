@@ -10,12 +10,16 @@ import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../../api/generation-read";
 import { resolveStatusStrip } from "../../model/generation/status-strip";
+import { stoppedBy } from "../../model/generation/stopped-by";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 
 type Props = {
   generation: GenerationControls;
   /** The route's `allows(access, "edit")` (S-405). A viewer's strip reads; it never delivers or stops. */
   canEdit: boolean;
+  /** The signed-in user's id, from the route (S-407): a stopped run reads "You stopped" only to its
+   *  recorded stopper, and names the stopper to everyone else. */
+  viewerId: string | null;
 };
 
 /**
@@ -56,7 +60,7 @@ type Props = {
  * Semantic theme tokens only — no palette-named or arbitrary colours, so the whole light/dark theme
  * stays drivable from `global.css`.
  */
-export default function GenerationStatusStrip({ generation, canEdit }: Props) {
+export default function GenerationStatusStrip({ generation, canEdit, viewerId }: Props) {
   const { state, checking, refresh } = generation;
   const hydrated = useHydrated();
   if (state.status !== "tracking") return null;
@@ -65,7 +69,7 @@ export default function GenerationStatusStrip({ generation, canEdit }: Props) {
   // Which line is decided in `model/` (`resolveStatusStrip`), next to the pending page's own dispatch.
   switch (resolveStatusStrip(job, canEdit)) {
     case "provenance":
-      return <ProposalStrip job={job} hydrated={hydrated} canEdit={canEdit} />;
+      return <ProposalStrip job={job} hydrated={hydrated} viewerId={viewerId} />;
     case "stalled":
       return (
         <Strip>
@@ -121,7 +125,7 @@ export default function GenerationStatusStrip({ generation, canEdit }: Props) {
         <Strip>
           <span role="status" className="text-muted-foreground flex items-center gap-1.5">
             <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-            {haltedSummary(job, canEdit)}
+            {haltedSummary(job, viewerId)}
             {canEdit ? " Generate again when you are ready." : ""}
           </span>
           <RefreshButton checking={checking} onRefresh={refresh} />
@@ -161,7 +165,15 @@ export default function GenerationStatusStrip({ generation, canEdit }: Props) {
  * surface that shows the policy afterwards — the hub and the pending page do not — because two
  * proposals from the same source differ in nothing else the author can see.
  */
-const ProposalStrip = ({ job, hydrated, canEdit }: { job: GenerationJobView; hydrated: boolean; canEdit: boolean }) => {
+const ProposalStrip = ({
+  job,
+  hydrated,
+  viewerId,
+}: {
+  job: GenerationJobView;
+  hydrated: boolean;
+  viewerId: string | null;
+}) => {
   if (!job.delivered) return null;
   return (
     <Strip>
@@ -180,7 +192,7 @@ const ProposalStrip = ({ job, hydrated, canEdit }: { job: GenerationJobView; hyd
           transcript rarely reaches tier 5, so `describeCleanLabel` would honestly but unhelpfully say
           "unavailable" where the author wants to know how far the solve got. */}
       <span className="text-muted-foreground">
-        {isHaltedJobStatus(job.status) ? haltedSummary(job, canEdit) : describeCleanLabel(job.cleanLabel)}
+        {isHaltedJobStatus(job.status) ? haltedSummary(job, viewerId) : describeCleanLabel(job.cleanLabel)}
       </span>
     </Strip>
   );
@@ -225,17 +237,28 @@ const formatStarted = (createdAt: string): string =>
  * can stop a solve, reading "Stopped" over a run the PLATFORM killed would attribute their own act to
  * them wrongly — and reading it over a run they did stop would say nothing about it at all.
  *
- * Only an editor can stop a run (S-405), so only an editor reads it as their own act; a viewer gets
- * the neutral subject.
+ * Since S-407 a stopped run names its recorded stopper (`stoppedBy`): "You" to that person alone,
+ * "<name> (<email>)" to everyone else, a viewer included, and the neutral subject when no stopper is
+ * recorded. Several editors can see one job, and an admin can stop someone else's.
  */
-const haltedSummary = (job: GenerationJobView, canEdit: boolean): string => {
-  const authored = job.status === "stopped";
-  if (job.checkpointStageIndex === null) {
-    if (!authored) return "Generation was interrupted before any stage finished — nothing was kept.";
-    return canEdit
-      ? "You stopped this generation — nothing was kept."
-      : "This generation was stopped — nothing was kept.";
+const haltedSummary = (job: GenerationJobView, viewerId: string | null): string => {
+  const kept =
+    job.checkpointStageIndex === null
+      ? null
+      : `kept the board from stage ${String(job.checkpointStageIndex)} of ${String(LADDER_TIER_COUNT)}.`;
+  if (job.status !== "stopped") {
+    return kept === null
+      ? "Generation was interrupted before any stage finished — nothing was kept."
+      : `Interrupted — ${kept}`;
   }
-  const kept = `kept the board from stage ${String(job.checkpointStageIndex)} of ${String(LADDER_TIER_COUNT)}.`;
-  return authored ? `Stopped early — ${kept}` : `Interrupted — ${kept}`;
+
+  const by = stoppedBy(job, viewerId);
+  if (kept === null) {
+    if (by.kind === "you") return "You stopped this generation — nothing was kept.";
+    if (by.kind === "user") return `Stopped by ${by.text} — nothing was kept.`;
+    return "This generation was stopped — nothing was kept.";
+  }
+  if (by.kind === "you") return `You stopped this generation early — ${kept}`;
+  if (by.kind === "user") return `Stopped early by ${by.text} — ${kept}`;
+  return `Stopped early — ${kept}`;
 };

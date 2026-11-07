@@ -1,11 +1,14 @@
 import { ArrowUpRight, CircleStop, Hourglass, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 import { LADDER_CEILING_MINUTES, LADDER_TIER_COUNT, tierLabel } from "@/entities/timetable";
+import { UserCredit, type Credit } from "@/entities/user";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui";
 import type { GenerationJobView } from "../api/generation-read";
+import { stopAffordance, type StopPermission } from "../model/generation/can-stop-job";
 import { resolvePendingPanel, type PendingPanel } from "../model/generation/pending-panel";
+import { stoppedBy } from "../model/generation/stopped-by";
 import { useHasTrackedJob, usePendingProposal } from "../model/generation/use-pending-proposal";
-import StopAndKeep from "./StopAndKeep";
+import StopAndKeep, { StoppingIndicator } from "./StopAndKeep";
 
 type Props = {
   planName: string;
@@ -16,6 +19,13 @@ type Props = {
   canEdit: boolean;
   /** A non-editor's pending proposal that no job references — the state an editor's visit releases. */
   stranded: boolean;
+  /** The proposal's creator, who is whoever pressed Generate (S-407): the same session writes the
+   *  clone and the job. Null when the route's lookup failed, which shows no line. */
+  requestedBy: Credit | null;
+  /** The signed-in user's id, from the route: whose Stop it is, and whether "You" stopped it. */
+  viewerId: string | null;
+  /** The route's `allows(access, "stop_any_job")` (S-407): an admin may stop anyone's job. */
+  canStopAnyJob: boolean;
 };
 
 /**
@@ -42,9 +52,25 @@ type Props = {
  * the stage whose checkpoint would be kept is the decision the author is actually taking, and the
  * hub's badge would have to grow a projection and a dialog to say the same thing.
  *
+ * **Since S-407 the Stop is the requester's, or an admin's** (`canStopJob`, mirroring the database's
+ * stop guard), and a job from before S-407 stays any editor's. Every other editor sees "Requested by
+ * <name>" under the heading and no control at all: they know whom to ask. Once anyone has asked,
+ * everyone watching, a viewer included, reads "Stopping…" (`stopAffordance`): that is status, not a
+ * control. The stopped panel names whoever stopped the run, rather than telling every editor "You
+ * stopped".
+ *
  * Semantic theme tokens only — no palette-named or arbitrary colours.
  */
-export default function PendingProposalPage({ planName, planId, job: initialJob, canEdit, stranded }: Props) {
+export default function PendingProposalPage({
+  planName,
+  planId,
+  job: initialJob,
+  canEdit,
+  stranded,
+  requestedBy,
+  viewerId,
+  canStopAnyJob,
+}: Props) {
   const job = usePendingProposal(planId, initialJob, { canEdit });
   const tracked = useHasTrackedJob(job);
   const hydrated = useHydrated();
@@ -54,8 +80,20 @@ export default function PendingProposalPage({ planName, planId, job: initialJob,
     <div className="mx-auto max-w-2xl py-16">
       <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Proposal</p>
       <h1 className="text-foreground mt-1 text-2xl font-semibold tracking-tight">{planName}</h1>
+      {requestedBy && (
+        <p data-slot="requested-by" className="text-muted-foreground mt-1 flex items-center gap-1 text-sm">
+          <span className="shrink-0">Requested by</span>
+          <UserCredit credit={requestedBy} variant="inline" />
+        </p>
+      )}
 
-      <PanelFor panel={panel} job={job} canEdit={canEdit} hydrated={hydrated} />
+      <PanelFor
+        panel={panel}
+        job={job}
+        canEdit={canEdit}
+        hydrated={hydrated}
+        stop={{ canEdit, viewerId, canStopAnyJob }}
+      />
 
       <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         {/* A removed proposal has no page to refresh into: the request would 404. */}
@@ -85,11 +123,13 @@ type PanelForProps = {
   job: GenerationJobView | null;
   canEdit: boolean;
   hydrated: boolean;
+  /** Who is looking, for whether Stop renders and whether "You" stopped the run. */
+  stop: StopPermission;
 };
 
 /** One panel per `PendingPanel` kind. The copy differs by capability only where an editor's visit
- *  would have acted, or where the sentence names who did something. */
-const PanelFor = ({ panel, job, canEdit, hydrated }: PanelForProps) => {
+ *  would have acted, and by viewer only where the sentence names who did something. */
+const PanelFor = ({ panel, job, canEdit, hydrated, stop }: PanelForProps) => {
   if (panel === "stranded") {
     return (
       <Panel>
@@ -148,9 +188,9 @@ const PanelFor = ({ panel, job, canEdit, hydrated }: PanelForProps) => {
             for up to about {LADDER_CEILING_MINUTES} minutes — the board appears here on its own
             {canEdit ? ", and you can leave the page." : "."}
           </p>
-          {canEdit && (
+          {stopAffordance(job, stop) !== "none" && (
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-              <StopAndKeep job={job} />
+              {stopAffordance(job, stop) === "stopping" ? <StoppingIndicator /> : <StopAndKeep job={job} />}
             </div>
           )}
         </Panel>
@@ -186,16 +226,12 @@ const PanelFor = ({ panel, job, canEdit, hydrated }: PanelForProps) => {
     case "stopped":
       // Not the destructive panel: stopping is someone's deliberate act. A stopped row WITH a
       // checkpoint never rests here — it is deliverable — which makes this branch precisely the
-      // stopped-before-any-stage case. Only an editor can stop a run, so only an editor reads "You".
+      // stopped-before-any-stage case. It names whoever stopped it (S-407), by the recorded stopper.
       return (
         <Panel>
           <span role="status" className="text-foreground flex items-start gap-2">
             <CircleStop className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>
-              {canEdit
-                ? "You stopped this generation before any stage finished — nothing was kept."
-                : "This generation was stopped before any stage finished — nothing was kept."}
-            </span>
+            <span>{stoppedBeforeStart(job, stop.viewerId)}</span>
           </span>
         </Panel>
       );
@@ -247,6 +283,15 @@ const RefreshButton = () => (
     Refresh
   </Button>
 );
+
+/** The stopped panel's sentence: who stopped the run, if anyone recorded is known, and what it cost. */
+const stoppedBeforeStart = (job: GenerationJobView, viewerId: string | null): string => {
+  const by = stoppedBy(job, viewerId);
+  const cost = "before any stage finished — nothing was kept.";
+  if (by.kind === "you") return `You stopped this generation ${cost}`;
+  if (by.kind === "user") return `Stopped by ${by.text} ${cost}`;
+  return `This generation was stopped ${cost}`;
+};
 
 /**
  * "Generating — stage 4 of 10 · teacher holes", or "Generating — starting" before the first stage.

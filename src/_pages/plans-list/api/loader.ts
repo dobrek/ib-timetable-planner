@@ -1,3 +1,4 @@
+import { creditFor, loadCreditedUsers, type Credit } from "@/entities/user";
 import { unwrapMany, type SupabaseClient } from "@/shared/api";
 import type { PlanIndicator } from "../model/plan-indicators";
 import { surfacedJobsFor } from "./generation-status";
@@ -14,6 +15,9 @@ import { surfacedJobsFor } from "./generation-status";
  * `indicators` is not an exception to that rule; it is what the rule leaves room for.
  * The generation indicator READS a durable, indexed row rather than deriving anything,
  * so it costs one query for the whole page however many plans there are.
+ *
+ * `createdBy` follows the same rule (S-407): one batched lookup of the page's distinct creators,
+ * whatever the plan count.
  */
 export type PlanRow = {
   id: string;
@@ -23,6 +27,8 @@ export type PlanRow = {
   updatedAt: string;
   /** The plan the school is using. True on at most one row, which is always the first. */
   isCurrent: boolean;
+  /** Whoever created, duplicated or generated the plan (S-407); unknown when that predates S-407. */
+  createdBy: Credit;
   counts: PlanCounts;
   /** Live-ish activity on this plan, SSR'd. At most one entry today. */
   indicators: PlanIndicator[];
@@ -46,7 +52,7 @@ const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
   const rows = unwrapMany(
     await client
       .from("plans")
-      .select("id, name, slot_grid_preset, updated_at, is_current")
+      .select("id, name, slot_grid_preset, updated_at, is_current, created_by")
       // Current first, server-side, so the 200-row limit can never cut it off; the rest by name.
       .order("is_current", { ascending: false })
       .order("name")
@@ -58,10 +64,19 @@ const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
   // builder the poll's discovery read uses, so the first paint and the first tick cannot disagree
   // about which rows deserve a badge. (This used to inline a duplicate of that query, which is
   // exactly the drift S-306's wider filter would have caused.)
-  const surfaced = await surfacedJobsFor(
-    client,
-    rows.map((row) => row.id),
-  );
+  //
+  // The creators are the same shape of read: one batch for the page, run beside it. A failure throws,
+  // like every other read here.
+  const [surfaced, creators] = await Promise.all([
+    surfacedJobsFor(
+      client,
+      rows.map((row) => row.id),
+    ),
+    loadCreditedUsers(
+      client,
+      rows.map((row) => row.created_by),
+    ),
+  ]);
 
   // Per-plan head counts (3 queries per plan, parallel) — trivial at ≤ tens of plans.
   return Promise.all(
@@ -71,6 +86,7 @@ const fetchPlans = async (client: SupabaseClient): Promise<PlanRow[]> => {
       slotGridPreset: row.slot_grid_preset,
       updatedAt: row.updated_at,
       isCurrent: row.is_current,
+      createdBy: creditFor(row.created_by, creators),
       counts: await fetchCounts(client, row.id),
       indicators: indicatorsOn(surfaced, row.id),
     })),

@@ -6,6 +6,7 @@ import PlanDetailPage from "@/_pages/plan-detail/ui/PlanDetailPage.astro";
 import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import PendingProposalPage from "@/_pages/plan-detail/ui/PendingProposalPage";
 import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
+import { loadCredit, type Credit } from "@/entities/user";
 import { allows } from "@/shared/config";
 import {
   checkPlan,
@@ -25,6 +26,10 @@ const focus = boardSurfaceSchema.parse(Astro.url.searchParams.get("focus"));
 const planId = isPlanId(Astro.params.id) ? Astro.params.id : undefined;
 // Computed once, here, and passed down: islands never read the role (S-405).
 const canEdit = allows(Astro.locals.access, "edit");
+// Whose Stop a job is, and who "You" is in its stopped copy (S-407): the viewer's own id, and whether
+// they may stop anyone's job. The database's stop guard is the enforcement; these only shape the page.
+const viewerId = Astro.locals.user?.id ?? null;
+const canStopAnyJob = allows(Astro.locals.access, "stop_any_job");
 
 /*
  * The plans row FIRST, then the generation check, then — only if this is not a pending proposal —
@@ -105,7 +110,21 @@ const swept =
     : null;
 
 // A pending proposal has no board to load, and a swept one has no plan at all.
-const result = supabase && settled && !pending ? await loadCombinedPlannerData(supabase, planId) : null;
+//
+// Who created the plan (S-407) is read alongside the board, since it needs only `settled`: the board
+// header's creator, and on a pending proposal "Requested by", because the session that pressed
+// Generate wrote both the clone and the job. Best-effort, like the generation check: the creator is a
+// label, so a failed lookup logs and renders no line rather than an error page.
+const [result, createdBy] = await Promise.all([
+  supabase && settled && !pending ? loadCombinedPlannerData(supabase, planId) : null,
+  supabase && settled
+    ? loadCredit(supabase, settled.created_by).catch((error: unknown): Credit | null => {
+        // eslint-disable-next-line no-console -- the server log is the only trace a lookup failed
+        console.error("[plans/:id] creator lookup failed:", error);
+        return null;
+      })
+    : null,
+]);
 if (!supabase) Astro.response.status = 503;
 else if (settled === null && !swept) Astro.response.status = 404;
 else if (result && !result.ok) Astro.response.status = result.error.kind === "not-found" ? 404 : 503;
@@ -146,6 +165,9 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
         job={generationJob}
         canEdit={canEdit}
         stranded={stranded}
+        requestedBy={createdBy}
+        viewerId={viewerId}
+        canStopAnyJob={canStopAnyJob}
         client:load
       />
     </SidebarLayout>
@@ -158,6 +180,7 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
       <PlanDetailPage
         planName={result.value.planName}
         isCurrent={settled.is_current}
+        createdBy={createdBy}
         focus={focus}
         shared={result.value.shared}
         dp1={result.value.dp1}
@@ -167,6 +190,7 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
         initialPaletteCohort={initialPaletteCohort}
         generationJob={generationJob}
         canEdit={canEdit}
+        viewerId={viewerId}
       />
     </SidebarLayout>
   ) : (

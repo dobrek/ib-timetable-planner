@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import type { Credit } from "@/entities/user";
 import { Badge, Popover, PopoverTrigger } from "@/shared/ui";
 import BoardHeader from "./BoardHeader";
 import CoursesLeftPopover from "./CoursesLeftPopover";
@@ -10,6 +11,8 @@ type PlanSummaryBarProps = {
   planName: string;
   /** The plan is the current one (S-404), passed through to the heading's badge. */
   isCurrent: boolean;
+  /** Who created the plan (S-407), passed through to the heading. */
+  createdBy: Credit | null;
   /** Assembled hours breakdown — headline totals + the per-cohort sections the popover renders. */
   summary: CoursesLeftSummary;
   /** Combined mode groups the popover rows under DP1/DP2 subheaders; focus mode shows one cohort. */
@@ -34,6 +37,7 @@ type PlanSummaryBarProps = {
 export default function PlanSummaryBar({
   planName,
   isCurrent,
+  createdBy,
   summary,
   combined,
   parkedCount,
@@ -45,7 +49,7 @@ export default function PlanSummaryBar({
 }: PlanSummaryBarProps) {
   const { hoursLeft, hoursOver } = summary;
   return (
-    <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={active}>
+    <BoardHeader planName={planName} isCurrent={isCurrent} createdBy={createdBy} planId={planId} active={active}>
       <div className="ml-auto flex items-center gap-3">
         {onExpandShelf && parkedCount > 0 && (
           <Badge asChild variant="secondary" className="cursor-pointer">

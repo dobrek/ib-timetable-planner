@@ -11,6 +11,7 @@ const summary = (over: Partial<PlanSummary> = {}): PlanSummary => ({
   slot_grid_preset: "5x8",
   pending_proposal: false,
   is_current: false,
+  created_by: null,
   ...over,
 });
 

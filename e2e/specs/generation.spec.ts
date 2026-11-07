@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { authorEmail } from "../author-credentials.mjs";
 import { display } from "../support/board";
 import { createCourse, createStudent } from "../support/catalog";
+import { creditedTo } from "../support/credit";
 import { createPlan, createTeacher, deletePlan, gotoStable, shortId } from "../support/planner";
 
 /**
@@ -101,6 +103,8 @@ test.describe("generation", () => {
 
     // The provenance strip: what this board came from, which is the proposal's whole identity.
     await expect(page.locator("[data-slot='generation-status-strip']")).toContainText(`Generated from ${plan.name}`);
+    // And who made it (S-407, FR-417): a proposal is credited to whoever pressed Generate, by email.
+    await expect(page.getByRole("button", { name: creditedTo(authorEmail) })).toBeVisible();
 
     // --- 5. The source plan was never written to ----------------------------------------------
     // The invariant the entire slice exists to hold (FR-307). Its board still has everything left to

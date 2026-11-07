@@ -1,6 +1,6 @@
+import { buildCreditedUsers, type CreditedUser, type ProfileLabel } from "@/entities/user";
 import type { Database } from "@/shared/api";
 import type { AppRole } from "@/shared/config";
-import { profileLabel, type ProfileLabel } from "@/shared/ui";
 
 type Tables = Database["public"]["Tables"];
 type DirectoryEntry = Pick<Tables["user_directory"]["Row"], "user_id" | "email" | "is_service_account">;
@@ -41,13 +41,14 @@ export type UserRow = {
  * The input is never mutated.
  */
 export function buildUserRows({ directory, profiles, roles, changes }: UserDirectoryInput): UserRow[] {
-  const displayNames = new Map(profiles.map(({ user_id, display_name }) => [user_id, display_name]));
+  // Named exactly as every credit is (S-407), so a person reads the same here and on a plan.
+  const credited = buildCreditedUsers({ directory, profiles });
   const roleById = new Map(roles.map(({ user_id, role }) => [user_id, role]));
-  const people: Person[] = directory.map((entry) => ({
-    entry,
-    label: profileLabel({ displayName: displayNames.get(entry.user_id) ?? null, email: entry.email ?? "" }),
-  }));
-  const labels = new Map(people.map(({ entry, label }) => [entry.user_id, label]));
+  // One credited user per directory entry, so every entry finds its own.
+  const people: Person[] = directory.flatMap((entry) => {
+    const user = credited.get(entry.user_id);
+    return user ? [{ entry, label: user.label }] : [];
+  });
 
   return people.toSorted(byLabelThenEmail).map(({ entry, label }) => {
     const role = roleById.get(entry.user_id) ?? null;
@@ -58,7 +59,7 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
       role,
       status: role === null ? "no_access" : "active",
       isServiceAccount: entry.is_service_account,
-      lastChange: latest ? { by: changedBy(latest, labels), at: latest.occurred_at } : null,
+      lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };
   });
 }
@@ -84,9 +85,9 @@ const newestFirst = (a: AccessChange, b: AccessChange): number =>
  * A deleted actor's id is nulled by its foreign key. An id missing from the directory belongs to an
  * account deleted between the loader's reads, so it reads as deleted too.
  */
-const changedBy = (change: AccessChange, labels: ReadonlyMap<string, ProfileLabel>): ChangedBy => {
+const changedBy = (change: AccessChange, credited: ReadonlyMap<string, CreditedUser>): ChangedBy => {
   if (change.actor_kind === "operator") return { kind: "operator" };
-  const label = change.actor_id === null ? undefined : labels.get(change.actor_id);
+  const label = change.actor_id === null ? undefined : credited.get(change.actor_id)?.label;
   return label ? { kind: "user", label } : { kind: "deleted" };
 };
 

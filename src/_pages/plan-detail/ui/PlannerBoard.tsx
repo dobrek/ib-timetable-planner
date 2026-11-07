@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { Credit } from "@/entities/user";
 import { cohortLabel, type Cohort } from "@/shared/config";
 import { CurrentPlanBadge, PrintButton } from "@/shared/ui";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/react";
@@ -44,6 +45,8 @@ type Props = {
   /** The plan is the current one (S-404): both heading render sites and the print-only heading carry
    *  the badge, and every export's file name carries `-current` (S-405). */
   isCurrent: boolean;
+  /** Who created the plan (S-407), for both heading render sites; null shows no creator line. */
+  createdBy: Credit | null;
   /** The active surface from `?focus=`: one cohort (focus mode) or the combined two-cohort board. */
   focus: BoardSurface;
   shared: SharedBoardProps;
@@ -60,6 +63,8 @@ type Props = {
   generationJob: GenerationJobView | null;
   /** The route's `allows(access, "edit")` (S-405). Islands never read the role themselves. */
   canEdit: boolean;
+  /** The signed-in user's id (S-407), so the strip says "You stopped" only to whoever did. */
+  viewerId: string | null;
 };
 
 /**
@@ -79,6 +84,7 @@ type Props = {
 export default function PlannerBoard({
   planName,
   isCurrent,
+  createdBy,
   focus,
   shared,
   dp1: dp1Props,
@@ -88,6 +94,7 @@ export default function PlannerBoard({
   initialPaletteCohort,
   generationJob,
   canEdit,
+  viewerId,
 }: Props) {
   const { planId, days, periods } = shared;
   // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
@@ -259,7 +266,7 @@ export default function PlannerBoard({
   if (focus !== "combined" && paletteView === "empty") {
     return (
       <>
-        <BoardHeader planName={planName} isCurrent={isCurrent} planId={planId} active={focus} />
+        <BoardHeader planName={planName} isCurrent={isCurrent} createdBy={createdBy} planId={planId} active={focus} />
         <div data-slot="planner-board" className="p-6">
           <ComputeGroupingsEmptyState planId={planId} cohort={focus} />
         </div>
@@ -309,6 +316,7 @@ export default function PlannerBoard({
           <PlanSummaryBar
             planName={planName}
             isCurrent={isCurrent}
+            createdBy={createdBy}
             summary={summary}
             combined={combined}
             parkedCount={parkedBundles.length}
@@ -353,7 +361,7 @@ export default function PlannerBoard({
           {/* The generation job's window. It replaces the greedy engine's post-solve review panel,
               which went with its engine (S-301): a CP-SAT result lands on a PROPOSAL plan minutes
               later, so there is nothing to review in place here. */}
-          <GenerationStatusStrip generation={generation} canEdit={canEdit} />
+          <GenerationStatusStrip generation={generation} canEdit={canEdit} viewerId={viewerId} />
           {lens.criteria.length > 0 && (
             <LensBar
               criteria={lens.criteria}

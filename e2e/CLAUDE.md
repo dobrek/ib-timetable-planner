@@ -12,8 +12,10 @@ hydration-race `clickToReveal`, the `gotoStable` navigation retry, `shortId`, an
 (`waitForAccountHydration`) lives in `e2e/support/account.ts`; the setup files'
 UI sign-in (`signInThroughUi`) lives in `e2e/support/sign-in.ts`; the throwaway
 user's loopback-only service-role client (`adminClient`) lives in
-`e2e/support/admin-api.ts`, and the Users page's absence check, paired with the
-admin's presence (`expectUsersPageHidden`), in `e2e/support/users.ts`. Import from
+`e2e/support/admin-api.ts`, the Users page's absence check, paired with the
+admin's presence (`expectUsersPageHidden`), in `e2e/support/users.ts`, and the
+board header's creator-icon name, matched by email (`creditedTo`, S-407), in
+`e2e/support/credit.ts`. Import from
 there rather than re-declaring per spec — these are plumbing with no test-specific meaning, and copies drift. `support/*.ts`
 is not a `*.spec.ts`/`*.setup.ts` file, so Playwright does not collect it as a test.
 Keep feature-specific authoring (course/student forms, board locators) local to the

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
+import type { Credit } from "@/entities/user";
 import type { GenerationJobView } from "../../api/generation-read";
 import type { GenerationControls } from "../../model/use-cohort-board-state";
 import GenerationStatusStrip from "./GenerationStatusStrip";
@@ -11,6 +12,15 @@ import GenerationStatusStrip from "./GenerationStatusStrip";
  * of what this suite pins is the boundary between them — in particular that the source falls SILENT
  * once a board has been delivered, because the result is not on that plan.
  */
+/** The signed-in viewer, and a credit that names them, or a colleague, as a job's stopper. */
+const ME = "11111111-1111-4111-8111-111111111111";
+const stopper = (id: string, primary: string, secondary: string): Credit => ({
+  kind: "user",
+  user: { id, label: { primary, secondary }, isServiceAccount: false },
+});
+const STOPPED_BY_ME = stopper(ME, "Ada Lovelace", "ada@example.test");
+const STOPPED_BY_ADMIN = stopper("22222222-2222-4222-8222-222222222222", "Grace Hopper", "grace@example.test");
+
 const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   jobId: "job-1",
   status: "running",
@@ -27,6 +37,9 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageIndex: null,
   stageName: null,
   stopRequestedAt: null,
+  requestedBy: null,
+  stopRequestedBy: null,
+  stoppedBy: null,
   policy: DEFAULT_SOLVE_POLICY,
   stalled: false,
   awaitingDelivery: false,
@@ -49,14 +62,14 @@ const tracking = (view: GenerationJobView, over: Partial<GenerationControls> = {
 
 describe("GenerationStatusStrip", () => {
   it("renders nothing when no job is being tracked", () => {
-    const { container } = render(<GenerationStatusStrip canEdit generation={controls()} />);
+    const { container } = render(<GenerationStatusStrip viewerId={ME} canEdit generation={controls()} />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   describe("on the source plan", () => {
     it("active: names the state it is solving from, and that leaving is fine", () => {
-      render(<GenerationStatusStrip canEdit generation={tracking(job({ status: "running" }))} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(job({ status: "running" }))} />);
 
       expect(screen.getByRole("status")).toHaveTextContent(
         /Generating a proposal from the \d{1,2}:\d{2}(\s?[AP]M)? state/,
@@ -70,7 +83,7 @@ describe("GenerationStatusStrip", () => {
     it("active: offers the proposal, which is openable from the first second", () => {
       // The point of the whole slice: the clone is a listed, visitable plan while it solves, so the
       // advisory is a route to it rather than a dead sentence.
-      render(<GenerationStatusStrip canEdit generation={tracking(job({ status: "running" }))} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(job({ status: "running" }))} />);
 
       expect(screen.getByRole("link", { name: /Open proposal/ })).toHaveAttribute("href", "/plans/plan-2");
     });
@@ -80,7 +93,9 @@ describe("GenerationStatusStrip", () => {
       // `/plans` has no board, so polling there cannot contend with dragging. The link is the seam
       // between the two, and it must exist on both active states.
       for (const status of ["queued", "running"] as const) {
-        const { unmount } = render(<GenerationStatusStrip canEdit generation={tracking(job({ status }))} />);
+        const { unmount } = render(
+          <GenerationStatusStrip viewerId={ME} canEdit generation={tracking(job({ status }))} />,
+        );
         expect(screen.getByRole("link", { name: "Watch progress in Plans" })).toHaveAttribute("href", "/plans");
         unmount();
       }
@@ -88,14 +103,14 @@ describe("GenerationStatusStrip", () => {
 
     it("active: Refresh re-reads the row — which is also what delivers a finished job", () => {
       const generation = tracking(job({ status: "queued" }));
-      render(<GenerationStatusStrip canEdit generation={generation} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={generation} />);
 
       fireEvent.click(screen.getByRole("button", { name: /Refresh/ }));
       expect(generation.refresh).toHaveBeenCalledOnce();
     });
 
     it("active: Refresh goes inert while a check is in flight, so a double click cannot double-deliver", () => {
-      render(<GenerationStatusStrip canEdit generation={tracking(job(), { checking: true })} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(job(), { checking: true })} />);
 
       expect(screen.getByRole("button", { name: /Checking…/ })).toBeDisabled();
     });
@@ -104,7 +119,7 @@ describe("GenerationStatusStrip", () => {
       // The source is never written to (FR-307). A "ready" banner here would send the author looking
       // for a board that landed somewhere else; the hub's badge and the proposal's own page carry it.
       const view = job({ status: "succeeded", delivered: true, cleanLabel: { kind: "clean" } });
-      const { container } = render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+      const { container } = render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
       expect(container).toBeEmptyDOMElement();
     });
@@ -113,7 +128,11 @@ describe("GenerationStatusStrip", () => {
       // The window between the solver finishing and a check running. There is still nothing on THIS
       // plan to report, and the next visit to either plan delivers.
       const { container } = render(
-        <GenerationStatusStrip canEdit generation={tracking(job({ status: "succeeded", delivered: false }))} />,
+        <GenerationStatusStrip
+          viewerId={ME}
+          canEdit
+          generation={tracking(job({ status: "succeeded", delivered: false }))}
+        />,
       );
 
       expect(container).toBeEmptyDOMElement();
@@ -121,14 +140,16 @@ describe("GenerationStatusStrip", () => {
 
     it("failed: surfaces the diagnostic through role=alert — a failure has no proposal to live on", () => {
       const view = job({ status: "failed", proposalPlanId: null, error: "infeasible: no complete board" });
-      render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
       expect(screen.getByRole("alert")).toHaveTextContent("Generation failed: infeasible: no complete board");
       expect(screen.getByRole("button", { name: /Refresh/ })).toBeEnabled();
     });
 
     it("failed without a message still says so rather than rendering an empty strip", () => {
-      render(<GenerationStatusStrip canEdit generation={tracking(job({ status: "failed", error: null }))} />);
+      render(
+        <GenerationStatusStrip viewerId={ME} canEdit generation={tracking(job({ status: "failed", error: null }))} />,
+      );
 
       expect(screen.getByRole("alert")).toHaveTextContent("Generation failed.");
     });
@@ -140,8 +161,14 @@ describe("GenerationStatusStrip", () => {
         ["interrupted", /Generation was interrupted before any stage finished/],
         ["stopped", /You stopped this generation/],
       ] as const) {
-        const view = job({ status, delivered: false, checkpointStageIndex: null });
-        const { unmount } = render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+        const view = job({
+          status,
+          delivered: false,
+          checkpointStageIndex: null,
+          stopRequestedBy: status === "stopped" ? ME : null,
+          stoppedBy: status === "stopped" ? STOPPED_BY_ME : null,
+        });
+        const { unmount } = render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
         expect(screen.getByRole("status")).toHaveTextContent(expected);
         expect(screen.getByRole("status")).toHaveTextContent(/nothing was kept. Generate again when you are ready./);
@@ -158,7 +185,13 @@ describe("GenerationStatusStrip", () => {
     it("names the source it was generated from, and links to it", () => {
       // A proposal is named `Proposal — <source>` only until the author renames it; after that this
       // link is the only record of where the board came from.
-      render(<GenerationStatusStrip canEdit generation={tracking(proposal({ cleanLabel: { kind: "clean" } }))} />);
+      render(
+        <GenerationStatusStrip
+          viewerId={ME}
+          canEdit
+          generation={tracking(proposal({ cleanLabel: { kind: "clean" } }))}
+        />,
+      );
 
       expect(screen.getByRole("link", { name: "Year 2026/27" })).toHaveAttribute("href", "/plans/plan-1");
       expect(screen.getByText(/Generated from/)).toBeInTheDocument();
@@ -166,33 +199,39 @@ describe("GenerationStatusStrip", () => {
 
     it("names the policy the board was solved under — the one surface that shows it afterwards", () => {
       const view = proposal({ cleanLabel: { kind: "clean" }, policy: { preset: "student-first" } });
-      render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
       expect(screen.getByText(/· student-first policy/)).toBeInTheDocument();
     });
 
     it("says why a not-clean board is not clean in the policy's own terms", () => {
       const view = proposal({ cleanLabel: { kind: "not-clean", softHits: 3, floor: 1, cleanRequested: false } });
-      render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
       expect(screen.getByText(/The canonical order policy does not require a clean board/)).toBeInTheDocument();
     });
 
     it("states the clean label beside the provenance", () => {
-      render(<GenerationStatusStrip canEdit generation={tracking(proposal({ cleanLabel: { kind: "clean" } }))} />);
+      render(
+        <GenerationStatusStrip
+          viewerId={ME}
+          canEdit
+          generation={tracking(proposal({ cleanLabel: { kind: "clean" } }))}
+        />,
+      );
 
       expect(screen.getByText(/no lesson sits on a soft-unavailable cell/)).toBeInTheDocument();
     });
 
     it("an at-the-floor board names the residue instead of claiming clean", () => {
       const view = proposal({ cleanLabel: { kind: "clean-at-floor", pinnedHours: 2 } });
-      render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
       expect(screen.getByText(/2 pinned hours remain on soft cells/)).toBeInTheDocument();
     });
 
     it("falls back to a generic label when the source name could not be read", () => {
-      render(<GenerationStatusStrip canEdit generation={tracking(proposal({ sourcePlanName: null }))} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(proposal({ sourcePlanName: null }))} />);
 
       expect(screen.getByRole("link", { name: "the source plan" })).toHaveAttribute("href", "/plans/plan-1");
     });
@@ -202,7 +241,7 @@ describe("GenerationStatusStrip", () => {
       // but useless. The stage summary replaces it rather than sitting beside it. The author's decision
       // is "keep this or run it again", and the stage number is what it turns on.
       const view = proposal({ status: "interrupted", checkpointStageIndex: 3, cleanLabel: { kind: "clean" } });
-      render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
       expect(screen.getByText(/kept the board from stage 3 of 10/)).toBeInTheDocument();
       expect(screen.queryByText(/no lesson sits on a soft-unavailable cell/)).not.toBeInTheDocument();
@@ -217,7 +256,7 @@ describe("GenerationStatusStrip", () => {
         ["interrupted", "Interrupted — kept the board from stage 4 of 10."],
       ] as const) {
         const view = proposal({ status, checkpointStageIndex: 4 });
-        const { unmount } = render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+        const { unmount } = render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
         expect(screen.getByText(expected)).toBeInTheDocument();
         unmount();
@@ -226,7 +265,11 @@ describe("GenerationStatusStrip", () => {
 
     it("renders nothing before the board has landed — that page is the pending panel, not a strip", () => {
       const { container } = render(
-        <GenerationStatusStrip canEdit generation={tracking(proposal({ delivered: false, status: "running" }))} />,
+        <GenerationStatusStrip
+          viewerId={ME}
+          canEdit
+          generation={tracking(proposal({ delivered: false, status: "running" }))}
+        />,
       );
 
       expect(container).toBeEmptyDOMElement();
@@ -240,7 +283,7 @@ describe("GenerationStatusStrip", () => {
    */
   describe("for a viewer", () => {
     it("an active job's line points at the proposal without inviting them to leave", () => {
-      render(<GenerationStatusStrip canEdit={false} generation={tracking(job({ status: "running" }))} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit={false} generation={tracking(job({ status: "running" }))} />);
 
       expect(screen.getByRole("status")).toHaveTextContent(/Generating a proposal from the/);
       expect(screen.getByText(/This runs for up to about \d+ minutes\./)).toBeInTheDocument();
@@ -249,7 +292,7 @@ describe("GenerationStatusStrip", () => {
 
     it("a stalled job says an author's or admin's visit will settle it, instead of Generating forever", () => {
       const generation = tracking(job({ status: "running", stalled: true }));
-      render(<GenerationStatusStrip canEdit={false} generation={generation} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit={false} generation={generation} />);
 
       expect(screen.getByRole("status")).toHaveTextContent(
         "Stopped reporting progress — an author's or admin's visit will settle it",
@@ -260,14 +303,20 @@ describe("GenerationStatusStrip", () => {
     });
 
     it("an editor's stalled view keeps the progress line — their visit is what reclaims it", () => {
-      render(<GenerationStatusStrip canEdit generation={tracking(job({ status: "running", stalled: true }))} />);
+      render(
+        <GenerationStatusStrip
+          viewerId={ME}
+          canEdit
+          generation={tracking(job({ status: "running", stalled: true }))}
+        />,
+      );
 
       expect(screen.getByRole("status")).toHaveTextContent(/Generating a proposal from the/);
     });
 
     it("a finished, undelivered board is waiting for an author or admin, and links to its proposal", () => {
       const view = job({ status: "succeeded", delivered: false, awaitingDelivery: true });
-      render(<GenerationStatusStrip canEdit={false} generation={tracking(view)} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit={false} generation={tracking(view)} />);
 
       expect(screen.getByRole("status")).toHaveTextContent("Finished — waiting for an author or admin to open it");
       expect(screen.getByRole("link", { name: /Open proposal/ })).toHaveAttribute("href", "/plans/plan-2");
@@ -275,7 +324,7 @@ describe("GenerationStatusStrip", () => {
 
     it("an editor's source stays silent over the same board — their visit delivers it", () => {
       const view = job({ status: "succeeded", delivered: false, awaitingDelivery: true });
-      const { container } = render(<GenerationStatusStrip canEdit generation={tracking(view)} />);
+      const { container } = render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(view)} />);
 
       expect(container).toBeEmptyDOMElement();
     });
@@ -286,7 +335,7 @@ describe("GenerationStatusStrip", () => {
         ["stopped", "This generation was stopped — nothing was kept."],
       ] as const) {
         const view = job({ status, delivered: false, checkpointStageIndex: null });
-        const { unmount } = render(<GenerationStatusStrip canEdit={false} generation={tracking(view)} />);
+        const { unmount } = render(<GenerationStatusStrip viewerId={ME} canEdit={false} generation={tracking(view)} />);
 
         expect(screen.getByRole("status")).toHaveTextContent(expected);
         expect(screen.getByRole("status")).not.toHaveTextContent(/You stopped|Generate again/);
@@ -295,7 +344,7 @@ describe("GenerationStatusStrip", () => {
     });
 
     it("an active job reads exactly as it does for an editor", () => {
-      render(<GenerationStatusStrip canEdit={false} generation={tracking(job({ status: "queued" }))} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit={false} generation={tracking(job({ status: "queued" }))} />);
 
       expect(screen.getByRole("status")).toHaveTextContent(/Generating a proposal from the/);
       expect(screen.getByRole("link", { name: /Open proposal/ })).toHaveAttribute("href", "/plans/plan-2");
@@ -309,10 +358,63 @@ describe("GenerationStatusStrip", () => {
         checkpointStageIndex: 4,
         sourcePlanName: "Year 2026/27",
       });
-      render(<GenerationStatusStrip canEdit={false} generation={tracking(view)} />);
+      render(<GenerationStatusStrip viewerId={ME} canEdit={false} generation={tracking(view)} />);
 
       expect(screen.getByRole("link", { name: "Year 2026/27" })).toHaveAttribute("href", "/plans/plan-1");
       expect(screen.getByText("Stopped early — kept the board from stage 4 of 10.")).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Who stopped it (S-407). Several editors can see one job and an admin can stop someone else's,
+   * so the copy names the recorded stopper: "You" to that person alone, the name and email to
+   * everyone else, and the neutral subject when no stopper is recorded.
+   */
+  describe("naming who stopped the run", () => {
+    // Nothing kept: the source plan's line, since no proposal is left. A board kept: the delivered
+    // proposal's provenance line.
+    const halted = (stoppedBy: Credit | null, checkpointStageIndex: number | null) =>
+      job({
+        role: checkpointStageIndex === null ? "source" : "proposal",
+        status: "stopped",
+        delivered: checkpointStageIndex !== null,
+        checkpointStageIndex,
+        stopRequestedBy: stoppedBy?.kind === "user" ? stoppedBy.user.id : null,
+        stoppedBy,
+      });
+
+    it.each([
+      ["the stopper themself", STOPPED_BY_ME, "You stopped this generation — nothing was kept."],
+      ["someone else", STOPPED_BY_ADMIN, "Stopped by Grace Hopper (grace@example.test) — nothing was kept."],
+      ["nobody recorded", null, "This generation was stopped — nothing was kept."],
+    ] as const)("with nothing kept, stopped by %s", (_who, stoppedBy, expected) => {
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(halted(stoppedBy, null))} />);
+
+      expect(screen.getByRole("status")).toHaveTextContent(expected);
+    });
+
+    it.each([
+      ["the stopper themself", STOPPED_BY_ME, "You stopped this generation early — kept the board from stage 4 of 10."],
+      [
+        "someone else",
+        STOPPED_BY_ADMIN,
+        "Stopped early by Grace Hopper (grace@example.test) — kept the board from stage 4 of 10.",
+      ],
+      ["nobody recorded", null, "Stopped early — kept the board from stage 4 of 10."],
+    ] as const)("with a board kept, stopped by %s", (_who, stoppedBy, expected) => {
+      render(<GenerationStatusStrip viewerId={ME} canEdit generation={tracking(halted(stoppedBy, 4))} />);
+
+      expect(screen.getByText(expected)).toBeInTheDocument();
+    });
+
+    it("names an admin's stop to a viewer, too", () => {
+      render(
+        <GenerationStatusStrip viewerId={ME} canEdit={false} generation={tracking(halted(STOPPED_BY_ADMIN, null))} />,
+      );
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Stopped by Grace Hopper (grace@example.test) — nothing was kept.",
+      );
     });
   });
 });

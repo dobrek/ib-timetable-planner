@@ -21,6 +21,7 @@ import {
   labelOf,
   planName,
   toView,
+  withStopper,
   type CheckPlanInput,
   type GenerationJobView,
   type StatusRow,
@@ -97,7 +98,7 @@ export const checkPlan = async (supabase: SupabaseClient, input: CheckPlanInput)
   if (!found) return null;
 
   const { row, role } = found;
-  const view = await settle(supabase, row, Date.now());
+  const view = await withStopper(supabase, row, await settle(supabase, row, Date.now()));
   if (role === "source") return { ...view, role };
 
   // Looking at the delivered proposal IS the notification (FR-309), so this visit is what stamps it.

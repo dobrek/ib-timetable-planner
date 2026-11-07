@@ -371,6 +371,7 @@ export type Database = {
           plan_id: string
           policy: Json
           proposal_plan_id: string | null
+          requested_by: string | null
           result: Json | null
           snapshot: Json
           snapshot_hash: string
@@ -381,6 +382,7 @@ export type Database = {
           started_at: string | null
           status: string
           stop_requested_at: string | null
+          stop_requested_by: string | null
           updated_at: string
         }
         Insert: {
@@ -397,6 +399,7 @@ export type Database = {
           plan_id: string
           policy: Json
           proposal_plan_id?: string | null
+          requested_by?: string | null
           result?: Json | null
           snapshot: Json
           snapshot_hash: string
@@ -407,6 +410,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           stop_requested_at?: string | null
+          stop_requested_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -423,6 +427,7 @@ export type Database = {
           plan_id?: string
           policy?: Json
           proposal_plan_id?: string | null
+          requested_by?: string | null
           result?: Json | null
           snapshot?: Json
           snapshot_hash?: string
@@ -433,6 +438,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           stop_requested_at?: string | null
+          stop_requested_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -523,6 +529,7 @@ export type Database = {
       plans: {
         Row: {
           created_at: string
+          created_by: string | null
           id: string
           is_current: boolean
           name: string
@@ -532,6 +539,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           id?: string
           is_current?: boolean
           name: string
@@ -541,6 +549,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           id?: string
           is_current?: boolean
           name?: string
@@ -982,6 +991,7 @@ export type Database = {
         Args: { p_plan_id: string }
         Returns: {
           created_at: string
+          created_by: string | null
           id: string
           is_current: boolean
           name: string

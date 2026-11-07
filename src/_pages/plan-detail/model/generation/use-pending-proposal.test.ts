@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SOLVE_POLICY } from "@/entities/timetable";
+import type { Credit } from "@/entities/user";
 import { checkPlan, readPlanJob } from "../../api/generation-client";
 import type { GenerationJobView } from "../../api/generation-read";
 import { createPendingProposalStore } from "./use-pending-proposal";
@@ -30,6 +31,9 @@ const view = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageIndex: 3,
   stageName: "teacherHoles",
   stopRequestedAt: null,
+  requestedBy: null,
+  stopRequestedBy: null,
+  stoppedBy: null,
   policy: DEFAULT_SOLVE_POLICY,
   stalled: false,
   awaitingDelivery: false,
@@ -37,6 +41,17 @@ const view = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
 });
 
 const INTERVAL = 5000;
+
+/** A stopper's credit, rebuilt on every call: each read's lookup returns a fresh object. */
+const graceCredit = (): Credit => ({
+  kind: "user",
+  user: {
+    id: "22222222-2222-4222-8222-222222222222",
+    label: { primary: "Grace Hopper", secondary: "grace@example.test" },
+    isServiceAccount: false,
+  },
+});
+const GRACE = graceCredit() as Extract<Credit, { kind: "user" }>;
 
 describe("createPendingProposalStore", () => {
   beforeEach(() => {
@@ -322,7 +337,10 @@ describe("createPendingProposalStore", () => {
   it.each([
     ["stalled", { stalled: true }],
     ["awaitingDelivery", { awaitingDelivery: true }],
-  ] as const)("notices %s changing alone — a viewer's panel turns on it", async (_field, change) => {
+    ["requestedBy", { requestedBy: GRACE.user.id }],
+    ["stopRequestedBy", { stopRequestedBy: GRACE.user.id }],
+    ["stoppedBy", { stoppedBy: GRACE }],
+  ] as const)("notices %s changing alone — the page renders on it", async (_field, change) => {
     // The S-405 flags change panels while every other field stays put, so the gate must name them.
     const listener = vi.fn();
     const base = view();
@@ -343,6 +361,27 @@ describe("createPendingProposalStore", () => {
     await vi.advanceTimersByTimeAsync(INTERVAL);
 
     expect(listener).toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it("treats a fresh credit naming the same stopper as unchanged", async () => {
+    // The lookup builds a new object every tick; identity would republish forever.
+    const listener = vi.fn();
+    const base = view({ stoppedBy: graceCredit() });
+    const check = vi.fn().mockImplementation(() => Promise.resolve({ ...base, stoppedBy: graceCredit() }));
+    const store = createPendingProposalStore({
+      planId: "plan-2",
+      canEdit: false,
+      initial: base,
+      check,
+      onDelivered: vi.fn(),
+    });
+    store.subscribe(listener);
+
+    await vi.advanceTimersByTimeAsync(INTERVAL * 2);
+
+    expect(check).toHaveBeenCalledTimes(2);
+    expect(listener).not.toHaveBeenCalled();
     store.dispose();
   });
 

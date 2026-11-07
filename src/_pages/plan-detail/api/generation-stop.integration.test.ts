@@ -4,12 +4,15 @@ import type { Database } from "@/shared/api";
 import type { SolverTransport } from "@/entities/timetable";
 import {
   addCourse,
+  addGenerationJob,
   addStudentWithChoices,
   addTeacher,
   createPlan as createFactoryPlan,
+  createSignedInUser,
   registerPlan,
   teardown,
 } from "@/test/factories";
+import { DomainError } from "@/shared/lib/errors";
 import { checkPlan } from "./generation-delivery";
 import { startGeneration } from "./generation-job";
 import { stopGeneration } from "./generation-stop";
@@ -26,6 +29,9 @@ import { stopGeneration } from "./generation-stop";
  * The four outcomes, and the sweep that follows one of them, are what this suite exists to pin —
  * plus the ordering rule the plan calls out: the queued CAS is tried FIRST, so a row that has since
  * been claimed falls through to the flag write rather than getting a flag nothing will ever poll.
+ *
+ * Those cases run as the service role, which the stop guard lets through. Who may stop (S-407) is
+ * pinned at the end through clients signed in with the publishable key: the guard judges only them.
  */
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -185,5 +191,42 @@ const acceptingTransport: SolverTransport = {
     await expect(stopGeneration(supabase, { jobId })).resolves.toEqual({ outcome: "already-finished" });
 
     expect(await jobRow(jobId)).toEqual(before);
+  });
+
+  describe("who may stop (S-407), through signed-in clients", () => {
+    /** A running job on a fresh plan of its own, recording `requestedBy` as its requester. */
+    const runningJob = async (requestedBy: string | null): Promise<string> =>
+      addGenerationJob(supabase, { planId: await createFactoryPlan(supabase), status: "running", requestedBy });
+
+    it("refuses another author's stop as FORBIDDEN and leaves the job untouched", async () => {
+      const [requester, other] = await Promise.all([
+        createSignedInUser(supabase, { role: "author" }),
+        createSignedInUser(supabase, { role: "author" }),
+      ]);
+      const jobId = await runningJob(requester.id);
+
+      const refusal = await stopGeneration(other.client, { jobId }).catch((error: unknown) => error);
+
+      expect(refusal).toBeInstanceOf(DomainError);
+      expect(refusal).toMatchObject({ code: "FORBIDDEN" });
+      expect(await jobRow(jobId)).toMatchObject({ status: "running", stop_requested_at: null });
+    });
+
+    it("lets an admin stop an author's job", async () => {
+      const [requester, admin] = await Promise.all([
+        createSignedInUser(supabase, { role: "author" }),
+        createSignedInUser(supabase, { role: "admin" }),
+      ]);
+      const jobId = await runningJob(requester.id);
+
+      await expect(stopGeneration(admin.client, { jobId })).resolves.toEqual({ outcome: "stopping" });
+    });
+
+    it("lets any author stop a job that records no requester", async () => {
+      const author = await createSignedInUser(supabase, { role: "author" });
+      const jobId = await runningJob(null);
+
+      await expect(stopGeneration(author.client, { jobId })).resolves.toEqual({ outcome: "stopping" });
+    });
   });
 });

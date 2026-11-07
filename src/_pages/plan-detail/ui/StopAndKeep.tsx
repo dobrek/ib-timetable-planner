@@ -70,8 +70,6 @@ export default function StopAndKeep({ job, stop = stopGenerationAction }: Props)
     }
   };
 
-  if (job.stopRequestedAt !== null) return <StoppingIndicator />;
-
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
@@ -119,7 +117,8 @@ export default function StopAndKeep({ job, stop = stopGenerationAction }: Props)
  *
  * Status, not a control (S-407): the pending page shows it to everyone watching the run, including an
  * editor who may not stop this job and a viewer, so nobody reads a stop already asked for as a run
- * still going.
+ * still going. The page decides between this and `StopAndKeep` (`stopAffordance`), so the control
+ * itself never sees a pending stop.
  */
 export function StoppingIndicator() {
   return (

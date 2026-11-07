@@ -54,6 +54,20 @@ describe("withStopper", () => {
     expect(named.stoppedBy).toMatchObject({ kind: "user", user: { id: GRACE } });
   });
 
+  it("leaves the stopper unnamed when the lookup fails, rather than failing the read", async () => {
+    const failing = {
+      from: () => ({ select: () => ({ in: () => Promise.resolve({ data: null, error: { message: "boom" } }) }) }),
+    } as unknown as SupabaseClient;
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      await expect(withStopper(failing, row, view())).resolves.toMatchObject({ stoppedBy: null });
+      expect(quiet).toHaveBeenCalledOnce();
+    } finally {
+      quiet.mockRestore();
+    }
+  });
+
   it("looks nobody up while the board waits for delivery, which a viewer polls every tick", async () => {
     const { client, from } = stubClient();
     const waiting = view({ checkpointStageIndex: 4, awaitingDelivery: true });

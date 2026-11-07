@@ -64,14 +64,14 @@ const COLLEAGUE_CREDIT = credit(COLLEAGUE, "Grace Hopper", "grace@example.test")
 type PageOptions = {
   canEdit?: boolean;
   stranded?: boolean;
-  requestedBy?: Credit | null;
+  createdBy?: Credit | null;
   viewerId?: string | null;
   canStopAnyJob?: boolean;
 };
 
 const page = (
   view: GenerationJobView | null,
-  { canEdit = true, stranded = false, requestedBy = null, viewerId = ME, canStopAnyJob = false }: PageOptions = {},
+  { canEdit = true, stranded = false, createdBy = null, viewerId = ME, canStopAnyJob = false }: PageOptions = {},
 ) => (
   <PendingProposalPage
     planName="Proposal — Year 2026/27"
@@ -79,7 +79,7 @@ const page = (
     job={view}
     canEdit={canEdit}
     stranded={stranded}
-    requestedBy={requestedBy}
+    createdBy={createdBy}
     viewerId={viewerId}
     canStopAnyJob={canStopAnyJob}
   />
@@ -257,13 +257,13 @@ describe("PendingProposalPage", () => {
     const stopButton = () => screen.queryByRole("button", { name: /Stop & keep/ });
 
     it("gives the requester Stop & keep on their own job", () => {
-      renderPage(job({ requestedBy: ME }), { requestedBy: ME_CREDIT });
+      renderPage(job({ requestedBy: ME }), { createdBy: ME_CREDIT });
 
       expect(stopButton()).toBeInTheDocument();
     });
 
     it("gives another editor no Stop, only who requested it, with the email beside the name", () => {
-      renderPage(job({ requestedBy: COLLEAGUE }), { requestedBy: COLLEAGUE_CREDIT });
+      renderPage(job({ requestedBy: COLLEAGUE }), { createdBy: COLLEAGUE_CREDIT });
 
       expect(stopButton()).not.toBeInTheDocument();
       expect(screen.getByText("Requested by")).toBeInTheDocument();
@@ -273,7 +273,7 @@ describe("PendingProposalPage", () => {
 
     it("tells another editor a stop is pending, still with no control", () => {
       renderPage(job({ requestedBy: COLLEAGUE, stopRequestedAt: "2026-09-01T07:41:00.000Z" }), {
-        requestedBy: COLLEAGUE_CREDIT,
+        createdBy: COLLEAGUE_CREDIT,
       });
 
       expect(stopButton()).not.toBeInTheDocument();
@@ -282,13 +282,13 @@ describe("PendingProposalPage", () => {
     });
 
     it("gives an admin Stop & keep on anyone's job", () => {
-      renderPage(job({ requestedBy: COLLEAGUE }), { requestedBy: COLLEAGUE_CREDIT, canStopAnyJob: true });
+      renderPage(job({ requestedBy: COLLEAGUE }), { createdBy: COLLEAGUE_CREDIT, canStopAnyJob: true });
 
       expect(stopButton()).toBeInTheDocument();
     });
 
     it("gives any editor Stop & keep on a job that records no requester", () => {
-      renderPage(job({ requestedBy: null }), { requestedBy: { kind: "unknown" } });
+      renderPage(job({ requestedBy: null }), { createdBy: { kind: "unknown" } });
 
       expect(stopButton()).toBeInTheDocument();
       expect(screen.getByText("Unknown")).toBeInTheDocument();

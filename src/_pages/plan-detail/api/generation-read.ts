@@ -217,8 +217,8 @@ export const labelOf = async (supabase: SupabaseClient, row: StatusRow): Promise
 /**
  * Name who stopped a `stopped` job (S-407), so its copy can say "Stopped by <name>" rather than
  * credit every editor with "You stopped". One lookup, made only for a stopped row that records a
- * stopper, after `toView`, which stays pure. A failed lookup leaves `stoppedBy` null, never fails the
- * read: the copy falls back to its neutral line.
+ * stopper, after `toView`, which stays pure. `loadCredit` is best-effort, so a failed lookup leaves
+ * `stoppedBy` null and never fails the read: the copy falls back to its neutral line.
  *
  * Not while the board waits for delivery: nothing names the stopper until the board lands (the
  * waiting panel and strip don't), and a viewer's page polls that state every tick, possibly for hours.
@@ -229,12 +229,7 @@ export const withStopper = async (
   view: GenerationJobView,
 ): Promise<GenerationJobView> => {
   if (view.status !== "stopped" || view.awaitingDelivery || row.stop_requested_by === null) return view;
-  const stoppedBy = await loadCredit(supabase, row.stop_requested_by).catch((error: unknown) => {
-    // eslint-disable-next-line no-console -- the server log is the only trace a lookup failed
-    console.error("[generation] stopper lookup failed:", error);
-    return null;
-  });
-  return { ...view, stoppedBy };
+  return { ...view, stoppedBy: await loadCredit(supabase, row.stop_requested_by, "generation stopper") };
 };
 
 /** The source plan's display name, for the proposal strip's "Generated from <name>" provenance. */

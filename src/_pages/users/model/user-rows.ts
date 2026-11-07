@@ -3,7 +3,6 @@ import type { Database } from "@/shared/api";
 import type { AppRole } from "@/shared/config";
 
 type Tables = Database["public"]["Tables"];
-type DirectoryEntry = Pick<Tables["user_directory"]["Row"], "user_id" | "email" | "is_service_account">;
 type AccessChange = Pick<
   Tables["access_changes"]["Row"],
   "id" | "target_id" | "actor_id" | "actor_kind" | "occurred_at"
@@ -11,7 +10,7 @@ type AccessChange = Pick<
 
 /** The loader's four reads, each a projection of its generated row. */
 export type UserDirectoryInput = {
-  directory: readonly DirectoryEntry[];
+  directory: readonly Pick<Tables["user_directory"]["Row"], "user_id" | "email" | "is_service_account">[];
   profiles: readonly Pick<Tables["profiles"]["Row"], "user_id" | "display_name">[];
   roles: readonly Pick<Tables["user_roles"]["Row"], "user_id" | "role">[];
   changes: readonly AccessChange[];
@@ -41,34 +40,30 @@ export type UserRow = {
  * The input is never mutated.
  */
 export function buildUserRows({ directory, profiles, roles, changes }: UserDirectoryInput): UserRow[] {
-  // Named exactly as every credit is (S-407), so a person reads the same here and on a plan.
+  // One credited user per directory entry, named exactly as every credit is (S-407), so a person
+  // reads the same here and on a plan. The same map names each change's actor.
   const credited = buildCreditedUsers({ directory, profiles });
   const roleById = new Map(roles.map(({ user_id, role }) => [user_id, role]));
-  // One credited user per directory entry, so every entry finds its own.
-  const people: Person[] = directory.flatMap((entry) => {
-    const user = credited.get(entry.user_id);
-    return user ? [{ entry, label: user.label }] : [];
-  });
 
-  return people.toSorted(byLabelThenEmail).map(({ entry, label }) => {
-    const role = roleById.get(entry.user_id) ?? null;
-    const latest = latestChangeTo(entry.user_id, changes);
+  return [...credited.values()].toSorted(byLabelThenEmail).map(({ id, label, isServiceAccount }) => {
+    const role = roleById.get(id) ?? null;
+    const latest = latestChangeTo(id, changes);
     return {
-      userId: entry.user_id,
+      userId: id,
       label,
       role,
       status: role === null ? "no_access" : "active",
-      isServiceAccount: entry.is_service_account,
+      isServiceAccount,
       lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };
   });
 }
 
-/** A directory entry with its label, worked out once and shared by the sort and the actor lookup. */
-type Person = { entry: DirectoryEntry; label: ProfileLabel };
+const byLabelThenEmail = (a: CreditedUser, b: CreditedUser): number =>
+  compareText(a.label.primary, b.label.primary) || compareText(emailOf(a.label), emailOf(b.label));
 
-const byLabelThenEmail = (a: Person, b: Person): number =>
-  compareText(a.label.primary, b.label.primary) || compareText(a.entry.email ?? "", b.entry.email ?? "");
+/** The email is always on the label (FR-413): beneath the name when there is one, or as the name. */
+const emailOf = ({ primary, secondary }: ProfileLabel): string => secondary ?? primary;
 
 /**
  * The newest record naming `userId` as its target: the latest `occurred_at`, then the greater `id`.

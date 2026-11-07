@@ -50,6 +50,20 @@ archived_at: null
   - **F6:** the route loads the creator in parallel with the board.
   - **F7:** `GenerationJobView.stopRequestedBy` carries the stopper's id, so "You stopped" no longer
     depends on the name lookup.
+- **2026-11-07, simplicity review fixes** (`reviews/simplicity-review.md`, S1–S9, all applied):
+  - `StopAndKeep` no longer renders "Stopping…" itself: `stopAffordance` is the one decider, and the
+    control is never mounted with a pending stop.
+  - `buildUserRows` builds from the credited map directly; `Person` and its always-true guard are gone.
+  - `stoppedSentence` (`model/generation/stopped-by.ts`) owns the stopped run's sentence for the
+    pending page and the strip. **Copy change on the strip's kept-checkpoint line:** "Stopped by
+    <name> early — kept…" (was "Stopped early by <name> —") and "This generation was stopped early —
+    kept…" (was "Stopped early —"), so both surfaces share one template. `StoppedBy.user` was dropped.
+  - `PendingProposalPage` takes `createdBy` (the plan's creator, shown as "Requested by"; the prop's
+    docblock holds the equivalence), reads `canEdit` from `StopPermission`, and evaluates the
+    affordance once.
+  - `loadCredit` is best-effort by design: it logs and returns null, so the route and `withStopper`
+    lost their duplicate catch blocks.
+  - `STOP_FORBIDDEN_MESSAGE` says it mirrors the guard's sentence; `creditedTo` is a two-case regex.
 - **2026-11-07, success-criteria evidence.** Phase 1's row 1.1 asked that the red run's failing
   cells be recorded. That run happened, but its cell list was not kept. Rows 4.1–4.3 (the full
   E2E suite and the full integration lane, both needing the solver) were not re-run at impl

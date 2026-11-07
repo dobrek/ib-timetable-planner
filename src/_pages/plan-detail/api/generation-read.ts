@@ -81,7 +81,10 @@ export type GenerationJobView = {
    *  deleted. The island decides from it whether this viewer may stop the job (`canStopJob`), on
    *  every poll tick, so a degraded first read never hides Stop for good. */
   requestedBy: string | null;
-  /** Who first asked the job to stop (S-407). Resolved only for a `stopped` row that records a
+  /** Who first asked the job to stop (S-407), by id; null when nobody has, or the stopper was
+   *  deleted. "You stopped" is decided from it, so it holds even when the name lookup failed. */
+  stopRequestedBy: string | null;
+  /** Who first asked the job to stop (S-407), named. Resolved only for a `stopped` row that records a
    *  stopper (`withStopper`); null otherwise, and when the lookup failed. */
   stoppedBy: Credit | null;
   /** The solve policy this job ran under (S-307) — the picker's seed and the provenance line's noun.
@@ -216,13 +219,16 @@ export const labelOf = async (supabase: SupabaseClient, row: StatusRow): Promise
  * credit every editor with "You stopped". One lookup, made only for a stopped row that records a
  * stopper, after `toView`, which stays pure. A failed lookup leaves `stoppedBy` null, never fails the
  * read: the copy falls back to its neutral line.
+ *
+ * Not while the board waits for delivery: nothing names the stopper until the board lands (the
+ * waiting panel and strip don't), and a viewer's page polls that state every tick, possibly for hours.
  */
 export const withStopper = async (
   supabase: SupabaseClient,
   row: StatusRow,
   view: GenerationJobView,
 ): Promise<GenerationJobView> => {
-  if (view.status !== "stopped" || row.stop_requested_by === null) return view;
+  if (view.status !== "stopped" || view.awaitingDelivery || row.stop_requested_by === null) return view;
   const stoppedBy = await loadCredit(supabase, row.stop_requested_by).catch((error: unknown) => {
     // eslint-disable-next-line no-console -- the server log is the only trace a lookup failed
     console.error("[generation] stopper lookup failed:", error);
@@ -262,6 +268,7 @@ export const toView = (row: StatusRow, cleanLabel: CleanLabel, nowMs: number): G
   stageName: row.stage_name,
   stopRequestedAt: row.stop_requested_at,
   requestedBy: row.requested_by,
+  stopRequestedBy: row.stop_requested_by,
   stoppedBy: null,
   policy: row.policy,
   stalled: isStaleActiveJob(row, nowMs),

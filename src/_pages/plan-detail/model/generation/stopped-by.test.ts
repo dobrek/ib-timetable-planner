@@ -12,7 +12,11 @@ const grace: CreditedUser = {
 };
 const adminCredit: Credit = { kind: "user", user: grace };
 
-const stoppedJob = (credit: Credit | null): GenerationJobView => ({
+/** A stopped job; the recorded stopper's id defaults to the credit's, as the read produces it. */
+const stoppedJob = (
+  credit: Credit | null,
+  stopperId: string | null = credit?.kind === "user" ? credit.user.id : null,
+): GenerationJobView => ({
   jobId: "job-1",
   status: "stopped",
   role: "proposal",
@@ -29,6 +33,7 @@ const stoppedJob = (credit: Credit | null): GenerationJobView => ({
   stageName: "teacherHoles",
   stopRequestedAt: "2026-11-06T07:45:07.000Z",
   requestedBy: "22222222-2222-4222-8222-222222222222",
+  stopRequestedBy: stopperId,
   stoppedBy: credit,
   policy: DEFAULT_SOLVE_POLICY,
   stalled: false,
@@ -48,8 +53,22 @@ describe("stoppedBy", () => {
     });
   });
 
-  it("names nobody when no stopper is recorded, or it could not be looked up", () => {
+  it("is still you when the name lookup failed, from the recorded id alone", () => {
+    expect(stoppedBy(stoppedJob(null, ADMIN_ID), ADMIN_ID)).toEqual({ kind: "you" });
+  });
+
+  it("names nobody to anyone else when the name lookup failed", () => {
+    expect(stoppedBy(stoppedJob(null, ADMIN_ID), "33333333-3333-4333-8333-333333333333")).toEqual({
+      kind: "unknown",
+    });
+  });
+
+  it("names nobody when no stopper is recorded", () => {
     expect(stoppedBy(stoppedJob(null), ADMIN_ID)).toEqual({ kind: "unknown" });
+  });
+
+  it("never reads you when neither the viewer nor the stopper has an id", () => {
+    expect(stoppedBy(stoppedJob(null), null)).toEqual({ kind: "unknown" });
   });
 
   it("names nobody when the stopper is unknown to the directory", () => {

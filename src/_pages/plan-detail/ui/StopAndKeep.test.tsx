@@ -25,6 +25,7 @@ const job = (over: Partial<GenerationJobView> = {}): GenerationJobView => ({
   stageName: "teacherHoles",
   stopRequestedAt: null,
   requestedBy: null,
+  stopRequestedBy: null,
   stoppedBy: null,
   policy: DEFAULT_SOLVE_POLICY,
   stalled: false,

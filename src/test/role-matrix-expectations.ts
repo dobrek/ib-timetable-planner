@@ -237,11 +237,12 @@ export const PROFILE_WRITES: Record<RowOwner, Record<ProfileWriteOperation, Cell
  * Stopping a job (S-407), by whose job it is. Each cell stops a fresh job the service role made with
  * an explicit requester, by sending exactly the UPDATE `stopGeneration` sends.
  *
- * - **own.** The principal's own job. An author or admin stops it. A viewer is refused by the UPDATE
- *   policy before the guard is reached, so a requester demoted to viewer loses Stop, and noRole
- *   matches no row. Anon has no id, so it requests no job: `"no-row"`.
- * - **others.** Another user's job: only `stop_any_job` (admin) stops it. An author is refused by
- *   the guard trigger, with 42501.
+ * - **own.** The principal's own job. An author or admin stops it. A viewer passes the guard (it is
+ *   their job), then the UPDATE policy's WITH CHECK, which runs after BEFORE triggers, refuses them:
+ *   a requester demoted to viewer loses Stop. noRole matches no row. Anon has no id, so it requests
+ *   no job: `"no-row"`.
+ * - **others.** Another user's job: only `stop_any_job` (admin) stops it. An author or a viewer is
+ *   refused by the guard trigger, with 42501.
  * - **legacy.** A job with no requester stays stoppable by every editor, exactly as any job was
  *   before S-407: the same cell as `WRITES.generation_jobs.update`, which the expectations test checks.
  */
@@ -264,8 +265,9 @@ export const JOB_STOPS: Record<JobRequester, Record<StopWrite, OwnRowCell>> = {
  * Rewriting a job's attribution: an UPDATE of another user's job that points the column at the
  * principal (anon, which has no id, at a fresh user). The guard refuses it for every signed-in
  * session, an admin included: claiming a job's requester would hand its Stop to the claimant, and
- * the stopper is recorded only by the stop itself. A viewer is refused by the UPDATE policy first,
- * and noRole matches no row. No app principal is allowed, so `JOB_ATTRIBUTION_REWRITE_EVIDENCE`
+ * the stopper is recorded only by the stop itself. A viewer reaches the guard too (the UPDATE
+ * policy's WITH CHECK runs only after BEFORE triggers) and is refused by it, and noRole matches no
+ * row. No app principal is allowed, so `JOB_ATTRIBUTION_REWRITE_EVIDENCE`
  * evidences the payloads.
  */
 export const JOB_ATTRIBUTION_REWRITES: Record<JobAttributionColumn, Cell> = {

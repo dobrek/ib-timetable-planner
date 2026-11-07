@@ -22,3 +22,16 @@ export const canStopJob = (job: GenerationJobView, { canEdit, viewerId, canStopA
   canEdit &&
   isActiveJobStatus(job.status) &&
   (canStopAnyJob || job.requestedBy === null || job.requestedBy === viewerId);
+
+/** What the progress panel's stop slot holds: the control, the in-flight status, or nothing. */
+export type StopAffordance = "control" | "stopping" | "none";
+
+/**
+ * The progress panel's stop slot (S-407). A durable stop request is status, not a control, so anyone
+ * watching the run reads "Stopping…", whoever asked for it: a colleague's or an admin's stop included.
+ * Only with no stop pending does `canStopJob` decide whether the control renders.
+ */
+export const stopAffordance = (job: GenerationJobView, permission: StopPermission): StopAffordance => {
+  if (isActiveJobStatus(job.status) && job.stopRequestedAt !== null) return "stopping";
+  return canStopJob(job, permission) ? "control" : "none";
+};

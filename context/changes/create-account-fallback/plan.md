@@ -470,17 +470,17 @@ One additive migration; nothing is dropped; every existing user has `must_change
 
 #### Automated
 
-- [x] 2.1 Deno check/lint/test over the skeleton passes (`mise run functions:check`)
-- [x] 2.2 Node gates unaffected (`pnpm check`, `pnpm lint`, `pnpm steiger`)
-- [x] 2.3 Build stays clean (`pnpm build`)
-- [x] 2.4 Local stack serves the function (status asserted)
-- [ ] 2.5 CI `verify`, `integration` and `e2e` lanes green with `edge-runtime` included
+- [x] 2.1 Deno check/lint/test over the skeleton passes (`mise run functions:check`) — b09da52c
+- [x] 2.2 Node gates unaffected (`pnpm check`, `pnpm lint`, `pnpm steiger`) — b09da52c
+- [x] 2.3 Build stays clean (`pnpm build`) — b09da52c
+- [x] 2.4 Local stack serves the function (status asserted) — b09da52c
+- [x] 2.5 CI `verify`, `integration` and `e2e` lanes green with `edge-runtime` included (PR #174, run 42615048432, 2026-11-09)
 
 #### Manual
 
-- [ ] 2.6 Warm-up and image-pull cost recorded and acceptable
-- [ ] 2.7 Deploy step reviewed against the installed CLI's flags; no `--prune`
-- [ ] 2.8 No stray lockfile after a Deno run
+- [x] 2.6 Warm-up and image-pull cost recorded and acceptable (stack start 75 s e2e / 67 s integration; first warm-up request 0.95 s / 0.99 s, HTTP 200; Deno steps in `verify` ~2 s)
+- [x] 2.7 Deploy step reviewed against the installed CLI's flags; no `--prune`
+- [x] 2.8 No stray lockfile after a Deno run
 
 ### Phase 3: Access model (matrix red first, then the migration)
 

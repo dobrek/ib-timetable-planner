@@ -156,7 +156,15 @@ const astroConfig = defineConfig({
 
 export default defineConfig(
   {
-    ignores: ["src/shared/api/database.types.ts", "scripts/", "legacy-grouping-algorithm/", "steiger.config.ts"],
+    // `supabase/functions/` is Deno code with `npm:` imports: Node tooling must never see it. Its gate is
+    // `mise run functions:check` (deno check + lint + test), run by CI's verify job.
+    ignores: [
+      "src/shared/api/database.types.ts",
+      "scripts/",
+      "legacy-grouping-algorithm/",
+      "steiger.config.ts",
+      "supabase/functions/",
+    ],
   },
   includeIgnoreFile(gitignorePath),
   baseConfig,

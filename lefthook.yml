@@ -4,6 +4,8 @@ pre-commit:
     - name: lint-ts
       run: pnpm exec eslint --fix {staged_files}
       glob: "*.{ts,tsx,astro}"
+      # Deno code (npm: imports) — Node's ESLint must never see it; `mise run functions:check` does.
+      exclude: "supabase/functions/**"
       stage_fixed: true
 
     - name: steiger

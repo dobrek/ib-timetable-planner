@@ -7,9 +7,10 @@
 # Minor and patch bumps share ONE grouped PR; each MAJOR stays out of the group and gets a PR of
 # its own, so its changelog is reviewed on its own and a bad one reverts on its own.
 #
-# `github-actions` only. npm (pnpm) and uv entries are deferred: Dependabot's pnpm 12 support is
-# unverified, and solver bumps must respect ortools' tight protobuf/numpy pins
-# (`context/foundation/health-check.md` Fix 6).
+# `github-actions` and `deno` (S-409). npm (pnpm) and uv entries are deferred: Dependabot's pnpm 12
+# support is unverified, and solver bumps must respect ortools' tight protobuf/numpy pins
+# (`context/foundation/health-check.md` Fix 6). The `deno` entry exists because the Edge Function's
+# imports are exact-pinned in its `deno.json` with no lockfile, and `pnpm audit` cannot see them.
 #
 # Dependabot bumps `uses:` refs, never `with:` inputs. `deploy`'s `wranglerVersion` (lockstep with
 # the `wrangler` devDependency in `package.json`) and setup-uv's `version` (lockstep with
@@ -29,5 +30,20 @@ updates:
       include: "scope" # → "chore(deps): bump …", matching the repo's commit convention
     groups:
       actions-minor-patch: # group ids must start and end with a letter
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+  # The Edge Function's exact-pinned `npm:` imports (`deno.json`). Same monthly cadence and grouping as
+  # above, for the same reason: a merge deploys the function, and a Dependabot PR binds the
+  # no-merge-during-a-solve rule like any other. `directory` is the function's own folder, where its
+  # `deno.json` lives. Another function gets its own entry, or this becomes `directories`.
+  - package-ecosystem: "deno"
+    directory: "/supabase/functions/admin-users"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      deno-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]

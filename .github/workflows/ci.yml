@@ -88,6 +88,33 @@ jobs:
           [ "$got" = "$SHELLCHECK_VERSION" ] || { echo "expected shellcheck $SHELLCHECK_VERSION, got $got" >&2; exit 1; }
           sh scripts/solver/lint.sh
 
+      # The Edge Function (`supabase/functions/`) is Deno code that tsconfig, ESLint and lefthook all
+      # exclude, so this is the only step in CI that reads it. Deno is pinned the same way shellcheck
+      # is — release URL, sha256 computed from the downloaded artifact, version asserted — and the
+      # `version=` literal must equal `mise.toml`'s `deno = "..."`. Bump the two together, and keep
+      # them on the 2.1 line while the Supabase edge runtime embeds Deno 2.1.4. Runs before the
+      # five-minute build for the same reason the shellcheck step does.
+      - name: Install Deno (pinned)
+        run: |
+          set -euo pipefail
+          version=2.1.14
+          sha256=f5b681529a0360e7f430688fc0ba3b25626b3933c370b053a0c27f39ef7a0f90
+          zipfile="deno-x86_64-unknown-linux-gnu.zip"
+          curl -fsSL -o "$RUNNER_TEMP/$zipfile" \
+            "https://github.com/denoland/deno/releases/download/v$version/$zipfile"
+          echo "$sha256  $RUNNER_TEMP/$zipfile" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          unzip -o -q "$RUNNER_TEMP/$zipfile" -d "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "DENO_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Check the Edge Functions (deno check, lint, test)
+        run: |
+          set -euo pipefail
+          got="$(deno --version | sed -n 's/^deno \([0-9.]*\).*/\1/p')"
+          [ "$got" = "$DENO_VERSION" ] || { echo "expected deno $DENO_VERSION, got $got" >&2; exit 1; }
+          sh scripts/functions/check.sh
+
       - run: pnpm astro sync
       - run: pnpm check
       - run: pnpm lint
@@ -382,6 +409,23 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      # Schema, then the function, then the Worker (S-409). The function reads the schema the migrations
+      # just applied and the Worker calls the function, so this is the only order in which neither is
+      # ever running against something that is not there yet. A failed function deploy stops the job
+      # before the Worker ships — safe, because the migrations are additive.
+      #
+      # The function is NAMED and never `--prune`d: pruning deletes every remote function the repo does
+      # not hold, and a function created in the dashboard would go with it. `--use-api` bundles
+      # server-side, so the step needs no Docker daemon. There is no path filter anywhere in this
+      # workflow, so every merge re-deploys the function; it has no lockfile (exact pins in its
+      # `deno.json`, kept current by Dependabot), so a merge can also move its transitive dependencies.
+      # That residual is accepted and recorded in CLAUDE.md. `verify_jwt` comes from
+      # `supabase/config.toml`'s `[functions.admin-users]`.
+      - name: Deploy the Edge Function
+        run: pnpm exec supabase functions deploy admin-users --project-ref hwmuiymhjgewtymymbmb --use-api
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       # Since S-302 the deploy step below ALSO builds and pushes the solver container image, using
       # the runner's own Docker daemon (`ubuntu-latest` ships Docker 28; `wrangler-action` is a

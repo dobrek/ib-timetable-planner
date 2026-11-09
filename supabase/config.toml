@@ -390,6 +390,25 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# --- Edge Functions -------------------------------------------------------------------------------
+# `admin-users` (S-409) is the repo's one secret-holding component: the Worker holds no secret key
+# (context/deployment/deploy-plan.md:141), so account creation lives here.
+#
+# `verify_jwt = false` is set EXPLICITLY, on purpose. The platform's own check understands only the
+# legacy HS256 keys, and this project's tokens are ES256, so it cannot be the gate; the function
+# verifies the caller itself (`withSupabase({ auth: "user" })`) and then requires a LIVE admin role
+# before it touches the secret key. An ABSENT key would leave an existing remote function's value
+# alone on deploy, so the value is pinned here rather than relied on by default. This file is the
+# LOCAL development config and is never pushed (CLAUDE.md: never `supabase config push`); a hosted
+# deploy carries the flag through `functions deploy`, which reads this section.
+#
+# Adding a function needs a stack restart: the list is fixed at bring-up.
+[functions.admin-users]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/admin-users/index.ts"
+import_map = "./functions/admin-users/deno.json"
+
 [analytics]
 enabled = true
 port = 54327

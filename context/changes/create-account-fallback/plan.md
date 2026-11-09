@@ -458,22 +458,22 @@ One additive migration; nothing is dropped; every existing user has `must_change
 
 #### Automated
 
-- [x] 1.1 Result file exists and is complete (`hosted-check.md`)
+- [x] 1.1 Result file exists and is complete (`hosted-check.md`) — 65f61c6e
 
 #### Manual
 
 - [ ] 1.2 All four hosted facts recorded with observed values; throwaway function deleted
-- [x] 1.3 Trigger form for Phase 3 stated in `hosted-check.md`
-- [x] 1.4 Secret key named `default` and ES256 current, else stop and re-plan
+- [x] 1.3 Trigger form for Phase 3 stated in `hosted-check.md` — 65f61c6e
+- [x] 1.4 Secret key named `default` and ES256 current, else stop and re-plan — 65f61c6e
 
 ### Phase 2: Toolchain and CI boundary
 
 #### Automated
 
-- [ ] 2.1 Deno check/lint/test over the skeleton passes (`mise run functions:check`)
-- [ ] 2.2 Node gates unaffected (`pnpm check`, `pnpm lint`, `pnpm steiger`)
-- [ ] 2.3 Build stays clean (`pnpm build`)
-- [ ] 2.4 Local stack serves the function (status asserted)
+- [x] 2.1 Deno check/lint/test over the skeleton passes (`mise run functions:check`)
+- [x] 2.2 Node gates unaffected (`pnpm check`, `pnpm lint`, `pnpm steiger`)
+- [x] 2.3 Build stays clean (`pnpm build`)
+- [x] 2.4 Local stack serves the function (status asserted)
 - [ ] 2.5 CI `verify`, `integration` and `e2e` lanes green with `edge-runtime` included
 
 #### Manual

@@ -1,5 +1,5 @@
 #!/bin/sh
-# The only automated gate `scripts/solver/*.sh` will ever get: shellcheck, plus a `set -eu`
+# The only automated gate `scripts/solver/*.sh` (and `scripts/functions/*.sh`, S-409) will ever get: shellcheck, plus a `set -eu`
 # conformance assertion.
 #
 # Two things it is worth knowing about this file.
@@ -33,16 +33,16 @@ cd "$(dirname "$0")/../.." || exit 1
 # mise environment. Prefer PATH so the CI invocation is unmediated, fall back to mise so a bare
 # `sh scripts/solver/lint.sh` works from any shell on a provisioned machine.
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck -o check-set-e-suppressed scripts/solver/*.sh
+  shellcheck -o check-set-e-suppressed scripts/solver/*.sh scripts/functions/*.sh
 elif command -v mise >/dev/null 2>&1; then
-  mise x -- shellcheck -o check-set-e-suppressed scripts/solver/*.sh
+  mise x -- shellcheck -o check-set-e-suppressed scripts/solver/*.sh scripts/functions/*.sh
 else
   die "shellcheck is not installed. It is pinned in mise.toml's [tools] — run 'mise install'," \
     "or install by hand the version mise.toml pins (the same one .github/workflows/ci.yml downloads)."
 fi
 
 offenders=""
-for script in scripts/solver/*.sh; do
+for script in scripts/solver/*.sh scripts/functions/*.sh; do
   first=$(grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$script" | head -1)
   if [ "$first" != "set -eu" ]; then
     offenders="${offenders}  ${script} — first non-comment line is \"${first}\"
@@ -59,4 +59,4 @@ if [ -n "$offenders" ]; then
   exit 1
 fi
 
-echo "scripts/solver: shellcheck clean, set -eu conformant"
+echo "scripts/solver, scripts/functions: shellcheck clean, set -eu conformant"

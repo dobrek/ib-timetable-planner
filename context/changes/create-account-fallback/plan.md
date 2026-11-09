@@ -474,30 +474,30 @@ One additive migration; nothing is dropped; every existing user has `must_change
 - [x] 2.2 Node gates unaffected (`pnpm check`, `pnpm lint`, `pnpm steiger`) — b09da52c
 - [x] 2.3 Build stays clean (`pnpm build`) — b09da52c
 - [x] 2.4 Local stack serves the function (status asserted) — b09da52c
-- [x] 2.5 CI `verify`, `integration` and `e2e` lanes green with `edge-runtime` included (PR #174, run 42615048432, 2026-11-09)
+- [x] 2.5 CI `verify`, `integration` and `e2e` lanes green with `edge-runtime` included (PR #174, run 42615048432, 2026-11-09) — 618551b8
 
 #### Manual
 
-- [x] 2.6 Warm-up and image-pull cost recorded and acceptable (stack start 75 s e2e / 67 s integration; first warm-up request 0.95 s / 0.99 s, HTTP 200; Deno steps in `verify` ~2 s)
-- [x] 2.7 Deploy step reviewed against the installed CLI's flags; no `--prune`
-- [x] 2.8 No stray lockfile after a Deno run
+- [x] 2.6 Warm-up and image-pull cost recorded and acceptable (stack start 75 s e2e / 67 s integration; first warm-up request 0.95 s / 0.99 s, HTTP 200; Deno steps in `verify` ~2 s) — 618551b8
+- [x] 2.7 Deploy step reviewed against the installed CLI's flags; no `--prune` — 618551b8
+- [x] 2.8 No stray lockfile after a Deno run — 618551b8
 
 ### Phase 3: Access model (matrix red first, then the migration)
 
 #### Automated
 
-- [ ] 3.1 Matrix red before the migration, green after (`role-matrix.integration.test.ts`)
-- [ ] 3.2 New flag-lifecycle and last-admin suites pass
-- [ ] 3.3 Whole integration lane passes (`pnpm test:integration --maxWorkers=2`)
-- [ ] 3.4 Migration applies cleanly from scratch (`supabase db reset`)
-- [ ] 3.5 Types regenerated and diff checked (`pnpm db:types`)
-- [ ] 3.6 `pnpm test`, `pnpm check`, `pnpm lint` pass
-- [ ] 3.7 Grant posture confirmed with `has_table_privilege(...)`
+- [x] 3.1 Matrix red before the migration, green after (`role-matrix.integration.test.ts`) (red: 48 `pendingAdmin` cells with the flag write skipped, setup error with it; green: 459/459 after)
+- [x] 3.2 New flag-lifecycle and last-admin suites pass (9 + 4; the three clearing cases go red with the trigger disabled)
+- [x] 3.3 Whole integration lane passes (`pnpm test:integration --maxWorkers=2`) (740 passed; 5 skipped are the two solver suites, no `SOLVER_URL`)
+- [x] 3.4 Migration applies cleanly from scratch (`supabase db reset`)
+- [x] 3.5 Types regenerated and diff checked (`pnpm db:types`)
+- [x] 3.6 `pnpm test`, `pnpm check`, `pnpm lint` pass
+- [x] 3.7 Grant posture confirmed with `has_table_privilege(...)` (authenticated: SELECT yes, UPDATE/INSERT no; anon no; service_role UPDATE yes)
 
 #### Manual
 
-- [ ] 3.8 Migration read once for live-data safety (additive, default false)
-- [ ] 3.9 `current_app_role()` diff vs the previous live definition shows only the added condition
+- [x] 3.8 Migration read once for live-data safety (additive, default false)
+- [x] 3.9 `current_app_role()` diff vs the previous live definition shows only the added condition
 
 ### Phase 4: The Edge Function
 

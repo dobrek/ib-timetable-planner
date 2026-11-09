@@ -116,6 +116,56 @@ type Statement = { sql: string; params?: unknown[] };
     });
   });
 
+  it("counts only admins who can act: a pending admin does not keep the school from having none (S-409)", async () => {
+    const active = await userWithRole(admin, "admin");
+    const secondActive = await userWithRole(admin, "admin");
+    const pending = await userWithRole(admin, "admin");
+
+    const outcomes = await inRolledBackTransaction(async (pg) => {
+      await pg.query("set local lock_timeout = '5s'");
+      await pg.query("lock table public.user_roles in exclusive mode");
+      // From here the three are the only admins, in this transaction alone, and one is pending.
+      await pg.query(
+        "update public.user_roles set role = 'author' where role = 'admin' and user_id <> all ($1::uuid[])",
+        [[active, secondActive, pending]],
+      );
+      await pg.query("update public.user_directory set must_change_password = true where user_id = $1", [pending]);
+      // A second active admin: demoting the first leaves one who can act.
+      const withSecondActive = await sqlstateOf(pg, [demote(active)]);
+      await pg.query("update public.user_roles set role = 'author' where user_id = $1", [secondActive]);
+
+      return {
+        withSecondActive,
+        // Now only `active` can act: the pending admin is a row, not a safeguard.
+        pendingAdminIsNotCounted: await sqlstateOf(pg, [demote(active)]),
+        pendingAdminRemovalNotCounted: await sqlstateOf(pg, [
+          { sql: "delete from public.user_roles where user_id = $1", params: [active] },
+        ]),
+        // The admin who cannot act yet may be demoted while another can.
+        pendingAdminDemoted: await sqlstateOf(pg, [demote(pending)]),
+        // The account-deletion cascade still passes.
+        accountDeletion: await sqlstateOf(pg, [{ sql: "delete from auth.users where id = $1", params: [active] }]),
+        // Cleared, the same admin counts again.
+        countsOnceCleared: await sqlstateOf(pg, [
+          {
+            sql: "update public.user_directory set must_change_password = false where user_id = $1",
+            params: [pending],
+          },
+          demote(active),
+        ]),
+      };
+    });
+
+    expect(outcomes).toEqual({
+      withSecondActive: null,
+      pendingAdminIsNotCounted: LAST_ADMIN,
+      pendingAdminRemovalNotCounted: LAST_ADMIN,
+      pendingAdminDemoted: null,
+      accountDeletion: null,
+      countsOnceCleared: null,
+    });
+  });
+
   it("serialises concurrent demotions: the second waits on the guard's advisory lock", async () => {
     const first = await userWithRole(admin, "admin");
     const second = await userWithRole(admin, "admin");

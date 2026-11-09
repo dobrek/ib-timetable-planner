@@ -817,18 +817,21 @@ export type Database = {
           email: string | null
           is_machine: boolean
           is_service_account: boolean
+          must_change_password: boolean
           user_id: string
         }
         Insert: {
           email?: string | null
           is_machine?: boolean
           is_service_account?: boolean
+          must_change_password?: boolean
           user_id: string
         }
         Update: {
           email?: string | null
           is_machine?: boolean
           is_service_account?: boolean
+          must_change_password?: boolean
           user_id?: string
         }
         Relationships: []
@@ -1077,7 +1080,12 @@ export type Database = {
     }
     Enums: {
       access_actor_kind: "user" | "operator"
-      access_change_kind: "role_granted" | "role_changed" | "role_removed"
+      access_change_kind:
+        | "role_granted"
+        | "role_changed"
+        | "role_removed"
+        | "account_created"
+        | "password_reissued"
       app_role: "admin" | "author" | "viewer"
       availability_severity: "strong" | "soft"
       cohort: "dp1" | "dp2"
@@ -1214,7 +1222,13 @@ export const Constants = {
   public: {
     Enums: {
       access_actor_kind: ["user", "operator"],
-      access_change_kind: ["role_granted", "role_changed", "role_removed"],
+      access_change_kind: [
+        "role_granted",
+        "role_changed",
+        "role_removed",
+        "account_created",
+        "password_reissued",
+      ],
       app_role: ["admin", "author", "viewer"],
       availability_severity: ["strong", "soft"],
       cohort: ["dp1", "dp2"],

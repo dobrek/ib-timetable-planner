@@ -30,10 +30,13 @@ export type SignedInUser = {
  *   password policy, and it holds no `#`, quotes or whitespace (the README's dotenv rule).
  * - **`role`** gives the user a `user_roles` row, inserted by the service role after registration,
  *   so a failed insert never leaks the user. Without it the user holds no role: a role-less human.
+ * - **`mustChangePassword`** (S-409) sets the pending flag on the user's directory row before the
+ *   first sign-in, as the Edge Function does for an account it creates: the user holds their role
+ *   row, and `private.current_app_role()` reads as null until the first real password change.
  */
 export async function createSignedInUser(
   admin: SupabaseClient,
-  { role }: { role?: AppRole } = {},
+  { role, mustChangePassword = false }: { role?: AppRole; mustChangePassword?: boolean } = {},
 ): Promise<SignedInUser> {
   const url = requireLoopbackUrl();
   const publishableKey = requirePublishableKey();
@@ -45,6 +48,7 @@ export async function createSignedInUser(
   const id = created.data.user.id;
   registerUser(id);
   if (role) await assignRole(admin, id, role);
+  if (mustChangePassword) await markPending(admin, id);
 
   // Its own in-memory session, so several signed-in clients in one file never share one.
   const client = createPublishableClient(url, publishableKey);
@@ -58,6 +62,12 @@ export async function createSignedInUser(
 const assignRole = async (admin: SupabaseClient, userId: string, role: AppRole): Promise<void> => {
   const { error } = await admin.from("user_roles").insert({ user_id: userId, role });
   if (error) throw new Error(`createSignedInUser: assign role: ${error.message}`);
+};
+
+/** The Auth trigger mirrored the user into `user_directory` in the same transaction as `createUser`. */
+const markPending = async (admin: SupabaseClient, userId: string): Promise<void> => {
+  const { error } = await admin.from("user_directory").update({ must_change_password: true }).eq("user_id", userId);
+  if (error) throw new Error(`createSignedInUser: mark pending: ${error.message}`);
 };
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);

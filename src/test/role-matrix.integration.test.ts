@@ -119,13 +119,23 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
 /** Every principal but anon holds a session. */
 type SignedInPrincipal = Exclude<Principal, "anon">;
 
-/** The role each signed-in principal signs in holding, which `own_app_role` must answer. */
+/** The role row each signed-in principal holds. */
 const HELD_ROLES: Record<SignedInPrincipal, AppRole | null> = {
   noRole: null,
+  pendingAdmin: "admin",
   viewer: "viewer",
   author: "author",
   admin: "admin",
 };
+
+/**
+ * What `own_app_role` must answer: the held role, except for a pending admin, whose row is fenced
+ * off until its first real password change (S-409), so the role reads as none.
+ */
+const ANSWERED_ROLES: Record<SignedInPrincipal, AppRole | null> = { ...HELD_ROLES, pendingAdmin: null };
+
+/** Principals whose account still carries the temporary-password flag. */
+const PENDING_PRINCIPALS: ReadonlySet<Principal> = new Set(["pendingAdmin"]);
 
 /** Every write a self-grant can send: the service role's evidence covers each one. */
 const SELF_GRANT_WRITES: Record<SelfGrant, WriteOperation[]> = {
@@ -215,6 +225,7 @@ const ATTRIBUTION_COLUMNS = Object.keys(JOB_ATTRIBUTION_REWRITES) as JobAttribut
       // The publishable key and no session: never signed in.
       anon: createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY),
       noRole: signedIn.noRole.client,
+      pendingAdmin: signedIn.pendingAdmin.client,
       viewer: signedIn.viewer.client,
       author: signedIn.author.client,
       admin: signedIn.admin.client,
@@ -311,6 +322,7 @@ const ATTRIBUTION_COLUMNS = Object.keys(JOB_ATTRIBUTION_REWRITES) as JobAttribut
       "private.can_manage_users()": ["authenticated"],
       "private.can_read()": ["authenticated"],
       "private.can_stop_any_job()": ["authenticated"],
+      "private.clear_must_change_password()": [],
       "private.current_app_role()": ["authenticated"],
       // Trigger functions: EXECUTE is checked when a trigger is created, never when it fires.
       "private.guard_job_attribution()": [],
@@ -345,10 +357,10 @@ const ATTRIBUTION_COLUMNS = Object.keys(JOB_ATTRIBUTION_REWRITES) as JobAttribut
           expect((await claimsOf(signedIn[principal])).sub).toBe(signedIn[principal].id);
         });
 
-        it(`${principal}'s own_app_role answers ${HELD_ROLES[principal] ?? "null"}`, async () => {
+        it(`${principal}'s own_app_role answers ${ANSWERED_ROLES[principal] ?? "null"}`, async () => {
           expect(await principals[principal].rpc("own_app_role")).toMatchObject({
             error: null,
-            data: HELD_ROLES[principal],
+            data: ANSWERED_ROLES[principal],
           });
         });
       }
@@ -565,7 +577,13 @@ const signInEveryPrincipal = async (admin: SupabaseClient): Promise<Record<Signe
   const users = await Promise.all(
     SIGNED_IN_PRINCIPALS.map(
       async (principal) =>
-        [principal, await createSignedInUser(admin, { role: HELD_ROLES[principal] ?? undefined })] as const,
+        [
+          principal,
+          await createSignedInUser(admin, {
+            role: HELD_ROLES[principal] ?? undefined,
+            mustChangePassword: PENDING_PRINCIPALS.has(principal),
+          }),
+        ] as const,
     ),
   );
   return Object.fromEntries(users) as Record<SignedInPrincipal, SignedInUser>;
@@ -674,6 +692,7 @@ const PRIVATE_FUNCTIONS: Record<string, FunctionSecurity> = {
   "private.can_manage_users()": "invoker",
   "private.can_read()": "invoker",
   "private.can_stop_any_job()": "invoker",
+  "private.clear_must_change_password()": "invoker",
   "private.current_app_role()": "definer",
   "private.guard_job_attribution()": "invoker",
   "private.guard_last_admin()": "invoker",
@@ -722,7 +741,7 @@ const RPC_PROBES: Record<Rpc, RpcProbe> = {
   apply_generated_placements: async (admin, client) => probeWrite(await applyGeneratedProbe(admin, client)),
   clone_plan: (admin, client, planId) => probeWrite(cloneProbe(admin, client, planId)),
   // A read: there is no effect to read back, so the call's own answer is the outcome. What it
-  // answers is checked per principal, against `HELD_ROLES`.
+  // answers is checked per principal, against `ANSWERED_ROLES`.
   own_app_role: async (_admin, client) => classifyCall((await client.rpc("own_app_role")).error),
   replace_cohort_groupings: async (admin, client) => probeWrite(await replaceGroupingsProbe(admin, client)),
   set_current_plan: (admin, client) => setCurrentProbe(admin, client),

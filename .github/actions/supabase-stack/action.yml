@@ -43,9 +43,15 @@ runs:
     #
     # Mailpit is kept: the S-402 integration suite and e2e spec read password-reset mail through its
     # API on :54324 (`src/test/mailpit.ts`). Excluded, they pass locally and fail here.
+    #
+    # The edge runtime is kept too, since S-409: `src/test/admin-users.integration.test.ts` and the
+    # create-account e2e spec call the `admin-users` function through Kong. Excluded, they pass
+    # locally and fail here. The cost is a ~686 MB image pull and an `npm:` dependency download on the
+    # function's first request — which is why the warm-up step below exists. The function list is fixed
+    # at bring-up, so a function added later is served only after a stack restart.
     - name: Start Supabase (trimmed stack)
       shell: bash
-      run: pnpm exec supabase start -x studio,imgproxy,realtime,storage-api,vector,logflare,edge-runtime,postgres-meta,supavisor
+      run: pnpm exec supabase start -x studio,imgproxy,realtime,storage-api,vector,logflare,postgres-meta,supavisor
 
     # Export the stack's env to the job, for both lanes' solver, the integration / e2e suites and
     # the load-test-env CI fail-gate. The keys are the CLI's fixed defaults, not minted per stack,
@@ -130,3 +136,28 @@ runs:
           exit 1
         fi
         printf '%s\n' "${report[@]}"
+
+    # Warm-up for the Edge Function. The runtime downloads the function's pinned `npm:` imports on
+    # its FIRST request, so without this a suite's first call pays for the download inside its own
+    # timeout — flakiness on a lane that is already ~1-in-5 red. Any answer below 500 proves the
+    # function booted (it answers 401 to an anonymous caller from Phase 4 on; the Phase 2 skeleton
+    # answers 200), so the status is not asserted here, only that the runtime answered at all.
+    #
+    # It prints the wall time of the empty-cache first request: that number is the thing Phase 2
+    # asked to measure, so it is deliberately visible in the log rather than swallowed.
+    - name: Warm up the Edge Function (first request downloads its imports)
+      shell: bash
+      run: |
+        set -euo pipefail
+        url="${SUPABASE_URL}/functions/v1/admin-users"
+        for attempt in 1 2 3 4 5 6; do
+          result="$(curl -s -o /dev/null -m 120 -w '%{http_code} %{time_total}' "$url" || true)"
+          code="${result%% *}"
+          echo "warm-up attempt $attempt: HTTP ${code:-000}, ${result#* }s"
+          if [ "${code:-000}" != "000" ] && [ "$code" -lt 500 ]; then
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "the admin-users function never answered below 500 at $url" >&2
+        exit 1

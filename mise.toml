@@ -42,6 +42,13 @@ uv = "0.12.3"
 # finding lands on push instead of before it.
 shellcheck = "0.11.0"
 
+# The Edge Function's toolchain (`supabase/functions/`), checked by `mise run functions:check` and CI's
+# `verify` job. Pinned to the 2.1 line because the local and hosted edge runtime embeds Deno 2.1.4
+# (edge-runtime v1.74.3): a checker newer than the runtime would accept syntax and types the runtime
+# then refuses. Node tooling never sees these files (tsconfig, ESLint and lefthook exclude them), so
+# this is the only gate that reads them. Bump with the runtime, not before.
+deno = "2.1.14"
+
 # --- solver (services/solver) ---------------------------------------------------------------------
 # ortools pins protobuf/numpy tightly, so this package owns a dedicated venv and every `uv` command
 # runs from the package directory — supplied by `dir` for the one-liner tasks below, and by an
@@ -107,3 +114,12 @@ run = "sh {{config_root}}/scripts/solver/hosted.sh"
 description = "Calibration campaign runner: drives S-308's cell grid from .envs/campaign.vars (production writes, or a local rehearsal)"
 dir = "{{config_root}}"
 run = "sh {{config_root}}/scripts/solver/campaign.sh"
+
+# --- edge functions (supabase/functions) -------------------------------------------------------------
+# Deno code, invisible to every Node gate by design (see scripts/functions/check.sh). Same shape as the
+# solver tasks: this file is the catalog, the body lives in a script.
+
+[tasks."functions:check"]
+description = "Type-check, lint and test the Edge Functions under supabase/functions (deno check + lint + test)"
+dir = "{{config_root}}"
+run = "sh {{config_root}}/scripts/functions/check.sh"

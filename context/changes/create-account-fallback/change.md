@@ -3,7 +3,7 @@ change_id: create-account-fallback
 title: Create account fallback
 status: implementing
 created: 2026-11-08
-updated: 2026-11-09
+updated: 2026-11-10
 archived_at: null
 ---
 

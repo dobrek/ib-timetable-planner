@@ -27,6 +27,11 @@ export class ActionError extends Error {
   }
 }
 
+/** Mirrors Astro's `isInputError`: an error carrying per-field messages, from a failed input schema. */
+export function isInputError(error: unknown): error is ActionError & { fields: Record<string, string[] | undefined> } {
+  return typeof error === "object" && error !== null && "fields" in error && "code" in error;
+}
+
 // Passthrough: the real `defineAction` wires Astro's validation/serialization around
 // the handler; here we just return the action object so tests can invoke `.handler`
 // directly with a constructed context.

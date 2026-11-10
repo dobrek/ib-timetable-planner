@@ -37,26 +37,38 @@ const NOT_EDIT: Record<string, Capability> = {
   readGenerationJobStatuses: "read", // the hub's poll
   readPlanJob: "read", // a viewer's plan visit, poll and Refresh; it never writes (S-405)
   changeUserRole: "manage_users", // the Users page: an admin only (S-406)
+  createAccount: "manage_users", // the Users page: an admin only (S-409)
+  reissueTemporaryPassword: "manage_users", // the Users page: an admin only (S-409)
 };
 
 type Outcome = "reached" | "FORBIDDEN" | "SERVICE_UNAVAILABLE";
-type AccessLabel = "admin" | "author" | "viewer" | "none" | "unavailable";
+type AccessLabel = "admin" | "author" | "viewer" | "none" | "pending" | "unavailable";
 
 const ACCESS: Record<AccessLabel, AccessState> = {
   admin: { status: "granted", role: "admin" },
   author: { status: "granted", role: "author" },
   viewer: { status: "granted", role: "viewer" },
   none: { status: "none" },
+  // S-409: on a temporary password, even an admin's role is not in effect until they choose their own.
+  pending: { status: "password_change_required" },
   unavailable: { status: "unavailable" },
 };
 
 const OUTCOMES: Record<Capability, Record<AccessLabel, Outcome>> = {
-  session: { admin: "reached", author: "reached", viewer: "reached", none: "reached", unavailable: "reached" },
+  session: {
+    admin: "reached",
+    author: "reached",
+    viewer: "reached",
+    none: "reached",
+    pending: "reached",
+    unavailable: "reached",
+  },
   read: {
     admin: "reached",
     author: "reached",
     viewer: "reached",
     none: "FORBIDDEN",
+    pending: "FORBIDDEN",
     unavailable: "SERVICE_UNAVAILABLE",
   },
   edit: {
@@ -64,6 +76,7 @@ const OUTCOMES: Record<Capability, Record<AccessLabel, Outcome>> = {
     author: "reached",
     viewer: "FORBIDDEN",
     none: "FORBIDDEN",
+    pending: "FORBIDDEN",
     unavailable: "SERVICE_UNAVAILABLE",
   },
   manage_users: {
@@ -71,6 +84,7 @@ const OUTCOMES: Record<Capability, Record<AccessLabel, Outcome>> = {
     author: "FORBIDDEN",
     viewer: "FORBIDDEN",
     none: "FORBIDDEN",
+    pending: "FORBIDDEN",
     unavailable: "SERVICE_UNAVAILABLE",
   },
   stop_any_job: {
@@ -78,6 +92,7 @@ const OUTCOMES: Record<Capability, Record<AccessLabel, Outcome>> = {
     author: "FORBIDDEN",
     viewer: "FORBIDDEN",
     none: "FORBIDDEN",
+    pending: "FORBIDDEN",
     unavailable: "SERVICE_UNAVAILABLE",
   },
 };

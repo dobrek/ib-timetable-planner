@@ -18,7 +18,7 @@ export const loadUserDirectory = (supabase: SupabaseClient | null): Promise<Load
  */
 const fetchUserRows = async (client: SupabaseClient): Promise<UserRow[]> => {
   const [directory, profiles, roles, changes] = await Promise.all([
-    client.from("user_directory").select("user_id, email, is_service_account"),
+    client.from("user_directory").select("user_id, email, is_service_account, must_change_password"),
     client.from("profiles").select("user_id, display_name"),
     client.from("user_roles").select("user_id, role"),
     client

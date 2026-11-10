@@ -3,3 +3,14 @@ export const LAST_ADMIN_MESSAGE = "The school must keep at least one admin.";
 export const NO_ROLE_TO_REMOVE_MESSAGE = "That user already has no access.";
 export const CHANGE_ROLE_FAILURE = "Failed to change the role";
 export const REMOVE_ROLE_FAILURE = "Failed to remove the role";
+
+// Account provisioning (S-409). Fixed wording only: nothing from the function's response, and never
+// a password, reaches a message or a log.
+export const CREATE_ACCOUNT_FAILURE =
+  "Couldn't create the account, and no password was issued. Check the list before trying again.";
+export const REISSUE_FAILURE = "Couldn't issue a new password. Try again.";
+export const EMAIL_EXISTS_MESSAGE = "An account with this email already exists.";
+export const EMAIL_REFUSED_MESSAGE = "That email address was not accepted.";
+export const NOT_PENDING_MESSAGE = "That person has already chosen their own password.";
+export const ACCOUNT_GONE_MESSAGE = "That account no longer exists.";
+export const SESSION_EXPIRED_MESSAGE = "Your session has expired. Sign in again.";

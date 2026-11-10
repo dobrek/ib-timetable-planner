@@ -59,7 +59,12 @@ spec; promote a helper to `support/` only once a second spec needs it.
 - **Authenticate via `storageState`, never through the UI in a test.** The `setup`
   project already did the login; authenticated specs start signed in. (The only
   files that drive the sign-in UI are the four setup files, `auth.setup.ts`,
-  `no-role.setup.ts`, `viewer.setup.ts` and `admin.setup.ts`.)
+  `no-role.setup.ts`, `viewer.setup.ts` and `admin.setup.ts`, and one sanctioned
+  exception: `create-account.admin.spec.ts` (S-409) signs in as the throwaway account
+  an admin has just created, in a second, fresh browser context, because that first
+  sign-in, its redirect to `/account` and the password change that follows ARE the
+  behaviour under test. The exception covers only that throwaway: the admin
+  account's own session, role and password stay untouched.)
 - **Never assert on the sidebar footer's text.** `account.spec.ts` sets the shared
   author's display name while it runs (and clears it in a `finally`), so the footer
   may show a name in parallel specs. Never submit the author's password form either:
@@ -94,7 +99,9 @@ spec; promote a helper to `support/` only once a second spec needs it.
   create its own user through the service-role admin API
   (`e2e/support/admin-api.ts`) and delete it in a `finally`. That client refuses
   any non-loopback `SUPABASE_URL` first, so it can never create users on hosted.
-  See `forgot-password-unauth.spec.ts` and `users.admin.spec.ts`.
+  See `forgot-password-unauth.spec.ts`, `users.admin.spec.ts` and, for a throwaway the
+  spec creates through the Users page itself and then signs in as,
+  `create-account.admin.spec.ts` (S-409).
 - **Read mail through Mailpit's API** (`src/test/mailpit.ts`, loopback-only), with a
   unique address per test, and delete only your own messages, by id. Mailpit's
   `DELETE /api/v1/messages` with no ids empties the whole mailbox, including mail

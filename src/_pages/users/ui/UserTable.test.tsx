@@ -1,13 +1,22 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppRole } from "@/shared/config";
-import { ADMIN_ID, AUTHOR_ID, AUTHOR_ROW, NO_ROLE_ROW, ROWS } from "./__fixtures__/user-rows";
+import { ADMIN_ID, AUTHOR_ID, AUTHOR_ROW, NO_ROLE_ROW, PENDING_ROW, ROWS } from "./__fixtures__/user-rows";
 import UserTable from "./UserTable";
 
 const renderTable = (saving: ReadonlyMap<string, AppRole | null> = new Map()) => {
   const onChooseRole = vi.fn();
-  render(<UserTable rows={ROWS} currentUserId={ADMIN_ID} saving={saving} onChooseRole={onChooseRole} />);
-  return { onChooseRole };
+  const onReissuePassword = vi.fn();
+  render(
+    <UserTable
+      rows={[...ROWS, PENDING_ROW]}
+      currentUserId={ADMIN_ID}
+      saving={saving}
+      onChooseRole={onChooseRole}
+      onReissuePassword={onReissuePassword}
+    />,
+  );
+  return { onChooseRole, onReissuePassword };
 };
 
 /** The row whose picker is named for `name`: a name can also appear in another row's "Changed by". */
@@ -46,6 +55,22 @@ describe("UserTable", () => {
     expect(screen.getByRole("combobox", { name: "Role for cal@example.test" })).toHaveTextContent("No access");
     expect(rowOf("Bea Author").getByText("Active")).toBeInTheDocument();
     expect(rowOf("cal@example.test").getAllByText("No access")).toHaveLength(2);
+  });
+
+  it("says Temporary password for a pending row, which still shows its waiting role", () => {
+    renderTable();
+
+    expect(rowOf("dee@example.test").getByText("Temporary password")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Role for dee@example.test" })).toHaveTextContent("Viewer");
+  });
+
+  it("offers Re-issue password on the pending row alone, and it asks for that row", () => {
+    const { onReissuePassword } = renderTable();
+
+    expect(screen.getAllByRole("button", { name: /Re-issue password/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Re-issue password for dee@example.test" }));
+
+    expect(onReissuePassword).toHaveBeenCalledWith(PENDING_ROW);
   });
 
   it("names who changed the role last, or shows a dash", () => {

@@ -1,6 +1,13 @@
 import { defineMiddleware } from "astro:middleware";
-import { createClient, loadOwnRole, type SupabaseClient } from "@/shared/api";
-import { decideRoleGate, resolveAccess, ROLE_NOTICE_PATH, ROLE_UNAVAILABLE_PATH, type AppRole } from "@/shared/config";
+import { createClient, loadOwnAccess, type SupabaseClient } from "@/shared/api";
+import {
+  decideRoleGate,
+  PASSWORD_CHANGE_PATH,
+  resolveAccess,
+  ROLE_NOTICE_PATH,
+  ROLE_UNAVAILABLE_PATH,
+  type OwnAccessRead,
+} from "@/shared/config";
 
 // Deny-by-default: every route requires an authenticated session except the
 // paths below. Keep this allowlist tight — only the sign-in and password-reset
@@ -38,12 +45,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isPublic = isPublicPath(pathname);
   const supabase = createClient(context.request.headers, context.cookies);
 
-  // The role is read live, concurrently with getUser(), so it costs max(GoTrue, PostgREST) rather
-  // than their sum. Public paths other than actions skip it and hold no access.
+  // The role (and, for a caller with none, the temporary-password flag) is read live, concurrently
+  // with getUser(), so it costs max(GoTrue, PostgREST) rather than their sum. Public paths other
+  // than actions skip it and hold no access.
   const readsRole = !isPublic || pathname.startsWith(ACTIONS_PREFIX);
   const [user, lookup] = await Promise.all([
     readUser(supabase),
-    supabase && readsRole ? settleRole(supabase) : undefined,
+    supabase && readsRole ? settleAccess(supabase) : undefined,
   ]);
   context.locals.user = user;
   context.locals.access = lookup ? resolveAccess(user !== null, lookup) : { status: "none" };
@@ -61,6 +69,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // The page gate (S-403, FR-410): a role-less user lands on the dashboard's notice.
   const gate = decideRoleGate(pathname, context.locals.access);
   if (gate === "notice") return context.redirect(ROLE_NOTICE_PATH);
+  // A temporary password (S-409): every gated page sends the user to /account to choose their own.
+  if (gate === "password_change") return context.redirect(PASSWORD_CHANGE_PATH);
   // `next(path)` renders the 503 page once, without re-entering this middleware. Never
   // `context.rewrite()`: it re-runs the chain, repeating getUser() and the role read.
   if (gate === "unavailable") return next(ROLE_UNAVAILABLE_PATH);
@@ -80,8 +90,8 @@ async function readUser(supabase: SupabaseClient | null): Promise<App.Locals["us
   return user ?? null;
 }
 
-/** The role read's outcome as a value: a failure must reach `resolveAccess`, not throw past it. */
-async function settleRole(supabase: SupabaseClient): Promise<PromiseSettledResult<AppRole | null>> {
-  const [lookup] = await Promise.allSettled([loadOwnRole(supabase)]);
+/** The access read's outcome as a value: a failure must reach `resolveAccess`, not throw past it. */
+async function settleAccess(supabase: SupabaseClient): Promise<PromiseSettledResult<OwnAccessRead>> {
+  const [lookup] = await Promise.allSettled([loadOwnAccess(supabase)]);
   return lookup;
 }

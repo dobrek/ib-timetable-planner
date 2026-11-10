@@ -7,7 +7,10 @@ Deno.test("a password is 24 characters, every one from the alphabet", () => {
   for (let i = 0; i < 500; i++) {
     const password = generatePassword();
     assert.equal(password.length, PASSWORD_LENGTH);
-    assert.ok([...password].every((char) => ALPHABET.includes(char)), password);
+    assert.ok(
+      [...password].every((char) => ALPHABET.includes(char)),
+      password,
+    );
   }
 });
 

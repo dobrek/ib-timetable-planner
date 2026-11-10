@@ -1,5 +1,6 @@
 import type { AppRole } from "@/shared/config";
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
+import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
+import { STATUS_LABELS } from "../model/status-labels";
 import type { UserRow } from "../model/user-rows";
 import LastChange from "./LastChange";
 import RoleSelect from "./RoleSelect";
@@ -10,10 +11,12 @@ type Props = {
   /** The role being saved for each row in flight: its picker shows that role, disabled. */
   saving: ReadonlyMap<string, AppRole | null>;
   onChooseRole: (row: UserRow, role: AppRole | null) => void;
+  /** Asks to replace a pending row's temporary password. Only rows with `canReissuePassword` offer it. */
+  onReissuePassword: (row: UserRow) => void;
 };
 
 /** Every human user of the school, one row each, with a role picker. Rows arrive sorted. */
-export default function UserTable({ rows, currentUserId, saving, onChooseRole }: Props) {
+export default function UserTable({ rows, currentUserId, saving, onChooseRole, onReissuePassword }: Props) {
   return (
     <div className="border-border overflow-hidden rounded-lg border">
       <Table>
@@ -44,7 +47,23 @@ export default function UserTable({ rows, currentUserId, saving, onChooseRole }:
                   />
                 </TableCell>
                 <TableCell className={row.status === "active" ? undefined : "text-muted-foreground"}>
-                  {row.status === "active" ? "Active" : "No access"}
+                  <div className="flex flex-wrap items-center gap-x-3">
+                    <span>{STATUS_LABELS[row.status]}</span>
+                    {row.canReissuePassword && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Re-issue password for ${row.label.primary}`}
+                        onClick={() => {
+                          onReissuePassword(row);
+                        }}
+                      >
+                        Re-issue password
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
                 {/* Wraps, unlike the other cells: a long name and a date together outgrow narrow screens. */}
                 <TableCell className="whitespace-normal">

@@ -2,7 +2,10 @@ import { expect, type Page } from "@playwright/test";
 
 /**
  * Sign in through the real UI and wait for the post-login redirect. Only the setup files call this
- * (`auth.setup.ts`, `no-role.setup.ts`): every spec starts signed in from their storageState.
+ * (`auth.setup.ts`, `no-role.setup.ts`): every spec starts signed in from their storageState. One
+ * sanctioned exception, `create-account.admin.spec.ts` (S-409): the throwaway account an admin
+ * just created, whose first sign-in IS the behaviour under test. It passes `landsOn`, because a
+ * user on a temporary password is sent on from /dashboard to /account.
  *
  * SignInForm is a controlled React island (`client:load`): its inputs are bound to useState(""), so
  * a value typed BEFORE hydration is discarded the instant React mounts and re-binds the input to its
@@ -11,7 +14,12 @@ import { expect, type Page } from "@playwright/test";
  * password toggle is React-only behaviour, so retry-clicking it until the control flips proves the
  * island is interactive; after that, fills register in React state and survive to submit.
  */
-export async function signInThroughUi(page: Page, email: string, password: string): Promise<void> {
+export async function signInThroughUi(
+  page: Page,
+  email: string,
+  password: string,
+  landsOn = "**/dashboard",
+): Promise<void> {
   await page.goto("/auth/signin");
 
   const showPassword = page.getByRole("button", { name: "Show password" });
@@ -35,5 +43,5 @@ export async function signInThroughUi(page: Page, email: string, password: strin
 
   // Wait for the post-login redirect BEFORE the caller saves, or storageState captures a pre-auth
   // (cookie-less) context. Every account lands on /dashboard: a role-less one sees the notice there.
-  await page.waitForURL("**/dashboard");
+  await page.waitForURL(landsOn);
 }

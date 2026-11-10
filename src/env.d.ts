@@ -2,7 +2,8 @@ declare namespace App {
   interface Locals {
     user: import("@supabase/supabase-js").User | null;
     /**
-     * The caller's role, read live by the middleware on every gated page and every action (S-403).
+     * The caller's role, read live by the middleware on every gated page and every action (S-403); a
+     * caller on a temporary password holds `password_change_required` instead (S-409).
      * Public paths skip the read and hold `{ status: "none" }`. Interpreted by `resolveAccess`.
      */
     access: import("@/shared/config").AccessState;

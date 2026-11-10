@@ -41,5 +41,11 @@ export { optionalChipClass } from "./optional-chip";
 export { APP_ROLE_VALUES, type AppRole } from "./app-role";
 export { grants, type Capability } from "./capability";
 export { allows, type AccessState } from "./access-state";
-export { resolveAccess } from "./resolve-access";
-export { decideRoleGate, ROLE_NOTICE_PATH, ROLE_UNAVAILABLE_PATH, type RoleGateDecision } from "./role-gate";
+export { resolveAccess, type OwnAccessRead } from "./resolve-access";
+export {
+  decideRoleGate,
+  PASSWORD_CHANGE_PATH,
+  ROLE_NOTICE_PATH,
+  ROLE_UNAVAILABLE_PATH,
+  type RoleGateDecision,
+} from "./role-gate";

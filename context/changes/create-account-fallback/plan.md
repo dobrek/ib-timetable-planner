@@ -503,35 +503,35 @@ One additive migration; nothing is dropped; every existing user has `must_change
 
 #### Automated
 
-- [x] 4.1 Deno gate passes (`mise run functions:check`) (14 Deno tests)
-- [x] 4.2 Function integration suite passes (`admin-users.integration.test.ts`) (24 cases; forced-failure case confirmed in the function log as `flag:db:P0001`)
-- [x] 4.3 Role matrix still green (459/459)
-- [x] 4.4 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` pass
-- [ ] 4.5 CI green on a PR with the edge runtime in the integration lane
+- [x] 4.1 Deno gate passes (`mise run functions:check`) (14 Deno tests) — e2400553
+- [x] 4.2 Function integration suite passes (`admin-users.integration.test.ts`) (24 cases; forced-failure case confirmed in the function log as `flag:db:P0001`) — e2400553
+- [x] 4.3 Role matrix still green (459/459) — e2400553
+- [x] 4.4 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` pass — e2400553
+- [x] 4.5 CI green on a PR with the edge runtime in the integration lane (PR #174, run 42775540254: integration 48 files and 769 tests, admin-users 24/24 on the edge runtime) — e2400553
 
 #### Manual
 
-- [x] 4.6 No place the password can be printed in the function or its logs
-- [x] 4.7 `ctx.supabaseAdmin` used only after the admin check and only where the secret key is needed
+- [x] 4.6 No place the password can be printed in the function or its logs — e2400553
+- [x] 4.7 `ctx.supabaseAdmin` used only after the admin check and only where the secret key is needed — e2400553
 
 ### Phase 5: The app
 
 #### Automated
 
-- [ ] 5.1 Unit tests pass (`pnpm test`)
-- [ ] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
-- [ ] 5.3 `pnpm build` clean, no key in `dist/client`
-- [ ] 5.4 Integration lane still green
-- [ ] 5.5 e2e `create-account.admin.spec.ts` passes
-- [ ] 5.6 Role matrix and last-admin suites green
+- [x] 5.1 Unit tests pass (`pnpm test`) (267 files, 2723 tests)
+- [x] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
+- [x] 5.3 `pnpm build` clean, no key in `dist/client`
+- [x] 5.4 Integration lane still green (46 files and 764 tests pass, 2 solver suites skipped locally; CI runs them)
+- [x] 5.5 e2e `create-account.admin.spec.ts` passes (3 cases, with workerd preview against the local stack)
+- [x] 5.6 Role matrix and last-admin suites green
 
 #### Manual
 
-- [ ] 5.7 Create in the real UI; the password is shown once and unrecoverable after close
-- [ ] 5.8 Pending user lands on `/account` from every page; same tab gains the role after the change
-- [ ] 5.9 Re-issue works on a pending row and is absent on a confirmed one
-- [ ] 5.10 `functions.invoke` works inside workerd (`pnpm build && pnpm preview`)
-- [ ] 5.11 Admin's own row, other rows and the "You" badge behave as before
+- [x] 5.7 Create in the real UI; the password is shown once and unrecoverable after close
+- [x] 5.8 Pending user lands on `/account` from every page; same tab gains the role after the change
+- [x] 5.9 Re-issue works on a pending row and is absent on a confirmed one
+- [x] 5.10 `functions.invoke` works inside workerd (`pnpm build && pnpm preview`)
+- [x] 5.11 Admin's own row, other rows and the "You" badge behave as before
 
 ### Phase 6: Docs and hosted smoke
 

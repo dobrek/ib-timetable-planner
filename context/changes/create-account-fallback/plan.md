@@ -458,89 +458,89 @@ One additive migration; nothing is dropped; every existing user has `must_change
 
 #### Automated
 
-- [x] 1.1 Result file exists and is complete (`hosted-check.md`) — 65f61c6e
+- [x] 1.1 Result file exists and is complete (`hosted-check.md`) — 5314a3a7
 
 #### Manual
 
 - [ ] 1.2 All four hosted facts recorded with observed values; throwaway function deleted
-- [x] 1.3 Trigger form for Phase 3 stated in `hosted-check.md` — 65f61c6e
-- [x] 1.4 Secret key named `default` and ES256 current, else stop and re-plan — 65f61c6e
+- [x] 1.3 Trigger form for Phase 3 stated in `hosted-check.md` — 5314a3a7
+- [x] 1.4 Secret key named `default` and ES256 current, else stop and re-plan — 5314a3a7
 
 ### Phase 2: Toolchain and CI boundary
 
 #### Automated
 
-- [x] 2.1 Deno check/lint/test over the skeleton passes (`mise run functions:check`) — b09da52c
-- [x] 2.2 Node gates unaffected (`pnpm check`, `pnpm lint`, `pnpm steiger`) — b09da52c
-- [x] 2.3 Build stays clean (`pnpm build`) — b09da52c
-- [x] 2.4 Local stack serves the function (status asserted) — b09da52c
-- [x] 2.5 CI `verify`, `integration` and `e2e` lanes green with `edge-runtime` included (PR #174, run 42615048432, 2026-11-09) — 618551b8
+- [x] 2.1 Deno check/lint/test over the skeleton passes (`mise run functions:check`) — 4dab0d7c
+- [x] 2.2 Node gates unaffected (`pnpm check`, `pnpm lint`, `pnpm steiger`) — 4dab0d7c
+- [x] 2.3 Build stays clean (`pnpm build`) — 4dab0d7c
+- [x] 2.4 Local stack serves the function (status asserted) — 4dab0d7c
+- [x] 2.5 CI `verify`, `integration` and `e2e` lanes green with `edge-runtime` included (PR #174, run 42615048432, 2026-11-09) — 9095e1af
 
 #### Manual
 
-- [x] 2.6 Warm-up and image-pull cost recorded and acceptable (stack start 75 s e2e / 67 s integration; first warm-up request 0.95 s / 0.99 s, HTTP 200; Deno steps in `verify` ~2 s) — 618551b8
-- [x] 2.7 Deploy step reviewed against the installed CLI's flags; no `--prune` — 618551b8
-- [x] 2.8 No stray lockfile after a Deno run — 618551b8
+- [x] 2.6 Warm-up and image-pull cost recorded and acceptable (stack start 75 s e2e / 67 s integration; first warm-up request 0.95 s / 0.99 s, HTTP 200; Deno steps in `verify` ~2 s) — 9095e1af
+- [x] 2.7 Deploy step reviewed against the installed CLI's flags; no `--prune` — 9095e1af
+- [x] 2.8 No stray lockfile after a Deno run — 9095e1af
 
 ### Phase 3: Access model (matrix red first, then the migration)
 
 #### Automated
 
-- [x] 3.1 Matrix red before the migration, green after (`role-matrix.integration.test.ts`) (red: 48 `pendingAdmin` cells with the flag write skipped, setup error with it; green: 459/459 after) — 7f6b2549
-- [x] 3.2 New flag-lifecycle and last-admin suites pass (9 + 4; the three clearing cases go red with the trigger disabled) — 7f6b2549
-- [x] 3.3 Whole integration lane passes (`pnpm test:integration --maxWorkers=2`) (740 passed; 5 skipped are the two solver suites, no `SOLVER_URL`) — 7f6b2549
-- [x] 3.4 Migration applies cleanly from scratch (`supabase db reset`) — 7f6b2549
-- [x] 3.5 Types regenerated and diff checked (`pnpm db:types`) — 7f6b2549
-- [x] 3.6 `pnpm test`, `pnpm check`, `pnpm lint` pass — 7f6b2549
-- [x] 3.7 Grant posture confirmed with `has_table_privilege(...)` (authenticated: SELECT yes, UPDATE/INSERT no; anon no; service_role UPDATE yes) — 7f6b2549
+- [x] 3.1 Matrix red before the migration, green after (`role-matrix.integration.test.ts`) (red: 48 `pendingAdmin` cells with the flag write skipped, setup error with it; green: 459/459 after) — f7746d4e
+- [x] 3.2 New flag-lifecycle and last-admin suites pass (9 + 4; the three clearing cases go red with the trigger disabled) — f7746d4e
+- [x] 3.3 Whole integration lane passes (`pnpm test:integration --maxWorkers=2`) (740 passed; 5 skipped are the two solver suites, no `SOLVER_URL`) — f7746d4e
+- [x] 3.4 Migration applies cleanly from scratch (`supabase db reset`) — f7746d4e
+- [x] 3.5 Types regenerated and diff checked (`pnpm db:types`) — f7746d4e
+- [x] 3.6 `pnpm test`, `pnpm check`, `pnpm lint` pass — f7746d4e
+- [x] 3.7 Grant posture confirmed with `has_table_privilege(...)` (authenticated: SELECT yes, UPDATE/INSERT no; anon no; service_role UPDATE yes) — f7746d4e
 
 #### Manual
 
-- [x] 3.8 Migration read once for live-data safety (additive, default false) — 7f6b2549
-- [x] 3.9 `current_app_role()` diff vs the previous live definition shows only the added condition — 7f6b2549
+- [x] 3.8 Migration read once for live-data safety (additive, default false) — f7746d4e
+- [x] 3.9 `current_app_role()` diff vs the previous live definition shows only the added condition — f7746d4e
 
 ### Phase 4: The Edge Function
 
 #### Automated
 
-- [x] 4.1 Deno gate passes (`mise run functions:check`) (14 Deno tests) — e2400553
-- [x] 4.2 Function integration suite passes (`admin-users.integration.test.ts`) (24 cases; forced-failure case confirmed in the function log as `flag:db:P0001`) — e2400553
-- [x] 4.3 Role matrix still green (459/459) — e2400553
-- [x] 4.4 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` pass — e2400553
-- [x] 4.5 CI green on a PR with the edge runtime in the integration lane (PR #174, run 42775540254: integration 48 files and 769 tests, admin-users 24/24 on the edge runtime) — e2400553
+- [x] 4.1 Deno gate passes (`mise run functions:check`) (14 Deno tests) — d3a26a7b
+- [x] 4.2 Function integration suite passes (`admin-users.integration.test.ts`) (24 cases; forced-failure case confirmed in the function log as `flag:db:P0001`) — d3a26a7b
+- [x] 4.3 Role matrix still green (459/459) — d3a26a7b
+- [x] 4.4 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` pass — d3a26a7b
+- [x] 4.5 CI green on a PR with the edge runtime in the integration lane (PR #174, run 42775540254: integration 48 files and 769 tests, admin-users 24/24 on the edge runtime) — d3a26a7b
 
 #### Manual
 
-- [x] 4.6 No place the password can be printed in the function or its logs — e2400553
-- [x] 4.7 `ctx.supabaseAdmin` used only after the admin check and only where the secret key is needed — e2400553
+- [x] 4.6 No place the password can be printed in the function or its logs — d3a26a7b
+- [x] 4.7 `ctx.supabaseAdmin` used only after the admin check and only where the secret key is needed — d3a26a7b
 
 ### Phase 5: The app
 
 #### Automated
 
-- [x] 5.1 Unit tests pass (`pnpm test`) (267 files, 2723 tests) — 3f374121
-- [x] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass — 3f374121
-- [x] 5.3 `pnpm build` clean, no key in `dist/client` — 3f374121
-- [x] 5.4 Integration lane still green (46 files and 764 tests pass, 2 solver suites skipped locally; CI runs them) — 3f374121
-- [x] 5.5 e2e `create-account.admin.spec.ts` passes (3 cases, with workerd preview against the local stack) — 3f374121
-- [x] 5.6 Role matrix and last-admin suites green — 3f374121
+- [x] 5.1 Unit tests pass (`pnpm test`) (267 files, 2723 tests) — 874275c5
+- [x] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass — 874275c5
+- [x] 5.3 `pnpm build` clean, no key in `dist/client` — 874275c5
+- [x] 5.4 Integration lane still green (46 files and 764 tests pass, 2 solver suites skipped locally; CI runs them) — 874275c5
+- [x] 5.5 e2e `create-account.admin.spec.ts` passes (3 cases, with workerd preview against the local stack) — 874275c5
+- [x] 5.6 Role matrix and last-admin suites green — 874275c5
 
 #### Manual
 
-- [x] 5.7 Create in the real UI; the password is shown once and unrecoverable after close — 3f374121
-- [x] 5.8 Pending user lands on `/account` from every page; same tab gains the role after the change — 3f374121
-- [x] 5.9 Re-issue works on a pending row and is absent on a confirmed one — 3f374121
-- [x] 5.10 `functions.invoke` works inside workerd (`pnpm build && pnpm preview`) — 3f374121
-- [x] 5.11 Admin's own row, other rows and the "You" badge behave as before — 3f374121
+- [x] 5.7 Create in the real UI; the password is shown once and unrecoverable after close — 874275c5
+- [x] 5.8 Pending user lands on `/account` from every page; same tab gains the role after the change — 874275c5
+- [x] 5.9 Re-issue works on a pending row and is absent on a confirmed one — 874275c5
+- [x] 5.10 `functions.invoke` works inside workerd (`pnpm build && pnpm preview`) — 874275c5
+- [x] 5.11 Admin's own row, other rows and the "You" badge behave as before — 874275c5
 
 ### Phase 6: Docs and hosted smoke
 
 #### Automated
 
-- [x] 6.1 `pnpm format --check` and `pnpm lint` pass — b0f936af
-- [x] 6.2 Full local CI gate passes (`/verify`) — b0f936af
+- [x] 6.1 `pnpm format --check` and `pnpm lint` pass — 202bb982
+- [x] 6.2 Full local CI gate passes (`/verify`) — 202bb982
 
 #### Manual
 
-- [x] 6.3 Both runbook lines corrected; CLAUDE.md's function section matches the code — b0f936af
-- [ ] 6.4 Hosted smoke test passes (flag survives first sign-in, clears on change); test account deleted
+- [x] 6.3 Both runbook lines corrected; CLAUDE.md's function section matches the code — 202bb982
+- [x] 6.4 Hosted smoke test passes (flag survives first sign-in, clears on change); test account deleted — 8da89dd5

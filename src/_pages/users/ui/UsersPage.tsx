@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button, Toaster } from "@/shared/ui";
-import type { PasswordReveal } from "../model/temporary-password-reveal";
+import type { PasswordReveal } from "../model/schemas";
 import { useReissuePassword } from "../model/use-reissue-password";
 import { useRoleChange } from "../model/use-role-change";
 import type { UserRow } from "../model/user-rows";
@@ -82,7 +82,7 @@ export default function UsersPage({ rows, currentUserId }: Props) {
       <ConfirmReissueDialog
         target={reissue.target}
         isBusy={reissue.isBusy}
-        onConfirm={() => void reissue.confirm()}
+        onConfirm={reissue.confirm}
         onClose={reissue.cancel}
       />
       <TemporaryPasswordDialog reveal={reveal} onClose={finishReveal} />

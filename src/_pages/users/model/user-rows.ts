@@ -73,6 +73,11 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
   });
 }
 
+/** The email is always on the label (FR-413): beneath the name when there is one, or as the name. */
+export function emailOf({ primary, secondary }: ProfileLabel): string {
+  return secondary ?? primary;
+}
+
 const statusOf = (role: AppRole | null, isPending: boolean): UserStatus => {
   if (isPending) return "temporary_password";
   return role === null ? "no_access" : "active";
@@ -80,9 +85,6 @@ const statusOf = (role: AppRole | null, isPending: boolean): UserStatus => {
 
 const byLabelThenEmail = (a: CreditedUser, b: CreditedUser): number =>
   compareText(a.label.primary, b.label.primary) || compareText(emailOf(a.label), emailOf(b.label));
-
-/** The email is always on the label (FR-413): beneath the name when there is one, or as the name. */
-const emailOf = ({ primary, secondary }: ProfileLabel): string => secondary ?? primary;
 
 /**
  * The newest record naming `userId` as its target: the latest `occurred_at`, then the greater `id`.

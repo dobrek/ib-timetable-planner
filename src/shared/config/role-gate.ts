@@ -34,7 +34,7 @@ export function decideRoleGate(pathname: string, access: AccessState): RoleGateD
 // reason, like PUBLIC_PATHS in src/middleware.ts: anything listed here is open to a user an admin
 // has given no access.
 const ROLE_EXEMPT_PATHS: readonly string[] = [
-  "/account", // FR-410: a role-less user manages their own account, and S-402's reset lands on ?notice=recovery
+  PASSWORD_CHANGE_PATH, // /account: own account (FR-410), reset landing (S-402), a pending user's password (S-409)
   "/api/solver/container", // an operator route with its own email allowlist, which reads no plan data
   ROLE_UNAVAILABLE_PATH, // the 503 page itself, which shows no plan data
 ];

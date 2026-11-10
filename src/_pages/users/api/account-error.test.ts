@@ -4,6 +4,7 @@ import { toAccountError } from "./account-error";
 import {
   ACCOUNT_GONE_MESSAGE,
   CREATE_ACCOUNT_FAILURE,
+  CREATE_ACCOUNT_UNKNOWN,
   EMAIL_EXISTS_MESSAGE,
   EMAIL_REFUSED_MESSAGE,
   NOT_PENDING_MESSAGE,
@@ -31,12 +32,17 @@ describe("toAccountError", () => {
     expect(error.message).toBe(message);
   });
 
-  it("reads a function that never answered as a failure of the operation", () => {
-    expect(toAccountError("create", null).message).toBe(CREATE_ACCOUNT_FAILURE);
+  it("reads a function that never answered as an outcome nobody knows: the account may exist", () => {
+    expect(toAccountError("create", null).message).toBe(CREATE_ACCOUNT_UNKNOWN);
     expect(toAccountError("reissue", null).message).toBe(REISSUE_FAILURE);
   });
 
   it("says that nothing was issued when a create fails, so the admin checks the list, not the password", () => {
     expect(CREATE_ACCOUNT_FAILURE).toMatch(/no password was issued/);
+  });
+
+  it("points an unknown create at the list and a re-issue, the way to a password for an account that exists", () => {
+    expect(CREATE_ACCOUNT_UNKNOWN).toMatch(/may exist/);
+    expect(CREATE_ACCOUNT_UNKNOWN).toMatch(/re-issue/);
   });
 });

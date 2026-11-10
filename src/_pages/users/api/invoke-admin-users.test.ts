@@ -2,7 +2,7 @@ import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
-import { CREATE_ACCOUNT_FAILURE, EMAIL_EXISTS_MESSAGE, NOT_PENDING_MESSAGE } from "./constants";
+import { CREATE_ACCOUNT_UNKNOWN, EMAIL_EXISTS_MESSAGE, NOT_PENDING_MESSAGE } from "./constants";
 import { invokeAdminUsers } from "./invoke-admin-users";
 
 const USER_ID = "6f1c2a3e-8b4d-4e5f-9a6b-7c8d9e0f1a2b";
@@ -53,14 +53,14 @@ describe("invokeAdminUsers", () => {
     });
   });
 
-  it("reads a function that was never reached as a failure, never as a success", async () => {
+  it("reads a function that was never reached as an unknown outcome, never as a success", async () => {
     const { supabase } = invoking({ data: null, error: new FunctionsFetchError(new TypeError("Failed to fetch")) });
 
     await expect(
       invokeAdminUsers(supabase, { op: "create", email: "dee@example.test", role: null }),
     ).rejects.toMatchObject({
       code: "INTERNAL_SERVER_ERROR",
-      message: CREATE_ACCOUNT_FAILURE,
+      message: CREATE_ACCOUNT_UNKNOWN,
     });
   });
 
@@ -74,7 +74,7 @@ describe("invokeAdminUsers", () => {
 
     await expect(
       invokeAdminUsers(supabase, { op: "create", email: "dee@example.test", role: null }),
-    ).rejects.toBeInstanceOf(DomainError);
+    ).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR", message: CREATE_ACCOUNT_UNKNOWN });
   });
 
   it("never puts the function's response text in the error it throws", async () => {

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database, SupabaseClient } from "@/shared/api";
+import { readPublishableKey } from "./publishable-key";
 
 /**
  * A client holding nothing but the stack's publishable key, with no session until the caller signs
@@ -10,3 +11,11 @@ import type { Database, SupabaseClient } from "@/shared/api";
  */
 export const createPublishableClient = (url: string, publishableKey: string): SupabaseClient =>
   createClient<Database>(url, publishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+/** The same, for the local stack the lane runs against: a browser tab before anyone signs in. */
+export const signedOutClient = (): SupabaseClient => {
+  const url = process.env.SUPABASE_URL;
+  const publishableKey = readPublishableKey();
+  if (!url || !publishableKey) throw new Error("no local Supabase env");
+  return createPublishableClient(url, publishableKey);
+};

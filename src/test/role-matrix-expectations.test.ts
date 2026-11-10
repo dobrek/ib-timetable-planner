@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as matrix from "./role-matrix-expectations";
 import {
   ACCESS_CHANGE_WRITE_EVIDENCE,
   ACCESS_CHANGE_WRITES,
@@ -161,10 +162,35 @@ describe("role-matrix expectations", () => {
   it.each(grantLists)("the grant list for %s is sorted and free of duplicates", (_list, privileges) => {
     expect(privileges).toEqual([...new Set(privileges)].sort());
   });
+
+  // PRINCIPAL_NOTES.pendingAdmin, as a check: the role reads as none until the first real password
+  // change. The one difference allowed is a row noRole does not hold, which pendingAdmin does.
+  it("pendingAdmin reaches exactly what noRole reaches, wherever noRole holds the row its cell aims at", () => {
+    const cells = cellsIn(matrix, "");
+    const differing = cells
+      .filter(([, cell]) => cell.noRole !== "no-row" && cell.pendingAdmin !== cell.noRole)
+      .map(([path]) => path);
+
+    expect(cells.length).toBeGreaterThan(0);
+    expect(differing).toEqual([]);
+  });
 });
 
 function noRowPrincipals(cell: Record<string, OwnRowOutcome>): string[] {
   return Object.entries(cell)
     .filter(([, outcome]) => outcome === "no-row")
     .map(([principal]) => principal);
+}
+
+const OUTCOMES: readonly unknown[] = ["allowed", "denied", "no-row"];
+
+/** Every cell in the matrix, wherever it sits, with its path: any object of outcomes that names noRole. */
+function cellsIn(value: unknown, path: string): (readonly [string, Record<string, OwnRowOutcome>])[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return [];
+  if (isCell(value)) return [[path, value]];
+  return Object.entries(value).flatMap(([key, child]) => cellsIn(child, path ? `${path}.${key}` : key));
+}
+
+function isCell(value: object): value is Record<string, OwnRowOutcome> {
+  return "noRole" in value && Object.values(value).every((outcome) => OUTCOMES.includes(outcome));
 }

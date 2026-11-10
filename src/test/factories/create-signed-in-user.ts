@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@/shared/api";
 import type { AppRole } from "@/shared/config";
 import { createPublishableClient } from "@/test/publishable-client";
 import { readPublishableKey } from "@/test/publishable-key";
+import { strongPassword } from "./strong-password";
 import { registerUser } from "./teardown";
 
 export type SignedInUser = {
@@ -41,7 +42,7 @@ export async function createSignedInUser(
   const url = requireLoopbackUrl();
   const publishableKey = requirePublishableKey();
   const email = `signed-in-${randomUUID()}@example.test`;
-  const password = `${randomUUID()}Aa1!`;
+  const password = strongPassword();
 
   const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (created.error) throw new Error(`createSignedInUser: createUser: ${created.error.message}`);

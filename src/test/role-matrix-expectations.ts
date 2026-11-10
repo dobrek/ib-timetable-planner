@@ -131,135 +131,66 @@ export const PRINCIPAL_NOTES: Record<Principal, string> = {
   admin: "an admin holds an author's access, and also reads every role and access change and writes others' roles",
 };
 
+// The cells most tables share, named like the grant lists below. A cell that differs from these is
+// written out in full, so it stands out. Declared before the tables that use them.
+const NOBODY: Cell = {
+  anon: "denied",
+  noRole: "denied",
+  pendingAdmin: "denied",
+  viewer: "denied",
+  author: "denied",
+  admin: "denied",
+};
+const SIGNED_IN: Cell = {
+  anon: "denied",
+  noRole: "allowed",
+  pendingAdmin: "allowed",
+  viewer: "allowed",
+  author: "allowed",
+  admin: "allowed",
+};
+const ANY_ROLE: Cell = {
+  anon: "denied",
+  noRole: "denied",
+  pendingAdmin: "denied",
+  viewer: "allowed",
+  author: "allowed",
+  admin: "allowed",
+};
+const EDITORS: Cell = {
+  anon: "denied",
+  noRole: "denied",
+  pendingAdmin: "denied",
+  viewer: "denied",
+  author: "allowed",
+  admin: "allowed",
+};
+const ADMIN_ONLY: Cell = {
+  anon: "denied",
+  noRole: "denied",
+  pendingAdmin: "denied",
+  viewer: "denied",
+  author: "denied",
+  admin: "allowed",
+};
+
 export const READS: Record<PlanScopedTable, Cell> = {
-  bundles: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  course_grouping_members: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  course_groupings: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  course_merges: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  course_overlaps: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  course_teachers: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  courses: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  generation_jobs: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  placements: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  plans: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  shelf_bundle_courses: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  shelf_bundles: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  student_choices: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  students: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  teacher_availability: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  teachers: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
+  bundles: ANY_ROLE,
+  course_grouping_members: ANY_ROLE,
+  course_groupings: ANY_ROLE,
+  course_merges: ANY_ROLE,
+  course_overlaps: ANY_ROLE,
+  course_teachers: ANY_ROLE,
+  courses: ANY_ROLE,
+  generation_jobs: ANY_ROLE,
+  placements: ANY_ROLE,
+  plans: ANY_ROLE,
+  shelf_bundle_courses: ANY_ROLE,
+  shelf_bundles: ANY_ROLE,
+  student_choices: ANY_ROLE,
+  students: ANY_ROLE,
+  teacher_availability: ANY_ROLE,
+  teachers: ANY_ROLE,
 };
 
 /**
@@ -279,51 +210,10 @@ export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCel
       author: "denied",
       admin: "allowed",
     },
-    others: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "denied",
-      admin: "allowed",
-    },
+    others: ADMIN_ONLY,
   },
-  profiles: {
-    own: {
-      anon: "denied",
-      noRole: "allowed",
-      pendingAdmin: "allowed",
-      viewer: "allowed",
-      author: "allowed",
-      admin: "allowed",
-    },
-    others: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "allowed",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
-  user_directory: {
-    own: {
-      anon: "denied",
-      noRole: "allowed",
-      pendingAdmin: "allowed",
-      viewer: "allowed",
-      author: "allowed",
-      admin: "allowed",
-    },
-    others: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "allowed",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
+  profiles: { own: SIGNED_IN, others: ANY_ROLE },
+  user_directory: { own: SIGNED_IN, others: ANY_ROLE },
   user_roles: {
     own: {
       anon: "denied",
@@ -333,14 +223,7 @@ export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCel
       author: "allowed",
       admin: "allowed",
     },
-    others: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "denied",
-      admin: "allowed",
-    },
+    others: ADMIN_ONLY,
   },
 };
 
@@ -349,146 +232,14 @@ export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCel
  * role-holder reads is the school's people, never the solver. The row exists (the suite proves it
  * as the service role before probing), so an empty read can only mean the policy refused it.
  */
-export const MACHINE_DIRECTORY_READ: Cell = {
-  anon: "denied",
-  noRole: "denied",
-  pendingAdmin: "denied",
-  viewer: "denied",
-  author: "denied",
-  admin: "denied",
-};
+export const MACHINE_DIRECTORY_READ: Cell = NOBODY;
 
 export const WRITES: Record<RepresentativeTable, Record<WriteOperation, Cell>> = {
-  plans: {
-    insert: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    update: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    delete: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
-  courses: {
-    insert: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    update: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    delete: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
-  students: {
-    insert: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    update: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    delete: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
-  placements: {
-    insert: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    update: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    delete: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
-  generation_jobs: {
-    insert: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    update: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    delete: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
+  plans: { insert: EDITORS, update: EDITORS, delete: EDITORS },
+  courses: { insert: EDITORS, update: EDITORS, delete: EDITORS },
+  students: { insert: EDITORS, update: EDITORS, delete: EDITORS },
+  placements: { insert: EDITORS, update: EDITORS, delete: EDITORS },
+  generation_jobs: { insert: EDITORS, update: EDITORS, delete: EDITORS },
 };
 
 /**
@@ -497,42 +248,8 @@ export const WRITES: Record<RepresentativeTable, Record<WriteOperation, Cell>> =
  * expectations test checks each `others` row through its `own` counterpart.
  */
 export const PROFILE_WRITES: Record<RowOwner, Record<ProfileWriteOperation, Cell>> = {
-  own: {
-    insert: {
-      anon: "denied",
-      noRole: "allowed",
-      pendingAdmin: "allowed",
-      viewer: "allowed",
-      author: "allowed",
-      admin: "allowed",
-    },
-    update: {
-      anon: "denied",
-      noRole: "allowed",
-      pendingAdmin: "allowed",
-      viewer: "allowed",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
-  others: {
-    insert: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "denied",
-      admin: "denied",
-    },
-    update: {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "denied",
-      admin: "denied",
-    },
-  },
+  own: { insert: SIGNED_IN, update: SIGNED_IN },
+  others: { insert: NOBODY, update: NOBODY },
 };
 
 /**
@@ -567,42 +284,8 @@ export const JOB_STOPS: Record<JobRequester, Record<StopWrite, OwnRowCell>> = {
       admin: "allowed",
     },
   },
-  others: {
-    "stop queued": {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "denied",
-      admin: "allowed",
-    },
-    "stop running": {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "denied",
-      admin: "allowed",
-    },
-  },
-  legacy: {
-    "stop queued": {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-    "stop running": {
-      anon: "denied",
-      noRole: "denied",
-      pendingAdmin: "denied",
-      viewer: "denied",
-      author: "allowed",
-      admin: "allowed",
-    },
-  },
+  others: { "stop queued": ADMIN_ONLY, "stop running": ADMIN_ONLY },
+  legacy: { "stop queued": EDITORS, "stop running": EDITORS },
 };
 
 /**
@@ -615,22 +298,8 @@ export const JOB_STOPS: Record<JobRequester, Record<StopWrite, OwnRowCell>> = {
  * evidences the payloads.
  */
 export const JOB_ATTRIBUTION_REWRITES: Record<JobAttributionColumn, Cell> = {
-  requested_by: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "denied",
-  },
-  stop_requested_by: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "denied",
-  },
+  requested_by: NOBODY,
+  stop_requested_by: NOBODY,
 };
 
 /**
@@ -647,14 +316,7 @@ export const JOB_ATTRIBUTION_REWRITE_EVIDENCE: Record<JobAttributionColumn, Acce
  * UPDATE policy's `with check` is its only lock, so S-403's policy rewrite must keep this denied.
  * Its payload differs from `PROFILE_WRITES.own.update` only in that column, which is its evidence.
  */
-export const PROFILE_REKEY: Cell = {
-  anon: "denied",
-  noRole: "denied",
-  pendingAdmin: "denied",
-  viewer: "denied",
-  author: "denied",
-  admin: "denied",
-};
+export const PROFILE_REKEY: Cell = NOBODY;
 
 /**
  * Self-grants: a principal without `manage_users` writing its own `user_roles` row. Since S-406
@@ -692,30 +354,9 @@ export const SELF_GRANT_EVIDENCE: Record<SelfGrant, AccessOutcome> = {
  * no extra admins either. Only `manage_users` (admin) may; every other principal is refused by RLS.
  */
 export const ROLE_WRITES: Record<WriteOperation, Cell> = {
-  insert: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "allowed",
-  },
-  update: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "allowed",
-  },
-  delete: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "allowed",
-  },
+  insert: ADMIN_ONLY,
+  update: ADMIN_ONLY,
+  delete: ADMIN_ONLY,
 };
 
 /**
@@ -723,14 +364,7 @@ export const ROLE_WRITES: Record<WriteOperation, Cell> = {
  * asks for the target's directory row, and the directory's read policy hides every machine. Its
  * payload differs from `ROLE_WRITES.insert` only in whose `user_id` it names, which is its evidence.
  */
-export const MACHINE_ROLE_GRANT: Cell = {
-  anon: "denied",
-  noRole: "denied",
-  pendingAdmin: "denied",
-  viewer: "denied",
-  author: "denied",
-  admin: "denied",
-};
+export const MACHINE_ROLE_GRANT: Cell = NOBODY;
 
 /**
  * Direct writes to the access-change record. Only `user_roles`' trigger writes it: the INSERT policy
@@ -739,30 +373,9 @@ export const MACHINE_ROLE_GRANT: Cell = {
  * principal is allowed, so `ACCESS_CHANGE_WRITE_EVIDENCE` evidences the payloads.
  */
 export const ACCESS_CHANGE_WRITES: Record<WriteOperation, Cell> = {
-  insert: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "denied",
-  },
-  update: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "denied",
-  },
-  delete: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "denied",
-  },
+  insert: NOBODY,
+  update: NOBODY,
+  delete: NOBODY,
 };
 
 /** The same record writes, sent by the service role to a fresh user's record: each payload's evidence. */
@@ -779,30 +392,9 @@ export const ACCESS_CHANGE_WRITE_EVIDENCE: Record<WriteOperation, AccessOutcome>
  * evidences the payloads.
  */
 export const DIRECTORY_WRITES: Record<WriteOperation, Cell> = {
-  insert: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "denied",
-  },
-  update: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "denied",
-  },
-  delete: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "denied",
-    admin: "denied",
-  },
+  insert: NOBODY,
+  update: NOBODY,
+  delete: NOBODY,
 };
 
 /** The same directory writes, sent by the service role to a fresh user: each payload's evidence. */
@@ -813,46 +405,11 @@ export const DIRECTORY_WRITE_EVIDENCE: Record<WriteOperation, AccessOutcome> = {
 };
 
 export const RPCS: Record<Rpc, Cell> = {
-  apply_generated_placements: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "allowed",
-    admin: "allowed",
-  },
-  clone_plan: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "allowed",
-    admin: "allowed",
-  },
-  own_app_role: {
-    anon: "denied",
-    noRole: "allowed",
-    pendingAdmin: "allowed",
-    viewer: "allowed",
-    author: "allowed",
-    admin: "allowed",
-  },
-  replace_cohort_groupings: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "allowed",
-    admin: "allowed",
-  },
-  set_current_plan: {
-    anon: "denied",
-    noRole: "denied",
-    pendingAdmin: "denied",
-    viewer: "denied",
-    author: "allowed",
-    admin: "allowed",
-  },
+  apply_generated_placements: EDITORS,
+  clone_plan: EDITORS,
+  own_app_role: SIGNED_IN,
+  replace_cohort_groupings: EDITORS,
+  set_current_plan: EDITORS,
 };
 
 /** A policy's command, as `pg_policies.cmd` spells it. */

@@ -29,6 +29,13 @@ admin-side reset.
 In the dashboard all three sit under **Authentication → Sign In / Providers → Email** (labels as of
 2026-10; the Management API field names above are the stable reference).
 
+**Temporary passwords (S-409) assume Auth's database encryption stays off.** The trigger that lifts a
+temporary-password account's fence (`private.clear_must_change_password()`) fires on any change to
+`auth.users.encrypted_password`. With encryption on, or when its key rotates, Auth rewrites that
+column at sign-in, so a pending person's first sign-in would lift their own fence: it fails open. It
+was off on 2026-11-09 (no `encrypted_password` starts with `{`). Before turning it on, replace the
+trigger in a new migration with one that a sign-in never fires.
+
 ## Email and reset (S-402)
 
 | Management API field                                     | Must be                                                                                                 | Why                                                                                                                                                                    | What it implies                                                                                                                                                                                                                                                                        |

@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui";
-import type { PasswordReveal } from "../model/temporary-password-reveal";
+import type { PasswordReveal } from "../model/schemas";
 
 type Props = {
   /** The password to show, or null when closed. */

@@ -3,10 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database, SupabaseClient } from "@/shared/api";
-import { createAuthUser, createSignedInUser, type SignedInUser, teardown } from "@/test/factories";
+import { createAuthUser, createSignedInUser, type SignedInUser, strongPassword, teardown } from "@/test/factories";
 import { registerUser } from "./factories/teardown";
 import { connectPostgres } from "./postgres-client";
-import { createPublishableClient } from "./publishable-client";
+import { signedOutClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 
 /**
@@ -26,8 +26,8 @@ import { readPublishableKey } from "./publishable-key";
  *   again, and a record. Never for an account that chose its own password, a machine user or an
  *   active admin.
  *
- * Needs the stack's edge runtime, which CI's `supabase-stack` action includes (S-409 Phase 2). Users
- * the function creates are registered for teardown as they appear.
+ * Needs the stack's edge runtime, which CI's `supabase-stack` action includes. Users the function
+ * creates are registered for teardown as they appear.
  */
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -166,12 +166,12 @@ type CreatedAccount = { userId: string; password: string };
 
     it("refuses a machine user's address (409) and changes nothing", async () => {
       const machine = await createAuthUser(admin, { appMetadata: { machine_role: "solver_job_writer" } });
-      const before = await countUsers();
 
       const response = await call({ token: tokens.admin }, { op: "create", email: machine.email, role: "admin" });
 
+      // Scoped to this address, not a global count, which a suite running in parallel would move.
       expect(response.status).toBe(409);
-      expect(await countUsers()).toBe(before);
+      expect(await userCountWithEmail(machine.email)).toBe(1);
       expect(await roleOf(machine.id)).toBeNull();
     });
 
@@ -232,6 +232,23 @@ type CreatedAccount = { userId: string; password: string };
       expect((await session.rpc("own_app_role")).data).toBeNull();
     });
 
+    it("ends a session opened with the old password, which can then choose no password of its own", async () => {
+      const account = await pendingAccount();
+      const old = signedOutClient();
+      expect(
+        (await old.auth.signInWithPassword({ email: account.email, password: account.password })).error,
+      ).toBeNull();
+      expect((await old.auth.getUser()).error).toBeNull();
+
+      expect((await call({ token: tokens.admin }, { op: "reissue", userId: account.userId })).status).toBe(200);
+
+      // Whoever held the old password must not finish the account with it: the Auth Admin API's
+      // password write signs out every session, and the access token's session is gone with them.
+      expect((await old.auth.getUser()).error).not.toBeNull();
+      expect((await old.auth.updateUser({ password: strongPassword() })).error).not.toBeNull();
+      expect((await directoryRow(account.userId))?.must_change_password).toBe(true);
+    });
+
     it("works again and again on a pending account, and a pending admin is still pending", async () => {
       const account = await pendingAccount("admin");
 
@@ -244,7 +261,7 @@ type CreatedAccount = { userId: string; password: string };
       const account = await pendingAccount();
       const session = signedOutClient();
       await session.auth.signInWithPassword({ email: account.email, password: account.password });
-      expect((await session.auth.updateUser({ password: `${randomUUID()}Aa1!` })).error).toBeNull();
+      expect((await session.auth.updateUser({ password: strongPassword() })).error).toBeNull();
       expect((await directoryRow(account.userId))?.must_change_password).toBe(false);
 
       expect((await call({ token: tokens.admin }, { op: "reissue", userId: account.userId })).status).toBe(409);
@@ -263,6 +280,35 @@ type CreatedAccount = { userId: string; password: string };
 
     it("answers 404 for a user that does not exist", async () => {
       expect((await call({ token: tokens.admin }, { op: "reissue", userId: randomUUID() })).status).toBe(404);
+    });
+
+    it("survives one lost flag write: the second attempt fences the account again (200)", async () => {
+      const account = await pendingAccount();
+      await failFlagWritesFor(account.email, { times: 1 });
+      try {
+        const response = await call({ token: tokens.admin }, { op: "reissue", userId: account.userId });
+
+        expect(response.status).toBe(200);
+        expect((await directoryRow(account.userId))?.must_change_password).toBe(true);
+      } finally {
+        await stopFailingFlagWrites();
+      }
+    });
+
+    it("reveals no password when the flag cannot be set again (500), leaving the account unfenced", async () => {
+      const account = await pendingAccount();
+      await failFlagWritesFor(account.email);
+      try {
+        const response = await call({ token: tokens.admin }, { op: "reissue", userId: account.userId });
+
+        expect(response.status).toBe(500);
+        expect(await response.text()).not.toMatch(/password/i);
+        // The known outcome, pinned: the password write cleared the flag and nothing set it again, so
+        // the account reads as one that chose its own password, and a re-issue is refused from now on.
+        expect((await directoryRow(account.userId))?.must_change_password).toBe(false);
+      } finally {
+        await stopFailingFlagWrites();
+      }
     });
   });
 
@@ -305,9 +351,6 @@ type CreatedAccount = { userId: string; password: string };
       .map(({ kind: k, actor_kind, actor_id, new_role }) => ({ kind: k, actor_kind, actor_id, new_role }));
   };
 
-  const countUsers = async (): Promise<number> =>
-    Number((await pg.query<{ n: string }>("select count(*) as n from auth.users")).rows[0]?.n);
-
   const userCountWithEmail = async (email: string): Promise<number> =>
     Number(
       (await pg.query<{ n: string }>("select count(*) as n from auth.users where email = $1", [email])).rows[0]?.n,
@@ -315,14 +358,27 @@ type CreatedAccount = { userId: string; password: string };
 
   /**
    * Make the flag write fail for one address, the way a database error would: a trigger that raises
-   * when that account is fenced. It names a throwaway address nobody else uses, so a parallel suite
-   * never meets it, and `stopFailingFlagWrites` always removes it.
+   * when that account is fenced, for the first `times` writes (every write by default). The count is
+   * a sequence, because a raised exception rolls back everything but `nextval`. It names a throwaway
+   * address nobody else uses, so a parallel suite never meets it, and `stopFailingFlagWrites` always
+   * removes it.
    */
-  const failFlagWritesFor = async (email: string): Promise<void> => {
+  const failFlagWritesFor = async (
+    email: string,
+    { times = Number.MAX_SAFE_INTEGER }: { times?: number } = {},
+  ): Promise<void> => {
     if (!/^[a-z0-9.@-]+$/.test(email)) throw new Error(`refusing to embed an unexpected address: ${email}`);
+    if (!Number.isSafeInteger(times) || times < 1) throw new Error(`refusing an unexpected count: ${times}`);
+    await pg.query("drop sequence if exists public.zz_admin_users_fail_flag_count");
+    await pg.query("create sequence public.zz_admin_users_fail_flag_count");
     await pg.query(`
       create or replace function public.zz_admin_users_fail_flag() returns trigger language plpgsql as $$
-      begin raise exception 'forced failure (admin-users suite)'; end $$`);
+      begin
+        if nextval('public.zz_admin_users_fail_flag_count') <= ${times} then
+          raise exception 'forced failure (admin-users suite)';
+        end if;
+        return new;
+      end $$`);
     await pg.query(`
       create trigger zz_admin_users_fail_flag before update of must_change_password on public.user_directory
         for each row when (new.must_change_password and new.email = '${email}')
@@ -332,6 +388,7 @@ type CreatedAccount = { userId: string; password: string };
   const stopFailingFlagWrites = async (): Promise<void> => {
     await pg.query("drop trigger if exists zz_admin_users_fail_flag on public.user_directory");
     await pg.query("drop function if exists public.zz_admin_users_fail_flag()");
+    await pg.query("drop sequence if exists public.zz_admin_users_fail_flag_count");
   };
 });
 
@@ -359,16 +416,11 @@ const tokenOf = async (client: SupabaseClient): Promise<string> => {
 
 /** The solver's machine token: a plain JWT that passes `auth: "user"` and must still be refused. */
 const signedInMachine = async (admin: SupabaseClient): Promise<string> => {
-  const password = `${randomUUID()}Aa1!`;
+  const password = strongPassword();
   const machine = await createAuthUser(admin, { password, appMetadata: { machine_role: "solver_job_writer" } });
   const { data, error } = await signedOutClient().auth.signInWithPassword({ email: machine.email, password });
   if (error) throw new Error(`machine sign-in: ${error.message}`);
   return data.session.access_token;
-};
-
-const signedOutClient = (): SupabaseClient => {
-  if (!SUPABASE_URL || !PUBLISHABLE_KEY) throw new Error("no local Supabase env");
-  return createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY);
 };
 
 const hs256Token = (claims: Record<string, unknown>): string => {

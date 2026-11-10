@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshPage } from "@/shared/lib/forms";
 import { changeUserRole, createAccount, reissueTemporaryPassword } from "../api/user-client";
 import { goToDashboard } from "../lib/go-to-dashboard";
-import { ADMIN_ID, AUTHOR_ID, PENDING_ID, PENDING_ROW, ROWS } from "./__fixtures__/user-rows";
+import { ADMIN_ID, AUTHOR_ID, PENDING_ID, ROWS } from "./__fixtures__/user-rows";
 import UsersPage from "./UsersPage";
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
@@ -20,21 +20,21 @@ vi.mock("../lib/go-to-dashboard", () => ({ goToDashboard: vi.fn() }));
 // The barrel pulls in `astro:transitions/client`, which Vitest cannot resolve.
 vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn(), applyActionFieldErrors: vi.fn() }));
 
+beforeEach(() => {
+  vi.mocked(changeUserRole).mockReset().mockResolvedValue({ error: undefined });
+  vi.mocked(createAccount).mockReset();
+  vi.mocked(reissueTemporaryPassword).mockReset();
+  vi.mocked(refreshPage).mockReset();
+  vi.mocked(goToDashboard).mockReset();
+  toastSuccess.mockReset();
+  toastError.mockReset();
+});
+
 /**
  * The page's role-change flow (S-406): another user's role saves at once; your own role and
  * anyone's No access ask first. Each "asks" case is paired with the save that follows, or not.
  */
 describe("UsersPage", () => {
-  beforeEach(() => {
-    vi.mocked(changeUserRole).mockReset().mockResolvedValue({ error: undefined });
-    vi.mocked(createAccount).mockReset();
-    vi.mocked(reissueTemporaryPassword).mockReset();
-    vi.mocked(refreshPage).mockReset();
-    vi.mocked(goToDashboard).mockReset();
-    toastSuccess.mockReset();
-    toastError.mockReset();
-  });
-
   it("saves another user's new role at once, without asking, then reloads", async () => {
     renderPage();
 
@@ -128,22 +128,11 @@ const PASSWORD = "Abcdefghjkmnpqrstuvwxyz2";
 
 /** Account provisioning (S-409): the one-time reveal, and what clears it. */
 describe("UsersPage account provisioning", () => {
-  beforeEach(() => {
-    vi.mocked(changeUserRole).mockReset().mockResolvedValue({ error: undefined });
-    vi.mocked(createAccount).mockReset();
-    vi.mocked(reissueTemporaryPassword).mockReset();
-    vi.mocked(refreshPage).mockReset();
-    toastSuccess.mockReset();
-    toastError.mockReset();
-  });
-
   it("creates an account and shows the password once, only after the admin confirms the address twice", async () => {
     vi.mocked(createAccount).mockResolvedValue({ data: { userId: PENDING_ID, password: PASSWORD }, error: undefined });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    fillCreateForm("dee@example.test", "dee@example.test");
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+    submitCreateForm("dee@example.test");
 
     expect(await screen.findByLabelText("Password to hand over")).toHaveTextContent(PASSWORD);
     expect(createAccount).toHaveBeenCalledWith({ email: "dee@example.test", role: "viewer" });
@@ -155,9 +144,7 @@ describe("UsersPage account provisioning", () => {
   it("refuses two different addresses and creates nothing", async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    fillCreateForm("dee@example.test", "dea@example.test");
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+    submitCreateForm("dee@example.test", "dea@example.test");
 
     expect(await screen.findByText("The two addresses don't match.")).toBeInTheDocument();
     expect(createAccount).not.toHaveBeenCalled();
@@ -170,9 +157,7 @@ describe("UsersPage account provisioning", () => {
     } as Awaited<ReturnType<typeof createAccount>>);
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    fillCreateForm("dee@example.test", "dee@example.test");
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+    submitCreateForm("dee@example.test");
 
     expect(await screen.findByText("An account with this email already exists.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Password to hand over")).not.toBeInTheDocument();
@@ -181,9 +166,7 @@ describe("UsersPage account provisioning", () => {
   it("clears the password on Done and reloads, and it is nowhere in the page afterwards", async () => {
     vi.mocked(createAccount).mockResolvedValue({ data: { userId: PENDING_ID, password: PASSWORD }, error: undefined });
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    fillCreateForm("dee@example.test", "dee@example.test");
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+    submitCreateForm("dee@example.test");
     await screen.findByLabelText("Password to hand over");
 
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
@@ -222,7 +205,7 @@ describe("UsersPage account provisioning", () => {
     expect(reissueTemporaryPassword).toHaveBeenCalledWith({ userId: PENDING_ID });
   });
 
-  it("reloads when the account is no longer pending, so the row shows what the database holds", async () => {
+  it("keeps the page when the account is no longer pending, so the message saying why stays", async () => {
     vi.mocked(reissueTemporaryPassword).mockResolvedValue({
       data: undefined,
       error: { code: "CONFLICT", message: "That person has already chosen their own password." },
@@ -233,18 +216,32 @@ describe("UsersPage account provisioning", () => {
     fireEvent.click(screen.getByRole("button", { name: "Issue new password" }));
 
     await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("That person has already chosen their own password.");
+    });
+    expect(refreshPage).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Password to hand over")).not.toBeInTheDocument();
+  });
+
+  it("reloads when the account is gone, so the row shows what the database holds", async () => {
+    vi.mocked(reissueTemporaryPassword).mockResolvedValue({
+      data: undefined,
+      error: { code: "NOT_FOUND", message: "That account no longer exists." },
+    } as Awaited<ReturnType<typeof reissueTemporaryPassword>>);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Re-issue password for dee@example.test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Issue new password" }));
+
+    await waitFor(() => {
       expect(refreshPage).toHaveBeenCalledOnce();
     });
-    expect(toastError).toHaveBeenCalledWith("That person has already chosen their own password.");
-    expect(screen.queryByLabelText("Password to hand over")).not.toBeInTheDocument();
+    expect(toastError).toHaveBeenCalledWith("That account no longer exists.");
   });
 
   it("cannot be dismissed with Escape, which would lose a password nobody copied", async () => {
     vi.mocked(createAccount).mockResolvedValue({ data: { userId: PENDING_ID, password: PASSWORD }, error: undefined });
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    fillCreateForm("dee@example.test", "dee@example.test");
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+    submitCreateForm("dee@example.test");
     await screen.findByLabelText("Password to hand over");
 
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
@@ -253,9 +250,12 @@ describe("UsersPage account provisioning", () => {
   });
 });
 
-const fillCreateForm = (email: string, confirmEmail: string) => {
+/** Open the create dialog, type the address and its confirmation, and submit. */
+const submitCreateForm = (email: string, confirmEmail = email) => {
+  fireEvent.click(screen.getByRole("button", { name: "Create account" }));
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: email } });
   fireEvent.change(screen.getByLabelText("Confirm email"), { target: { value: confirmEmail } });
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
 };
 
 const refuseWith = (code: string, message: string) => {
@@ -264,7 +264,7 @@ const refuseWith = (code: string, message: string) => {
   >);
 };
 
-const renderPage = () => render(<UsersPage rows={[...ROWS, PENDING_ROW]} currentUserId={ADMIN_ID} />);
+const renderPage = () => render(<UsersPage rows={ROWS} currentUserId={ADMIN_ID} />);
 
 const choose = (picker: string, option: string) => {
   fireEvent.keyDown(screen.getByRole("combobox", { name: picker }), { key: "Enter" });

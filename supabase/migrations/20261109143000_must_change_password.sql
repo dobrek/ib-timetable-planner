@@ -26,7 +26,7 @@
 --     WARNING says why. Recovery is roll-forward: a new migration replacing the body.
 --
 -- A RE-ISSUED PASSWORD ALSO FIRES IT, by the same write. The Edge Function sets the flag again after
--- the password write, so a re-issue lands pending (plan, Phase 4).
+-- the password write, so a re-issue lands pending (`admin-users`, `handler.ts`).
 --
 -- THE DEFINER EXCEPTION STANDS. `private.current_app_role()` stays the one SECURITY DEFINER function
 -- (S-403): it needs the directory row, which an INVOKER read would only see through the directory's
@@ -114,7 +114,7 @@ comment on function private.clear_must_change_password() is
   'Must never raise: see its migration.';
 
 -- A trigger function is never called directly: EXECUTE is checked when a trigger is created, not
--- when it fires (plan probe P11).
+-- when it fires, so revoking it from the API roles costs the trigger nothing.
 revoke execute on function private.clear_must_change_password() from public, anon, authenticated;
 
 create trigger user_directory_clear_must_change_password

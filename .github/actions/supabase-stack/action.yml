@@ -139,12 +139,12 @@ runs:
 
     # Warm-up for the Edge Function. The runtime downloads the function's pinned `npm:` imports on
     # its FIRST request, so without this a suite's first call pays for the download inside its own
-    # timeout — flakiness on a lane that is already ~1-in-5 red. Any answer below 500 proves the
-    # function booted (it answers 401 to an anonymous caller from Phase 4 on; the Phase 2 skeleton
-    # answers 200), so the status is not asserted here, only that the runtime answered at all.
+    # timeout — flakiness on a lane that is already ~1-in-5 red. An anonymous call answers 401, and
+    # any answer below 500 proves the function booted, so the status is not asserted here, only that
+    # the runtime answered at all.
     #
-    # It prints the wall time of the empty-cache first request: that number is the thing Phase 2
-    # asked to measure, so it is deliberately visible in the log rather than swallowed.
+    # It prints the wall time of the empty-cache first request, so the cost of the download stays
+    # visible in the log rather than swallowed.
     - name: Warm up the Edge Function (first request downloads its imports)
       shell: bash
       run: |

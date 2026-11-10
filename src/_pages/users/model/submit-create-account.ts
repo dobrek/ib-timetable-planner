@@ -2,12 +2,9 @@ import { isInputError } from "astro:actions";
 import type { UseFormSetError } from "react-hook-form";
 import { toast } from "sonner";
 import { applyActionFieldErrors } from "@/shared/lib/forms";
+import { ACCOUNT_UNREACHABLE_MESSAGE } from "../api/constants";
 import { createAccount } from "../api/user-client";
-import type { CreateAccountFormOutput, CreateAccountFormValues } from "./schemas";
-import type { PasswordReveal } from "./temporary-password-reveal";
-
-/** The request never completed (a network drop, a Worker restart): nothing is known to have been created. */
-export const UNREACHABLE_MESSAGE = "Couldn't reach the server. Check the list before trying again.";
+import type { CreateAccountFormOutput, CreateAccountFormValues, PasswordReveal } from "./schemas";
 
 type Options = {
   values: CreateAccountFormOutput;
@@ -26,7 +23,7 @@ export async function submitCreateAccount({ values, setError, onCreated }: Optio
   // A rejected request (it never completed) becomes null: Astro's action client does not catch one.
   const result = await createAccount({ email: values.email, role: values.role }).catch(() => null);
   if (!result) {
-    toast.error(UNREACHABLE_MESSAGE);
+    toast.error(ACCOUNT_UNREACHABLE_MESSAGE);
     return;
   }
   if (result.error) {

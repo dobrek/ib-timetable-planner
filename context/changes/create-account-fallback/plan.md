@@ -537,10 +537,10 @@ One additive migration; nothing is dropped; every existing user has `must_change
 
 #### Automated
 
-- [x] 6.1 `pnpm format --check` and `pnpm lint` pass
-- [x] 6.2 Full local CI gate passes (`/verify`)
+- [x] 6.1 `pnpm format --check` and `pnpm lint` pass — b0f936af
+- [x] 6.2 Full local CI gate passes (`/verify`) — b0f936af
 
 #### Manual
 
-- [x] 6.3 Both runbook lines corrected; CLAUDE.md's function section matches the code
+- [x] 6.3 Both runbook lines corrected; CLAUDE.md's function section matches the code — b0f936af
 - [ ] 6.4 Hosted smoke test passes (flag survives first sign-in, clears on change); test account deleted

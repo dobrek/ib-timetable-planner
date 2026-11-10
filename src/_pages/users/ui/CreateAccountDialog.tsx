@@ -19,9 +19,13 @@ import {
   Input,
   Label,
 } from "@/shared/ui";
-import { createAccountFormSchema, type CreateAccountFormOutput, type CreateAccountFormValues } from "../model/schemas";
+import {
+  createAccountFormSchema,
+  type CreateAccountFormOutput,
+  type CreateAccountFormValues,
+  type PasswordReveal,
+} from "../model/schemas";
 import { submitCreateAccount } from "../model/submit-create-account";
-import type { PasswordReveal } from "../model/temporary-password-reveal";
 import RoleSelect from "./RoleSelect";
 
 type Props = {

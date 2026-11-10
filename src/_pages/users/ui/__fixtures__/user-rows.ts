@@ -54,4 +54,4 @@ export const PENDING_ROW: UserRow = {
   },
 };
 
-export const ROWS = [ADMIN_ROW, AUTHOR_ROW, NO_ROLE_ROW];
+export const ROWS = [ADMIN_ROW, AUTHOR_ROW, NO_ROLE_ROW, PENDING_ROW];

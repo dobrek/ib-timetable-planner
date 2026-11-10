@@ -1,7 +1,7 @@
 ---
 change_id: create-account-fallback
 title: Create account fallback
-status: implementing
+status: impl_reviewed
 created: 2026-11-08
 updated: 2026-11-10
 archived_at: null

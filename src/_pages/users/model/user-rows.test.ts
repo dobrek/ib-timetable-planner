@@ -12,6 +12,16 @@ const LATER = "2026-11-05T13:00:00+00:00";
 const ADA_LABEL = { primary: "Ada Lovelace", secondary: "ada@example.test" };
 
 type Change = UserDirectoryInput["changes"][number];
+type DirectoryEntry = UserDirectoryInput["directory"][number];
+
+/** A directory entry for a person, with every flag a test does not name off. */
+const entry = (user_id: string, email: string, overrides: Partial<DirectoryEntry> = {}): DirectoryEntry => ({
+  user_id,
+  email,
+  is_service_account: false,
+  must_change_password: false,
+  ...overrides,
+});
 
 /** A user change by `actor`, with every field a test does not name defaulted. */
 const change = (overrides: Partial<Change> & Pick<Change, "id" | "target_id">): Change => ({
@@ -22,10 +32,7 @@ const change = (overrides: Partial<Change> & Pick<Change, "id" | "target_id">): 
 });
 
 const input = (overrides: Partial<UserDirectoryInput> = {}): UserDirectoryInput => ({
-  directory: [
-    { user_id: ADA, email: "ada@example.test", is_service_account: false, must_change_password: false },
-    { user_id: BEA, email: "bea@example.test", is_service_account: false, must_change_password: false },
-  ],
+  directory: [entry(ADA, "ada@example.test"), entry(BEA, "bea@example.test")],
   profiles: [],
   roles: [],
   changes: [],
@@ -55,9 +62,9 @@ describe("buildUserRows", () => {
     const rows = buildUserRows(
       input({
         directory: [
-          { user_id: ADA, email: "ada@example.test", is_service_account: false, must_change_password: true },
-          { user_id: BEA, email: "bea@example.test", is_service_account: false, must_change_password: true },
-          { user_id: CAL, email: "cal@example.test", is_service_account: false, must_change_password: false },
+          entry(ADA, "ada@example.test", { must_change_password: true }),
+          entry(BEA, "bea@example.test", { must_change_password: true }),
+          entry(CAL, "cal@example.test"),
         ],
         roles: [{ user_id: ADA, role: "viewer" }],
       }),
@@ -81,9 +88,7 @@ describe("buildUserRows", () => {
   it("carries the service-account flag", () => {
     const rows = buildUserRows(
       input({
-        directory: [
-          { user_id: CAL, email: "campaign@example.test", is_service_account: true, must_change_password: false },
-        ],
+        directory: [entry(CAL, "campaign@example.test", { is_service_account: true })],
       }),
     );
 
@@ -134,11 +139,7 @@ describe("buildUserRows", () => {
 
   it("sorts by label ignoring case, then by email", () => {
     const rows = buildUserRows({
-      directory: [
-        { user_id: CAL, email: "zed@example.test", is_service_account: false, must_change_password: false },
-        { user_id: BEA, email: "bea@example.test", is_service_account: false, must_change_password: false },
-        { user_id: ADA, email: "amy@example.test", is_service_account: false, must_change_password: false },
-      ],
+      directory: [entry(CAL, "zed@example.test"), entry(BEA, "bea@example.test"), entry(ADA, "amy@example.test")],
       profiles: [
         { user_id: CAL, display_name: "alex" },
         { user_id: ADA, display_name: "Alex" },
@@ -156,10 +157,7 @@ describe("buildUserRows", () => {
 
   it("never mutates its input", () => {
     const given = input({
-      directory: [
-        { user_id: BEA, email: "bea@example.test", is_service_account: false, must_change_password: false },
-        { user_id: ADA, email: "ada@example.test", is_service_account: false, must_change_password: false },
-      ],
+      directory: [entry(BEA, "bea@example.test"), entry(ADA, "ada@example.test")],
       profiles: [{ user_id: ADA, display_name: "Ada" }],
       roles: [{ user_id: ADA, role: "viewer" }],
       changes: [change({ id: 1, target_id: ADA }), change({ id: 2, target_id: ADA, occurred_at: LATER })],

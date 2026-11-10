@@ -26,8 +26,8 @@ import { type AdminRequest, parseRequest, type Role } from "./request.ts";
 type Admin = SupabaseContext["supabaseAdmin"];
 type Session = SupabaseContext["supabase"];
 
-// A request body is a few dozen bytes; refuse anything absurd before parsing it.
-const MAX_BODY_BYTES = 4096;
+// A request body is a few dozen characters; refuse anything absurd before parsing it.
+const MAX_BODY_CHARS = 4096;
 
 export async function handle(req: Request, ctx: SupabaseContext): Promise<Response> {
   if (req.method !== "POST") return reply(405, "method_not_allowed");
@@ -37,12 +37,12 @@ export async function handle(req: Request, ctx: SupabaseContext): Promise<Respon
   const actorId = ctx.userClaims?.id;
   if (!actorId) return reply(401, "unauthorized");
 
-  const parsed = await readRequest(req);
-  if (!parsed.ok) return reply(422, "invalid_input");
+  const request = await readRequest(req);
+  if (!request) return reply(422, "invalid_input");
 
-  return parsed.request.op === "create"
-    ? await create(ctx, actorId, parsed.request)
-    : await reissue(ctx.supabaseAdmin, actorId, parsed.request);
+  return request.op === "create"
+    ? await create(ctx, actorId, request)
+    : await reissue(ctx.supabaseAdmin, actorId, request);
 }
 
 // create ----------------------------------------------------------------------------------------
@@ -58,6 +58,8 @@ const create = async (ctx: SupabaseContext, actorId: string, { email, role }: Cr
   if (created.error) return createFailure(created.error);
   const userId = created.data.user.id;
 
+  // On a failure, `discard` deletes the account and, by cascade, its directory and role rows. An
+  // `account_created` record already written stays, its target set to null: the record of an attempt.
   const failedStep = await firstFailure([
     ["flag", () => setPending(admin, userId)],
     ["record", () => recordAccess(admin, { kind: "account_created", actorId, targetId: userId, newRole: role })],
@@ -73,7 +75,7 @@ const create = async (ctx: SupabaseContext, actorId: string, { email, role }: Cr
 const createFailure = (error: { code?: string; status?: number }): Response => {
   if (error.code === "email_exists" || error.code === "user_already_exists") return reply(409, "email_exists");
   if (error.code === "email_address_invalid" || error.code === "validation_failed") return reply(422, "invalid_input");
-  return failure("create", `createUser:${error.code ?? error.status ?? "unknown"}`);
+  return failure("create", `createUser:${codeOf(error)}`);
 };
 
 /**
@@ -82,7 +84,7 @@ const createFailure = (error: { code?: string; status?: number }): Response => {
  */
 const discard = async (admin: Admin, userId: string): Promise<void> => {
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) console.error(JSON.stringify({ fn: "admin-users", step: "discard", code: error.code ?? error.status }));
+  if (error) logFailure("create", `discard:${codeOf(error)}`);
 };
 
 // reissue ---------------------------------------------------------------------------------------
@@ -96,19 +98,22 @@ const reissue = async (admin: Admin, actorId: string, { userId }: Reissue): Prom
     .select("is_machine, must_change_password")
     .eq("user_id", userId)
     .maybeSingle();
-  if (target.error) return failure("reissue", `lookup:${target.error.code}`);
+  if (target.error) return failure("reissue", `lookup:${codeOf(target.error)}`);
   if (!target.data) return reply(404, "not_found");
   // A machine user is never pending; an account that chose its own password is no longer pending.
   if (target.data.is_machine || !target.data.must_change_password) return reply(409, "not_pending");
 
   const password = generatePassword();
   const written = await admin.auth.admin.updateUserById(userId, { password });
-  if (written.error) return failure("reissue", `updateUser:${written.error.code ?? written.error.status}`);
+  if (written.error) return failure("reissue", `updateUser:${codeOf(written.error)}`);
 
   // The password write cleared the flag (the Auth trigger sees a real password change), so set it
-  // again. If this fails the account is left with a password nobody holds, and a retry fixes it.
+  // again; `setPending` tries twice. If both attempts fail, the account is left unfenced with a
+  // password nobody holds, and a re-issue is refused from then on, because the cleared flag reads as a
+  // chosen password. The person recovers by a reset email, or an admin removes the role. The log
+  // names the step `flag-lost`.
   const failedStep = await firstFailure([
-    ["flag", () => setPending(admin, userId)],
+    ["flag-lost", () => setPending(admin, userId)],
     ["record", () => recordAccess(admin, { kind: "password_reissued", actorId, targetId: userId, newRole: null })],
   ]);
   if (failedStep) return failure("reissue", failedStep);
@@ -122,28 +127,36 @@ const requireAdmin = async (session: Session): Promise<Response | null> => {
   const { data, error } = await session.rpc("own_app_role");
   // 42501: the caller's database role has no EXECUTE on it, which is the solver's machine token.
   if (error?.code === "42501") return reply(403, "forbidden");
-  if (error) return failure("admin-check", `rpc:${error.code ?? "unknown"}`);
+  if (error) return failure("admin-check", `rpc:${codeOf(error)}`);
   return data === "admin" ? null : reply(403, "forbidden");
 };
 
-const readRequest = async (req: Request) => {
+const readRequest = async (req: Request): Promise<AdminRequest | null> => {
   const text = await req.text();
-  if (text.length > MAX_BODY_BYTES) return { ok: false as const };
+  if (text.length > MAX_BODY_CHARS) return null;
   try {
     return parseRequest(JSON.parse(text));
   } catch {
-    return { ok: false as const };
+    return null;
   }
 };
 
-/** Fence the account: `private.current_app_role()` reads null while the flag is set. */
+/**
+ * Fence the account: `private.current_app_role()` reads null while the flag is set. Tried twice,
+ * because after a re-issue's password write a lost flag cannot be retried by the admin.
+ */
 const setPending = async (admin: Admin, userId: string): Promise<string | null> => {
+  const first = await writePending(admin, userId);
+  return first === null ? null : await writePending(admin, userId);
+};
+
+const writePending = async (admin: Admin, userId: string): Promise<string | null> => {
   const { data, error } = await admin
     .from("user_directory")
     .update({ must_change_password: true })
     .eq("user_id", userId)
     .select("user_id");
-  if (error) return `db:${error.code}`;
+  if (error) return `db:${codeOf(error)}`;
   return data.length === 1 ? null : "db:no-directory-row";
 };
 
@@ -158,7 +171,10 @@ type AccessRecord = {
  * The record an admin cannot write for themselves: the secret-key client, with the actor taken from
  * the verified token, so it reads "by <admin>" and never "Operator".
  */
-const recordAccess = async (admin: Admin, { kind, actorId, targetId, newRole }: AccessRecord) => {
+const recordAccess = async (
+  admin: Admin,
+  { kind, actorId, targetId, newRole }: AccessRecord,
+): Promise<string | null> => {
   const { error } = await admin.from("access_changes").insert({
     kind,
     actor_kind: "user",
@@ -166,14 +182,14 @@ const recordAccess = async (admin: Admin, { kind, actorId, targetId, newRole }: 
     target_id: targetId,
     new_role: newRole,
   });
-  return error ? `db:${error.code}` : null;
+  return error ? `db:${codeOf(error)}` : null;
 };
 
 /** Through the admin's own session: S-406's trigger records the grant against the admin. */
 const grantRole = async (session: Session, userId: string, role: Role | null): Promise<string | null> => {
   if (role === null) return null;
   const { error } = await session.from("user_roles").insert({ user_id: userId, role });
-  return error ? `db:${error.code}` : null;
+  return error ? `db:${codeOf(error)}` : null;
 };
 
 /** Runs the steps in order and stops at the first that fails, naming it. */
@@ -192,9 +208,17 @@ const reveal = (userId: string, password: string): Response => reply(200, { user
 
 /** Logs a step and a code only, and answers 500 with no detail and no password. */
 const failure = (op: string, step: string): Response => {
-  console.error(JSON.stringify({ fn: "admin-users", op, step }));
+  logFailure(op, step);
   return reply(500, "failed");
 };
+
+/** The one log line a failure writes: the operation, the step and an error code, never a body. */
+const logFailure = (op: string, step: string): void => {
+  console.error(JSON.stringify({ fn: "admin-users", op, step }));
+};
+
+/** An Auth or database error's code, or its HTTP status: never its message, which can echo input. */
+const codeOf = (error: { code?: string; status?: number }): string => String(error.code ?? error.status ?? "unknown");
 
 const reply = (status: number, body: string | Record<string, string>): Response =>
   Response.json(typeof body === "string" ? { error: body } : body, {

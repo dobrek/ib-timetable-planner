@@ -42,6 +42,7 @@ export async function signInThroughUi(
   await page.getByRole("button", { name: /sign in/i }).click();
 
   // Wait for the post-login redirect BEFORE the caller saves, or storageState captures a pre-auth
-  // (cookie-less) context. Every account lands on /dashboard: a role-less one sees the notice there.
+  // (cookie-less) context. An account lands on /dashboard (a role-less one sees the notice there),
+  // except one on a temporary password, which lands on /account: hence `landsOn`.
   await page.waitForURL(landsOn);
 }

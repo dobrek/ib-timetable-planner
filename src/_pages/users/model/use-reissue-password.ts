@@ -2,13 +2,19 @@ import type { ActionErrorCode } from "astro:actions";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { refreshPage } from "@/shared/lib/forms";
+import { ACCOUNT_UNREACHABLE_MESSAGE } from "../api/constants";
 import { reissueTemporaryPassword } from "../api/user-client";
-import { UNREACHABLE_MESSAGE } from "./submit-create-account";
-import type { PasswordReveal } from "./temporary-password-reveal";
-import type { UserRow } from "./user-rows";
+import type { PasswordReveal } from "./schemas";
+import { emailOf, type UserRow } from "./user-rows";
 
-/** Refusals that mean the page is out of date: the account is gone, already active, or no longer yours to manage. */
-const REFRESH_ON: readonly ActionErrorCode[] = ["NOT_FOUND", "CONFLICT", "FORBIDDEN"];
+/**
+ * Refusals that mean the page is out of date: the account is gone (`NOT_FOUND`), or the caller is no
+ * longer an admin (`FORBIDDEN`). The page reloads, so it shows what the database holds.
+ *
+ * "Not pending" (`CONFLICT`) is not among them, as in `use-role-change.ts`: `refreshPage()` is a full
+ * page load, and the toast that says why the row changed would go with it.
+ */
+const REFRESH_ON: readonly ActionErrorCode[] = ["NOT_FOUND", "FORBIDDEN"];
 
 /**
  * The Users page's re-issue flow (S-409). Asking names a row and waits for the admin's confirmation,
@@ -30,7 +36,11 @@ export function useReissuePassword(onRevealed: (reveal: PasswordReveal) => void)
     if (!inFlight.current) setTarget(null);
   };
 
-  const confirm = async (): Promise<void> => {
+  const confirm = (): void => {
+    void send();
+  };
+
+  const send = async (): Promise<void> => {
     if (!target || inFlight.current) return;
     inFlight.current = true;
     setIsBusy(true);
@@ -43,7 +53,7 @@ export function useReissuePassword(onRevealed: (reveal: PasswordReveal) => void)
     setTarget(null);
 
     if (!result) {
-      toast.error(UNREACHABLE_MESSAGE);
+      toast.error(ACCOUNT_UNREACHABLE_MESSAGE);
       return;
     }
     if (result.error) {
@@ -51,7 +61,7 @@ export function useReissuePassword(onRevealed: (reveal: PasswordReveal) => void)
       if (REFRESH_ON.includes(result.error.code)) await refreshPage();
       return;
     }
-    onRevealed({ email: row.label.secondary ?? row.label.primary, password: result.data.password });
+    onRevealed({ email: emailOf(row.label), password: result.data.password });
   };
 
   return { target, isBusy, ask, cancel, confirm };

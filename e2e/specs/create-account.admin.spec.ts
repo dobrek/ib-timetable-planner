@@ -107,7 +107,7 @@ test("a lost password is re-issued once, and the old one stops working", async (
 test("an existing address is refused in the dialog, and no password is shown", async ({ page }) => {
   await page.goto("/users");
 
-  await createAccountThroughTheDialog(page, adminEmail, { expectRefusal: true });
+  await createAccountThroughTheDialog(page, adminEmail);
 
   await expect(page.getByText("An account with this email already exists.")).toBeVisible();
   await expect(page.getByLabel("Password to hand over")).toHaveCount(0);
@@ -117,19 +117,17 @@ const picker = (page: Page, email: string) => page.getByRole("combobox", { name:
 
 const rowFor = (page: Page, email: string) => page.getByRole("row").filter({ has: picker(page, email) });
 
-/** Open the dialog (waiting out hydration), type the address twice, and submit with the default role, Viewer. */
-async function createAccountThroughTheDialog(
-  page: Page,
-  email: string,
-  { expectRefusal = false }: { expectRefusal?: boolean } = {},
-): Promise<void> {
+/**
+ * Open the dialog (waiting out hydration), type the address twice, and submit with the default role,
+ * Viewer. The caller asserts the outcome: the reveal, or the refusal.
+ */
+async function createAccountThroughTheDialog(page: Page, email: string): Promise<void> {
   const dialog = page.getByRole("dialog", { name: "Create account" });
   await clickToReveal(page.getByRole("button", { name: "Create account" }), dialog);
   await dialog.getByLabel("Email", { exact: true }).fill(email);
   await dialog.getByLabel("Confirm email").fill(email);
   await expect(dialog.getByLabel("Confirm email")).toHaveValue(email);
   await dialog.getByRole("button", { name: "Create account" }).click();
-  if (!expectRefusal) await expect(page.getByLabel("Password to hand over")).toBeVisible();
 }
 
 /** The password shown in the reveal, read once; then Done, which clears it and reloads the page. */

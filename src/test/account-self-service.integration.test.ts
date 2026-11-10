@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { createClient, isAuthSessionMissingError } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -10,8 +9,8 @@ import { updateDisplayName } from "@/_pages/account/api/update-display-name";
 import { updatePassword } from "@/_pages/account/api/update-password";
 import type { Database, SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
-import { createSignedInUser, teardown } from "@/test/factories";
-import { createPublishableClient } from "./publishable-client";
+import { createSignedInUser, strongPassword, teardown } from "@/test/factories";
+import { signedOutClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 
 /**
@@ -127,14 +126,6 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY && PUBLISHABLE_KEY);
     return data;
   };
 });
-
-// 40 characters, all four classes, no `#`, quotes or whitespace — like `createSignedInUser`'s own.
-const strongPassword = (): string => `${randomUUID()}Aa1!`;
-
-const signedOutClient = (): SupabaseClient => {
-  if (!SUPABASE_URL || !PUBLISHABLE_KEY) throw new Error("no local Supabase env");
-  return createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY);
-};
 
 const signIn = (email: string, password: string) => signedOutClient().auth.signInWithPassword({ email, password });
 

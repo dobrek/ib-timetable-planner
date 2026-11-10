@@ -1,11 +1,10 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@/shared/api";
-import { DomainError } from "@/shared/lib/errors";
+import type { AppRole } from "@/shared/config";
 import type { TemporaryPassword } from "../model/schemas";
-import { toAccountError, type AccountOperation } from "./account-error";
-import { CREATE_ACCOUNT_FAILURE, REISSUE_FAILURE } from "./constants";
+import { outcomeUnknown, toAccountError, type AccountOperation } from "./account-error";
 
-type AdminUsersBody = { op: "create"; email: string; role: string | null } | { op: "reissue"; userId: string };
+type AdminUsersBody = { op: "create"; email: string; role: AppRole | null } | { op: "reissue"; userId: string };
 
 /**
  * Call the `admin-users` Edge Function as the admin, with their own session: `functions.invoke`
@@ -38,7 +37,7 @@ const revealed = (data: unknown, operation: AccountOperation): TemporaryPassword
   if (isRecord(data) && typeof data.userId === "string" && typeof data.password === "string") {
     return { userId: data.userId, password: data.password };
   }
-  throw new DomainError("INTERNAL_SERVER_ERROR", operation === "create" ? CREATE_ACCOUNT_FAILURE : REISSUE_FAILURE);
+  throw outcomeUnknown(operation);
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

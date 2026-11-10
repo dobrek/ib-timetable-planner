@@ -8,9 +8,13 @@ export const REMOVE_ROLE_FAILURE = "Failed to remove the role";
 // a password, reaches a message or a log.
 export const CREATE_ACCOUNT_FAILURE =
   "Couldn't create the account, and no password was issued. Check the list before trying again.";
+export const CREATE_ACCOUNT_UNKNOWN =
+  "The request didn't finish, so the account may exist. Check the list: if it's there, re-issue its password.";
 export const REISSUE_FAILURE = "Couldn't issue a new password. Try again.";
 export const EMAIL_EXISTS_MESSAGE = "An account with this email already exists.";
 export const EMAIL_REFUSED_MESSAGE = "That email address was not accepted.";
 export const NOT_PENDING_MESSAGE = "That person has already chosen their own password.";
 export const ACCOUNT_GONE_MESSAGE = "That account no longer exists.";
 export const SESSION_EXPIRED_MESSAGE = "Your session has expired. Sign in again.";
+/** The request never completed (a network drop, a Worker restart): nothing is known to have been created. */
+export const ACCOUNT_UNREACHABLE_MESSAGE = "Couldn't reach the server. Check the list before trying again.";

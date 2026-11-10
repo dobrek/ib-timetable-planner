@@ -4,9 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { updatePassword } from "@/_pages/account/api/update-password";
 import { type EmailLink, parseEmailLink, requestPasswordReset, verifyEmailLink } from "@/_pages/password-recovery";
 import type { Database, SupabaseClient } from "@/shared/api";
-import { createAuthUser, teardown } from "@/test/factories";
+import { createAuthUser, strongPassword, teardown } from "@/test/factories";
+import { linkIn, urlsIn } from "./email-links";
 import { deleteMessages, type MailSummary, messagesTo, readMessage, waitForMessageTo } from "./mailpit";
-import { createPublishableClient } from "./publishable-client";
+import { signedOutClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 
 /**
@@ -164,24 +165,5 @@ const CONFIRM_LINK = /^http:\/\/localhost:4321\/auth\/confirm\?token_hash=[0-9a-
   const requestLink = async (email: string): Promise<EmailLink> =>
     linkIn(await nextMessageTo(email, await requestReset(email)));
 });
-
-const linkIn = async (message: MailSummary): Promise<EmailLink> => {
-  const url = urlsIn((await readMessage(message.ID)).HTML).at(0);
-  const link = url ? parseEmailLink(new URL(url).searchParams) : null;
-  if (!link) throw new Error(`no email link in message ${message.ID}`);
-  return link;
-};
-
-/** Every absolute URL in an email body, attribute or text, with HTML's `&amp;` decoded. */
-const urlsIn = (html: string): string[] =>
-  [...html.matchAll(/https?:\/\/[^\s"'<>)]+/g)].map(([url]) => url.replaceAll("&amp;", "&"));
-
-// 40 characters, all four classes, no `#`, quotes or whitespace — like `createSignedInUser`'s own.
-const strongPassword = (): string => `${randomUUID()}Aa1!`;
-
-const signedOutClient = (): SupabaseClient => {
-  if (!SUPABASE_URL || !PUBLISHABLE_KEY) throw new Error("no local Supabase env");
-  return createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY);
-};
 
 const signIn = (email: string, password: string) => signedOutClient().auth.signInWithPassword({ email, password });

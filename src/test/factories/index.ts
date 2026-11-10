@@ -16,5 +16,6 @@ export { generationJobRow } from "./generation-job-row";
 export { addGenerationJob, type AddGenerationJobInput } from "./add-generation-job";
 export { createSignedInUser, type SignedInUser } from "./create-signed-in-user";
 export { createAuthUser, type AuthUser, type CreateAuthUserOptions } from "./create-auth-user";
+export { strongPassword } from "./strong-password";
 export { addProfile, type AddProfileInput } from "./add-profile";
 export { registerPlan, teardown } from "./teardown";

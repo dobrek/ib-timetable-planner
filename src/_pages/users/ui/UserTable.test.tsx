@@ -9,7 +9,7 @@ const renderTable = (saving: ReadonlyMap<string, AppRole | null> = new Map()) =>
   const onReissuePassword = vi.fn();
   render(
     <UserTable
-      rows={[...ROWS, PENDING_ROW]}
+      rows={ROWS}
       currentUserId={ADMIN_ID}
       saving={saving}
       onChooseRole={onChooseRole}

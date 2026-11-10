@@ -2,11 +2,12 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { updatePassword } from "@/_pages/account/api/update-password";
-import { parseEmailLink, requestPasswordReset, verifyEmailLink } from "@/_pages/password-recovery";
+import { requestPasswordReset, verifyEmailLink } from "@/_pages/password-recovery";
 import type { Database, SupabaseClient } from "@/shared/api";
-import { createAuthUser, createSignedInUser, type SignedInUser, teardown } from "@/test/factories";
-import { deleteMessages, messagesTo, readMessage, waitForMessageTo } from "./mailpit";
-import { createPublishableClient } from "./publishable-client";
+import { createAuthUser, createSignedInUser, type SignedInUser, strongPassword, teardown } from "@/test/factories";
+import { linkIn } from "./email-links";
+import { deleteMessages, messagesTo, waitForMessageTo } from "./mailpit";
+import { signedOutClient } from "./publishable-client";
 import { readPublishableKey } from "./publishable-key";
 
 /**
@@ -122,11 +123,7 @@ const INSUFFICIENT_PRIVILEGE = "42501";
     expect((await requestPasswordReset(signedOutClient(), user.email)).outcome).toBe("accepted");
     const message = await waitForMessageTo(user.email, before ? { after: before.Created } : {});
     ownMail.add(message.ID);
-    const url = [...(await readMessage(message.ID)).HTML.matchAll(/https?:\/\/[^\s"'<>)]+/g)]
-      .map(([found]) => found.replaceAll("&amp;", "&"))
-      .at(0);
-    const link = url ? parseEmailLink(new URL(url).searchParams) : null;
-    if (!link) throw new Error("the reset mail carries no link");
+    const link = await linkIn(message);
     const session = signedOutClient();
 
     expect(await verifyEmailLink(session, link)).toEqual({ ok: true });
@@ -186,12 +183,4 @@ const ownAppRole = async (client: SupabaseClient): Promise<string | null> => {
   const { data, error } = await client.rpc("own_app_role");
   if (error) throw new Error(`own_app_role: ${error.message}`);
   return data;
-};
-
-// 40 characters, all four classes, no `#`, quotes or whitespace — like `createSignedInUser`'s own.
-const strongPassword = (): string => `${randomUUID()}Aa1!`;
-
-const signedOutClient = (): SupabaseClient => {
-  if (!SUPABASE_URL || !PUBLISHABLE_KEY) throw new Error("no local Supabase env");
-  return createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY);
 };

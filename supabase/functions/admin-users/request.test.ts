@@ -1,0 +1,56 @@
+import assert from "node:assert/strict";
+import { parseRequest } from "./request.ts";
+
+const USER_ID = "3f2b8c1e-5a4d-4e6f-9a1b-2c3d4e5f6a7b";
+
+Deno.test("create: an address and a role parse, and the address is trimmed and lowercased", () => {
+  assert.deepEqual(parseRequest({ op: "create", email: "  New.Person@School.Example ", role: "author" }), {
+    ok: true,
+    request: { op: "create", email: "new.person@school.example", role: "author" },
+  });
+});
+
+Deno.test("create: every role and null are accepted", () => {
+  for (const role of ["viewer", "author", "admin", null]) {
+    assert.equal(parseRequest({ op: "create", email: "a@b.co", role }).ok, true, String(role));
+  }
+});
+
+Deno.test("create: a role outside the set, or a missing one, is refused", () => {
+  for (const role of ["owner", "ADMIN", "", 1, undefined, {}]) {
+    assert.equal(parseRequest({ op: "create", email: "a@b.co", role }).ok, false, String(role));
+  }
+  assert.equal(parseRequest({ op: "create", email: "a@b.co" }).ok, false);
+});
+
+Deno.test("create: an address that is not one is refused", () => {
+  for (const email of ["", "plain", "a@b", "a b@c.co", "@b.co", 42, null, `${"a".repeat(250)}@b.co`]) {
+    assert.equal(parseRequest({ op: "create", email, role: null }).ok, false, String(email));
+  }
+});
+
+Deno.test("an unknown key is refused, app_metadata first among them", () => {
+  assert.equal(
+    parseRequest({ op: "create", email: "a@b.co", role: "viewer", app_metadata: { machine_role: "solver_job_writer" } })
+      .ok,
+    false,
+  );
+  assert.equal(parseRequest({ op: "create", email: "a@b.co", role: "viewer", password: "chosen" }).ok, false);
+  assert.equal(parseRequest({ op: "reissue", userId: USER_ID, password: "chosen" }).ok, false);
+});
+
+Deno.test("reissue: a UUID parses, anything else is refused", () => {
+  assert.deepEqual(parseRequest({ op: "reissue", userId: USER_ID.toUpperCase() }), {
+    ok: true,
+    request: { op: "reissue", userId: USER_ID },
+  });
+  for (const userId of ["", "not-a-uuid", USER_ID.slice(1), 7, null, undefined]) {
+    assert.equal(parseRequest({ op: "reissue", userId }).ok, false, String(userId));
+  }
+});
+
+Deno.test("the op must be create or reissue, and the body an object", () => {
+  for (const body of [{ op: "delete", userId: USER_ID }, { op: "" }, {}, [], null, "create", 3]) {
+    assert.equal(parseRequest(body).ok, false, JSON.stringify(body));
+  }
+});

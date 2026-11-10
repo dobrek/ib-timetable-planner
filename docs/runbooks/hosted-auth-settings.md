@@ -21,7 +21,10 @@ behaviour nobody chose them for (`mailer_autoconfirm` switching a rate limiter o
 **The accepted trade-off** (FR-411): with no current-password check, anyone holding a live session —
 a stolen cookie, an unlocked shared PC — can change the password and lock the owner out. The owner
 then resets it at `/auth/forgot` (S-402) and gets a "your password was changed" email either way.
-An admin-triggered reset stays the dashboard (**Authentication → Users**) until S-409.
+An admin cannot trigger a reset for someone else. For an account still on its temporary password (S-409),
+an admin re-issues the password on the Users page (**Re-issue password**). For anyone else, the owner
+uses `/auth/forgot`, or the fallback is the dashboard (**Authentication → Users**) until S-411 adds an
+admin-side reset.
 
 In the dashboard all three sit under **Authentication → Sign In / Providers → Email** (labels as of
 2026-10; the Management API field names above are the stable reference).

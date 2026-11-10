@@ -518,29 +518,29 @@ One additive migration; nothing is dropped; every existing user has `must_change
 
 #### Automated
 
-- [x] 5.1 Unit tests pass (`pnpm test`) (267 files, 2723 tests)
-- [x] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass
-- [x] 5.3 `pnpm build` clean, no key in `dist/client`
-- [x] 5.4 Integration lane still green (46 files and 764 tests pass, 2 solver suites skipped locally; CI runs them)
-- [x] 5.5 e2e `create-account.admin.spec.ts` passes (3 cases, with workerd preview against the local stack)
-- [x] 5.6 Role matrix and last-admin suites green
+- [x] 5.1 Unit tests pass (`pnpm test`) (267 files, 2723 tests) — 3f374121
+- [x] 5.2 `pnpm check`, `pnpm lint`, `pnpm steiger` pass — 3f374121
+- [x] 5.3 `pnpm build` clean, no key in `dist/client` — 3f374121
+- [x] 5.4 Integration lane still green (46 files and 764 tests pass, 2 solver suites skipped locally; CI runs them) — 3f374121
+- [x] 5.5 e2e `create-account.admin.spec.ts` passes (3 cases, with workerd preview against the local stack) — 3f374121
+- [x] 5.6 Role matrix and last-admin suites green — 3f374121
 
 #### Manual
 
-- [x] 5.7 Create in the real UI; the password is shown once and unrecoverable after close
-- [x] 5.8 Pending user lands on `/account` from every page; same tab gains the role after the change
-- [x] 5.9 Re-issue works on a pending row and is absent on a confirmed one
-- [x] 5.10 `functions.invoke` works inside workerd (`pnpm build && pnpm preview`)
-- [x] 5.11 Admin's own row, other rows and the "You" badge behave as before
+- [x] 5.7 Create in the real UI; the password is shown once and unrecoverable after close — 3f374121
+- [x] 5.8 Pending user lands on `/account` from every page; same tab gains the role after the change — 3f374121
+- [x] 5.9 Re-issue works on a pending row and is absent on a confirmed one — 3f374121
+- [x] 5.10 `functions.invoke` works inside workerd (`pnpm build && pnpm preview`) — 3f374121
+- [x] 5.11 Admin's own row, other rows and the "You" badge behave as before — 3f374121
 
 ### Phase 6: Docs and hosted smoke
 
 #### Automated
 
-- [ ] 6.1 `pnpm format --check` and `pnpm lint` pass
-- [ ] 6.2 Full local CI gate passes (`/verify`)
+- [x] 6.1 `pnpm format --check` and `pnpm lint` pass
+- [x] 6.2 Full local CI gate passes (`/verify`)
 
 #### Manual
 
-- [ ] 6.3 Both runbook lines corrected; CLAUDE.md's function section matches the code
+- [x] 6.3 Both runbook lines corrected; CLAUDE.md's function section matches the code
 - [ ] 6.4 Hosted smoke test passes (flag survives first sign-in, clears on change); test account deleted

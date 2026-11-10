@@ -128,7 +128,16 @@ makes the created user immediately sign-in-ready.
 **A forgotten password** needs nobody with backend access since S-402: the author
 uses **Forgot password?** on the sign-in page (`/auth/forgot`) and gets a link by
 email ([`email-delivery.md`](email-delivery.md)). If the email cannot reach them,
-the fallback is the dashboard (**Authentication → Users**) until S-409.
+the fallback is an admin on the Users page when the account is still on its temporary password
+(**Re-issue password**, S-409), and the dashboard (**Authentication → Users**) otherwise, until S-411
+adds an admin-side reset.
+
+**An account for someone an email invitation cannot reach** (S-409, FR-403) is made on the Users page
+(**Create account**), not in the dashboard: the app generates a 24-character temporary password and
+shows it once, and the person must choose their own at first sign-in, until when they hold no access.
+The password is not recoverable from the page after it is closed; a lost one is replaced with
+**Re-issue password**. It does not expire (see the PRD's accepted residual): a pending row on the Users
+page says "Temporary password", which is how an unused one is noticed.
 
 ---
 

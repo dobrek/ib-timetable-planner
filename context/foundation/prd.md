@@ -131,6 +131,11 @@ Keeps editing exactly as today; gains a self-service account.
 - No email the product sends contains student data; emails carry staff and plan information only.
 - Product emails pass sender authentication and reach a real staff inbox at the school, not quarantine.
 - Passwords shorter than 15 characters are refused.
+  - _Accepted residual (S-409, 2026-11-10):_ a temporary password does not expire. Until its owner
+    chooses their own, an account created with one holds no access (every role is withheld), and the
+    Users page shows it as "Temporary password" so an unused one is visible; an admin can replace it
+    at any time with a re-issue. A timed expiry was judged not worth a scheduled job for a fallback
+    path used for a handful of accounts.
 - For every access change (invite, role, email, ban, delete), the product can show who made it and
   when.
 - Preserved: drag-drop validation stays < 200 ms with role checks in place.

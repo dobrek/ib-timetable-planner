@@ -1,10 +1,10 @@
 ---
 change_id: create-account-fallback
 title: Create account fallback
-status: impl_reviewed
+status: archived
 created: 2026-11-08
 updated: 2026-11-10
-archived_at: null
+archived_at: 2026-11-10T14:45:03Z
 ---
 
 ## Notes

@@ -10,7 +10,10 @@ type AccessChange = Pick<
 
 /** The loader's four reads, each a projection of its generated row. */
 export type UserDirectoryInput = {
-  directory: readonly Pick<Tables["user_directory"]["Row"], "user_id" | "email" | "is_service_account">[];
+  directory: readonly Pick<
+    Tables["user_directory"]["Row"],
+    "user_id" | "email" | "is_service_account" | "must_change_password"
+  >[];
   profiles: readonly Pick<Tables["profiles"]["Row"], "user_id" | "display_name">[];
   roles: readonly Pick<Tables["user_roles"]["Row"], "user_id" | "role">[];
   changes: readonly AccessChange[];
@@ -23,11 +26,19 @@ export type UserDirectoryInput = {
  */
 export type ChangedBy = { kind: "user"; label: ProfileLabel } | { kind: "deleted" } | { kind: "operator" };
 
+/**
+ * Why a row can or cannot act (S-409). `temporary_password` outranks the role: a person on an
+ * admin-issued password holds no access until they choose their own, even with a role waiting.
+ */
+export type UserStatus = "active" | "no_access" | "temporary_password";
+
 export type UserRow = {
   userId: string;
   label: ProfileLabel;
   role: AppRole | null;
-  status: "active" | "no_access";
+  status: UserStatus;
+  /** Only a pending row can have its temporary password re-issued: derived here, not in the table. */
+  canReissuePassword: boolean;
   isServiceAccount: boolean;
   /** The latest change to this user's role; null when none is recorded. */
   lastChange: { by: ChangedBy; at: string } | null;
@@ -43,21 +54,29 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
   // One credited user per directory entry, named exactly as every credit is (S-407), so a person
   // reads the same here and on a plan. The same map names each change's actor.
   const credited = buildCreditedUsers({ directory, profiles });
+  const pendingIds = new Set(directory.filter((entry) => entry.must_change_password).map((entry) => entry.user_id));
   const roleById = new Map(roles.map(({ user_id, role }) => [user_id, role]));
 
   return [...credited.values()].toSorted(byLabelThenEmail).map(({ id, label, isServiceAccount }) => {
     const role = roleById.get(id) ?? null;
     const latest = latestChangeTo(id, changes);
+    const status = statusOf(role, pendingIds.has(id));
     return {
       userId: id,
       label,
       role,
-      status: role === null ? "no_access" : "active",
+      status,
+      canReissuePassword: status === "temporary_password",
       isServiceAccount,
       lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };
   });
 }
+
+const statusOf = (role: AppRole | null, isPending: boolean): UserStatus => {
+  if (isPending) return "temporary_password";
+  return role === null ? "no_access" : "active";
+};
 
 const byLabelThenEmail = (a: CreditedUser, b: CreditedUser): number =>
   compareText(a.label.primary, b.label.primary) || compareText(emailOf(a.label), emailOf(b.label));

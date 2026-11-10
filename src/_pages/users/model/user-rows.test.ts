@@ -23,8 +23,8 @@ const change = (overrides: Partial<Change> & Pick<Change, "id" | "target_id">): 
 
 const input = (overrides: Partial<UserDirectoryInput> = {}): UserDirectoryInput => ({
   directory: [
-    { user_id: ADA, email: "ada@example.test", is_service_account: false },
-    { user_id: BEA, email: "bea@example.test", is_service_account: false },
+    { user_id: ADA, email: "ada@example.test", is_service_account: false, must_change_password: false },
+    { user_id: BEA, email: "bea@example.test", is_service_account: false, must_change_password: false },
   ],
   profiles: [],
   roles: [],
@@ -51,9 +51,40 @@ describe("buildUserRows", () => {
     ]);
   });
 
+  it("reads a user on a temporary password as such, with or without a role, and only that row can be re-issued", () => {
+    const rows = buildUserRows(
+      input({
+        directory: [
+          { user_id: ADA, email: "ada@example.test", is_service_account: false, must_change_password: true },
+          { user_id: BEA, email: "bea@example.test", is_service_account: false, must_change_password: true },
+          { user_id: CAL, email: "cal@example.test", is_service_account: false, must_change_password: false },
+        ],
+        roles: [{ user_id: ADA, role: "viewer" }],
+      }),
+    );
+
+    expect(
+      rows.map(({ userId, role, status, canReissuePassword }) => ({ userId, role, status, canReissuePassword })),
+    ).toEqual([
+      { userId: ADA, role: "viewer", status: "temporary_password", canReissuePassword: true },
+      { userId: BEA, role: null, status: "temporary_password", canReissuePassword: true },
+      { userId: CAL, role: null, status: "no_access", canReissuePassword: false },
+    ]);
+  });
+
+  it("never offers a re-issue for an active or role-less user", () => {
+    const rows = buildUserRows(input({ roles: [{ user_id: ADA, role: "admin" }] }));
+
+    expect(rows.map(({ canReissuePassword }) => canReissuePassword)).toEqual([false, false]);
+  });
+
   it("carries the service-account flag", () => {
     const rows = buildUserRows(
-      input({ directory: [{ user_id: CAL, email: "campaign@example.test", is_service_account: true }] }),
+      input({
+        directory: [
+          { user_id: CAL, email: "campaign@example.test", is_service_account: true, must_change_password: false },
+        ],
+      }),
     );
 
     expect(rows[0]?.isServiceAccount).toBe(true);
@@ -104,9 +135,9 @@ describe("buildUserRows", () => {
   it("sorts by label ignoring case, then by email", () => {
     const rows = buildUserRows({
       directory: [
-        { user_id: CAL, email: "zed@example.test", is_service_account: false },
-        { user_id: BEA, email: "bea@example.test", is_service_account: false },
-        { user_id: ADA, email: "amy@example.test", is_service_account: false },
+        { user_id: CAL, email: "zed@example.test", is_service_account: false, must_change_password: false },
+        { user_id: BEA, email: "bea@example.test", is_service_account: false, must_change_password: false },
+        { user_id: ADA, email: "amy@example.test", is_service_account: false, must_change_password: false },
       ],
       profiles: [
         { user_id: CAL, display_name: "alex" },
@@ -126,8 +157,8 @@ describe("buildUserRows", () => {
   it("never mutates its input", () => {
     const given = input({
       directory: [
-        { user_id: BEA, email: "bea@example.test", is_service_account: false },
-        { user_id: ADA, email: "ada@example.test", is_service_account: false },
+        { user_id: BEA, email: "bea@example.test", is_service_account: false, must_change_password: false },
+        { user_id: ADA, email: "ada@example.test", is_service_account: false, must_change_password: false },
       ],
       profiles: [{ user_id: ADA, display_name: "Ada" }],
       roles: [{ user_id: ADA, role: "viewer" }],

@@ -5,6 +5,7 @@ const ADMIN: AccessState = { status: "granted", role: "admin" };
 const AUTHOR: AccessState = { status: "granted", role: "author" };
 const VIEWER: AccessState = { status: "granted", role: "viewer" };
 const NONE: AccessState = { status: "none" };
+const PENDING: AccessState = { status: "password_change_required" };
 const UNAVAILABLE: AccessState = { status: "unavailable" };
 
 describe("allows", () => {
@@ -13,6 +14,11 @@ describe("allows", () => {
     ["author", AUTHOR, { session: true, read: true, edit: true, manage_users: false, stop_any_job: false }],
     ["viewer", VIEWER, { session: true, read: true, edit: false, manage_users: false, stop_any_job: false }],
     ["no role", NONE, { session: true, read: false, edit: false, manage_users: false, stop_any_job: false }],
+    [
+      "a temporary password",
+      PENDING,
+      { session: true, read: false, edit: false, manage_users: false, stop_any_job: false },
+    ],
     [
       "a failed lookup",
       UNAVAILABLE,

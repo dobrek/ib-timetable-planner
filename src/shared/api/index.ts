@@ -13,6 +13,8 @@ export { loadCourseMerges, type CourseMerge } from "./load-course-merges";
 export { loadPlanTeachers, type PlanTeacher } from "./load-plan-teachers";
 export { loadOwnProfile } from "./load-own-profile";
 export { loadOwnRole } from "./load-own-role";
+export { loadMustChangePassword } from "./load-must-change-password";
+export { loadOwnAccess } from "./load-own-access";
 export {
   UNIQUE_VIOLATION,
   CHECK_VIOLATION,

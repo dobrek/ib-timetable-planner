@@ -6,19 +6,26 @@ export const ROLE_NOTICE_PATH = "/dashboard";
 /** The 503 page a failed role lookup renders. It shows no plan data. */
 export const ROLE_UNAVAILABLE_PATH = "/unavailable";
 
-export type RoleGateDecision = "allow" | "notice" | "unavailable";
+/** Where a user on a temporary password is sent: the account page, where they choose their own. */
+export const PASSWORD_CHANGE_PATH = "/account";
+
+export type RoleGateDecision = "allow" | "notice" | "password_change" | "unavailable";
 
 /**
  * The page gate's decision for a signed-in request on a non-public path (S-403, FR-410). Actions
  * are not gated here: each refuses insufficient capability itself (`requireCapability`).
  *
  * - a role-exempt path → `allow`, whatever the access;
- * - the notice page → `allow` for `granted` or `none` (it renders the notice), `unavailable` otherwise;
- * - any other path → `allow`, `notice` or `unavailable` by status.
+ * - a failed lookup → `unavailable`;
+ * - a user who must change their password → `password_change`, from every other path, the notice
+ *   page included: they are not "role-less", and `/account` is where they act;
+ * - the notice page → `allow` for `granted` or `none` (it renders the notice);
+ * - any other path → `allow` or `notice` by status.
  */
 export function decideRoleGate(pathname: string, access: AccessState): RoleGateDecision {
   if (ROLE_EXEMPT_PATHS.includes(pathname)) return "allow";
   if (access.status === "unavailable") return "unavailable";
+  if (access.status === "password_change_required") return "password_change";
   if (access.status === "granted" || pathname === ROLE_NOTICE_PATH) return "allow";
   return "notice";
 }

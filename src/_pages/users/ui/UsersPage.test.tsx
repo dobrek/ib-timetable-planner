@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshPage } from "@/shared/lib/forms";
-import { changeUserRole } from "../api/user-client";
+import { changeUserRole, createAccount, reissueTemporaryPassword } from "../api/user-client";
 import { goToDashboard } from "../lib/go-to-dashboard";
-import { ADMIN_ID, AUTHOR_ID, ROWS } from "./__fixtures__/user-rows";
+import { ADMIN_ID, AUTHOR_ID, PENDING_ID, PENDING_ROW, ROWS } from "./__fixtures__/user-rows";
 import UsersPage from "./UsersPage";
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
@@ -11,9 +11,14 @@ vi.mock("sonner", async (importOriginal) => ({
   ...(await importOriginal<typeof import("sonner")>()),
   toast: { success: toastSuccess, error: toastError },
 }));
-vi.mock("../api/user-client", () => ({ changeUserRole: vi.fn() }));
+vi.mock("../api/user-client", () => ({
+  changeUserRole: vi.fn(),
+  createAccount: vi.fn(),
+  reissueTemporaryPassword: vi.fn(),
+}));
 vi.mock("../lib/go-to-dashboard", () => ({ goToDashboard: vi.fn() }));
-vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn() }));
+// The barrel pulls in `astro:transitions/client`, which Vitest cannot resolve.
+vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn(), applyActionFieldErrors: vi.fn() }));
 
 /**
  * The page's role-change flow (S-406): another user's role saves at once; your own role and
@@ -22,6 +27,8 @@ vi.mock("@/shared/lib/forms", () => ({ refreshPage: vi.fn() }));
 describe("UsersPage", () => {
   beforeEach(() => {
     vi.mocked(changeUserRole).mockReset().mockResolvedValue({ error: undefined });
+    vi.mocked(createAccount).mockReset();
+    vi.mocked(reissueTemporaryPassword).mockReset();
     vi.mocked(refreshPage).mockReset();
     vi.mocked(goToDashboard).mockReset();
     toastSuccess.mockReset();
@@ -117,13 +124,147 @@ describe("UsersPage", () => {
   });
 });
 
+const PASSWORD = "Abcdefghjkmnpqrstuvwxyz2";
+
+/** Account provisioning (S-409): the one-time reveal, and what clears it. */
+describe("UsersPage account provisioning", () => {
+  beforeEach(() => {
+    vi.mocked(changeUserRole).mockReset().mockResolvedValue({ error: undefined });
+    vi.mocked(createAccount).mockReset();
+    vi.mocked(reissueTemporaryPassword).mockReset();
+    vi.mocked(refreshPage).mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
+  });
+
+  it("creates an account and shows the password once, only after the admin confirms the address twice", async () => {
+    vi.mocked(createAccount).mockResolvedValue({ data: { userId: PENDING_ID, password: PASSWORD }, error: undefined });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fillCreateForm("dee@example.test", "dee@example.test");
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByLabelText("Password to hand over")).toHaveTextContent(PASSWORD);
+    expect(createAccount).toHaveBeenCalledWith({ email: "dee@example.test", role: "viewer" });
+    // The page waits for the admin: a reload now would drop the only copy of the password.
+    expect(refreshPage).not.toHaveBeenCalled();
+    expect(toastSuccess).not.toHaveBeenCalledWith(expect.stringContaining(PASSWORD));
+  });
+
+  it("refuses two different addresses and creates nothing", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fillCreateForm("dee@example.test", "dea@example.test");
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByText("The two addresses don't match.")).toBeInTheDocument();
+    expect(createAccount).not.toHaveBeenCalled();
+  });
+
+  it("puts an existing address on the email field and shows no password", async () => {
+    vi.mocked(createAccount).mockResolvedValue({
+      data: undefined,
+      error: { code: "CONFLICT", message: "An account with this email already exists." },
+    } as Awaited<ReturnType<typeof createAccount>>);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fillCreateForm("dee@example.test", "dee@example.test");
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByText("An account with this email already exists.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Password to hand over")).not.toBeInTheDocument();
+  });
+
+  it("clears the password on Done and reloads, and it is nowhere in the page afterwards", async () => {
+    vi.mocked(createAccount).mockResolvedValue({ data: { userId: PENDING_ID, password: PASSWORD }, error: undefined });
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fillCreateForm("dee@example.test", "dee@example.test");
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+    await screen.findByLabelText("Password to hand over");
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText("Password to hand over")).not.toBeInTheDocument();
+    });
+    expect(document.body).not.toHaveTextContent(PASSWORD);
+    expect(refreshPage).toHaveBeenCalledOnce();
+  });
+
+  it("asks before re-issuing, and re-issues nothing on Cancel", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Re-issue password for dee@example.test" }));
+    expect(screen.getByRole("alertdialog", { name: "Issue a new password for dee@example.test?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(reissueTemporaryPassword).not.toHaveBeenCalled();
+  });
+
+  it("re-issues for the pending row once confirmed, and shows the new password once", async () => {
+    vi.mocked(reissueTemporaryPassword).mockResolvedValue({
+      data: { userId: PENDING_ID, password: PASSWORD },
+      error: undefined,
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Re-issue password for dee@example.test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Issue new password" }));
+
+    expect(await screen.findByLabelText("Password to hand over")).toHaveTextContent(PASSWORD);
+    expect(reissueTemporaryPassword).toHaveBeenCalledWith({ userId: PENDING_ID });
+  });
+
+  it("reloads when the account is no longer pending, so the row shows what the database holds", async () => {
+    vi.mocked(reissueTemporaryPassword).mockResolvedValue({
+      data: undefined,
+      error: { code: "CONFLICT", message: "That person has already chosen their own password." },
+    } as Awaited<ReturnType<typeof reissueTemporaryPassword>>);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Re-issue password for dee@example.test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Issue new password" }));
+
+    await waitFor(() => {
+      expect(refreshPage).toHaveBeenCalledOnce();
+    });
+    expect(toastError).toHaveBeenCalledWith("That person has already chosen their own password.");
+    expect(screen.queryByLabelText("Password to hand over")).not.toBeInTheDocument();
+  });
+
+  it("cannot be dismissed with Escape, which would lose a password nobody copied", async () => {
+    vi.mocked(createAccount).mockResolvedValue({ data: { userId: PENDING_ID, password: PASSWORD }, error: undefined });
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fillCreateForm("dee@example.test", "dee@example.test");
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create account" }));
+    await screen.findByLabelText("Password to hand over");
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    expect(screen.getByLabelText("Password to hand over")).toHaveTextContent(PASSWORD);
+  });
+});
+
+const fillCreateForm = (email: string, confirmEmail: string) => {
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: email } });
+  fireEvent.change(screen.getByLabelText("Confirm email"), { target: { value: confirmEmail } });
+};
+
 const refuseWith = (code: string, message: string) => {
   vi.mocked(changeUserRole).mockResolvedValue({ error: { code, message } } as Awaited<
     ReturnType<typeof changeUserRole>
   >);
 };
 
-const renderPage = () => render(<UsersPage rows={ROWS} currentUserId={ADMIN_ID} />);
+const renderPage = () => render(<UsersPage rows={[...ROWS, PENDING_ROW]} currentUserId={ADMIN_ID} />);
 
 const choose = (picker: string, option: string) => {
   fireEvent.keyDown(screen.getByRole("combobox", { name: picker }), { key: "Enter" });

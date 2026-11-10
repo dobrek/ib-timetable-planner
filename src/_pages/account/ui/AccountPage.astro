@@ -13,6 +13,11 @@ type Props = {
 
 const { email, displayName, saved, notice } = Astro.props;
 
+// An admin created this account with a temporary password (S-409). Driven by the access the
+// middleware read, not by a query string, so it shows however they arrived, and the middleware
+// sends every other page here.
+const mustChangePassword = Astro.locals.access.status === "password_change_required";
+
 // One status line for every save on this page, so each form confirms the same, prominent way.
 const SAVED_MESSAGES: Partial<Record<string, string>> = {
   name: "Display name saved.",
@@ -23,6 +28,16 @@ const savedMessage = saved && Object.hasOwn(SAVED_MESSAGES, saved) ? SAVED_MESSA
 ---
 
 <div class="max-w-xl space-y-6">
+  {
+    mustChangePassword && (
+      <div class="overflow-hidden rounded-lg">
+        <Banner variant="info">
+          An administrator gave you a temporary password. Choose your own below to start using the planner.
+        </Banner>
+      </div>
+    )
+  }
+
   {
     notice === "recovery" && (
       <div class="overflow-hidden rounded-lg">

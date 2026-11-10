@@ -486,33 +486,33 @@ One additive migration; nothing is dropped; every existing user has `must_change
 
 #### Automated
 
-- [x] 3.1 Matrix red before the migration, green after (`role-matrix.integration.test.ts`) (red: 48 `pendingAdmin` cells with the flag write skipped, setup error with it; green: 459/459 after)
-- [x] 3.2 New flag-lifecycle and last-admin suites pass (9 + 4; the three clearing cases go red with the trigger disabled)
-- [x] 3.3 Whole integration lane passes (`pnpm test:integration --maxWorkers=2`) (740 passed; 5 skipped are the two solver suites, no `SOLVER_URL`)
-- [x] 3.4 Migration applies cleanly from scratch (`supabase db reset`)
-- [x] 3.5 Types regenerated and diff checked (`pnpm db:types`)
-- [x] 3.6 `pnpm test`, `pnpm check`, `pnpm lint` pass
-- [x] 3.7 Grant posture confirmed with `has_table_privilege(...)` (authenticated: SELECT yes, UPDATE/INSERT no; anon no; service_role UPDATE yes)
+- [x] 3.1 Matrix red before the migration, green after (`role-matrix.integration.test.ts`) (red: 48 `pendingAdmin` cells with the flag write skipped, setup error with it; green: 459/459 after) — 7f6b2549
+- [x] 3.2 New flag-lifecycle and last-admin suites pass (9 + 4; the three clearing cases go red with the trigger disabled) — 7f6b2549
+- [x] 3.3 Whole integration lane passes (`pnpm test:integration --maxWorkers=2`) (740 passed; 5 skipped are the two solver suites, no `SOLVER_URL`) — 7f6b2549
+- [x] 3.4 Migration applies cleanly from scratch (`supabase db reset`) — 7f6b2549
+- [x] 3.5 Types regenerated and diff checked (`pnpm db:types`) — 7f6b2549
+- [x] 3.6 `pnpm test`, `pnpm check`, `pnpm lint` pass — 7f6b2549
+- [x] 3.7 Grant posture confirmed with `has_table_privilege(...)` (authenticated: SELECT yes, UPDATE/INSERT no; anon no; service_role UPDATE yes) — 7f6b2549
 
 #### Manual
 
-- [x] 3.8 Migration read once for live-data safety (additive, default false)
-- [x] 3.9 `current_app_role()` diff vs the previous live definition shows only the added condition
+- [x] 3.8 Migration read once for live-data safety (additive, default false) — 7f6b2549
+- [x] 3.9 `current_app_role()` diff vs the previous live definition shows only the added condition — 7f6b2549
 
 ### Phase 4: The Edge Function
 
 #### Automated
 
-- [ ] 4.1 Deno gate passes (`mise run functions:check`)
-- [ ] 4.2 Function integration suite passes (`admin-users.integration.test.ts`)
-- [ ] 4.3 Role matrix still green
-- [ ] 4.4 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` pass
+- [x] 4.1 Deno gate passes (`mise run functions:check`) (14 Deno tests)
+- [x] 4.2 Function integration suite passes (`admin-users.integration.test.ts`) (24 cases; forced-failure case confirmed in the function log as `flag:db:P0001`)
+- [x] 4.3 Role matrix still green (459/459)
+- [x] 4.4 `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build` pass
 - [ ] 4.5 CI green on a PR with the edge runtime in the integration lane
 
 #### Manual
 
-- [ ] 4.6 No place the password can be printed in the function or its logs
-- [ ] 4.7 `ctx.supabaseAdmin` used only after the admin check and only where the secret key is needed
+- [x] 4.6 No place the password can be printed in the function or its logs
+- [x] 4.7 `ctx.supabaseAdmin` used only after the admin check and only where the secret key is needed
 
 ### Phase 5: The app
 

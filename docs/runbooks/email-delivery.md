@@ -153,3 +153,10 @@ If a scanner ever POSTs the Continue form before the person does, the fallback i
 - Keep a steady sending cadence: Microsoft says a new sender takes "a couple of weeks or less" to
   ramp.
 - Only a tenant admin can add a Tenant Allow/Block List entry or a Safe Links "Do not rewrite" entry.
+
+### Gmail files it under Promotions
+
+S-410's pre-merge invitation (2026-11-11) reached a developer's Gmail in the **Promotions** tab, with
+SPF, DKIM and DMARC passing. That is Gmail's tab placement, not spam filtering. A Gmail recipient who
+can't find an invitation or reset should look there. Moving the message to Primary teaches Gmail for
+that recipient only.

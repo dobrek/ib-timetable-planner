@@ -1,9 +1,16 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshPage } from "@/shared/lib/forms";
-import { changeUserRole, createAccount, reissueTemporaryPassword } from "../api/user-client";
+import {
+  changeUserRole,
+  createAccount,
+  inviteUser,
+  reissueTemporaryPassword,
+  resendInvitation,
+  revokeInvitation,
+} from "../api/user-client";
 import { goToDashboard } from "../lib/go-to-dashboard";
-import { ADMIN_ID, AUTHOR_ID, PENDING_ID, ROWS } from "./__fixtures__/user-rows";
+import { ADMIN_ID, AUTHOR_ID, INVITED_ID, PENDING_ID, ROWS } from "./__fixtures__/user-rows";
 import UsersPage from "./UsersPage";
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
@@ -15,6 +22,9 @@ vi.mock("../api/user-client", () => ({
   changeUserRole: vi.fn(),
   createAccount: vi.fn(),
   reissueTemporaryPassword: vi.fn(),
+  inviteUser: vi.fn(),
+  resendInvitation: vi.fn(),
+  revokeInvitation: vi.fn(),
 }));
 vi.mock("../lib/go-to-dashboard", () => ({ goToDashboard: vi.fn() }));
 // The barrel pulls in `astro:transitions/client`, which Vitest cannot resolve.
@@ -24,6 +34,9 @@ beforeEach(() => {
   vi.mocked(changeUserRole).mockReset().mockResolvedValue({ error: undefined });
   vi.mocked(createAccount).mockReset();
   vi.mocked(reissueTemporaryPassword).mockReset();
+  vi.mocked(inviteUser).mockReset();
+  vi.mocked(resendInvitation).mockReset().mockResolvedValue({ error: undefined });
+  vi.mocked(revokeInvitation).mockReset().mockResolvedValue({ error: undefined });
   vi.mocked(refreshPage).mockReset();
   vi.mocked(goToDashboard).mockReset();
   toastSuccess.mockReset();
@@ -249,6 +262,159 @@ describe("UsersPage account provisioning", () => {
     expect(screen.getByLabelText("Password to hand over")).toHaveTextContent(PASSWORD);
   });
 });
+
+/** Invitations (S-410): the dialog, and the two row actions. */
+describe("UsersPage invitations", () => {
+  it("invites with Viewer by default, toasts that it was sent, and reloads", async () => {
+    vi.mocked(inviteUser).mockResolvedValue({ data: { userId: INVITED_ID, resent: false }, error: undefined });
+    renderPage();
+
+    submitInviteForm("gus@example.test");
+
+    await waitFor(() => {
+      expect(refreshPage).toHaveBeenCalledOnce();
+    });
+    expect(inviteUser).toHaveBeenCalledWith({ email: "gus@example.test", role: "viewer" });
+    expect(toastSuccess).toHaveBeenCalledWith("Invitation sent to gus@example.test");
+  });
+
+  it("offers the three roles and no No access, and sends the one chosen", async () => {
+    vi.mocked(inviteUser).mockResolvedValue({ data: { userId: INVITED_ID, resent: false }, error: undefined });
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Invite" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "gus@example.test" } });
+
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Role for the invitation" }), { key: "Enter" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Admin", "Author", "Viewer"]);
+    fireEvent.click(screen.getByRole("option", { name: "Author" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Send invitation" }));
+
+    await waitFor(() => {
+      expect(inviteUser).toHaveBeenCalledWith({ email: "gus@example.test", role: "author" });
+    });
+  });
+
+  it("says re-sent when the address had a pending invitation", async () => {
+    vi.mocked(inviteUser).mockResolvedValue({ data: { userId: INVITED_ID, resent: true }, error: undefined });
+    renderPage();
+
+    submitInviteForm("eve@example.test");
+
+    await waitFor(() => {
+      expect(toastSuccess).toHaveBeenCalledWith("Invitation re-sent to eve@example.test");
+    });
+  });
+
+  it("puts an existing account's address on the email field, and stays open", async () => {
+    vi.mocked(inviteUser).mockResolvedValue({
+      data: undefined,
+      error: { code: "CONFLICT", message: "An account with this email already exists." },
+    } as Awaited<ReturnType<typeof inviteUser>>);
+    renderPage();
+
+    submitInviteForm("bea@example.test");
+
+    expect(await screen.findByText("An account with this email already exists.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(refreshPage).not.toHaveBeenCalled();
+  });
+
+  it("toasts the cooldown and keeps the page, so the message stays", async () => {
+    vi.mocked(inviteUser).mockResolvedValue({
+      data: undefined,
+      error: {
+        code: "TOO_MANY_REQUESTS",
+        message: "An invitation was sent less than a minute ago. Wait a minute, then re-send.",
+      },
+    } as Awaited<ReturnType<typeof inviteUser>>);
+    renderPage();
+
+    submitInviteForm("eve@example.test");
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "An invitation was sent less than a minute ago. Wait a minute, then re-send.",
+      );
+    });
+    expect(refreshPage).not.toHaveBeenCalled();
+  });
+
+  it("re-sends a row's invitation at once, toasts, and reloads", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Re-send invitation to eve@example.test" }));
+
+    await waitFor(() => {
+      expect(refreshPage).toHaveBeenCalledOnce();
+    });
+    expect(resendInvitation).toHaveBeenCalledWith({ userId: INVITED_ID });
+    expect(toastSuccess).toHaveBeenCalledWith("Invitation re-sent to eve@example.test");
+  });
+
+  it("keeps the page when a re-send is refused for the cooldown", async () => {
+    vi.mocked(resendInvitation).mockResolvedValue({
+      error: { code: "TOO_MANY_REQUESTS", message: "An invitation was sent less than a minute ago." },
+    } as Awaited<ReturnType<typeof resendInvitation>>);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Re-send invitation to eve@example.test" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("An invitation was sent less than a minute ago.");
+    });
+    expect(refreshPage).not.toHaveBeenCalled();
+  });
+
+  it("asks before revoking, and revokes nothing on Cancel", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Revoke invitation for eve@example.test" }));
+    expect(screen.getByRole("alertdialog", { name: "Revoke the invitation for eve@example.test?" })).toHaveTextContent(
+      "Their link stops working and the account is removed.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(revokeInvitation).not.toHaveBeenCalled();
+  });
+
+  it("revokes once confirmed, toasts, and reloads", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Revoke invitation for eve@example.test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Revoke invitation" }));
+
+    await waitFor(() => {
+      expect(refreshPage).toHaveBeenCalledOnce();
+    });
+    expect(revokeInvitation).toHaveBeenCalledWith({ userId: INVITED_ID });
+    expect(toastSuccess).toHaveBeenCalledWith("Invitation for eve@example.test revoked");
+  });
+
+  it("reloads when the revoked account is already gone, so the row shows what the database holds", async () => {
+    vi.mocked(revokeInvitation).mockResolvedValue({
+      error: { code: "NOT_FOUND", message: "That account no longer exists." },
+    } as Awaited<ReturnType<typeof revokeInvitation>>);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Revoke invitation for eve@example.test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Revoke invitation" }));
+
+    await waitFor(() => {
+      expect(refreshPage).toHaveBeenCalledOnce();
+    });
+    expect(toastError).toHaveBeenCalledWith("That account no longer exists.");
+  });
+});
+
+/** Open the invite dialog, type the address, and send with the default role. */
+const submitInviteForm = (email: string) => {
+  fireEvent.click(screen.getByRole("button", { name: "Invite" }));
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: email } });
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Send invitation" }));
+};
 
 /** Open the create dialog, type the address and its confirmation, and submit. */
 const submitCreateForm = (email: string, confirmEmail = email) => {

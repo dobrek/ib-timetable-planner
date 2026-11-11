@@ -2,12 +2,15 @@ import { useState } from "react";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button, Toaster } from "@/shared/ui";
 import type { PasswordReveal } from "../model/schemas";
+import { useInvitationActions } from "../model/use-invitation-actions";
 import { useReissuePassword } from "../model/use-reissue-password";
 import { useRoleChange } from "../model/use-role-change";
 import type { UserRow } from "../model/user-rows";
 import ConfirmReissueDialog from "./ConfirmReissueDialog";
+import ConfirmRevokeDialog from "./ConfirmRevokeDialog";
 import ConfirmRoleChangeDialog from "./ConfirmRoleChangeDialog";
 import CreateAccountDialog from "./CreateAccountDialog";
+import InviteDialog from "./InviteDialog";
 import TemporaryPasswordDialog from "./TemporaryPasswordDialog";
 import UserTable from "./UserTable";
 
@@ -18,15 +21,18 @@ type Props = {
 };
 
 /**
- * The Users page island (S-406, S-409): a thin orchestrator over the table, the confirmations and the
- * account dialogs. The one-time password lives here, in state, and nowhere else: closing its dialog
- * clears it and reloads the page, so the new or re-issued row shows.
+ * The Users page island (S-406, S-409, S-410): a thin orchestrator over the table, the confirmations
+ * and the account dialogs. The one-time password lives here, in state, and nowhere else: closing its
+ * dialog clears it and reloads the page, so the new or re-issued row shows. A sent invitation reloads
+ * the page at once, since it reveals nothing.
  */
 export default function UsersPage({ rows, currentUserId }: Props) {
   const roleChange = useRoleChange(currentUserId);
+  const [isInviting, setIsInviting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [reveal, setReveal] = useState<PasswordReveal | null>(null);
   const reissue = useReissuePassword(setReveal);
+  const invitation = useInvitationActions();
   const { confirmation } = roleChange;
 
   const finishReveal = (): void => {
@@ -43,16 +49,27 @@ export default function UsersPage({ rows, currentUserId }: Props) {
             Give each person a role. A change applies from their next page load.
           </p>
         </div>
-        {/* Secondary: the email invitation (S-410) is the way in. This is the fallback (FR-403). */}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setIsCreating(true);
-          }}
-        >
-          Create account
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {/* Primary: the email invitation is the way in (S-410, FR-401). */}
+          <Button
+            type="button"
+            onClick={() => {
+              setIsInviting(true);
+            }}
+          >
+            Invite
+          </Button>
+          {/* The fallback for someone an invitation cannot reach (S-409, FR-403). */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setIsCreating(true);
+            }}
+          >
+            Create account
+          </Button>
+        </div>
       </header>
 
       <UserTable
@@ -61,6 +78,9 @@ export default function UsersPage({ rows, currentUserId }: Props) {
         saving={roleChange.saving}
         onChooseRole={roleChange.choose}
         onReissuePassword={reissue.ask}
+        resending={invitation.resending}
+        onResendInvitation={invitation.resend}
+        onRevokeInvitation={invitation.askRevoke}
       />
 
       <ConfirmRoleChangeDialog
@@ -68,6 +88,16 @@ export default function UsersPage({ rows, currentUserId }: Props) {
         isBusy={confirmation !== null && roleChange.saving.has(confirmation.row.userId)}
         onConfirm={roleChange.confirm}
         onClose={roleChange.cancel}
+      />
+      <InviteDialog
+        open={isInviting}
+        onClose={() => {
+          setIsInviting(false);
+        }}
+        onSent={() => {
+          setIsInviting(false);
+          void refreshPage();
+        }}
       />
       <CreateAccountDialog
         open={isCreating}
@@ -84,6 +114,12 @@ export default function UsersPage({ rows, currentUserId }: Props) {
         isBusy={reissue.isBusy}
         onConfirm={reissue.confirm}
         onClose={reissue.cancel}
+      />
+      <ConfirmRevokeDialog
+        target={invitation.revokeTarget}
+        isBusy={invitation.isRevoking}
+        onConfirm={invitation.confirmRevoke}
+        onClose={invitation.cancelRevoke}
       />
       <TemporaryPasswordDialog reveal={reveal} onClose={finishReveal} />
       <Toaster />

@@ -1,12 +1,27 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppRole } from "@/shared/config";
-import { ADMIN_ID, AUTHOR_ID, AUTHOR_ROW, NO_ROLE_ROW, PENDING_ROW, ROWS } from "./__fixtures__/user-rows";
+import {
+  ACCEPTED_ROW,
+  ADMIN_ID,
+  AUTHOR_ID,
+  AUTHOR_ROW,
+  INVITED_ID,
+  INVITED_ROW,
+  NO_ROLE_ROW,
+  PENDING_ROW,
+  ROWS,
+} from "./__fixtures__/user-rows";
 import UserTable from "./UserTable";
 
-const renderTable = (saving: ReadonlyMap<string, AppRole | null> = new Map()) => {
+const renderTable = (
+  saving: ReadonlyMap<string, AppRole | null> = new Map(),
+  resending: ReadonlySet<string> = new Set(),
+) => {
   const onChooseRole = vi.fn();
   const onReissuePassword = vi.fn();
+  const onResendInvitation = vi.fn();
+  const onRevokeInvitation = vi.fn();
   render(
     <UserTable
       rows={ROWS}
@@ -14,9 +29,12 @@ const renderTable = (saving: ReadonlyMap<string, AppRole | null> = new Map()) =>
       saving={saving}
       onChooseRole={onChooseRole}
       onReissuePassword={onReissuePassword}
+      resending={resending}
+      onResendInvitation={onResendInvitation}
+      onRevokeInvitation={onRevokeInvitation}
     />,
   );
-  return { onChooseRole, onReissuePassword };
+  return { onChooseRole, onReissuePassword, onResendInvitation, onRevokeInvitation };
 };
 
 /** The row whose picker is named for `name`: a name can also appear in another row's "Changed by". */
@@ -71,6 +89,40 @@ describe("UserTable", () => {
     fireEvent.click(screen.getByRole("button", { name: "Re-issue password for dee@example.test" }));
 
     expect(onReissuePassword).toHaveBeenCalledWith(PENDING_ROW);
+  });
+
+  it("says Invited and Invitation accepted for the two invitation rows, each still showing its role", () => {
+    renderTable();
+
+    expect(rowOf("eve@example.test").getByText("Invited")).toBeInTheDocument();
+    expect(rowOf("fay@example.test").getByText("Invitation accepted")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Role for eve@example.test" })).toHaveTextContent("Viewer");
+  });
+
+  it("offers Re-send on the unaccepted invitation alone, and it hands that row up", () => {
+    const { onResendInvitation } = renderTable();
+
+    expect(screen.getAllByRole("button", { name: /Re-send invitation/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Re-send invitation to eve@example.test" }));
+
+    expect(onResendInvitation).toHaveBeenCalledWith(INVITED_ROW);
+  });
+
+  it("offers Revoke on both invitations, accepted or not, and never on another row", () => {
+    const { onRevokeInvitation } = renderTable();
+
+    expect(screen.getAllByRole("button", { name: /Revoke invitation/ })).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Revoke invitation for fay@example.test" }));
+
+    expect(onRevokeInvitation).toHaveBeenCalledWith(ACCEPTED_ROW);
+    expect(rowOf("dee@example.test").queryByRole("button", { name: /Revoke|Re-send/ })).not.toBeInTheDocument();
+  });
+
+  it("disables a row's Re-send while it is in flight", () => {
+    renderTable(new Map(), new Set([INVITED_ID]));
+
+    expect(screen.getByRole("button", { name: "Re-send invitation to eve@example.test" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Revoke invitation for eve@example.test" })).toBeEnabled();
   });
 
   it("names who changed the role last, or shows a dash", () => {

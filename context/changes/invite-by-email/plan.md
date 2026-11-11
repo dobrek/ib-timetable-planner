@@ -616,31 +616,31 @@ The migration is additive: two nullable columns, three enum values, a re-created
 
 #### Automated
 
-- [x] 3.1 Unit suite passes (email-link, confirm-page-state, saved-path): `pnpm test`
-- [x] 3.2 Type check passes: `pnpm check`
-- [x] 3.3 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 3.4 Existing reset e2e still passes (recovery path unchanged): `pnpm test:e2e e2e/specs/forgot-password-unauth.spec.ts`
+- [x] 3.1 Unit suite passes (email-link, confirm-page-state, saved-path): `pnpm test` — b0742672
+- [x] 3.2 Type check passes: `pnpm check` — b0742672
+- [x] 3.3 Lint and FSD structure pass: `pnpm lint && pnpm steiger` — b0742672
+- [x] 3.4 Existing reset e2e still passes (recovery path unchanged): `pnpm test:e2e e2e/specs/forgot-password-unauth.spec.ts` — b0742672
 
 #### Manual
 
-- [x] 3.5 With `pnpm build && pnpm preview`, an invite link from Mailpit opens "Accept your invitation", and Continue lands on `/account` with the welcome banner
-- [x] 3.6 The same link opened again shows the invite-expired copy with the sign-in link
-- [x] 3.7 Opening a link while signed in shows the warning, and nothing is spent until Continue
+- [x] 3.5 With `pnpm build && pnpm preview`, an invite link from Mailpit opens "Accept your invitation", and Continue lands on `/account` with the welcome banner — b0742672
+- [x] 3.6 The same link opened again shows the invite-expired copy with the sign-in link — b0742672
+- [x] 3.7 Opening a link while signed in shows the warning, and nothing is spent until Continue — b0742672
 
 ### Phase 4: Users page: invite dialog, statuses, row actions
 
 #### Automated
 
-- [ ] 4.1 Unit and component tests pass (user-rows, account-error, invoke-admin-users, schemas, UserTable, UsersPage): `pnpm test`
-- [ ] 4.2 Type check passes: `pnpm check`
-- [ ] 4.3 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 4.4 Build passes, with no Supabase key in client output: `pnpm build`
-- [ ] 4.5 Existing Users-page e2e still passes: `pnpm test:e2e e2e/specs/users.admin.spec.ts`
+- [x] 4.1 Unit and component tests pass (user-rows, account-error, invoke-admin-users, schemas, UserTable, UsersPage): `pnpm test`
+- [x] 4.2 Type check passes: `pnpm check`
+- [x] 4.3 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 4.4 Build passes, with no Supabase key in client output: `pnpm build`
+- [x] 4.5 Existing Users-page e2e still passes: `pnpm test:e2e e2e/specs/users.admin.spec.ts`
 
 #### Manual
 
-- [ ] 4.6 Through `pnpm build && pnpm preview`: inviting a fresh address shows an "Invited" row with Re-send and Revoke; re-sending at once shows the wait-a-minute message; revoking removes the row
-- [ ] 4.7 Dialogs and statuses read correctly in light and dark themes
+- [x] 4.6 Through `pnpm build && pnpm preview`: inviting a fresh address shows an "Invited" row with Re-send and Revoke; re-sending at once shows the wait-a-minute message; revoking removes the row
+- [x] 4.7 Dialogs and statuses read correctly in light and dark themes
 
 ### Phase 5: E2E and docs
 

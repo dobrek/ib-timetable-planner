@@ -39,6 +39,9 @@ const NOT_EDIT: Record<string, Capability> = {
   changeUserRole: "manage_users", // the Users page: an admin only (S-406)
   createAccount: "manage_users", // the Users page: an admin only (S-409)
   reissueTemporaryPassword: "manage_users", // the Users page: an admin only (S-409)
+  inviteUser: "manage_users", // the Users page: an admin only (S-410)
+  resendInvitation: "manage_users", // the Users page: an admin only (S-410)
+  revokeInvitation: "manage_users", // the Users page: an admin only (S-410)
 };
 
 type Outcome = "reached" | "FORBIDDEN" | "SERVICE_UNAVAILABLE";

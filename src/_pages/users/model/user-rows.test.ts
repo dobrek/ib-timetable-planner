@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMAIL_LINK_LIFETIME_MS } from "@/shared/config";
 import { buildUserRows, type UserDirectoryInput } from "./user-rows";
 
 const ADA = "00000000-0000-4000-8000-00000000000a";
@@ -8,6 +9,8 @@ const GONE = "00000000-0000-4000-8000-0000000000ff";
 
 const NOON = "2026-11-05T12:00:00+00:00";
 const LATER = "2026-11-05T13:00:00+00:00";
+/** When the page loads, unless a test says otherwise: an hour after LATER. */
+const NOW = Date.parse("2026-11-05T14:00:00+00:00");
 
 const ADA_LABEL = { primary: "Ada Lovelace", secondary: "ada@example.test" };
 
@@ -20,6 +23,8 @@ const entry = (user_id: string, email: string, overrides: Partial<DirectoryEntry
   email,
   is_service_account: false,
   must_change_password: false,
+  invited_at: null,
+  email_confirmed_at: NOON,
   ...overrides,
 });
 
@@ -41,7 +46,7 @@ const input = (overrides: Partial<UserDirectoryInput> = {}): UserDirectoryInput 
 
 describe("buildUserRows", () => {
   it("names a user by display name with the email beneath, or by the email alone", () => {
-    const rows = buildUserRows(input({ profiles: [{ user_id: ADA, display_name: "Ada Lovelace" }] }));
+    const rows = build(input({ profiles: [{ user_id: ADA, display_name: "Ada Lovelace" }] }));
 
     expect(rows.map(({ userId, label }) => ({ userId, label }))).toEqual([
       { userId: ADA, label: ADA_LABEL },
@@ -50,7 +55,7 @@ describe("buildUserRows", () => {
   });
 
   it("reads a user with a role as active, and one without as no access", () => {
-    const rows = buildUserRows(input({ roles: [{ user_id: ADA, role: "admin" }] }));
+    const rows = build(input({ roles: [{ user_id: ADA, role: "admin" }] }));
 
     expect(rows.map(({ role, status }) => ({ role, status }))).toEqual([
       { role: "admin", status: "active" },
@@ -59,7 +64,7 @@ describe("buildUserRows", () => {
   });
 
   it("reads a user on a temporary password as such, with or without a role, and only that row can be re-issued", () => {
-    const rows = buildUserRows(
+    const rows = build(
       input({
         directory: [
           entry(ADA, "ada@example.test", { must_change_password: true }),
@@ -79,14 +84,123 @@ describe("buildUserRows", () => {
     ]);
   });
 
+  it("reads an unaccepted invitation as invited, with its role waiting, offering re-send and revoke", () => {
+    const rows = build(
+      input({
+        directory: [
+          entry(ADA, "ada@example.test", { invited_at: NOON, email_confirmed_at: null, must_change_password: true }),
+        ],
+        roles: [{ user_id: ADA, role: "viewer" }],
+      }),
+    );
+
+    expect(actionsOf(rows)).toEqual([
+      {
+        role: "viewer",
+        status: "invited",
+        canResendInvitation: true,
+        canRevokeInvitation: true,
+        canReissuePassword: false,
+      },
+    ]);
+  });
+
+  it("keeps an invitation invited at exactly its lifetime, and expired one millisecond later, as GoTrue judges it", () => {
+    const given = input({
+      directory: [
+        entry(ADA, "ada@example.test", { invited_at: NOON, email_confirmed_at: null, must_change_password: true }),
+      ],
+    });
+    const deadline = Date.parse(NOON) + EMAIL_LINK_LIFETIME_MS;
+
+    expect(build(given, deadline)[0]?.status).toBe("invited");
+    expect(build(given, deadline + 1)[0]).toMatchObject({
+      status: "invitation_expired",
+      canResendInvitation: true,
+      canRevokeInvitation: true,
+    });
+  });
+
+  it("reads an accepted invitation without a password yet as accepted: revocable, but no longer re-sendable", () => {
+    const rows = build(
+      input({
+        directory: [
+          entry(ADA, "ada@example.test", { invited_at: NOON, email_confirmed_at: LATER, must_change_password: true }),
+        ],
+        roles: [{ user_id: ADA, role: "admin" }],
+      }),
+    );
+
+    expect(actionsOf(rows)).toEqual([
+      {
+        role: "admin",
+        status: "invitation_accepted",
+        canResendInvitation: false,
+        canRevokeInvitation: true,
+        canReissuePassword: false,
+      },
+    ]);
+  });
+
+  it("reads a dashboard-era invitee, unaccepted and never flagged, as invited too", () => {
+    const rows = build(
+      input({ directory: [entry(ADA, "ada@example.test", { invited_at: NOON, email_confirmed_at: null })] }),
+    );
+
+    expect(rows[0]?.status).toBe("invited");
+  });
+
+  it("reads an invitee who chose a password as any other account, with nothing left to re-send or revoke", () => {
+    const rows = build(
+      input({
+        directory: [
+          entry(ADA, "ada@example.test", { invited_at: NOON, email_confirmed_at: LATER }),
+          entry(BEA, "bea@example.test", { invited_at: NOON, email_confirmed_at: LATER }),
+        ],
+        roles: [{ user_id: ADA, role: "viewer" }],
+      }),
+    );
+
+    expect(actionsOf(rows)).toEqual([
+      {
+        role: "viewer",
+        status: "active",
+        canResendInvitation: false,
+        canRevokeInvitation: false,
+        canReissuePassword: false,
+      },
+      {
+        role: null,
+        status: "no_access",
+        canResendInvitation: false,
+        canRevokeInvitation: false,
+        canReissuePassword: false,
+      },
+    ]);
+  });
+
+  it("never offers a re-send or a revoke for an account on a temporary password", () => {
+    const rows = build(input({ directory: [entry(ADA, "ada@example.test", { must_change_password: true })] }));
+
+    expect(actionsOf(rows)).toEqual([
+      {
+        role: null,
+        status: "temporary_password",
+        canResendInvitation: false,
+        canRevokeInvitation: false,
+        canReissuePassword: true,
+      },
+    ]);
+  });
+
   it("never offers a re-issue for an active or role-less user", () => {
-    const rows = buildUserRows(input({ roles: [{ user_id: ADA, role: "admin" }] }));
+    const rows = build(input({ roles: [{ user_id: ADA, role: "admin" }] }));
 
     expect(rows.map(({ canReissuePassword }) => canReissuePassword)).toEqual([false, false]);
   });
 
   it("carries the service-account flag", () => {
-    const rows = buildUserRows(
+    const rows = build(
       input({
         directory: [entry(CAL, "campaign@example.test", { is_service_account: true })],
       }),
@@ -96,7 +210,7 @@ describe("buildUserRows", () => {
   });
 
   it("has no last change for a user no record names", () => {
-    const rows = buildUserRows(input({ changes: [change({ id: 1, target_id: BEA })] }));
+    const rows = build(input({ changes: [change({ id: 1, target_id: BEA })] }));
 
     expect(rows.find(({ userId }) => userId === ADA)?.lastChange).toBeNull();
   });
@@ -108,7 +222,7 @@ describe("buildUserRows", () => {
       change({ id: 1, target_id: BEA, occurred_at: NOON }),
     ];
 
-    expect(lastChangeOf(BEA, buildUserRows(input({ changes })))).toEqual({ by: { kind: "operator" }, at: LATER });
+    expect(lastChangeOf(BEA, build(input({ changes })))).toEqual({ by: { kind: "operator" }, at: LATER });
   });
 
   it("breaks a tie on the time with the greater id, for two records in one transaction", () => {
@@ -118,7 +232,7 @@ describe("buildUserRows", () => {
       change({ id: 9, target_id: BEA, actor_id: null }),
     ];
 
-    expect(lastChangeOf(BEA, buildUserRows(input({ changes })))).toEqual({ by: { kind: "deleted" }, at: NOON });
+    expect(lastChangeOf(BEA, build(input({ changes })))).toEqual({ by: { kind: "deleted" }, at: NOON });
   });
 
   it.each([
@@ -127,7 +241,7 @@ describe("buildUserRows", () => {
     ["a deleted user, whose id was nulled", { actor_kind: "user", actor_id: null }, { kind: "deleted" }],
     ["a user missing from the directory as deleted", { actor_kind: "user", actor_id: GONE }, { kind: "deleted" }],
   ] as const)("names the actor: %s", (_label, actor, expected) => {
-    const rows = buildUserRows(
+    const rows = build(
       input({
         profiles: [{ user_id: ADA, display_name: "Ada Lovelace" }],
         changes: [change({ id: 1, target_id: BEA, ...actor })],
@@ -138,7 +252,7 @@ describe("buildUserRows", () => {
   });
 
   it("sorts by label ignoring case, then by email", () => {
-    const rows = buildUserRows({
+    const rows = build({
       directory: [entry(CAL, "zed@example.test"), entry(BEA, "bea@example.test"), entry(ADA, "amy@example.test")],
       profiles: [
         { user_id: CAL, display_name: "alex" },
@@ -164,11 +278,23 @@ describe("buildUserRows", () => {
     });
     const before = structuredClone(given);
 
-    buildUserRows(deepFreeze(given));
+    build(deepFreeze(given));
 
     expect(given).toEqual(before);
   });
 });
+
+const actionsOf = (rows: ReturnType<typeof buildUserRows>) =>
+  rows.map(({ role, status, canResendInvitation, canRevokeInvitation, canReissuePassword }) => ({
+    role,
+    status,
+    canResendInvitation,
+    canRevokeInvitation,
+    canReissuePassword,
+  }));
+
+/** The rows as the page would load them at `now`. */
+const build = (given: UserDirectoryInput, now = NOW) => buildUserRows(given, now);
 
 const lastChangeOf = (userId: string, rows: ReturnType<typeof buildUserRows>) =>
   rows.find((row) => row.userId === userId)?.lastChange;

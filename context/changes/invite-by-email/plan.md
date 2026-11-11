@@ -603,29 +603,29 @@ The migration is additive: two nullable columns, three enum values, a re-created
 
 #### Automated
 
-- [x] 2.1 Function gate passes (`deno check`, `deno lint`, `deno test`): `mise run functions:check`
-- [x] 2.2 HTTP-surface suite passes after an edge-runtime restart: `docker restart supabase_edge_runtime_ib-timetable-planner && pnpm test:integration src/test/admin-users.integration.test.ts`
-- [x] 2.3 Full integration lane passes: `pnpm test:integration`
+- [x] 2.1 Function gate passes (`deno check`, `deno lint`, `deno test`): `mise run functions:check` — d793c87e
+- [x] 2.2 HTTP-surface suite passes after an edge-runtime restart: `docker restart supabase_edge_runtime_ib-timetable-planner && pnpm test:integration src/test/admin-users.integration.test.ts` — d793c87e
+- [x] 2.3 Full integration lane passes: `pnpm test:integration` — d793c87e
 
 #### Manual
 
-- [x] 2.4 A deliberate break in the invite handler (e.g. skipping the flag step) is visible in `docker logs` and turns the suite red, then green again once reverted
-- [x] 2.5 The runtime log lines for one failed invite name only `fn`, `op` and `step`, with no email or token
+- [x] 2.4 A deliberate break in the invite handler (e.g. skipping the flag step) is visible in `docker logs` and turns the suite red, then green again once reverted — d793c87e
+- [x] 2.5 The runtime log lines for one failed invite name only `fn`, `op` and `step`, with no email or token — d793c87e
 
 ### Phase 3: Link acceptance: confirm page, failure copy, account landing
 
 #### Automated
 
-- [ ] 3.1 Unit suite passes (email-link, confirm-page-state, saved-path): `pnpm test`
-- [ ] 3.2 Type check passes: `pnpm check`
-- [ ] 3.3 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [ ] 3.4 Existing reset e2e still passes (recovery path unchanged): `pnpm test:e2e e2e/specs/forgot-password-unauth.spec.ts`
+- [x] 3.1 Unit suite passes (email-link, confirm-page-state, saved-path): `pnpm test`
+- [x] 3.2 Type check passes: `pnpm check`
+- [x] 3.3 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
+- [x] 3.4 Existing reset e2e still passes (recovery path unchanged): `pnpm test:e2e e2e/specs/forgot-password-unauth.spec.ts`
 
 #### Manual
 
-- [ ] 3.5 With `pnpm build && pnpm preview`, an invite link from Mailpit opens "Accept your invitation", and Continue lands on `/account` with the welcome banner
-- [ ] 3.6 The same link opened again shows the invite-expired copy with the sign-in link
-- [ ] 3.7 Opening a link while signed in shows the warning, and nothing is spent until Continue
+- [x] 3.5 With `pnpm build && pnpm preview`, an invite link from Mailpit opens "Accept your invitation", and Continue lands on `/account` with the welcome banner
+- [x] 3.6 The same link opened again shows the invite-expired copy with the sign-in link
+- [x] 3.7 Opening a link while signed in shows the warning, and nothing is spent until Continue
 
 ### Phase 4: Users page: invite dialog, statuses, row actions
 

@@ -1,4 +1,5 @@
-// S-402 password recovery: `/auth/forgot` (request a link) and `/auth/confirm` (spend it).
+// S-402 password recovery: `/auth/forgot` (request a link) and `/auth/confirm` (spend it). Since
+// S-410 `/auth/confirm` also accepts invitations, so the slice serves every emailed one-time link.
 // The route files under `src/pages/` orchestrate through this barrel; .astro page components are
 // imported by direct path per the Astro FSD exception.
 export {
@@ -8,6 +9,13 @@ export {
   type EmailLink,
   type EmailLinkType,
 } from "./model/email-link";
+export {
+  confirmFailurePath,
+  confirmPageState,
+  confirmPageTitle,
+  type ConfirmFailureReason,
+  type ConfirmPageState,
+} from "./model/confirm-page-state";
 export {
   forgotPageState,
   forgotPath,

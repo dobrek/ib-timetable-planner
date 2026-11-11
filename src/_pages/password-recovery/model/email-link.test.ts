@@ -24,7 +24,13 @@ describe("parseEmailLink", () => {
     expect(parseEmailLink(params)?.tokenHash).toBe(`pkce_${HASH}`);
   });
 
-  it.each(["invite", "signup", "magiclink", "email_change", "email", "Recovery", ""])(
+  it("reads an invite link (S-410)", () => {
+    const params = new URLSearchParams({ token_hash: HASH, type: "invite" });
+
+    expect(parseEmailLink(params)).toEqual({ tokenHash: HASH, type: "invite" });
+  });
+
+  it.each(["signup", "magiclink", "email_change", "email", "Recovery", "Invite", ""])(
     "refuses the type %j, which is not on the allowlist",
     (type) => {
       expect(parseEmailLink(new URLSearchParams({ token_hash: HASH, type }))).toBeNull();
@@ -62,5 +68,9 @@ describe("parseEmailLink", () => {
 describe("landingPathFor", () => {
   it("lands a recovery on the account page's password form, with its banner", () => {
     expect(landingPathFor("recovery")).toBe("/account?notice=recovery");
+  });
+
+  it("lands an invitation on the account page, which welcomes the still-fenced invitee", () => {
+    expect(landingPathFor("invite")).toBe("/account");
   });
 });

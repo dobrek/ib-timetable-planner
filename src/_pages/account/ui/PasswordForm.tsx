@@ -14,20 +14,24 @@ import {
   PasswordInput,
 } from "@/shared/ui";
 import { updatePassword } from "../api/account-client";
+import { passwordSavedPath } from "../model/pending-account";
 import { passwordFormSchema, type PasswordFormOutput, type PasswordFormValues } from "../model/schemas";
 
 type Props = {
   /** Fills the hidden username field, so a password manager files the new password under it. */
   email: string;
+  /** A pending account's first password (S-409, S-410), which lands in the app once saved. */
+  isFirstPassword: boolean;
 };
 
 /**
- * Change the caller's password, typed twice; no current password is asked (PRD FR-411). A change
+ * Change the caller's password, typed twice; no current password is asked (PRD FR-411). A first
+ * password goes on to `/dashboard`, where the role it unfenced now opens the app. Any later change
  * reloads into `/account?saved=password` and the page reports it above the forms, as a name save
  * does: a toast is easy to miss on a wide screen, and the reload also drops the reset-link banner.
  */
-export default function PasswordForm({ email }: Props) {
-  const { form, onSubmit } = usePasswordForm();
+export default function PasswordForm({ email, isFirstPassword }: Props) {
+  const { form, onSubmit } = usePasswordForm(isFirstPassword);
 
   return (
     <section className="border-border bg-card text-card-foreground rounded-lg border p-5">
@@ -78,7 +82,7 @@ export default function PasswordForm({ email }: Props) {
   );
 }
 
-function usePasswordForm() {
+function usePasswordForm(isFirstPassword: boolean) {
   const form = useForm<PasswordFormValues, unknown, PasswordFormOutput>({
     resolver: zodResolver(passwordFormSchema),
     mode: "onTouched",
@@ -97,7 +101,7 @@ function usePasswordForm() {
         // back-forward cache restore would otherwise bring the new password back.
         form.reset();
       },
-      refresh: () => navigate("/account?saved=password"),
+      refresh: () => navigate(passwordSavedPath(isFirstPassword)),
     });
 
   return { form, onSubmit };

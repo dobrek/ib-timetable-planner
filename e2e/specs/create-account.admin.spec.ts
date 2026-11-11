@@ -50,7 +50,8 @@ test("an admin creates an account, the person signs in, is held on /account unti
       await person.getByLabel("Confirm new password").fill(chosenPassword);
       await expect(person.getByLabel("New password", { exact: true })).toHaveValue(chosenPassword);
       await person.getByRole("button", { name: "Change password" }).click();
-      await expect(person.getByRole("status")).toHaveText("Password changed.");
+      // The first password lands in the app (S-410): the save clears the fence, and the dashboard opens.
+      await expect(person).toHaveURL(/\/dashboard$/);
       await expect(person.getByText("An administrator gave you a temporary password.")).toHaveCount(0);
 
       // The same tab now holds the role the admin chose: /plans opens, and the sidebar says View only, and there is no create control.

@@ -1,14 +1,16 @@
 ---
 import { buttonVariants } from "@/shared/ui";
 import Banner from "@/shared/ui/Banner.astro";
-import type { EmailLink } from "../model/email-link";
+import { type ConfirmPageState, confirmPageTitle, LINK_COPY } from "../model/confirm-page-state";
 
 type Props = {
-  /** The link from the query string, or `null` when it is missing or malformed. */
-  link: EmailLink | null;
+  /** What the query string holds: a link, an invitation the endpoint refused, or nothing usable. */
+  state: ConfirmPageState;
+  /** The email of a session this browser already holds, or `null`: spending the link replaces it. */
+  signedInAs: string | null;
 };
 
-const { link } = Astro.props;
+const { state, signedInAs } = Astro.props;
 
 // The scanner-safe landing for an emailed one-time link. Rendering it spends nothing, on any HTTP
 // method: a mail scanner can fetch it as often as it likes. Only a person pressing the native
@@ -24,32 +26,69 @@ const linkClass = "text-muted-foreground hover:text-foreground text-sm underline
   <div
     class="border-border bg-card/80 text-card-foreground w-full max-w-sm space-y-6 rounded-2xl border p-8 shadow-lg backdrop-blur-xl"
   >
-    <h1 class="text-center text-2xl font-bold">Reset your password</h1>
+    <h1 class="text-center text-2xl font-bold">{confirmPageTitle(state)}</h1>
 
     {
-      link ? (
+      state.kind === "link" && (
         <>
-          <p class="text-muted-foreground text-sm">
-            Press Continue to sign in and choose a new password. The link works once.
-          </p>
+          {signedInAs && (
+            <div class="overflow-hidden rounded-lg">
+              <Banner variant="warning">
+                You're signed in as {signedInAs}. Continuing signs you in as the person this link was sent to.
+              </Banner>
+            </div>
+          )}
+          <p class="text-muted-foreground text-sm">{LINK_COPY[state.link.type].lead}</p>
           <form method="post" action="/api/auth/confirm">
-            <input type="hidden" name="token_hash" value={link.tokenHash} />
-            <input type="hidden" name="type" value={link.type} />
+            <input type="hidden" name="token_hash" value={state.link.tokenHash} />
+            <input type="hidden" name="type" value={state.link.type} />
             <button type="submit" class:list={buttonVariants({ className: "w-full" })}>
               Continue
             </button>
           </form>
         </>
-      ) : (
+      )
+    }
+
+    {
+      state.kind === "invite-failed" && state.reason === "expired" && (
         <>
           <div class="overflow-hidden rounded-lg">
             <Banner variant="warning">
-              This link is incomplete. Open it straight from the email, or request a new one below.
+              This invitation link has expired or was already used. Ask your admin to re-send it.
             </Banner>
           </div>
           <p class="text-center">
+            <a href="/auth/signin" class:list={linkClass}>
+              Already set your password? Sign in
+            </a>
+          </p>
+        </>
+      )
+    }
+
+    {
+      state.kind === "invite-failed" && state.reason === "retry" && (
+        <div class="overflow-hidden rounded-lg">
+          <Banner variant="warning">
+            We couldn't check your invitation just now. Open the link from your email again.
+          </Banner>
+        </div>
+      )
+    }
+
+    {
+      state.kind === "incomplete" && (
+        <>
+          <div class="overflow-hidden rounded-lg">
+            <Banner variant="warning">This link is incomplete. Open it straight from the email.</Banner>
+          </div>
+          <p class="flex justify-center gap-4">
+            <a href="/auth/signin" class:list={linkClass}>
+              Sign in
+            </a>
             <a href="/auth/forgot" class:list={linkClass}>
-              Request a new link
+              Request a password reset
             </a>
           </p>
         </>

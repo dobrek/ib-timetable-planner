@@ -1,15 +1,24 @@
 ---
 import AppShellLayout from "@/app/layouts/SidebarLayout.astro";
 import AccountPage from "@/_pages/account/ui/AccountPage.astro";
+import { loadPendingKind } from "@/_pages/account";
 import { createClient, loadOwnProfile } from "@/shared/api";
 
 const { user } = Astro.locals;
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 if (!supabase) Astro.response.status = 503;
 
+// The middleware read the caller's access: a pending account (a temporary password, or an
+// invitation not yet finished) is fenced until it chooses a password, and the page says why.
+const pending = Astro.locals.access.status === "password_change_required";
+
 // The middleware guarantees a user on this route. A failed read fails the page on purpose: an empty
-// field would read as "no name" (the shell, by contrast, falls back to the email).
-const displayName = supabase && user ? await loadOwnProfile(supabase, user.id) : null;
+// field would read as "no name" (the shell, by contrast, falls back to the email), and a wrong
+// welcome would tell an invitee about a temporary password they never had.
+const [displayName, pendingKind] =
+  supabase && user
+    ? await Promise.all([loadOwnProfile(supabase, user.id), pending ? loadPendingKind(supabase, user.id) : null])
+    : [null, null];
 ---
 
 <AppShellLayout title="Account">
@@ -20,6 +29,7 @@ const displayName = supabase && user ? await loadOwnProfile(supabase, user.id) :
       <AccountPage
         email={user.email ?? ""}
         displayName={displayName}
+        pendingKind={pendingKind}
         saved={Astro.url.searchParams.get("saved")}
         notice={Astro.url.searchParams.get("notice")}
       />

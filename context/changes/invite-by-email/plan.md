@@ -587,30 +587,30 @@ The migration is additive: two nullable columns, three enum values, a re-created
 
 #### Automated
 
-- [x] 1.1 Migration applies cleanly from scratch: `pnpm exec supabase db reset`
-- [x] 1.2 Generated types are current and the diff is only the new columns and kinds: `pnpm db:types`
-- [x] 1.3 Fence-through-acceptance suite passes: `pnpm test:integration src/test/invitation-acceptance.integration.test.ts`
-- [x] 1.4 S-409's suites stay green (create, reissue, fence): `pnpm test:integration src/test/admin-users.integration.test.ts src/test/role-matrix.integration.test.ts`
-- [x] 1.5 Type check passes: `pnpm check`
-- [x] 1.6 Unit suite passes: `pnpm test`
+- [x] 1.1 Migration applies cleanly from scratch: `pnpm exec supabase db reset` — 245ccd96
+- [x] 1.2 Generated types are current and the diff is only the new columns and kinds: `pnpm db:types` — 245ccd96
+- [x] 1.3 Fence-through-acceptance suite passes: `pnpm test:integration src/test/invitation-acceptance.integration.test.ts` — 245ccd96
+- [x] 1.4 S-409's suites stay green (create, reissue, fence): `pnpm test:integration src/test/admin-users.integration.test.ts src/test/role-matrix.integration.test.ts` — 245ccd96
+- [x] 1.5 Type check passes: `pnpm check` — 245ccd96
+- [x] 1.6 Unit suite passes: `pnpm test` — 245ccd96
 
 #### Manual
 
-- [x] 1.7 `probe.md` records P1–P5 and none contradicts the research
-- [x] 1.8 A reset email from the local stack (Mailpit) says "24 hours" and its link still works end to end
+- [x] 1.7 `probe.md` records P1–P5 and none contradicts the research — 245ccd96
+- [x] 1.8 A reset email from the local stack (Mailpit) says "24 hours" and its link still works end to end — 245ccd96
 
 ### Phase 2: `admin-users`: invite, re-send, revoke
 
 #### Automated
 
-- [ ] 2.1 Function gate passes (`deno check`, `deno lint`, `deno test`): `mise run functions:check`
-- [ ] 2.2 HTTP-surface suite passes after an edge-runtime restart: `docker restart supabase_edge_runtime_ib-timetable-planner && pnpm test:integration src/test/admin-users.integration.test.ts`
-- [ ] 2.3 Full integration lane passes: `pnpm test:integration`
+- [x] 2.1 Function gate passes (`deno check`, `deno lint`, `deno test`): `mise run functions:check`
+- [x] 2.2 HTTP-surface suite passes after an edge-runtime restart: `docker restart supabase_edge_runtime_ib-timetable-planner && pnpm test:integration src/test/admin-users.integration.test.ts`
+- [x] 2.3 Full integration lane passes: `pnpm test:integration`
 
 #### Manual
 
-- [ ] 2.4 A deliberate break in the invite handler (e.g. skipping the flag step) is visible in `docker logs` and turns the suite red, then green again once reverted
-- [ ] 2.5 The runtime log lines for one failed invite name only `fn`, `op` and `step`, with no email or token
+- [x] 2.4 A deliberate break in the invite handler (e.g. skipping the flag step) is visible in `docker logs` and turns the suite red, then green again once reverted
+- [x] 2.5 The runtime log lines for one failed invite name only `fn`, `op` and `step`, with no email or token
 
 ### Phase 3: Link acceptance: confirm page, failure copy, account landing
 

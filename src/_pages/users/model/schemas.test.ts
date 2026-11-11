@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { APP_ROLE_VALUES } from "@/shared/config";
-import { changeUserRoleInput, createAccountFormSchema, createAccountInput, reissuePasswordInput } from "./schemas";
+import {
+  changeUserRoleInput,
+  createAccountFormSchema,
+  createAccountInput,
+  invitationTargetInput,
+  inviteUserInput,
+  reissuePasswordInput,
+} from "./schemas";
 
 const USER_ID = "6f1c2a3e-8b4d-4e5f-9a6b-7c8d9e0f1a2b";
 
@@ -54,6 +61,32 @@ describe("createAccountFormSchema", () => {
 
     expect(result.success).toBe(false);
     expect(result.error?.issues[0]?.path).toEqual(["confirmEmail"]);
+  });
+});
+
+describe("inviteUserInput", () => {
+  it.each(APP_ROLE_VALUES)("accepts the role %s", (role) => {
+    expect(inviteUserInput.parse({ email: "eve@example.test", role })).toEqual({ email: "eve@example.test", role });
+  });
+
+  it("trims and lower-cases the address, as the function does", () => {
+    expect(inviteUserInput.parse({ email: " Eve@Example.TEST ", role: "viewer" }).email).toBe("eve@example.test");
+  });
+
+  it.each([
+    ["No access, since an invitation must grant a role", { email: "eve@example.test", role: null }],
+    ["a missing role", { email: "eve@example.test" }],
+    ["a role outside the enum", { email: "eve@example.test", role: "owner" }],
+    ["an address that is not one", { email: "eve", role: "viewer" }],
+  ])("refuses %s", (_label, input) => {
+    expect(inviteUserInput.safeParse(input).success).toBe(false);
+  });
+});
+
+describe("invitationTargetInput", () => {
+  it("takes one user id", () => {
+    expect(invitationTargetInput.parse({ userId: USER_ID })).toEqual({ userId: USER_ID });
+    expect(invitationTargetInput.safeParse({ userId: "nope" }).success).toBe(false);
   });
 });
 

@@ -42,8 +42,32 @@ export const reissuePasswordInput = z.object({ userId: z.uuid() });
 
 export type ReissuePasswordInput = z.output<typeof reissuePasswordInput>;
 
+/**
+ * An invitation by email (S-410): an address and the role it grants once the person has chosen a
+ * password. A role is required: an invitation with "No access" would land the colleague nowhere.
+ * Typed once: a mistyped invitation is revoked from the list.
+ */
+export const inviteUserInput = z.object({
+  email: emailField,
+  role: z.enum(APP_ROLE_VALUES),
+});
+
+export type InviteUserInput = z.output<typeof inviteUserInput>;
+export type InviteUserFormValues = z.input<typeof inviteUserInput>;
+
+/** One pending invitation, to re-send or revoke. */
+export const invitationTargetInput = z.object({ userId: z.uuid() });
+
+export type InvitationTargetInput = z.output<typeof invitationTargetInput>;
+
 /** What the function reveals, once: carried in memory only, never stored, logged or put in a message. */
 export type TemporaryPassword = { userId: string; password: string };
+
+/** What an invite answers: the account, and whether it re-sent an invitation that was still pending. */
+export type InvitationSent = { userId: string; resent: boolean };
+
+/** What a re-send or a revoke answers: the account it acted on. */
+export type InvitationTarget = { userId: string };
 
 /**
  * The one-time reveal's state: who the password is for, and the password. Held in the Users page's

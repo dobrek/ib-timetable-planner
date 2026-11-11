@@ -1,22 +1,31 @@
 ---
 import Banner from "@/shared/ui/Banner.astro";
+import type { PendingKind } from "../model/pending-account";
 import AccountSettings from "./AccountSettings";
 
 type Props = {
   email: string;
   displayName: string | null;
+  /**
+   * Why the account is fenced until the person chooses a password (S-409, S-410), or `null` once it
+   * is not. Driven by the access the middleware read, not by a query string, so it shows however
+   * they arrived, and the middleware sends every other page here.
+   */
+  pendingKind: PendingKind | null;
   /** `?saved=name` or `?saved=password` after a save: the reload destroys the form's toast, so the page reports it. */
   saved: string | null;
   /** `?notice=recovery` when a password-reset link signed the user in (S-402's `/api/auth/confirm`). */
   notice: string | null;
 };
 
-const { email, displayName, saved, notice } = Astro.props;
+const { email, displayName, pendingKind, saved, notice } = Astro.props;
 
-// An admin created this account with a temporary password (S-409). Driven by the access the
-// middleware read, not by a query string, so it shows however they arrived, and the middleware
-// sends every other page here.
-const mustChangePassword = Astro.locals.access.status === "password_change_required";
+// One banner at a time: a pending person who arrived by a reset link still reads why they are here.
+const PENDING_MESSAGES: Record<PendingKind, string> = {
+  invitation: "Welcome to IB Planner. Choose a password below to start using the planner.",
+  temporary_password:
+    "An administrator gave you a temporary password. Choose your own below to start using the planner.",
+};
 
 // One status line for every save on this page, so each form confirms the same, prominent way.
 const SAVED_MESSAGES: Partial<Record<string, string>> = {
@@ -29,17 +38,15 @@ const savedMessage = saved && Object.hasOwn(SAVED_MESSAGES, saved) ? SAVED_MESSA
 
 <div class="max-w-xl space-y-6">
   {
-    mustChangePassword && (
+    pendingKind && (
       <div class="overflow-hidden rounded-lg">
-        <Banner variant="info">
-          An administrator gave you a temporary password. Choose your own below to start using the planner.
-        </Banner>
+        <Banner variant="info">{PENDING_MESSAGES[pendingKind]}</Banner>
       </div>
     )
   }
 
   {
-    notice === "recovery" && (
+    !pendingKind && notice === "recovery" && (
       <div class="overflow-hidden rounded-lg">
         <Banner variant="info">You're signed in from a password-reset link. Choose a new password below.</Banner>
       </div>
@@ -59,5 +66,5 @@ const savedMessage = saved && Object.hasOwn(SAVED_MESSAGES, saved) ? SAVED_MESSA
     )
   }
 
-  <AccountSettings email={email} displayName={displayName} client:load />
+  <AccountSettings email={email} displayName={displayName} isFirstPassword={pendingKind !== null} client:load />
 </div>

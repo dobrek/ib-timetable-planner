@@ -8,13 +8,15 @@ type Props = {
   role: AppRole | null;
   disabled: boolean;
   onChange: (role: AppRole | null) => void;
+  /** Offer "No access" as the fourth choice. An invitation must grant a role, so it leaves it out. */
+  withNoAccess?: boolean;
 };
 
 /** A Select needs a non-empty value for every item, so "No access" has one of its own. */
 const NO_ACCESS = "none";
 
-/** One row's role picker: the three roles, then No access. */
-export default function RoleSelect({ name, role, disabled, onChange }: Props) {
+/** One row's role picker: the three roles, then No access unless `withNoAccess` is false. */
+export default function RoleSelect({ name, role, disabled, onChange, withNoAccess = true }: Props) {
   return (
     <Select
       value={role ?? NO_ACCESS}
@@ -33,7 +35,7 @@ export default function RoleSelect({ name, role, disabled, onChange }: Props) {
             {ROLE_LABELS[value]}
           </SelectItem>
         ))}
-        <SelectItem value={NO_ACCESS}>{NO_ACCESS_LABEL}</SelectItem>
+        {withNoAccess && <SelectItem value={NO_ACCESS}>{NO_ACCESS_LABEL}</SelectItem>}
       </SelectContent>
     </Select>
   );

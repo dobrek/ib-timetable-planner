@@ -1,5 +1,11 @@
 import type { APIRoute } from "astro";
-import { forgotPath, landingPathFor, parseEmailLink, verifyEmailLink } from "@/_pages/password-recovery";
+import {
+  confirmFailurePath,
+  forgotPath,
+  landingPathFor,
+  parseEmailLink,
+  verifyEmailLink,
+} from "@/_pages/password-recovery";
 import { createClient } from "@/shared/api";
 
 /**
@@ -12,7 +18,12 @@ import { createClient } from "@/shared/api";
  *
  * Public through the middleware's `/api/auth/` prefix: the link holder is signed out until this
  * call signs them in. `verifyEmailLink` runs on the cookie-bound client, which writes the session.
- * The log names the outcome only, never the token.
+ * The log names the outcome and the type only, never the token.
+ *
+ * A refused link goes where its type says (`confirmFailurePath`): a reset back to `/auth/forgot`,
+ * where a new one can be requested, and an invitation to `/auth/confirm`'s own failure state, which
+ * tells the invitee to ask their admin (S-410). A malformed body has no type to go by, so it keeps
+ * S-402's reset-form answer.
  */
 export const POST: APIRoute = async (context) => {
   const link = parseEmailLink(await context.request.formData().catch(() => new FormData()));
@@ -33,5 +44,5 @@ export const POST: APIRoute = async (context) => {
   if (result.ok) return context.redirect(landingPathFor(link.type), 303);
   // eslint-disable-next-line no-console
   console.info(`[confirm-email-link] outcome=${result.reason} type=${link.type}`);
-  return context.redirect(forgotPath(result.reason === "expired" ? "link-expired" : "link-retry"), 303);
+  return context.redirect(confirmFailurePath(link.type, result.reason), 303);
 };

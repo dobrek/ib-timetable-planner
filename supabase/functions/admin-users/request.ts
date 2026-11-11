@@ -3,11 +3,18 @@
 //
 // `app_metadata` is never accepted: the Custom Access Token Hook trusts only `app_metadata.machine_role`,
 // so a field that could reach it through this function would be a way to mint a machine user. An
-// unknown key is refused rather than ignored, for the same reason.
+// unknown key is refused rather than ignored, for the same reason. An invitation never carries `data`
+// (user metadata, which the invitee can edit) or a `redirectTo`: the role lives in `user_roles`, and
+// the email builds its link from the Site URL.
 
 export type Role = "viewer" | "author" | "admin";
 
-export type AdminRequest = { op: "create"; email: string; role: Role | null } | { op: "reissue"; userId: string };
+export type AdminRequest =
+  | { op: "create"; email: string; role: Role | null }
+  | { op: "invite"; email: string; role: Role }
+  | { op: "reissue"; userId: string }
+  | { op: "resend"; userId: string }
+  | { op: "revoke"; userId: string };
 
 const ROLES: readonly string[] = ["viewer", "author", "admin"];
 
@@ -19,27 +26,53 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function parseRequest(body: unknown): AdminRequest | null {
   if (!isRecord(body)) return null;
-  if (body.op === "create") return parseCreate(body);
-  if (body.op === "reissue") return parseReissue(body);
-  return null;
+  switch (body.op) {
+    case "create":
+      return parseCreate(body);
+    case "invite":
+      return parseInvite(body);
+    case "reissue":
+    case "resend":
+    case "revoke":
+      return parseTarget(body, body.op);
+    default:
+      return null;
+  }
 }
 
+/** A role may be null: the admin creates an account with no access yet. */
 const parseCreate = (body: Record<string, unknown>): AdminRequest | null => {
   if (!hasExactKeys(body, ["op", "email", "role"])) return null;
-  const { email, role } = body;
-  if (typeof email !== "string") return null;
-  const normalised = email.trim().toLowerCase();
-  if (normalised.length > MAX_EMAIL_LENGTH || !EMAIL.test(normalised)) return null;
-  if (role !== null && !(typeof role === "string" && ROLES.includes(role))) return null;
-  return { op: "create", email: normalised, role: role as Role | null };
+  const email = normaliseEmail(body.email);
+  const { role } = body;
+  if (email === null || (role !== null && !isRole(role))) return null;
+  return { op: "create", email, role };
 };
 
-const parseReissue = (body: Record<string, unknown>): AdminRequest | null => {
+/** A role is required: an invitation that grants nothing would land the colleague nowhere (FR-401). */
+const parseInvite = (body: Record<string, unknown>): AdminRequest | null => {
+  if (!hasExactKeys(body, ["op", "email", "role"])) return null;
+  const email = normaliseEmail(body.email);
+  const { role } = body;
+  if (email === null || !isRole(role)) return null;
+  return { op: "invite", email, role };
+};
+
+const parseTarget = (body: Record<string, unknown>, op: "reissue" | "resend" | "revoke"): AdminRequest | null => {
   if (!hasExactKeys(body, ["op", "userId"])) return null;
   const { userId } = body;
   if (typeof userId !== "string" || !UUID.test(userId)) return null;
-  return { op: "reissue", userId: userId.toLowerCase() };
+  return { op, userId: userId.toLowerCase() };
 };
+
+/** Trimmed and lowercased, or null when it is not plausibly an address. */
+const normaliseEmail = (email: unknown): string | null => {
+  if (typeof email !== "string") return null;
+  const normalised = email.trim().toLowerCase();
+  return normalised.length <= MAX_EMAIL_LENGTH && EMAIL.test(normalised) ? normalised : null;
+};
+
+const isRole = (role: unknown): role is Role => typeof role === "string" && ROLES.includes(role);
 
 const hasExactKeys = (body: Record<string, unknown>, keys: readonly string[]): boolean => {
   const present = Object.keys(body);

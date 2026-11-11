@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { adminEmail } from "../admin-credentials.mjs";
 import { waitForAccountHydration } from "../support/account";
-import { adminClient, strongPassword } from "../support/admin-api";
+import { deleteUserByEmail, strongPassword } from "../support/admin-api";
 import { clickToReveal } from "../support/planner";
-import { signInThroughUi } from "../support/sign-in";
+import { signInThroughUi, withFreshContext } from "../support/sign-in";
+import { rolePicker as picker, userRow as rowFor } from "../support/users";
 
 // An admin creates an account with a temporary password, and the new person's first sign-in
 // (S-409, FR-403), in `chromium-admin`, on real workerd and cookie SSR.
@@ -50,7 +51,8 @@ test("an admin creates an account, the person signs in, is held on /account unti
       await person.getByLabel("Confirm new password").fill(chosenPassword);
       await expect(person.getByLabel("New password", { exact: true })).toHaveValue(chosenPassword);
       await person.getByRole("button", { name: "Change password" }).click();
-      await expect(person.getByRole("status")).toHaveText("Password changed.");
+      // The first password lands in the app (S-410): the save clears the fence, and the dashboard opens.
+      await expect(person).toHaveURL(/\/dashboard$/);
       await expect(person.getByText("An administrator gave you a temporary password.")).toHaveCount(0);
 
       // The same tab now holds the role the admin chose: /plans opens, and the sidebar says View only, and there is no create control.
@@ -113,10 +115,6 @@ test("an existing address is refused in the dialog, and no password is shown", a
   await expect(page.getByLabel("Password to hand over")).toHaveCount(0);
 });
 
-const picker = (page: Page, email: string) => page.getByRole("combobox", { name: `Role for ${email}` });
-
-const rowFor = (page: Page, email: string) => page.getByRole("row").filter({ has: picker(page, email) });
-
 /**
  * Open the dialog (waiting out hydration), type the address twice, and submit with the default role,
  * Viewer. The caller asserts the outcome: the reveal, or the refusal.
@@ -139,25 +137,4 @@ async function readAndCloseReveal(page: Page): Promise<string> {
   await page.getByRole("button", { name: "Done" }).click();
   await expect(reveal).toHaveCount(0);
   return password;
-}
-
-/** A browser context with no stored session: a person who has only the password they were handed. */
-async function withFreshContext(
-  browser: Browser,
-  baseURL: string | undefined,
-  run: (page: Page) => Promise<void>,
-): Promise<void> {
-  const context = await browser.newContext({ baseURL });
-  try {
-    await run(await context.newPage());
-  } finally {
-    await context.close();
-  }
-}
-
-/** Delete the throwaway, read by address as the service role. A user the test never created is a no-op. */
-async function deleteUserByEmail(email: string): Promise<void> {
-  const admin = adminClient();
-  const { data } = await admin.from("user_directory").select("user_id").eq("email", email).maybeSingle();
-  if (data) await admin.auth.admin.deleteUser(data.user_id);
 }

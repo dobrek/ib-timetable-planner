@@ -13,10 +13,29 @@ type Props = {
   onChooseRole: (row: UserRow, role: AppRole | null) => void;
   /** Asks to replace a pending row's temporary password. Only rows with `canReissuePassword` offer it. */
   onReissuePassword: (row: UserRow) => void;
+  /** The rows whose invitation is being re-sent: their Re-send stays disabled until it answers. */
+  resending: ReadonlySet<string>;
+  /** Re-sends an unaccepted invitation. Only rows with `canResendInvitation` offer it. */
+  onResendInvitation: (row: UserRow) => void;
+  /** Asks to revoke an invitation. Only rows with `canRevokeInvitation` offer it. */
+  onRevokeInvitation: (row: UserRow) => void;
 };
 
-/** Every human user of the school, one row each, with a role picker. Rows arrive sorted. */
-export default function UserTable({ rows, currentUserId, saving, onChooseRole, onReissuePassword }: Props) {
+/**
+ * Every human user of the school, one row each, with a role picker. Rows arrive sorted. A pending
+ * row's status cell carries its actions: Re-issue password (S-409), or Re-send and Revoke (S-410).
+ * The picker stays live on an invitee's row: changing it is the same role write as on any row.
+ */
+export default function UserTable({
+  rows,
+  currentUserId,
+  saving,
+  onChooseRole,
+  onReissuePassword,
+  resending,
+  onResendInvitation,
+  onRevokeInvitation,
+}: Props) {
   return (
     <div className="border-border overflow-hidden rounded-lg border">
       <Table>
@@ -61,6 +80,35 @@ export default function UserTable({ rows, currentUserId, saving, onChooseRole, o
                         }}
                       >
                         Re-issue password
+                      </Button>
+                    )}
+                    {row.canResendInvitation && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Re-send invitation to ${row.label.primary}`}
+                        disabled={resending.has(row.userId)}
+                        onClick={() => {
+                          onResendInvitation(row);
+                        }}
+                      >
+                        Re-send
+                      </Button>
+                    )}
+                    {row.canRevokeInvitation && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Revoke invitation for ${row.label.primary}`}
+                        onClick={() => {
+                          onRevokeInvitation(row);
+                        }}
+                      >
+                        Revoke
                       </Button>
                     )}
                   </div>

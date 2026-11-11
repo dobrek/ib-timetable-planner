@@ -3,16 +3,22 @@
 This app has **no self-service signup by design** (roadmap F-01,
 `gated-author-provisioning`). Student names and choices are PII and must not sit
 behind a publicly reachable registration form, so the only way to get an account
-is for someone with backend access to create it. This runbook covers how to do
-that locally and on the hosted project, and how to keep registration closed.
+is to be given one. **The normal path is an invitation**: an admin invites the
+person by email from the Users page ([a-0](#a-0-invite-a-colleague-the-normal-path)).
+For someone an invitation cannot reach, an admin creates the account with a
+temporary password instead. Someone with backend access is needed only for the
+first admin, or when no admin can sign in. This runbook covers all of it, locally
+and on the hosted project, and how to keep registration closed.
 
 The gate is enforced at two layers:
 
 - **App** — there is no signup page or API route, and the middleware is
   deny-by-default (`src/middleware.ts`): every route requires an authenticated
   session except `/auth/signin`, the password-reset pages `/auth/forgot` and
-  `/auth/confirm`, the `/api/auth/` endpoints, and static assets. A reset only
-  ever reaches an account that already exists.
+  `/auth/confirm` (which also accepts invitation links since S-410), the
+  `/api/auth/` endpoints, and static assets. A reset or an invitation link only
+  ever reaches an account that already exists: an invitation's account is made
+  by an admin before its email is sent.
 - **Supabase** — `enable_signup = false` under `[auth]` in `supabase/config.toml`
   (local) and the equivalent dashboard toggle (hosted) reject account creation
   even if someone calls the auth REST endpoint directly.
@@ -22,6 +28,38 @@ The gate is enforced at two layers:
 > `true` — in the local CLI that key drives `GOTRUE_EXTERNAL_EMAIL_ENABLED`, and
 > setting it `false` disables the email provider entirely ("Email logins are
 > disabled"), which would break sign-in for existing authors. Do not flip it.
+
+---
+
+## a-0) Invite a colleague (the normal path)
+
+Since S-410 an admin onboards a colleague without anyone touching a dashboard:
+
+1. On the Users page (`/users`), press **Invite**, enter the colleague's email and
+   choose a role (Viewer by default; an invitation always grants a role).
+2. The colleague gets "You're invited to IB Planner" from the app's sender
+   ([`email-delivery.md`](email-delivery.md)). Its one link works once, for
+   24 hours, and only the newest email works.
+3. The link opens a page that needs a deliberate **Continue**, so a mail scanner
+   cannot spend it. Continue signs them in, still without access, on their
+   account page, which welcomes them.
+4. They choose a password (at least 15 characters) and land on the dashboard with
+   the role the admin chose: read-only for a viewer.
+
+The row reads **Invited** until then, **Invitation expired** once the link's
+24 hours pass unaccepted, and **Invitation accepted** if they pressed Continue but
+have not chosen a password yet. An admin can:
+
+- **Re-send** an unaccepted invitation (expired or not): a new link, and the old
+  one dies. Inviting the same address again does the same, with the role chosen
+  now. Either is refused within a minute of the last email.
+- **Revoke** an invitation until the person chooses a password: the never-used
+  account is deleted and its link stops working.
+
+An address that already has an account is refused, and nothing is sent. A
+colleague whose link expired can also use **Forgot password?**: the reset proves
+the same mailbox, and they still hold no access until they choose a password. So
+the 24 hours bound the link, not the invitation; **Revoke** is the stop.
 
 ---
 
@@ -105,6 +143,9 @@ makes the created user immediately sign-in-ready.
 
 ## b) Create an author on the hosted project (Supabase dashboard)
 
+For the first admin, or when no admin can sign in. Everyone else is invited
+([a-0](#a-0-invite-a-colleague-the-normal-path)).
+
 1. Open the project in the Supabase dashboard (https://supabase.com/dashboard).
 2. Go to **Authentication → Users → Add user → Create new user**.
 3. Enter the email and a password of **at least 15 characters** (the hosted
@@ -133,7 +174,7 @@ the fallback is an admin on the Users page when the account is still on its temp
 adds an admin-side reset.
 
 **An account for someone an email invitation cannot reach** (S-409, FR-403) is made on the Users page
-(**Create account**), not in the dashboard: the app generates a 24-character temporary password and
+(**Create account**, the fallback beside **Invite**), not in the dashboard: the app generates a 24-character temporary password and
 shows it once, and the person must choose their own at first sign-in, until when they hold no access.
 The password is not recoverable from the page after it is closed; a lost one is replaced with
 **Re-issue password**. It does not expire (see the PRD's accepted residual): a pending row on the Users
@@ -207,6 +248,8 @@ create an account.
 ## d) There is no in-app signup — by design
 
 Do not re-add a signup page, a signup API route, or a "Sign up" link.
-The absence is intentional and load-bearing for data privacy. New authors are
-always provisioned through steps (a) or (b) above by someone with backend access,
-and given their role through [b-bis](#b-bis-assign-or-change-a-role-script).
+The absence is intentional and load-bearing for data privacy. New users are
+invited by an admin ([a-0](#a-0-invite-a-colleague-the-normal-path)) or, as the
+fallback, created on the Users page with a temporary password. Steps (a) and (b)
+remain for the first admin and for recovery, by someone with backend access, with
+the role given through [b-bis](#b-bis-assign-or-change-a-role-script).

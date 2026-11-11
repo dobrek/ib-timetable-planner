@@ -51,8 +51,59 @@ Deno.test("reissue: a UUID parses, anything else is refused", () => {
   }
 });
 
-Deno.test("the op must be create or reissue, and the body an object", () => {
-  for (const body of [{ op: "delete", userId: USER_ID }, { op: "" }, {}, [], null, "create", 3]) {
+Deno.test("invite: an address and a role parse, and the address is trimmed and lowercased", () => {
+  assert.deepEqual(parseRequest({ op: "invite", email: " Colleague@School.Example  ", role: "viewer" }), {
+    op: "invite",
+    email: "colleague@school.example",
+    role: "viewer",
+  });
+  for (const role of ["viewer", "author", "admin"]) {
+    assert.notEqual(parseRequest({ op: "invite", email: "a@b.co", role }), null, role);
+  }
+});
+
+Deno.test("invite: a role is required, never null, missing or outside the set", () => {
+  for (const role of [null, undefined, "owner", "", 1]) {
+    assert.equal(parseRequest({ op: "invite", email: "a@b.co", role }), null, String(role));
+  }
+  assert.equal(parseRequest({ op: "invite", email: "a@b.co" }), null);
+});
+
+Deno.test("invite: an address that is not one is refused", () => {
+  for (const email of ["", "plain", "a@b", "@b.co", null, `${"a".repeat(250)}@b.co`]) {
+    assert.equal(parseRequest({ op: "invite", email, role: "viewer" }), null, String(email));
+  }
+});
+
+Deno.test("invite: user metadata, app_metadata and a redirect are refused", () => {
+  const base = { op: "invite", email: "a@b.co", role: "viewer" };
+  assert.equal(parseRequest({ ...base, data: { role: "admin" } }), null);
+  assert.equal(parseRequest({ ...base, app_metadata: { machine_role: "solver_job_writer" } }), null);
+  assert.equal(parseRequest({ ...base, redirectTo: "https://evil.example" }), null);
+});
+
+Deno.test("resend and revoke: a UUID parses, anything else or an extra key is refused", () => {
+  for (const op of ["resend", "revoke"] as const) {
+    assert.deepEqual(parseRequest({ op, userId: USER_ID.toUpperCase() }), { op, userId: USER_ID });
+    for (const userId of ["", "not-a-uuid", USER_ID.slice(1), 7, null, undefined]) {
+      assert.equal(parseRequest({ op, userId }), null, `${op} ${String(userId)}`);
+    }
+    assert.equal(parseRequest({ op, userId: USER_ID, role: "admin" }), null, op);
+    assert.equal(parseRequest({ op, userId: USER_ID, email: "a@b.co" }), null, op);
+  }
+});
+
+Deno.test("the op must be one of the five, and the body an object", () => {
+  for (const body of [
+    { op: "delete", userId: USER_ID },
+    { op: "ban", userId: USER_ID },
+    { op: "" },
+    {},
+    [],
+    null,
+    "create",
+    3,
+  ]) {
     assert.equal(parseRequest(body), null, JSON.stringify(body));
   }
 });

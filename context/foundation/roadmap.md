@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-10
+updated: 2026-11-11
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -54,7 +54,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-407 | created-by-and-job-ownership | see who created each plan or proposal; only a job's requester or an admin can stop it                  | S-406              | FR-415, FR-416, FR-417                                                         | done        |
 | S-408 | deactivate-reactivate        | (admin) deactivate and reactivate a user, with data access ending on their next action                 | S-406              | FR-407                                                                         | proposed |
 | S-409 | create-account-fallback      | (admin) create an account with a temporary password that must be changed at first sign-in              | S-401, S-406, F-402 | FR-403                                                                         | done        |
-| S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | blocked  |
+| S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | in-progress |
 | S-411 | remove-and-correct-accounts  | (admin) ban or delete an account and change a user's email; access ends within an hour                 | S-409              | FR-404, FR-414, §NFG (removal ≤ 1 h, access changes traceable)                 | proposed |
 | S-310 | job-completion-email         | get notified of job completion by email as well as in-app                                              | S-402, S-407       | FR-309 (archived CP-SAT PRD), §NFG (no student data)                           | proposed |
 
@@ -258,9 +258,9 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Parallel with:** S-407, S-408, S-411, S-310
 - **Blockers:** —
 - **Unknowns:**
-  - Email-link lifetime (Open Roadmap Question 2) — under option (a) invitations rely on re-send; under (b) they carry their own 72-hour expiry. — Owner: user. Block: yes.
-- **Risk:** Last on its chain by design: each prerequisite retires one risk (S-402 delivery and the scanner-safe confirm page, S-405 the read-only landing, S-409 the secret-holding component), so what remains is the invitation template, its acceptance and re-send/revoke. Revoking a pending invitation is this slice's share of FR-404; removing confirmed accounts is S-411's. Widens the public-route allowlist once more, with a recorded reason. Its demonstration on hosted against a real school mailbox is the milestone's done-line.
-- **Status:** blocked
+  - Email-link lifetime (Open Roadmap Question 2) — decided 2026-11-10: option (a), 24 h for every email link with a 10-digit OTP; invitations rely on re-send. — Owner: user. Block: no.
+- **Risk:** Last on its chain by design: each prerequisite retires one risk (S-402 delivery and the scanner-safe confirm page, S-405 the read-only landing, S-409 the secret-holding component), so what remains is the invitation template, its acceptance and re-send/revoke. Revoking a pending invitation is this slice's share of FR-404; removing confirmed accounts is S-411's. Needs no public-route widening after all: `/auth/confirm`, the `/api/auth/` prefix and the role-exempt `/account` already cover acceptance. Its demonstration on hosted against a real school mailbox is the milestone's done-line.
+- **Status:** in-progress
 
 ### S-411: Remove and correct accounts
 
@@ -307,14 +307,14 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 | S-407      | created-by-and-job-ownership | [#148](https://github.com/dobrek/ib-timetable-planner/issues/148) | "Created by" on plans and proposals; stop limited to requester or admin      | no                    | After S-406 |
 | S-408      | deactivate-reactivate        | [#149](https://github.com/dobrek/ib-timetable-planner/issues/149) | Deactivate / reactivate a user with immediate cut-off                        | no                    | After S-406; nice-to-have |
 | S-409      | create-account-fallback      | [#150](https://github.com/dobrek/ib-timetable-planner/issues/150) | Admin creates an account with a temporary password (fallback)                | no                    | After S-401 + S-406. Carries HC Fix 6 (toolchain boundary, CI deploy for the new component) and CLAUDE.md's component section |
-| S-410      | invite-by-email              | [#151](https://github.com/dobrek/ib-timetable-planner/issues/151) | Invite a colleague by email; confirm, set password, land with role           | no                    | North star. Blocked on Open Roadmap Question 2 (now S-410's alone); after S-402 + S-405 + S-409 |
+| S-410      | invite-by-email              | [#151](https://github.com/dobrek/ib-timetable-planner/issues/151) | Invite a colleague by email; confirm, set password, land with role           | no                    | North star. Open Roadmap Question 2 decided 2026-11-10 (24 h, OTP 10); after S-402 + S-405 + S-409 |
 | S-411      | remove-and-correct-accounts  | [#152](https://github.com/dobrek/ib-timetable-planner/issues/152) | Ban, delete and change email for existing accounts                           | no                    | After S-409 |
 | S-310      | job-completion-email         | [#107](https://github.com/dobrek/ib-timetable-planner/issues/107) | Email notification on job completion                                         | no                    | After S-402 + S-407; nice-to-have |
 
 ## Open Roadmap Questions
 
 1. **Delivery when a viewer opens a finished proposal first** (PRD Open Question 1). Delivery runs under the visitor's session, and a viewer cannot write. Should delivery wait for the next author or admin visit (today's mechanism), or happen regardless of who looks (a bigger change to FR-417)? **Decided (user, 2026-10-30):** wait for the next author or admin visit; FR-417 is unchanged. Until an author or admin opens it, a viewer cannot see that one proposal's board, and FR-409 accepts that (PRD Open Question 1). — Owner: user. Block: none.
-2. **Email-link lifetime vs the platform's single setting** (PRD Open Question 2). One lifetime governs invite, reset and email-change links, and a value above one day is discouraged and settable only through the Management API, so "invite 72 h, reset 1 h" cannot both hold. Options: (a) one lifetime for all links, e.g. 24 h — invitations lean on re-send and the reset guardrail relaxes to match; (b) resets stay at 1 h and invitations use app-issued tokens with their own 72-hour expiry — more code and a new token table; (c) 72 h for all links through the Management API — discouraged, and it weakens resets. The health check calls (a) the smallest change that keeps the PRD's intent; the choice may amend the non-functional guardrail. S-402 shipped at the platform's 1 h, which meets the guardrail as written, and its code is the same under every option (2026-10-20). — Owner: user. Block: S-410.
+2. **Email-link lifetime vs the platform's single setting** (PRD Open Question 2). One lifetime governs invite, reset and email-change links, and a value above one day is discouraged and settable only through the Management API, so "invite 72 h, reset 1 h" cannot both hold. Options: (a) one lifetime for all links, e.g. 24 h — invitations lean on re-send and the reset guardrail relaxes to match; (b) resets stay at 1 h and invitations use app-issued tokens with their own 72-hour expiry — more code and a new token table; (c) 72 h for all links through the Management API — discouraged, and it weakens resets. The health check calls (a) the smallest change that keeps the PRD's intent; the choice may amend the non-functional guardrail. S-402 shipped at the platform's 1 h, which meets the guardrail as written, and its code is the same under every option (2026-10-20). **Decided (user, 2026-11-10, S-410):** option (a). Every email link lives 24 h (`mailer_otp_exp = 86400`) with a 10-digit OTP (`mailer_otp_length = 10`), and the PRD guardrail now reads "every email link (invitation, password reset) stops working 24 hours after it is sent" (PRD Open Question 2). — Owner: user. Block: none.
 
 ## Parked
 

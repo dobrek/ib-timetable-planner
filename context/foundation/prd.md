@@ -122,7 +122,9 @@ Keeps editing exactly as today; gains a self-service account.
 
 - A role change takes effect on the affected person's next action, with no sign-out needed.
 - After a ban or delete, all of that person's access ends within at most 1 hour.
-- An invitation link stops working 72 hours after it is sent; a password-reset link after 1 hour.
+- Every email link (invitation, password reset) stops working 24 hours after it is sent. (Amended
+  2026-11-10 from "invite 72 h, reset 1 h": the platform has one lifetime for every link; see Open
+  Question 2.)
 - An **automated** flood of password-reset requests cannot prevent a genuine staff member from
   resetting their own password.
   - _Accepted residual (S-402, 2026-10-20):_ a person who passes the bot check by hand can replace
@@ -423,3 +425,13 @@ Offered as non-goals and left open on purpose — not forgotten: per-plan sharin
    - _S-402 (2026-10-20):_ password reset shipped at the platform's 1 h (`mailer_otp_exp = 3600`),
      which meets the guardrail as written. Its code is the same under (a), (b) and (c), so the choice
      moved to S-410, the first slice it changes.
+   - _Decision (2026-11-10, user, S-410):_ option (a). Every email link lives 24 hours
+     (`mailer_otp_exp = 86400`, the dashboard's maximum), with a 10-digit OTP
+     (`mailer_otp_length = 10`), because a link's `token_hash` has the OTP's entropy and the longer
+     lifetime widens the guessing window. Invitations rely on FR-401's re-send, and the guardrail
+     above is amended to match. The lifetime is the link's, not the invitation's: an invitee who
+     never accepted can still claim the account through "Forgot password" (the same mailbox proof)
+     and stays without access until they choose a password, so revoking (FR-404) is the
+     account-level stop. Option (b) was rejected for its cost and new attack surface: accepting an
+     app-issued token needs the secret key on an unauthenticated path. Research:
+     `context/changes/invite-by-email/research.md` (C1, C8, C14).

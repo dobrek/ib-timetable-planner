@@ -6,4 +6,7 @@ export const STATUS_LABELS: Record<UserStatus, string> = {
   active: "Active",
   no_access: NO_ACCESS_LABEL,
   temporary_password: "Temporary password",
+  invited: "Invited",
+  invitation_expired: "Invitation expired",
+  invitation_accepted: "Invitation accepted",
 };

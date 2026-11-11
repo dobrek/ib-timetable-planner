@@ -1,6 +1,6 @@
 import { buildCreditedUsers, type CreditedUser, type ProfileLabel } from "@/entities/user";
 import type { Database } from "@/shared/api";
-import type { AppRole } from "@/shared/config";
+import { type AppRole, EMAIL_LINK_LIFETIME_MS } from "@/shared/config";
 
 type Tables = Database["public"]["Tables"];
 type AccessChange = Pick<
@@ -12,7 +12,7 @@ type AccessChange = Pick<
 export type UserDirectoryInput = {
   directory: readonly Pick<
     Tables["user_directory"]["Row"],
-    "user_id" | "email" | "is_service_account" | "must_change_password"
+    "user_id" | "email" | "is_service_account" | "must_change_password" | "invited_at" | "email_confirmed_at"
   >[];
   profiles: readonly Pick<Tables["profiles"]["Row"], "user_id" | "display_name">[];
   roles: readonly Pick<Tables["user_roles"]["Row"], "user_id" | "role">[];
@@ -27,10 +27,21 @@ export type UserDirectoryInput = {
 export type ChangedBy = { kind: "user"; label: ProfileLabel } | { kind: "deleted" } | { kind: "operator" };
 
 /**
- * Why a row can or cannot act (S-409). `temporary_password` outranks the role: a person on an
- * admin-issued password holds no access until they choose their own, even with a role waiting.
+ * Why a row can or cannot act. A pending state outranks the role: the person holds no access until
+ * they choose a password of their own, even with a role waiting.
+ *
+ * - `invited` / `invitation_expired` (S-410): an invitation not yet accepted, whose newest link still
+ *   works or has passed its lifetime. Either can be re-sent.
+ * - `invitation_accepted`: the link was spent, and the person has not chosen a password yet.
+ * - `temporary_password` (S-409): an account an admin created, not yet given a password of its own.
  */
-export type UserStatus = "active" | "no_access" | "temporary_password";
+export type UserStatus =
+  | "active"
+  | "no_access"
+  | "temporary_password"
+  | "invited"
+  | "invitation_expired"
+  | "invitation_accepted";
 
 export type UserRow = {
   userId: string;
@@ -39,6 +50,10 @@ export type UserRow = {
   status: UserStatus;
   /** Only a pending row can have its temporary password re-issued: derived here, not in the table. */
   canReissuePassword: boolean;
+  /** An unaccepted invitation, expired or not: GoTrue re-sends only to an unconfirmed address. */
+  canResendInvitation: boolean;
+  /** Any invitation until the person chooses a password, so the admin always has a stop. */
+  canRevokeInvitation: boolean;
   isServiceAccount: boolean;
   /** The latest change to this user's role; null when none is recorded. */
   lastChange: { by: ChangedBy; at: string } | null;
@@ -48,25 +63,28 @@ export type UserRow = {
  * The Users page's rows (S-406): one per directory entry, named the way the sidebar names people,
  * with the role, the status and the latest recorded change. Machine users never arrive, because
  * RLS hides them from the directory. Sorted by label, ignoring case and accents, then by email.
+ * `now` (epoch milliseconds) decides whether an invitation's link has expired, so this stays pure.
  * The input is never mutated.
  */
-export function buildUserRows({ directory, profiles, roles, changes }: UserDirectoryInput): UserRow[] {
+export function buildUserRows({ directory, profiles, roles, changes }: UserDirectoryInput, now: number): UserRow[] {
   // One credited user per directory entry, named exactly as every credit is (S-407), so a person
   // reads the same here and on a plan. The same map names each change's actor.
   const credited = buildCreditedUsers({ directory, profiles });
-  const pendingIds = new Set(directory.filter((entry) => entry.must_change_password).map((entry) => entry.user_id));
+  const entryById = new Map(directory.map((entry) => [entry.user_id, entry]));
   const roleById = new Map(roles.map(({ user_id, role }) => [user_id, role]));
 
   return [...credited.values()].toSorted(byLabelThenEmail).map(({ id, label, isServiceAccount }) => {
     const role = roleById.get(id) ?? null;
     const latest = latestChangeTo(id, changes);
-    const status = statusOf(role, pendingIds.has(id));
+    const status = statusOf(role, entryById.get(id), now);
     return {
       userId: id,
       label,
       role,
       status,
       canReissuePassword: status === "temporary_password",
+      canResendInvitation: RESENDABLE.has(status),
+      canRevokeInvitation: REVOCABLE.has(status),
       isServiceAccount,
       lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };
@@ -78,8 +96,23 @@ export function emailOf({ primary, secondary }: ProfileLabel): string {
   return secondary ?? primary;
 }
 
-const statusOf = (role: AppRole | null, isPending: boolean): UserStatus => {
-  if (isPending) return "temporary_password";
+type DirectoryEntry = UserDirectoryInput["directory"][number];
+
+const RESENDABLE: ReadonlySet<UserStatus> = new Set(["invited", "invitation_expired"]);
+const REVOCABLE: ReadonlySet<UserStatus> = new Set(["invited", "invitation_expired", "invitation_accepted"]);
+
+/**
+ * First match wins: an unaccepted invitation, then a pending account (by how it came to be), then
+ * the role. A link expires once `now` is past `invited_at` plus the lifetime, as GoTrue judges it
+ * (`now > sent + exp`), so the exact boundary still reads as invited. An invitee who finished reads
+ * as any other account.
+ */
+const statusOf = (role: AppRole | null, entry: DirectoryEntry | undefined, now: number): UserStatus => {
+  const invitedAt = entry?.invited_at ?? null;
+  if (invitedAt !== null && (entry?.email_confirmed_at ?? null) === null) {
+    return now > Date.parse(invitedAt) + EMAIL_LINK_LIFETIME_MS ? "invitation_expired" : "invited";
+  }
+  if (entry?.must_change_password) return invitedAt === null ? "temporary_password" : "invitation_accepted";
   return role === null ? "no_access" : "active";
 };
 

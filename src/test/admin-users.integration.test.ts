@@ -510,6 +510,27 @@ const OTP_EXPIRED = "otp_expired";
     it("answers 404 for a user that does not exist", async () => {
       expect((await call({ token: tokens.admin }, { op: "resend", userId: randomUUID() })).status).toBe(404);
     });
+
+    it("deletes an account the send would create for an address with none, and fails (500)", async () => {
+      const first = await invited();
+      await mailTo(first.email);
+      await pastCooldown(first.userId);
+      // The directory now names an address with no account: what a target deleted between the
+      // lookup and the send leaves behind. `inviteUserByEmail` creates a user for such an address,
+      // with no flag and a live link, so the send must refuse the account it did not expect.
+      const stray = freshEmail();
+      await pg.query("update public.user_directory set email = $1 where user_id = $2", [stray, first.userId]);
+      try {
+        const response = await call({ token: tokens.admin }, { op: "resend", userId: first.userId });
+
+        expect(response.status).toBe(500);
+        expect(await userCountWithEmail(stray)).toBe(0);
+      } finally {
+        await mailCountAfterSettling(stray);
+        await pg.query("delete from auth.users where email = $1", [stray]);
+        await pg.query("update public.user_directory set email = $1 where user_id = $2", [first.email, first.userId]);
+      }
+    });
   });
 
   describe("revoke", () => {

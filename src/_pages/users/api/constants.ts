@@ -21,7 +21,9 @@ export const ACCOUNT_UNREACHABLE_MESSAGE = "Couldn't reach the server. Check the
 
 // Invitations by email (S-410). Fixed wording only, as above: nothing from the function's response,
 // and never a link or token, reaches a message or a log.
-export const INVITE_FAILURE = "Couldn't send the invitation, and nothing was created. Try again.";
+// Neutral on purpose: a failed invite to a new address leaves nothing, but one to a pending address
+// may already have applied the new role before the send failed.
+export const INVITE_FAILURE = "Couldn't send the invitation. Check the list before trying again.";
 export const INVITE_UNKNOWN = "The request didn't finish, so the invitation may have been sent. Check the list.";
 export const RESEND_FAILURE = "Couldn't re-send the invitation. Try again.";
 export const REVOKE_FAILURE = "Couldn't revoke the invitation. Check the list before trying again.";

@@ -42,13 +42,18 @@
 -- never-used account, so its record's `target_id` becomes null (S-406's ids-only rule): the record
 -- keeps who revoked and when. Whether removal kinds keep an email is decided once, with S-411.
 --
--- ORDER. Columns, then the function, then the triggers, then the backfill, as
--- `20261105073614_user_directory.sql` does: `create or replace trigger` on auth.users takes a SHARE
--- ROW EXCLUSIVE lock that holds GoTrue's writes until commit, so every write committed before it is
--- visible to the backfill and none lands after it unmirrored.
+-- ORDER. The function, then the triggers, then the columns, then the backfill. `create or replace
+-- trigger` on auth.users takes a SHARE ROW EXCLUSIVE lock that holds GoTrue's writes until commit:
+-- every write committed before it is visible to the backfill, none lands after it unmirrored, and no
+-- trigger can fire before its columns exist. The function names the columns before they exist,
+-- which is fine: plpgsql resolves them when it runs, never when it is created.
 --
--- LOCKS. That lock waits behind any open GoTrue transaction and holds up every sign-in queued after
--- it, so the wait is capped: a busy moment fails the deploy, which can be re-run.
+-- LOCKS. auth.users before user_directory, in the order GoTrue's own writes take them (a sign-up or
+-- a password change holds auth.users, then its trigger writes user_directory). Adding the columns
+-- first (ACCESS EXCLUSIVE on user_directory) would let such a write, caught between the two, deadlock
+-- with this file, and the Auth write would be the one aborted. S-409's migration took them the other
+-- way round. The auth.users lock waits behind any open GoTrue transaction and holds up every sign-in
+-- queued after it, so the wait is capped: a busy moment fails the deploy, which can be re-run.
 
 set local lock_timeout = '5s';
 
@@ -57,24 +62,6 @@ set local lock_timeout = '5s';
 alter type public.access_change_kind add value if not exists 'invitation_sent';
 alter type public.access_change_kind add value if not exists 'invitation_resent';
 alter type public.access_change_kind add value if not exists 'invitation_revoked';
-
--- The mirrored columns ------------------------------------------------------------------------
-
-alter table public.user_directory
-  add column invited_at timestamptz,
-  add column email_confirmed_at timestamptz;
-
-comment on column public.user_directory.invited_at is
-  'Mirrors auth.users.invited_at: when the newest invitation was sent (S-410). Null for an account '
-  'that was never invited. The admin-users re-send cooldown reads it.';
-
-comment on column public.user_directory.email_confirmed_at is
-  'Mirrors auth.users.email_confirmed_at (S-410). Null while an invitation is unaccepted.';
-
-comment on table public.user_directory is
-  'A mirror of auth.users for the Data API (S-406, S-410), written by its Auth trigger and, for '
-  'must_change_password, by the admin-users Edge Function under the secret key (S-409). Readers see '
-  'their own row, or every row with a role; nobody sees a machine user.';
 
 -- The mirror ----------------------------------------------------------------------------------
 
@@ -133,7 +120,25 @@ create or replace trigger user_directory_clear_must_change_password
   )
   execute function private.clear_must_change_password();
 
--- Backfill, after the triggers (see ORDER above).
+-- The mirrored columns ------------------------------------------------------------------------
+
+alter table public.user_directory
+  add column invited_at timestamptz,
+  add column email_confirmed_at timestamptz;
+
+comment on column public.user_directory.invited_at is
+  'Mirrors auth.users.invited_at: when the newest invitation was sent (S-410). Null for an account '
+  'that was never invited. The admin-users re-send cooldown reads it.';
+
+comment on column public.user_directory.email_confirmed_at is
+  'Mirrors auth.users.email_confirmed_at (S-410). Null while an invitation is unaccepted.';
+
+comment on table public.user_directory is
+  'A mirror of auth.users for the Data API (S-406, S-410), written by its Auth trigger and, for '
+  'must_change_password, by the admin-users Edge Function under the secret key (S-409). Readers see '
+  'their own row, or every row with a role; nobody sees a machine user.';
+
+-- Backfill, after the triggers and the columns (see ORDER above).
 update public.user_directory d
    set invited_at = u.invited_at,
        email_confirmed_at = u.email_confirmed_at

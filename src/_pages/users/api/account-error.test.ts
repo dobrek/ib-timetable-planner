@@ -59,6 +59,11 @@ describe("toAccountError", () => {
     expect(toAccountError("revoke", null).message).toBe(REVOKE_FAILURE);
   });
 
+  it("never claims a failed invite changed nothing: a re-invite may have applied its role first", () => {
+    expect(INVITE_FAILURE).toMatch(/Check the list/);
+    expect(INVITE_FAILURE).not.toMatch(/nothing was created/);
+  });
+
   it("points an unknown invite at the list, where a sent invitation shows", () => {
     expect(INVITE_UNKNOWN).toMatch(/may have been sent/);
     expect(INVITE_UNKNOWN).toMatch(/Check the list/);

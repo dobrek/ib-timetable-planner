@@ -160,7 +160,7 @@ const invite = async (ctx: SupabaseContext, actorId: string, { email, role }: In
     ["flag", () => setPending(admin, userId)],
     ["record", () => recordAccess(admin, { kind: "invitation_sent", actorId, targetId: userId, newRole: role })],
     ["grant", () => setRole(ctx.supabase, userId, role)],
-    ["send", () => sendInvitation(admin, email)],
+    ["send", () => sendInvitation(admin, "invite", userId, email)],
   ]);
   if (failedStep) {
     await discard(admin, "invite", userId);
@@ -201,11 +201,16 @@ const resendTo = async (
   const email = target.email;
   if (email === null) return failure(op, "lookup:no-email");
 
+  // Fenced only while still unaccepted: someone who accepted and chose a password since the lookup
+  // (or whose invitation was revoked) is no longer pending, and must not be fenced again.
+  const fenced = await fenceUnaccepted(admin, userId);
+  if (fenced === NOT_PENDING) return reply(409, "not_pending");
+  if (fenced) return failure(op, `flag:${fenced}`);
+
   const failedStep = await firstFailure([
-    ["flag", () => setPending(admin, userId)],
     ["grant", () => (role === null ? Promise.resolve(null) : changeRoleIfDifferent(ctx.supabase, userId, role))],
     ["record", () => recordAccess(admin, { kind: "invitation_resent", actorId, targetId: userId, newRole: role })],
-    ["send", () => sendInvitation(admin, email)],
+    ["send", () => sendInvitation(admin, op, userId, email)],
   ]);
   return failedStep ? failure(op, failedStep) : null;
 };
@@ -320,6 +325,24 @@ const setPending = async (admin: Admin, userId: string): Promise<string | null> 
   return first === null ? null : await writePending(admin, userId);
 };
 
+/** `fenceUnaccepted` matched no row: the invitation was accepted or revoked since the lookup. */
+const NOT_PENDING = "not-pending";
+
+/**
+ * The re-send path's fence: the flag, set only on a row whose invitation is still unaccepted, in
+ * one conditional write, so the check and the write cannot be split by an acceptance.
+ */
+const fenceUnaccepted = async (admin: Admin, userId: string): Promise<string | null> => {
+  const { data, error } = await admin
+    .from("user_directory")
+    .update({ must_change_password: true })
+    .eq("user_id", userId)
+    .is("email_confirmed_at", null)
+    .select("user_id");
+  if (error) return `db:${codeOf(error)}`;
+  return data.length === 1 ? null : NOT_PENDING;
+};
+
 const writePending = async (admin: Admin, userId: string): Promise<string | null> => {
   const { data, error } = await admin
     .from("user_directory")
@@ -380,10 +403,18 @@ const changeRoleIfDifferent = async (session: Session, userId: string, role: Rol
   return (data as { role: Role } | null)?.role === role ? null : await setRole(session, userId, role);
 };
 
-/** The only send: GoTrue's re-send path for an unconfirmed user, with a new link. No metadata, no redirect. */
-const sendInvitation = async (admin: Admin, email: string): Promise<string | null> => {
-  const { error } = await admin.auth.admin.inviteUserByEmail(email);
-  return error ? `auth:${codeOf(error)}` : null;
+/**
+ * The only send: GoTrue's re-send path for an unconfirmed user, with a new link. No metadata, no
+ * redirect. `inviteUserByEmail` also creates a user when the address has none, so a target deleted
+ * since its lookup (a concurrent revoke, or another request's `discard`) would get a fresh account
+ * in its place, with no flag and a live link. That account is deleted at once and the step fails.
+ */
+const sendInvitation = async (admin: Admin, op: string, userId: string, email: string): Promise<string | null> => {
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email);
+  if (error) return `auth:${codeOf(error)}`;
+  if (data.user.id === userId) return null;
+  await discard(admin, op, data.user.id);
+  return "target-gone";
 };
 
 /** Runs the steps in order and stops at the first that fails, naming it. */

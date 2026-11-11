@@ -646,14 +646,14 @@ The migration is additive: two nullable columns, three enum values, a re-created
 
 #### Automated
 
-- [x] 5.1 Invite spec passes: `pnpm test:e2e e2e/specs/invite.admin.spec.ts`
-- [x] 5.2 Full e2e suite passes (solver running, per README): `pnpm test:e2e`
-- [x] 5.3 Full local CI gate passes: `/verify`
-- [x] 5.4 Integration lane passes: `pnpm test:integration`
+- [x] 5.1 Invite spec passes: `pnpm test:e2e e2e/specs/invite.admin.spec.ts` — 57989eca
+- [x] 5.2 Full e2e suite passes (solver running, per README): `pnpm test:e2e` — 57989eca
+- [x] 5.3 Full local CI gate passes: `/verify` — 57989eca
+- [x] 5.4 Integration lane passes: `pnpm test:integration` — 57989eca
 
 #### Manual
 
-- [x] 5.5 Docs read correctly: every changed claim matches the shipped behaviour, and no doc still says "invite 72 h" or "1 hour" for links
+- [x] 5.5 Docs read correctly: every changed claim matches the shipped behaviour, and no doc still says "invite 72 h" or "1 hour" for links — 57989eca
 
 ### Phase 6: Hosted rollout (by hand)
 

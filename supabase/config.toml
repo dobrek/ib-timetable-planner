@@ -222,10 +222,14 @@ secure_password_change = false
 # 1s keeps the suites fast. Hosted is 300 s (`smtp_max_frequency`), and the reset notice and email
 # say "5 minutes" to match (`src/_pages/password-recovery/model/recovery-policy.ts`).
 max_frequency = "1s"
-# Number of characters used in the email OTP.
-otp_length = 6
-# Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+# Number of characters used in the email OTP. Every link's `token_hash` is sha224(email + OTP), so
+# its entropy is the OTP's: 10 digits, the maximum, because links live 24 h (S-410). Hosted is
+# `mailer_otp_length = 10`, set by hand (docs/runbooks/hosted-auth-settings.md).
+otp_length = 10
+# Number of seconds before the email OTP expires: one lifetime for every email link (invite,
+# recovery). Hosted is `mailer_otp_exp = 86400`; the copy mirrors it through
+# `src/shared/config/email-link-lifetime.ts` and both templates. Change them together.
+otp_expiry = 86400
 
 # Use a production-ready SMTP server
 # [auth.email.smtp]
@@ -246,6 +250,11 @@ otp_expiry = 3600
 [auth.email.template.recovery]
 subject = "Reset your IB Planner password"
 content_path = "./supabase/templates/recovery.html"
+
+# S-410: sent by the admin-users function's `invite` and `resend` (inviteUserByEmail).
+[auth.email.template.invite]
+subject = "You're invited to IB Planner"
+content_path = "./supabase/templates/invite.html"
 
 [auth.email.notification.password_changed]
 enabled = true

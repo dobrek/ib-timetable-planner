@@ -815,6 +815,8 @@ export type Database = {
       user_directory: {
         Row: {
           email: string | null
+          email_confirmed_at: string | null
+          invited_at: string | null
           is_machine: boolean
           is_service_account: boolean
           must_change_password: boolean
@@ -822,6 +824,8 @@ export type Database = {
         }
         Insert: {
           email?: string | null
+          email_confirmed_at?: string | null
+          invited_at?: string | null
           is_machine?: boolean
           is_service_account?: boolean
           must_change_password?: boolean
@@ -829,6 +833,8 @@ export type Database = {
         }
         Update: {
           email?: string | null
+          email_confirmed_at?: string | null
+          invited_at?: string | null
           is_machine?: boolean
           is_service_account?: boolean
           must_change_password?: boolean
@@ -1086,6 +1092,9 @@ export type Database = {
         | "role_removed"
         | "account_created"
         | "password_reissued"
+        | "invitation_sent"
+        | "invitation_resent"
+        | "invitation_revoked"
       app_role: "admin" | "author" | "viewer"
       availability_severity: "strong" | "soft"
       cohort: "dp1" | "dp2"
@@ -1228,6 +1237,9 @@ export const Constants = {
         "role_removed",
         "account_created",
         "password_reissued",
+        "invitation_sent",
+        "invitation_resent",
+        "invitation_revoked",
       ],
       app_role: ["admin", "author", "viewer"],
       availability_severity: ["strong", "soft"],

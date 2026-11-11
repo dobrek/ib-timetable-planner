@@ -19,7 +19,7 @@ import { adminClient, loopbackUrl, strongPassword } from "../support/admin-api";
 //   on loopback; the widget loads from challenges.cloudflare.com.
 
 const SENT_NOTICE =
-  "If an account exists for that address, we've sent a link. It works once, for 1 hour. Only the newest email " +
+  "If an account exists for that address, we've sent a link. It works once, for 24 hours. Only the newest email " +
   "works. Didn't get it? Check Junk, then request again after 5 minutes.";
 
 test("a forgotten password is reset from the email link, which a mail scanner cannot spend", async ({

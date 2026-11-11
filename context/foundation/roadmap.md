@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-10
+updated: 2026-11-11
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -54,7 +54,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-407 | created-by-and-job-ownership | see who created each plan or proposal; only a job's requester or an admin can stop it                  | S-406              | FR-415, FR-416, FR-417                                                         | done        |
 | S-408 | deactivate-reactivate        | (admin) deactivate and reactivate a user, with data access ending on their next action                 | S-406              | FR-407                                                                         | proposed |
 | S-409 | create-account-fallback      | (admin) create an account with a temporary password that must be changed at first sign-in              | S-401, S-406, F-402 | FR-403                                                                         | done        |
-| S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | blocked  |
+| S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | in-progress |
 | S-411 | remove-and-correct-accounts  | (admin) ban or delete an account and change a user's email; access ends within an hour                 | S-409              | FR-404, FR-414, §NFG (removal ≤ 1 h, access changes traceable)                 | proposed |
 | S-310 | job-completion-email         | get notified of job completion by email as well as in-app                                              | S-402, S-407       | FR-309 (archived CP-SAT PRD), §NFG (no student data)                           | proposed |
 
@@ -260,7 +260,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Unknowns:**
   - Email-link lifetime (Open Roadmap Question 2) — under option (a) invitations rely on re-send; under (b) they carry their own 72-hour expiry. — Owner: user. Block: yes.
 - **Risk:** Last on its chain by design: each prerequisite retires one risk (S-402 delivery and the scanner-safe confirm page, S-405 the read-only landing, S-409 the secret-holding component), so what remains is the invitation template, its acceptance and re-send/revoke. Revoking a pending invitation is this slice's share of FR-404; removing confirmed accounts is S-411's. Widens the public-route allowlist once more, with a recorded reason. Its demonstration on hosted against a real school mailbox is the milestone's done-line.
-- **Status:** blocked
+- **Status:** in-progress
 
 ### S-411: Remove and correct accounts
 

@@ -39,6 +39,7 @@ export {
 } from "./subject-colors";
 export { optionalChipClass } from "./optional-chip";
 export { APP_ROLE_VALUES, type AppRole } from "./app-role";
+export { EMAIL_LINK_LIFETIME, EMAIL_LINK_LIFETIME_MS } from "./email-link-lifetime";
 export { grants, type Capability } from "./capability";
 export { allows, type AccessState } from "./access-state";
 export { resolveAccess, type OwnAccessRead } from "./resolve-access";

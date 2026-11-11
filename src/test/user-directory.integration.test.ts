@@ -115,7 +115,12 @@ type DirectoryRow = { email: string | null; is_machine: boolean; is_service_acco
     );
     expect(rows).toEqual([
       { name: "user_directory_mirror_insert", columns: [], has_when: false },
-      { name: "user_directory_mirror_update", columns: ["email", "raw_app_meta_data"], has_when: true },
+      // S-410 added the invitation state: `invited_at` and `email_confirmed_at`.
+      {
+        name: "user_directory_mirror_update",
+        columns: ["email", "email_confirmed_at", "invited_at", "raw_app_meta_data"],
+        has_when: true,
+      },
     ]);
   });
 

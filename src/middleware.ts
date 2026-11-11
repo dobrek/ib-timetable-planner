@@ -17,7 +17,7 @@ import {
 const PUBLIC_PATHS = [
   "/auth/signin", // a signed-out user must be able to sign in
   "/auth/forgot", // a signed-out user must be able to ask for a reset link (S-402, FR-412)
-  "/auth/confirm", // the link holder is signed out until they press Continue (S-402)
+  "/auth/confirm", // the link holder is signed out until they press Continue (S-402 reset, S-410 invitation)
 ];
 const PUBLIC_PREFIXES = [
   // signin, signout, forgot, confirm. ANY file placed under this prefix is public without

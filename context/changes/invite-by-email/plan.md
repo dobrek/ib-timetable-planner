@@ -631,29 +631,29 @@ The migration is additive: two nullable columns, three enum values, a re-created
 
 #### Automated
 
-- [x] 4.1 Unit and component tests pass (user-rows, account-error, invoke-admin-users, schemas, UserTable, UsersPage): `pnpm test`
-- [x] 4.2 Type check passes: `pnpm check`
-- [x] 4.3 Lint and FSD structure pass: `pnpm lint && pnpm steiger`
-- [x] 4.4 Build passes, with no Supabase key in client output: `pnpm build`
-- [x] 4.5 Existing Users-page e2e still passes: `pnpm test:e2e e2e/specs/users.admin.spec.ts`
+- [x] 4.1 Unit and component tests pass (user-rows, account-error, invoke-admin-users, schemas, UserTable, UsersPage): `pnpm test` — ba254c52
+- [x] 4.2 Type check passes: `pnpm check` — ba254c52
+- [x] 4.3 Lint and FSD structure pass: `pnpm lint && pnpm steiger` — ba254c52
+- [x] 4.4 Build passes, with no Supabase key in client output: `pnpm build` — ba254c52
+- [x] 4.5 Existing Users-page e2e still passes: `pnpm test:e2e e2e/specs/users.admin.spec.ts` — ba254c52
 
 #### Manual
 
-- [x] 4.6 Through `pnpm build && pnpm preview`: inviting a fresh address shows an "Invited" row with Re-send and Revoke; re-sending at once shows the wait-a-minute message; revoking removes the row
-- [x] 4.7 Dialogs and statuses read correctly in light and dark themes
+- [x] 4.6 Through `pnpm build && pnpm preview`: inviting a fresh address shows an "Invited" row with Re-send and Revoke; re-sending at once shows the wait-a-minute message; revoking removes the row — ba254c52
+- [x] 4.7 Dialogs and statuses read correctly in light and dark themes — ba254c52
 
 ### Phase 5: E2E and docs
 
 #### Automated
 
-- [ ] 5.1 Invite spec passes: `pnpm test:e2e e2e/specs/invite.admin.spec.ts`
-- [ ] 5.2 Full e2e suite passes (solver running, per README): `pnpm test:e2e`
-- [ ] 5.3 Full local CI gate passes: `/verify`
-- [ ] 5.4 Integration lane passes: `pnpm test:integration`
+- [x] 5.1 Invite spec passes: `pnpm test:e2e e2e/specs/invite.admin.spec.ts`
+- [x] 5.2 Full e2e suite passes (solver running, per README): `pnpm test:e2e`
+- [x] 5.3 Full local CI gate passes: `/verify`
+- [x] 5.4 Integration lane passes: `pnpm test:integration`
 
 #### Manual
 
-- [ ] 5.5 Docs read correctly: every changed claim matches the shipped behaviour, and no doc still says "invite 72 h" or "1 hour" for links
+- [x] 5.5 Docs read correctly: every changed claim matches the shipped behaviour, and no doc still says "invite 72 h" or "1 hour" for links
 
 ### Phase 6: Hosted rollout (by hand)
 

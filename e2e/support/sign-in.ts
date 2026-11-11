@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Browser, type Page } from "@playwright/test";
 
 /**
  * Sign in through the real UI and wait for the post-login redirect. Only the setup files call this
@@ -45,4 +45,22 @@ export async function signInThroughUi(
   // (cookie-less) context. An account lands on /dashboard (a role-less one sees the notice there),
   // except one on a temporary password, which lands on /account: hence `landsOn`.
   await page.waitForURL(landsOn);
+}
+
+/**
+ * A browser context with no stored session: a person who has only what an admin gave them, a
+ * password (`create-account.admin.spec.ts`) or an emailed link (`invite.admin.spec.ts`). Its own
+ * context, because spending a link or signing in replaces whatever session a context holds.
+ */
+export async function withFreshContext(
+  browser: Browser,
+  baseURL: string | undefined,
+  run: (page: Page) => Promise<void>,
+): Promise<void> {
+  const context = await browser.newContext({ baseURL });
+  try {
+    await run(await context.newPage());
+  } finally {
+    await context.close();
+  }
 }

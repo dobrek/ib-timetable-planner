@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { deleteMessages, readMessage, waitForMessageTo } from "../../src/test/mailpit";
+import { deleteMessages, waitForMessageTo } from "../../src/test/mailpit";
 import { readPublishableKey } from "../../src/test/publishable-key";
 import { waitForAccountHydration } from "../support/account";
 import { adminClient, loopbackUrl, strongPassword } from "../support/admin-api";
+import { waitForConfirmLink } from "../support/mail";
 
 // S-402 (FR-412) end to end, signed out, in `chromium-guard`: request a link, let a simulated mail
 // scanner fetch it, spend it with Continue, set a new password, and get told it changed.
@@ -38,9 +39,9 @@ test("a forgotten password is reset from the email link, which a mail scanner ca
     await expect(page).toHaveURL(/\/auth\/forgot\?status=sent$/);
     await expect(page.getByRole("status")).toHaveText(SENT_NOTICE);
 
-    const recovery = await waitForMessageTo(email, { timeoutMs: 15_000 });
-    ownMail.push(recovery.ID);
-    const link = confirmLinkIn((await readMessage(recovery.ID)).HTML);
+    const recovery = await waitForConfirmLink(email);
+    ownMail.push(recovery.id);
+    const { link } = recovery;
 
     // A mail scanner: HEAD and GET, twice each. None of it may spend the link.
     for (let pass = 0; pass < 2; pass++) {
@@ -70,7 +71,7 @@ test("a forgotten password is reset from the email link, which a mail scanner ca
     expect((await signIn(email, newPassword)).error).toBeNull();
     expect((await signIn(email, oldPassword)).error?.code).toBe("invalid_credentials");
 
-    const notice = await waitForMessageTo(email, { after: recovery.Created, timeoutMs: 15_000 });
+    const notice = await waitForMessageTo(email, { after: recovery.created, timeoutMs: 15_000 });
     ownMail.push(notice.ID);
     expect(notice.Subject).toBe("Your IB Planner password was changed");
 
@@ -102,13 +103,6 @@ async function requestResetFor(page: Page, email: string): Promise<void> {
   await field.fill(email);
   await expect(field).toHaveValue(email);
   await page.getByRole("button", { name: "Send reset link" }).click();
-}
-
-/** The one link a recovery email carries, with HTML's `&amp;` decoded. */
-function confirmLinkIn(html: string): string {
-  const href = /href="([^"]+)"/.exec(html)?.[1]?.replaceAll("&amp;", "&");
-  if (!href?.includes("/auth/confirm?token_hash=")) throw new Error("no confirm link in the recovery email");
-  return href;
 }
 
 function signIn(email: string, password: string) {

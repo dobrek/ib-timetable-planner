@@ -26,6 +26,17 @@ export function loopbackUrl(): string {
   return url;
 }
 
+/**
+ * Delete a throwaway user by address, read as the service role: what a spec that made one through
+ * the Users page (an account or an invitation) calls in its `finally`. A user it never created, or one
+ * a revoke already deleted, is a no-op.
+ */
+export async function deleteUserByEmail(email: string): Promise<void> {
+  const admin = adminClient();
+  const { data } = await admin.from("user_directory").select("user_id").eq("email", email).maybeSingle();
+  if (data) await admin.auth.admin.deleteUser(data.user_id);
+}
+
 // 40 characters, all four classes, no `#`, quotes or whitespace — like the integration lane's.
 export const strongPassword = (): string => `${randomUUID()}Aa1!`;
 

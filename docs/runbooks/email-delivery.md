@@ -5,7 +5,8 @@ hand — Resend, Cloudflare DNS, Supabase custom SMTP, the Turnstile widget — 
 change finds it. The hosted Auth values that sit on top of it (Site URL, templates, the resend
 interval) are in [`hosted-auth-settings.md`](hosted-auth-settings.md).
 
-The first sender is S-402 (password reset); S-410 (invites) and S-310 (job emails) reuse it.
+The first sender is S-402 (password reset); S-410 (invitations) reuses it, and S-310 (job emails)
+will.
 
 ## Provider: Resend, through Supabase custom SMTP
 
@@ -69,9 +70,13 @@ where older domains got TXT and MX, and the values can change.
 
 Supabase's own project-wide email cap is dormant while `mailer_autoconfirm` is on
 ([`hosted-auth-settings.md`](hosted-auth-settings.md)), so **Resend Free's 100 emails per UTC day is
-the effective global cap**, shared by resets, password-changed notifications and, later, invites.
-Reaching it fails every send until midnight UTC, behind the reset page's neutral notice; Workers
-Logs show `[forgot-password] outcome=send-failed`. The flood guard below is what protects it. The
+the effective global cap**, shared by resets, password-changed notifications and invitations (S-410).
+Reaching it fails every send until midnight UTC: behind the reset page's neutral notice (Workers Logs
+show `[forgot-password] outcome=send-failed`), and as "Couldn't send the invitation" on the Users page
+(the `admin-users` function logs `op=invite step=send:…`, and deletes the half-made account). The
+flood guard below protects it from resets; GoTrue throttles neither invites nor re-sends, so the
+function refuses a second invitation email to one address within 60 seconds. An invitation's first
+password also sends a password-changed notification. The
 fallback is Resend Pro (no daily limit); AWS SES eu-central-1 is the standby provider.
 
 ## The reset flood guard: Cloudflare Turnstile
@@ -108,13 +113,15 @@ the token or the Turnstile response:
 
 - `[forgot-password] outcome=<accepted|throttled|rejected-address|send-failed|unexpected> code=… status=…`
 - `[forgot-password] turnstile=<refused|transient|misconfigured>`
-- `[confirm-email-link] outcome=<invalid|expired|retry> type=recovery`
+- `[confirm-email-link] outcome=<invalid|expired|retry> type=<recovery|invite>`
 
 ## Smoke test: a real school inbox (Microsoft 365)
 
 The reset's done-line is delivery into the coordinator's M365 mailbox, which a local stack cannot
 prove. Run it after the merge, on `https://ib-timetable-planner.dev`, first into a developer inbox,
-then into the coordinator's. Record both, redacted, in the change's `smoke.md`.
+then into the coordinator's. Record both, redacted, in the change's `smoke.md`. The same checks apply
+to an invitation (S-410): its demonstration against the coordinator's school mailbox is the
+milestone's done-line, recorded in that change's `hosted-check.md`.
 
 **Pass criteria** (the recipient reads the headers in Outlook on the web: "…" → View → View message
 details):
@@ -129,7 +136,8 @@ details):
   - `compauth=pass reason=1xx`
 - `X-Forefront-Antispam-Report`: `SFV:NSPM`, `CAT:NONE`, no `SFTY:9.19` or `9.20`. Also `BCL:0` and
   `dest:I`.
-- If Safe Links wrapped the URL, the decoded `url=` keeps `token_hash` and `type=recovery`.
+- If Safe Links wrapped the URL, the decoded `url=` keeps `token_hash` and its `type` (`recovery` for
+  a reset, `invite` for an invitation).
 - **Worker Logs show pre-click HEAD and GET to `/auth/confirm` from Microsoft ranges, and no POST.**
   The token is still valid 5 minutes or more after delivery, and the human's Continue succeeds.
 - `Content-Type` is `multipart/alternative`: Resend's relay adds a `text/plain` part generated from

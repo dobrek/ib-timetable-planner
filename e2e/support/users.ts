@@ -2,6 +2,12 @@ import { expect, type Browser, type Page } from "@playwright/test";
 
 const ADMIN_STATE = "e2e/.auth/admin.json";
 
+/** A Users-page row's role picker, named for the person's email (a person with no display name). */
+export const rolePicker = (page: Page, email: string) => page.getByRole("combobox", { name: `Role for ${email}` });
+
+/** The Users-page row for `email`, found by its picker so another row's "Changed by" cannot match. */
+export const userRow = (page: Page, email: string) => page.getByRole("row").filter({ has: rolePicker(page, email) });
+
 /** Every link named exactly "Users": on the dashboard, the sidebar item and the tile. */
 export const usersLinks = (page: Page) => page.getByRole("link", { name: "Users", exact: true });
 

@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-11
+updated: 2026-11-12
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -54,7 +54,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-407 | created-by-and-job-ownership | see who created each plan or proposal; only a job's requester or an admin can stop it                  | S-406              | FR-415, FR-416, FR-417                                                         | done        |
 | S-408 | deactivate-reactivate        | (admin) deactivate and reactivate a user, with data access ending on their next action                 | S-406              | FR-407                                                                         | proposed |
 | S-409 | create-account-fallback      | (admin) create an account with a temporary password that must be changed at first sign-in              | S-401, S-406, F-402 | FR-403                                                                         | done        |
-| S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | in-progress |
+| S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | done |
 | S-411 | remove-and-correct-accounts  | (admin) ban or delete an account and change a user's email; access ends within an hour                 | S-409              | FR-404, FR-414, §NFG (removal ≤ 1 h, access changes traceable)                 | proposed |
 | S-310 | job-completion-email         | get notified of job completion by email as well as in-app                                              | S-402, S-407       | FR-309 (archived CP-SAT PRD), §NFG (no student data)                           | proposed |
 
@@ -260,7 +260,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Unknowns:**
   - Email-link lifetime (Open Roadmap Question 2) — decided 2026-11-10: option (a), 24 h for every email link with a 10-digit OTP; invitations rely on re-send. — Owner: user. Block: no.
 - **Risk:** Last on its chain by design: each prerequisite retires one risk (S-402 delivery and the scanner-safe confirm page, S-405 the read-only landing, S-409 the secret-holding component), so what remains is the invitation template, its acceptance and re-send/revoke. Revoking a pending invitation is this slice's share of FR-404; removing confirmed accounts is S-411's. Needs no public-route widening after all: `/auth/confirm`, the `/api/auth/` prefix and the role-exempt `/account` already cover acceptance. Its demonstration on hosted against a real school mailbox is the milestone's done-line.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-411: Remove and correct accounts
 
@@ -346,3 +346,4 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 - **S-406: An admin can open a Users page listing the school's users — display name beside email, role and status; machine users never appear, and the calibration-campaign account appears labelled as a service account — and can change anyone's role. The last active admin cannot be demoted, and every role change records who made it and when.** — Archived 2026-11-06 → `context/archive/2026-11-03-users-page-roles/`. Lesson: —.
 - **S-407: Any user can see who created each plan and proposal — a proposal is credited to whoever pressed Generate, and plans that predate the change show "unknown" — and a running generation job can be stopped only by the person who requested it or an admin; jobs that predate the change stay stoppable by any author.** — Archived 2026-11-07 → `context/archive/2026-11-06-created-by-and-job-ownership/`. Lesson: —.
 - **S-409: As a fallback when an invitation cannot reach someone, an admin can create an account with a temporary password from the Users page; the person must change it at first sign-in, and the new account appears in the Users list.** — Archived 2026-11-10 → `context/archive/2026-11-08-create-account-fallback/`. Lesson: —.
+- **S-410: An admin invites a colleague by email with a role chosen up front; the colleague receives the invitation, confirms on a page that needs a deliberate click (a mail scanner opening the link does not consume it), sets a password and lands with that role — read-only for a viewer — and the admin sees them in the Users list. The admin can re-send or revoke a pending invitation; an expired or used link says "ask your admin to re-send"; inviting an address that already has an account is refused with a clear message and creates no duplicate.** — Archived 2026-11-12 → `context/archive/2026-11-10-invite-by-email/`. Lesson: —.

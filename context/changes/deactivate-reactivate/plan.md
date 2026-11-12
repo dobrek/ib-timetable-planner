@@ -503,19 +503,21 @@ In the same test, before step 2's click, the admin's own row shows no `Deactivat
 
 #### Automated
 
-- [ ] 1.1 Column migration applies cleanly from scratch
-- [ ] 1.2 Red before the fence: matrix fails only on `deactivatedAdmin` cells; new guard case and new-behaviour record cases fail on assertions
-- [ ] 1.3 Fence migration applies cleanly from scratch, post-conditions pass
-- [ ] 1.4 Green after the fence: matrix, guard, record and change-user-role suites pass
-- [ ] 1.5 Whole integration lane passes
-- [ ] 1.6 Unit suite passes, including role-matrix-expectations.test.ts
-- [ ] 1.7 Types regenerated with a reviewed diff, type check passes
-- [ ] 1.8 Lint and FSD structure pass
+- [x] 1.1 Column migration applies cleanly from scratch
+- [x] 1.2 Red before the fence: matrix fails only on `deactivatedAdmin` cells; new guard case and new-behaviour record cases fail on assertions
+- [x] 1.3 Fence migration applies cleanly from scratch, post-conditions pass
+- [x] 1.4 Green after the fence: matrix, guard, record and change-user-role suites pass
+- [x] 1.5 Whole integration lane passes
+- [x] 1.6 Unit suite passes, including role-matrix-expectations.test.ts
+- [x] 1.7 Types regenerated with a reviewed diff, type check passes
+- [x] 1.8 Lint and FSD structure pass
+
+> Red run (column only, 2026-11-12): 54 failed / 515 passed across the four suites, with no setup errors. Matrix: 50 cells, every one `deactivatedAdmin`. Its "drop own role" really deleted its row, so its later RPC cells passed as noRole. Guard: the S-408 case, on 5 outcomes (`lastActiveDeactivated` ×3 paths, `deactivatedAdminIsNotCounted`, `deactivatedAdminRemovalNotCounted`). Record: the 3 new-behaviour cases. The 2 preserved-behaviour record cases and the change-user-role case passed. After the fence: 569/569. Whole lane: 882 passed; 5 skipped tests in the 2 solver suites, which need `SOLVER_URL`.
 
 #### Manual
 
-- [ ] 1.9 Grant posture unchanged (`has_table_privilege` on `user_roles`)
-- [ ] 1.10 Service-role SQL deactivation sends a live session to the notice; clearing restores it
+- [x] 1.9 Grant posture unchanged (`has_table_privilege` on `user_roles`)
+- [x] 1.10 Service-role SQL deactivation sends a live session to the notice; clearing restores it
 
 ### Phase 2: Users page
 

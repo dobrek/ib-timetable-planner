@@ -845,18 +845,21 @@ export type Database = {
       user_roles: {
         Row: {
           created_at: string
+          deactivated_at: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          deactivated_at?: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          deactivated_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id?: string
@@ -1095,6 +1098,8 @@ export type Database = {
         | "invitation_sent"
         | "invitation_resent"
         | "invitation_revoked"
+        | "deactivated"
+        | "reactivated"
       app_role: "admin" | "author" | "viewer"
       availability_severity: "strong" | "soft"
       cohort: "dp1" | "dp2"
@@ -1240,6 +1245,8 @@ export const Constants = {
         "invitation_sent",
         "invitation_resent",
         "invitation_revoked",
+        "deactivated",
+        "reactivated",
       ],
       app_role: ["admin", "author", "viewer"],
       availability_severity: ["strong", "soft"],

@@ -22,9 +22,12 @@ import type { TablePrivilege } from "./postgres-client";
  *   `PROFILE_WRITES` holds the "whose row" cells.
  * - `user_roles`: a signed-in human reads their own role row; an admin (`private.can_manage_users()`)
  *   reads every row, and gives, changes and removes anyone's role (`ROLE_WRITES`), never a machine
- *   user's (`MACHINE_ROLE_GRANT`). Nobody else writes one, their own included (`SELF_GRANTS`). An
- *   admin's own row is never probed here: the last-admin guard's suite owns that, on a throwaway
- *   admin, so this file never demotes its own principal.
+ *   user's (`MACHINE_ROLE_GRANT`), and deactivates or reactivates anyone (`ROLE_DEACTIVATIONS`,
+ *   S-408). Nobody else writes one, their own included (`SELF_GRANTS`). An admin's own row is never
+ *   probed here: the last-admin guard's suite owns that, on a throwaway admin, so this file never
+ *   demotes its own principal.
+ * - A deactivated user (S-408) keeps their role row, and `private.current_app_role()` reads it as
+ *   none while `deactivated_at` is set: a deactivated admin reaches exactly what a pending admin does.
  * - `access_changes` (S-406): the record of every role write, written by `user_roles`' trigger. Only
  *   an admin reads it, and no session writes it directly, an admin included (`ACCESS_CHANGE_WRITES`).
  *   A row is "a user's" through `target_id`, the user the change was made to.
@@ -56,9 +59,9 @@ import type { TablePrivilege } from "./postgres-client";
 
 /**
  * Who attempts the access: no session, a session without a role, an admin whose temporary password is
- * still pending (S-409), and a session per app role.
+ * still pending (S-409), an admin an admin has deactivated (S-408), and a session per app role.
  */
-export type Principal = "anon" | "noRole" | "pendingAdmin" | "viewer" | "author" | "admin";
+export type Principal = "anon" | "noRole" | "pendingAdmin" | "deactivatedAdmin" | "viewer" | "author" | "admin";
 
 /** Every public table whose rows belong to a plan (the root included), rather than to a user. */
 export type PlanScopedTable = Exclude<PublicTable, UserKeyedTable>;
@@ -106,12 +109,16 @@ export type SelfGrant = "claim admin" | "drop own role";
 /** Every principal but admin, whose own role row the matrix never writes (see `SELF_GRANTS`). */
 export type SelfGrantPrincipal = Exclude<Principal, "admin">;
 
+/** An admin's write of another user's `deactivated_at` (see `ROLE_DEACTIVATIONS`). */
+export type RoleDeactivation = "deactivate" | "reactivate";
+
 /**
  * A cell that targets the principal's own row, which the principal may not hold. noRole holds no
  * `user_roles` row, and so no `access_changes` record names it either: its cells there are
  * `"no-row"`, stated rather than faked as `denied`, and checked live as the row's absence instead of
- * probed. pendingAdmin does hold both rows, so its own-row cells are real: it reads its own role row
- * (the policy asks only for ownership) and is refused its own access record (admins only).
+ * probed. pendingAdmin and deactivatedAdmin do hold both rows, so their own-row cells are real: each
+ * reads its own role row (the policy asks only for ownership) and is refused its own access record
+ * (admins only).
  */
 export type OwnRowOutcome = AccessOutcome | "no-row";
 
@@ -126,6 +133,8 @@ export const PRINCIPAL_NOTES: Record<Principal, string> = {
   noRole: "a signed-in user without a role reaches only its own profile and directory row, and no plan data at all",
   pendingAdmin:
     "an admin row whose temporary password is still pending (S-409) reaches exactly what noRole reaches: the role reads as none until the first real password change",
+  deactivatedAdmin:
+    "an admin row an admin has deactivated (S-408) reaches exactly what pendingAdmin reaches: the role is kept, and reads as none until reactivation",
   viewer: "a viewer reads every plan, profile and directory row, and writes only its own profile",
   author: "an author reads and writes every plan, and writes only its own profile",
   admin: "an admin holds an author's access, and also reads every role and access change and writes others' roles",
@@ -137,6 +146,7 @@ const NOBODY: Cell = {
   anon: "denied",
   noRole: "denied",
   pendingAdmin: "denied",
+  deactivatedAdmin: "denied",
   viewer: "denied",
   author: "denied",
   admin: "denied",
@@ -145,6 +155,7 @@ const SIGNED_IN: Cell = {
   anon: "denied",
   noRole: "allowed",
   pendingAdmin: "allowed",
+  deactivatedAdmin: "allowed",
   viewer: "allowed",
   author: "allowed",
   admin: "allowed",
@@ -153,6 +164,7 @@ const ANY_ROLE: Cell = {
   anon: "denied",
   noRole: "denied",
   pendingAdmin: "denied",
+  deactivatedAdmin: "denied",
   viewer: "allowed",
   author: "allowed",
   admin: "allowed",
@@ -161,6 +173,7 @@ const EDITORS: Cell = {
   anon: "denied",
   noRole: "denied",
   pendingAdmin: "denied",
+  deactivatedAdmin: "denied",
   viewer: "denied",
   author: "allowed",
   admin: "allowed",
@@ -169,6 +182,7 @@ const ADMIN_ONLY: Cell = {
   anon: "denied",
   noRole: "denied",
   pendingAdmin: "denied",
+  deactivatedAdmin: "denied",
   viewer: "denied",
   author: "denied",
   admin: "allowed",
@@ -206,6 +220,7 @@ export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCel
       anon: "denied",
       noRole: "no-row",
       pendingAdmin: "denied",
+      deactivatedAdmin: "denied",
       viewer: "denied",
       author: "denied",
       admin: "allowed",
@@ -219,6 +234,7 @@ export const USER_KEYED_READS: Record<UserKeyedTable, Record<RowOwner, OwnRowCel
       anon: "denied",
       noRole: "no-row",
       pendingAdmin: "allowed",
+      deactivatedAdmin: "allowed",
       viewer: "allowed",
       author: "allowed",
       admin: "allowed",
@@ -271,6 +287,7 @@ export const JOB_STOPS: Record<JobRequester, Record<StopWrite, OwnRowCell>> = {
       anon: "no-row",
       noRole: "denied",
       pendingAdmin: "denied",
+      deactivatedAdmin: "denied",
       viewer: "denied",
       author: "allowed",
       admin: "allowed",
@@ -279,6 +296,7 @@ export const JOB_STOPS: Record<JobRequester, Record<StopWrite, OwnRowCell>> = {
       anon: "no-row",
       noRole: "denied",
       pendingAdmin: "denied",
+      deactivatedAdmin: "denied",
       viewer: "denied",
       author: "allowed",
       admin: "allowed",
@@ -333,8 +351,22 @@ export const PROFILE_REKEY: Cell = NOBODY;
  * each write needs. No principal here is allowed, so `SELF_GRANT_EVIDENCE` evidences the payloads.
  */
 export const SELF_GRANTS: Record<SelfGrant, Record<SelfGrantPrincipal, OwnRowOutcome>> = {
-  "claim admin": { anon: "denied", noRole: "denied", pendingAdmin: "denied", viewer: "denied", author: "denied" },
-  "drop own role": { anon: "denied", noRole: "no-row", pendingAdmin: "denied", viewer: "denied", author: "denied" },
+  "claim admin": {
+    anon: "denied",
+    noRole: "denied",
+    pendingAdmin: "denied",
+    deactivatedAdmin: "denied",
+    viewer: "denied",
+    author: "denied",
+  },
+  "drop own role": {
+    anon: "denied",
+    noRole: "no-row",
+    pendingAdmin: "denied",
+    deactivatedAdmin: "denied",
+    viewer: "denied",
+    author: "denied",
+  },
 };
 
 /**
@@ -357,6 +389,18 @@ export const ROLE_WRITES: Record<WriteOperation, Cell> = {
   insert: ADMIN_ONLY,
   update: ADMIN_ONLY,
   delete: ADMIN_ONLY,
+};
+
+/**
+ * Deactivating or reactivating another user (S-408): an UPDATE of a fresh user's `deactivated_at`,
+ * from null to a timestamp or from a timestamp to null, read back as the service role. The target
+ * holds `author`, so the last-admin guard never binds here. It is an admin's UPDATE of `user_roles`,
+ * judged by the same "Admins change roles" policy as `ROLE_WRITES.update`: only `manage_users`
+ * (admin) may, and a deactivated admin, whose role reads as none, may not.
+ */
+export const ROLE_DEACTIVATIONS: Record<RoleDeactivation, Cell> = {
+  deactivate: ADMIN_ONLY,
+  reactivate: ADMIN_ONLY,
 };
 
 /**

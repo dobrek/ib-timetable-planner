@@ -2,10 +2,12 @@ import { expect, type Browser, type Page } from "@playwright/test";
 
 /**
  * Sign in through the real UI and wait for the post-login redirect. Only the setup files call this
- * (`auth.setup.ts`, `no-role.setup.ts`): every spec starts signed in from their storageState. One
- * sanctioned exception, `create-account.admin.spec.ts` (S-409): the throwaway account an admin
- * just created, whose first sign-in IS the behaviour under test. It passes `landsOn`, because a
- * user on a temporary password is sent on from /dashboard to /account.
+ * (`auth.setup.ts`, `no-role.setup.ts`): every spec starts signed in from their storageState. Two
+ * sanctioned exceptions, each for a throwaway account in a fresh context (e2e/CLAUDE.md):
+ * `create-account.admin.spec.ts` (S-409), the account an admin just created, whose first sign-in IS
+ * the behaviour under test (it passes `landsOn`, because a user on a temporary password is sent on
+ * from /dashboard to /account); and `deactivate.admin.spec.ts` (S-408), a throwaway author whose
+ * live session meeting the deactivation IS the behaviour under test.
  *
  * SignInForm is a controlled React island (`client:load`): its inputs are bound to useState(""), so
  * a value typed BEFORE hydration is discarded the instant React mounts and re-binds the input to its

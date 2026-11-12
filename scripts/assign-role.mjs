@@ -11,6 +11,13 @@
 // `app_metadata.machine_role`, such as the solver's) is refused: it must never hold a human role,
 // or a misfired token hook would sign it in with that role's access.
 //
+// A role write also REACTIVATES a deactivated person (S-408), unlike the Users page, where changing
+// a deactivated person's role keeps them deactivated. The script's purpose is "give this person this
+// access now", so it must never report success while they stay locked out: it clears
+// `deactivated_at` in the same upsert, reads both back, and prints `(reactivated)`. The record shows
+// the Operator's `reactivated`, after a `role_changed` when the role differs too. `none` deletes the
+// row, flag included, as a removal from the page does.
+//
 // It needs the service-role (secret) key, because it writes outside any session: RLS lets only an
 // admin's own session write `user_roles`. Its writes are recorded in `access_changes` as the
 // "Operator". The last-admin guard binds it too: demoting the school's last admin, or setting them
@@ -40,11 +47,20 @@ function report(message) {
   process.stderr.write(`[assign-role] ${message}\n`);
 }
 
-/** The role `userId` holds now, read back as the service role, or `none`. */
+/** The role `userId` holds now, and whether it is deactivated, read back as the service role. */
 async function roleOf(supabase, userId) {
-  const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle();
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role, deactivated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
   if (error) fail(`Failed to read the role of ${userId}: ${error.message}`);
-  return data?.role ?? NO_ROLE;
+  return { role: data?.role ?? NO_ROLE, deactivated: Boolean(data?.deactivated_at) };
+}
+
+/** How the report names a role: `author`, `author (deactivated)` or `none`. */
+function describeRole({ role, deactivated }) {
+  return deactivated ? `${role} (deactivated)` : role;
 }
 
 const [email, role] = process.argv.slice(2);
@@ -88,13 +104,21 @@ const before = await roleOf(supabase, userId);
 const { error: writeError } =
   role === NO_ROLE
     ? await supabase.from("user_roles").delete().eq("user_id", userId)
-    : await supabase.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id" });
+    : await supabase
+        .from("user_roles")
+        .upsert({ user_id: userId, role, deactivated_at: null }, { onConflict: "user_id" });
 if (writeError?.code === LAST_ADMIN) {
-  fail(`refused: the school must keep at least one admin — promote another admin first (${email} stays ${before}).`);
+  fail(
+    `refused: the school must keep at least one admin — promote another admin first ` +
+      `(${email} stays ${describeRole(before)}).`,
+  );
 }
 if (writeError) fail(`Failed to set ${email} to ${role}: ${writeError.message}`);
 const after = await roleOf(supabase, userId);
-if (after !== role) fail(`${email} reads back as ${after} after setting ${role}.`);
+if (after.role !== role || after.deactivated) {
+  fail(`${email} reads back as ${describeRole(after)} after setting ${role}.`);
+}
 
-report(`${email}: ${before} → ${after}`);
+const reactivated = before.deactivated && role !== NO_ROLE ? " (reactivated)" : "";
+report(`${email}: ${describeRole(before)} → ${describeRole(after)}${reactivated}`);
 process.exit(0);

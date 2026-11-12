@@ -523,30 +523,30 @@ In the same test, before step 2's click, the admin's own row shows no `Deactivat
 
 #### Automated
 
-- [x] 2.1 Unit suite passes
-- [x] 2.2 Domain integration test passes
-- [x] 2.3 Type check passes
-- [x] 2.4 Lint and FSD structure pass
-- [x] 2.5 Production build stays clean
+- [x] 2.1 Unit suite passes — dc7fa2e3
+- [x] 2.2 Domain integration test passes — dc7fa2e3
+- [x] 2.3 Type check passes — dc7fa2e3
+- [x] 2.4 Lint and FSD structure pass — dc7fa2e3
+- [x] 2.5 Production build stays clean — dc7fa2e3
 
 #### Manual
 
-- [x] 2.6 Deactivate asks, row reads Deactivated with role and Reactivate; Reactivate returns it to Active
-- [x] 2.7 No Deactivate on your own, pending or no-access rows
-- [x] 2.8 Role change keeps a row Deactivated; No access removes it
-- [x] 2.9 A signed-in deactivated person lands on the reworded notice; account page open
-- [x] 2.10 Last change shows the admin for both actions
+- [x] 2.6 Deactivate asks, row reads Deactivated with role and Reactivate; Reactivate returns it to Active — dc7fa2e3
+- [x] 2.7 No Deactivate on your own, pending or no-access rows — dc7fa2e3
+- [x] 2.8 Role change keeps a row Deactivated; No access removes it — dc7fa2e3
+- [x] 2.9 A signed-in deactivated person lands on the reworded notice; account page open — dc7fa2e3
+- [x] 2.10 Last change shows the admin for both actions — dc7fa2e3
 
 ### Phase 3: Break-glass and end-to-end proof
 
 #### Automated
 
-- [ ] 3.1 New deactivate spec passes against a fresh preview
-- [ ] 3.2 No-role, Users and create-account specs still pass
-- [ ] 3.3 Full local CI gate passes (`/verify`)
+- [x] 3.1 New deactivate spec passes against a fresh preview
+- [x] 3.2 No-role, Users and create-account specs still pass
+- [x] 3.3 Full local CI gate passes (`/verify`)
 
 #### Manual
 
-- [ ] 3.4 Script reactivates a deactivated person and is recorded as Operator
-- [ ] 3.5 Script `none` on a deactivated person records `role_removed`
+- [x] 3.4 Script reactivates a deactivated person and is recorded as Operator
+- [x] 3.5 Script `none` on a deactivated person records `role_removed`
 - [ ] 3.6 Hosted: deactivate and reactivate a non-admin test account after merge

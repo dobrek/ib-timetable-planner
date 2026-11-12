@@ -16,6 +16,14 @@ const ADA_LABEL = { primary: "Ada Lovelace", secondary: "ada@example.test" };
 
 type Change = UserDirectoryInput["changes"][number];
 type DirectoryEntry = UserDirectoryInput["directory"][number];
+type HeldRole = UserDirectoryInput["roles"][number];
+
+/** A role row, active unless a deactivation time is given (S-408). */
+const held = (user_id: string, role: HeldRole["role"], deactivated_at: string | null = null): HeldRole => ({
+  user_id,
+  role,
+  deactivated_at,
+});
 
 /** A directory entry for a person, with every flag a test does not name off. */
 const entry = (user_id: string, email: string, overrides: Partial<DirectoryEntry> = {}): DirectoryEntry => ({
@@ -55,11 +63,45 @@ describe("buildUserRows", () => {
   });
 
   it("reads a user with a role as active, and one without as no access", () => {
-    const rows = build(input({ roles: [{ user_id: ADA, role: "admin" }] }));
+    const rows = build(input({ roles: [held(ADA, "admin")] }));
 
     expect(rows.map(({ role, status }) => ({ role, status }))).toEqual([
       { role: "admin", status: "active" },
       { role: null, status: "no_access" },
+    ]);
+  });
+
+  it("reads a deactivated role row as deactivated, keeping its role: only it offers Reactivate, only an active row Deactivate", () => {
+    const rows = build(
+      input({
+        directory: [entry(ADA, "ada@example.test"), entry(BEA, "bea@example.test"), entry(CAL, "cal@example.test")],
+        roles: [held(ADA, "admin"), held(BEA, "author", LATER)],
+      }),
+    );
+
+    expect(activationOf(rows)).toEqual([
+      { role: "admin", status: "active", canDeactivate: true, canReactivate: false },
+      { role: "author", status: "deactivated", canDeactivate: false, canReactivate: true },
+      { role: null, status: "no_access", canDeactivate: false, canReactivate: false },
+    ]);
+  });
+
+  it("reads a pending row as pending even when its role is deactivated: pending wins, and neither is offered", () => {
+    const rows = build(
+      input({
+        directory: [
+          entry(ADA, "ada@example.test", { must_change_password: true }),
+          entry(BEA, "bea@example.test", { invited_at: NOON, email_confirmed_at: null, must_change_password: true }),
+          entry(CAL, "cal@example.test", { invited_at: NOON, email_confirmed_at: LATER, must_change_password: true }),
+        ],
+        roles: [held(ADA, "viewer", LATER), held(BEA, "viewer", LATER), held(CAL, "author", LATER)],
+      }),
+    );
+
+    expect(activationOf(rows)).toEqual([
+      { role: "viewer", status: "temporary_password", canDeactivate: false, canReactivate: false },
+      { role: "viewer", status: "invited", canDeactivate: false, canReactivate: false },
+      { role: "author", status: "invitation_accepted", canDeactivate: false, canReactivate: false },
     ]);
   });
 
@@ -71,7 +113,7 @@ describe("buildUserRows", () => {
           entry(BEA, "bea@example.test", { must_change_password: true }),
           entry(CAL, "cal@example.test"),
         ],
-        roles: [{ user_id: ADA, role: "viewer" }],
+        roles: [held(ADA, "viewer")],
       }),
     );
 
@@ -90,7 +132,7 @@ describe("buildUserRows", () => {
         directory: [
           entry(ADA, "ada@example.test", { invited_at: NOON, email_confirmed_at: null, must_change_password: true }),
         ],
-        roles: [{ user_id: ADA, role: "viewer" }],
+        roles: [held(ADA, "viewer")],
       }),
     );
 
@@ -127,7 +169,7 @@ describe("buildUserRows", () => {
         directory: [
           entry(ADA, "ada@example.test", { invited_at: NOON, email_confirmed_at: LATER, must_change_password: true }),
         ],
-        roles: [{ user_id: ADA, role: "admin" }],
+        roles: [held(ADA, "admin")],
       }),
     );
 
@@ -157,7 +199,7 @@ describe("buildUserRows", () => {
           entry(ADA, "ada@example.test", { invited_at: NOON, email_confirmed_at: LATER }),
           entry(BEA, "bea@example.test", { invited_at: NOON, email_confirmed_at: LATER }),
         ],
-        roles: [{ user_id: ADA, role: "viewer" }],
+        roles: [held(ADA, "viewer")],
       }),
     );
 
@@ -194,7 +236,7 @@ describe("buildUserRows", () => {
   });
 
   it("never offers a re-issue for an active or role-less user", () => {
-    const rows = build(input({ roles: [{ user_id: ADA, role: "admin" }] }));
+    const rows = build(input({ roles: [held(ADA, "admin")] }));
 
     expect(rows.map(({ canReissuePassword }) => canReissuePassword)).toEqual([false, false]);
   });
@@ -273,7 +315,7 @@ describe("buildUserRows", () => {
     const given = input({
       directory: [entry(BEA, "bea@example.test"), entry(ADA, "ada@example.test")],
       profiles: [{ user_id: ADA, display_name: "Ada" }],
-      roles: [{ user_id: ADA, role: "viewer" }],
+      roles: [held(ADA, "viewer")],
       changes: [change({ id: 1, target_id: ADA }), change({ id: 2, target_id: ADA, occurred_at: LATER })],
     });
     const before = structuredClone(given);
@@ -292,6 +334,9 @@ const actionsOf = (rows: ReturnType<typeof buildUserRows>) =>
     canRevokeInvitation,
     canReissuePassword,
   }));
+
+const activationOf = (rows: ReturnType<typeof buildUserRows>) =>
+  rows.map(({ role, status, canDeactivate, canReactivate }) => ({ role, status, canDeactivate, canReactivate }));
 
 /** The rows as the page would load them at `now`. */
 const build = (given: UserDirectoryInput, now = NOW) => buildUserRows(given, now);

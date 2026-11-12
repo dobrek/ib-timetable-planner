@@ -12,6 +12,17 @@ export const changeUserRoleInput = z.object({
 
 export type ChangeUserRoleInput = z.output<typeof changeUserRoleInput>;
 
+/**
+ * Deactivate a user (`active: false`) or reactivate them (`active: true`), S-408. Their role is kept
+ * either way. As with a role change, the actor is read from the session.
+ */
+export const setUserActiveInput = z.object({
+  userId: z.uuid(),
+  active: z.boolean(),
+});
+
+export type SetUserActiveInput = z.output<typeof setUserActiveInput>;
+
 // Trimmed and lower-cased, as the function does, so the address the admin confirms is the one stored.
 const emailField = z.string().trim().toLowerCase().pipe(z.email("Enter a valid email address."));
 

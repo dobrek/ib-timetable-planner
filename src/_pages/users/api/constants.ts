@@ -4,6 +4,11 @@ export const NO_ROLE_TO_REMOVE_MESSAGE = "That user already has no access.";
 export const CHANGE_ROLE_FAILURE = "Failed to change the role";
 export const REMOVE_ROLE_FAILURE = "Failed to remove the role";
 
+// Deactivation (S-408). A write that matched no row: already in that state, no role, or a stale page.
+export const ACCESS_ALREADY_CHANGED_MESSAGE = "That person's access has already changed.";
+export const DEACTIVATE_FAILURE = "Failed to deactivate the user";
+export const REACTIVATE_FAILURE = "Failed to reactivate the user";
+
 // Account provisioning (S-409). Fixed wording only: nothing from the function's response, and never
 // a password, reaches a message or a log.
 export const CREATE_ACCOUNT_FAILURE =

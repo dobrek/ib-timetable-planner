@@ -2,7 +2,8 @@ import type { UserRow } from "../../model/user-rows";
 
 /**
  * Rows for the component tests: the signed-in admin, a named author, a role-less user, an account on
- * a temporary password, and two invitations (S-410), one unaccepted and one accepted.
+ * a temporary password, two invitations (S-410), one unaccepted and one accepted, and a deactivated
+ * viewer (S-408).
  */
 export const ADMIN_ID = "00000000-0000-4000-8000-00000000000a";
 export const AUTHOR_ID = "00000000-0000-4000-8000-00000000000b";
@@ -16,6 +17,8 @@ export const ADMIN_ROW: UserRow = {
   canReissuePassword: false,
   canResendInvitation: false,
   canRevokeInvitation: false,
+  canDeactivate: true,
+  canReactivate: false,
   isServiceAccount: false,
   lastChange: { by: { kind: "operator" }, at: "2026-11-05T12:00:00+00:00" },
 };
@@ -28,6 +31,8 @@ export const AUTHOR_ROW: UserRow = {
   canReissuePassword: false,
   canResendInvitation: false,
   canRevokeInvitation: false,
+  canDeactivate: true,
+  canReactivate: false,
   isServiceAccount: true,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -43,6 +48,8 @@ export const NO_ROLE_ROW: UserRow = {
   canReissuePassword: false,
   canResendInvitation: false,
   canRevokeInvitation: false,
+  canDeactivate: false,
+  canReactivate: false,
   isServiceAccount: false,
   lastChange: null,
 };
@@ -58,6 +65,8 @@ export const PENDING_ROW: UserRow = {
   canReissuePassword: true,
   canResendInvitation: false,
   canRevokeInvitation: false,
+  canDeactivate: false,
+  canReactivate: false,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -76,6 +85,8 @@ export const INVITED_ROW: UserRow = {
   canReissuePassword: false,
   canResendInvitation: true,
   canRevokeInvitation: true,
+  canDeactivate: false,
+  canReactivate: false,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -94,6 +105,8 @@ export const ACCEPTED_ROW: UserRow = {
   canReissuePassword: false,
   canResendInvitation: false,
   canRevokeInvitation: true,
+  canDeactivate: false,
+  canReactivate: false,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -101,4 +114,24 @@ export const ACCEPTED_ROW: UserRow = {
   },
 };
 
-export const ROWS = [ADMIN_ROW, AUTHOR_ROW, NO_ROLE_ROW, PENDING_ROW, INVITED_ROW, ACCEPTED_ROW];
+export const DEACTIVATED_ID = "00000000-0000-4000-8000-000000000010";
+
+/** A viewer an admin deactivated (S-408): the role is kept, and only Reactivate is offered. */
+export const DEACTIVATED_ROW: UserRow = {
+  userId: DEACTIVATED_ID,
+  label: { primary: "gil@example.test", secondary: null },
+  role: "viewer",
+  status: "deactivated",
+  canReissuePassword: false,
+  canResendInvitation: false,
+  canRevokeInvitation: false,
+  canDeactivate: false,
+  canReactivate: true,
+  isServiceAccount: false,
+  lastChange: {
+    by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
+    at: "2026-11-12T09:00:00+00:00",
+  },
+};
+
+export const ROWS = [ADMIN_ROW, AUTHOR_ROW, NO_ROLE_ROW, PENDING_ROW, INVITED_ROW, ACCEPTED_ROW, DEACTIVATED_ROW];

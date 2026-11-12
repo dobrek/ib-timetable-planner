@@ -15,7 +15,7 @@ export type UserDirectoryInput = {
     "user_id" | "email" | "is_service_account" | "must_change_password" | "invited_at" | "email_confirmed_at"
   >[];
   profiles: readonly Pick<Tables["profiles"]["Row"], "user_id" | "display_name">[];
-  roles: readonly Pick<Tables["user_roles"]["Row"], "user_id" | "role">[];
+  roles: readonly Pick<Tables["user_roles"]["Row"], "user_id" | "role" | "deactivated_at">[];
   changes: readonly AccessChange[];
 };
 
@@ -34,9 +34,12 @@ export type ChangedBy = { kind: "user"; label: ProfileLabel } | { kind: "deleted
  *   works or has passed its lifetime. Either can be re-sent.
  * - `invitation_accepted`: the link was spent, and the person has not chosen a password yet.
  * - `temporary_password` (S-409): an account an admin created, not yet given a password of its own.
+ * - `deactivated` (S-408): an admin deactivated the person. Their role is kept, and reactivating
+ *   restores it; until then they hold no access.
  */
 export type UserStatus =
   | "active"
+  | "deactivated"
   | "no_access"
   | "temporary_password"
   | "invited"
@@ -54,6 +57,13 @@ export type UserRow = {
   canResendInvitation: boolean;
   /** Any invitation until the person chooses a password, so the admin always has a stop. */
   canRevokeInvitation: boolean;
+  /**
+   * Only an active row can be deactivated (S-408): a pending row has its own stop, and a row without
+   * a role has nothing to keep. The table also withholds it from the admin's own row.
+   */
+  canDeactivate: boolean;
+  /** Only a deactivated row can be reactivated, which restores the role it holds. */
+  canReactivate: boolean;
   isServiceAccount: boolean;
   /** The latest change to this user's role; null when none is recorded. */
   lastChange: { by: ChangedBy; at: string } | null;
@@ -71,20 +81,22 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
   // reads the same here and on a plan. The same map names each change's actor.
   const credited = buildCreditedUsers({ directory, profiles });
   const entryById = new Map(directory.map((entry) => [entry.user_id, entry]));
-  const roleById = new Map(roles.map(({ user_id, role }) => [user_id, role]));
+  const roleById = new Map(roles.map((row) => [row.user_id, row]));
 
   return [...credited.values()].toSorted(byLabelThenEmail).map(({ id, label, isServiceAccount }) => {
-    const role = roleById.get(id) ?? null;
+    const roleRow = roleById.get(id);
     const latest = latestChangeTo(id, changes);
-    const status = statusOf(role, entryById.get(id), now);
+    const status = statusOf(roleRow, entryById.get(id), now);
     return {
       userId: id,
       label,
-      role,
+      role: roleRow?.role ?? null,
       status,
       canReissuePassword: status === "temporary_password",
       canResendInvitation: RESENDABLE.has(status),
       canRevokeInvitation: REVOCABLE.has(status),
+      canDeactivate: status === "active",
+      canReactivate: status === "deactivated",
       isServiceAccount,
       lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };
@@ -97,23 +109,25 @@ export function emailOf({ primary, secondary }: ProfileLabel): string {
 }
 
 type DirectoryEntry = UserDirectoryInput["directory"][number];
+type RoleRow = UserDirectoryInput["roles"][number];
 
 const RESENDABLE: ReadonlySet<UserStatus> = new Set(["invited", "invitation_expired"]);
 const REVOCABLE: ReadonlySet<UserStatus> = new Set(["invited", "invitation_expired", "invitation_accepted"]);
 
 /**
- * First match wins: an unaccepted invitation, then a pending account (by how it came to be), then
- * the role. A link expires once `now` is past `invited_at` plus the lifetime, as GoTrue judges it
- * (`now > sent + exp`), so the exact boundary still reads as invited. An invitee who finished reads
- * as any other account.
+ * First match wins: an unaccepted invitation, then a pending account (by how it came to be), then a
+ * deactivation (S-408), then the role. A link expires once `now` is past `invited_at` plus the
+ * lifetime, as GoTrue judges it (`now > sent + exp`), so the exact boundary still reads as invited.
+ * An invitee who finished reads as any other account.
  */
-const statusOf = (role: AppRole | null, entry: DirectoryEntry | undefined, now: number): UserStatus => {
+const statusOf = (role: RoleRow | undefined, entry: DirectoryEntry | undefined, now: number): UserStatus => {
   const invitedAt = entry?.invited_at ?? null;
   if (invitedAt !== null && (entry?.email_confirmed_at ?? null) === null) {
     return now > Date.parse(invitedAt) + EMAIL_LINK_LIFETIME_MS ? "invitation_expired" : "invited";
   }
   if (entry?.must_change_password) return invitedAt === null ? "temporary_password" : "invitation_accepted";
-  return role === null ? "no_access" : "active";
+  if (!role) return "no_access";
+  return role.deactivated_at === null ? "active" : "deactivated";
 };
 
 const byLabelThenEmail = (a: CreditedUser, b: CreditedUser): number =>

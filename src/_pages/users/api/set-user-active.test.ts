@@ -13,20 +13,15 @@ const USER_ID = "6f1c2a3e-8b4d-4e5f-9a6b-7c8d9e0f1a2b";
  * driven by `set-user-active.integration.test.ts`.
  */
 describe("setUserActive", () => {
-  it.each([
-    ["deactivating", false],
-    ["reactivating", true],
-  ] as const)(
-    "reports %s refused by the last-admin guard as CONFLICT, in the guard's words",
-    async (_label, active) => {
-      const { client } = fakeClient({ error: { code: RAISED_CONFLICT, message: "refused" } });
+  // Only a deactivation meets the guard: it skips a row that is already deactivated.
+  it("reports deactivating refused by the last-admin guard as CONFLICT, in the guard's words", async () => {
+    const { client } = fakeClient({ error: { code: RAISED_CONFLICT, message: "refused" } });
 
-      await expect(setUserActive(client, { userId: USER_ID, active })).rejects.toMatchObject({
-        code: "CONFLICT",
-        message: LAST_ADMIN_MESSAGE,
-      });
-    },
-  );
+    await expect(setUserActive(client, { userId: USER_ID, active: false })).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: LAST_ADMIN_MESSAGE,
+    });
+  });
 
   it("reports a write RLS refuses as FORBIDDEN", async () => {
     const { client } = fakeClient({ error: { code: INSUFFICIENT_PRIVILEGE, message: "refused" } });

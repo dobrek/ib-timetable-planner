@@ -65,8 +65,11 @@ test("an admin deactivates a signed-in author, whose next request lands on the n
       await person.goto("/account");
       await expect(person).toHaveURL(/\/account$/);
 
-      await row.getByRole("button", { name: `Reactivate ${email}` }).click();
-      await expect(row.getByText("Active", { exact: true })).toBeVisible();
+      // After the reload the button is server-rendered before it is live: retry until the row reads Active.
+      await clickToReveal(
+        row.getByRole("button", { name: `Reactivate ${email}` }),
+        row.getByText("Active", { exact: true }),
+      );
       await expect(picker(page, email)).toHaveText("Author");
 
       // Back, with no new sign-in: the author's create control is there again.

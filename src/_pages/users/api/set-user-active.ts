@@ -18,10 +18,13 @@ import {
  * Each direction is filtered on the state it changes, so it never moves a deactivation's timestamp
  * and a repeat is reported, not silently re-applied.
  *
- * - The last-admin refusal (`PT409`) → `CONFLICT`, checked before anything else.
- * - A refused write (`42501`) → `FORBIDDEN`, through `unwrapMany`.
+ * - The last-admin refusal (`PT409`) → `CONFLICT`, checked before anything else. Only a deactivation
+ *   can meet it: the guard skips a row that is already deactivated.
  * - No row matched → `NOT_FOUND`: the person is already in that state, holds no role, or the page is
- *   out of date.
+ *   out of date. A caller who is not an admin lands here too, since the UPDATE policy's USING hides
+ *   every row from them (the action's `requires` refuses them first).
+ * - A refused write (`42501`) → `FORBIDDEN`, through `unwrapMany`: the mapping's fallback, for a
+ *   WITH CHECK failure.
  */
 export const setUserActive = async (
   supabase: SupabaseClient,

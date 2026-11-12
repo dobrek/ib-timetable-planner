@@ -483,6 +483,19 @@ describe("UsersPage deactivation", () => {
     });
     expect(toastError).toHaveBeenCalledWith("That person's access has already changed.");
   });
+
+  it("frees the row and reloads nothing when a reactivation never completes", async () => {
+    vi.mocked(setUserActive).mockRejectedValue(new TypeError("Failed to fetch"));
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reactivate gil@example.test" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("Couldn't reach the server. Check the list before trying again.");
+    });
+    expect(screen.getByRole("button", { name: "Reactivate gil@example.test" })).toBeEnabled();
+    expect(refreshPage).not.toHaveBeenCalled();
+  });
 });
 
 /** Open the invite dialog, type the address, and send with the default role. */

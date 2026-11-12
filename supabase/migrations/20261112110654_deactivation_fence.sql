@@ -41,7 +41,8 @@
 --     `deactivated` (null → set) or `reactivated` (set → null); one UPDATE that does both writes both,
 --     role first. Moving one timestamp to another records nothing. The flag records carry the role
 --     held after the write as both `old_role` and `new_role`. An INSERT records `role_granted`, plus
---     `deactivated` when the row arrives deactivated (only the service role does that); a DELETE
+--     `deactivated` when the row arrives deactivated (no app path does that, but the INSERT policy
+--     does not constrain the column, so an admin's session could as well as the service role); a DELETE
 --     records `role_removed`, deactivated or not. The cascade skip and the `actor_kind` derivation
 --     from `auth.uid()` are unchanged. It runs BEFORE UPDATE, so even a self-deactivation is recorded
 --     while the admin still holds `can_manage_users()`, which the `access_changes` INSERT policy asks.

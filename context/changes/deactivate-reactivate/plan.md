@@ -42,7 +42,7 @@ The research (`context/changes/deactivate-reactivate/research.md`) is the codeba
 
 - **A dedicated `deactivated` access state or middleware read.** The person resolves to `none` and sees the existing notice. Only its paragraph is reworded.
 - **Redirecting to the notice on FORBIDDEN mid-session.** This keeps parity with S-406's role removal: a refused write rolls back with a generic error, polls keep the old snapshot, and the notice appears on the next navigation.
-- **Deactivating pending rows** (invited, invitation expired, invitation accepted, temporary password) or **the admin's own row**. Revoke covers invitations, and "No access" on your own row covers self-lockout. The database still allows self-deactivation unless the admin is the last active one, which is the guard's job.
+- **Deactivating pending rows** (invited, invitation expired, invitation accepted, temporary password) or **the admin's own row**. Revoke covers invitations, and "No access" on your own row covers self-lockout. The database still allows self-deactivation unless the admin is the last active one, which is the guard's job. Nor does the server refuse deactivating a pending row: `setUserActive` filters only on `deactivated_at`, so "active rows only" lives in the UI (`canDeactivate`). A crafted admin call is harmless: the person is already fenced as pending, and once they choose a password the row reads Deactivated and offers Reactivate. (Recorded in the implementation review, F2.)
 - **Locking the role picker** on a deactivated row.
 - **A "deactivated since" date in the Status cell.** "Last change" already shows when.
 - **Signing the person out, banning them, or revoking their sessions.** Those are S-411's tools, and they send people to sign-in rather than to the notice. A deactivated person's refresh token stays alive, which is harmless (RLS fails closed) and is why reactivation is instant.
@@ -73,7 +73,7 @@ Every write goes through the admin's own session, so RLS judges it and the trigg
 - **Recorder semantics.**
   - **UPDATE:** record `role_changed` when the role differs. Separately, record `deactivated` when `deactivated_at` goes from null to set, or `reactivated` when it goes from set to null. One UPDATE that does both writes both records, role first. Moving one timestamp to another records nothing.
   - **The flag records' roles:** `deactivated` and `reactivated` carry `new.role` as both `old_role` and `new_role`, the role held after the write. So in a combined write, `role_changed` reads old → new, and the flag record reads new → new.
-  - **INSERT:** records `role_granted`, plus `deactivated` when the row arrives deactivated, which only the service role does.
+  - **INSERT:** records `role_granted`, plus `deactivated` when the row arrives deactivated. No app path does that, but the INSERT policy does not constrain the column, so an admin's session could as well as the service role.
   - **DELETE:** records `role_removed`, as today, deactivated or not.
   - Keep the cascade skip and the `actor_kind` derivation from `auth.uid()`.
 - **Lock budget.** Open both migrations with `set local lock_timeout = '5s'`, as S-409 did. `add column` takes a brief ACCESS EXCLUSIVE lock on `user_roles`, which every request reads.
@@ -285,6 +285,7 @@ Show the state, and give the admin the two actions. After this phase an admin ca
 - Success: toast ("<email> deactivated" / "<email> reactivated"), then `refreshPage()`.
 - Refusals: `NOT_FOUND` and `FORBIDDEN` reload; `CONFLICT` toasts without a reload. A rejected request toasts `ACCOUNT_UNREACHABLE_MESSAGE`.
 - `askDeactivate` ignores the admin's own row and any row without `canDeactivate`.
+- *Addendum (implementation):* the outcome handling was extracted from `use-invitation-actions.ts` into `model/report-row-action.ts` (`reportRowAction`, `REFRESH_ON`) and shared by both hooks, rather than copied. Invitation behaviour is unchanged.
 - The dialog is modelled on `ConfirmRevokeDialog.tsx`. Title: "Deactivate <email>?". Body: they lose access to every plan from their next page load, and their role (<role label>) is kept, so reactivating restores it. Destructive action button: "Deactivate".
 
 #### 4. Table and page wiring

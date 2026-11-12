@@ -26,8 +26,8 @@ import { readPublishableKey } from "./publishable-key";
  * The claims, in the order the function enforces them:
  *
  * - **Who gets in.** Only a genuine token reaches the function (401 otherwise), and only a live admin
- *   gets past it: a role-less user, a viewer, an author, an admin still on a temporary password and
- *   the solver's machine token are all refused (403).
+ *   gets past it: a role-less user, a viewer, an author, an admin still on a temporary password, a
+ *   deactivated admin (S-408) and the solver's machine token are all refused (403).
  * - **What `create` does.** One admin request makes the account, fences it, records it and grants the
  *   role, and the response is the only place the password appears. A forced failure after the account
  *   exists undoes it and returns no password.
@@ -66,19 +66,28 @@ const OTP_EXPIRED = "otp_expired";
   let admin: SupabaseClient;
   let pg: Client;
   let caller: SignedInUser;
-  let tokens: { admin: string; author: string; viewer: string; noRole: string; pendingAdmin: string; machine: string };
+  let tokens: {
+    admin: string;
+    author: string;
+    viewer: string;
+    noRole: string;
+    pendingAdmin: string;
+    deactivatedAdmin: string;
+    machine: string;
+  };
   const ownMail = new Set<string>();
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     admin = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
     pg = await connectPostgres();
-    const [adminUser, author, viewer, noRole, pendingAdmin, machine] = await Promise.all([
+    const [adminUser, author, viewer, noRole, pendingAdmin, deactivatedAdmin, machine] = await Promise.all([
       createSignedInUser(admin, { role: "admin" }),
       createSignedInUser(admin, { role: "author" }),
       createSignedInUser(admin, { role: "viewer" }),
       createSignedInUser(admin),
       createSignedInUser(admin, { role: "admin", mustChangePassword: true }),
+      createSignedInUser(admin, { role: "admin", deactivated: true }),
       signedInMachine(admin),
     ]);
     caller = adminUser;
@@ -88,6 +97,7 @@ const OTP_EXPIRED = "otp_expired";
       viewer: await tokenOf(viewer.client),
       noRole: await tokenOf(noRole.client),
       pendingAdmin: await tokenOf(pendingAdmin.client),
+      deactivatedAdmin: await tokenOf(deactivatedAdmin.client),
       machine,
     };
   }, 30_000);
@@ -125,7 +135,7 @@ const OTP_EXPIRED = "otp_expired";
       expect((await call({ token: hs256Token({ sub: caller.id, role: "authenticated" }) }, create)).status).toBe(401);
     });
 
-    for (const principal of ["noRole", "viewer", "author", "pendingAdmin", "machine"] as const) {
+    for (const principal of ["noRole", "viewer", "author", "pendingAdmin", "deactivatedAdmin", "machine"] as const) {
       it(`refuses ${principal} (403), whatever it asks`, async () => {
         expect((await call({ token: tokens[principal] }, create)).status).toBe(403);
         expect((await call({ token: tokens[principal] }, { op: "reissue", userId: randomUUID() })).status).toBe(403);

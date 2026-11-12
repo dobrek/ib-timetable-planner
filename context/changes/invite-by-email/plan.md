@@ -660,10 +660,10 @@ The migration is additive: two nullable columns, three enum values, a re-created
 #### Automated
 
 - [x] 6.1 Hosted settings read back as set: the runbook's check `jq` shows `mailer_otp_exp: 86400`, `mailer_otp_length: 10` and `mailer_subjects_invite`, and the template read-back diff is empty
-- [ ] 6.2 CI `deploy` job green on the merge commit: `GH_TOKEN=$(gh auth token --user dobrek) gh run list --branch main --limit 1`
+- [x] 6.2 CI `deploy` job green on the merge commit: `GH_TOKEN=$(gh auth token --user dobrek) gh run list --branch main --limit 1`
 
 #### Manual
 
 - [x] 6.3 Pre-merge throwaway invite email checked and its user deleted
-- [ ] 6.4 Post-merge hosted flow checked (flag held through acceptance, read-only landing, revoke refuses the link)
+- [x] 6.4 Post-merge hosted flow checked (flag held through acceptance, read-only landing, revoke refuses the link)
 - [ ] 6.5 Done-line demo shown against the coordinator's school mailbox, and recorded

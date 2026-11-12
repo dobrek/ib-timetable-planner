@@ -166,6 +166,62 @@ type Statement = { sql: string; params?: unknown[] };
     });
   });
 
+  it("counts only active admins: the last one cannot be deactivated, and a deactivated one does not count (S-408)", async () => {
+    const active = await userWithRole(admin, "admin");
+    const deactivated = await userWithRole(admin, "admin");
+
+    const outcomes = await inRolledBackTransaction(async (pg) => {
+      await pg.query("set local lock_timeout = '5s'");
+      await pg.query("lock table public.user_roles in exclusive mode");
+      // From here the two are the only admins, in this transaction alone, and one is deactivated.
+      await pg.query(
+        "update public.user_roles set role = 'author' where role = 'admin' and user_id <> all ($1::uuid[])",
+        [[active, deactivated]],
+      );
+      await pg.query(deactivate(deactivated).sql, deactivate(deactivated).params);
+
+      return {
+        // FR-408's "or deactivate", by every path: the owner, the service role, the admin's own session.
+        lastActiveDeactivated: await sqlstateOf(pg, [deactivate(active)]),
+        lastActiveDeactivatedByServiceRole: await sqlstateOf(pg, [
+          { sql: "set local role service_role" },
+          deactivate(active),
+        ]),
+        lastActiveDeactivatesThemselves: await sqlstateOf(pg, [
+          { sql: "set local role authenticated" },
+          { sql: "select set_config('request.jwt.claims', $1, true)", params: [claimsFor(active)] },
+          deactivate(active),
+        ]),
+        // The deactivated admin is a row, not a safeguard.
+        deactivatedAdminIsNotCounted: await sqlstateOf(pg, [demote(active)]),
+        deactivatedAdminRemovalNotCounted: await sqlstateOf(pg, [
+          { sql: "delete from public.user_roles where user_id = $1", params: [active] },
+        ]),
+        // The admin who cannot act may be demoted or removed while another can.
+        deactivatedAdminDemoted: await sqlstateOf(pg, [demote(deactivated)]),
+        deactivatedAdminRemoved: await sqlstateOf(pg, [
+          { sql: "delete from public.user_roles where user_id = $1", params: [deactivated] },
+        ]),
+        // With a second active admin, deactivating one passes.
+        deactivatedWithAnotherActive: await sqlstateOf(pg, [reactivate(deactivated), deactivate(active)]),
+        // Reactivated, the same admin counts again.
+        countsOnceReactivated: await sqlstateOf(pg, [reactivate(deactivated), demote(active)]),
+      };
+    });
+
+    expect(outcomes).toEqual({
+      lastActiveDeactivated: LAST_ADMIN,
+      lastActiveDeactivatedByServiceRole: LAST_ADMIN,
+      lastActiveDeactivatesThemselves: LAST_ADMIN,
+      deactivatedAdminIsNotCounted: LAST_ADMIN,
+      deactivatedAdminRemovalNotCounted: LAST_ADMIN,
+      deactivatedAdminDemoted: null,
+      deactivatedAdminRemoved: null,
+      deactivatedWithAnotherActive: null,
+      countsOnceReactivated: null,
+    });
+  });
+
   it("serialises concurrent demotions: the second waits on the guard's advisory lock", async () => {
     const first = await userWithRole(admin, "admin");
     const second = await userWithRole(admin, "admin");
@@ -203,6 +259,16 @@ const userWithRole = async (admin: SupabaseClient, role: AppRole): Promise<strin
 
 const demote = (userId: string): Statement => ({
   sql: "update public.user_roles set role = 'author' where user_id = $1",
+  params: [userId],
+});
+
+const deactivate = (userId: string): Statement => ({
+  sql: "update public.user_roles set deactivated_at = now() where user_id = $1",
+  params: [userId],
+});
+
+const reactivate = (userId: string): Statement => ({
+  sql: "update public.user_roles set deactivated_at = null where user_id = $1",
   params: [userId],
 });
 

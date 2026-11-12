@@ -57,6 +57,7 @@ import {
   PROFILE_REKEY,
   PROFILE_WRITES,
   READS,
+  ROLE_DEACTIVATIONS,
   ROLE_WRITES,
   RPCS,
   SELF_GRANT_EVIDENCE,
@@ -71,6 +72,7 @@ import {
   type Principal,
   type ProfileWriteOperation,
   type RepresentativeTable,
+  type RoleDeactivation,
   type RowOwner,
   type Rpc,
   type SelfGrant,
@@ -92,8 +94,10 @@ import {
  * The matrix pins S-403's fail-closed posture, with S-406's admin write path. Anon is denied
  * everywhere. A signed-in user without a role reaches only its own profile and directory row. A
  * viewer reads every plan and profile, and writes only its own profile. An author and an admin read
- * and write every plan, and only an admin reads every role and access change, and gives, changes or
- * removes another user's role. Only a job's requester or an admin stops it, unless it records no
+ * and write every plan, and only an admin reads every role and access change, and gives, changes,
+ * removes, deactivates or reactivates another user's role. An admin whose temporary password is
+ * pending (S-409), or whom an admin deactivated (S-408), holds an admin row that reads as none, so
+ * reaches what a user without a role reaches. Only a job's requester or an admin stops it, unless it records no
  * requester (S-407), and nobody rewrites who requested or stopped it. The admin principal's own role
  * row is never written here: demoting it would change every later cell, so its self-change belongs
  * to the guard and record suites. Behavioural cells cover five
@@ -123,6 +127,7 @@ type SignedInPrincipal = Exclude<Principal, "anon">;
 const HELD_ROLES: Record<SignedInPrincipal, AppRole | null> = {
   noRole: null,
   pendingAdmin: "admin",
+  deactivatedAdmin: "admin",
   viewer: "viewer",
   author: "author",
   admin: "admin",
@@ -130,12 +135,20 @@ const HELD_ROLES: Record<SignedInPrincipal, AppRole | null> = {
 
 /**
  * What `own_app_role` must answer: the held role, except for a pending admin, whose row is fenced
- * off until its first real password change (S-409), so the role reads as none.
+ * off until its first real password change (S-409), and a deactivated one, whose row is fenced off
+ * until an admin reactivates it (S-408). Each role reads as none.
  */
-const ANSWERED_ROLES: Record<SignedInPrincipal, AppRole | null> = { ...HELD_ROLES, pendingAdmin: null };
+const ANSWERED_ROLES: Record<SignedInPrincipal, AppRole | null> = {
+  ...HELD_ROLES,
+  pendingAdmin: null,
+  deactivatedAdmin: null,
+};
 
 /** Principals whose account still carries the temporary-password flag. */
 const PENDING_PRINCIPALS: ReadonlySet<Principal> = new Set(["pendingAdmin"]);
+
+/** Principals whose role row arrives deactivated. */
+const DEACTIVATED_PRINCIPALS: ReadonlySet<Principal> = new Set(["deactivatedAdmin"]);
 
 /** Every write a self-grant can send: the service role's evidence covers each one. */
 const SELF_GRANT_WRITES: Record<SelfGrant, WriteOperation[]> = {
@@ -161,6 +174,7 @@ const USER_KEYED_TABLES = Object.keys(USER_KEYED_READS) as UserKeyedTable[];
 const REPRESENTATIVES = Object.keys(WRITES) as RepresentativeTable[];
 const OPERATIONS: WriteOperation[] = ["insert", "update", "delete"];
 const ROW_OWNERS: RowOwner[] = ["own", "others"];
+const ROLE_DEACTIVATION_WRITES = Object.keys(ROLE_DEACTIVATIONS) as RoleDeactivation[];
 const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
 const SELF_GRANT_NAMES = Object.keys(SELF_GRANTS) as SelfGrant[];
 const RPC_NAMES = Object.keys(RPCS) as Rpc[];
@@ -226,6 +240,7 @@ const ATTRIBUTION_COLUMNS = Object.keys(JOB_ATTRIBUTION_REWRITES) as JobAttribut
       anon: createPublishableClient(SUPABASE_URL, PUBLISHABLE_KEY),
       noRole: signedIn.noRole.client,
       pendingAdmin: signedIn.pendingAdmin.client,
+      deactivatedAdmin: signedIn.deactivatedAdmin.client,
       viewer: signedIn.viewer.client,
       author: signedIn.author.client,
       admin: signedIn.admin.client,
@@ -415,6 +430,14 @@ const ATTRIBUTION_COLUMNS = Object.keys(JOB_ATTRIBUTION_REWRITES) as JobAttribut
         });
       }
 
+      for (const write of ROLE_DEACTIVATION_WRITES) {
+        const expected = ROLE_DEACTIVATIONS[write][principal];
+        it(`${principal} ${write} another user (UPDATE user_roles.deactivated_at) → ${expected}`, async () => {
+          const attempt = await ROLE_DEACTIVATION_PROBES[write](admin, principals[principal]);
+          expect(await probeWrite(attempt)).toBe(expected);
+        });
+      }
+
       const machineGrantExpected = MACHINE_ROLE_GRANT[principal];
       it(`${principal} INSERT a role for a machine user → ${machineGrantExpected}`, async () => {
         const attempt = await ROLE_WRITE_PROBES.insert(admin, principals[principal], machineUserId, "viewer");
@@ -582,6 +605,7 @@ const signInEveryPrincipal = async (admin: SupabaseClient): Promise<Record<Signe
           await createSignedInUser(admin, {
             role: HELD_ROLES[principal] ?? undefined,
             mustChangePassword: PENDING_PRINCIPALS.has(principal),
+            deactivated: DEACTIVATED_PRINCIPALS.has(principal),
           }),
         ] as const,
     ),
@@ -1144,6 +1168,40 @@ const freshRoleTarget = async (admin: SupabaseClient, write: WriteOperation): Pr
   return id;
 };
 
+/** One deactivation cell: an UPDATE of a fresh user's `deactivated_at`, sent by `client`. */
+type RoleDeactivationProbe = (admin: SupabaseClient, client: SupabaseClient) => Promise<WriteAttempt>;
+
+/**
+ * Each probe starts from a fresh `author` in the state the write needs (active to deactivate,
+ * deactivated to reactivate) and sends exactly the column change, filtered by the user alone. The
+ * effect is the flag read back as the service role.
+ */
+const ROLE_DEACTIVATION_PROBES: Record<RoleDeactivation, RoleDeactivationProbe> = {
+  deactivate: async (admin, client) => {
+    const userId = await freshDeactivationTarget(admin, "deactivate");
+    return {
+      attempt: () =>
+        client.from("user_roles").update({ deactivated_at: new Date().toISOString() }).eq("user_id", userId),
+      effectLanded: async () => (await requireRoleRow(admin, userId)).deactivated_at !== null,
+    };
+  },
+  reactivate: async (admin, client) => {
+    const userId = await freshDeactivationTarget(admin, "reactivate");
+    return {
+      attempt: () => client.from("user_roles").update({ deactivated_at: null }).eq("user_id", userId),
+      effectLanded: async () => (await requireRoleRow(admin, userId)).deactivated_at === null,
+    };
+  },
+};
+
+/** A fresh user holding `author`: active for a deactivation, already deactivated for a reactivation. */
+const freshDeactivationTarget = async (admin: SupabaseClient, write: RoleDeactivation): Promise<string> => {
+  const { id } = await createAuthUser(admin);
+  const deactivatedAt = write === "reactivate" ? new Date().toISOString() : null;
+  setUp(await admin.from("user_roles").insert({ user_id: id, role: "author", deactivated_at: deactivatedAt }));
+  return id;
+};
+
 /**
  * One direct write to the access record, sent by `client`. `actorId` is the principal's own id, so
  * an admin's INSERT names itself as the actor, exactly as its trigger would: only the trigger-context
@@ -1215,11 +1273,15 @@ const operatorGrantRecord = async (admin: SupabaseClient): Promise<number> => {
   return records[0].id;
 };
 
-type RoleRow = { role: AppRole; updated_at: string };
+type RoleRow = { role: AppRole; updated_at: string; deactivated_at: string | null };
 
 /** `userId`'s role row as the service role sees it, or null when it holds none. Throws on any error. */
 const roleRowOf = async (admin: SupabaseClient, userId: string): Promise<RoleRow | null> => {
-  const { data, error } = await admin.from("user_roles").select("role, updated_at").eq("user_id", userId).maybeSingle();
+  const { data, error } = await admin
+    .from("user_roles")
+    .select("role, updated_at, deactivated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
   if (error) throw new Error(`read-back failed: ${error.message}`);
   return data;
 };

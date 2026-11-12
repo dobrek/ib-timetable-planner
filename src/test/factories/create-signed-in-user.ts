@@ -34,11 +34,20 @@ export type SignedInUser = {
  * - **`mustChangePassword`** (S-409) sets the pending flag on the user's directory row before the
  *   first sign-in, as the Edge Function does for an account it creates: the user holds their role
  *   row, and `private.current_app_role()` reads as null until the first real password change.
+ * - **`deactivated`** (S-408) makes the role row arrive deactivated, in the same INSERT that gives
+ *   it, before the first sign-in: the user holds their role, and `private.current_app_role()` reads
+ *   as null until an admin reactivates them. One write, never a later UPDATE: an UPDATE would fire
+ *   the last-admin guard while several principals are created at once. It needs `role`.
  */
 export async function createSignedInUser(
   admin: SupabaseClient,
-  { role, mustChangePassword = false }: { role?: AppRole; mustChangePassword?: boolean } = {},
+  {
+    role,
+    mustChangePassword = false,
+    deactivated = false,
+  }: { role?: AppRole; mustChangePassword?: boolean; deactivated?: boolean } = {},
 ): Promise<SignedInUser> {
+  if (deactivated && !role) throw new Error("createSignedInUser: deactivated needs a role to deactivate");
   const url = requireLoopbackUrl();
   const publishableKey = requirePublishableKey();
   const email = `signed-in-${randomUUID()}@example.test`;
@@ -48,7 +57,7 @@ export async function createSignedInUser(
   if (created.error) throw new Error(`createSignedInUser: createUser: ${created.error.message}`);
   const id = created.data.user.id;
   registerUser(id);
-  if (role) await assignRole(admin, id, role);
+  if (role) await assignRole(admin, id, role, deactivated);
   if (mustChangePassword) await markPending(admin, id);
 
   // Its own in-memory session, so several signed-in clients in one file never share one.
@@ -60,8 +69,14 @@ export async function createSignedInUser(
 }
 
 /** The role row leaves with its user: `user_roles.user_id` cascades from auth.users. */
-const assignRole = async (admin: SupabaseClient, userId: string, role: AppRole): Promise<void> => {
-  const { error } = await admin.from("user_roles").insert({ user_id: userId, role });
+const assignRole = async (
+  admin: SupabaseClient,
+  userId: string,
+  role: AppRole,
+  deactivated: boolean,
+): Promise<void> => {
+  const deactivatedAt = deactivated ? new Date().toISOString() : null;
+  const { error } = await admin.from("user_roles").insert({ user_id: userId, role, deactivated_at: deactivatedAt });
   if (error) throw new Error(`createSignedInUser: assign role: ${error.message}`);
 };
 

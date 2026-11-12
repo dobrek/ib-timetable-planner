@@ -102,6 +102,66 @@ type AccessChange = Pick<
     ]);
   });
 
+  it("deactivating a user records deactivated, with the admin as the actor and the role they keep (S-408)", async () => {
+    const target = await userWithRole(service, "author");
+    expect(
+      (await admin.client.from("user_roles").update({ deactivated_at: new Date().toISOString() }).eq("user_id", target))
+        .error,
+    ).toBeNull();
+    expect(await recordsNaming(service, target)).toEqual([
+      operatorGrant(target, "author"),
+      byAdmin("deactivated", target, "author", "author"),
+    ]);
+  });
+
+  it("reactivating a user records reactivated; a role row that arrives deactivated records both", async () => {
+    const target = await userWithRole(service, "author", { deactivated: true });
+    expect(
+      (await admin.client.from("user_roles").update({ deactivated_at: null }).eq("user_id", target)).error,
+    ).toBeNull();
+    expect(await recordsNaming(service, target)).toEqual([
+      operatorGrant(target, "author"),
+      byOperator("deactivated", target, "author", "author"),
+      byAdmin("reactivated", target, "author", "author"),
+    ]);
+  });
+
+  it("one write that changes the role and deactivates records both, role first, the flag with the new role", async () => {
+    const target = await userWithRole(service, "author");
+    expect(
+      (
+        await service
+          .from("user_roles")
+          .update({ role: "viewer", deactivated_at: new Date().toISOString() })
+          .eq("user_id", target)
+      ).error,
+    ).toBeNull();
+    expect(await recordsNaming(service, target)).toEqual([
+      operatorGrant(target, "author"),
+      byOperator("role_changed", target, "author", "viewer"),
+      byOperator("deactivated", target, "viewer", "viewer"),
+    ]);
+  });
+
+  it("changing a deactivated user's role records only role_changed", async () => {
+    const target = await userWithRole(service, "author", { deactivated: true });
+    const before = (await recordsNaming(service, target)).length;
+    expect((await admin.client.from("user_roles").update({ role: "viewer" }).eq("user_id", target)).error).toBeNull();
+    expect((await recordsNaming(service, target)).slice(before)).toEqual([
+      byAdmin("role_changed", target, "author", "viewer"),
+    ]);
+  });
+
+  it("moving a deactivation's timestamp records nothing", async () => {
+    const target = await userWithRole(service, "author", { deactivated: true });
+    const before = (await recordsNaming(service, target)).length;
+    expect(
+      (await admin.client.from("user_roles").update({ deactivated_at: "2026-01-01T00:00:00Z" }).eq("user_id", target))
+        .error,
+    ).toBeNull();
+    expect((await recordsNaming(service, target)).slice(before)).toEqual([]);
+  });
+
   // Last: the admin is no longer one afterwards.
   it("an admin may demote themselves while another admin remains, and it is recorded", async () => {
     expect((await admin.client.from("user_roles").update({ role: "viewer" }).eq("user_id", admin.id)).error).toBeNull();
@@ -128,13 +188,33 @@ type AccessChange = Pick<
   });
 });
 
-/** A fresh user given `role` by the service role, and its id. */
-const userWithRole = async (service: SupabaseClient, role: AppRole): Promise<string> => {
+/** A fresh user given `role` by the service role, deactivated in the same write when asked, and its id. */
+const userWithRole = async (
+  service: SupabaseClient,
+  role: AppRole,
+  { deactivated = false }: { deactivated?: boolean } = {},
+): Promise<string> => {
   const { id } = await createAuthUser(service);
-  const { error } = await service.from("user_roles").insert({ user_id: id, role });
+  const deactivatedAt = deactivated ? new Date().toISOString() : null;
+  const { error } = await service.from("user_roles").insert({ user_id: id, role, deactivated_at: deactivatedAt });
   if (error) throw new Error(`setup failed: ${error.message}`);
   return id;
 };
+
+/** A record of a service-role write: the operator, with no actor id. */
+const byOperator = (
+  kind: AccessChange["kind"],
+  target: string,
+  oldRole: AppRole | null,
+  newRole: AppRole | null,
+): AccessChange => ({
+  kind,
+  actor_kind: "operator",
+  actor_id: null,
+  target_id: target,
+  old_role: oldRole,
+  new_role: newRole,
+});
 
 /** The record of the factory's own grant: the service role is the operator. */
 const operatorGrant = (target: string, role: AppRole): AccessChange => ({

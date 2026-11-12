@@ -1,7 +1,7 @@
 ---
 change_id: deactivate-reactivate
 title: Deactivate reactivate
-status: plan_reviewed
+status: implementing
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null

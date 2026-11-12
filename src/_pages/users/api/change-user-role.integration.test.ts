@@ -44,6 +44,14 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(await roleOf(service, target)).toBeNull();
   });
 
+  it("changes a deactivated user's role and keeps them deactivated: a role change never reactivates (S-408)", async () => {
+    const target = await userWithRole(service, "author", { deactivated: true });
+
+    await changeUserRole(admin.client, { userId: target, role: "viewer" });
+
+    expect(await roleRowOf(service, target)).toEqual({ role: "viewer", deactivated: true });
+  });
+
   it("refuses an author with FORBIDDEN, and leaves the role as it was", async () => {
     const author = await createSignedInUser(service, { role: "author" });
     const target = await userWithRole(service, "viewer");
@@ -75,12 +83,31 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
   });
 });
 
-/** A fresh user given `role` by the service role, and its id. */
-const userWithRole = async (service: SupabaseClient, role: AppRole): Promise<string> => {
+/** A fresh user given `role` by the service role, deactivated in the same write when asked, and its id. */
+const userWithRole = async (
+  service: SupabaseClient,
+  role: AppRole,
+  { deactivated = false }: { deactivated?: boolean } = {},
+): Promise<string> => {
   const { id } = await createAuthUser(service);
-  const { error } = await service.from("user_roles").insert({ user_id: id, role });
+  const deactivatedAt = deactivated ? new Date().toISOString() : null;
+  const { error } = await service.from("user_roles").insert({ user_id: id, role, deactivated_at: deactivatedAt });
   if (error) throw new Error(`setup failed: ${error.message}`);
   return id;
+};
+
+/** The role row `userId` holds, and whether it is deactivated, read as the service role. */
+const roleRowOf = async (
+  service: SupabaseClient,
+  userId: string,
+): Promise<{ role: AppRole; deactivated: boolean } | null> => {
+  const { data, error } = await service
+    .from("user_roles")
+    .select("role, deactivated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(`read-back failed: ${error.message}`);
+  return data && { role: data.role, deactivated: data.deactivated_at !== null };
 };
 
 /** The role `userId` holds, read as the service role; null when it holds none. */

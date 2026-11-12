@@ -10,6 +10,7 @@ import {
   JOB_ATTRIBUTION_REWRITES,
   JOB_STOPS,
   PROFILE_WRITES,
+  ROLE_DEACTIVATIONS,
   ROLE_WRITES,
   RPCS,
   SELF_GRANT_EVIDENCE,
@@ -55,6 +56,7 @@ const writeRows = [
     Object.entries(operations).map(([operation, cell]) => [`${operation} ${table}`, cell] as const),
   ),
   ...Object.entries(ROLE_WRITES).map(([operation, cell]) => [`${operation} another user's role`, cell] as const),
+  ...Object.entries(ROLE_DEACTIVATIONS).map(([write, cell]) => [`${write} another user`, cell] as const),
 ];
 const PROFILE_OPERATIONS: ProfileWriteOperation[] = ["insert", "update"];
 const ownProfileRows = PROFILE_OPERATIONS.map(
@@ -170,6 +172,16 @@ describe("role-matrix expectations", () => {
     const differing = cells
       .filter(([, cell]) => cell.noRole !== "no-row" && cell.pendingAdmin !== cell.noRole)
       .map(([path]) => path);
+
+    expect(cells.length).toBeGreaterThan(0);
+    expect(differing).toEqual([]);
+  });
+
+  // PRINCIPAL_NOTES.deactivatedAdmin, as a check: a kept role that reads as none until reactivation
+  // (S-408). Both hold the same rows, so no cell may tell them apart, own-row cells included.
+  it("deactivatedAdmin reaches exactly what pendingAdmin reaches, on every cell", () => {
+    const cells = cellsIn(matrix, "");
+    const differing = cells.filter(([, cell]) => cell.deactivatedAdmin !== cell.pendingAdmin).map(([path]) => path);
 
     expect(cells.length).toBeGreaterThan(0);
     expect(differing).toEqual([]);

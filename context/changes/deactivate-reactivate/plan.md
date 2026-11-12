@@ -541,12 +541,12 @@ In the same test, before step 2's click, the admin's own row shows no `Deactivat
 
 #### Automated
 
-- [x] 3.1 New deactivate spec passes against a fresh preview
-- [x] 3.2 No-role, Users and create-account specs still pass
-- [x] 3.3 Full local CI gate passes (`/verify`)
+- [x] 3.1 New deactivate spec passes against a fresh preview — 12f0b266
+- [x] 3.2 No-role, Users and create-account specs still pass — 12f0b266
+- [x] 3.3 Full local CI gate passes (`/verify`) — 12f0b266
 
 #### Manual
 
-- [x] 3.4 Script reactivates a deactivated person and is recorded as Operator
-- [x] 3.5 Script `none` on a deactivated person records `role_removed`
+- [x] 3.4 Script reactivates a deactivated person and is recorded as Operator — 12f0b266
+- [x] 3.5 Script `none` on a deactivated person records `role_removed` — 12f0b266
 - [ ] 3.6 Hosted: deactivate and reactivate a non-admin test account after merge

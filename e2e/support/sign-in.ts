@@ -8,6 +8,26 @@ import { expect, type Browser, type Page } from "@playwright/test";
  * the behaviour under test (it passes `landsOn`, because a user on a temporary password is sent on
  * from /dashboard to /account); and `deactivate.admin.spec.ts` (S-408), a throwaway author whose
  * live session meeting the deactivation IS the behaviour under test.
+ */
+export async function signInThroughUi(
+  page: Page,
+  email: string,
+  password: string,
+  landsOn = "**/dashboard",
+): Promise<void> {
+  await fillSignInForm(page, email, password);
+  await page.getByRole("button", { name: /sign in/i }).click();
+
+  // Wait for the post-login redirect BEFORE the caller saves, or storageState captures a pre-auth
+  // (cookie-less) context. An account lands on /dashboard (a role-less one sees the notice there),
+  // except one on a temporary password, which lands on /account: hence `landsOn`.
+  await page.waitForURL(landsOn);
+}
+
+/**
+ * Open /auth/signin and fill it once the form is live, without submitting. A spec that submits a
+ * sign-in it expects to be REFUSED (`create-account.admin.spec.ts`'s dead password) uses this
+ * directly; `signInThroughUi` builds on it.
  *
  * SignInForm is a controlled React island (`client:load`): its inputs are bound to useState(""), so
  * a value typed BEFORE hydration is discarded the instant React mounts and re-binds the input to its
@@ -16,12 +36,7 @@ import { expect, type Browser, type Page } from "@playwright/test";
  * password toggle is React-only behaviour, so retry-clicking it until the control flips proves the
  * island is interactive; after that, fills register in React state and survive to submit.
  */
-export async function signInThroughUi(
-  page: Page,
-  email: string,
-  password: string,
-  landsOn = "**/dashboard",
-): Promise<void> {
+export async function fillSignInForm(page: Page, email: string, password: string): Promise<void> {
   await page.goto("/auth/signin");
 
   const showPassword = page.getByRole("button", { name: "Show password" });
@@ -40,13 +55,6 @@ export async function signInThroughUi(
   // Confirm both values registered in React state before submitting.
   await expect(emailField).toHaveValue(email);
   await expect(passwordField).toHaveValue(password);
-
-  await page.getByRole("button", { name: /sign in/i }).click();
-
-  // Wait for the post-login redirect BEFORE the caller saves, or storageState captures a pre-auth
-  // (cookie-less) context. An account lands on /dashboard (a role-less one sees the notice there),
-  // except one on a temporary password, which lands on /account: hence `landsOn`.
-  await page.waitForURL(landsOn);
 }
 
 /**

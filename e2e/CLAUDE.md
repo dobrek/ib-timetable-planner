@@ -10,7 +10,8 @@ hydration-race `clickToReveal`, the `gotoStable` navigation retry, `shortId`, an
 `createPlan`/`createTeacher`/`deletePlan` entity lifecycle) lives in
 `e2e/support/planner.ts`; the account page's hydration gate
 (`waitForAccountHydration`) lives in `e2e/support/account.ts`; the setup files'
-UI sign-in (`signInThroughUi`) lives in `e2e/support/sign-in.ts`; the throwaway
+UI sign-in (`signInThroughUi`, and the hydration-gated `fillSignInForm` it builds
+on, for a sign-in a spec expects refused) lives in `e2e/support/sign-in.ts`; the throwaway
 user's loopback-only service-role client (`adminClient`) lives in
 `e2e/support/admin-api.ts`, the Users page's absence check, paired with the
 admin's presence (`expectUsersPageHidden`), in `e2e/support/users.ts`, and the

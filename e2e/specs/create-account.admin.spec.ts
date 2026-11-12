@@ -4,7 +4,7 @@ import { adminEmail } from "../admin-credentials.mjs";
 import { waitForAccountHydration } from "../support/account";
 import { deleteUserByEmail, strongPassword } from "../support/admin-api";
 import { clickToReveal } from "../support/planner";
-import { signInThroughUi, withFreshContext } from "../support/sign-in";
+import { fillSignInForm, signInThroughUi, withFreshContext } from "../support/sign-in";
 import { rolePicker as picker, userRow as rowFor } from "../support/users";
 
 // An admin creates an account with a temporary password, and the new person's first sign-in
@@ -94,9 +94,7 @@ test("a lost password is re-issued once, and the old one stops working", async (
       await signInThroughUi(person, email, second, "**/account");
     });
     await withFreshContext(browser, baseURL, async (person) => {
-      await person.goto("/auth/signin");
-      await person.getByLabel("Email").fill(email);
-      await person.getByLabel("Password", { exact: true }).fill(first);
+      await fillSignInForm(person, email, first);
       await person.getByRole("button", { name: /sign in/i }).click();
       await expect(person).toHaveURL(/\/auth\/signin/);
       await expect(person.getByText(/invalid login credentials/i)).toBeVisible();

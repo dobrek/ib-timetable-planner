@@ -17,7 +17,8 @@ export type OwnAccessRead = { role: AppRole | null; mustChangePassword: boolean 
  * - a user and a rejected lookup (the role read or the flag read) → `unavailable`, never `none`;
  * - a user and a role → `granted`;
  * - a user with no role who must change their password → `password_change_required`;
- * - a user with no role and no flag → `none`.
+ * - a user with no role and no flag → `none`: never given one, or deactivated (S-408), whose kept
+ *   role `own_app_role()` reads as null.
  */
 export function resolveAccess(hasUser: boolean, lookup: PromiseSettledResult<OwnAccessRead>): AccessState {
   if (!hasUser) return { status: "none" };

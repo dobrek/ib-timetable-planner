@@ -2,10 +2,12 @@ import { useState } from "react";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button, Toaster } from "@/shared/ui";
 import type { PasswordReveal } from "../model/schemas";
+import { useActivationActions } from "../model/use-activation-actions";
 import { useInvitationActions } from "../model/use-invitation-actions";
 import { useReissuePassword } from "../model/use-reissue-password";
 import { useRoleChange } from "../model/use-role-change";
 import type { UserRow } from "../model/user-rows";
+import ConfirmDeactivateDialog from "./ConfirmDeactivateDialog";
 import ConfirmReissueDialog from "./ConfirmReissueDialog";
 import ConfirmRevokeDialog from "./ConfirmRevokeDialog";
 import ConfirmRoleChangeDialog from "./ConfirmRoleChangeDialog";
@@ -16,13 +18,13 @@ import UserTable from "./UserTable";
 
 type Props = {
   rows: UserRow[];
-  /** The signed-in admin, whose own row reads "You" and asks before it changes. */
+  /** The signed-in admin, whose own row reads "You", asks before it changes and never offers Deactivate. */
   currentUserId: string;
 };
 
 /**
- * The Users page island (S-406, S-409, S-410): a thin orchestrator over the table, the confirmations
- * and the account dialogs. The one-time password lives here, in state, and nowhere else: closing its
+ * The Users page island (S-406, S-408, S-409, S-410): a thin orchestrator over the table, the
+ * confirmations and the account dialogs. The one-time password lives here, in state, and nowhere else: closing its
  * dialog clears it and reloads the page, so the new or re-issued row shows. A sent invitation reloads
  * the page at once, since it reveals nothing.
  */
@@ -33,6 +35,7 @@ export default function UsersPage({ rows, currentUserId }: Props) {
   const [reveal, setReveal] = useState<PasswordReveal | null>(null);
   const reissue = useReissuePassword(setReveal);
   const invitation = useInvitationActions();
+  const activation = useActivationActions(currentUserId);
   const { confirmation } = roleChange;
 
   const finishReveal = (): void => {
@@ -81,6 +84,9 @@ export default function UsersPage({ rows, currentUserId }: Props) {
         resending={invitation.resending}
         onResendInvitation={invitation.resend}
         onRevokeInvitation={invitation.askRevoke}
+        onDeactivate={activation.askDeactivate}
+        reactivating={activation.reactivating}
+        onReactivate={activation.reactivate}
       />
 
       <ConfirmRoleChangeDialog
@@ -120,6 +126,12 @@ export default function UsersPage({ rows, currentUserId }: Props) {
         isBusy={invitation.isRevoking}
         onConfirm={invitation.confirmRevoke}
         onClose={invitation.cancelRevoke}
+      />
+      <ConfirmDeactivateDialog
+        target={activation.deactivateTarget}
+        isBusy={activation.isDeactivating}
+        onConfirm={activation.confirmDeactivate}
+        onClose={activation.cancelDeactivate}
       />
       <TemporaryPasswordDialog reveal={reveal} onClose={finishReveal} />
       <Toaster />

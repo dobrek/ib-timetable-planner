@@ -4,8 +4,10 @@ import Banner from "@/shared/ui/Banner.astro";
 
 const { user, access } = Astro.locals;
 const sections = visibleNavItems(GLOBAL_NAV_ITEMS, access).filter((item) => item.href !== "/dashboard");
-// A signed-in user an admin has given no role (FR-410). The middleware sends every gated page here,
-// so this is all they see besides their own account.
+// A signed-in user an admin has given no role (FR-410), or has deactivated (S-408): the role is kept
+// but reads as none. The middleware sends every gated page here, so this is all they see besides
+// their own account. The paragraph reads true for both, someone never given access and someone who
+// had it.
 const noAccess = access.status === "none";
 // Set by sign-in when GoTrue reports the password is under the 15-character floor. It shows after
 // each such sign-in until the password changes; there is no cookie to clear.
@@ -40,7 +42,7 @@ const weakPassword = Astro.url.searchParams.get("notice") === "weak-password";
         No access yet — ask your admin
       </h2>
       <p class="text-muted-foreground mt-2 text-sm">
-        Your account has not been given access to any plans. Until it is, you can still manage{" "}
+        Your account has no access to any plans right now. You can still manage{" "}
         <a href="/account" class="text-foreground font-medium underline">
           your account
         </a>

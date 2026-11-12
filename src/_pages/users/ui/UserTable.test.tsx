@@ -6,6 +6,8 @@ import {
   ADMIN_ID,
   AUTHOR_ID,
   AUTHOR_ROW,
+  DEACTIVATED_ID,
+  DEACTIVATED_ROW,
   INVITED_ID,
   INVITED_ROW,
   NO_ROLE_ROW,
@@ -17,11 +19,14 @@ import UserTable from "./UserTable";
 const renderTable = (
   saving: ReadonlyMap<string, AppRole | null> = new Map(),
   resending: ReadonlySet<string> = new Set(),
+  reactivating: ReadonlySet<string> = new Set(),
 ) => {
   const onChooseRole = vi.fn();
   const onReissuePassword = vi.fn();
   const onResendInvitation = vi.fn();
   const onRevokeInvitation = vi.fn();
+  const onDeactivate = vi.fn();
+  const onReactivate = vi.fn();
   render(
     <UserTable
       rows={ROWS}
@@ -32,9 +37,12 @@ const renderTable = (
       resending={resending}
       onResendInvitation={onResendInvitation}
       onRevokeInvitation={onRevokeInvitation}
+      onDeactivate={onDeactivate}
+      reactivating={reactivating}
+      onReactivate={onReactivate}
     />,
   );
-  return { onChooseRole, onReissuePassword, onResendInvitation, onRevokeInvitation };
+  return { onChooseRole, onReissuePassword, onResendInvitation, onRevokeInvitation, onDeactivate, onReactivate };
 };
 
 /** The row whose picker is named for `name`: a name can also appear in another row's "Changed by". */
@@ -123,6 +131,38 @@ describe("UserTable", () => {
 
     expect(screen.getByRole("button", { name: "Re-send invitation to eve@example.test" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Revoke invitation for eve@example.test" })).toBeEnabled();
+  });
+
+  it("offers Deactivate on another user's active row alone, never your own, and it hands that row up", () => {
+    const { onDeactivate } = renderTable();
+
+    expect(screen.getAllByRole("button", { name: /^Deactivate / })).toHaveLength(1);
+    expect(rowOf("admin@example.test").queryByRole("button", { name: /Deactivate/ })).not.toBeInTheDocument();
+    for (const name of ["cal@example.test", "dee@example.test", "eve@example.test", "gil@example.test"]) {
+      expect(rowOf(name).queryByRole("button", { name: /^Deactivate/ })).not.toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Deactivate Bea Author" }));
+
+    expect(onDeactivate).toHaveBeenCalledWith(AUTHOR_ROW);
+  });
+
+  it("says Deactivated for a deactivated row, which keeps its role in a live picker, and offers Reactivate alone", () => {
+    const { onReactivate } = renderTable();
+
+    expect(rowOf("gil@example.test").getByText("Deactivated")).toBeInTheDocument();
+    const picker = screen.getByRole("combobox", { name: "Role for gil@example.test" });
+    expect(picker).toBeEnabled();
+    expect(picker).toHaveTextContent("Viewer");
+    expect(screen.getAllByRole("button", { name: /^Reactivate / })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Reactivate gil@example.test" }));
+
+    expect(onReactivate).toHaveBeenCalledWith(DEACTIVATED_ROW);
+  });
+
+  it("disables a row's Reactivate while it is in flight", () => {
+    renderTable(new Map(), new Set(), new Set([DEACTIVATED_ID]));
+
+    expect(screen.getByRole("button", { name: "Reactivate gil@example.test" })).toBeDisabled();
   });
 
   it("names who changed the role last, or shows a dash", () => {

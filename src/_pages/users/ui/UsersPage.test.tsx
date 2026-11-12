@@ -8,9 +8,10 @@ import {
   reissueTemporaryPassword,
   resendInvitation,
   revokeInvitation,
+  setUserActive,
 } from "../api/user-client";
 import { goToDashboard } from "../lib/go-to-dashboard";
-import { ADMIN_ID, AUTHOR_ID, INVITED_ID, PENDING_ID, ROWS } from "./__fixtures__/user-rows";
+import { ADMIN_ID, AUTHOR_ID, DEACTIVATED_ID, INVITED_ID, PENDING_ID, ROWS } from "./__fixtures__/user-rows";
 import UsersPage from "./UsersPage";
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
@@ -25,6 +26,7 @@ vi.mock("../api/user-client", () => ({
   inviteUser: vi.fn(),
   resendInvitation: vi.fn(),
   revokeInvitation: vi.fn(),
+  setUserActive: vi.fn(),
 }));
 vi.mock("../lib/go-to-dashboard", () => ({ goToDashboard: vi.fn() }));
 // The barrel pulls in `astro:transitions/client`, which Vitest cannot resolve.
@@ -37,6 +39,7 @@ beforeEach(() => {
   vi.mocked(inviteUser).mockReset();
   vi.mocked(resendInvitation).mockReset().mockResolvedValue({ error: undefined });
   vi.mocked(revokeInvitation).mockReset().mockResolvedValue({ error: undefined });
+  vi.mocked(setUserActive).mockReset().mockResolvedValue({ error: undefined });
   vi.mocked(refreshPage).mockReset();
   vi.mocked(goToDashboard).mockReset();
   toastSuccess.mockReset();
@@ -406,6 +409,79 @@ describe("UsersPage invitations", () => {
       expect(refreshPage).toHaveBeenCalledOnce();
     });
     expect(toastError).toHaveBeenCalledWith("That account no longer exists.");
+  });
+});
+
+/** Deactivation (S-408): Deactivate asks first; Reactivate goes at once. */
+describe("UsersPage deactivation", () => {
+  it("asks before deactivating, naming the role that is kept, and deactivates nothing on Cancel", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deactivate Bea Author" }));
+    expect(screen.getByRole("alertdialog", { name: "Deactivate bea@example.test?" })).toHaveTextContent(
+      "Their role (Author) is kept",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(setUserActive).not.toHaveBeenCalled();
+  });
+
+  it("deactivates once confirmed, toasts, and reloads", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deactivate Bea Author" }));
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Deactivate" }));
+
+    await waitFor(() => {
+      expect(refreshPage).toHaveBeenCalledOnce();
+    });
+    expect(setUserActive).toHaveBeenCalledWith({ userId: AUTHOR_ID, active: false });
+    expect(toastSuccess).toHaveBeenCalledWith("bea@example.test deactivated");
+  });
+
+  it("keeps the page on the last-admin refusal, so its message stays", async () => {
+    vi.mocked(setUserActive).mockResolvedValue({
+      error: { code: "CONFLICT", message: "The school must keep at least one admin." },
+    } as Awaited<ReturnType<typeof setUserActive>>);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deactivate Bea Author" }));
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Deactivate" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("The school must keep at least one admin.");
+    });
+    expect(refreshPage).not.toHaveBeenCalled();
+  });
+
+  it("reactivates a row at once, without asking, toasts, and reloads", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reactivate gil@example.test" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(refreshPage).toHaveBeenCalledOnce();
+    });
+    expect(setUserActive).toHaveBeenCalledWith({ userId: DEACTIVATED_ID, active: true });
+    expect(toastSuccess).toHaveBeenCalledWith("gil@example.test reactivated");
+  });
+
+  it("reloads when the person's access already changed, so the row shows what the database holds", async () => {
+    vi.mocked(setUserActive).mockResolvedValue({
+      error: { code: "NOT_FOUND", message: "That person's access has already changed." },
+    } as Awaited<ReturnType<typeof setUserActive>>);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reactivate gil@example.test" }));
+
+    await waitFor(() => {
+      expect(refreshPage).toHaveBeenCalledOnce();
+    });
+    expect(toastError).toHaveBeenCalledWith("That person's access has already changed.");
   });
 });
 

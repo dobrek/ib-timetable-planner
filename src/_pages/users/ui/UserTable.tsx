@@ -19,12 +19,20 @@ type Props = {
   onResendInvitation: (row: UserRow) => void;
   /** Asks to revoke an invitation. Only rows with `canRevokeInvitation` offer it. */
   onRevokeInvitation: (row: UserRow) => void;
+  /** Asks to deactivate someone. Only rows with `canDeactivate` offer it, never the admin's own. */
+  onDeactivate: (row: UserRow) => void;
+  /** The rows being reactivated: their Reactivate stays disabled until it answers. */
+  reactivating: ReadonlySet<string>;
+  /** Reactivates a deactivated row. Only rows with `canReactivate` offer it. */
+  onReactivate: (row: UserRow) => void;
 };
 
 /**
- * Every human user of the school, one row each, with a role picker. Rows arrive sorted. A pending
- * row's status cell carries its actions: Re-issue password (S-409), or Re-send and Revoke (S-410).
- * The picker stays live on an invitee's row: changing it is the same role write as on any row.
+ * Every human user of the school, one row each, with a role picker. Rows arrive sorted. The status
+ * cell carries the row's actions: Re-issue password on a pending row (S-409), Re-send and Revoke on
+ * an invitation (S-410), Deactivate on another user's active row and Reactivate on a deactivated one
+ * (S-408). The picker stays live on every row, an invitee's or a deactivated person's too: changing
+ * it is the same role write as on any row, and it never reactivates anyone.
  */
 export default function UserTable({
   rows,
@@ -35,6 +43,9 @@ export default function UserTable({
   resending,
   onResendInvitation,
   onRevokeInvitation,
+  onDeactivate,
+  reactivating,
+  onReactivate,
 }: Props) {
   return (
     <div className="border-border overflow-hidden rounded-lg border">
@@ -50,10 +61,11 @@ export default function UserTable({
         <TableBody>
           {rows.map((row) => {
             const isSaving = saving.has(row.userId);
+            const isSelf = row.userId === currentUserId;
             return (
               <TableRow key={row.userId}>
                 <TableCell>
-                  <UserCell row={row} isSelf={row.userId === currentUserId} />
+                  <UserCell row={row} isSelf={isSelf} />
                 </TableCell>
                 <TableCell>
                   <RoleSelect
@@ -109,6 +121,35 @@ export default function UserTable({
                         }}
                       >
                         Revoke
+                      </Button>
+                    )}
+                    {row.canDeactivate && !isSelf && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Deactivate ${row.label.primary}`}
+                        onClick={() => {
+                          onDeactivate(row);
+                        }}
+                      >
+                        Deactivate
+                      </Button>
+                    )}
+                    {row.canReactivate && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Reactivate ${row.label.primary}`}
+                        disabled={reactivating.has(row.userId)}
+                        onClick={() => {
+                          onReactivate(row);
+                        }}
+                      >
+                        Reactivate
                       </Button>
                     )}
                   </div>

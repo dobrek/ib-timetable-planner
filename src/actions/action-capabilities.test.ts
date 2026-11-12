@@ -37,6 +37,7 @@ const NOT_EDIT: Record<string, Capability> = {
   readGenerationJobStatuses: "read", // the hub's poll
   readPlanJob: "read", // a viewer's plan visit, poll and Refresh; it never writes (S-405)
   changeUserRole: "manage_users", // the Users page: an admin only (S-406)
+  setUserActive: "manage_users", // the Users page: an admin only (S-408)
   createAccount: "manage_users", // the Users page: an admin only (S-409)
   reissueTemporaryPassword: "manage_users", // the Users page: an admin only (S-409)
   inviteUser: "manage_users", // the Users page: an admin only (S-410)

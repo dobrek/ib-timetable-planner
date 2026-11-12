@@ -15,8 +15,9 @@
 // a stale grant must never let `no-access.no-role.spec.ts` pass as someone with access. The viewer's
 // is upserted back to `viewer` on every run for the same reason: a stray `author` row would let the
 // `*.viewer.spec.ts` tripwire pass while looking at edit controls it was meant to prove absent. The
-// admin's is upserted back to `admin`. These writes run as the service role, so S-406's record
-// lists them as the Operator's, and an unchanged role records nothing.
+// admin's is upserted back to `admin`. Each upsert also reactivates the account (S-408), so one
+// deactivated by hand on the local Users page is reset too. These writes run as the service role, so
+// S-406's record lists them as the Operator's, and an unchanged, active role records nothing.
 //
 // Loopback only. Every password is a public literal (e2e/author-credentials.mjs,
 // e2e/no-role-credentials.mjs, e2e/viewer-credentials.mjs, e2e/admin-credentials.mjs), and the
@@ -93,10 +94,16 @@ async function ensureUser({ email, password }) {
   return { userId, outcome: created.error ? "already exists" : "created" };
 }
 
-/** Upsert the account's role, or delete any role row when it must hold none. */
+/**
+ * Upsert the account's role, active, or delete any role row when it must hold none. Clearing
+ * `deactivated_at` (S-408) resets an account someone deactivated on the local Users page, which would
+ * otherwise land its e2e project on the no-access notice on every later run.
+ */
 async function setRole(userId, { email, role }) {
   const { error } = role
-    ? await supabase.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id" })
+    ? await supabase
+        .from("user_roles")
+        .upsert({ user_id: userId, role, deactivated_at: null }, { onConflict: "user_id" })
     : await supabase.from("user_roles").delete().eq("user_id", userId);
   if (error) fail(`Failed to set ${email}'s role to ${role ?? "none"}: ${error.message}`);
 }

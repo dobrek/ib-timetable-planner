@@ -186,8 +186,8 @@ page says "Temporary password", which is how an unused one is noticed.
 
 Every human account holds one role, `admin`, `author` or `viewer`, in
 `public.user_roles` (S-403). **The normal path is the Users page** (`/users`,
-S-406): an admin gives, changes or removes anyone's role there, and the page shows
-who made the last change and when.
+S-406): an admin gives, changes or removes anyone's role there, or deactivates and
+reactivates them (S-408), and the page shows who made the last change and when.
 
 `scripts/assign-role.mjs` stays for **bootstrap and recovery**: the first admin of
 a fresh stack (after a local `db reset`), or a school whose admins cannot sign in.
@@ -199,6 +199,11 @@ node scripts/assign-role.mjs <email> <admin|author|viewer|none>
 
 - **`none`** deletes the role row; any other role creates or replaces it. The
   script prints the target host and the role before → after.
+- **A role write reactivates.** If the person was deactivated (S-408), giving them
+  a role also clears the deactivation, and the output says so
+  (`… author (deactivated) → author (reactivated)`). Recovery means "this access,
+  now". The Users page differs on purpose: there, changing a deactivated person's
+  role keeps them deactivated. `none` still deletes the row.
 - **Machine accounts are refused.** An account with `app_metadata.machine_role`
   (the solver's) must never hold a human role. The database refuses it too.
 - **Recorded as the Operator.** Every role write lands in `public.access_changes`.

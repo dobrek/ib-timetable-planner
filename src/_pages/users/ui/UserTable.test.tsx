@@ -220,6 +220,13 @@ describe("UserTable", () => {
     expect(row.queryByRole("button", { name: /Deactivate|Reactivate|Re-issue/ })).not.toBeInTheDocument();
   });
 
+  it("disables a banned row's role picker: a role write would strand the ban or hand back access", () => {
+    renderTable();
+
+    expect(screen.getByRole("combobox", { name: "Role for jo@example.test" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Role for Bea Author" })).toBeEnabled();
+  });
+
   it("disables a row's Reactivate while it is in flight", () => {
     renderTable(new Map(), new Set(), new Set([DEACTIVATED_ID]));
 

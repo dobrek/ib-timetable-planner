@@ -5,7 +5,7 @@ import type { AppRole } from "@/shared/config";
 import { FORBIDDEN_MESSAGE } from "@/shared/lib/errors";
 import { createAuthUser, createSignedInUser, teardown, type SignedInUser } from "@/test/factories";
 import { changeUserRole } from "./change-user-role";
-import { NO_ROLE_TO_REMOVE_MESSAGE } from "./constants";
+import { ACCESS_ALREADY_CHANGED_MESSAGE, NO_ROLE_TO_REMOVE_MESSAGE } from "./constants";
 
 /**
  * The Users page's write (S-406), run as the action runs it: the domain function on a client signed
@@ -44,7 +44,7 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(await roleOf(service, target)).toBeNull();
   });
 
-  it("changes a role and leaves a recorded ban in place", async () => {
+  it("refuses to change or remove the role of a banned user, and leaves the role and the ban as they were (S-411)", async () => {
     const target = await userWithRole(service, "author");
     const { error } = await service
       .from("user_directory")
@@ -52,9 +52,14 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       .eq("user_id", target);
     if (error) throw new Error(`setup failed: ${error.message}`);
 
-    await changeUserRole(admin.client, { userId: target, role: "viewer" });
+    for (const role of ["viewer", null] as const) {
+      await expect(changeUserRole(admin.client, { userId: target, role })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: ACCESS_ALREADY_CHANGED_MESSAGE,
+      });
+    }
 
-    expect(await roleOf(service, target)).toBe("viewer");
+    expect(await roleOf(service, target)).toBe("author");
     const directory = await service.from("user_directory").select("banned_at").eq("user_id", target).maybeSingle();
     if (directory.error) throw new Error(`read-back failed: ${directory.error.message}`);
     expect(directory.data?.banned_at).not.toBeNull();

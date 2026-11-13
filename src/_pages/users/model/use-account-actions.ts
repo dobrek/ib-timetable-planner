@@ -1,6 +1,8 @@
+import { isInputError } from "astro:actions";
 import { useRef, useState } from "react";
 import type { UseFormSetError } from "react-hook-form";
 import { toast } from "sonner";
+import { applyActionFieldErrors } from "@/shared/lib/forms";
 import { ACCOUNT_UNREACHABLE_MESSAGE } from "../api/constants";
 import { banUser, changeUserEmail, deleteAccount, unbanUser } from "../api/user-client";
 import type { ChangeUserEmailFormValues } from "./schemas";
@@ -41,7 +43,7 @@ export function useAccountActions() {
     setEmailTarget(null);
   };
 
-  const run = async (row: UserRow, work: () => Promise<RowActionOutcome>, success: string) => {
+  const run = async (work: () => Promise<RowActionOutcome>, success: string): Promise<void> => {
     if (inFlight.current) return;
     inFlight.current = true;
     setIsBusy(true);
@@ -52,25 +54,24 @@ export function useAccountActions() {
     setUnbanTarget(null);
     setDeleteTarget(null);
     await reportRowAction(result, success);
-    return row;
   };
 
   const confirmBan = (): void => {
     const row = banTarget;
     if (!row) return;
-    void run(row, () => banUser({ userId: row.userId }), `${emailOf(row.label)} banned`);
+    void run(() => banUser({ userId: row.userId }), `${emailOf(row.label)} banned`);
   };
 
   const confirmUnban = (): void => {
     const row = unbanTarget;
     if (!row) return;
-    void run(row, () => unbanUser({ userId: row.userId }), `${emailOf(row.label)} unbanned`);
+    void run(() => unbanUser({ userId: row.userId }), `${emailOf(row.label)} unbanned`);
   };
 
   const confirmDelete = (): void => {
     const row = deleteTarget;
     if (!row) return;
-    void run(row, () => deleteAccount({ userId: row.userId }), `${emailOf(row.label)} deleted`);
+    void run(() => deleteAccount({ userId: row.userId }), `${emailOf(row.label)} deleted`);
   };
 
   const submitEmail = async (email: string, setError: UseFormSetError<ChangeUserEmailFormValues>): Promise<void> => {
@@ -83,6 +84,10 @@ export function useAccountActions() {
     setIsBusy(false);
     if (!result) {
       toast.error(ACCOUNT_UNREACHABLE_MESSAGE);
+      return;
+    }
+    if (result.error && isInputError(result.error)) {
+      applyActionFieldErrors(result.error, setError);
       return;
     }
     if (result.error?.code === "CONFLICT") {

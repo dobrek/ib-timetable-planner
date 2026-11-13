@@ -23,6 +23,7 @@ export const ADMIN_ROW: UserRow = {
   canUnban: false,
   canDelete: true,
   canChangeEmail: true,
+  canChangeRole: true,
   isServiceAccount: false,
   lastChange: { by: { kind: "operator" }, at: "2026-11-05T12:00:00+00:00" },
 };
@@ -41,6 +42,7 @@ export const AUTHOR_ROW: UserRow = {
   canUnban: false,
   canDelete: false,
   canChangeEmail: false,
+  canChangeRole: true,
   isServiceAccount: true,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -62,6 +64,7 @@ export const NO_ROLE_ROW: UserRow = {
   canUnban: false,
   canDelete: false,
   canChangeEmail: false,
+  canChangeRole: true,
   isServiceAccount: false,
   lastChange: null,
 };
@@ -83,6 +86,7 @@ export const PENDING_ROW: UserRow = {
   canUnban: false,
   canDelete: true,
   canChangeEmail: true,
+  canChangeRole: true,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -107,6 +111,7 @@ export const INVITED_ROW: UserRow = {
   canUnban: false,
   canDelete: false,
   canChangeEmail: false,
+  canChangeRole: true,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -131,6 +136,7 @@ export const ACCEPTED_ROW: UserRow = {
   canUnban: false,
   canDelete: false,
   canChangeEmail: false,
+  canChangeRole: true,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -155,6 +161,7 @@ export const DEACTIVATED_ROW: UserRow = {
   canUnban: false,
   canDelete: true,
   canChangeEmail: true,
+  canChangeRole: true,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -179,6 +186,7 @@ export const COLLEAGUE_ROW: UserRow = {
   canUnban: false,
   canDelete: true,
   canChangeEmail: true,
+  canChangeRole: true,
   isServiceAccount: false,
   lastChange: null,
 };
@@ -200,6 +208,7 @@ export const BANNED_ROW: UserRow = {
   canUnban: true,
   canDelete: true,
   canChangeEmail: true,
+  canChangeRole: false,
   isServiceAccount: false,
   lastChange: null,
 };

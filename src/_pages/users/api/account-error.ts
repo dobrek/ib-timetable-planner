@@ -80,9 +80,16 @@ export function toAccountError(
 export const outcomeUnknown = (operation: AccountOperation): DomainError =>
   new DomainError("INTERNAL_SERVER_ERROR", MESSAGES[operation].unknown);
 
+/** Whether a 409 body's `error` is one of the codes the coded operations answer. */
+export const isClosedConflict = (code: string): code is ClosedConflict =>
+  (CLOSED_CONFLICTS as readonly string[]).includes(code);
+
 type OperationMessages = {
-  /** 409: the address has an account (create, invite), or the target is no longer pending. */
-  conflict: string;
+  /**
+   * 409: the address has an account (create, invite), or the target is no longer pending. `null`
+   * for an operation that names its own conflict (`CODED`), which `conflictMessage` words instead.
+   */
+  conflict: string | null;
   /** 500: the function failed, and undid what it could. */
   failure: string;
   /** No answer: it may have happened. */
@@ -96,10 +103,10 @@ const MESSAGES: Readonly<Record<AccountOperation, OperationMessages>> = {
   invite: { conflict: EMAIL_EXISTS_MESSAGE, failure: INVITE_FAILURE, unknown: INVITE_UNKNOWN },
   resend: { conflict: INVITATION_NOT_PENDING_MESSAGE, failure: RESEND_FAILURE, unknown: RESEND_FAILURE },
   revoke: { conflict: INVITATION_NOT_PENDING_MESSAGE, failure: REVOKE_FAILURE, unknown: REVOKE_FAILURE },
-  ban: { conflict: ACCOUNT_NOT_ALLOWED_MESSAGE, failure: BAN_FAILURE, unknown: BAN_FAILURE },
-  unban: { conflict: ACCOUNT_NOT_ALLOWED_MESSAGE, failure: UNBAN_FAILURE, unknown: UNBAN_FAILURE },
-  delete: { conflict: ACCOUNT_NOT_ALLOWED_MESSAGE, failure: DELETE_ACCOUNT_FAILURE, unknown: DELETE_ACCOUNT_FAILURE },
-  change_email: { conflict: EMAIL_EXISTS_MESSAGE, failure: CHANGE_EMAIL_FAILURE, unknown: CHANGE_EMAIL_FAILURE },
+  ban: { conflict: null, failure: BAN_FAILURE, unknown: BAN_FAILURE },
+  unban: { conflict: null, failure: UNBAN_FAILURE, unknown: UNBAN_FAILURE },
+  delete: { conflict: null, failure: DELETE_ACCOUNT_FAILURE, unknown: DELETE_ACCOUNT_FAILURE },
+  change_email: { conflict: null, failure: CHANGE_EMAIL_FAILURE, unknown: CHANGE_EMAIL_FAILURE },
 };
 
 const CODED: ReadonlySet<AccountOperation> = new Set(["ban", "unban", "delete", "change_email"]);
@@ -109,12 +116,9 @@ const CODED: ReadonlySet<AccountOperation> = new Set(["ban", "unban", "delete", 
  * not the function's sentence: the failure wording is used, so nothing from the body is shown.
  */
 const conflictMessage = (operation: AccountOperation, messages: OperationMessages, conflict: string | null): string => {
-  if (!CODED.has(operation)) return messages.conflict;
+  if (!CODED.has(operation)) return messages.conflict ?? messages.failure;
   if (conflict === "last_admin") return LAST_ADMIN_MESSAGE;
   if (conflict === "email_exists") return EMAIL_EXISTS_MESSAGE;
   if (conflict === "not_allowed") return ACCOUNT_NOT_ALLOWED_MESSAGE;
   return messages.failure;
 };
-
-export const isClosedConflict = (code: string): code is ClosedConflict =>
-  (CLOSED_CONFLICTS as readonly string[]).includes(code);

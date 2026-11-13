@@ -83,7 +83,7 @@ export default function UserTable({
                   <RoleSelect
                     name={row.label.primary}
                     role={isSaving ? (saving.get(row.userId) ?? null) : row.role}
-                    disabled={isSaving}
+                    disabled={isSaving || !row.canChangeRole}
                     onChange={(role) => {
                       onChooseRole(row, role);
                     }}

@@ -85,6 +85,11 @@ export type UserRow = {
   canDelete: boolean;
   /** Give the account a new email, including the admin's own row. */
   canChangeEmail: boolean;
+  /**
+   * Not on a banned row (S-411): removing the role would strand the ban, and granting one to a row
+   * with none would hand back data access. The server refuses both; Unban comes first.
+   */
+  canChangeRole: boolean;
   isServiceAccount: boolean;
   /** The latest change to this user's role; null when none is recorded. */
   lastChange: { by: ChangedBy; at: string } | null;
@@ -126,6 +131,7 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
       canUnban: !isServiceAccount && status === "banned",
       canDelete: canManageAccount,
       canChangeEmail: canManageAccount,
+      canChangeRole: status !== "banned",
       isServiceAccount,
       lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };

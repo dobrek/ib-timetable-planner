@@ -44,6 +44,27 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
     expect(await roleOf(service, target)).toBeNull();
   });
 
+  it("changes a role and leaves a recorded ban in place", async () => {
+    const target = await userWithRole(service, "author");
+    const { error } = await service
+      .from("user_directory")
+      .update({ banned_at: new Date().toISOString() })
+      .eq("user_id", target);
+    if (error) throw new Error(`setup failed: ${error.message}`);
+
+    await changeUserRole(admin.client, { userId: target, role: "viewer" });
+
+    expect(await roleOf(service, target)).toBe("viewer");
+    const directory = await service.from("user_directory").select("banned_at").eq("user_id", target).maybeSingle();
+    if (directory.error) throw new Error(`read-back failed: ${directory.error.message}`);
+    expect(directory.data?.banned_at).not.toBeNull();
+
+    // Remove this account before the file's teardown. Teardown deletes every user at once, and a
+    // delete of the actor races a delete of the target over the same access record.
+    const removed = await service.auth.admin.deleteUser(target);
+    if (removed.error) throw new Error(`cleanup failed: ${removed.error.message}`);
+  });
+
   it("changes a deactivated user's role and keeps them deactivated: a role change never reactivates (S-408)", async () => {
     const target = await userWithRole(service, "author", { deactivated: true });
 

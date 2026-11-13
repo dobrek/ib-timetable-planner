@@ -12,7 +12,13 @@ type AccessChange = Pick<
 export type UserDirectoryInput = {
   directory: readonly Pick<
     Tables["user_directory"]["Row"],
-    "user_id" | "email" | "is_service_account" | "must_change_password" | "invited_at" | "email_confirmed_at"
+    | "user_id"
+    | "email"
+    | "is_service_account"
+    | "must_change_password"
+    | "invited_at"
+    | "email_confirmed_at"
+    | "banned_at"
   >[];
   profiles: readonly Pick<Tables["profiles"]["Row"], "user_id" | "display_name">[];
   roles: readonly Pick<Tables["user_roles"]["Row"], "user_id" | "role" | "deactivated_at">[];
@@ -30,6 +36,8 @@ export type ChangedBy = { kind: "user"; label: ProfileLabel } | { kind: "deleted
  * Why a row can or cannot act. A pending state outranks the role: the person holds no access until
  * they choose a password of their own, even with a role waiting.
  *
+ * - `banned` (S-411): the function recorded a GoTrue ban. It outranks every other state, including a
+ *   pending password and a deactivation, so Reactivate and Re-issue are not offered.
  * - `invited` / `invitation_expired` (S-410): an invitation not yet accepted, whose newest link still
  *   works or has passed its lifetime. Either can be re-sent.
  * - `invitation_accepted`: the link was spent, and the person has not chosen a password yet.
@@ -38,6 +46,7 @@ export type ChangedBy = { kind: "user"; label: ProfileLabel } | { kind: "deleted
  *   restores it; until then they hold no access.
  */
 export type UserStatus =
+  | "banned"
   | "active"
   | "deactivated"
   | "no_access"
@@ -62,8 +71,16 @@ export type UserRow = {
    * a role has nothing to keep. The table also withholds it from the admin's own row.
    */
   canDeactivate: boolean;
-  /** Only a deactivated row can be reactivated, which restores the role it holds. */
+  /** Only a deactivated row can be reactivated, which restores the role it holds. A ban outranks it. */
   canReactivate: boolean;
+  /** A ban of an account that is not already banned. Off until the page offers it. */
+  canBan: boolean;
+  /** Only a banned row offers Unban. */
+  canUnban: boolean;
+  /** Only a banned row offers Delete. Off for every other status until the page offers it. */
+  canDelete: boolean;
+  /** Only a banned row offers a new email. Off for every other status until the page offers it. */
+  canChangeEmail: boolean;
   isServiceAccount: boolean;
   /** The latest change to this user's role; null when none is recorded. */
   lastChange: { by: ChangedBy; at: string } | null;
@@ -97,6 +114,10 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
       canRevokeInvitation: REVOCABLE.has(status),
       canDeactivate: status === "active",
       canReactivate: status === "deactivated",
+      canBan: false,
+      canUnban: status === "banned",
+      canDelete: status === "banned",
+      canChangeEmail: status === "banned",
       isServiceAccount,
       lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };
@@ -115,12 +136,13 @@ const RESENDABLE: ReadonlySet<UserStatus> = new Set(["invited", "invitation_expi
 const REVOCABLE: ReadonlySet<UserStatus> = new Set(["invited", "invitation_expired", "invitation_accepted"]);
 
 /**
- * First match wins: an unaccepted invitation, then a pending account (by how it came to be), then a
- * deactivation (S-408), then the role. A link expires once `now` is past `invited_at` plus the
- * lifetime, as GoTrue judges it (`now > sent + exp`), so the exact boundary still reads as invited.
- * An invitee who finished reads as any other account.
+ * First match wins: a recorded ban (S-411), then an unaccepted invitation, then a pending account
+ * (by how it came to be), then a deactivation (S-408), then the role. A link expires once `now` is
+ * past `invited_at` plus the lifetime, as GoTrue judges it (`now > sent + exp`), so the exact
+ * boundary still reads as invited. An invitee who finished reads as any other account.
  */
 const statusOf = (role: RoleRow | undefined, entry: DirectoryEntry | undefined, now: number): UserStatus => {
+  if ((entry?.banned_at ?? null) !== null) return "banned";
   const invitedAt = entry?.invited_at ?? null;
   if (invitedAt !== null && (entry?.email_confirmed_at ?? null) === null) {
     return now > Date.parse(invitedAt) + EMAIL_LINK_LIFETIME_MS ? "invitation_expired" : "invited";

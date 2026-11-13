@@ -33,6 +33,7 @@ const entry = (user_id: string, email: string, overrides: Partial<DirectoryEntry
   must_change_password: false,
   invited_at: null,
   email_confirmed_at: NOON,
+  banned_at: null,
   ...overrides,
 });
 
@@ -68,6 +69,61 @@ describe("buildUserRows", () => {
     expect(rows.map(({ role, status }) => ({ role, status }))).toEqual([
       { role: "admin", status: "active" },
       { role: null, status: "no_access" },
+    ]);
+  });
+
+  it("reads a ban ahead of a pending password and a deactivation, and offers unban, delete and a new email", () => {
+    const rows = build(
+      input({
+        directory: [
+          entry(ADA, "ada@example.test", { banned_at: NOON, must_change_password: true }),
+          entry(BEA, "bea@example.test", { banned_at: NOON }),
+          entry(CAL, "cal@example.test"),
+        ],
+        roles: [held(ADA, "viewer"), held(BEA, "author", LATER), held(CAL, "admin")],
+      }),
+    );
+
+    expect(banOf(rows)).toEqual([
+      {
+        role: "viewer",
+        status: "banned",
+        canBan: false,
+        canUnban: true,
+        canDelete: true,
+        canChangeEmail: true,
+        canDeactivate: false,
+        canReactivate: false,
+        canReissuePassword: false,
+        canResendInvitation: false,
+        canRevokeInvitation: false,
+      },
+      {
+        role: "author",
+        status: "banned",
+        canBan: false,
+        canUnban: true,
+        canDelete: true,
+        canChangeEmail: true,
+        canDeactivate: false,
+        canReactivate: false,
+        canReissuePassword: false,
+        canResendInvitation: false,
+        canRevokeInvitation: false,
+      },
+      {
+        role: "admin",
+        status: "active",
+        canBan: false,
+        canUnban: false,
+        canDelete: false,
+        canChangeEmail: false,
+        canDeactivate: true,
+        canReactivate: false,
+        canReissuePassword: false,
+        canResendInvitation: false,
+        canRevokeInvitation: false,
+      },
     ]);
   });
 
@@ -337,6 +393,35 @@ const actionsOf = (rows: ReturnType<typeof buildUserRows>) =>
 
 const activationOf = (rows: ReturnType<typeof buildUserRows>) =>
   rows.map(({ role, status, canDeactivate, canReactivate }) => ({ role, status, canDeactivate, canReactivate }));
+
+const banOf = (rows: ReturnType<typeof buildUserRows>) =>
+  rows.map(
+    ({
+      role,
+      status,
+      canBan,
+      canUnban,
+      canDelete,
+      canChangeEmail,
+      canDeactivate,
+      canReactivate,
+      canReissuePassword,
+      canResendInvitation,
+      canRevokeInvitation,
+    }) => ({
+      role,
+      status,
+      canBan,
+      canUnban,
+      canDelete,
+      canChangeEmail,
+      canDeactivate,
+      canReactivate,
+      canReissuePassword,
+      canResendInvitation,
+      canRevokeInvitation,
+    }),
+  );
 
 /** The rows as the page would load them at `now`. */
 const build = (given: UserDirectoryInput, now = NOW) => buildUserRows(given, now);

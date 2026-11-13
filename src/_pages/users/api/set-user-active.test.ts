@@ -64,6 +64,10 @@ describe("setUserActive", () => {
     await setUserActive(client, { userId: USER_ID, active: true });
 
     expect(calls).toEqual([
+      ["from", "user_directory"],
+      ["select", "banned_at"],
+      ["eq", "user_id", USER_ID],
+      ["maybeSingle"],
       ["from", "user_roles"],
       ["update", { deactivated_at: null }],
       ["eq", "user_id", USER_ID],
@@ -71,29 +75,63 @@ describe("setUserActive", () => {
       ["select", "user_id"],
     ]);
   });
+
+  it("refuses to reactivate while a ban holds, and does not write the role", async () => {
+    const { client, calls } = fakeClient({ bannedAt: "2026-11-13T12:00:00.000Z" });
+
+    await expect(setUserActive(client, { userId: USER_ID, active: true })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      message: ACCESS_ALREADY_CHANGED_MESSAGE,
+    });
+    expect(calls).toEqual([
+      ["from", "user_directory"],
+      ["select", "banned_at"],
+      ["eq", "user_id", USER_ID],
+      ["maybeSingle"],
+    ]);
+  });
 });
 
-type Answer = { data?: { user_id: string }[] | null; error?: { code: string; message: string } | null };
+type Answer = {
+  data?: { user_id: string }[] | null;
+  error?: { code: string; message: string } | null;
+  /** The directory read's `banned_at`. Null leaves the role write to decide. */
+  bannedAt?: string | null;
+};
 
-/** A client that records the write's chain and answers it with `answer`, whichever direction it takes. */
-const fakeClient = ({ data = null, error = null }: Answer) => {
+/**
+ * A client that records each chain. Reactivate reads `user_directory` first; both directions then
+ * write `user_roles`. The directory read answers `bannedAt`, and the role write answers `answer`.
+ */
+const fakeClient = ({ data = null, error = null, bannedAt = null }: Answer) => {
   const calls: unknown[][] = [];
-  const chain = {
-    update: (values: unknown) => record(["update", values]),
-    eq: (...args: unknown[]) => record(["eq", ...args]),
-    is: (...args: unknown[]) => record(["is", ...args]),
-    not: (...args: unknown[]) => record(["not", ...args]),
+  const roleChain = {
+    update: (values: unknown) => record(["update", values], roleChain),
+    eq: (...args: unknown[]) => record(["eq", ...args], roleChain),
+    is: (...args: unknown[]) => record(["is", ...args], roleChain),
+    not: (...args: unknown[]) => record(["not", ...args], roleChain),
     select: (...args: unknown[]) => {
       calls.push(["select", ...args]);
       return Promise.resolve({ data, error });
     },
   };
-  const record = (call: unknown[]) => {
+  const directoryChain = {
+    select: (columns: string) => record(["select", columns], directoryChain),
+    eq: (...args: unknown[]) => record(["eq", ...args], directoryChain),
+    maybeSingle: () => {
+      calls.push(["maybeSingle"]);
+      return Promise.resolve({ data: { banned_at: bannedAt }, error: null });
+    },
+  };
+  const record = (call: unknown[], chain: object) => {
     calls.push(call);
     return chain;
   };
   const client = {
-    from: (table: string) => record(["from", table]),
+    from: (table: string) => {
+      calls.push(["from", table]);
+      return table === "user_directory" ? directoryChain : roleChain;
+    },
   } as unknown as SupabaseClient;
   return { client, calls };
 };

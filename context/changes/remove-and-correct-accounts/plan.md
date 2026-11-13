@@ -406,8 +406,8 @@ Hosted auth settings do not change. No template, no `uri_allow_list` edit, no `c
 
 #### Automated
 
-- [x] 4.1 `pnpm exec vitest run src/_pages/password-recovery/model/email-link.test.ts` passes, and `email_change` is still refused
+- [x] 4.1 `pnpm exec vitest run src/_pages/password-recovery/model/email-link.test.ts` passes, and `email_change` is still refused — b69cd1ca
 
 #### Manual
 
-- [x] 4.2 Grep of `S-411` in `CLAUDE.md` and the two runbooks leaves only rules this slice put in place, with no promised password reset, email-change link, or "Deleted user" label
+- [x] 4.2 Grep of `S-411` in `CLAUDE.md` and the two runbooks leaves only rules this slice put in place, with no promised password reset, email-change link, or "Deleted user" label — b69cd1ca

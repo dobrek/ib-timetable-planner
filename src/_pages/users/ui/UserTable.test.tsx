@@ -6,6 +6,8 @@ import {
   ADMIN_ID,
   AUTHOR_ID,
   AUTHOR_ROW,
+  BANNED_ROW,
+  COLLEAGUE_ROW,
   DEACTIVATED_ID,
   DEACTIVATED_ROW,
   INVITED_ID,
@@ -27,6 +29,10 @@ const renderTable = (
   const onRevokeInvitation = vi.fn();
   const onDeactivate = vi.fn();
   const onReactivate = vi.fn();
+  const onBan = vi.fn();
+  const onUnban = vi.fn();
+  const onDeleteAccount = vi.fn();
+  const onChangeEmail = vi.fn();
   render(
     <UserTable
       rows={ROWS}
@@ -40,9 +46,24 @@ const renderTable = (
       onDeactivate={onDeactivate}
       reactivating={reactivating}
       onReactivate={onReactivate}
+      onBan={onBan}
+      onUnban={onUnban}
+      onDeleteAccount={onDeleteAccount}
+      onChangeEmail={onChangeEmail}
     />,
   );
-  return { onChooseRole, onReissuePassword, onResendInvitation, onRevokeInvitation, onDeactivate, onReactivate };
+  return {
+    onChooseRole,
+    onReissuePassword,
+    onResendInvitation,
+    onRevokeInvitation,
+    onDeactivate,
+    onReactivate,
+    onBan,
+    onUnban,
+    onDeleteAccount,
+    onChangeEmail,
+  };
 };
 
 /** The row whose picker is named for `name`: a name can also appear in another row's "Changed by". */
@@ -136,7 +157,7 @@ describe("UserTable", () => {
   it("offers Deactivate on another user's active row alone, never your own, and it hands that row up", () => {
     const { onDeactivate } = renderTable();
 
-    expect(screen.getAllByRole("button", { name: /^Deactivate / })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /^Deactivate / })).toHaveLength(2);
     expect(rowOf("admin@example.test").queryByRole("button", { name: /Deactivate/ })).not.toBeInTheDocument();
     for (const name of ["cal@example.test", "dee@example.test", "eve@example.test", "gil@example.test"]) {
       expect(rowOf(name).queryByRole("button", { name: /^Deactivate/ })).not.toBeInTheDocument();
@@ -157,6 +178,46 @@ describe("UserTable", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reactivate gil@example.test" }));
 
     expect(onReactivate).toHaveBeenCalledWith(DEACTIVATED_ROW);
+  });
+
+  it("offers Ban, Delete and Change email on an active colleague, a deactivated row and a temporary password, and not on an invitation, the service account, a row with no role, or the admin's own Ban and Delete", () => {
+    const { onBan, onDeleteAccount, onChangeEmail } = renderTable();
+
+    for (const name of ["Ida Colleague", "gil@example.test", "dee@example.test"]) {
+      expect(rowOf(name).getByRole("button", { name: `Ban ${name}` })).toBeInTheDocument();
+      expect(rowOf(name).getByRole("button", { name: `Delete ${name}` })).toBeInTheDocument();
+      expect(rowOf(name).getByRole("button", { name: `Change email for ${name}` })).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Ban Ida Colleague" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete gil@example.test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Change email for dee@example.test" }));
+    expect(onBan).toHaveBeenCalledWith(COLLEAGUE_ROW);
+    expect(onDeleteAccount).toHaveBeenCalledWith(DEACTIVATED_ROW);
+    expect(onChangeEmail).toHaveBeenCalledWith(PENDING_ROW);
+
+    expect(rowOf("admin@example.test").queryByRole("button", { name: /^Ban / })).not.toBeInTheDocument();
+    expect(rowOf("admin@example.test").queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument();
+    expect(
+      rowOf("admin@example.test").getByRole("button", { name: "Change email for admin@example.test" }),
+    ).toBeInTheDocument();
+    for (const name of ["Bea Author", "cal@example.test", "eve@example.test", "fay@example.test"]) {
+      expect(rowOf(name).queryByRole("button", { name: /^Ban / })).not.toBeInTheDocument();
+      expect(rowOf(name).queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument();
+      expect(rowOf(name).queryByRole("button", { name: /Change email/ })).not.toBeInTheDocument();
+    }
+  });
+
+  it("offers Unban, Delete and Change email on a banned row, and not Ban, Deactivate, Reactivate or Re-issue", () => {
+    const { onUnban } = renderTable();
+    const row = rowOf("jo@example.test");
+
+    expect(row.getByText("Banned")).toBeInTheDocument();
+    fireEvent.click(row.getByRole("button", { name: "Unban jo@example.test" }));
+    expect(onUnban).toHaveBeenCalledWith(BANNED_ROW);
+    expect(row.getByRole("button", { name: "Delete jo@example.test" })).toBeInTheDocument();
+    expect(row.getByRole("button", { name: "Change email for jo@example.test" })).toBeInTheDocument();
+    expect(row.queryByRole("button", { name: /^Ban / })).not.toBeInTheDocument();
+    expect(row.queryByRole("button", { name: /Deactivate|Reactivate|Re-issue/ })).not.toBeInTheDocument();
   });
 
   it("disables a row's Reactivate while it is in flight", () => {

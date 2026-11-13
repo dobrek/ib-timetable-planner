@@ -1,16 +1,20 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@/shared/api";
 import type { AppRole } from "@/shared/config";
-import type { InvitationSent, InvitationTarget, TemporaryPassword } from "../model/schemas";
-import { outcomeUnknown, toAccountError, type AccountOperation } from "./account-error";
+import type { AccountTarget, InvitationSent, InvitationTarget, TemporaryPassword } from "../model/schemas";
+import { isClosedConflict, outcomeUnknown, toAccountError, type AccountOperation } from "./account-error";
 
-/** The function's five request shapes, one per operation (its `request.ts` accepts exactly these). */
+/** The function's request shapes, one per operation (its `request.ts` accepts exactly these). */
 export type AdminUsersBody =
   | { op: "create"; email: string; role: AppRole | null }
   | { op: "reissue"; userId: string }
   | { op: "invite"; email: string; role: AppRole }
   | { op: "resend"; userId: string }
-  | { op: "revoke"; userId: string };
+  | { op: "revoke"; userId: string }
+  | { op: "ban"; userId: string }
+  | { op: "unban"; userId: string }
+  | { op: "delete"; userId: string }
+  | { op: "change_email"; userId: string; email: string };
 
 /** What each operation answers on success. */
 type AdminUsersResults = {
@@ -19,6 +23,10 @@ type AdminUsersResults = {
   invite: InvitationSent;
   resend: InvitationTarget;
   revoke: InvitationTarget;
+  ban: AccountTarget;
+  unban: AccountTarget;
+  delete: AccountTarget;
+  change_email: AccountTarget;
 };
 
 /**
@@ -41,7 +49,11 @@ export async function invokeAdminUsers<Body extends AdminUsersBody>(
   // Typed `any` by the library: narrowed here, so nothing downstream reads an unchecked value.
   const error: unknown = result.error;
   const data: unknown = result.data;
-  if (error) throw toAccountError(operation, error instanceof FunctionsHttpError ? statusOf(error) : null);
+  if (error) {
+    const status = error instanceof FunctionsHttpError ? statusOf(error) : null;
+    const conflict = error instanceof FunctionsHttpError && status === 409 ? await conflictCodeOf(error) : null;
+    throw toAccountError(operation, status, conflict);
+  }
   const read: Reader<Body["op"]> = READERS[operation];
   const answer = read(data);
   if (answer === null) throw outcomeUnknown(operation);
@@ -51,6 +63,21 @@ export async function invokeAdminUsers<Body extends AdminUsersBody>(
 const statusOf = (error: FunctionsHttpError): number | null => {
   const context: unknown = error.context;
   return context instanceof Response ? context.status : null;
+};
+
+/**
+ * A 409's closed code, or null. The function's other text is dropped: only `last_admin`,
+ * `email_exists` and `not_allowed` are read, and each is mapped to a local sentence.
+ */
+const conflictCodeOf = async (error: FunctionsHttpError): Promise<string | null> => {
+  const context: unknown = error.context;
+  if (!(context instanceof Response)) return null;
+  try {
+    const body: unknown = await context.clone().json();
+    return isRecord(body) && typeof body.error === "string" && isClosedConflict(body.error) ? body.error : null;
+  } catch {
+    return null;
+  }
 };
 
 type Reader<Operation extends AccountOperation> = (data: unknown) => AdminUsersResults[Operation] | null;
@@ -76,6 +103,10 @@ const READERS: { readonly [Operation in AccountOperation]: Reader<Operation> } =
   invite: readInvitation,
   resend: readTarget,
   revoke: readTarget,
+  ban: readTarget,
+  unban: readTarget,
+  delete: readTarget,
+  change_email: readTarget,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

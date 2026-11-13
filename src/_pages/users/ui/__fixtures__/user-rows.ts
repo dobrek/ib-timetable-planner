@@ -19,10 +19,10 @@ export const ADMIN_ROW: UserRow = {
   canRevokeInvitation: false,
   canDeactivate: true,
   canReactivate: false,
-  canBan: false,
+  canBan: true,
   canUnban: false,
-  canDelete: false,
-  canChangeEmail: false,
+  canDelete: true,
+  canChangeEmail: true,
   isServiceAccount: false,
   lastChange: { by: { kind: "operator" }, at: "2026-11-05T12:00:00+00:00" },
 };
@@ -79,10 +79,10 @@ export const PENDING_ROW: UserRow = {
   canRevokeInvitation: false,
   canDeactivate: false,
   canReactivate: false,
-  canBan: false,
+  canBan: true,
   canUnban: false,
-  canDelete: false,
-  canChangeEmail: false,
+  canDelete: true,
+  canChangeEmail: true,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -151,10 +151,10 @@ export const DEACTIVATED_ROW: UserRow = {
   canRevokeInvitation: false,
   canDeactivate: false,
   canReactivate: true,
-  canBan: false,
+  canBan: true,
   canUnban: false,
-  canDelete: false,
-  canChangeEmail: false,
+  canDelete: true,
+  canChangeEmail: true,
   isServiceAccount: false,
   lastChange: {
     by: { kind: "user", label: { primary: "admin@example.test", secondary: null } },
@@ -162,4 +162,56 @@ export const DEACTIVATED_ROW: UserRow = {
   },
 };
 
-export const ROWS = [ADMIN_ROW, AUTHOR_ROW, NO_ROLE_ROW, PENDING_ROW, INVITED_ROW, ACCEPTED_ROW, DEACTIVATED_ROW];
+export const COLLEAGUE_ID = "00000000-0000-4000-8000-000000000011";
+
+/** An active colleague who is not the signed-in admin and not the service account (S-411). */
+export const COLLEAGUE_ROW: UserRow = {
+  userId: COLLEAGUE_ID,
+  label: { primary: "Ida Colleague", secondary: "ida@example.test" },
+  role: "author",
+  status: "active",
+  canReissuePassword: false,
+  canResendInvitation: false,
+  canRevokeInvitation: false,
+  canDeactivate: true,
+  canReactivate: false,
+  canBan: true,
+  canUnban: false,
+  canDelete: true,
+  canChangeEmail: true,
+  isServiceAccount: false,
+  lastChange: null,
+};
+
+export const BANNED_ID = "00000000-0000-4000-8000-000000000012";
+
+/** A banned account (S-411): Unban, Delete and Change email, and nothing that would lift the pause. */
+export const BANNED_ROW: UserRow = {
+  userId: BANNED_ID,
+  label: { primary: "jo@example.test", secondary: null },
+  role: "viewer",
+  status: "banned",
+  canReissuePassword: false,
+  canResendInvitation: false,
+  canRevokeInvitation: false,
+  canDeactivate: false,
+  canReactivate: false,
+  canBan: false,
+  canUnban: true,
+  canDelete: true,
+  canChangeEmail: true,
+  isServiceAccount: false,
+  lastChange: null,
+};
+
+export const ROWS = [
+  ADMIN_ROW,
+  AUTHOR_ROW,
+  NO_ROLE_ROW,
+  PENDING_ROW,
+  INVITED_ROW,
+  ACCEPTED_ROW,
+  DEACTIVATED_ROW,
+  COLLEAGUE_ROW,
+  BANNED_ROW,
+];

@@ -80,6 +80,35 @@ export type InvitationSent = { userId: string; resent: boolean };
 /** What a re-send or a revoke answers: the account it acted on. */
 export type InvitationTarget = { userId: string };
 
+/** Ban, unban or delete one account. The actor is the session, never the input. */
+export const accountTargetInput = z.object({ userId: z.uuid() });
+
+export type AccountTargetInput = z.output<typeof accountTargetInput>;
+
+/**
+ * A new address for an account (S-411). The confirmation is the form's typo guard and is not sent:
+ * the action checks the address alone.
+ */
+export const changeUserEmailInput = z.object({
+  userId: z.uuid(),
+  email: emailField,
+});
+
+export type ChangeUserEmailInput = z.output<typeof changeUserEmailInput>;
+
+export const changeUserEmailFormSchema = z
+  .object({ email: emailField, confirmEmail: emailField })
+  .refine(({ email, confirmEmail }) => email === confirmEmail, {
+    path: ["confirmEmail"],
+    message: "The two addresses don't match.",
+  });
+
+export type ChangeUserEmailFormValues = z.input<typeof changeUserEmailFormSchema>;
+export type ChangeUserEmailFormOutput = z.output<typeof changeUserEmailFormSchema>;
+
+/** What a ban, an unban, a delete or an email change answers: the account it acted on. */
+export type AccountTarget = { userId: string };
+
 /**
  * The one-time reveal's state: who the password is for, and the password. Held in the Users page's
  * component state only, never in storage, a URL or a log, and set back to `null` when the dialog

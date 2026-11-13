@@ -25,6 +25,14 @@ type Props = {
   reactivating: ReadonlySet<string>;
   /** Reactivates a deactivated row. Only rows with `canReactivate` offer it. */
   onReactivate: (row: UserRow) => void;
+  /** Asks to ban someone. Only rows with `canBan` offer it, never the admin's own. */
+  onBan: (row: UserRow) => void;
+  /** Asks to unban someone. Only rows with `canUnban` offer it. */
+  onUnban: (row: UserRow) => void;
+  /** Asks to delete an account. Only rows with `canDelete` offer it, never the admin's own. */
+  onDeleteAccount: (row: UserRow) => void;
+  /** Asks to change an email. Rows with `canChangeEmail` offer it, including the admin's own. */
+  onChangeEmail: (row: UserRow) => void;
 };
 
 /**
@@ -46,6 +54,10 @@ export default function UserTable({
   onDeactivate,
   reactivating,
   onReactivate,
+  onBan,
+  onUnban,
+  onDeleteAccount,
+  onChangeEmail,
 }: Props) {
   return (
     <div className="border-border overflow-hidden rounded-lg border">
@@ -135,6 +147,62 @@ export default function UserTable({
                         }}
                       >
                         Deactivate
+                      </Button>
+                    )}
+                    {row.canBan && !isSelf && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Ban ${row.label.primary}`}
+                        onClick={() => {
+                          onBan(row);
+                        }}
+                      >
+                        Ban
+                      </Button>
+                    )}
+                    {row.canUnban && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Unban ${row.label.primary}`}
+                        onClick={() => {
+                          onUnban(row);
+                        }}
+                      >
+                        Unban
+                      </Button>
+                    )}
+                    {row.canDelete && !isSelf && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Delete ${row.label.primary}`}
+                        onClick={() => {
+                          onDeleteAccount(row);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                    {row.canChangeEmail && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        aria-label={`Change email for ${row.label.primary}`}
+                        onClick={() => {
+                          onChangeEmail(row);
+                        }}
+                      >
+                        Change email
                       </Button>
                     )}
                     {row.canReactivate && (

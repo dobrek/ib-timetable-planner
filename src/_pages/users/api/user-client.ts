@@ -1,6 +1,8 @@
 import { actions } from "astro:actions";
 import { callAction } from "@/shared/lib/forms";
 import type {
+  AccountTargetInput,
+  ChangeUserEmailInput,
   ChangeUserRoleInput,
   CreateAccountInput,
   InvitationTargetInput,
@@ -28,3 +30,11 @@ export const inviteUser = (values: InviteUserInput) => actions.inviteUser(values
 export const resendInvitation = (values: InvitationTargetInput) => callAction(actions.resendInvitation, values);
 
 export const revokeInvitation = (values: InvitationTargetInput) => callAction(actions.revokeInvitation, values);
+
+export const banUser = (values: AccountTargetInput) => callAction(actions.banUser, values);
+
+export const unbanUser = (values: AccountTargetInput) => callAction(actions.unbanUser, values);
+
+export const deleteAccount = (values: AccountTargetInput) => callAction(actions.deleteAccount, values);
+
+export const changeUserEmail = (values: ChangeUserEmailInput) => callAction(actions.changeUserEmail, values);

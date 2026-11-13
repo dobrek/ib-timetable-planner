@@ -28,8 +28,8 @@
 // machine. Only then can it be re-sent: GoTrue refuses to invite a confirmed address. It can be
 // revoked until the person chooses a password (still flagged), so the admin always has a stop.
 // Revoke deletes the never-used account. Its check and its delete are not atomic: an invitee who
-// chooses a password in that instant loses the account they just finished. Accepted, for a handful
-// of invitations; S-411 owns removing confirmed accounts.
+// chooses a password in that instant loses the account they just finished. Confirmed accounts and
+// temporary-password accounts are removed by `delete` (S-411).
 //
 // THE RE-SEND COOLDOWN is ours to enforce: GoTrue's per-user interval does not cover invites, and
 // every email spends the shared daily sending cap. `invited_at` moves on every send.
@@ -72,6 +72,14 @@ export async function handle(req: Request, ctx: SupabaseContext): Promise<Respon
       return await resend(ctx, actorId, request);
     case "revoke":
       return await revoke(ctx.supabaseAdmin, actorId, request);
+    case "ban":
+      return await ban(ctx, actorId, request);
+    case "unban":
+      return await unban(ctx, actorId, request);
+    case "delete":
+      return await removeAccount(ctx, actorId, request);
+    case "change_email":
+      return await changeEmail(ctx.supabaseAdmin, actorId, request);
   }
 }
 
@@ -241,6 +249,218 @@ const revoke = async (admin: Admin, actorId: string, { userId }: Revoke): Promis
   return reply(200, { userId });
 };
 
+// ban, unban, delete, change email (S-411) ------------------------------------------------------
+
+type Ban = Extract<AdminRequest, { op: "ban" }>;
+type Unban = Extract<AdminRequest, { op: "unban" }>;
+type RemoveAccount = Extract<AdminRequest, { op: "delete" }>;
+type ChangeEmail = Extract<AdminRequest, { op: "change_email" }>;
+
+/**
+ * The ban the Admin API documents as not expiring: `updateUserById` takes a Go duration, and the
+ * reference's permanent example is 100 years. `none` is the documented way to clear one.
+ */
+const PERMANENT_BAN = "876000h";
+const CLEARED_BAN = "none";
+
+type HeldRole = { role: Role; deactivated_at: string | null };
+
+/**
+ * Pause sign-in and, when this ban owns the pause, data access. The app rows are written first and
+ * removed again if GoTrue refuses, so a failed ban leaves the account as it was. A `PT409` from the
+ * pause is the last active admin: GoTrue is not called.
+ */
+const ban = async (ctx: SupabaseContext, actorId: string, { userId }: Ban): Promise<Response> => {
+  const admin = ctx.supabaseAdmin;
+  const found = await accountOf(admin, userId);
+  if (found.error) return failure("ban", `lookup:${found.error}`);
+  if (!found.account) return reply(404, "not_found");
+  const { row, role } = found.account;
+
+  const blocked = cannotTouch(row, role, "ban");
+  if (blocked) return reply(409, blocked);
+  const last = await lastActiveAdmin(admin, row, role);
+  if (last === "error") return failure("ban", "last-admin:lookup");
+  if (last) return reply(409, "last_admin");
+  if (row.user_id === actorId) return reply(409, "not_allowed");
+
+  const timestamp = new Date().toISOString();
+  let ownsPause = role !== null && role.deactivated_at === null;
+  if (ownsPause) {
+    const paused = await setPause(ctx.supabase, userId, timestamp);
+    if (paused === "last_admin") return reply(409, "last_admin");
+    if (paused === "unchanged") ownsPause = false;
+    else if (paused) return failure("ban", `deactivate:${paused}`);
+  }
+
+  const marked = await writeBannedAt(admin, userId, timestamp);
+  if (marked) {
+    if (ownsPause) await clearPause(ctx.supabase, userId, timestamp);
+    return failure("ban", `banned-at:${marked}`);
+  }
+
+  const banned = await admin.auth.admin.updateUserById(userId, { ban_duration: PERMANENT_BAN });
+  if (banned.error) {
+    await writeBannedAt(admin, userId, null);
+    if (ownsPause) await clearPause(ctx.supabase, userId, timestamp);
+    return failure("ban", `updateUser:${codeOf(banned.error)}`);
+  }
+
+  const recorded = await recordAccess(admin, { kind: "account_banned", actorId, targetId: userId, newRole: null });
+  if (recorded) return failure("ban", `record:${recorded}`);
+  return reply(200, { userId });
+};
+
+/**
+ * Lift the GoTrue ban, then the app's record of it. A pause is cleared only when this ban wrote it,
+ * which is when the two timestamps are the same instant. An earlier pause stays.
+ */
+const unban = async (ctx: SupabaseContext, actorId: string, { userId }: Unban): Promise<Response> => {
+  const admin = ctx.supabaseAdmin;
+  const found = await accountOf(admin, userId);
+  if (found.error) return failure("unban", `lookup:${found.error}`);
+  if (!found.account) return reply(404, "not_found");
+  const { row, role } = found.account;
+
+  const blocked = cannotTouch(row, role, "unban");
+  if (blocked) return reply(409, blocked);
+
+  const cleared = await admin.auth.admin.updateUserById(userId, { ban_duration: CLEARED_BAN });
+  if (cleared.error) return failure("unban", `updateUser:${codeOf(cleared.error)}`);
+
+  if (role !== null && sameInstant(role.deactivated_at, row.banned_at)) {
+    const restored = await clearPause(ctx.supabase, userId, role.deactivated_at);
+    if (restored) return failure("unban", `reactivate:${restored}`);
+  }
+  const unmarked = await writeBannedAt(admin, userId, null);
+  if (unmarked) return failure("unban", `banned-at:${unmarked}`);
+
+  const recorded = await recordAccess(admin, { kind: "account_unbanned", actorId, targetId: userId, newRole: null });
+  if (recorded) return failure("unban", `record:${recorded}`);
+  return reply(200, { userId });
+};
+
+/**
+ * Remove a confirmed or temporary-password account. The record is written first, as revoke's is,
+ * because it cannot name a user who is already gone. The last admin the guard counts is refused
+ * here: the cascade itself lets `deleteUser` through.
+ */
+const removeAccount = async (ctx: SupabaseContext, actorId: string, { userId }: RemoveAccount): Promise<Response> => {
+  const admin = ctx.supabaseAdmin;
+  const found = await accountOf(admin, userId);
+  if (found.error) return failure("delete", `lookup:${found.error}`);
+  if (!found.account) return reply(404, "not_found");
+  const { row, role } = found.account;
+
+  const blocked = cannotTouch(row, role, "delete");
+  if (blocked) return reply(409, blocked);
+  const last = await lastActiveAdmin(admin, row, role);
+  if (last === "error") return failure("delete", "last-admin:lookup");
+  if (last) return reply(409, "last_admin");
+  if (row.user_id === actorId) return reply(409, "not_allowed");
+
+  const recorded = await recordAccess(admin, { kind: "account_deleted", actorId, targetId: userId, newRole: null });
+  if (recorded) return failure("delete", `record:${recorded}`);
+  const deleted = await admin.auth.admin.deleteUser(userId);
+  if (deleted.error) return failure("delete", `delete:${codeOf(deleted.error)}`);
+  return reply(200, { userId });
+};
+
+/** Set the address immediately. A directory row that already holds it, including this one, is refused. */
+const changeEmail = async (admin: Admin, actorId: string, { userId, email }: ChangeEmail): Promise<Response> => {
+  const found = await accountOf(admin, userId);
+  if (found.error) return failure("change_email", `lookup:${found.error}`);
+  if (!found.account) return reply(404, "not_found");
+  const { row, role } = found.account;
+
+  const blocked = cannotTouch(row, role, "change_email");
+  if (blocked) return reply(409, blocked);
+  const taken = await directoryByEmail(admin, email);
+  if (taken.error) return failure("change_email", `lookup:${taken.error}`);
+  if (taken.row) return reply(409, "email_exists");
+
+  const updated = await admin.auth.admin.updateUserById(userId, { email, email_confirm: true });
+  if (updated.error) return authFailure("change_email", "updateUser", updated.error);
+
+  const recorded = await recordAccess(admin, { kind: "email_changed", actorId, targetId: userId, newRole: null });
+  if (recorded) return failure("change_email", `record:${recorded}`);
+  return reply(200, { userId });
+};
+
+type TouchOp = "ban" | "unban" | "delete" | "change_email";
+
+/**
+ * Who this slice must not touch. Self is decided by the caller, after the last-admin check, because
+ * banning or deleting oneself is `not_allowed` only when another admin would remain. A ban that is
+ * already recorded, and an unban of a row that is not, are refused too.
+ */
+const cannotTouch = (row: DirectoryRow, role: HeldRole | null, op: TouchOp): "not_allowed" | null => {
+  const temporaryPassword = row.must_change_password && row.invited_at === null;
+  if (row.is_machine || row.is_service_account || isRevocable(row) || (role === null && !temporaryPassword)) {
+    return "not_allowed";
+  }
+  if (op === "ban" && row.banned_at !== null) return "not_allowed";
+  if (op === "unban" && row.banned_at === null) return "not_allowed";
+  return null;
+};
+
+/**
+ * The guard's predicate, applied here because `deleteUser`'s cascade returns before the guard can.
+ * An admin who is pending or already paused does not count, and neither does the target. `"error"`
+ * is a failed read, not a verdict.
+ */
+const lastActiveAdmin = async (admin: Admin, row: DirectoryRow, role: HeldRole | null): Promise<boolean | "error"> => {
+  if (role === null || role.role !== "admin" || role.deactivated_at !== null || row.must_change_password) return false;
+  const others = await admin
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin")
+    .is("deactivated_at", null)
+    .neq("user_id", row.user_id);
+  if (others.error) return "error";
+  const ids = (others.data ?? []).map((other) => other.user_id);
+  if (ids.length === 0) return true;
+  const directory = await admin.from("user_directory").select("user_id, must_change_password").in("user_id", ids);
+  if (directory.error) return "error";
+  const pending = new Set(
+    (directory.data ?? []).filter((entry) => entry.must_change_password).map((entry) => entry.user_id),
+  );
+  return ids.every((id) => pending.has(id));
+};
+
+/** Through the admin's session, so the guard and the record name the admin. `PT409` is the last admin. */
+/** `"unchanged"` when the row was already paused or gone: this call did not write the pause. */
+const setPause = async (session: Session, userId: string, timestamp: string): Promise<string | null> => {
+  const { data, error } = await session
+    .from("user_roles")
+    .update({ deactivated_at: timestamp })
+    .eq("user_id", userId)
+    .is("deactivated_at", null)
+    .select("user_id");
+  if (error?.code === "PT409") return "last_admin";
+  if (error) return `db:${codeOf(error)}`;
+  return (data ?? []).length === 1 ? null : "unchanged";
+};
+
+/** Clears a pause this call wrote. Filtered on that timestamp, so an earlier pause is left alone. */
+const clearPause = async (session: Session, userId: string, timestamp: string | null): Promise<string | null> => {
+  if (timestamp === null) return null;
+  const { error } = await session
+    .from("user_roles")
+    .update({ deactivated_at: null })
+    .eq("user_id", userId)
+    .eq("deactivated_at", timestamp);
+  return error ? `db:${codeOf(error)}` : null;
+};
+
+const writeBannedAt = async (admin: Admin, userId: string, bannedAt: string | null): Promise<string | null> => {
+  const { error } = await admin.from("user_directory").update({ banned_at: bannedAt }).eq("user_id", userId);
+  return error ? `db:${codeOf(error)}` : null;
+};
+
+const sameInstant = (left: string | null, right: string | null): boolean =>
+  left !== null && right !== null && Date.parse(left) === Date.parse(right);
+
 // the directory ---------------------------------------------------------------------------------
 
 /** The mirror of `auth.users` the function judges an account by (S-406, S-409, S-410). */
@@ -248,14 +468,17 @@ type DirectoryRow = {
   user_id: string;
   email: string | null;
   is_machine: boolean;
+  is_service_account: boolean;
   must_change_password: boolean;
   invited_at: string | null;
   email_confirmed_at: string | null;
+  banned_at: string | null;
 };
 
 type Lookup = { row: DirectoryRow | null; error: null } | { row: null; error: string };
 
-const DIRECTORY_COLUMNS = "user_id, email, is_machine, must_change_password, invited_at, email_confirmed_at";
+const DIRECTORY_COLUMNS =
+  "user_id, email, is_machine, is_service_account, must_change_password, invited_at, email_confirmed_at, banned_at";
 
 const directoryById = (admin: Admin, userId: string): Promise<Lookup> =>
   lookup(admin.from("user_directory").select(DIRECTORY_COLUMNS).eq("user_id", userId).maybeSingle());
@@ -263,6 +486,25 @@ const directoryById = (admin: Admin, userId: string): Promise<Lookup> =>
 /** GoTrue stores addresses lowercased, and the parser lowercases the request's. */
 const directoryByEmail = (admin: Admin, email: string): Promise<Lookup> =>
   lookup(admin.from("user_directory").select(DIRECTORY_COLUMNS).eq("email", email).maybeSingle());
+
+type Account = { row: DirectoryRow; role: HeldRole | null };
+
+/** The directory row and the role row, or a lookup error. A missing directory row is `account: null`. */
+const accountOf = async (
+  admin: Admin,
+  userId: string,
+): Promise<{ account: Account | null; error: null } | { account: null; error: string }> => {
+  const target = await directoryById(admin, userId);
+  if (target.error) return { account: null, error: target.error };
+  if (!target.row) return { account: null, error: null };
+  const { data, error } = await admin
+    .from("user_roles")
+    .select("role, deactivated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) return { account: null, error: codeOf(error) };
+  return { account: { row: target.row, role: (data as HeldRole | null) ?? null }, error: null };
+};
 
 const lookup = async (query: PromiseLike<{ data: unknown; error: { code?: string } | null }>): Promise<Lookup> => {
   const { data, error } = await query;
@@ -354,7 +596,16 @@ const writePending = async (admin: Admin, userId: string): Promise<string | null
 };
 
 type AccessRecord = {
-  kind: "account_created" | "password_reissued" | "invitation_sent" | "invitation_resent" | "invitation_revoked";
+  kind:
+    | "account_created"
+    | "password_reissued"
+    | "invitation_sent"
+    | "invitation_resent"
+    | "invitation_revoked"
+    | "account_banned"
+    | "account_unbanned"
+    | "account_deleted"
+    | "email_changed";
   actorId: string;
   targetId: string;
   newRole: Role | null;

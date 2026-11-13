@@ -6,6 +6,7 @@ import type { Database, SupabaseClient } from "@/shared/api";
 import {
   createAuthUser,
   createInvitedUser,
+  createPlan,
   createSignedInUser,
   type SignedInUser,
   strongPassword,
@@ -585,6 +586,218 @@ const OTP_EXPIRED = "otp_expired";
     });
   });
 
+  describe("ban, unban, delete and change email", () => {
+    it("bans an active user and unban returns them to an active role, with the 100-year ban cleared", async () => {
+      const person = await createSignedInUser(admin, { role: "author" });
+
+      const banned = await call({ token: tokens.admin }, { op: "ban", userId: person.id });
+      expect(banned.status).toBe(200);
+      expect(await banned.json()).toEqual({ userId: person.id });
+      expect(await banState(person.id)).toMatchObject({
+        role: "author",
+        banned: true,
+        paused: true,
+        banOwnedPause: true,
+      });
+      expect(await banIsPermanent(person.id)).toBe(true);
+
+      const unbanned = await call({ token: tokens.admin }, { op: "unban", userId: person.id });
+      expect(unbanned.status).toBe(200);
+      expect(await unbanned.json()).toEqual({ userId: person.id });
+      expect(await banState(person.id)).toMatchObject({
+        role: "author",
+        banned: false,
+        paused: false,
+        banOwnedPause: false,
+      });
+      expect(await banIsPermanent(person.id)).toBe(false);
+    });
+
+    it("leaves an earlier pause in place across a ban and an unban", async () => {
+      const person = await createSignedInUser(admin, { role: "author", deactivated: true });
+      const before = await banState(person.id);
+
+      expect((await call({ token: tokens.admin }, { op: "ban", userId: person.id })).status).toBe(200);
+      const banned = await banState(person.id);
+      expect(banned).toMatchObject({ paused: true, banOwnedPause: false, banned: true });
+      expect(banned.pauseAt).toBe(before.pauseAt);
+
+      expect((await call({ token: tokens.admin }, { op: "unban", userId: person.id })).status).toBe(200);
+      expect(await banState(person.id)).toMatchObject({
+        paused: true,
+        banned: false,
+        pauseAt: before.pauseAt,
+      });
+    });
+
+    it("bans a temporary-password account with a role and one without", async () => {
+      const withRole = await accountOf(
+        await call({ token: tokens.admin }, { op: "create", email: freshEmail(), role: "viewer" }),
+      );
+      const withoutRole = await accountOf(
+        await call({ token: tokens.admin }, { op: "create", email: freshEmail(), role: null }),
+      );
+
+      expect((await call({ token: tokens.admin }, { op: "ban", userId: withRole.userId })).status).toBe(200);
+      expect((await call({ token: tokens.admin }, { op: "ban", userId: withoutRole.userId })).status).toBe(200);
+
+      expect(await banState(withRole.userId)).toMatchObject({ role: "viewer", banned: true, paused: true });
+      expect(await banState(withoutRole.userId)).toEqual({
+        role: null,
+        banned: true,
+        paused: false,
+        banOwnedPause: false,
+        pauseAt: null,
+      });
+    });
+
+    it("refuses the next plan read of a user it just banned", async () => {
+      const person = await createSignedInUser(admin, { role: "author" });
+      const planId = await createPlan(admin);
+      expect((await person.client.from("plans").select("id").eq("id", planId)).data).toHaveLength(1);
+
+      expect((await call({ token: tokens.admin }, { op: "ban", userId: person.id })).status).toBe(200);
+
+      const plans = await person.client.from("plans").select("id").eq("id", planId);
+      const role = await person.client.rpc("own_app_role");
+      expect({ plans: plans.data, role: role.data, plansError: plans.error, roleError: role.error }).toEqual({
+        plans: [],
+        role: null,
+        plansError: null,
+        roleError: null,
+      });
+    });
+
+    it("rolls the app's rows back when GoTrue refuses the ban", async () => {
+      const person = await createSignedInUser(admin, { role: "author" });
+      await failBanFor(person.email);
+      try {
+        const response = await call({ token: tokens.admin }, { op: "ban", userId: person.id });
+        expect(response.status).toBe(500);
+        expect(await banState(person.id)).toMatchObject({ banned: false, paused: false });
+        expect(await banIsPermanent(person.id)).toBe(false);
+      } finally {
+        await stopFailingBans();
+      }
+    });
+
+    it("refuses ban and delete of the caller when another admin remains, and of everyone this slice must not touch", async () => {
+      await createSignedInUser(admin, { role: "admin" });
+      const machine = await createAuthUser(admin, { appMetadata: { machine_role: "solver_job_writer" } });
+      const service = await createAuthUser(admin, { appMetadata: { service_account: true } });
+      await admin.from("user_roles").insert({ user_id: service.id, role: "viewer" });
+      const noRole = await createSignedInUser(admin);
+      const unaccepted = await invited();
+      const accepted = await invited();
+      await acceptInvitation(accepted.email);
+      const expired = await invited();
+      await pastCooldown(expired.userId);
+
+      for (const userId of [
+        caller.id,
+        machine.id,
+        service.id,
+        noRole.id,
+        unaccepted.userId,
+        accepted.userId,
+        expired.userId,
+      ]) {
+        for (const op of ["ban", "delete"] as const) {
+          const response = await call({ token: tokens.admin }, { op, userId });
+          expect(response.status, `${op} ${userId}`).toBe(409);
+          expect(await response.json()).toEqual({ error: "not_allowed" });
+        }
+      }
+      expect(await roleOf(caller.id)).toBe("admin");
+    });
+
+    it("refuses ban and delete of the last active admin and leaves the account", async () => {
+      const others = await countingAdminsExcept(caller.id);
+      try {
+        if (others.length > 0) {
+          await pg.query("update public.user_roles set role = 'author' where user_id = any($1::uuid[])", [others]);
+        }
+        for (const op of ["ban", "delete"] as const) {
+          const response = await call({ token: tokens.admin }, { op, userId: caller.id });
+          expect(response.status, op).toBe(409);
+          expect(await response.json()).toEqual({ error: "last_admin" });
+        }
+        expect(await banState(caller.id)).toMatchObject({ role: "admin", banned: false, paused: false });
+        expect(await userCountWithEmail(caller.email)).toBe(1);
+      } finally {
+        if (others.length > 0) {
+          await pg.query("update public.user_roles set role = 'admin' where user_id = any($1::uuid[])", [others]);
+        }
+      }
+    });
+
+    it("deletes the account, keeps a plan they created with no credit, and records who deleted them", async () => {
+      const person = await createSignedInUser(admin, { role: "author" });
+      const planId = await createPlan(person.client);
+      expect((await admin.from("plans").select("created_by").eq("id", planId).single()).data?.created_by).toBe(
+        person.id,
+      );
+      const before = await deletedRecordsBy(caller.id);
+
+      const response = await call({ token: tokens.admin }, { op: "delete", userId: person.id });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ userId: person.id });
+      expect(await userCountWithEmail(person.email)).toBe(0);
+      expect((await admin.from("plans").select("id, created_by").eq("id", planId).single()).data).toEqual({
+        id: planId,
+        created_by: null,
+      });
+      expect(await deletedRecordsBy(caller.id)).toBe(before + 1);
+    });
+
+    it("changes an email, including the caller's own, refuses one the directory holds, and sends no confirmation link", async () => {
+      const holder = await createSignedInUser(admin, { role: "viewer" });
+      const taken = freshEmail();
+      const next = freshEmail();
+      expect(
+        (await call({ token: tokens.admin }, { op: "change_email", userId: holder.id, email: taken })).status,
+      ).toBe(200);
+
+      const changed = await call({ token: tokens.admin }, { op: "change_email", userId: caller.id, email: next });
+      expect(changed.status).toBe(200);
+      expect(await changed.json()).toEqual({ userId: caller.id });
+      expect((await directoryRow(caller.id))?.email).toBe(next);
+      expect(await recordsFor(caller.id, "email_changed")).toEqual([
+        { kind: "email_changed", actor_kind: "user", actor_id: caller.id, new_role: null },
+      ]);
+
+      const duplicate = await call({ token: tokens.admin }, { op: "change_email", userId: holder.id, email: next });
+      expect(duplicate.status).toBe(409);
+      expect(await duplicate.json()).toEqual({ error: "email_exists" });
+      const same = await call({ token: tokens.admin }, { op: "change_email", userId: caller.id, email: next });
+      expect(same.status).toBe(409);
+      expect(await same.json()).toEqual({ error: "email_exists" });
+
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      for (const address of [caller.email, holder.email, next, taken]) {
+        for (const message of await messagesTo(address)) {
+          ownMail.add(message.ID);
+          const body = await readMessage(message.ID);
+          const urls = urlsIn(`${body.HTML}\n${body.Text}`);
+          expect(urls.some((url) => url.includes("token_hash") || url.includes("/auth/confirm"))).toBe(false);
+        }
+      }
+    });
+
+    it("answers 404 for a user that does not exist", async () => {
+      const missing = randomUUID();
+      for (const body of [
+        { op: "ban", userId: missing },
+        { op: "unban", userId: missing },
+        { op: "delete", userId: missing },
+        { op: "change_email", userId: missing, email: freshEmail() },
+      ]) {
+        expect((await call({ token: tokens.admin }, body)).status, body.op).toBe(404);
+      }
+    });
+  });
+
   // helpers ---------------------------------------------------------------------------------------
 
   /** A user the function created: registered for teardown, so the suite leaves nothing behind. */
@@ -603,6 +816,80 @@ const OTP_EXPIRED = "otp_expired";
       .maybeSingle();
     if (error) throw new Error(`directoryRow: ${error.message}`);
     return data;
+  };
+
+  const banState = async (userId: string) => {
+    const role = await admin.from("user_roles").select("role, deactivated_at").eq("user_id", userId).maybeSingle();
+    if (role.error) throw new Error(`banState: ${role.error.message}`);
+    const directory = await admin.from("user_directory").select("banned_at").eq("user_id", userId).maybeSingle();
+    if (directory.error) throw new Error(`banState: ${directory.error.message}`);
+    const pauseAt = role.data?.deactivated_at ?? null;
+    const bannedAt = directory.data?.banned_at ?? null;
+    return {
+      role: role.data?.role ?? null,
+      banned: bannedAt !== null,
+      paused: pauseAt !== null,
+      banOwnedPause: pauseAt !== null && bannedAt !== null && Date.parse(pauseAt) === Date.parse(bannedAt),
+      pauseAt,
+    };
+  };
+
+  /** True while GoTrue's ban is the 100-year duration (`876000h`), false once it is cleared. */
+  const banIsPermanent = async (userId: string): Promise<boolean> => {
+    const { rows } = await pg.query<{ banned_until: Date | null }>(
+      "select banned_until from auth.users where id = $1",
+      [userId],
+    );
+    const until = rows[0]?.banned_until;
+    if (!until) return false;
+    return until.getTime() > Date.now() + 99 * 365 * 24 * 60 * 60 * 1000;
+  };
+
+  /** Admins the guard counts, other than `userId`: active, and not waiting on a temporary password. */
+  const countingAdminsExcept = async (userId: string): Promise<string[]> => {
+    const { rows } = await pg.query<{ user_id: string }>(
+      `select r.user_id
+         from public.user_roles r
+        where r.role = 'admin' and r.deactivated_at is null and r.user_id <> $1
+          and not exists (
+            select 1 from public.user_directory d
+             where d.user_id = r.user_id and d.must_change_password
+          )`,
+      [userId],
+    );
+    return rows.map((row) => row.user_id);
+  };
+
+  /** `account_deleted` records by `actorId` whose target is gone. */
+  const deletedRecordsBy = async (actorId: string): Promise<number> => {
+    const { count, error } = await admin
+      .from("access_changes")
+      .select("id", { count: "exact", head: true })
+      .eq("kind", "account_deleted")
+      .eq("actor_id", actorId)
+      .is("target_id", null);
+    if (error) throw new Error(`deletedRecordsBy: ${error.message}`);
+    return count ?? 0;
+  };
+
+  /** Make GoTrue's ban write fail for one address, the way a database error would. */
+  const failBanFor = async (email: string): Promise<void> => {
+    if (!/^[a-z0-9.@-]+$/.test(email)) throw new Error(`refusing to embed an unexpected address: ${email}`);
+    await ddl(`
+      create or replace function public.zz_admin_users_fail_ban() returns trigger language plpgsql as $$
+      begin
+        raise exception 'forced ban failure (admin-users suite)';
+      end $$`);
+    await ddl(`
+      create or replace trigger zz_admin_users_fail_ban
+        before update of banned_until on auth.users
+        for each row when (new.email = '${email}')
+        execute function public.zz_admin_users_fail_ban()`);
+  };
+
+  const stopFailingBans = async (): Promise<void> => {
+    await ddl("drop trigger if exists zz_admin_users_fail_ban on auth.users");
+    await ddl("drop function if exists public.zz_admin_users_fail_ban()");
   };
 
   const roleOf = async (userId: string): Promise<string | null> => {

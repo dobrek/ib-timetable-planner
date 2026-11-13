@@ -14,7 +14,11 @@ export type AdminRequest =
   | { op: "invite"; email: string; role: Role }
   | { op: "reissue"; userId: string }
   | { op: "resend"; userId: string }
-  | { op: "revoke"; userId: string };
+  | { op: "revoke"; userId: string }
+  | { op: "ban"; userId: string }
+  | { op: "unban"; userId: string }
+  | { op: "delete"; userId: string }
+  | { op: "change_email"; userId: string; email: string };
 
 const ROLES: readonly string[] = ["viewer", "author", "admin"];
 
@@ -34,7 +38,12 @@ export function parseRequest(body: unknown): AdminRequest | null {
     case "reissue":
     case "resend":
     case "revoke":
+    case "ban":
+    case "unban":
+    case "delete":
       return parseTarget(body, body.op);
+    case "change_email":
+      return parseChangeEmail(body);
     default:
       return null;
   }
@@ -58,11 +67,23 @@ const parseInvite = (body: Record<string, unknown>): AdminRequest | null => {
   return { op: "invite", email, role };
 };
 
-const parseTarget = (body: Record<string, unknown>, op: "reissue" | "resend" | "revoke"): AdminRequest | null => {
+const parseTarget = (
+  body: Record<string, unknown>,
+  op: "reissue" | "resend" | "revoke" | "ban" | "unban" | "delete",
+): AdminRequest | null => {
   if (!hasExactKeys(body, ["op", "userId"])) return null;
   const { userId } = body;
   if (typeof userId !== "string" || !UUID.test(userId)) return null;
   return { op, userId: userId.toLowerCase() };
+};
+
+/** The new address, normalised the same way as create. The confirmation is the page's, not the request's. */
+const parseChangeEmail = (body: Record<string, unknown>): AdminRequest | null => {
+  if (!hasExactKeys(body, ["op", "userId", "email"])) return null;
+  const email = normaliseEmail(body.email);
+  const { userId } = body;
+  if (email === null || typeof userId !== "string" || !UUID.test(userId)) return null;
+  return { op: "change_email", userId: userId.toLowerCase(), email };
 };
 
 /** Trimmed and lowercased, or null when it is not plausibly an address. */

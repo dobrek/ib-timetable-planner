@@ -82,6 +82,37 @@ Deno.test("invite: user metadata, app_metadata and a redirect are refused", () =
   assert.equal(parseRequest({ ...base, redirectTo: "https://evil.example" }), null);
 });
 
+Deno.test("ban, unban and delete: a UUID parses, anything else or an extra key is refused", () => {
+  for (const op of ["ban", "unban", "delete"] as const) {
+    assert.deepEqual(parseRequest({ op, userId: USER_ID.toUpperCase() }), { op, userId: USER_ID });
+    for (const userId of ["", "not-a-uuid", USER_ID.slice(1), 7, null, undefined]) {
+      assert.equal(parseRequest({ op, userId }), null, `${op} ${String(userId)}`);
+    }
+    assert.equal(parseRequest({ op, userId: USER_ID, email: "a@b.co" }), null, op);
+    assert.equal(parseRequest({ op }), null, op);
+  }
+});
+
+Deno.test("change_email: an address and a user parse, and the address is trimmed and lowercased", () => {
+  assert.deepEqual(
+    parseRequest({ op: "change_email", userId: USER_ID.toUpperCase(), email: "  New@School.Example " }),
+    {
+      op: "change_email",
+      userId: USER_ID,
+      email: "new@school.example",
+    },
+  );
+});
+
+Deno.test("change_email: a missing field, an address that is not one, or an extra key is refused", () => {
+  assert.equal(parseRequest({ op: "change_email", userId: USER_ID }), null);
+  assert.equal(parseRequest({ op: "change_email", email: "a@b.co" }), null);
+  for (const email of ["", "plain", "a@b", "@b.co", null, `${"a".repeat(250)}@b.co`]) {
+    assert.equal(parseRequest({ op: "change_email", userId: USER_ID, email }), null, String(email));
+  }
+  assert.equal(parseRequest({ op: "change_email", userId: USER_ID, email: "a@b.co", role: "admin" }), null);
+});
+
 Deno.test("resend and revoke: a UUID parses, anything else or an extra key is refused", () => {
   for (const op of ["resend", "revoke"] as const) {
     assert.deepEqual(parseRequest({ op, userId: USER_ID.toUpperCase() }), { op, userId: USER_ID });
@@ -93,10 +124,10 @@ Deno.test("resend and revoke: a UUID parses, anything else or an extra key is re
   }
 });
 
-Deno.test("the op must be one of the five, and the body an object", () => {
+Deno.test("the op must be one this function performs, and the body an object", () => {
   for (const body of [
-    { op: "delete", userId: USER_ID },
-    { op: "ban", userId: USER_ID },
+    { op: "grant", userId: USER_ID },
+    { op: "remove", userId: USER_ID },
     { op: "" },
     {},
     [],

@@ -370,19 +370,19 @@ Hosted auth settings do not change. No template, no `uri_allow_list` edit, no `c
 
 #### Automated
 
-- [x] 1.1 The migration applies on the local stack with `pnpm exec supabase migration up`
-- [x] 1.2 `pnpm db:types` produces `banned_at` and the four new `access_change_kind` labels, and the committed file matches
-- [x] 1.3 `pnpm exec vitest run src/_pages/users/model/user-rows.test.ts src/_pages/users/api/set-user-active.test.ts` passes, including Banned ahead of Deactivated and Temporary password, and reactivate refusing when `banned_at` is set
-- [x] 1.4 `pnpm exec vitest run src/_pages/users/api/set-user-active.integration.test.ts src/_pages/users/api/change-user-role.integration.test.ts` passes: a row with `banned_at` set is not reactivated, and a role change leaves `banned_at` set
-- [x] 1.5 `pnpm check` passes
+- [x] 1.1 The migration applies on the local stack with `pnpm exec supabase migration up` — 5ac1a9bd
+- [x] 1.2 `pnpm db:types` produces `banned_at` and the four new `access_change_kind` labels, and the committed file matches — 5ac1a9bd
+- [x] 1.3 `pnpm exec vitest run src/_pages/users/model/user-rows.test.ts src/_pages/users/api/set-user-active.test.ts` passes, including Banned ahead of Deactivated and Temporary password, and reactivate refusing when `banned_at` is set — 5ac1a9bd
+- [x] 1.4 `pnpm exec vitest run src/_pages/users/api/set-user-active.integration.test.ts src/_pages/users/api/change-user-role.integration.test.ts` passes: a row with `banned_at` set is not reactivated, and a role change leaves `banned_at` set — 5ac1a9bd
+- [x] 1.5 `pnpm check` passes — 5ac1a9bd
 
 ### Phase 2: Four operations on admin-users
 
 #### Automated
 
-- [ ] 2.1 `mise run functions:check` passes
-- [ ] 2.2 `pnpm exec vitest run src/test/admin-users.integration.test.ts` passes, including the ban, unban, delete, email, refusal, surviving-plan, and Mailpit cases
-- [ ] 2.3 A banned user's publishable-key request for a plan is refused on the next call, by the deactivation fence, in that same suite
+- [x] 2.1 `mise run functions:check` passes
+- [x] 2.2 `pnpm exec vitest run src/test/admin-users.integration.test.ts` passes, including the ban, unban, delete, email, refusal, surviving-plan, and Mailpit cases
+- [x] 2.3 A banned user's publishable-key request for a plan is refused on the next call, by the deactivation fence, in that same suite
 
 ### Phase 3: Users page
 

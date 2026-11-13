@@ -39,8 +39,8 @@ type Props = {
 const EMPTY_VALUES: CreateAccountFormValues = { email: "", confirmEmail: "", role: "viewer" };
 
 /**
- * Create an account with a temporary password (S-409, FR-403). The address is typed twice because
- * an account made for a mistyped address cannot be deleted until S-411. The shared
+ * Create an account with a temporary password (S-409, FR-403). The address is typed twice so a typo
+ * is caught before the account exists. The shared
  * `createAccountFormSchema` drives validation (`mode: "onTouched"`); the action runs the same
  * `createAccountInput` on the server.
  */
@@ -87,7 +87,7 @@ export default function CreateAccountDialog({ open, onClose, onCreated }: Props)
                   <FormControl>
                     <Input type="email" autoComplete="off" {...field} />
                   </FormControl>
-                  <FormDescription>Type it again: the account cannot be deleted yet.</FormDescription>
+                  <FormDescription>Type it again, so a typo is caught before the account is created.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

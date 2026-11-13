@@ -37,7 +37,7 @@ export const createAccountInput = z.object({
 
 export type CreateAccountInput = z.output<typeof createAccountInput>;
 
-/** The form adds the typo guard: the address is typed twice, since deleting a wrong account is S-411. */
+/** The form adds the typo guard: the address is typed twice. */
 export const createAccountFormSchema = createAccountInput
   .extend({ confirmEmail: emailField })
   .refine(({ email, confirmEmail }) => email === confirmEmail, {

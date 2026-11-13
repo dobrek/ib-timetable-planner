@@ -1,7 +1,7 @@
 /**
  * The email-link types `/auth/confirm` accepts. The page is shared infrastructure for every Auth
- * email that carries a one-time link: S-402 added `recovery`, S-410 `invite`, and S-411 adds
- * `email_change`. A new type needs an entry here and in three records keyed by it, which the type
+ * email that carries a one-time link: S-402 added `recovery` and S-410 added `invite`. S-411 does
+ * not add `email_change`. A new type needs an entry here and in three records keyed by it, which the type
  * checker enforces: `LANDING_PATHS` below, and the page copy and failure route in
  * `confirm-page-state.ts`. A type outside this list is refused before GoTrue is ever called.
  */

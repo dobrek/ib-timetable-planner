@@ -14,7 +14,7 @@ export type CreditedUser = {
  *
  * `unknown` covers every row that names nobody we can show: one that predates S-407, one the service
  * role wrote, one whose person was deleted (the foreign key sets it to null), and an id the directory
- * does not list. Telling "deleted" apart is S-411's decision.
+ * does not list. A deleted person stays Unknown; S-411 keeps it that way.
  */
 export type Credit = { kind: "user"; user: CreditedUser } | { kind: "unknown" };
 

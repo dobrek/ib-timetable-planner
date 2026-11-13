@@ -38,7 +38,7 @@ const UNREACHABLE_MESSAGE = "Role change failed — try again.";
  * - Never answered (the request rejected): a generic failure and no reload. The row is freed and
  *   its picker falls back, so the admin can try again.
  */
-export function useRoleChange(currentUserId: string) {
+export function useRoleChange() {
   const [saving, setSaving] = useState<ReadonlyMap<string, AppRole | null>>(new Map());
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
   // Read synchronously, so a double click cannot save twice before `saving` re-renders.
@@ -52,7 +52,7 @@ export function useRoleChange(currentUserId: string) {
     // A rejected request (it never completed) becomes null: Astro's action client does not catch one.
     const result = await changeUserRole({ userId: row.userId, role }).catch(() => null);
     // Leaving at once, so the picker keeps showing the new role until the page goes.
-    if (result && !result.error && row.userId === currentUserId) {
+    if (result && !result.error && row.isSelf) {
       goToDashboard();
       return;
     }
@@ -75,7 +75,7 @@ export function useRoleChange(currentUserId: string) {
 
   const choose = (row: UserRow, role: AppRole | null): void => {
     if (role === row.role) return;
-    const reason = needsConfirmation({ targetIsSelf: row.userId === currentUserId, newRole: role });
+    const reason = needsConfirmation({ targetIsSelf: row.isSelf, newRole: role });
     if (reason) setConfirmation({ row, role, reason });
     else void save(row, role);
   };

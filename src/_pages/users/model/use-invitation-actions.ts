@@ -26,7 +26,7 @@ export function useInvitationActions() {
   };
 
   const sendAgain = async (row: UserRow): Promise<void> => {
-    if (!row.canResendInvitation || resendInFlight.current.has(row.userId)) return;
+    if (!row.actions.includes("resend") || resendInFlight.current.has(row.userId)) return;
     resendInFlight.current = new Set([...resendInFlight.current, row.userId]);
     setResending(resendInFlight.current);
 
@@ -39,7 +39,7 @@ export function useInvitationActions() {
   };
 
   const askRevoke = (row: UserRow): void => {
-    if (row.canRevokeInvitation) setRevokeTarget(row);
+    if (row.actions.includes("revoke")) setRevokeTarget(row);
   };
 
   const cancelRevoke = (): void => {

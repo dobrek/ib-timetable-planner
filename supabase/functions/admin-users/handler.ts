@@ -243,11 +243,11 @@ const revoke = async (admin: Admin, actorId: string, { userId }: Revoke): Promis
   if (!target.row) return reply(404, "not_found");
   if (!isRevocable(target.row)) return reply(409, "not_pending");
 
-  const recorded = await recordAccess(admin, { kind: "invitation_revoked", actorId, targetId: userId, newRole: null });
-  if (recorded) return failure("revoke", `record:${recorded}`);
-  const deleted = await admin.auth.admin.deleteUser(userId);
-  if (deleted.error) return failure("revoke", `delete:${codeOf(deleted.error)}`);
-  return reply(200, { userId });
+  const failedStep = await firstFailure([
+    ["record", () => recordAccess(admin, { kind: "invitation_revoked", actorId, targetId: userId, newRole: null })],
+    ["delete", () => deleteAuthUser(admin, userId)],
+  ]);
+  return failedStep ? failure("revoke", failedStep) : reply(200, { userId });
 };
 
 // ban, unban, delete, change email (S-411) ------------------------------------------------------
@@ -274,32 +274,23 @@ type HeldRole = { role: Role; deactivated_at: string | null };
  */
 const ban = async (ctx: SupabaseContext, actorId: string, { userId }: Ban): Promise<Response> => {
   const admin = ctx.supabaseAdmin;
-  const found = await accountOf(admin, userId);
-  if (found.error) return failure("ban", `lookup:${found.error}`);
-  if (!found.account) return reply(404, "not_found");
-  const { row, role } = found.account;
-
-  const blocked = cannotTouch(row, role, "ban");
-  if (blocked) return reply(409, blocked);
-  const last = await lastActiveAdmin(admin, row, role);
-  if (last === "error") return failure("ban", "last-admin:lookup");
-  if (last) return reply(409, "last_admin");
-  if (row.user_id === actorId) return reply(409, "not_allowed");
+  const guarded = await removable(admin, "ban", userId, actorId);
+  if ("stop" in guarded) return guarded.stop;
 
   const timestamp = new Date().toISOString();
   const marked = await markBanned(admin, userId, timestamp);
   if (marked === ALREADY_BANNED) return reply(409, "not_allowed");
   if (marked) return failure("ban", `banned-at:${marked}`);
 
-  const pause = await pauseTarget(ctx, "ban", userId, role, timestamp);
+  const pause = await pauseTarget(ctx, "ban", userId, guarded.account.role, timestamp);
   if ("stop" in pause) {
-    await undoBan(ctx, userId, timestamp, false);
+    await undoBan(ctx, userId, timestamp, null);
     return pause.stop;
   }
 
   const banned = await admin.auth.admin.updateUserById(userId, { ban_duration: PERMANENT_BAN });
   if (banned.error) {
-    await undoBan(ctx, userId, timestamp, pause.ownsPause);
+    await undoBan(ctx, userId, timestamp, pause.ownedPause);
     return failure("ban", `updateUser:${codeOf(banned.error)}`);
   }
 
@@ -314,13 +305,9 @@ const ban = async (ctx: SupabaseContext, actorId: string, { userId }: Ban): Prom
  */
 const unban = async (ctx: SupabaseContext, actorId: string, { userId }: Unban): Promise<Response> => {
   const admin = ctx.supabaseAdmin;
-  const found = await accountOf(admin, userId);
-  if (found.error) return failure("unban", `lookup:${found.error}`);
-  if (!found.account) return reply(404, "not_found");
-  const { row, role } = found.account;
-
-  const blocked = cannotTouch(row, role, "unban");
-  if (blocked) return reply(409, blocked);
+  const guarded = await touchable(admin, "unban", userId);
+  if ("stop" in guarded) return guarded.stop;
+  const { row, role } = guarded.account;
 
   const cleared = await admin.auth.admin.updateUserById(userId, { ban_duration: CLEARED_BAN });
   if (cleared.error) return failure("unban", `updateUser:${codeOf(cleared.error)}`);
@@ -346,44 +333,27 @@ const unban = async (ctx: SupabaseContext, actorId: string, { userId }: Unban): 
  */
 const removeAccount = async (ctx: SupabaseContext, actorId: string, { userId }: RemoveAccount): Promise<Response> => {
   const admin = ctx.supabaseAdmin;
-  const found = await accountOf(admin, userId);
-  if (found.error) return failure("delete", `lookup:${found.error}`);
-  if (!found.account) return reply(404, "not_found");
-  const { row, role } = found.account;
+  const guarded = await removable(admin, "delete", userId, actorId);
+  if ("stop" in guarded) return guarded.stop;
 
-  const blocked = cannotTouch(row, role, "delete");
-  if (blocked) return reply(409, blocked);
-  const last = await lastActiveAdmin(admin, row, role);
-  if (last === "error") return failure("delete", "last-admin:lookup");
-  if (last) return reply(409, "last_admin");
-  if (row.user_id === actorId) return reply(409, "not_allowed");
-
-  const timestamp = new Date().toISOString();
-  const pause = await pauseTarget(ctx, "delete", userId, role, timestamp);
+  const pause = await pauseTarget(ctx, "delete", userId, guarded.account.role, new Date().toISOString());
   if ("stop" in pause) return pause.stop;
 
-  const recorded = await recordAccess(admin, { kind: "account_deleted", actorId, targetId: userId, newRole: null });
-  if (recorded) {
-    await undoPause(ctx.supabase, "delete", userId, timestamp, pause.ownsPause);
-    return failure("delete", `record:${recorded}`);
-  }
-  const deleted = await admin.auth.admin.deleteUser(userId);
-  if (deleted.error) {
-    await undoPause(ctx.supabase, "delete", userId, timestamp, pause.ownsPause);
-    return failure("delete", `delete:${codeOf(deleted.error)}`);
+  const failedStep = await firstFailure([
+    ["record", () => recordAccess(admin, { kind: "account_deleted", actorId, targetId: userId, newRole: null })],
+    ["delete", () => deleteAuthUser(admin, userId)],
+  ]);
+  if (failedStep) {
+    await undoPause(ctx.supabase, "delete", userId, pause.ownedPause);
+    return failure("delete", failedStep);
   }
   return reply(200, { userId });
 };
 
 /** Set the address immediately. A directory row that already holds it, including this one, is refused. */
 const changeEmail = async (admin: Admin, actorId: string, { userId, email }: ChangeEmail): Promise<Response> => {
-  const found = await accountOf(admin, userId);
-  if (found.error) return failure("change_email", `lookup:${found.error}`);
-  if (!found.account) return reply(404, "not_found");
-  const { row, role } = found.account;
-
-  const blocked = cannotTouch(row, role, "change_email");
-  if (blocked) return reply(409, blocked);
+  const guarded = await touchable(admin, "change_email", userId);
+  if ("stop" in guarded) return guarded.stop;
   const taken = await directoryByEmail(admin, email);
   if (taken.error) return failure("change_email", `lookup:${taken.error}`);
   if (taken.row) return reply(409, "email_exists");
@@ -398,19 +368,44 @@ const changeEmail = async (admin: Admin, actorId: string, { userId, email }: Cha
 
 type TouchOp = "ban" | "unban" | "delete" | "change_email";
 
+/** What a guard decided: the account to act on, or the reply that stops the call. */
+type Guarded = { account: Account } | { stop: Response };
+
+/** The account an S-411 operation may act on, or the 404 or 409 that refuses it (see `isOffLimits`). */
+const touchable = async (admin: Admin, op: TouchOp, userId: string): Promise<Guarded> => {
+  const found = await accountOf(admin, userId);
+  if (found.error) return { stop: failure(op, `lookup:${found.error}`) };
+  if (!found.account) return { stop: reply(404, "not_found") };
+  if (isOffLimits(found.account, op)) return { stop: reply(409, "not_allowed") };
+  return { account: found.account };
+};
+
 /**
- * Who this slice must not touch. Self is decided by the caller, after the last-admin check, because
- * banning or deleting oneself is `not_allowed` only when another admin would remain. A ban that is
- * already recorded, and an unban of a row that is not, are refused too.
+ * `touchable`, then the last-admin rule, then self, in that order: banning or deleting oneself is
+ * `not_allowed` only when another admin would remain, so the last admin hears `last_admin` either way.
  */
-const cannotTouch = (row: DirectoryRow, role: HeldRole | null, op: TouchOp): "not_allowed" | null => {
+const removable = async (admin: Admin, op: "ban" | "delete", userId: string, actorId: string): Promise<Guarded> => {
+  const guarded = await touchable(admin, op, userId);
+  if ("stop" in guarded) return guarded;
+  const last = await lastActiveAdmin(admin, guarded.account);
+  if (last === "error") return { stop: failure(op, "last-admin:lookup") };
+  if (last) return { stop: reply(409, "last_admin") };
+  if (guarded.account.row.user_id === actorId) return { stop: reply(409, "not_allowed") };
+  return guarded;
+};
+
+/**
+ * Who this slice must not touch: a machine user, the service account, an invitation, and a row with
+ * no role unless it is on a temporary password. A ban that is already recorded, and an unban of a
+ * row that is not, are refused too.
+ */
+const isOffLimits = ({ row, role }: Account, op: TouchOp): boolean => {
   const temporaryPassword = row.must_change_password && row.invited_at === null;
-  if (row.is_machine || row.is_service_account || isRevocable(row) || (role === null && !temporaryPassword)) {
-    return "not_allowed";
-  }
-  if (op === "ban" && row.banned_at !== null) return "not_allowed";
-  if (op === "unban" && row.banned_at === null) return "not_allowed";
-  return null;
+  if (row.is_machine || row.is_service_account || isRevocable(row)) return true;
+  if (role === null && !temporaryPassword) return true;
+  if (op === "ban") return row.banned_at !== null;
+  if (op === "unban") return row.banned_at === null;
+  return false;
 };
 
 /**
@@ -418,7 +413,7 @@ const cannotTouch = (row: DirectoryRow, role: HeldRole | null, op: TouchOp): "no
  * other admin who is not paused, with whether they are pending. `"error"` is a failed read, not a
  * verdict.
  */
-const lastActiveAdmin = async (admin: Admin, row: DirectoryRow, role: HeldRole | null): Promise<boolean | "error"> => {
+const lastActiveAdmin = async (admin: Admin, { row, role }: Account): Promise<boolean | "error"> => {
   const target: AdminStanding | null =
     role === null
       ? null
@@ -454,23 +449,46 @@ const lastActiveAdmin = async (admin: Admin, row: DirectoryRow, role: HeldRole |
   );
 };
 
+/** The pause step's verdict: the pause this call wrote (its timestamp, or null), or the reply that stops it. */
+type PauseStep = { ownedPause: string | null } | { stop: Response };
+
 /**
- * Through the admin's session, so the guard and the record name the admin. `PT409` is the last
- * admin. `"unchanged"` when no row matched: already paused, gone, or hidden from this session.
+ * Pause a target that holds an unpaused role, through the admin's session, so the guard judges the
+ * write under its lock and the record names the admin. A `PT409` is the last active admin. No row
+ * matched is either someone else's pause, which the caller may sit on, or a row this session can no
+ * longer reach because its admin was paused since the gate (RLS hides it, with no error): only the
+ * first may go on.
  */
-const setPause = async (session: Session, userId: string, timestamp: string): Promise<string | null> => {
-  const { data, error } = await session
+const pauseTarget = async (
+  ctx: SupabaseContext,
+  op: "ban" | "delete",
+  userId: string,
+  role: HeldRole | null,
+  timestamp: string,
+): Promise<PauseStep> => {
+  if (role === null || role.deactivated_at !== null) return { ownedPause: null };
+  const { data, error } = await ctx.supabase
     .from("user_roles")
     .update({ deactivated_at: timestamp })
     .eq("user_id", userId)
     .is("deactivated_at", null)
     .select("user_id");
-  if (error?.code === "PT409") return "last_admin";
-  if (error) return `db:${codeOf(error)}`;
-  return (data ?? []).length === 1 ? null : "unchanged";
+  if (error?.code === "PT409") return { stop: reply(409, "last_admin") };
+  if (error) return { stop: failure(op, `deactivate:db:${codeOf(error)}`) };
+  if (data.length === 1) return { ownedPause: timestamp };
+  const elsewhere = await pausedNow(ctx.supabaseAdmin, userId);
+  if (elsewhere === "error") return { stop: failure(op, "pause:lookup") };
+  return elsewhere ? { ownedPause: null } : { stop: reply(409, "not_allowed") };
 };
 
-/** Clears a pause this call wrote. Filtered on that timestamp, so an earlier pause is left alone. */
+/** The target's pause as the secret key reads it, for when the session's pause matched no row. */
+const pausedNow = async (admin: Admin, userId: string): Promise<boolean | "error"> => {
+  const { data, error } = await admin.from("user_roles").select("deactivated_at").eq("user_id", userId).maybeSingle();
+  if (error) return "error";
+  return data !== null && data.deactivated_at !== null;
+};
+
+/** Clears a pause by its timestamp, so an earlier pause is left alone. A null timestamp clears nothing. */
 const clearPause = async (session: Session, userId: string, timestamp: string | null): Promise<string | null> => {
   if (timestamp === null) return null;
   const { error } = await session
@@ -479,6 +497,12 @@ const clearPause = async (session: Session, userId: string, timestamp: string | 
     .eq("user_id", userId)
     .eq("deactivated_at", timestamp);
   return error ? `db:${codeOf(error)}` : null;
+};
+
+/** Clears the pause this call wrote, if it wrote one. A failed undo leaves it, and the log says so. */
+const undoPause = async (session: Session, op: string, userId: string, ownedPause: string | null): Promise<void> => {
+  const failed = await clearPause(session, userId, ownedPause);
+  if (failed) logFailure(op, `undo-pause:${failed}`);
 };
 
 /** `markBanned` matched no row: another ban recorded first, since the lookup. */
@@ -493,7 +517,7 @@ const markBanned = async (admin: Admin, userId: string, timestamp: string): Prom
     .is("banned_at", null)
     .select("user_id");
   if (error) return `db:${codeOf(error)}`;
-  return (data ?? []).length === 1 ? null : ALREADY_BANNED;
+  return data.length === 1 ? null : ALREADY_BANNED;
 };
 
 /** Clears a ban record. Filtered on its timestamp, so another call's record is left alone. */
@@ -507,64 +531,23 @@ const unmarkBanned = async (admin: Admin, userId: string, timestamp: string | nu
   return error ? `db:${codeOf(error)}` : null;
 };
 
-/** The target's pause as the secret key reads it, for when the session's pause matched no row. */
-const pausedNow = async (admin: Admin, userId: string): Promise<boolean | "error"> => {
-  const { data, error } = await admin.from("user_roles").select("deactivated_at").eq("user_id", userId).maybeSingle();
-  if (error) return "error";
-  return data !== null && data.deactivated_at !== null;
-};
-
 /**
- * Removes what this ban wrote, filtered on its timestamp: the record, then the pause when it owns
- * one. The pause is left when the record could not be cleared, so a failed undo always leaves the
- * account fenced, never shown as Banned while open. The log says which step failed.
+ * Removes what this ban wrote: the record, then the pause it owns, if any. The pause is left when the
+ * record could not be cleared, so a failed undo always leaves the account fenced, never shown as
+ * Banned while open. The log says which step failed.
  */
-const undoBan = async (ctx: SupabaseContext, userId: string, timestamp: string, ownsPause: boolean): Promise<void> => {
-  const unmarked = await unmarkBanned(ctx.supabaseAdmin, userId, timestamp);
+const undoBan = async (
+  ctx: SupabaseContext,
+  userId: string,
+  bannedAt: string,
+  ownedPause: string | null,
+): Promise<void> => {
+  const unmarked = await unmarkBanned(ctx.supabaseAdmin, userId, bannedAt);
   if (unmarked) {
     logFailure("ban", `undo-banned-at:${unmarked}`);
     return;
   }
-  await undoPause(ctx.supabase, "ban", userId, timestamp, ownsPause);
-};
-
-/** Clears the pause this call wrote, when it wrote one. A failed undo leaves it, and the log says so. */
-const undoPause = async (
-  session: Session,
-  op: string,
-  userId: string,
-  timestamp: string,
-  ownsPause: boolean,
-): Promise<void> => {
-  const unpaused = ownsPause ? await clearPause(session, userId, timestamp) : null;
-  if (unpaused) logFailure(op, `undo-pause:${unpaused}`);
-};
-
-/** What the pause step decided: whether this call wrote the pause, or the reply that stops the call. */
-type PauseStep = { ownsPause: boolean } | { stop: Response };
-
-/**
- * Pause a target that holds an unpaused role, through the admin's session, so the guard judges the
- * write under its lock and the record names the admin. A `PT409` is the last active admin. No row
- * matched is either someone else's pause, which the caller may sit on, or a row this session can no
- * longer reach because its admin was paused since the gate (RLS hides it, with no error): only the
- * first may go on.
- */
-const pauseTarget = async (
-  ctx: SupabaseContext,
-  op: string,
-  userId: string,
-  role: HeldRole | null,
-  timestamp: string,
-): Promise<PauseStep> => {
-  if (role === null || role.deactivated_at !== null) return { ownsPause: false };
-  const paused = await setPause(ctx.supabase, userId, timestamp);
-  if (paused === null) return { ownsPause: true };
-  if (paused === "last_admin") return { stop: reply(409, "last_admin") };
-  if (paused !== "unchanged") return { stop: failure(op, `deactivate:${paused}`) };
-  const elsewhere = await pausedNow(ctx.supabaseAdmin, userId);
-  if (elsewhere === "error") return { stop: failure(op, "pause:lookup") };
-  return elsewhere ? { ownsPause: false } : { stop: reply(409, "not_allowed") };
+  await undoPause(ctx.supabase, "ban", userId, ownedPause);
 };
 
 const sameInstant = (left: string | null, right: string | null): boolean =>
@@ -663,8 +646,14 @@ const authFailure = (op: string, step: string, error: { code?: string; status?: 
  * was never sent), and the log says so.
  */
 const discard = async (admin: Admin, op: string, userId: string): Promise<void> => {
+  const failed = await deleteAuthUser(admin, userId);
+  if (failed) logFailure(op, `discard:${failed}`);
+};
+
+/** Deletes the Auth user. Its directory row and role row go by cascade; its records keep a null target. */
+const deleteAuthUser = async (admin: Admin, userId: string): Promise<string | null> => {
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) logFailure(op, `discard:${codeOf(error)}`);
+  return error ? `auth:${codeOf(error)}` : null;
 };
 
 /**

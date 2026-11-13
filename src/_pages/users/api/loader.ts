@@ -1,16 +1,19 @@
 import { assertNoQueryErrors, type SupabaseClient } from "@/shared/api";
 import { withSupabase, type LoaderResult } from "@/shared/lib/result";
-import { buildUserRows, type UserRow } from "../model/user-rows";
+import { buildUserRows, type UserRow, type UserRowsContext } from "../model/user-rows";
 
 /**
  * Load the Users page's rows (S-406) under the admin's own session. RLS hides machine users from
  * the directory, and only an admin reads every role and the change record. Unavailable when the
- * client is null. `now` decides which invitations have expired (S-410); a test passes its own.
+ * client is null. `currentUserId` marks the admin's own row, which offers less (`buildUserRows`);
+ * `now` decides which invitations have expired (S-410), and a test passes its own.
  */
 export const loadUserDirectory = (
   supabase: SupabaseClient | null,
+  currentUserId: string,
   now: number = Date.now(),
-): Promise<LoaderResult<UserRow[]>> => withSupabase(supabase, (client) => fetchUserRows(client, now));
+): Promise<LoaderResult<UserRow[]>> =>
+  withSupabase(supabase, (client) => fetchUserRows(client, { now, currentUserId }));
 
 /**
  * All rows of all four tables: tens of users at school scale, each with a handful of records. The
@@ -18,7 +21,7 @@ export const loadUserDirectory = (
  * records would be the ones dropped. `occurred_at` is the transaction's start, so `id` orders
  * records written in one transaction.
  */
-const fetchUserRows = async (client: SupabaseClient, now: number): Promise<UserRow[]> => {
+const fetchUserRows = async (client: SupabaseClient, context: UserRowsContext): Promise<UserRow[]> => {
   const [directory, profiles, roles, changes] = await Promise.all([
     client
       .from("user_directory")
@@ -41,6 +44,6 @@ const fetchUserRows = async (client: SupabaseClient, now: number): Promise<UserR
       roles: roles.data ?? [],
       changes: changes.data ?? [],
     },
-    now,
+    context,
   );
 };

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { APP_ROLE_VALUES } from "@/shared/config";
 import {
+  changeUserEmailFormSchema,
   changeUserRoleInput,
   createAccountFormSchema,
   createAccountInput,
-  invitationTargetInput,
   inviteUserInput,
-  reissuePasswordInput,
+  userTargetInput,
 } from "./schemas";
 
 const USER_ID = "6f1c2a3e-8b4d-4e5f-9a6b-7c8d9e0f1a2b";
@@ -83,16 +83,22 @@ describe("inviteUserInput", () => {
   });
 });
 
-describe("invitationTargetInput", () => {
+describe("userTargetInput", () => {
   it("takes one user id", () => {
-    expect(invitationTargetInput.parse({ userId: USER_ID })).toEqual({ userId: USER_ID });
-    expect(invitationTargetInput.safeParse({ userId: "nope" }).success).toBe(false);
+    expect(userTargetInput.parse({ userId: USER_ID })).toEqual({ userId: USER_ID });
+    expect(userTargetInput.safeParse({ userId: "nope" }).success).toBe(false);
   });
 });
 
-describe("reissuePasswordInput", () => {
-  it("takes one user id", () => {
-    expect(reissuePasswordInput.parse({ userId: USER_ID })).toEqual({ userId: USER_ID });
-    expect(reissuePasswordInput.safeParse({ userId: "nope" }).success).toBe(false);
+describe("changeUserEmailFormSchema", () => {
+  it("accepts the same address typed twice, whatever its case and spacing, and refuses two different ones", () => {
+    expect(changeUserEmailFormSchema.parse({ email: " Ida@School.test ", confirmEmail: "ida@school.test" })).toEqual({
+      email: "ida@school.test",
+      confirmEmail: "ida@school.test",
+    });
+    const mismatch = changeUserEmailFormSchema.safeParse({ email: "ida@school.test", confirmEmail: "ide@school.test" });
+    expect(mismatch.error?.issues).toEqual([
+      expect.objectContaining({ path: ["confirmEmail"], message: "The two addresses don't match." }),
+    ]);
   });
 });

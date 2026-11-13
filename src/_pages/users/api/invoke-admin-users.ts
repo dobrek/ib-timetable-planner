@@ -1,8 +1,14 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@/shared/api";
 import type { AppRole } from "@/shared/config";
-import type { AccountTarget, InvitationSent, InvitationTarget, TemporaryPassword } from "../model/schemas";
-import { isClosedConflict, outcomeUnknown, toAccountError, type AccountOperation } from "./account-error";
+import type { InvitationSent, TemporaryPassword, UserTarget } from "../model/schemas";
+import {
+  isClosedConflict,
+  outcomeUnknown,
+  toAccountError,
+  type AccountOperation,
+  type ClosedConflict,
+} from "./account-error";
 
 /** The function's request shapes, one per operation (its `request.ts` accepts exactly these). */
 export type AdminUsersBody =
@@ -21,12 +27,12 @@ type AdminUsersResults = {
   create: TemporaryPassword;
   reissue: TemporaryPassword;
   invite: InvitationSent;
-  resend: InvitationTarget;
-  revoke: InvitationTarget;
-  ban: AccountTarget;
-  unban: AccountTarget;
-  delete: AccountTarget;
-  change_email: AccountTarget;
+  resend: UserTarget;
+  revoke: UserTarget;
+  ban: UserTarget;
+  unban: UserTarget;
+  delete: UserTarget;
+  change_email: UserTarget;
 };
 
 /**
@@ -36,7 +42,8 @@ type AdminUsersResults = {
  * who is not a live admin.
  *
  * Returns the operation's own result: the one-time password for `create` and `reissue`, the account
- * (and whether it was a re-send) for the invitation operations. Any refusal throws a `DomainError`
+ * and whether it was a re-send for `invite`, and the account alone for every other operation. Any
+ * refusal throws a `DomainError`
  * with fixed wording (see `toAccountError`); a response body is never read into a message, and a
  * password is never logged.
  */
@@ -69,7 +76,7 @@ const statusOf = (error: FunctionsHttpError): number | null => {
  * A 409's closed code, or null. The function's other text is dropped: only `last_admin`,
  * `email_exists` and `not_allowed` are read, and each is mapped to a local sentence.
  */
-const conflictCodeOf = async (error: FunctionsHttpError): Promise<string | null> => {
+const conflictCodeOf = async (error: FunctionsHttpError): Promise<ClosedConflict | null> => {
   const context: unknown = error.context;
   if (!(context instanceof Response)) return null;
   try {
@@ -94,7 +101,7 @@ const readInvitation = (data: unknown): InvitationSent | null =>
     ? { userId: data.userId, resent: data.resent }
     : null;
 
-const readTarget = (data: unknown): InvitationTarget | null =>
+const readTarget = (data: unknown): UserTarget | null =>
   isRecord(data) && typeof data.userId === "string" ? { userId: data.userId } : null;
 
 const READERS: { readonly [Operation in AccountOperation]: Reader<Operation> } = {

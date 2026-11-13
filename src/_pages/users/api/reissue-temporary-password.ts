@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@/shared/api";
-import type { ReissuePasswordInput, TemporaryPassword } from "../model/schemas";
+import type { TemporaryPassword, UserTargetInput } from "../model/schemas";
 import { invokeAdminUsers } from "./invoke-admin-users";
 
 /**
@@ -8,5 +8,5 @@ import { invokeAdminUsers } from "./invoke-admin-users";
  */
 export const reissueTemporaryPassword = (
   supabase: SupabaseClient,
-  { userId }: ReissuePasswordInput,
+  { userId }: UserTargetInput,
 ): Promise<TemporaryPassword> => invokeAdminUsers(supabase, { op: "reissue", userId });

@@ -2,17 +2,15 @@ import { useState } from "react";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button, Toaster } from "@/shared/ui";
 import type { PasswordReveal } from "../model/schemas";
-import { useAccountActions } from "../model/use-account-actions";
+import { CONFIRMED_ACCOUNT_ACTIONS, useAccountActions } from "../model/use-account-actions";
 import { useActivationActions } from "../model/use-activation-actions";
 import { useInvitationActions } from "../model/use-invitation-actions";
 import { useReissuePassword } from "../model/use-reissue-password";
 import { useRoleChange } from "../model/use-role-change";
-import type { UserRow } from "../model/user-rows";
+import type { RowAction, UserRow } from "../model/user-rows";
 import ChangeEmailDialog from "./ChangeEmailDialog";
-import ConfirmBanDialog from "./ConfirmBanDialog";
+import ConfirmAccountActionDialog from "./ConfirmAccountActionDialog";
 import ConfirmDeactivateDialog from "./ConfirmDeactivateDialog";
-import ConfirmDeleteAccountDialog from "./ConfirmDeleteAccountDialog";
-import ConfirmUnbanDialog from "./ConfirmUnbanDialog";
 import ConfirmReissueDialog from "./ConfirmReissueDialog";
 import ConfirmRevokeDialog from "./ConfirmRevokeDialog";
 import ConfirmRoleChangeDialog from "./ConfirmRoleChangeDialog";
@@ -22,27 +20,45 @@ import TemporaryPasswordDialog from "./TemporaryPasswordDialog";
 import UserTable from "./UserTable";
 
 type Props = {
+  /** The rows, the signed-in admin's own among them (`isSelf`): it reads "You" and offers less. */
   rows: UserRow[];
-  /** The signed-in admin, whose own row reads "You", asks before it changes and never offers Deactivate. */
-  currentUserId: string;
 };
 
 /**
- * The Users page island (S-406, S-408, S-409, S-410): a thin orchestrator over the table, the
- * confirmations and the account dialogs. The one-time password lives here, in state, and nowhere else: closing its
- * dialog clears it and reloads the page, so the new or re-issued row shows. A sent invitation reloads
- * the page at once, since it reveals nothing.
+ * The Users page island (S-406, S-408, S-409, S-410, S-411): a thin orchestrator over the table, the
+ * confirmations and the account dialogs. Each row action goes to the hook that owns it. The one-time
+ * password lives here, in state, and nowhere else: closing its dialog clears it and reloads the page,
+ * so the new or re-issued row shows. A sent invitation reloads the page at once, since it reveals
+ * nothing.
  */
-export default function UsersPage({ rows, currentUserId }: Props) {
-  const roleChange = useRoleChange(currentUserId);
+export default function UsersPage({ rows }: Props) {
+  const roleChange = useRoleChange();
   const [isInviting, setIsInviting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [reveal, setReveal] = useState<PasswordReveal | null>(null);
   const reissue = useReissuePassword(setReveal);
   const invitation = useInvitationActions();
-  const activation = useActivationActions(currentUserId);
+  const activation = useActivationActions();
   const accounts = useAccountActions();
   const { confirmation } = roleChange;
+
+  const rowActions: Record<RowAction, (row: UserRow) => void> = {
+    reissue: reissue.ask,
+    resend: invitation.resend,
+    revoke: invitation.askRevoke,
+    deactivate: activation.askDeactivate,
+    reactivate: activation.reactivate,
+    ban: (row) => {
+      accounts.ask("ban", row);
+    },
+    unban: (row) => {
+      accounts.ask("unban", row);
+    },
+    delete: (row) => {
+      accounts.ask("delete", row);
+    },
+    change_email: accounts.askChangeEmail,
+  };
 
   const finishReveal = (): void => {
     setReveal(null);
@@ -83,20 +99,12 @@ export default function UsersPage({ rows, currentUserId }: Props) {
 
       <UserTable
         rows={rows}
-        currentUserId={currentUserId}
         saving={roleChange.saving}
         onChooseRole={roleChange.choose}
-        onReissuePassword={reissue.ask}
-        resending={invitation.resending}
-        onResendInvitation={invitation.resend}
-        onRevokeInvitation={invitation.askRevoke}
-        onDeactivate={activation.askDeactivate}
-        reactivating={activation.reactivating}
-        onReactivate={activation.reactivate}
-        onBan={accounts.askBan}
-        onUnban={accounts.askUnban}
-        onDeleteAccount={accounts.askDelete}
-        onChangeEmail={accounts.askChangeEmail}
+        inFlight={{ resend: invitation.resending, reactivate: activation.reactivating }}
+        onAction={(action, row) => {
+          rowActions[action](row);
+        }}
       />
 
       <ConfirmRoleChangeDialog
@@ -143,30 +151,17 @@ export default function UsersPage({ rows, currentUserId }: Props) {
         onConfirm={activation.confirmDeactivate}
         onClose={activation.cancelDeactivate}
       />
-      <ConfirmBanDialog
-        target={accounts.banTarget}
-        isBusy={accounts.isBusy}
-        onConfirm={accounts.confirmBan}
-        onClose={accounts.cancel}
-      />
-      <ConfirmUnbanDialog
-        target={accounts.unbanTarget}
-        isBusy={accounts.isBusy}
-        onConfirm={accounts.confirmUnban}
-        onClose={accounts.cancel}
-      />
-      <ConfirmDeleteAccountDialog
-        target={accounts.deleteTarget}
-        isBusy={accounts.isBusy}
-        onConfirm={accounts.confirmDelete}
-        onClose={accounts.cancel}
-      />
-      <ChangeEmailDialog
-        target={accounts.emailTarget}
-        isBusy={accounts.isBusy}
-        onSubmit={accounts.submitEmail}
-        onClose={accounts.cancel}
-      />
+      {CONFIRMED_ACCOUNT_ACTIONS.map((action) => (
+        <ConfirmAccountActionDialog
+          key={action}
+          action={action}
+          target={accounts.pending?.action === action ? accounts.pending.row : null}
+          isBusy={accounts.isBusy}
+          onConfirm={accounts.confirm}
+          onClose={accounts.cancel}
+        />
+      ))}
+      <ChangeEmailDialog target={accounts.emailTarget} onClose={accounts.closeChangeEmail} />
       <TemporaryPasswordDialog reveal={reveal} onClose={finishReveal} />
       <Toaster />
     </div>

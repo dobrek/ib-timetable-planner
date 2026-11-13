@@ -395,12 +395,12 @@ Hosted auth settings do not change. No template, no `uri_allow_list` edit, no `c
 
 #### Manual
 
-- [x] 3.5 Ban an active colleague, confirm their next request has no access, and Unban restores them to Active — 6a6ab95e
-- [x] 3.6 Ban a deactivated colleague and Unban leaves them Deactivated — 6a6ab95e
-- [x] 3.7 Delete a temporary-password account and confirm a plan they created remains, credited Unknown — 6a6ab95e
-- [x] 3.8 Change an email typed twice, refuse a mismatch and a taken address, and show the new address on the row — 6a6ab95e
-- [x] 3.9 Ban the last active admin and read "The school must keep at least one admin." with the account unchanged — 6a6ab95e
-- [x] 3.10 As a viewer, the Users page shows no ban, delete, or email control — 6a6ab95e
+- [ ] 3.5 Ban an active colleague, confirm their next request has no access, and Unban restores them to Active
+- [ ] 3.6 Ban a deactivated colleague and Unban leaves them Deactivated
+- [ ] 3.7 Delete a temporary-password account and confirm a plan they created remains, credited Unknown
+- [ ] 3.8 Change an email typed twice, refuse a mismatch and a taken address, and show the new address on the row
+- [x] 3.9 Ban the last active admin and read "The school must keep at least one admin." with the account unchanged — not reachable from the page (the caller always counts as an active admin, and Ban is hidden on their own row); covered by `supabase/functions/admin-users/last-admin.test.ts`, see `reviews/impl-review.md` F4
+- [ ] 3.10 As a viewer, the Users page shows no ban, delete, or email control
 
 ### Phase 4: Docs that name this slice
 

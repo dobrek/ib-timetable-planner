@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm, type UseFormSetError } from "react-hook-form";
+import { useForm, useWatch, type UseFormSetError } from "react-hook-form";
 import {
   Button,
   Dialog,
@@ -44,6 +44,7 @@ export default function ChangeEmailDialog({ target, isBusy, onSubmit, onClose }:
     mode: "onTouched",
     defaultValues: EMPTY_VALUES,
   });
+  const replacement = useWatch({ control: form.control, name: "email" }).trim();
 
   useEffect(() => {
     if (target) form.reset(EMPTY_VALUES);
@@ -59,7 +60,10 @@ export default function ChangeEmailDialog({ target, isBusy, onSubmit, onClose }:
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Change email for {current}</DialogTitle>
-          <DialogDescription>This replaces {current}. The new address is used at once.</DialogDescription>
+          <DialogDescription>
+            {replacement ? `${replacement} replaces ${current}.` : `The new address replaces ${current}.`} It is used at
+            once.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form

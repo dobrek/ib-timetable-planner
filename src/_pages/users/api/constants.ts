@@ -36,10 +36,11 @@ export const REVOKE_FAILURE = "Couldn't revoke the invitation. Check the list be
 // Ban, unban, delete and a new email (S-411). Fixed wording only, as above: the function's text,
 // including its error code, never reaches a message.
 export const ACCOUNT_NOT_ALLOWED_MESSAGE = "That account cannot be changed that way.";
-export const BAN_FAILURE = "Couldn't ban that account. Try again.";
-export const UNBAN_FAILURE = "Couldn't unban that account. Try again.";
+// The Auth change may already have landed when a later step fails, so each one points at the list.
+export const BAN_FAILURE = "Couldn't ban that account. Check the list before trying again.";
+export const UNBAN_FAILURE = "Couldn't unban that account. Check the list before trying again.";
 export const DELETE_ACCOUNT_FAILURE = "Couldn't remove that account. Check the list before trying again.";
-export const CHANGE_EMAIL_FAILURE = "Couldn't change the email. Try again.";
+export const CHANGE_EMAIL_FAILURE = "Couldn't change the email. Check the list before trying again.";
 export const INVITATION_NOT_PENDING_MESSAGE = "That invitation is no longer pending.";
 /** The function's 60-second cooldown between invitation emails to one address. */
 export const RESEND_TOO_SOON_MESSAGE = "An invitation was sent less than a minute ago. Wait a minute, then re-send.";

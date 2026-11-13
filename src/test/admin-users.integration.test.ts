@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database, SupabaseClient } from "@/shared/api";
+import { EMAIL_LINK_LIFETIME_MS } from "@/shared/config";
 import {
   createAuthUser,
   createInvitedUser,
@@ -600,6 +601,12 @@ const OTP_EXPIRED = "otp_expired";
         banOwnedPause: true,
       });
       expect(await banIsPermanent(person.id)).toBe(true);
+      expect(await recordsFor(person.id, "account_banned")).toEqual([
+        { kind: "account_banned", actor_kind: "user", actor_id: caller.id, new_role: null },
+      ]);
+      const again = await call({ token: tokens.admin }, { op: "ban", userId: person.id });
+      expect(again.status).toBe(409);
+      expect(await again.json()).toEqual({ error: "not_allowed" });
 
       const unbanned = await call({ token: tokens.admin }, { op: "unban", userId: person.id });
       expect(unbanned.status).toBe(200);
@@ -611,6 +618,13 @@ const OTP_EXPIRED = "otp_expired";
         banOwnedPause: false,
       });
       expect(await banIsPermanent(person.id)).toBe(false);
+      expect(await recordsFor(person.id, "account_unbanned")).toEqual([
+        { kind: "account_unbanned", actor_kind: "user", actor_id: caller.id, new_role: null },
+      ]);
+      const unbannedAgain = await call({ token: tokens.admin }, { op: "unban", userId: person.id });
+      expect(unbannedAgain.status).toBe(409);
+      expect(await unbannedAgain.json()).toEqual({ error: "not_allowed" });
+      expect(await recordsFor(person.id, "account_banned")).toHaveLength(1);
     });
 
     it("leaves an earlier pause in place across a ban and an unban", async () => {
@@ -676,8 +690,41 @@ const OTP_EXPIRED = "otp_expired";
         expect(response.status).toBe(500);
         expect(await banState(person.id)).toMatchObject({ banned: false, paused: false });
         expect(await banIsPermanent(person.id)).toBe(false);
+        expect(await recordsFor(person.id, "account_banned")).toEqual([]);
       } finally {
         await stopFailingBans();
+      }
+    });
+
+    it("refuses the ban, and writes nothing, when the session's pause reaches no row", async () => {
+      // What RLS does to an admin who was paused after the gate: the update matches no row, no error.
+      const person = await createSignedInUser(admin, { role: "author" });
+      await skipRoleUpdatesFor(person.id);
+      try {
+        const response = await call({ token: tokens.admin }, { op: "ban", userId: person.id });
+        expect(response.status).toBe(409);
+        expect(await response.json()).toEqual({ error: "not_allowed" });
+        expect(await banState(person.id)).toMatchObject({ banned: false, paused: false });
+        expect(await banIsPermanent(person.id)).toBe(false);
+        expect(await recordsFor(person.id, "account_banned")).toEqual([]);
+      } finally {
+        await stopSkippingRoleUpdates();
+      }
+    });
+
+    it("refuses the delete, and keeps the account, when the session's pause reaches no row", async () => {
+      // Delete pauses through the session first, so the guard serialises two admins removing each other.
+      const person = await createSignedInUser(admin, { role: "author" });
+      await skipRoleUpdatesFor(person.id);
+      try {
+        const response = await call({ token: tokens.admin }, { op: "delete", userId: person.id });
+        expect(response.status).toBe(409);
+        expect(await response.json()).toEqual({ error: "not_allowed" });
+        expect(await banState(person.id)).toMatchObject({ role: "author", paused: false });
+        expect(await userCountWithEmail(person.email)).toBe(1);
+        expect(await recordsFor(person.id, "account_deleted")).toEqual([]);
+      } finally {
+        await stopSkippingRoleUpdates();
       }
     });
 
@@ -691,7 +738,7 @@ const OTP_EXPIRED = "otp_expired";
       const accepted = await invited();
       await acceptInvitation(accepted.email);
       const expired = await invited();
-      await pastCooldown(expired.userId);
+      await pastLifetime(expired.userId);
 
       for (const userId of [
         caller.id,
@@ -709,26 +756,6 @@ const OTP_EXPIRED = "otp_expired";
         }
       }
       expect(await roleOf(caller.id)).toBe("admin");
-    });
-
-    it("refuses ban and delete of the last active admin and leaves the account", async () => {
-      const others = await countingAdminsExcept(caller.id);
-      try {
-        if (others.length > 0) {
-          await pg.query("update public.user_roles set role = 'author' where user_id = any($1::uuid[])", [others]);
-        }
-        for (const op of ["ban", "delete"] as const) {
-          const response = await call({ token: tokens.admin }, { op, userId: caller.id });
-          expect(response.status, op).toBe(409);
-          expect(await response.json()).toEqual({ error: "last_admin" });
-        }
-        expect(await banState(caller.id)).toMatchObject({ role: "admin", banned: false, paused: false });
-        expect(await userCountWithEmail(caller.email)).toBe(1);
-      } finally {
-        if (others.length > 0) {
-          await pg.query("update public.user_roles set role = 'admin' where user_id = any($1::uuid[])", [others]);
-        }
-      }
     });
 
     it("deletes the account, keeps a plan they created with no credit, and records who deleted them", async () => {
@@ -845,21 +872,6 @@ const OTP_EXPIRED = "otp_expired";
     return until.getTime() > Date.now() + 99 * 365 * 24 * 60 * 60 * 1000;
   };
 
-  /** Admins the guard counts, other than `userId`: active, and not waiting on a temporary password. */
-  const countingAdminsExcept = async (userId: string): Promise<string[]> => {
-    const { rows } = await pg.query<{ user_id: string }>(
-      `select r.user_id
-         from public.user_roles r
-        where r.role = 'admin' and r.deactivated_at is null and r.user_id <> $1
-          and not exists (
-            select 1 from public.user_directory d
-             where d.user_id = r.user_id and d.must_change_password
-          )`,
-      [userId],
-    );
-    return rows.map((row) => row.user_id);
-  };
-
   /** `account_deleted` records by `actorId` whose target is gone. */
   const deletedRecordsBy = async (actorId: string): Promise<number> => {
     const { count, error } = await admin
@@ -890,6 +902,26 @@ const OTP_EXPIRED = "otp_expired";
   const stopFailingBans = async (): Promise<void> => {
     await ddl("drop trigger if exists zz_admin_users_fail_ban on auth.users");
     await ddl("drop function if exists public.zz_admin_users_fail_ban()");
+  };
+
+  /** Make every update of one user's role row match nothing, as RLS does for a session it hides it from. */
+  const skipRoleUpdatesFor = async (userId: string): Promise<void> => {
+    if (!/^[0-9a-f-]{36}$/.test(userId)) throw new Error(`refusing to embed an unexpected id: ${userId}`);
+    await ddl(`
+      create or replace function public.zz_admin_users_skip_role_update() returns trigger language plpgsql as $$
+      begin
+        return null;
+      end $$`);
+    await ddl(`
+      create or replace trigger zz_admin_users_skip_role_update
+        before update on public.user_roles
+        for each row when (old.user_id = '${userId}')
+        execute function public.zz_admin_users_skip_role_update()`);
+  };
+
+  const stopSkippingRoleUpdates = async (): Promise<void> => {
+    await ddl("drop trigger if exists zz_admin_users_skip_role_update on public.user_roles");
+    await ddl("drop function if exists public.zz_admin_users_skip_role_update()");
   };
 
   const roleOf = async (userId: string): Promise<string | null> => {
@@ -946,6 +978,14 @@ const OTP_EXPIRED = "otp_expired";
   /** Move the newest invitation past the cooldown, as a minute's wait would. The mirror follows. */
   const pastCooldown = async (userId: string): Promise<void> => {
     await pg.query("update auth.users set invited_at = invited_at - interval '2 minutes' where id = $1", [userId]);
+  };
+
+  /** Move the newest invitation past its link's lifetime, so the Users page reads Invitation expired. */
+  const pastLifetime = async (userId: string): Promise<void> => {
+    await pg.query(
+      "update auth.users set invited_at = invited_at - ($2::bigint * interval '1 millisecond') where id = $1",
+      [userId, EMAIL_LINK_LIFETIME_MS + 60_000],
+    );
   };
 
   const invitationRow = async (userId: string) => {

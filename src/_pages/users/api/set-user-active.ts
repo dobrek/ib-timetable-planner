@@ -1,6 +1,7 @@
-import { RAISED_CONFLICT, unwrapMany, unwrapMaybeRow, type SupabaseClient } from "@/shared/api";
+import { RAISED_CONFLICT, unwrapMany, type SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 import type { SetUserActiveInput } from "../model/schemas";
+import { banHolds } from "./ban-holds";
 import {
   ACCESS_ALREADY_CHANGED_MESSAGE,
   DEACTIVATE_FAILURE,
@@ -33,7 +34,7 @@ export const setUserActive = async (
   supabase: SupabaseClient,
   { userId, active }: SetUserActiveInput,
 ): Promise<void> => {
-  if (active && (await banHolds(supabase, userId))) {
+  if (active && (await banHolds(supabase, userId, REACTIVATE_FAILURE))) {
     throw new DomainError("NOT_FOUND", ACCESS_ALREADY_CHANGED_MESSAGE);
   }
   const result = await (active ? reactivate(supabase, userId) : deactivate(supabase, userId));
@@ -50,15 +51,6 @@ const deactivate = (supabase: SupabaseClient, userId: string) =>
     .eq("user_id", userId)
     .is("deactivated_at", null)
     .select("user_id");
-
-/** A recorded ban holds the pause. A missing directory row does not: there is nothing to keep. */
-const banHolds = async (supabase: SupabaseClient, userId: string): Promise<boolean> => {
-  const row = unwrapMaybeRow(
-    await supabase.from("user_directory").select("banned_at").eq("user_id", userId).maybeSingle(),
-    REACTIVATE_FAILURE,
-  );
-  return (row?.banned_at ?? null) !== null;
-};
 
 const reactivate = (supabase: SupabaseClient, userId: string) =>
   supabase

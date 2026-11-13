@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RAISED_CONFLICT, type SupabaseClient } from "@/shared/api";
-import { LAST_ADMIN_MESSAGE } from "./constants";
+import { ACCESS_ALREADY_CHANGED_MESSAGE, LAST_ADMIN_MESSAGE } from "./constants";
 import { changeUserRole } from "./change-user-role";
 
 const USER_ID = "6f1c2a3e-8b4d-4e5f-9a6b-7c8d9e0f1a2b";
@@ -16,19 +16,54 @@ describe("changeUserRole", () => {
     ["demoting", "viewer"],
     ["removing the role of", null],
   ] as const)("reports %s the last admin as CONFLICT, in the guard's words", async (_label, role) => {
-    await expect(changeUserRole(clientRefusingWith(RAISED_CONFLICT), { userId: USER_ID, role })).rejects.toMatchObject({
+    const { client } = fakeClient({ roleError: RAISED_CONFLICT });
+
+    await expect(changeUserRole(client, { userId: USER_ID, role })).rejects.toMatchObject({
       code: "CONFLICT",
       message: LAST_ADMIN_MESSAGE,
     });
   });
+
+  it.each([
+    ["changing", "viewer"],
+    ["removing", null],
+  ] as const)("refuses %s the role of a banned user as NOT_FOUND, and writes nothing", async (_label, role) => {
+    const { client, roleWrites } = fakeClient({ bannedAt: "2026-11-13T12:00:00.000Z" });
+
+    await expect(changeUserRole(client, { userId: USER_ID, role })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      message: ACCESS_ALREADY_CHANGED_MESSAGE,
+    });
+    expect(roleWrites).toEqual([]);
+  });
 });
 
-/** A client whose every `user_roles` write fails with `code`, on the upsert and the delete chains alike. */
-const clientRefusingWith = (code: string): SupabaseClient => {
-  const refused = Promise.resolve({ data: null, error: { code, message: "refused" } });
-  const table = {
-    upsert: () => ({ select: () => ({ single: () => refused }) }),
-    delete: () => ({ eq: () => ({ select: () => refused }) }),
+type Answer = {
+  /** The directory read's `banned_at`. Null leaves the role write to decide. */
+  bannedAt?: string | null;
+  /** The code every `user_roles` write fails with, on the upsert and the delete chains alike. */
+  roleError?: string;
+};
+
+/** A client that answers the directory read with `bannedAt`, and records each `user_roles` write. */
+const fakeClient = ({ bannedAt = null, roleError = "unexpected" }: Answer) => {
+  const roleWrites: string[] = [];
+  const refused = Promise.resolve({ data: null, error: { code: roleError, message: "refused" } });
+  const directory = {
+    select: () => directory,
+    eq: () => directory,
+    maybeSingle: () => Promise.resolve({ data: { banned_at: bannedAt }, error: null }),
   };
-  return { from: () => table } as unknown as SupabaseClient;
+  const roles = {
+    upsert: () => {
+      roleWrites.push("upsert");
+      return { select: () => ({ single: () => refused }) };
+    },
+    delete: () => {
+      roleWrites.push("delete");
+      return { eq: () => ({ select: () => refused }) };
+    },
+  };
+  const client = { from: (table: string) => (table === "user_directory" ? directory : roles) };
+  return { client: client as unknown as SupabaseClient, roleWrites };
 };

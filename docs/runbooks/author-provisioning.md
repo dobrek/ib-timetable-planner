@@ -170,8 +170,9 @@ For the first admin, or when no admin can sign in. Everyone else is invited
 uses **Forgot password?** on the sign-in page (`/auth/forgot`) and gets a link by
 email ([`email-delivery.md`](email-delivery.md)). If the email cannot reach them,
 the fallback is an admin on the Users page when the account is still on its temporary password
-(**Re-issue password**, S-409), and the dashboard (**Authentication → Users**) otherwise, until S-411
-adds an admin-side reset.
+(**Re-issue password**, S-409). Otherwise the owner resets it, or someone uses the dashboard
+(**Authentication → Users**), which is an action outside the app. S-411 does not add an admin-side
+reset of a confirmed password.
 
 **An account for someone an email invitation cannot reach** (S-409, FR-403) is made on the Users page
 (**Create account**, the fallback beside **Invite**), not in the dashboard: the app generates a 24-character temporary password and
@@ -212,8 +213,8 @@ node scripts/assign-role.mjs <email> <admin|author|viewer|none>
 - **The last admin is guarded.** Demoting the school's only admin, or setting them
   to `none`, is refused ("refused: the school must keep at least one admin"), and
   the role stays as it was. Promote another admin first, then step the first one
-  down. The same rule binds the Users page. Deleting an account is not guarded
-  here; S-411 owns that.
+  down. The same rule binds the Users page. This script does not delete accounts. The Users
+  page refuses banning or deleting the last active admin (S-411).
 - **Keys.** The script writes outside any session, so it needs the **secret** key:
   export `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, never a
   committed file. For the local stack both fall back to `.env.test.local`.

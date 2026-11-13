@@ -388,26 +388,26 @@ Hosted auth settings do not change. No template, no `uri_allow_list` edit, no `c
 
 #### Automated
 
-- [x] 3.1 `pnpm exec vitest run src/_pages/users/model/user-rows.test.ts src/_pages/users/ui/UserTable.test.tsx src/_pages/users/ui/UsersPage.test.tsx src/_pages/users/api/invoke-admin-users.test.ts src/actions/action-capabilities.test.ts` passes
-- [x] 3.2 The table tests cover Ban, Unban, Delete, and Change email on the contracted rows, and their absence on an invitation, the service account, a no-role row, and the admin's own Ban and Delete
-- [x] 3.3 `pnpm check` passes
-- [x] 3.4 `pnpm steiger` passes
+- [x] 3.1 `pnpm exec vitest run src/_pages/users/model/user-rows.test.ts src/_pages/users/ui/UserTable.test.tsx src/_pages/users/ui/UsersPage.test.tsx src/_pages/users/api/invoke-admin-users.test.ts src/actions/action-capabilities.test.ts` passes — 6a6ab95e
+- [x] 3.2 The table tests cover Ban, Unban, Delete, and Change email on the contracted rows, and their absence on an invitation, the service account, a no-role row, and the admin's own Ban and Delete — 6a6ab95e
+- [x] 3.3 `pnpm check` passes — 6a6ab95e
+- [x] 3.4 `pnpm steiger` passes — 6a6ab95e
 
 #### Manual
 
-- [x] 3.5 Ban an active colleague, confirm their next request has no access, and Unban restores them to Active
-- [x] 3.6 Ban a deactivated colleague and Unban leaves them Deactivated
-- [x] 3.7 Delete a temporary-password account and confirm a plan they created remains, credited Unknown
-- [x] 3.8 Change an email typed twice, refuse a mismatch and a taken address, and show the new address on the row
-- [x] 3.9 Ban the last active admin and read "The school must keep at least one admin." with the account unchanged
-- [x] 3.10 As a viewer, the Users page shows no ban, delete, or email control
+- [x] 3.5 Ban an active colleague, confirm their next request has no access, and Unban restores them to Active — 6a6ab95e
+- [x] 3.6 Ban a deactivated colleague and Unban leaves them Deactivated — 6a6ab95e
+- [x] 3.7 Delete a temporary-password account and confirm a plan they created remains, credited Unknown — 6a6ab95e
+- [x] 3.8 Change an email typed twice, refuse a mismatch and a taken address, and show the new address on the row — 6a6ab95e
+- [x] 3.9 Ban the last active admin and read "The school must keep at least one admin." with the account unchanged — 6a6ab95e
+- [x] 3.10 As a viewer, the Users page shows no ban, delete, or email control — 6a6ab95e
 
 ### Phase 4: Docs that name this slice
 
 #### Automated
 
-- [ ] 4.1 `pnpm exec vitest run src/_pages/password-recovery/model/email-link.test.ts` passes, and `email_change` is still refused
+- [x] 4.1 `pnpm exec vitest run src/_pages/password-recovery/model/email-link.test.ts` passes, and `email_change` is still refused
 
 #### Manual
 
-- [ ] 4.2 Grep of `S-411` in `CLAUDE.md` and the two runbooks leaves only rules this slice put in place, with no promised password reset, email-change link, or "Deleted user" label
+- [x] 4.2 Grep of `S-411` in `CLAUDE.md` and the two runbooks leaves only rules this slice put in place, with no promised password reset, email-change link, or "Deleted user" label

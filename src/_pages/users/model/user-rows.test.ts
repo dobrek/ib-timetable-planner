@@ -6,6 +6,8 @@ const ADA = "00000000-0000-4000-8000-00000000000a";
 const BEA = "00000000-0000-4000-8000-00000000000b";
 const CAL = "00000000-0000-4000-8000-00000000000c";
 const GONE = "00000000-0000-4000-8000-0000000000ff";
+/** The signed-in admin, outside most directories here, so no row is their own unless a test says so. */
+const SIGNED_IN = "00000000-0000-4000-8000-0000000000ee";
 
 const NOON = "2026-11-05T12:00:00+00:00";
 const LATER = "2026-11-05T13:00:00+00:00";
@@ -84,50 +86,12 @@ describe("buildUserRows", () => {
       }),
     );
 
-    expect(banOf(rows)).toEqual([
-      {
-        role: "viewer",
-        status: "banned",
-        canBan: false,
-        canUnban: true,
-        canDelete: true,
-        canChangeEmail: true,
-        canChangeRole: false,
-        canDeactivate: false,
-        canReactivate: false,
-        canReissuePassword: false,
-        canResendInvitation: false,
-        canRevokeInvitation: false,
-      },
-      {
-        role: "author",
-        status: "banned",
-        canBan: false,
-        canUnban: true,
-        canDelete: true,
-        canChangeEmail: true,
-        canChangeRole: false,
-        canDeactivate: false,
-        canReactivate: false,
-        canReissuePassword: false,
-        canResendInvitation: false,
-        canRevokeInvitation: false,
-      },
-      {
-        role: "admin",
-        status: "active",
-        canBan: true,
-        canUnban: false,
-        canDelete: true,
-        canChangeEmail: true,
-        canChangeRole: true,
-        canDeactivate: true,
-        canReactivate: false,
-        canReissuePassword: false,
-        canResendInvitation: false,
-        canRevokeInvitation: false,
-      },
+    expect(actionsOf(rows)).toEqual([
+      { role: "viewer", status: "banned", actions: ["unban", "delete", "change_email"] },
+      { role: "author", status: "banned", actions: ["unban", "delete", "change_email"] },
+      { role: "admin", status: "active", actions: ["deactivate", "ban", "delete", "change_email"] },
     ]);
+    expect(rows.map(({ canChangeRole }) => canChangeRole)).toEqual([false, false, true]);
   });
 
   it("reads a deactivated role row as deactivated, keeping its role: only it offers Reactivate, only an active row Deactivate", () => {
@@ -138,10 +102,10 @@ describe("buildUserRows", () => {
       }),
     );
 
-    expect(activationOf(rows)).toEqual([
-      { role: "admin", status: "active", canDeactivate: true, canReactivate: false },
-      { role: "author", status: "deactivated", canDeactivate: false, canReactivate: true },
-      { role: null, status: "no_access", canDeactivate: false, canReactivate: false },
+    expect(actionsOf(rows)).toEqual([
+      { role: "admin", status: "active", actions: ["deactivate", "ban", "delete", "change_email"] },
+      { role: "author", status: "deactivated", actions: ["ban", "delete", "change_email", "reactivate"] },
+      { role: null, status: "no_access", actions: [] },
     ]);
   });
 
@@ -157,10 +121,10 @@ describe("buildUserRows", () => {
       }),
     );
 
-    expect(activationOf(rows)).toEqual([
-      { role: "viewer", status: "temporary_password", canDeactivate: false, canReactivate: false },
-      { role: "viewer", status: "invited", canDeactivate: false, canReactivate: false },
-      { role: "author", status: "invitation_accepted", canDeactivate: false, canReactivate: false },
+    expect(actionsOf(rows)).toEqual([
+      { role: "viewer", status: "temporary_password", actions: ["reissue", "ban", "delete", "change_email"] },
+      { role: "viewer", status: "invited", actions: ["resend", "revoke"] },
+      { role: "author", status: "invitation_accepted", actions: ["revoke"] },
     ]);
   });
 
@@ -177,11 +141,11 @@ describe("buildUserRows", () => {
     );
 
     expect(
-      rows.map(({ userId, role, status, canReissuePassword }) => ({ userId, role, status, canReissuePassword })),
+      rows.map(({ userId, role, status, actions }) => ({ userId, role, status, reissue: actions.includes("reissue") })),
     ).toEqual([
-      { userId: ADA, role: "viewer", status: "temporary_password", canReissuePassword: true },
-      { userId: BEA, role: null, status: "temporary_password", canReissuePassword: true },
-      { userId: CAL, role: null, status: "no_access", canReissuePassword: false },
+      { userId: ADA, role: "viewer", status: "temporary_password", reissue: true },
+      { userId: BEA, role: null, status: "temporary_password", reissue: true },
+      { userId: CAL, role: null, status: "no_access", reissue: false },
     ]);
   });
 
@@ -195,15 +159,7 @@ describe("buildUserRows", () => {
       }),
     );
 
-    expect(actionsOf(rows)).toEqual([
-      {
-        role: "viewer",
-        status: "invited",
-        canResendInvitation: true,
-        canRevokeInvitation: true,
-        canReissuePassword: false,
-      },
-    ]);
+    expect(actionsOf(rows)).toEqual([{ role: "viewer", status: "invited", actions: ["resend", "revoke"] }]);
   });
 
   it("keeps an invitation invited at exactly its lifetime, and expired one millisecond later, as GoTrue judges it", () => {
@@ -217,8 +173,7 @@ describe("buildUserRows", () => {
     expect(build(given, deadline)[0]?.status).toBe("invited");
     expect(build(given, deadline + 1)[0]).toMatchObject({
       status: "invitation_expired",
-      canResendInvitation: true,
-      canRevokeInvitation: true,
+      actions: ["resend", "revoke"],
     });
   });
 
@@ -232,15 +187,7 @@ describe("buildUserRows", () => {
       }),
     );
 
-    expect(actionsOf(rows)).toEqual([
-      {
-        role: "admin",
-        status: "invitation_accepted",
-        canResendInvitation: false,
-        canRevokeInvitation: true,
-        canReissuePassword: false,
-      },
-    ]);
+    expect(actionsOf(rows)).toEqual([{ role: "admin", status: "invitation_accepted", actions: ["revoke"] }]);
   });
 
   it("reads a dashboard-era invitee, unaccepted and never flagged, as invited too", () => {
@@ -263,20 +210,8 @@ describe("buildUserRows", () => {
     );
 
     expect(actionsOf(rows)).toEqual([
-      {
-        role: "viewer",
-        status: "active",
-        canResendInvitation: false,
-        canRevokeInvitation: false,
-        canReissuePassword: false,
-      },
-      {
-        role: null,
-        status: "no_access",
-        canResendInvitation: false,
-        canRevokeInvitation: false,
-        canReissuePassword: false,
-      },
+      { role: "viewer", status: "active", actions: ["deactivate", "ban", "delete", "change_email"] },
+      { role: null, status: "no_access", actions: [] },
     ]);
   });
 
@@ -284,20 +219,14 @@ describe("buildUserRows", () => {
     const rows = build(input({ directory: [entry(ADA, "ada@example.test", { must_change_password: true })] }));
 
     expect(actionsOf(rows)).toEqual([
-      {
-        role: null,
-        status: "temporary_password",
-        canResendInvitation: false,
-        canRevokeInvitation: false,
-        canReissuePassword: true,
-      },
+      { role: null, status: "temporary_password", actions: ["reissue", "ban", "delete", "change_email"] },
     ]);
   });
 
   it("never offers a re-issue for an active or role-less user", () => {
     const rows = build(input({ roles: [held(ADA, "admin")] }));
 
-    expect(rows.map(({ canReissuePassword }) => canReissuePassword)).toEqual([false, false]);
+    expect(rows.map(({ actions }) => actions.includes("reissue"))).toEqual([false, false]);
   });
 
   it("offers ban, delete and a new email on an active, deactivated or temporary-password account, and not on an invitation, a service account or a row with no role", () => {
@@ -329,28 +258,25 @@ describe("buildUserRows", () => {
       }),
     );
 
-    expect(
-      rows.map(({ status, canBan, canUnban, canDelete, canChangeEmail }) => ({
-        status,
-        canBan,
-        canUnban,
-        canDelete,
-        canChangeEmail,
-      })),
-    ).toEqual([
-      { status: "active", canBan: true, canUnban: false, canDelete: true, canChangeEmail: true },
-      { status: "active", canBan: false, canUnban: false, canDelete: false, canChangeEmail: false },
-      { status: "temporary_password", canBan: true, canUnban: false, canDelete: true, canChangeEmail: true },
-      { status: "invited", canBan: false, canUnban: false, canDelete: false, canChangeEmail: false },
+    expect(rows.map(({ status, actions }) => ({ status, actions }))).toEqual([
+      { status: "active", actions: ["deactivate", "ban", "delete", "change_email"] },
+      { status: "active", actions: ["deactivate"] },
+      { status: "temporary_password", actions: ["reissue", "ban", "delete", "change_email"] },
+      { status: "invited", actions: ["resend", "revoke"] },
     ]);
     expect(withDeactivated[0]).toMatchObject({
       status: "deactivated",
-      canBan: true,
-      canUnban: false,
-      canDelete: true,
-      canChangeEmail: true,
-      canReactivate: true,
+      actions: ["ban", "delete", "change_email", "reactivate"],
     });
+  });
+
+  it("marks the signed-in admin's own row, and withholds Deactivate, Ban and Delete there, not a new email", () => {
+    const rows = build(input({ roles: [held(ADA, "admin"), held(BEA, "author")] }), NOW, ADA);
+
+    expect(rows.map(({ userId, isSelf, actions }) => ({ userId, isSelf, actions }))).toEqual([
+      { userId: ADA, isSelf: true, actions: ["change_email"] },
+      { userId: BEA, isSelf: false, actions: ["deactivate", "ban", "delete", "change_email"] },
+    ]);
   });
 
   it("carries the service-account flag", () => {
@@ -439,50 +365,11 @@ describe("buildUserRows", () => {
 });
 
 const actionsOf = (rows: ReturnType<typeof buildUserRows>) =>
-  rows.map(({ role, status, canResendInvitation, canRevokeInvitation, canReissuePassword }) => ({
-    role,
-    status,
-    canResendInvitation,
-    canRevokeInvitation,
-    canReissuePassword,
-  }));
+  rows.map(({ role, status, actions }) => ({ role, status, actions }));
 
-const activationOf = (rows: ReturnType<typeof buildUserRows>) =>
-  rows.map(({ role, status, canDeactivate, canReactivate }) => ({ role, status, canDeactivate, canReactivate }));
-
-const banOf = (rows: ReturnType<typeof buildUserRows>) =>
-  rows.map(
-    ({
-      role,
-      status,
-      canBan,
-      canUnban,
-      canDelete,
-      canChangeEmail,
-      canChangeRole,
-      canDeactivate,
-      canReactivate,
-      canReissuePassword,
-      canResendInvitation,
-      canRevokeInvitation,
-    }) => ({
-      role,
-      status,
-      canBan,
-      canUnban,
-      canDelete,
-      canChangeEmail,
-      canChangeRole,
-      canDeactivate,
-      canReactivate,
-      canReissuePassword,
-      canResendInvitation,
-      canRevokeInvitation,
-    }),
-  );
-
-/** The rows as the page would load them at `now`. */
-const build = (given: UserDirectoryInput, now = NOW) => buildUserRows(given, now);
+/** The rows as the page would load them at `now`, for `currentUserId`. */
+const build = (given: UserDirectoryInput, now = NOW, currentUserId = SIGNED_IN) =>
+  buildUserRows(given, { now, currentUserId });
 
 const lastChangeOf = (userId: string, rows: ReturnType<typeof buildUserRows>) =>
   rows.find((row) => row.userId === userId)?.lastChange;

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm, useWatch, type UseFormSetError } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import {
   Button,
   Dialog,
@@ -22,12 +22,12 @@ import {
   type ChangeUserEmailFormOutput,
   type ChangeUserEmailFormValues,
 } from "../model/schemas";
+import { submitChangeEmail } from "../model/submit-change-email";
 import { emailOf, type UserRow } from "../model/user-rows";
 
 type Props = {
+  /** The account whose address changes, or null when closed. */
   target: UserRow | null;
-  isBusy: boolean;
-  onSubmit: (email: string, setError: UseFormSetError<ChangeUserEmailFormValues>) => Promise<void>;
   onClose: () => void;
 };
 
@@ -35,20 +35,13 @@ const EMPTY_VALUES: ChangeUserEmailFormValues = { email: "", confirmEmail: "" };
 
 /**
  * A new address, typed twice (S-411). The current address is named, so it is clear what is replaced.
- * A mismatch never submits. `mode: "onTouched"` matches the other account forms.
+ * The shared `changeUserEmailFormSchema` drives validation (`mode: "onTouched"`), so a mismatch never
+ * submits; the action runs `changeUserEmailInput` on the server.
  */
-export default function ChangeEmailDialog({ target, isBusy, onSubmit, onClose }: Props) {
+export default function ChangeEmailDialog({ target, onClose }: Props) {
+  const { form, onSubmit } = useChangeEmailForm(target, onClose);
   const current = target ? emailOf(target.label) : "";
-  const form = useForm<ChangeUserEmailFormValues, unknown, ChangeUserEmailFormOutput>({
-    resolver: zodResolver(changeUserEmailFormSchema),
-    mode: "onTouched",
-    defaultValues: EMPTY_VALUES,
-  });
   const replacement = useWatch({ control: form.control, name: "email" }).trim();
-
-  useEffect(() => {
-    if (target) form.reset(EMPTY_VALUES);
-  }, [target, form]);
 
   return (
     <Dialog
@@ -66,12 +59,7 @@ export default function ChangeEmailDialog({ target, isBusy, onSubmit, onClose }:
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit((values) => onSubmit(values.email, form.setError))}
-            className="space-y-4"
-            noValidate
-            autoComplete="off"
-          >
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate autoComplete="off">
             <FormField
               control={form.control}
               name="email"
@@ -99,7 +87,7 @@ export default function ChangeEmailDialog({ target, isBusy, onSubmit, onClose }:
               )}
             />
             <DialogFooter>
-              <Button type="submit" disabled={isBusy || form.formState.isSubmitting}>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
                 Change email
               </Button>
             </DialogFooter>
@@ -108,4 +96,23 @@ export default function ChangeEmailDialog({ target, isBusy, onSubmit, onClose }:
       </DialogContent>
     </Dialog>
   );
+}
+
+function useChangeEmailForm(target: UserRow | null, onDone: () => void) {
+  const form = useForm<ChangeUserEmailFormValues, unknown, ChangeUserEmailFormOutput>({
+    resolver: zodResolver(changeUserEmailFormSchema),
+    mode: "onTouched",
+    defaultValues: EMPTY_VALUES,
+  });
+
+  // A fresh form each time the dialog opens: a typed address never outlives the dialog.
+  useEffect(() => {
+    if (target) form.reset(EMPTY_VALUES);
+  }, [target, form]);
+
+  const onSubmit = async (values: ChangeUserEmailFormOutput): Promise<void> => {
+    if (target) await submitChangeEmail({ row: target, values, setError: form.setError, onDone });
+  };
+
+  return { form, onSubmit };
 }

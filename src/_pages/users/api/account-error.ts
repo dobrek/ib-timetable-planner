@@ -33,9 +33,9 @@ export type AccountOperation =
   | "delete"
   | "change_email";
 
-/** The 409 codes ban, unban, delete and change-email answer. Anything else is not shown. */
+/** The 409 codes the function names, each worded here. Any other code is never shown. */
 const CLOSED_CONFLICTS = ["last_admin", "email_exists", "not_allowed"] as const;
-type ClosedConflict = (typeof CLOSED_CONFLICTS)[number];
+export type ClosedConflict = (typeof CLOSED_CONFLICTS)[number];
 
 /**
  * What the `admin-users` function's refusal means to the admin. The status is the function's own
@@ -49,7 +49,7 @@ type ClosedConflict = (typeof CLOSED_CONFLICTS)[number];
 export function toAccountError(
   operation: AccountOperation,
   status: number | null,
-  conflict: string | null = null,
+  conflict: ClosedConflict | null = null,
 ): DomainError {
   const messages = MESSAGES[operation];
   switch (status) {
@@ -62,7 +62,7 @@ export function toAccountError(
     case 404:
       return new DomainError("NOT_FOUND", ACCOUNT_GONE_MESSAGE);
     case 409:
-      return new DomainError("CONFLICT", conflictMessage(operation, messages, conflict));
+      return new DomainError("CONFLICT", conflictMessage(messages, conflict));
     case 422:
       return new DomainError("UNPROCESSABLE_CONTENT", EMAIL_REFUSED_MESSAGE);
     case 429:
@@ -80,14 +80,15 @@ export function toAccountError(
 export const outcomeUnknown = (operation: AccountOperation): DomainError =>
   new DomainError("INTERNAL_SERVER_ERROR", MESSAGES[operation].unknown);
 
-/** Whether a 409 body's `error` is one of the codes the coded operations answer. */
+/** Whether a 409 body's `error` is one of the codes worded in `CONFLICT_MESSAGES`. */
 export const isClosedConflict = (code: string): code is ClosedConflict =>
   (CLOSED_CONFLICTS as readonly string[]).includes(code);
 
 type OperationMessages = {
   /**
-   * 409: the address has an account (create, invite), or the target is no longer pending. `null`
-   * for an operation that names its own conflict (`CODED`), which `conflictMessage` words instead.
+   * 409 without a closed code: the target is no longer pending (reissue, resend, revoke), or the
+   * address has an account (create, invite). `null` for an operation whose every conflict is coded
+   * (ban, unban, delete, change email), which falls back to `failure`.
    */
   conflict: string | null;
   /** 500: the function failed, and undid what it could. */
@@ -109,16 +110,15 @@ const MESSAGES: Readonly<Record<AccountOperation, OperationMessages>> = {
   change_email: { conflict: null, failure: CHANGE_EMAIL_FAILURE, unknown: CHANGE_EMAIL_FAILURE },
 };
 
-const CODED: ReadonlySet<AccountOperation> = new Set(["ban", "unban", "delete", "change_email"]);
+const CONFLICT_MESSAGES: Readonly<Record<ClosedConflict, string>> = {
+  last_admin: LAST_ADMIN_MESSAGE,
+  email_exists: EMAIL_EXISTS_MESSAGE,
+  not_allowed: ACCOUNT_NOT_ALLOWED_MESSAGE,
+};
 
 /**
- * Ban, unban, delete and change-email name which 409 they mean. A code outside that closed set is
- * not the function's sentence: the failure wording is used, so nothing from the body is shown.
+ * A closed code names its own sentence. Without one, the operation's conflict wording is used, or
+ * its failure wording when every conflict it can meet is coded, so nothing from the body is shown.
  */
-const conflictMessage = (operation: AccountOperation, messages: OperationMessages, conflict: string | null): string => {
-  if (!CODED.has(operation)) return messages.conflict ?? messages.failure;
-  if (conflict === "last_admin") return LAST_ADMIN_MESSAGE;
-  if (conflict === "email_exists") return EMAIL_EXISTS_MESSAGE;
-  if (conflict === "not_allowed") return ACCOUNT_NOT_ALLOWED_MESSAGE;
-  return messages.failure;
-};
+const conflictMessage = (messages: OperationMessages, conflict: ClosedConflict | null): string =>
+  conflict === null ? (messages.conflict ?? messages.failure) : CONFLICT_MESSAGES[conflict];

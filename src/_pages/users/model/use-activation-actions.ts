@@ -7,7 +7,7 @@ import { emailOf, type UserRow } from "./user-rows";
  * The Users page's row actions on a person's access (S-408).
  *
  * - **Deactivate** names a row and waits for the admin's confirmation, because it takes access away.
- *   It is never offered on the admin's own row (`currentUserId`): "No access" there already covers
+ *   It is never offered on the admin's own row (`user-rows.ts`): "No access" there already covers
  *   stepping down, and the database would refuse the last active admin anyway.
  * - **Reactivate** goes at once, like Re-send: it only restores the role the row still holds. While a
  *   row's reactivation is in flight, `reactivating` holds it, so its button stays disabled.
@@ -15,7 +15,7 @@ import { emailOf, type UserRow } from "./user-rows";
  * Each answer is reported as every row action is (`reportRowAction`): the last-admin refusal toasts
  * and keeps the page, so its message stays.
  */
-export function useActivationActions(currentUserId: string) {
+export function useActivationActions() {
   const [reactivating, setReactivating] = useState<ReadonlySet<string>>(new Set());
   const [deactivateTarget, setDeactivateTarget] = useState<UserRow | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
@@ -28,7 +28,7 @@ export function useActivationActions(currentUserId: string) {
   };
 
   const restore = async (row: UserRow): Promise<void> => {
-    if (!row.canReactivate || reactivateInFlight.current.has(row.userId)) return;
+    if (!row.actions.includes("reactivate") || reactivateInFlight.current.has(row.userId)) return;
     reactivateInFlight.current = new Set([...reactivateInFlight.current, row.userId]);
     setReactivating(reactivateInFlight.current);
 
@@ -41,7 +41,7 @@ export function useActivationActions(currentUserId: string) {
   };
 
   const askDeactivate = (row: UserRow): void => {
-    if (row.canDeactivate && row.userId !== currentUserId) setDeactivateTarget(row);
+    if (row.actions.includes("deactivate")) setDeactivateTarget(row);
   };
 
   const cancelDeactivate = (): void => {

@@ -684,48 +684,39 @@ const OTP_EXPIRED = "otp_expired";
 
     it("rolls the app's rows back when GoTrue refuses the ban", async () => {
       const person = await createSignedInUser(admin, { role: "author" });
-      await failBanFor(person.email);
-      try {
+      await withForcedTrigger(failingBanFor(person.email), async () => {
         const response = await call({ token: tokens.admin }, { op: "ban", userId: person.id });
         expect(response.status).toBe(500);
         expect(await banState(person.id)).toMatchObject({ banned: false, paused: false });
         expect(await banIsPermanent(person.id)).toBe(false);
         expect(await recordsFor(person.id, "account_banned")).toEqual([]);
-      } finally {
-        await stopFailingBans();
-      }
+      });
     });
 
     it("refuses the ban, and writes nothing, when the session's pause reaches no row", async () => {
       // What RLS does to an admin who was paused after the gate: the update matches no row, no error.
       const person = await createSignedInUser(admin, { role: "author" });
-      await skipRoleUpdatesFor(person.id);
-      try {
+      await withForcedTrigger(skippedRoleUpdatesFor(person.id), async () => {
         const response = await call({ token: tokens.admin }, { op: "ban", userId: person.id });
         expect(response.status).toBe(409);
         expect(await response.json()).toEqual({ error: "not_allowed" });
         expect(await banState(person.id)).toMatchObject({ banned: false, paused: false });
         expect(await banIsPermanent(person.id)).toBe(false);
         expect(await recordsFor(person.id, "account_banned")).toEqual([]);
-      } finally {
-        await stopSkippingRoleUpdates();
-      }
+      });
     });
 
     it("refuses the delete, and keeps the account, when the session's pause reaches no row", async () => {
       // Delete pauses through the session first, so the guard serialises two admins removing each other.
       const person = await createSignedInUser(admin, { role: "author" });
-      await skipRoleUpdatesFor(person.id);
-      try {
+      await withForcedTrigger(skippedRoleUpdatesFor(person.id), async () => {
         const response = await call({ token: tokens.admin }, { op: "delete", userId: person.id });
         expect(response.status).toBe(409);
         expect(await response.json()).toEqual({ error: "not_allowed" });
         expect(await banState(person.id)).toMatchObject({ role: "author", paused: false });
         expect(await userCountWithEmail(person.email)).toBe(1);
         expect(await recordsFor(person.id, "account_deleted")).toEqual([]);
-      } finally {
-        await stopSkippingRoleUpdates();
-      }
+      });
     });
 
     it("refuses ban and delete of the caller when another admin remains, and of everyone this slice must not touch", async () => {
@@ -884,44 +875,27 @@ const OTP_EXPIRED = "otp_expired";
     return count ?? 0;
   };
 
-  /** Make GoTrue's ban write fail for one address, the way a database error would. */
-  const failBanFor = async (email: string): Promise<void> => {
-    if (!/^[a-z0-9.@-]+$/.test(email)) throw new Error(`refusing to embed an unexpected address: ${email}`);
+  /**
+   * A row trigger standing in for a failure the suite cannot cause: installed for `run`, and dropped
+   * however `run` ends. `when` holds only values its builder has checked, since it is embedded in DDL.
+   */
+  const withForcedTrigger = async (trigger: ForcedTrigger, run: () => Promise<void>): Promise<void> => {
     await ddl(`
-      create or replace function public.zz_admin_users_fail_ban() returns trigger language plpgsql as $$
+      create or replace function public.${trigger.name}() returns trigger language plpgsql as $$
       begin
-        raise exception 'forced ban failure (admin-users suite)';
+        ${trigger.body}
       end $$`);
     await ddl(`
-      create or replace trigger zz_admin_users_fail_ban
-        before update of banned_until on auth.users
-        for each row when (new.email = '${email}')
-        execute function public.zz_admin_users_fail_ban()`);
-  };
-
-  const stopFailingBans = async (): Promise<void> => {
-    await ddl("drop trigger if exists zz_admin_users_fail_ban on auth.users");
-    await ddl("drop function if exists public.zz_admin_users_fail_ban()");
-  };
-
-  /** Make every update of one user's role row match nothing, as RLS does for a session it hides it from. */
-  const skipRoleUpdatesFor = async (userId: string): Promise<void> => {
-    if (!/^[0-9a-f-]{36}$/.test(userId)) throw new Error(`refusing to embed an unexpected id: ${userId}`);
-    await ddl(`
-      create or replace function public.zz_admin_users_skip_role_update() returns trigger language plpgsql as $$
-      begin
-        return null;
-      end $$`);
-    await ddl(`
-      create or replace trigger zz_admin_users_skip_role_update
-        before update on public.user_roles
-        for each row when (old.user_id = '${userId}')
-        execute function public.zz_admin_users_skip_role_update()`);
-  };
-
-  const stopSkippingRoleUpdates = async (): Promise<void> => {
-    await ddl("drop trigger if exists zz_admin_users_skip_role_update on public.user_roles");
-    await ddl("drop function if exists public.zz_admin_users_skip_role_update()");
+      create or replace trigger ${trigger.name}
+        ${trigger.timing} on ${trigger.table}
+        for each row when (${trigger.when})
+        execute function public.${trigger.name}()`);
+    try {
+      await run();
+    } finally {
+      await ddl(`drop trigger if exists ${trigger.name} on ${trigger.table}`);
+      await ddl(`drop function if exists public.${trigger.name}()`);
+    }
   };
 
   const roleOf = async (userId: string): Promise<string | null> => {
@@ -1077,6 +1051,33 @@ const DDL_ATTEMPTS = 3;
 
 const isDeadlock = (error: unknown): boolean =>
   typeof error === "object" && error !== null && "code" in error && error.code === "40P01";
+
+/** One `withForcedTrigger` trigger: its name, the table and timing it fires on, its condition and body. */
+type ForcedTrigger = { name: string; table: string; timing: string; when: string; body: string };
+
+/** GoTrue's ban write fails for one address, the way a database error would. */
+const failingBanFor = (email: string): ForcedTrigger => {
+  if (!/^[a-z0-9.@-]+$/.test(email)) throw new Error(`refusing to embed an unexpected address: ${email}`);
+  return {
+    name: "zz_admin_users_fail_ban",
+    table: "auth.users",
+    timing: "before update of banned_until",
+    when: `new.email = '${email}'`,
+    body: "raise exception 'forced ban failure (admin-users suite)';",
+  };
+};
+
+/** Every update of one user's role row matches nothing, as RLS does for a session it hides the row from. */
+const skippedRoleUpdatesFor = (userId: string): ForcedTrigger => {
+  if (!/^[0-9a-f-]{36}$/.test(userId)) throw new Error(`refusing to embed an unexpected id: ${userId}`);
+  return {
+    name: "zz_admin_users_skip_role_update",
+    table: "public.user_roles",
+    timing: "before update",
+    when: `old.user_id = '${userId}'`,
+    body: "return null;",
+  };
+};
 
 type Credentials = { token?: string; apikey?: string };
 

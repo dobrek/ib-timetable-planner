@@ -19,6 +19,7 @@ import { EMAIL_EXISTS_MESSAGE } from "../api/constants";
 import {
   ADMIN_ID,
   AUTHOR_ID,
+  BANNED_ID,
   COLLEAGUE_ID,
   DEACTIVATED_ID,
   INVITED_ID,
@@ -538,6 +539,61 @@ describe("account actions", () => {
     expect(refreshPage).toHaveBeenCalled();
   });
 
+  it.each([
+    ["unbans", "Unban jo@example.test", "Unban", BANNED_ID, unbanUser, "jo@example.test unbanned"],
+    ["deletes", "Delete Ida Colleague", "Delete", COLLEAGUE_ID, deleteAccount, "ida@example.test deleted"],
+  ] as const)(
+    "asks before it %s, then calls only that action and reloads",
+    async (_verb, link, button, userId, call, toast) => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole("button", { name: link }));
+      expect(screen.getAllByRole("alertdialog")).toHaveLength(1);
+      fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: button }));
+
+      expect(call).toHaveBeenCalledWith({ userId });
+      await waitFor(() => {
+        expect(toastSuccess).toHaveBeenCalledWith(toast);
+      });
+      expect(refreshPage).toHaveBeenCalled();
+      expect(banUser).not.toHaveBeenCalled();
+    },
+  );
+
+  it("changes an email once both addresses match, then toasts the new address and reloads", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Change email for Ida Colleague" }));
+    const dialog = screen.getByRole("dialog", { name: "Change email for ida@example.test" });
+    fireEvent.change(within(dialog).getByLabelText("New email"), { target: { value: " IDA@school.test " } });
+    fireEvent.change(within(dialog).getByLabelText("Confirm email"), { target: { value: "ida@school.test" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Change email" }));
+
+    await waitFor(() => {
+      expect(toastSuccess).toHaveBeenCalledWith("ida@example.test is now ida@school.test");
+    });
+    expect(changeUserEmail).toHaveBeenCalledWith({ userId: COLLEAGUE_ID, email: "ida@school.test" });
+    expect(refreshPage).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps the change-email dialog open when the request never completes", async () => {
+    vi.mocked(changeUserEmail).mockRejectedValue(new TypeError("Failed to fetch"));
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Change email for Ida Colleague" }));
+    const dialog = screen.getByRole("dialog", { name: "Change email for ida@example.test" });
+    fireEvent.change(within(dialog).getByLabelText("New email"), { target: { value: "ida@school.test" } });
+    fireEvent.change(within(dialog).getByLabelText("Confirm email"), { target: { value: "ida@school.test" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Change email" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("Couldn't reach the server. Check the list before trying again.");
+    });
+    expect(screen.getByRole("dialog", { name: "Change email for ida@example.test" })).toBeInTheDocument();
+    expect(refreshPage).not.toHaveBeenCalled();
+  });
+
   it("does not change an email when the confirmation does not match", async () => {
     renderPage();
 
@@ -589,7 +645,7 @@ const refuseWith = (code: string, message: string) => {
   >);
 };
 
-const renderPage = () => render(<UsersPage rows={ROWS} currentUserId={ADMIN_ID} />);
+const renderPage = () => render(<UsersPage rows={ROWS} />);
 
 const choose = (picker: string, option: string) => {
   fireEvent.keyDown(screen.getByRole("combobox", { name: picker }), { key: "Enter" });

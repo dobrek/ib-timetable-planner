@@ -1,117 +1,77 @@
-import { isInputError } from "astro:actions";
 import { useRef, useState } from "react";
-import type { UseFormSetError } from "react-hook-form";
-import { toast } from "sonner";
-import { applyActionFieldErrors } from "@/shared/lib/forms";
-import { ACCOUNT_UNREACHABLE_MESSAGE } from "../api/constants";
-import { banUser, changeUserEmail, deleteAccount, unbanUser } from "../api/user-client";
-import type { ChangeUserEmailFormValues } from "./schemas";
+import { banUser, deleteAccount, unbanUser } from "../api/user-client";
+import type { UserTargetInput } from "./schemas";
 import { reportRowAction, type RowActionOutcome } from "./report-row-action";
 import { emailOf, type UserRow } from "./user-rows";
 
+/** The S-411 actions that wait for a confirmation dialog. Change email has its own form. */
+export const CONFIRMED_ACCOUNT_ACTIONS = ["ban", "unban", "delete"] as const;
+export type ConfirmedAccountAction = (typeof CONFIRMED_ACCOUNT_ACTIONS)[number];
+
+/** A confirmation waiting on the admin: which action, on which row. */
+export type PendingAccountAction = { action: ConfirmedAccountAction; row: UserRow };
+
 /**
- * Ban, unban, delete and change email from the Users table (S-411). Each one waits for a dialog
- * that names the address. Success toasts and reloads, as deactivation does. A conflict on the new
- * address stays on the field, so the dialog can show it.
+ * Ban, unban, delete and change email from the Users table (S-411).
+ *
+ * - **Ban, Unban and Delete** name a row and wait for the admin's confirmation. Each answer is
+ *   reported as every row action is (`reportRowAction`): success toasts and reloads.
+ * - **Change email** opens its form on a row. The form submits on its own (`submit-change-email.ts`).
  */
 export function useAccountActions() {
-  const [banTarget, setBanTarget] = useState<UserRow | null>(null);
-  const [unbanTarget, setUnbanTarget] = useState<UserRow | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
-  const [emailTarget, setEmailTarget] = useState<UserRow | null>(null);
+  const [pending, setPending] = useState<PendingAccountAction | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [emailTarget, setEmailTarget] = useState<UserRow | null>(null);
+  // Read synchronously, so a double click cannot send twice before `isBusy` re-renders.
   const inFlight = useRef(false);
 
-  const askBan = (row: UserRow): void => {
-    if (row.canBan) setBanTarget(row);
-  };
-  const askUnban = (row: UserRow): void => {
-    if (row.canUnban) setUnbanTarget(row);
-  };
-  const askDelete = (row: UserRow): void => {
-    if (row.canDelete) setDeleteTarget(row);
-  };
-  const askChangeEmail = (row: UserRow): void => {
-    if (row.canChangeEmail) setEmailTarget(row);
+  const ask = (action: ConfirmedAccountAction, row: UserRow): void => {
+    if (row.actions.includes(action)) setPending({ action, row });
   };
 
   const cancel = (): void => {
-    if (inFlight.current) return;
-    setBanTarget(null);
-    setUnbanTarget(null);
-    setDeleteTarget(null);
+    if (!inFlight.current) setPending(null);
+  };
+
+  const confirm = (): void => {
+    void run();
+  };
+
+  const run = async (): Promise<void> => {
+    if (!pending || inFlight.current) return;
+    inFlight.current = true;
+    setIsBusy(true);
+    const { action, row } = pending;
+
+    // A rejected request (it never completed) becomes null: Astro's action client does not catch one.
+    const result = await CALLS[action]({ userId: row.userId }).catch(() => null);
+    inFlight.current = false;
+    setIsBusy(false);
+    setPending(null);
+
+    await reportRowAction(result, `${emailOf(row.label)} ${DONE[action]}`);
+  };
+
+  const askChangeEmail = (row: UserRow): void => {
+    if (row.actions.includes("change_email")) setEmailTarget(row);
+  };
+
+  const closeChangeEmail = (): void => {
     setEmailTarget(null);
   };
 
-  const run = async (work: () => Promise<RowActionOutcome>, success: string): Promise<void> => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setIsBusy(true);
-    const result = await work().catch(() => null);
-    inFlight.current = false;
-    setIsBusy(false);
-    setBanTarget(null);
-    setUnbanTarget(null);
-    setDeleteTarget(null);
-    await reportRowAction(result, success);
-  };
-
-  const confirmBan = (): void => {
-    const row = banTarget;
-    if (!row) return;
-    void run(() => banUser({ userId: row.userId }), `${emailOf(row.label)} banned`);
-  };
-
-  const confirmUnban = (): void => {
-    const row = unbanTarget;
-    if (!row) return;
-    void run(() => unbanUser({ userId: row.userId }), `${emailOf(row.label)} unbanned`);
-  };
-
-  const confirmDelete = (): void => {
-    const row = deleteTarget;
-    if (!row) return;
-    void run(() => deleteAccount({ userId: row.userId }), `${emailOf(row.label)} deleted`);
-  };
-
-  const submitEmail = async (email: string, setError: UseFormSetError<ChangeUserEmailFormValues>): Promise<void> => {
-    const row = emailTarget;
-    if (!row || inFlight.current) return;
-    inFlight.current = true;
-    setIsBusy(true);
-    const result = await changeUserEmail({ userId: row.userId, email }).catch(() => null);
-    inFlight.current = false;
-    setIsBusy(false);
-    if (!result) {
-      toast.error(ACCOUNT_UNREACHABLE_MESSAGE);
-      return;
-    }
-    if (result.error && isInputError(result.error)) {
-      applyActionFieldErrors(result.error, setError);
-      return;
-    }
-    if (result.error?.code === "CONFLICT") {
-      setError("email", { message: result.error.message });
-      return;
-    }
-    setEmailTarget(null);
-    await reportRowAction(result, `${emailOf(row.label)} is now ${email}`);
-  };
-
-  return {
-    banTarget,
-    unbanTarget,
-    deleteTarget,
-    emailTarget,
-    isBusy,
-    askBan,
-    askUnban,
-    askDelete,
-    askChangeEmail,
-    cancel,
-    confirmBan,
-    confirmUnban,
-    confirmDelete,
-    submitEmail,
-  };
+  return { pending, isBusy, ask, cancel, confirm, emailTarget, askChangeEmail, closeChangeEmail };
 }
+
+const CALLS: Readonly<Record<ConfirmedAccountAction, (values: UserTargetInput) => Promise<RowActionOutcome>>> = {
+  ban: banUser,
+  unban: unbanUser,
+  delete: deleteAccount,
+};
+
+/** The success toast's verb, after the address. */
+const DONE: Readonly<Record<ConfirmedAccountAction, string>> = {
+  ban: "banned",
+  unban: "unbanned",
+  delete: "deleted",
+};

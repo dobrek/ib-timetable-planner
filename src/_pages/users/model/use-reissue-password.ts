@@ -29,7 +29,7 @@ export function useReissuePassword(onRevealed: (reveal: PasswordReveal) => void)
   const inFlight = useRef(false);
 
   const ask = (row: UserRow): void => {
-    if (row.canReissuePassword) setTarget(row);
+    if (row.actions.includes("reissue")) setTarget(row);
   };
 
   const cancel = (): void => {

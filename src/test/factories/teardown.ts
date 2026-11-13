@@ -74,16 +74,18 @@ const deleteUsers = async (supabase: SupabaseClient, userIds: string[]): Promise
 /**
  * One attempt is not enough. Two deletes in flight can each null a column of the same
  * `access_changes` row (the actor and the target), and Postgres aborts one of them. GoTrue reports
- * that as "Database error deleting user". The row is unchanged, so the delete is safe to repeat.
+ * that as `ABORTED_DELETE`. The row is unchanged, so the delete is safe to repeat.
  */
 const DELETE_ATTEMPTS = 3;
+const ABORTED_DELETE = "Database error deleting user";
 
-const deleteUser = async (supabase: SupabaseClient, userId: string): Promise<UserDeleteOutcome> => {
-  let error: UserDeleteOutcome["error"] = null;
-  for (let attempt = 1; attempt <= DELETE_ATTEMPTS; attempt++) {
-    error = (await supabase.auth.admin.deleteUser(userId)).error;
-    if (error?.message !== "Database error deleting user" || attempt === DELETE_ATTEMPTS) break;
-  }
+const deleteUser = async (
+  supabase: SupabaseClient,
+  userId: string,
+  attemptsLeft: number = DELETE_ATTEMPTS,
+): Promise<UserDeleteOutcome> => {
+  const { error } = await supabase.auth.admin.deleteUser(userId);
+  if (error?.message === ABORTED_DELETE && attemptsLeft > 1) return deleteUser(supabase, userId, attemptsLeft - 1);
   return { userId, error };
 };
 

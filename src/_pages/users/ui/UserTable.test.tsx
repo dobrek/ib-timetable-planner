@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppRole } from "@/shared/config";
+import type { RowAction } from "../model/user-rows";
 import {
   ACCEPTED_ROW,
-  ADMIN_ID,
   AUTHOR_ID,
   AUTHOR_ROW,
   BANNED_ROW,
@@ -20,50 +20,12 @@ import UserTable from "./UserTable";
 
 const renderTable = (
   saving: ReadonlyMap<string, AppRole | null> = new Map(),
-  resending: ReadonlySet<string> = new Set(),
-  reactivating: ReadonlySet<string> = new Set(),
+  inFlight: Partial<Record<RowAction, ReadonlySet<string>>> = {},
 ) => {
   const onChooseRole = vi.fn();
-  const onReissuePassword = vi.fn();
-  const onResendInvitation = vi.fn();
-  const onRevokeInvitation = vi.fn();
-  const onDeactivate = vi.fn();
-  const onReactivate = vi.fn();
-  const onBan = vi.fn();
-  const onUnban = vi.fn();
-  const onDeleteAccount = vi.fn();
-  const onChangeEmail = vi.fn();
-  render(
-    <UserTable
-      rows={ROWS}
-      currentUserId={ADMIN_ID}
-      saving={saving}
-      onChooseRole={onChooseRole}
-      onReissuePassword={onReissuePassword}
-      resending={resending}
-      onResendInvitation={onResendInvitation}
-      onRevokeInvitation={onRevokeInvitation}
-      onDeactivate={onDeactivate}
-      reactivating={reactivating}
-      onReactivate={onReactivate}
-      onBan={onBan}
-      onUnban={onUnban}
-      onDeleteAccount={onDeleteAccount}
-      onChangeEmail={onChangeEmail}
-    />,
-  );
-  return {
-    onChooseRole,
-    onReissuePassword,
-    onResendInvitation,
-    onRevokeInvitation,
-    onDeactivate,
-    onReactivate,
-    onBan,
-    onUnban,
-    onDeleteAccount,
-    onChangeEmail,
-  };
+  const onAction = vi.fn();
+  render(<UserTable rows={ROWS} saving={saving} onChooseRole={onChooseRole} inFlight={inFlight} onAction={onAction} />);
+  return { onChooseRole, onAction };
 };
 
 /** The row whose picker is named for `name`: a name can also appear in another row's "Changed by". */
@@ -112,12 +74,12 @@ describe("UserTable", () => {
   });
 
   it("offers Re-issue password on the pending row alone, and it asks for that row", () => {
-    const { onReissuePassword } = renderTable();
+    const { onAction } = renderTable();
 
     expect(screen.getAllByRole("button", { name: /Re-issue password/ })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Re-issue password for dee@example.test" }));
 
-    expect(onReissuePassword).toHaveBeenCalledWith(PENDING_ROW);
+    expect(onAction).toHaveBeenCalledWith("reissue", PENDING_ROW);
   });
 
   it("says Invited and Invitation accepted for the two invitation rows, each still showing its role", () => {
@@ -129,33 +91,33 @@ describe("UserTable", () => {
   });
 
   it("offers Re-send on the unaccepted invitation alone, and it hands that row up", () => {
-    const { onResendInvitation } = renderTable();
+    const { onAction } = renderTable();
 
     expect(screen.getAllByRole("button", { name: /Re-send invitation/ })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Re-send invitation to eve@example.test" }));
 
-    expect(onResendInvitation).toHaveBeenCalledWith(INVITED_ROW);
+    expect(onAction).toHaveBeenCalledWith("resend", INVITED_ROW);
   });
 
   it("offers Revoke on both invitations, accepted or not, and never on another row", () => {
-    const { onRevokeInvitation } = renderTable();
+    const { onAction } = renderTable();
 
     expect(screen.getAllByRole("button", { name: /Revoke invitation/ })).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Revoke invitation for fay@example.test" }));
 
-    expect(onRevokeInvitation).toHaveBeenCalledWith(ACCEPTED_ROW);
+    expect(onAction).toHaveBeenCalledWith("revoke", ACCEPTED_ROW);
     expect(rowOf("dee@example.test").queryByRole("button", { name: /Revoke|Re-send/ })).not.toBeInTheDocument();
   });
 
   it("disables a row's Re-send while it is in flight", () => {
-    renderTable(new Map(), new Set([INVITED_ID]));
+    renderTable(new Map(), { resend: new Set([INVITED_ID]) });
 
     expect(screen.getByRole("button", { name: "Re-send invitation to eve@example.test" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Revoke invitation for eve@example.test" })).toBeEnabled();
   });
 
   it("offers Deactivate on another user's active row alone, never your own, and it hands that row up", () => {
-    const { onDeactivate } = renderTable();
+    const { onAction } = renderTable();
 
     expect(screen.getAllByRole("button", { name: /^Deactivate / })).toHaveLength(2);
     expect(rowOf("admin@example.test").queryByRole("button", { name: /Deactivate/ })).not.toBeInTheDocument();
@@ -164,11 +126,11 @@ describe("UserTable", () => {
     }
     fireEvent.click(screen.getByRole("button", { name: "Deactivate Bea Author" }));
 
-    expect(onDeactivate).toHaveBeenCalledWith(AUTHOR_ROW);
+    expect(onAction).toHaveBeenCalledWith("deactivate", AUTHOR_ROW);
   });
 
   it("says Deactivated for a deactivated row, which keeps its role in a live picker, and offers Reactivate alone", () => {
-    const { onReactivate } = renderTable();
+    const { onAction } = renderTable();
 
     expect(rowOf("gil@example.test").getByText("Deactivated")).toBeInTheDocument();
     const picker = screen.getByRole("combobox", { name: "Role for gil@example.test" });
@@ -177,11 +139,11 @@ describe("UserTable", () => {
     expect(screen.getAllByRole("button", { name: /^Reactivate / })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Reactivate gil@example.test" }));
 
-    expect(onReactivate).toHaveBeenCalledWith(DEACTIVATED_ROW);
+    expect(onAction).toHaveBeenCalledWith("reactivate", DEACTIVATED_ROW);
   });
 
   it("offers Ban, Delete and Change email on an active colleague, a deactivated row and a temporary password, and not on an invitation, the service account, a row with no role, or the admin's own Ban and Delete", () => {
-    const { onBan, onDeleteAccount, onChangeEmail } = renderTable();
+    const { onAction } = renderTable();
 
     for (const name of ["Ida Colleague", "gil@example.test", "dee@example.test"]) {
       expect(rowOf(name).getByRole("button", { name: `Ban ${name}` })).toBeInTheDocument();
@@ -191,9 +153,9 @@ describe("UserTable", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ban Ida Colleague" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete gil@example.test" }));
     fireEvent.click(screen.getByRole("button", { name: "Change email for dee@example.test" }));
-    expect(onBan).toHaveBeenCalledWith(COLLEAGUE_ROW);
-    expect(onDeleteAccount).toHaveBeenCalledWith(DEACTIVATED_ROW);
-    expect(onChangeEmail).toHaveBeenCalledWith(PENDING_ROW);
+    expect(onAction).toHaveBeenCalledWith("ban", COLLEAGUE_ROW);
+    expect(onAction).toHaveBeenCalledWith("delete", DEACTIVATED_ROW);
+    expect(onAction).toHaveBeenCalledWith("change_email", PENDING_ROW);
 
     expect(rowOf("admin@example.test").queryByRole("button", { name: /^Ban / })).not.toBeInTheDocument();
     expect(rowOf("admin@example.test").queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument();
@@ -208,12 +170,12 @@ describe("UserTable", () => {
   });
 
   it("offers Unban, Delete and Change email on a banned row, and not Ban, Deactivate, Reactivate or Re-issue", () => {
-    const { onUnban } = renderTable();
+    const { onAction } = renderTable();
     const row = rowOf("jo@example.test");
 
     expect(row.getByText("Banned")).toBeInTheDocument();
     fireEvent.click(row.getByRole("button", { name: "Unban jo@example.test" }));
-    expect(onUnban).toHaveBeenCalledWith(BANNED_ROW);
+    expect(onAction).toHaveBeenCalledWith("unban", BANNED_ROW);
     expect(row.getByRole("button", { name: "Delete jo@example.test" })).toBeInTheDocument();
     expect(row.getByRole("button", { name: "Change email for jo@example.test" })).toBeInTheDocument();
     expect(row.queryByRole("button", { name: /^Ban / })).not.toBeInTheDocument();
@@ -228,7 +190,7 @@ describe("UserTable", () => {
   });
 
   it("disables a row's Reactivate while it is in flight", () => {
-    renderTable(new Map(), new Set(), new Set([DEACTIVATED_ID]));
+    renderTable(new Map(), { reactivate: new Set([DEACTIVATED_ID]) });
 
     expect(screen.getByRole("button", { name: "Reactivate gil@example.test" })).toBeDisabled();
   });

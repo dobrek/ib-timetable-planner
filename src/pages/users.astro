@@ -11,14 +11,14 @@ const { user, access } = Astro.locals;
 // Decided once, here (S-406). The middleware's role gate is unchanged: an author or a viewer passes
 // it and is told the page does not exist. RLS is the enforcement either way.
 const canManageUsers = allows(access, "manage_users");
-const rows = canManageUsers ? await loadRows() : null;
+const rows = canManageUsers && user ? await loadRows(user.id) : null;
 if (!canManageUsers) Astro.response.status = 404;
 else if (rows === null) Astro.response.status = 503;
 
 /** The rows, or null when Supabase is not configured or the load failed (logged, then a 503). */
-async function loadRows(): Promise<UserRow[] | null> {
+async function loadRows(currentUserId: string): Promise<UserRow[] | null> {
   try {
-    const result = await loadUserDirectory(createClient(Astro.request.headers, Astro.cookies));
+    const result = await loadUserDirectory(createClient(Astro.request.headers, Astro.cookies), currentUserId);
     return result.ok ? result.value : null;
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -40,10 +40,10 @@ async function loadRows(): Promise<UserRow[] | null> {
           </a>
         </p>
       </div>
-    ) : rows === null || !user ? (
+    ) : rows === null ? (
       <p class="text-muted-foreground text-sm">Users are unavailable right now. Reload the page in a moment.</p>
     ) : (
-      <UsersPage rows={rows} currentUserId={user.id} client:load />
+      <UsersPage rows={rows} client:load />
     )
   }
 </AppShellLayout>

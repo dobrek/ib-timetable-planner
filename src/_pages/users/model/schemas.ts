@@ -26,6 +26,12 @@ export type SetUserActiveInput = z.output<typeof setUserActiveInput>;
 // Trimmed and lower-cased, as the function does, so the address the admin confirms is the one stored.
 const emailField = z.string().trim().toLowerCase().pipe(z.email("Enter a valid email address."));
 
+// The typo guard every account form shares: the address typed twice must match. The confirmation is
+// the form's alone and is never sent; the action checks the address by itself.
+const matchesConfirmation = ({ email, confirmEmail }: { email: string; confirmEmail: string }): boolean =>
+  email === confirmEmail;
+const CONFIRMATION_MISMATCH = { path: ["confirmEmail"], message: "The two addresses don't match." };
+
 /**
  * A new account (S-409): an address and the role it starts with (`null` is "No access"). There is
  * no password: the function generates it, so a person's password is never typed by an admin.
@@ -40,18 +46,10 @@ export type CreateAccountInput = z.output<typeof createAccountInput>;
 /** The form adds the typo guard: the address is typed twice. */
 export const createAccountFormSchema = createAccountInput
   .extend({ confirmEmail: emailField })
-  .refine(({ email, confirmEmail }) => email === confirmEmail, {
-    path: ["confirmEmail"],
-    message: "The two addresses don't match.",
-  });
+  .refine(matchesConfirmation, CONFIRMATION_MISMATCH);
 
 export type CreateAccountFormValues = z.input<typeof createAccountFormSchema>;
 export type CreateAccountFormOutput = z.output<typeof createAccountFormSchema>;
-
-/** Re-issue the temporary password of one pending account. */
-export const reissuePasswordInput = z.object({ userId: z.uuid() });
-
-export type ReissuePasswordInput = z.output<typeof reissuePasswordInput>;
 
 /**
  * An invitation by email (S-410): an address and the role it grants once the person has chosen a
@@ -66,10 +64,13 @@ export const inviteUserInput = z.object({
 export type InviteUserInput = z.output<typeof inviteUserInput>;
 export type InviteUserFormValues = z.input<typeof inviteUserInput>;
 
-/** One pending invitation, to re-send or revoke. */
-export const invitationTargetInput = z.object({ userId: z.uuid() });
+/**
+ * One account an admin acts on by id: re-issue its temporary password (S-409), re-send or revoke its
+ * invitation (S-410), or ban, unban or delete it (S-411). The actor is the session, never the input.
+ */
+export const userTargetInput = z.object({ userId: z.uuid() });
 
-export type InvitationTargetInput = z.output<typeof invitationTargetInput>;
+export type UserTargetInput = z.output<typeof userTargetInput>;
 
 /** What the function reveals, once: carried in memory only, never stored, logged or put in a message. */
 export type TemporaryPassword = { userId: string; password: string };
@@ -77,18 +78,10 @@ export type TemporaryPassword = { userId: string; password: string };
 /** What an invite answers: the account, and whether it re-sent an invitation that was still pending. */
 export type InvitationSent = { userId: string; resent: boolean };
 
-/** What a re-send or a revoke answers: the account it acted on. */
-export type InvitationTarget = { userId: string };
+/** What an operation on one account answers when it reveals nothing: the account it acted on. */
+export type UserTarget = { userId: string };
 
-/** Ban, unban or delete one account. The actor is the session, never the input. */
-export const accountTargetInput = z.object({ userId: z.uuid() });
-
-export type AccountTargetInput = z.output<typeof accountTargetInput>;
-
-/**
- * A new address for an account (S-411). The confirmation is the form's typo guard and is not sent:
- * the action checks the address alone.
- */
+/** A new address for an account (S-411). The form adds the typo guard. */
 export const changeUserEmailInput = z.object({
   userId: z.uuid(),
   email: emailField,
@@ -98,16 +91,10 @@ export type ChangeUserEmailInput = z.output<typeof changeUserEmailInput>;
 
 export const changeUserEmailFormSchema = z
   .object({ email: emailField, confirmEmail: emailField })
-  .refine(({ email, confirmEmail }) => email === confirmEmail, {
-    path: ["confirmEmail"],
-    message: "The two addresses don't match.",
-  });
+  .refine(matchesConfirmation, CONFIRMATION_MISMATCH);
 
 export type ChangeUserEmailFormValues = z.input<typeof changeUserEmailFormSchema>;
 export type ChangeUserEmailFormOutput = z.output<typeof changeUserEmailFormSchema>;
-
-/** What a ban, an unban, a delete or an email change answers: the account it acted on. */
-export type AccountTarget = { userId: string };
 
 /**
  * The one-time reveal's state: who the password is for, and the password. Held in the Users page's

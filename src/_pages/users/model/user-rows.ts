@@ -55,54 +55,50 @@ export type UserStatus =
   | "invitation_expired"
   | "invitation_accepted";
 
+/** What a row's status cell can offer. The page runs each one, or asks first (`UsersPage`). */
+export type RowAction =
+  | "reissue"
+  | "resend"
+  | "revoke"
+  | "deactivate"
+  | "ban"
+  | "unban"
+  | "delete"
+  | "change_email"
+  | "reactivate";
+
 export type UserRow = {
   userId: string;
   label: ProfileLabel;
   role: AppRole | null;
   status: UserStatus;
-  /** Only a pending row can have its temporary password re-issued: derived here, not in the table. */
-  canReissuePassword: boolean;
-  /** An unaccepted invitation, expired or not: GoTrue re-sends only to an unconfirmed address. */
-  canResendInvitation: boolean;
-  /** Any invitation until the person chooses a password, so the admin always has a stop. */
-  canRevokeInvitation: boolean;
-  /**
-   * Only an active row can be deactivated (S-408): a pending row has its own stop, and a row without
-   * a role has nothing to keep. The table also withholds it from the admin's own row.
-   */
-  canDeactivate: boolean;
-  /** Only a deactivated row can be reactivated, which restores the role it holds. A ban outranks it. */
-  canReactivate: boolean;
-  /**
-   * Ban, delete and a new email (S-411) on an active, deactivated or temporary-password account, and
-   * on a banned one for delete and a new email. Never on an invitation, a service account or a row
-   * with no role. The table also withholds Ban and Delete from the admin's own row.
-   */
-  canBan: boolean;
-  /** Only a banned row offers Unban. */
-  canUnban: boolean;
-  /** Remove the account. The plans it created stay. */
-  canDelete: boolean;
-  /** Give the account a new email, including the admin's own row. */
-  canChangeEmail: boolean;
+  /** The signed-in admin's own row: it reads "You", and asks before its role changes. */
+  isSelf: boolean;
+  isServiceAccount: boolean;
+  /** What the status cell offers, in the order it shows them (`ACTIONS_BY_STATUS`). */
+  actions: readonly RowAction[];
   /**
    * Not on a banned row (S-411): removing the role would strand the ban, and granting one to a row
    * with none would hand back data access. The server refuses both; Unban comes first.
    */
   canChangeRole: boolean;
-  isServiceAccount: boolean;
   /** The latest change to this user's role; null when none is recorded. */
   lastChange: { by: ChangedBy; at: string } | null;
 };
 
+/** How the page loads: `now` (epoch milliseconds) decides expired invitations, `currentUserId` the "You" row. */
+export type UserRowsContext = { now: number; currentUserId: string };
+
 /**
  * The Users page's rows (S-406): one per directory entry, named the way the sidebar names people,
- * with the role, the status and the latest recorded change. Machine users never arrive, because
- * RLS hides them from the directory. Sorted by label, ignoring case and accents, then by email.
- * `now` (epoch milliseconds) decides whether an invitation's link has expired, so this stays pure.
- * The input is never mutated.
+ * with the role, the status, what the row offers and the latest recorded change. Machine users never
+ * arrive, because RLS hides them from the directory. Sorted by label, ignoring case and accents, then
+ * by email. The context is passed in, so this stays pure. The input is never mutated.
  */
-export function buildUserRows({ directory, profiles, roles, changes }: UserDirectoryInput, now: number): UserRow[] {
+export function buildUserRows(
+  { directory, profiles, roles, changes }: UserDirectoryInput,
+  { now, currentUserId }: UserRowsContext,
+): UserRow[] {
   // One credited user per directory entry, named exactly as every credit is (S-407), so a person
   // reads the same here and on a plan. The same map names each change's actor.
   const credited = buildCreditedUsers({ directory, profiles });
@@ -113,26 +109,16 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
     const roleRow = roleById.get(id);
     const latest = latestChangeTo(id, changes);
     const status = statusOf(roleRow, entryById.get(id), now);
-    // An invitation, a service account and a row with no role stay on their own actions (S-411).
-    const canManageAccount =
-      !isServiceAccount &&
-      (status === "active" || status === "deactivated" || status === "temporary_password" || status === "banned");
+    const isSelf = id === currentUserId;
     return {
       userId: id,
       label,
       role: roleRow?.role ?? null,
       status,
-      canReissuePassword: status === "temporary_password",
-      canResendInvitation: RESENDABLE.has(status),
-      canRevokeInvitation: REVOCABLE.has(status),
-      canDeactivate: status === "active",
-      canReactivate: status === "deactivated",
-      canBan: canManageAccount && status !== "banned",
-      canUnban: !isServiceAccount && status === "banned",
-      canDelete: canManageAccount,
-      canChangeEmail: canManageAccount,
-      canChangeRole: status !== "banned",
+      isSelf,
       isServiceAccount,
+      actions: actionsFor(status, { isSelf, isServiceAccount }),
+      canChangeRole: status !== "banned",
       lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };
   });
@@ -146,8 +132,46 @@ export function emailOf({ primary, secondary }: ProfileLabel): string {
 type DirectoryEntry = UserDirectoryInput["directory"][number];
 type RoleRow = UserDirectoryInput["roles"][number];
 
-const RESENDABLE: ReadonlySet<UserStatus> = new Set(["invited", "invitation_expired"]);
-const REVOCABLE: ReadonlySet<UserStatus> = new Set(["invited", "invitation_expired", "invitation_accepted"]);
+/**
+ * What each status offers, in the order the status cell shows them.
+ *
+ * - Re-issue password only on a pending account (S-409).
+ * - Re-send on an unaccepted invitation, expired or not, since GoTrue re-sends only to an unconfirmed
+ *   address. Revoke on any invitation until the person chooses a password, so the admin always has a
+ *   stop (S-410).
+ * - Deactivate only on an active row: a pending row has its own stop, and a row without a role has
+ *   nothing to keep. Reactivate only on a deactivated row, which restores the role it holds (S-408).
+ * - Ban, Delete and Change email on an active, deactivated or temporary-password account. A banned
+ *   row offers Unban instead of Ban, and nothing that would lift its pause (S-411). An invitation
+ *   keeps to Re-send and Revoke, and a row with no role offers nothing.
+ */
+const ACTIONS_BY_STATUS: Readonly<Record<UserStatus, readonly RowAction[]>> = {
+  active: ["deactivate", "ban", "delete", "change_email"],
+  deactivated: ["ban", "delete", "change_email", "reactivate"],
+  temporary_password: ["reissue", "ban", "delete", "change_email"],
+  banned: ["unban", "delete", "change_email"],
+  invited: ["resend", "revoke"],
+  invitation_expired: ["resend", "revoke"],
+  invitation_accepted: ["revoke"],
+  no_access: [],
+};
+
+/** Never on a service account (S-411): the campaign account belongs to its runbook. */
+const ACCOUNT_ACTIONS: ReadonlySet<RowAction> = new Set(["ban", "unban", "delete", "change_email"]);
+
+/**
+ * Never on the admin's own row: "No access" there already covers stepping down, and the function
+ * refuses banning or deleting oneself. A new email for oneself is allowed.
+ */
+const NOT_ON_SELF: ReadonlySet<RowAction> = new Set(["deactivate", "ban", "delete"]);
+
+const actionsFor = (
+  status: UserStatus,
+  { isSelf, isServiceAccount }: { isSelf: boolean; isServiceAccount: boolean },
+): readonly RowAction[] =>
+  ACTIONS_BY_STATUS[status].filter(
+    (action) => !(isSelf && NOT_ON_SELF.has(action)) && !(isServiceAccount && ACCOUNT_ACTIONS.has(action)),
+  );
 
 /**
  * First match wins: a recorded ban (S-411), then an unaccepted invitation, then a pending account

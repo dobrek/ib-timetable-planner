@@ -114,10 +114,10 @@ describe("buildUserRows", () => {
       {
         role: "admin",
         status: "active",
-        canBan: false,
+        canBan: true,
         canUnban: false,
-        canDelete: false,
-        canChangeEmail: false,
+        canDelete: true,
+        canChangeEmail: true,
         canDeactivate: true,
         canReactivate: false,
         canReissuePassword: false,
@@ -295,6 +295,59 @@ describe("buildUserRows", () => {
     const rows = build(input({ roles: [held(ADA, "admin")] }));
 
     expect(rows.map(({ canReissuePassword }) => canReissuePassword)).toEqual([false, false]);
+  });
+
+  it("offers ban, delete and a new email on an active, deactivated or temporary-password account, and not on an invitation, a service account or a row with no role", () => {
+    const rows = build(
+      input({
+        directory: [
+          entry(ADA, "ada@example.test"),
+          entry(BEA, "bea@example.test", { is_service_account: true }),
+          entry(CAL, "cal@example.test", { must_change_password: true }),
+          entry("00000000-0000-4000-8000-00000000000d", "dee@example.test", {
+            invited_at: NOON,
+            email_confirmed_at: null,
+            must_change_password: true,
+          }),
+        ],
+        roles: [
+          held(ADA, "author"),
+          held(BEA, "author"),
+          held(CAL, "viewer"),
+          held("00000000-0000-4000-8000-00000000000d", "viewer"),
+        ],
+      }),
+    );
+    // The deactivated row is added beside the four above.
+    const withDeactivated = build(
+      input({
+        directory: [entry(ADA, "ada@example.test")],
+        roles: [held(ADA, "viewer", LATER)],
+      }),
+    );
+
+    expect(
+      rows.map(({ status, canBan, canUnban, canDelete, canChangeEmail }) => ({
+        status,
+        canBan,
+        canUnban,
+        canDelete,
+        canChangeEmail,
+      })),
+    ).toEqual([
+      { status: "active", canBan: true, canUnban: false, canDelete: true, canChangeEmail: true },
+      { status: "active", canBan: false, canUnban: false, canDelete: false, canChangeEmail: false },
+      { status: "temporary_password", canBan: true, canUnban: false, canDelete: true, canChangeEmail: true },
+      { status: "invited", canBan: false, canUnban: false, canDelete: false, canChangeEmail: false },
+    ]);
+    expect(withDeactivated[0]).toMatchObject({
+      status: "deactivated",
+      canBan: true,
+      canUnban: false,
+      canDelete: true,
+      canChangeEmail: true,
+      canReactivate: true,
+    });
   });
 
   it("carries the service-account flag", () => {

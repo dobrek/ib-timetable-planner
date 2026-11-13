@@ -3,10 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@/shared/api";
 import { DomainError } from "@/shared/lib/errors";
 import {
+  ACCOUNT_NOT_ALLOWED_MESSAGE,
+  BAN_FAILURE,
   CREATE_ACCOUNT_UNKNOWN,
   EMAIL_EXISTS_MESSAGE,
   INVITATION_NOT_PENDING_MESSAGE,
   INVITE_UNKNOWN,
+  LAST_ADMIN_MESSAGE,
   NOT_PENDING_MESSAGE,
   RESEND_TOO_SOON_MESSAGE,
   REVOKE_FAILURE,
@@ -21,9 +24,9 @@ const invoking = (result: { data: unknown; error: unknown }) => {
   return { supabase: { functions: { invoke } } as unknown as SupabaseClient, invoke };
 };
 
-const refusal = (status: number) => ({
+const refusal = (status: number, code = "echoed") => ({
   data: null,
-  error: new FunctionsHttpError(new Response(JSON.stringify({ error: "echoed" }), { status })),
+  error: new FunctionsHttpError(new Response(JSON.stringify({ error: code }), { status })),
 });
 
 describe("invokeAdminUsers", () => {
@@ -136,6 +139,32 @@ describe("invokeAdminUsers", () => {
     await expect(
       invokeAdminUsers(invoking(refusal(429)).supabase, { op: "resend", userId: USER_ID }),
     ).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS", message: RESEND_TOO_SOON_MESSAGE });
+  });
+
+  it.each([
+    ["ban", "last_admin", LAST_ADMIN_MESSAGE],
+    ["delete", "last_admin", LAST_ADMIN_MESSAGE],
+    ["change_email", "email_exists", EMAIL_EXISTS_MESSAGE],
+    ["ban", "not_allowed", ACCOUNT_NOT_ALLOWED_MESSAGE],
+    ["unban", "not_allowed", ACCOUNT_NOT_ALLOWED_MESSAGE],
+  ] as const)("maps a 409 %s of %s to the local sentence", async (op, code, message) => {
+    const body = op === "change_email" ? { op, userId: USER_ID, email: "ada@example.test" } : { op, userId: USER_ID };
+
+    await expect(invokeAdminUsers(invoking(refusal(409, code)).supabase, body)).rejects.toMatchObject({
+      code: "CONFLICT",
+      message,
+    });
+  });
+
+  it("does not show a 409 code outside the closed set", async () => {
+    const error = await invokeAdminUsers(invoking(refusal(409, "echoed")).supabase, {
+      op: "ban",
+      userId: USER_ID,
+    }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(DomainError);
+    expect((error as DomainError).message).toBe(BAN_FAILURE);
+    expect((error as DomainError).message).not.toContain("echoed");
   });
 
   it("never puts the function's response text in the error it throws", async () => {

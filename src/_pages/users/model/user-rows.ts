@@ -73,13 +73,17 @@ export type UserRow = {
   canDeactivate: boolean;
   /** Only a deactivated row can be reactivated, which restores the role it holds. A ban outranks it. */
   canReactivate: boolean;
-  /** A ban of an account that is not already banned. Off until the page offers it. */
+  /**
+   * Ban, delete and a new email (S-411) on an active, deactivated or temporary-password account, and
+   * on a banned one for delete and a new email. Never on an invitation, a service account or a row
+   * with no role. The table also withholds Ban and Delete from the admin's own row.
+   */
   canBan: boolean;
   /** Only a banned row offers Unban. */
   canUnban: boolean;
-  /** Only a banned row offers Delete. Off for every other status until the page offers it. */
+  /** Remove the account. The plans it created stay. */
   canDelete: boolean;
-  /** Only a banned row offers a new email. Off for every other status until the page offers it. */
+  /** Give the account a new email, including the admin's own row. */
   canChangeEmail: boolean;
   isServiceAccount: boolean;
   /** The latest change to this user's role; null when none is recorded. */
@@ -104,6 +108,10 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
     const roleRow = roleById.get(id);
     const latest = latestChangeTo(id, changes);
     const status = statusOf(roleRow, entryById.get(id), now);
+    // An invitation, a service account and a row with no role stay on their own actions (S-411).
+    const canManageAccount =
+      !isServiceAccount &&
+      (status === "active" || status === "deactivated" || status === "temporary_password" || status === "banned");
     return {
       userId: id,
       label,
@@ -114,10 +122,10 @@ export function buildUserRows({ directory, profiles, roles, changes }: UserDirec
       canRevokeInvitation: REVOCABLE.has(status),
       canDeactivate: status === "active",
       canReactivate: status === "deactivated",
-      canBan: false,
-      canUnban: status === "banned",
-      canDelete: status === "banned",
-      canChangeEmail: status === "banned",
+      canBan: canManageAccount && status !== "banned",
+      canUnban: !isServiceAccount && status === "banned",
+      canDelete: canManageAccount,
+      canChangeEmail: canManageAccount,
       isServiceAccount,
       lastChange: latest ? { by: changedBy(latest, credited), at: latest.occurred_at } : null,
     };

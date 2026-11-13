@@ -9,9 +9,22 @@ import {
   resendInvitation,
   revokeInvitation,
   setUserActive,
+  banUser,
+  changeUserEmail,
+  deleteAccount,
+  unbanUser,
 } from "../api/user-client";
 import { goToDashboard } from "../lib/go-to-dashboard";
-import { ADMIN_ID, AUTHOR_ID, DEACTIVATED_ID, INVITED_ID, PENDING_ID, ROWS } from "./__fixtures__/user-rows";
+import { EMAIL_EXISTS_MESSAGE } from "../api/constants";
+import {
+  ADMIN_ID,
+  AUTHOR_ID,
+  COLLEAGUE_ID,
+  DEACTIVATED_ID,
+  INVITED_ID,
+  PENDING_ID,
+  ROWS,
+} from "./__fixtures__/user-rows";
 import UsersPage from "./UsersPage";
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
@@ -27,6 +40,10 @@ vi.mock("../api/user-client", () => ({
   resendInvitation: vi.fn(),
   revokeInvitation: vi.fn(),
   setUserActive: vi.fn(),
+  banUser: vi.fn(),
+  unbanUser: vi.fn(),
+  deleteAccount: vi.fn(),
+  changeUserEmail: vi.fn(),
 }));
 vi.mock("../lib/go-to-dashboard", () => ({ goToDashboard: vi.fn() }));
 // The barrel pulls in `astro:transitions/client`, which Vitest cannot resolve.
@@ -40,6 +57,10 @@ beforeEach(() => {
   vi.mocked(resendInvitation).mockReset().mockResolvedValue({ error: undefined });
   vi.mocked(revokeInvitation).mockReset().mockResolvedValue({ error: undefined });
   vi.mocked(setUserActive).mockReset().mockResolvedValue({ error: undefined });
+  vi.mocked(banUser).mockReset().mockResolvedValue({ error: undefined });
+  vi.mocked(unbanUser).mockReset().mockResolvedValue({ error: undefined });
+  vi.mocked(deleteAccount).mockReset().mockResolvedValue({ error: undefined });
+  vi.mocked(changeUserEmail).mockReset().mockResolvedValue({ error: undefined });
   vi.mocked(refreshPage).mockReset();
   vi.mocked(goToDashboard).mockReset();
   toastSuccess.mockReset();
@@ -494,6 +515,55 @@ describe("UsersPage deactivation", () => {
       expect(toastError).toHaveBeenCalledWith("Couldn't reach the server. Check the list before trying again.");
     });
     expect(screen.getByRole("button", { name: "Reactivate gil@example.test" })).toBeEnabled();
+    expect(refreshPage).not.toHaveBeenCalled();
+  });
+});
+
+/** Ban, delete and a new email (S-411): each destructive step is confirmed, and a mismatch does not submit. */
+describe("account actions", () => {
+  it("asks before banning a colleague, then bans them and reloads", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ban Ida Colleague" }));
+    expect(screen.getByRole("alertdialog", { name: "Ban ida@example.test?" })).toHaveTextContent(
+      "access ends on their next action",
+    );
+
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Ban" }));
+
+    expect(banUser).toHaveBeenCalledWith({ userId: COLLEAGUE_ID });
+    await waitFor(() => {
+      expect(toastSuccess).toHaveBeenCalledWith("ida@example.test banned");
+    });
+    expect(refreshPage).toHaveBeenCalled();
+  });
+
+  it("does not change an email when the confirmation does not match", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Change email for Ida Colleague" }));
+    const dialog = screen.getByRole("dialog", { name: "Change email for ida@example.test" });
+    fireEvent.change(within(dialog).getByLabelText("New email"), { target: { value: "ida@school.test" } });
+    fireEvent.change(within(dialog).getByLabelText("Confirm email"), { target: { value: "other@school.test" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Change email" }));
+
+    expect(await within(dialog).findByText("The two addresses don't match.")).toBeInTheDocument();
+    expect(changeUserEmail).not.toHaveBeenCalled();
+  });
+
+  it("shows the existing sentence when the new address is already on the list", async () => {
+    vi.mocked(changeUserEmail).mockResolvedValue({
+      error: { code: "CONFLICT", message: EMAIL_EXISTS_MESSAGE },
+    } as Awaited<ReturnType<typeof changeUserEmail>>);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Change email for admin@example.test" }));
+    const dialog = screen.getByRole("dialog", { name: "Change email for admin@example.test" });
+    fireEvent.change(within(dialog).getByLabelText("New email"), { target: { value: "taken@school.test" } });
+    fireEvent.change(within(dialog).getByLabelText("Confirm email"), { target: { value: "taken@school.test" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Change email" }));
+
+    expect(await within(dialog).findByText(EMAIL_EXISTS_MESSAGE)).toBeInTheDocument();
     expect(refreshPage).not.toHaveBeenCalled();
   });
 });

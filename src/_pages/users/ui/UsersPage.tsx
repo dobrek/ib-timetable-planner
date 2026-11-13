@@ -2,12 +2,17 @@ import { useState } from "react";
 import { refreshPage } from "@/shared/lib/forms";
 import { Button, Toaster } from "@/shared/ui";
 import type { PasswordReveal } from "../model/schemas";
+import { useAccountActions } from "../model/use-account-actions";
 import { useActivationActions } from "../model/use-activation-actions";
 import { useInvitationActions } from "../model/use-invitation-actions";
 import { useReissuePassword } from "../model/use-reissue-password";
 import { useRoleChange } from "../model/use-role-change";
 import type { UserRow } from "../model/user-rows";
+import ChangeEmailDialog from "./ChangeEmailDialog";
+import ConfirmBanDialog from "./ConfirmBanDialog";
 import ConfirmDeactivateDialog from "./ConfirmDeactivateDialog";
+import ConfirmDeleteAccountDialog from "./ConfirmDeleteAccountDialog";
+import ConfirmUnbanDialog from "./ConfirmUnbanDialog";
 import ConfirmReissueDialog from "./ConfirmReissueDialog";
 import ConfirmRevokeDialog from "./ConfirmRevokeDialog";
 import ConfirmRoleChangeDialog from "./ConfirmRoleChangeDialog";
@@ -36,6 +41,7 @@ export default function UsersPage({ rows, currentUserId }: Props) {
   const reissue = useReissuePassword(setReveal);
   const invitation = useInvitationActions();
   const activation = useActivationActions(currentUserId);
+  const accounts = useAccountActions();
   const { confirmation } = roleChange;
 
   const finishReveal = (): void => {
@@ -87,6 +93,10 @@ export default function UsersPage({ rows, currentUserId }: Props) {
         onDeactivate={activation.askDeactivate}
         reactivating={activation.reactivating}
         onReactivate={activation.reactivate}
+        onBan={accounts.askBan}
+        onUnban={accounts.askUnban}
+        onDeleteAccount={accounts.askDelete}
+        onChangeEmail={accounts.askChangeEmail}
       />
 
       <ConfirmRoleChangeDialog
@@ -132,6 +142,30 @@ export default function UsersPage({ rows, currentUserId }: Props) {
         isBusy={activation.isDeactivating}
         onConfirm={activation.confirmDeactivate}
         onClose={activation.cancelDeactivate}
+      />
+      <ConfirmBanDialog
+        target={accounts.banTarget}
+        isBusy={accounts.isBusy}
+        onConfirm={accounts.confirmBan}
+        onClose={accounts.cancel}
+      />
+      <ConfirmUnbanDialog
+        target={accounts.unbanTarget}
+        isBusy={accounts.isBusy}
+        onConfirm={accounts.confirmUnban}
+        onClose={accounts.cancel}
+      />
+      <ConfirmDeleteAccountDialog
+        target={accounts.deleteTarget}
+        isBusy={accounts.isBusy}
+        onConfirm={accounts.confirmDelete}
+        onClose={accounts.cancel}
+      />
+      <ChangeEmailDialog
+        target={accounts.emailTarget}
+        isBusy={accounts.isBusy}
+        onSubmit={accounts.submitEmail}
+        onClose={accounts.cancel}
       />
       <TemporaryPasswordDialog reveal={reveal} onClose={finishReveal} />
       <Toaster />

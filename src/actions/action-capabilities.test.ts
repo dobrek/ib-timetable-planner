@@ -43,6 +43,10 @@ const NOT_EDIT: Record<string, Capability> = {
   inviteUser: "manage_users", // the Users page: an admin only (S-410)
   resendInvitation: "manage_users", // the Users page: an admin only (S-410)
   revokeInvitation: "manage_users", // the Users page: an admin only (S-410)
+  banUser: "manage_users", // the Users page: an admin only (S-411)
+  unbanUser: "manage_users", // the Users page: an admin only (S-411)
+  deleteAccount: "manage_users", // the Users page: an admin only (S-411)
+  changeUserEmail: "manage_users", // the Users page: an admin only (S-411)
 };
 
 type Outcome = "reached" | "FORBIDDEN" | "SERVICE_UNAVAILABLE";

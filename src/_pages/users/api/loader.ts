@@ -22,7 +22,7 @@ const fetchUserRows = async (client: SupabaseClient, now: number): Promise<UserR
   const [directory, profiles, roles, changes] = await Promise.all([
     client
       .from("user_directory")
-      .select("user_id, email, is_service_account, must_change_password, invited_at, email_confirmed_at"),
+      .select("user_id, email, is_service_account, must_change_password, invited_at, email_confirmed_at, banned_at"),
     client.from("profiles").select("user_id, display_name"),
     client.from("user_roles").select("user_id, role, deactivated_at"),
     client

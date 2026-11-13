@@ -58,6 +58,33 @@ const hasEnv = Boolean(SUPABASE_URL && SERVICE_KEY);
       { kind: "reactivated", actor_id: admin.id, old_role: "author", new_role: "author" },
     ]);
   });
+
+  it("does not reactivate a row whose ban is recorded, and leaves the pause in place", async () => {
+    // The shared author, restored after the read-back. A fresh account would be deleted with the
+    // admin in teardown, and those two deletes deadlock on the access record that names both.
+    await setUserActive(admin.client, { userId: author.id, active: false });
+    const marked = await service
+      .from("user_directory")
+      .update({ banned_at: new Date().toISOString() })
+      .eq("user_id", author.id);
+    if (marked.error) throw new Error(`setup failed: ${marked.error.message}`);
+
+    await expect(setUserActive(admin.client, { userId: author.id, active: true })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      message: ACCESS_ALREADY_CHANGED_MESSAGE,
+    });
+
+    const role = await service.from("user_roles").select("deactivated_at").eq("user_id", author.id).maybeSingle();
+    if (role.error) throw new Error(`read-back failed: ${role.error.message}`);
+    const directory = await service.from("user_directory").select("banned_at").eq("user_id", author.id).maybeSingle();
+    if (directory.error) throw new Error(`read-back failed: ${directory.error.message}`);
+    expect(role.data?.deactivated_at).not.toBeNull();
+    expect(directory.data?.banned_at).not.toBeNull();
+
+    const cleared = await service.from("user_directory").update({ banned_at: null }).eq("user_id", author.id);
+    if (cleared.error) throw new Error(`restore failed: ${cleared.error.message}`);
+    await setUserActive(admin.client, { userId: author.id, active: true });
+  });
 });
 
 type Access = { role: string | null; plansSeen: number; insertRefusal: string | null };

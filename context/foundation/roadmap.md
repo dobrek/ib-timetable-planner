@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-12
+updated: 2026-11-13
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -55,7 +55,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-408 | deactivate-reactivate        | (admin) deactivate and reactivate a user, with data access ending on their next action                 | S-406              | FR-407                                                                         | in-progress |
 | S-409 | create-account-fallback      | (admin) create an account with a temporary password that must be changed at first sign-in              | S-401, S-406, F-402 | FR-403                                                                         | done        |
 | S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | done |
-| S-411 | remove-and-correct-accounts  | (admin) ban or delete an account and change a user's email; access ends within an hour                 | S-409              | FR-404, FR-414, §NFG (removal ≤ 1 h, access changes traceable)                 | proposed |
+| S-411 | remove-and-correct-accounts  | (admin) ban or delete an account and change a user's email; access ends within an hour                 | S-409              | FR-404, FR-414, §NFG (removal ≤ 1 h, access changes traceable)                 | in-progress |
 | S-310 | job-completion-email         | get notified of job completion by email as well as in-app                                              | S-402, S-407       | FR-309 (archived CP-SAT PRD), §NFG (no student data)                           | proposed |
 
 ## Streams
@@ -274,7 +274,7 @@ A foundation was considered for each of those and rejected: postponing none of t
   - Whether hosted auth rejects tokens issued before a ban (the platform's latest source does; local v2.189.0 does not). The one-hour guardrail holds either way through token expiry. — Owner: plan phase. Block: no.
   - A deleted creator or requester reads "Unknown", and their running job becomes stoppable by any author (S-407): `plans.created_by`, `generation_jobs.requested_by` and `stop_requested_by` are set to null on delete, which a pre-S-407 row also is. Whether deletion should read "Deleted user" instead needs a kind column beside each, as S-406's `access_changes.actor_kind`. — Owner: plan phase. Block: no.
 - **Risk:** Delete is irreversible, which is why it reuses the component S-409 already proved instead of introducing it. Both operations maintain existing accounts and share one risk: keeping the Users list in step with the platform's own user records. Revoking a pending invitation belongs to S-410. As for S-409, its secret-key writes reach S-406's record as the Operator's, so it writes its own `access_changes` records with an explicit actor. It must also refuse deleting the last admin itself: S-406's last-admin guard deliberately lets an account deletion's cascade through, which keeps teardown and account deletion working.
-- **Status:** proposed
+- **Status:** in-progress
 
 ### S-310: Job-completion email _(carried from M-01)_
 

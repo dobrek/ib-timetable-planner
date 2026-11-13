@@ -814,6 +814,7 @@ export type Database = {
       }
       user_directory: {
         Row: {
+          banned_at: string | null
           email: string | null
           email_confirmed_at: string | null
           invited_at: string | null
@@ -823,6 +824,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          banned_at?: string | null
           email?: string | null
           email_confirmed_at?: string | null
           invited_at?: string | null
@@ -832,6 +834,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          banned_at?: string | null
           email?: string | null
           email_confirmed_at?: string | null
           invited_at?: string | null
@@ -1100,6 +1103,10 @@ export type Database = {
         | "invitation_revoked"
         | "deactivated"
         | "reactivated"
+        | "account_banned"
+        | "account_unbanned"
+        | "account_deleted"
+        | "email_changed"
       app_role: "admin" | "author" | "viewer"
       availability_severity: "strong" | "soft"
       cohort: "dp1" | "dp2"
@@ -1247,6 +1254,10 @@ export const Constants = {
         "invitation_revoked",
         "deactivated",
         "reactivated",
+        "account_banned",
+        "account_unbanned",
+        "account_deleted",
+        "email_changed",
       ],
       app_role: ["admin", "author", "viewer"],
       availability_severity: ["strong", "soft"],

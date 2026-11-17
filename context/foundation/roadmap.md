@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-13
+updated: 2026-11-16
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -56,7 +56,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-409 | create-account-fallback      | (admin) create an account with a temporary password that must be changed at first sign-in              | S-401, S-406, F-402 | FR-403                                                                         | done        |
 | S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | done |
 | S-411 | remove-and-correct-accounts  | (admin) ban or delete an account and change a user's email; access ends within an hour                 | S-409              | FR-404, FR-414, §NFG (removal ≤ 1 h, access changes traceable)                 | in-progress |
-| S-310 | job-completion-email         | get notified of job completion by email as well as in-app                                              | S-402, S-407       | FR-309 (archived CP-SAT PRD), §NFG (no student data)                           | proposed |
+| S-310 | job-completion-email         | get notified of job completion by email as well as in-app                                              | S-402, S-407       | FR-309 (archived CP-SAT PRD), §NFG (no student data)                           | planning |
 
 ## Streams
 
@@ -287,7 +287,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Unknowns:**
   - A trigger that fires with no tab open (carried from M-01): nothing today notices a completed job without a browser, and the Worker's only database client is bound to a request's cookies. Under fail-closed roles the notifier also needs its own narrow read identity — never the secret key in the Worker. — Owner: plan phase. Block: no.
 - **Risk:** Nice-to-have, last, and skippable without touching either milestone's success criteria. Moved here from M-01 because it now shares this milestone's sending provider and domain (S-402) and needs the job's recorded requester as its recipient (S-407).
-- **Status:** proposed
+- **Status:** planning
 
 ## Backlog Handoff
 

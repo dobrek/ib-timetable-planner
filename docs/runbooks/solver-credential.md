@@ -50,6 +50,11 @@ Postgres                    GRANT: on generation_jobs COLUMNS only, never the
                                    only into a state the solver may declare
 ```
 
+**The hook maps a second machine role since S-310:** `job_notifier`, the job-email cron's
+([`job-email.md`](job-email.md)), built the same way and pinned by its own guard suite,
+`src/test/job-notifier-credential.integration.test.ts`. The allowlist is exactly those two values;
+any other `machine_role`, or none, passes through as `authenticated`.
+
 Three locks, and all three are needed. The GRANT layer decides whether a table is **reachable at
 all**; the column grant decides which **fields** are writable; RLS decides which **rows** are
 visible. `solver_job_writer` has no `BYPASSRLS`, no `INSERT` (the Worker enqueues), no `DELETE` (a
@@ -206,9 +211,11 @@ catalog rather than from the migration text.
 #    supabase/config.toml -> [auth.hook.custom_access_token] enabled = false
 pnpm exec supabase stop && pnpm exec supabase start
 
-# 2. The guard MUST go red (last run: 5 of 8 assertions failed, including the role
-#    claim and the plans denial).
-pnpm test:integration src/test/solver-credential.integration.test.ts
+# 2. Both machine roles' guards MUST go red. Last run 2026-11-19 (S-310, after the hook's
+#    re-create): 7 of 12 solver assertions failed, the role claim and the plans denial among
+#    them, and 9 of 18 notifier assertions, its role claim and every row-scope case.
+pnpm test:integration src/test/solver-credential.integration.test.ts \
+  src/test/job-notifier-credential.integration.test.ts
 
 # 3. Re-enable, restart, and confirm green again.
 ```

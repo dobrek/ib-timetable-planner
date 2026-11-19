@@ -79,6 +79,13 @@ describe("readJobEmailConfig", () => {
     });
   });
 
+  it("refuses a MAILPIT_URL off loopback, which the Mailpit transport would refuse too", () => {
+    expect(readJobEmailConfig({ ...complete, MAILPIT_URL: "https://mailpit.example.test" })).toEqual({
+      ok: false,
+      problems: ["MAILPIT_URL must name a loopback host"],
+    });
+  });
+
   it("keeps only the origin of APP_ORIGIN, so a trailing slash never doubles a link's", () => {
     expect(readJobEmailConfig({ ...complete, APP_ORIGIN: "https://ib-timetable-planner.dev/" })).toMatchObject({
       ok: true,

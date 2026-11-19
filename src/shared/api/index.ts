@@ -27,6 +27,21 @@ export {
   unwrapCompleted,
   assertNoQueryErrors,
 } from "./postgrest";
+export {
+  chooseMailTransport,
+  createMailTransport,
+  createMailpitTransport,
+  createResendTransport,
+  selectMailTransport,
+  type FetchLike,
+  type MailSender,
+  type MailTransport,
+  type MailTransportChoice,
+  type MailTransportKeys,
+  type MailTransportProblem,
+  type OutgoingMail,
+  type SendOutcome,
+} from "./mail";
 export type { Database, Json } from "./database.types";
 
 /** Canonical typed Supabase client alias — replaces per-module duplicates. */

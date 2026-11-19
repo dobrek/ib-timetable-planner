@@ -754,24 +754,24 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Automated
 
-- [x] 3.1 Unit tests pass for entities and shared
-- [x] 3.2 Type check passes: `pnpm check`
-- [x] 3.3 Lint and FSD gates pass
+- [x] 3.1 Unit tests pass for entities and shared — 10c680c8
+- [x] 3.2 Type check passes: `pnpm check` — 10c680c8
+- [x] 3.3 Lint and FSD gates pass — 10c680c8
 
 ### Phase 4: The sweep
 
 #### Automated
 
-- [ ] 4.1 Mailpit send API probe answered 200 on the local stack (recorded)
-- [ ] 4.2 Sweep suite passes
-- [ ] 4.3 Full integration lane passes
-- [ ] 4.4 Unit tests pass: `pnpm test`
-- [ ] 4.5 Type check passes: `pnpm check`
-- [ ] 4.6 Lint and FSD gates pass
+- [x] 4.1 Mailpit send API probe answered 200 on the local stack (recorded)
+- [x] 4.2 Sweep suite passes
+- [x] 4.3 Full integration lane passes
+- [x] 4.4 Unit tests pass: `pnpm test`
+- [x] 4.5 Type check passes: `pnpm check`
+- [x] 4.6 Lint and FSD gates pass
 
 #### Manual
 
-- [ ] 4.7 Sweep-sent messages read well in Mailpit (succeeded, stalled)
+- [x] 4.7 Sweep-sent messages read well in Mailpit (succeeded, stalled)
 
 ### Phase 5: Worker cron wiring
 

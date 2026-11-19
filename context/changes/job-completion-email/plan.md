@@ -792,8 +792,8 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Automated
 
-- [x] 6.1 Formatting passes for the docs
-- [x] 6.2 The full local CI gate passes before merge: `/verify`
+- [x] 6.1 Formatting passes for the docs — e9c98a7e
+- [x] 6.2 The full local CI gate passes before merge: `/verify` — e9c98a7e
 
 #### Manual
 

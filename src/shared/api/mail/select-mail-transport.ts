@@ -41,15 +41,6 @@ export function createMailTransport(
     : createMailpitTransport({ url: choice.url, ...options });
 }
 
-/** The transport the keys name, or null when they name none, or both. */
-export function selectMailTransport(
-  keys: MailTransportKeys,
-  options: { from: MailSender; fetch?: FetchLike },
-): MailTransport | null {
-  const chosen = chooseMailTransport(keys);
-  return chosen.ok ? createMailTransport(chosen.choice, options) : null;
-}
-
 const present = (raw: string | undefined): string | undefined => {
   const trimmed = raw?.trim();
   return trimmed === "" ? undefined : trimmed;

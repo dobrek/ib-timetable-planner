@@ -155,17 +155,10 @@ const readDueJobs = async (supabase: SupabaseClient): Promise<DueJob[]> => {
 
 /** An unrecognised status is never guessed at: the row waits, untouched. */
 const phaseOf = (row: DueJob, nowMs: number): JobEmailPhase =>
-  isGenerationJobStatus(row.status) ? decideJobPhase(jobFacts(row, row.status), nowMs) : { kind: "wait" };
+  hasKnownStatus(row) ? decideJobPhase(row, nowMs) : { kind: "wait" };
 
-const jobFacts = (row: DueJob, status: JobEmailJobFacts["status"]): JobEmailJobFacts => ({
-  status,
-  requested_by: row.requested_by,
-  stop_requested_by: row.stop_requested_by,
-  created_at: row.created_at,
-  started_at: row.started_at,
-  finished_at: row.finished_at,
-  heartbeat_at: row.heartbeat_at,
-});
+/** The row's other columns already are the decision's facts, as selected. */
+const hasKnownStatus = (row: DueJob): row is DueJob & JobEmailJobFacts => isGenerationJobStatus(row.status);
 
 /**
  * The requesters' directory and role rows, and the source plans' names, in three batch reads, only

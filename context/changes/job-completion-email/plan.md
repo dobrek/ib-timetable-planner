@@ -734,6 +734,12 @@ Recorded by the implementation review (`reviews/impl-review.md`). The phase comm
 - **F5:** a halted email claims a kept board, and counts it, only while the proposal plan still exists.
 - **F6:** the notifier's `plans` policy admits only a due job's source plan, not its proposal plan. The sweep reads only the source plan's name, and the link uses the id from the job row. The migration was edited in place before merge.
 
+**Simplification pass (second review, 2026-11-19), behaviour unchanged:**
+- `selectMailTransport` (Phase 3's planned selector) is removed: nothing called it. The config reader calls `chooseMailTransport`, and the cron builds from its choice with `createMailTransport`.
+- The cron's cached session no longer records an identity (URL and email). A Worker's env is fixed for an isolate's life, so the session is judged by its expiry alone.
+- The email content derives the link, the counts line and the call to action from one value, the proposal plan holding a board (or null), where it had a boolean plus a second null check.
+- The sweep passes a due row with a recognised status straight to `decideJobPhase`, with no field-by-field copy.
+
 ## Progress
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles. See `references/progress-format.md`.

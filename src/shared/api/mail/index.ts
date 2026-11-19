@@ -12,7 +12,6 @@ export { createMailpitTransport, type MailpitTransportOptions } from "./mailpit-
 export {
   chooseMailTransport,
   createMailTransport,
-  selectMailTransport,
   type MailTransportChoice,
   type MailTransportKeys,
   type MailTransportProblem,

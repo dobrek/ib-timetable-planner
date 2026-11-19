@@ -38,9 +38,9 @@ export function createClient(requestHeaders: Headers, cookies: AstroCookies) {
  *
  * Never use it for a call that needs a session: it has none, and it never stores one.
  *
- * Every request gives up after `SUPABASE_REQUEST_TIMEOUT_MS` (`timeBoundedFetch`): the reset runs in `waitUntil`, which
- * Workers cancels 30 s after the response, so a stalled send must fail in time to log its own
- * `send-failed` line rather than vanish.
+ * Every request gives up after `SUPABASE_REQUEST_TIMEOUT_MS` (`timeBoundedFetch`): the reset runs in
+ * `waitUntil`, which Workers cancels 30 s after the response, so a stalled send must fail in time to
+ * log its own `send-failed` line rather than vanish.
  */
 export function createSessionlessClient() {
   if (!SUPABASE_URL || !SUPABASE_KEY) {

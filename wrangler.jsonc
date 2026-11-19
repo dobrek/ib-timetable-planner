@@ -23,6 +23,22 @@
     "redact_query_string": true,
   },
 
+  // --- the job-email cron (S-310) -----------------------------------------------------------------
+  // Every minute, in UTC. A run is cheap next to a 20–38-minute solve: one indexed read of the due
+  // jobs, and usually nothing to send. Every run is idempotent (a claim, then a stamp, and Resend's
+  // Idempotency-Key), so an overlapping or repeated run never sends twice. `src/worker.ts` exports the
+  // `scheduled` handler; without the notifier's secrets it logs `[job-email] disabled` once per
+  // isolate and returns. Changes to this take up to 15 minutes to propagate after a deploy.
+  "triggers": {
+    "crons": ["* * * * *"],
+  },
+  // Non-secret, so it lives here, visible in the repo: the origin every job email's one link is built
+  // on. A cron has no request to take one from. `.dev.vars` overrides it locally
+  // (`APP_ORIGIN=http://localhost:4321`, README § Job emails).
+  "vars": {
+    "APP_ORIGIN": "https://ib-timetable-planner.dev",
+  },
+
   // --- the CP-SAT solver container (S-302) ---------------------------------------------------------
   // Every value here is set EXPLICITLY, because each of these defaults is wrong for this workload in
   // a way that fails quietly rather than loudly. Field names were read from

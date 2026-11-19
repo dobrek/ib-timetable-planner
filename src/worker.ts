@@ -1,4 +1,5 @@
 import { handle } from "@astrojs/cloudflare/handler";
+import { scheduled } from "./job-email-cron";
 
 export { SolverContainer } from "./solver-container";
 
@@ -20,7 +21,13 @@ export { SolverContainer } from "./solver-container";
  * **Do not repoint `main` back at the adapter entrypoint.** The build would stay green and the
  * container would simply stop being deployable.
  *
+ * **The default export also carries `scheduled`** (S-310): the job-email cron, fired once a minute by
+ * `wrangler.jsonc`'s `triggers.crons` (`src/job-email-cron.ts`). The adapter does not wrap a
+ * project-owned `main`: its Vite plugin re-exports this default object as it is, and its output
+ * config spreads `triggers` into `dist/server/wrangler.json`. Checked in the build, not assumed: the
+ * cron's `[job-email]` log tag is in `dist/server/`, and `triggers.crons` is in the built config.
+ *
  * `steiger` does not inspect top-level `src/` files (they sit outside `layerSequence`), which is why
- * this and `solver-container.ts` live here rather than under a layer.
+ * this, `solver-container.ts` and `job-email-cron.ts` live here rather than under a layer.
  */
-export default { fetch: handle } satisfies ExportedHandler<Env>;
+export default { fetch: handle, scheduled } satisfies ExportedHandler<Env>;

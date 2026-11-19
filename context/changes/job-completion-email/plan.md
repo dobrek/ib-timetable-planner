@@ -762,31 +762,31 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Automated
 
-- [x] 4.1 Mailpit send API probe answered 200 on the local stack (recorded)
-- [x] 4.2 Sweep suite passes
-- [x] 4.3 Full integration lane passes
-- [x] 4.4 Unit tests pass: `pnpm test`
-- [x] 4.5 Type check passes: `pnpm check`
-- [x] 4.6 Lint and FSD gates pass
+- [x] 4.1 Mailpit send API probe answered 200 on the local stack (recorded) — 8da9264d
+- [x] 4.2 Sweep suite passes — 8da9264d
+- [x] 4.3 Full integration lane passes — 8da9264d
+- [x] 4.4 Unit tests pass: `pnpm test` — 8da9264d
+- [x] 4.5 Type check passes: `pnpm check` — 8da9264d
+- [x] 4.6 Lint and FSD gates pass — 8da9264d
 
 #### Manual
 
-- [x] 4.7 Sweep-sent messages read well in Mailpit (succeeded, stalled)
+- [x] 4.7 Sweep-sent messages read well in Mailpit (succeeded, stalled) — 8da9264d
 
 ### Phase 5: Worker cron wiring
 
 #### Automated
 
-- [ ] 5.1 Cron config tests pass
-- [ ] 5.2 Type check passes: `pnpm check`
-- [ ] 5.3 Lint and FSD gates pass
-- [ ] 5.4 Build passes and keeps the cron in `dist/server/wrangler.json`
-- [ ] 5.5 The built entry's default export carries `scheduled`
+- [x] 5.1 Cron config tests pass
+- [x] 5.2 Type check passes: `pnpm check`
+- [x] 5.3 Lint and FSD gates pass
+- [x] 5.4 Build passes and keeps the cron in `dist/server/wrangler.json`
+- [x] 5.5 The built entry's default export carries `scheduled`
 
 #### Manual
 
-- [ ] 5.6 Local cron smoke sends one email through Mailpit with a localhost link
-- [ ] 5.7 Unconfigured smoke logs `disabled` once and sends nothing
+- [x] 5.6 Local cron smoke sends one email through Mailpit with a localhost link
+- [x] 5.7 Unconfigured smoke logs `disabled` once and sends nothing
 
 ### Phase 6: Runbook, docs and hosted rollout
 

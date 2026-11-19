@@ -58,7 +58,8 @@
 --   * Jobs: UPDATE `using (email_requested and emailed_at is null)`, `with check (email_requested)`:
 --     only an unsettled email is claimed or settled, and only once.
 --   * Plans, directory and roles: SELECT only the rows a job with an email still due refers to (its
---     source and proposal plans, its requester). A leaked notifier password reads a handful of
+--     source plan, whose name the email states, and its requester). Not the proposal plan: the link
+--     needs only its id, which the job row carries. A leaked notifier password reads a handful of
 --     addresses, not the staff directory, and a settled job drops its requester out of view.
 --
 -- THE HOOK, re-created from its live body (`20260810200934`, its only definition). Its allowlist
@@ -89,7 +90,10 @@ alter table public.generation_jobs
   add column emailed_at timestamptz,
   add column email_outcome text,
   add constraint generation_jobs_email_outcome_check check (
-    email_outcome in ('sent', 'sent_stalled', 'no_recipient', 'recipient_fenced', 'stopped_by_requester', 'expired')
+    email_outcome in (
+      'sent', 'sent_stalled', 'no_recipient', 'recipient_fenced', 'stopped_by_requester', 'dispatch_refused',
+      'expired'
+    )
   ),
   add constraint generation_jobs_email_settled_check check ((emailed_at is null) = (email_outcome is null));
 
@@ -107,7 +111,8 @@ comment on column public.generation_jobs.emailed_at is
 
 comment on column public.generation_jobs.email_outcome is
   'How the job email was settled (S-310): sent, sent_stalled, or skipped as no_recipient, '
-  'recipient_fenced, stopped_by_requester or expired. Null exactly when emailed_at is null.';
+  'recipient_fenced, stopped_by_requester, dispatch_refused or expired. Null exactly when emailed_at '
+  'is null.';
 
 -- The sweep's due set, in the order it reads it. The lookup policies' subqueries scan it too.
 create index generation_jobs_email_due_idx on public.generation_jobs (created_at)
@@ -166,7 +171,7 @@ create policy "Notifier reads the plans of jobs with an email due" on public.pla
         from public.generation_jobs j
        where j.email_requested
          and j.emailed_at is null
-         and (j.plan_id = plans.id or j.proposal_plan_id = plans.id)
+         and j.plan_id = plans.id
     )
   );
 

@@ -340,14 +340,14 @@ const DUE = "j.email_requested AND (j.emailed_at IS NULL)";
       expect(data?.map(({ user_id }) => user_id)).toEqual([requesterId]);
     });
 
-    it("sees the source and proposal plans of a job with an email due, and no other plan", async () => {
+    it("sees the source plan of a job with an email due, and no other plan, its proposal included", async () => {
       const { data, error } = await notifier.client
         .from("plans")
         .select("id, name")
         .in("id", [sourcePlanId, proposalPlanId, settledPlanId, optedOutPlanId]);
 
       expect(error).toBeNull();
-      expect(data?.map(({ id }) => id).sort()).toEqual([sourcePlanId, proposalPlanId].sort());
+      expect(data?.map(({ id }) => id)).toEqual([sourcePlanId]);
     });
   });
 
@@ -386,7 +386,7 @@ const DUE = "j.email_requested AND (j.emailed_at IS NULL)";
         tablename: "plans",
         policyname: "Notifier reads the plans of jobs with an email due",
         cmd: "SELECT",
-        qual: `(EXISTS ( SELECT 1 FROM generation_jobs j WHERE (${DUE} AND ((j.plan_id = plans.id) OR (j.proposal_plan_id = plans.id)))))`,
+        qual: `(EXISTS ( SELECT 1 FROM generation_jobs j WHERE (${DUE} AND (j.plan_id = plans.id))))`,
         with_check: null,
       },
       {

@@ -35,6 +35,7 @@ many courses could not be fully placed. It has exactly one link, to the proposal
 | `sent`                 | Emailed: the job succeeded, failed, was interrupted, or was stopped by someone else |
 | `sent_stalled`         | Emailed: the heartbeat went quiet for over 5 minutes (one email per job, final)     |
 | `stopped_by_requester` | Not emailed: the requester pressed Stop themselves                                  |
+| `dispatch_refused`     | Not emailed: the solver refused the job at Generate, so the author saw the error    |
 | `no_recipient`         | Not emailed: no requester (pre-S-407, or deleted), or no directory row              |
 | `recipient_fenced`     | Not emailed: the requester is pending, deactivated, or holds no role                |
 | `expired`              | Not emailed: the event was more than 24 hours old when the sweep saw it             |
@@ -129,8 +130,8 @@ It is the one **quiet** off switch:
   within 24 hours of their event, or expire after that.
 
 **Revoking the key in Resend is not equivalent.** The cron stays configured and the checkbox stays
-visible. Each run claims the first due job, gets a 401 or 403, logs nothing more than its counts
-(`deferred=…`), and stops the run (`stop-tick(credential)`), until the jobs expire after 24 hours.
+visible. Each run claims the first due job, gets a 401 or 403, stops the run
+(`stop-tick(credential)`), and logs `deferred=… (credential)`, until the jobs expire after 24 hours.
 Delete the secret as well.
 
 ## The shared quota
@@ -148,18 +149,22 @@ fallback is Resend Pro.
 pnpm exec wrangler tail --format pretty   # or the dashboard: Workers → ib-timetable-planner → Logs
 ```
 
-| Line                                                         | Meaning                                                                                                |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `[job-email] sent=… skipped=… waiting=… deferred=… failed=…` | One run, counts only. Every minute while configured.                                                   |
-| `[job-email] disabled: missing …`                            | Not configured. Once per isolate, not per run.                                                         |
-| `[job-email] sign-in failed (<code>); skipping this run`     | The password grant was refused: a rotation in progress, a wrong password, or `over_request_rate_limit` |
-| `[job-email] sweep failed: …`                                | A database read or write failed. The next run signs in afresh.                                         |
+| Line                                                         | Meaning                                                                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `[job-email] sent=… skipped=… waiting=… deferred=… failed=…` | One run. Every minute while configured. `deferred` and `failed` carry their reasons, when there are any |
+| `[job-email] disabled: missing …`                            | Not configured. Once per isolate, not per run.                                                          |
+| `[job-email] sign-in failed (<code>); skipping this run`     | The password grant was refused: a rotation in progress, a wrong password, or `over_request_rate_limit`  |
+| `[job-email] sweep failed: …`                                | A database read or write failed. The next run signs in afresh.                                          |
 
 No line carries an address or a plan name.
 
 `waiting` counts jobs still running, or held by another run's claim. `deferred` counts jobs not
-reached because Resend refused every send for now. `failed` counts sends that failed; each is retried
-once its 5-minute claim expires.
+reached because Resend refused every send for now, followed by why: `(quota)`, `(rate-limited)` or
+`(credential)`, a revoked or restricted key or an unverified domain. `failed` counts sends that failed,
+followed by each distinct provider status and error name, e.g.
+`failed=2 (0 no-answer, 422 validation_error)`, where `0 no-answer` is a timeout or a refused
+connection. Each failed send is retried once its 5-minute claim expires, so the same name every few
+minutes for one job is a permanent refusal that will repeat until the job expires after 24 hours.
 
 ## Things never to do
 

@@ -121,6 +121,20 @@ describe("buildJobEmail — where the one link goes", () => {
     expect(buildJobEmail("finished", facts({ proposalPlanId: null }), ORIGIN).link).toBe(`${ORIGIN}/plans/${PLAN}`);
   });
 
+  it("never claims a kept board, or counts one, once the proposal is gone", () => {
+    const orphaned = facts({
+      proposalPlanId: null,
+      checkpointStageIndex: 3,
+      checkpointDiagnostics: diagnostics([2]),
+    });
+    const { text, link } = buildJobEmail("stopped", orphaned, ORIGIN);
+
+    expect(link).toBe(`${ORIGIN}/plans/${PLAN}`);
+    expect(text).toContain("Nothing was kept. Open the plan to try again:");
+    expect(text).not.toContain("best board");
+    expect(text).not.toContain("could not be fully placed");
+  });
+
   it("says which it opens", () => {
     expect(buildJobEmail("finished", facts(), ORIGIN).text).toContain("Open the proposal to review it:");
     expect(buildJobEmail("failed", facts(), ORIGIN).text).toContain(

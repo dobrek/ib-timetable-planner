@@ -108,8 +108,23 @@ const identityOf = (config: JobEmailConfig): string => `${config.supabaseUrl} ${
 const isReusable = (cached: CachedSession, config: JobEmailConfig, nowMs: number): boolean =>
   cached.identity === identityOf(config) && cached.expiresAtMs - SESSION_REFRESH_MARGIN_MS > nowMs;
 
-const countsLine = ({ sent, skipped, waiting, deferred, failed }: JobEmailSweepReport): string =>
-  `sent=${String(sent)} skipped=${String(skipped)} waiting=${String(waiting)} deferred=${String(deferred)} failed=${String(failed)}`;
+/**
+ * One line per run: the counts, and after `deferred` and `failed` why, when there is a why. Failures
+ * are listed once per distinct status and name, so a run of timeouts stays one short line.
+ */
+const countsLine = (report: JobEmailSweepReport): string =>
+  [
+    `sent=${String(report.sent)}`,
+    `skipped=${String(report.skipped)}`,
+    `waiting=${String(report.waiting)}`,
+    `deferred=${String(report.deferred)}${report.stoppedBy === null ? "" : ` (${report.stoppedBy})`}`,
+    `failed=${String(report.failed)}${failuresSuffix(report.failures)}`,
+  ].join(" ");
+
+const failuresSuffix = (failures: JobEmailSweepReport["failures"]): string => {
+  const distinct = [...new Set(failures.map(({ status, name }) => `${String(status)} ${name}`))];
+  return distinct.length === 0 ? "" : ` (${distinct.join(", ")})`;
+};
 
 const DEFAULT_DEPS: JobEmailCronDeps = {
   createClient: createMachineClient,

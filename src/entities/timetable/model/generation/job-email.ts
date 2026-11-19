@@ -7,7 +7,8 @@ import { isStaleActiveJob } from "./job-staleness";
  * decision runs in two stages:
  *
  * 1. `decideJobPhase`, from the job alone: too old to mention, still running, stopped by the
- *    requester themselves, or worth an email of a known kind once a recipient is found.
+ *    requester themselves, refused at dispatch, or worth an email of a known kind once a recipient
+ *    is found.
  * 2. `decideRecipient`, from the requester's account: nobody to email, or someone fenced from the app
  *    (pending, deactivated, or holding no role), or a send.
  *
@@ -18,6 +19,7 @@ import { isStaleActiveJob } from "./job-staleness";
  * | Event older than `JOB_EMAIL_LOOKBACK_MS`                           | skip `expired`                  |
  * | Active and not stale                                               | wait                            |
  * | Stopped by its own requester                                       | skip `stopped_by_requester`     |
+ * | `failed` before it started (its dispatch was refused)              | skip `dispatch_refused`         |
  * | No requester, or no directory row                                  | skip `no_recipient`             |
  * | Pending password, no role row, or deactivated                      | skip `recipient_fenced`         |
  * | Active and stale                                                   | send `stalled` (`sent_stalled`) |
@@ -30,19 +32,32 @@ import { isStaleActiveJob } from "./job-staleness";
 export type JobEmailKind = "finished" | "failed" | "interrupted" | "stopped" | "stalled";
 
 /** How a job's email was settled without sending: `generation_jobs.email_outcome`'s skip values. */
-export type JobEmailSkipOutcome = "no_recipient" | "recipient_fenced" | "stopped_by_requester" | "expired";
+export type JobEmailSkipOutcome =
+  | "no_recipient"
+  | "recipient_fenced"
+  | "stopped_by_requester"
+  | "dispatch_refused"
+  | "expired";
 
-/** Every `generation_jobs.email_outcome` value: the migration's check constraint lists the same six. */
+/** Every `generation_jobs.email_outcome` value: the migration's check constraint lists the same seven. */
 export type JobEmailOutcome = "sent" | "sent_stalled" | JobEmailSkipOutcome;
 
 /**
  * How far back an event may be and still be emailed: 24 hours, and never more.
  *
  * It must not exceed Resend's idempotency window, which is also 24 hours. A job is due only within
- * this window of its event, and every send attempt happens after the event, so every retry of the
- * same job falls inside the window of the `Idempotency-Key` its first attempt used: a send that
- * succeeded but was never stamped cannot go out twice. The window also keeps a catch-up after an
- * outage from mailing stale news.
+ * this window of its event, and every send attempt happens after the event. So while the event stays
+ * put, every retry of the same job falls inside the window of the `Idempotency-Key` its first attempt
+ * used, and a send that succeeded but was never stamped does not go out twice. The window also keeps
+ * a catch-up after an outage from mailing stale news.
+ *
+ * Two narrow gaps remain. Both need a successful send whose stamp never landed:
+ * - **The event can move.** A stalled job's event is its heartbeat. If the job then ends, the event
+ *   becomes `finished_at`. A retry inside the key's window carries a changed body, which Resend
+ *   answers with 409 `invalid_idempotent_request`; the sweep reads that as already sent and stamps
+ *   `sent`, not `sent_stalled`. Only if the stamp keeps failing for a whole day can a retry fall
+ *   outside the window and send a second email.
+ * - **Mailpit has no idempotency,** so locally and in CI such a retry is a second message.
  */
 export const JOB_EMAIL_LOOKBACK_MS = 24 * 60 * 60_000;
 
@@ -52,6 +67,7 @@ export type JobEmailJobFacts = {
   requested_by: string | null;
   stop_requested_by: string | null;
   created_at: string;
+  started_at: string | null;
   finished_at: string | null;
   heartbeat_at: string | null;
 };
@@ -65,7 +81,7 @@ export type JobEmailRecipientFacts = {
 
 export type JobEmailPhase =
   | { kind: "wait" }
-  | { kind: "skip"; outcome: "expired" | "stopped_by_requester" }
+  | { kind: "skip"; outcome: "expired" | "stopped_by_requester" | "dispatch_refused" }
   | { kind: "needs-recipient"; email: JobEmailKind };
 
 export type NeedsRecipient = Extract<JobEmailPhase, { kind: "needs-recipient" }>;
@@ -75,11 +91,12 @@ export type JobEmailDecision =
   | { kind: "skip"; outcome: JobEmailSkipOutcome }
   | { kind: "send"; email: JobEmailKind };
 
-/** The first stage, from the job alone: the table's first three rows, and the kind it would send. */
+/** The first stage, from the job alone: the table's first four rows, and the kind it would send. */
 export function decideJobPhase(job: JobEmailJobFacts, nowMs: number): JobEmailPhase {
   if (isExpired(job, nowMs)) return { kind: "skip", outcome: "expired" };
   if (isActiveJobStatus(job.status) && !isStaleActiveJob(job, nowMs)) return { kind: "wait" };
   if (isStoppedByRequester(job)) return { kind: "skip", outcome: "stopped_by_requester" };
+  if (isRefusedAtDispatch(job)) return { kind: "skip", outcome: "dispatch_refused" };
   return { kind: "needs-recipient", email: EMAIL_KIND[job.status] };
 }
 
@@ -133,6 +150,13 @@ const isExpired = (job: JobEmailJobFacts, nowMs: number): boolean => {
 /** They pressed Stop on their own job, so they were watching when it ended. */
 const isStoppedByRequester = (job: JobEmailJobFacts): boolean =>
   job.stop_requested_by !== null && job.stop_requested_by === job.requested_by;
+
+/**
+ * The solver never claimed it, so the author saw the refusal on screen when they pressed Generate.
+ * Only the Worker's refused dispatch writes `failed` before `started_at`: the solver's terminal write
+ * filters `status=eq.running`, and a reclaim writes `interrupted`.
+ */
+const isRefusedAtDispatch = (job: JobEmailJobFacts): boolean => job.status === "failed" && job.started_at === null;
 
 /**
  * Pending, deactivated, or holding no role: with no role row `role?.deactivatedAt` is undefined, which

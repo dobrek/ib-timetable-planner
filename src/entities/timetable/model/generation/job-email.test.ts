@@ -22,6 +22,7 @@ const job = (over: Partial<JobEmailJobFacts> = {}): JobEmailJobFacts => ({
   requested_by: REQUESTER,
   stop_requested_by: null,
   created_at: ago(30 * MINUTE),
+  started_at: ago(29 * MINUTE),
   finished_at: ago(2 * MINUTE),
   heartbeat_at: ago(2 * MINUTE),
   ...over,
@@ -31,7 +32,7 @@ const author: JobEmailRecipientFacts = { mustChangePassword: false, role: { deac
 
 describe("decideJobEmail — the decision table, in order", () => {
   it("row 1: an event older than the lookback is expired, before anything else is asked", () => {
-    // Stopped by the requester AND with no recipient, which rows 3 and 4 would also skip: expiry wins.
+    // Stopped by the requester AND with no recipient, which rows 3 and 5 would also skip: expiry wins.
     const old = job({ finished_at: ago(JOB_EMAIL_LOOKBACK_MS + 1), stop_requested_by: REQUESTER, requested_by: null });
 
     expect(decideJobEmail(old, null, NOW)).toEqual({ kind: "skip", outcome: "expired" });
@@ -86,19 +87,38 @@ describe("decideJobEmail — the decision table, in order", () => {
     });
   });
 
-  it("row 4: no requester, or no directory row, is nobody to email", () => {
+  it("row 4: a job that failed before it started was refused at dispatch, before the recipient is asked about", () => {
+    const refused = job({ status: "failed", started_at: null });
+
+    expect(decideJobEmail(refused, null, NOW)).toEqual({ kind: "skip", outcome: "dispatch_refused" });
+  });
+
+  it("row 4: a job that failed after the solver claimed it is emailed", () => {
+    expect(decideJobEmail(job({ status: "failed" }), author, NOW)).toEqual({ kind: "send", email: "failed" });
+  });
+
+  it("row 4: only `failed` reads a missing start as a refused dispatch", () => {
+    // A stale queued row never started either: the dispatch was accepted and nothing claimed it.
+    const staleQueued = job({ status: "queued", started_at: null, finished_at: null, heartbeat_at: null });
+    expect(decideJobEmail(staleQueued, author, NOW)).toEqual({ kind: "send", email: "stalled" });
+
+    const haltedUnstarted = job({ status: "interrupted", started_at: null });
+    expect(decideJobEmail(haltedUnstarted, author, NOW)).toEqual({ kind: "send", email: "interrupted" });
+  });
+
+  it("row 5: no requester, or no directory row, is nobody to email", () => {
     expect(decideJobEmail(job({ requested_by: null }), author, NOW)).toEqual({ kind: "skip", outcome: "no_recipient" });
     expect(decideJobEmail(job(), null, NOW)).toEqual({ kind: "skip", outcome: "no_recipient" });
   });
 
-  it("row 4: a legacy job with no requester is not 'stopped by its requester' when nobody stopped it", () => {
+  it("row 5: a legacy job with no requester is not 'stopped by its requester' when nobody stopped it", () => {
     expect(decideJobEmail(job({ requested_by: null, stop_requested_by: null }), null, NOW)).toEqual({
       kind: "skip",
       outcome: "no_recipient",
     });
   });
 
-  it("row 5: a pending, role-less or deactivated requester is fenced", () => {
+  it("row 6: a pending, role-less or deactivated requester is fenced", () => {
     const fenced: JobEmailRecipientFacts[] = [
       { mustChangePassword: true, role: { deactivatedAt: null } },
       { mustChangePassword: false, role: null },
@@ -109,7 +129,7 @@ describe("decideJobEmail — the decision table, in order", () => {
     }
   });
 
-  it("row 6: a stale active job sends the stalled email, queued as well as running", () => {
+  it("row 7: a stale active job sends the stalled email, queued as well as running", () => {
     const staleRunning = job({ status: "running", finished_at: null, heartbeat_at: ago(10 * MINUTE) });
     expect(decideJobEmail(staleRunning, author, NOW)).toEqual({ kind: "send", email: "stalled" });
 
@@ -119,7 +139,7 @@ describe("decideJobEmail — the decision table, in order", () => {
     expect(decideJobEmail(staleQueued, author, NOW)).toEqual({ kind: "send", email: "stalled" });
   });
 
-  it("row 7: each terminal status sends its own kind", () => {
+  it("row 8: each terminal status sends its own kind", () => {
     const kinds = { succeeded: "finished", failed: "failed", interrupted: "interrupted", stopped: "stopped" } as const;
     for (const [status, email] of Object.entries(kinds)) {
       expect(decideJobEmail(job({ status: status as keyof typeof kinds }), author, NOW), status).toEqual({

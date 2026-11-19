@@ -8,13 +8,18 @@
  * declares ONLY what this project consumes and redeclares nothing the DOM lib already provides —
  * no `Request`, no `Response`, no `Headers`, no `fetch`. That is what keeps `pnpm check` at 0/0.
  *
- * Consumers: `src/worker.ts` (the Worker entry), `src/solver-container.ts` (the container's Durable
- * Object), `src/entities/timetable/api/solver-config.ts` (the transport selector), its sibling
- * `solver-container-control.ts` (the operator route's binding access, 2026-09), and the job email's
- * `job-email-availability.ts` (whether the Generate dialog offers it, S-310), whose pure reader
- * `job-email-config.ts` types the same keys, and `src/job-email-cron.ts` (the Worker's `scheduled`
- * handler, which reads the same keys from its own `env` argument). Nothing else should need Workers types; if another
- * consumer appears, ask whether it belongs at the edge.
+ * Consumers:
+ * - `src/worker.ts`, the Worker entry;
+ * - `src/solver-container.ts`, the container's Durable Object;
+ * - `src/entities/timetable/api/solver-config.ts`, the transport selector, and its sibling
+ *   `solver-container-control.ts`, the operator route's binding access (2026-09);
+ * - `src/entities/timetable/api/job-email-availability.ts`, whether the Generate dialog offers the
+ *   job email (S-310). Its pure reader, `job-email-config.ts`, types the same keys;
+ * - `src/job-email-cron.ts`, the Worker's `scheduled` handler, which reads those keys from its own
+ *   `env` argument.
+ *
+ * Nothing else should need Workers types; if another consumer appears, ask whether it belongs at
+ * the edge.
  *
  * The models below are **minimal, not complete**. Each is trimmed to the surface we actually call,
  * and says so where the simplification is load-bearing.

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FetchLike } from "./mail-transport";
-import { chooseMailTransport, selectMailTransport } from "./select-mail-transport";
+import { chooseMailTransport, createMailTransport } from "./select-mail-transport";
 
 const from = { name: "IB Planner", address: "team@ib-timetable-planner.dev" };
 
@@ -32,24 +32,17 @@ describe("chooseMailTransport", () => {
   });
 });
 
-describe("selectMailTransport", () => {
-  const fetch = vi.fn<FetchLike>(() => Promise.resolve(new Response("{}", { status: 200 })));
-  const message = { to: "a@example.test", subject: "s", text: "t", html: "h", idempotencyKey: "k" };
+describe("createMailTransport", () => {
+  it("builds the chosen transport, which sends where that transport sends", async () => {
+    const fetch = vi.fn<FetchLike>(() => Promise.resolve(new Response("{}", { status: 200 })));
+    const message = { to: "a@example.test", subject: "s", text: "t", html: "h", idempotencyKey: "k" };
 
-  it("builds the transport the keys name, which sends where that transport sends", async () => {
-    await selectMailTransport({ RESEND_API_KEY: "re_key" }, { from, fetch })?.send(message);
-    await selectMailTransport({ MAILPIT_URL: "http://127.0.0.1:54324" }, { from, fetch })?.send(message);
+    await createMailTransport({ kind: "resend", apiKey: "re_key" }, { from, fetch }).send(message);
+    await createMailTransport({ kind: "mailpit", url: "http://127.0.0.1:54324" }, { from, fetch }).send(message);
 
     expect(fetch.mock.calls.map(([url]) => url)).toEqual([
       "https://api.resend.com/emails",
       "http://127.0.0.1:54324/api/v1/send",
     ]);
-  });
-
-  it("returns null when the keys name none, or both", () => {
-    expect(selectMailTransport({}, { from })).toBeNull();
-    expect(
-      selectMailTransport({ RESEND_API_KEY: "re_key", MAILPIT_URL: "http://127.0.0.1:54324" }, { from }),
-    ).toBeNull();
   });
 });

@@ -51,16 +51,16 @@ export type JobEmail = { subject: string; text: string; html: string; link: stri
  */
 export function buildJobEmail(kind: JobEmailKind, facts: JobEmailContentFacts, origin: string): JobEmail {
   const name = cleanPlanName(facts.planName);
-  const board = hasBoard(kind, facts);
-  const targetPlanId = board && facts.proposalPlanId !== null ? facts.proposalPlanId : facts.planId;
-  const link = `${origin}/plans/${targetPlanId}`;
+  const boardPlanId = proposalWithBoard(kind, facts);
+  const hasBoard = boardPlanId !== null;
+  const link = `${origin}/plans/${boardPlanId ?? facts.planId}`;
   const details = [
     durationLine(kind, facts),
     `Policy: ${policyLabel(parseStoredPolicy(facts.policy).preset)}`,
-    board ? countsLine(kind === "finished" ? facts.resultDiagnostics : facts.checkpointDiagnostics) : null,
+    hasBoard ? countsLine(kind === "finished" ? facts.resultDiagnostics : facts.checkpointDiagnostics) : null,
   ].filter((line): line is string => line !== null);
   const headline = HEADLINE[kind](name);
-  const next = nextStep(kind, board, targetPlanId === facts.planId ? "Open the plan" : "Open the proposal");
+  const next = nextStep(kind, hasBoard);
 
   return {
     subject: `IB Planner: ${SUBJECT[kind]} for “${name}”`,
@@ -96,24 +96,26 @@ const FOOTER =
 const SIGNATURE = "IB Planner";
 
 /**
- * Whether a board is on its way to the proposal: a succeeded job's is its `result`, and a halted job
- * keeps one in its `checkpoint` exactly when `checkpoint_stage_index` is set (`isDeliverableJob`).
- * Only while the proposal plan still exists: once it is deleted there is nothing to open, so the email
- * neither claims a kept board nor counts it. The link goes to the proposal then, and to the plan
- * Generate was pressed on otherwise.
+ * The proposal plan a board is on its way to, or null when there is no board to open. A succeeded
+ * job's board is its `result`, and a halted job keeps one in its `checkpoint` exactly when
+ * `checkpoint_stage_index` is set (`isDeliverableJob`). Null too once the proposal plan is deleted:
+ * there is nothing to open, so the email neither claims a kept board nor counts it, and its link goes
+ * to the plan Generate was pressed on.
  */
-const hasBoard = (kind: JobEmailKind, facts: JobEmailContentFacts): boolean =>
-  facts.proposalPlanId !== null &&
-  (kind === "finished" || ((kind === "interrupted" || kind === "stopped") && facts.checkpointStageIndex !== null));
+const proposalWithBoard = (kind: JobEmailKind, facts: JobEmailContentFacts): string | null => {
+  const kept = (kind === "interrupted" || kind === "stopped") && facts.checkpointStageIndex !== null;
+  return kind === "finished" || kept ? facts.proposalPlanId : null;
+};
 
 /** The call to action, split so the HTML can make `open` the email's one anchor. */
 type NextStep = { lead: string; open: string; rest: string };
 
-const nextStep = (kind: JobEmailKind, board: boolean, open: string): NextStep => {
+const nextStep = (kind: JobEmailKind, hasBoard: boolean): NextStep => {
+  const open = hasBoard ? "Open the proposal" : "Open the plan";
   if (kind === "finished") return { lead: "", open, rest: " to review it" };
   if (kind === "stalled") return { lead: "", open, rest: " to see where it stands" };
   if (kind === "failed") return { lead: "", open, rest: " to see what happened and try again" };
-  return board
+  return hasBoard
     ? { lead: "The best board found so far was kept. ", open, rest: " to review it" }
     : { lead: "Nothing was kept. ", open, rest: " to try again" };
 };

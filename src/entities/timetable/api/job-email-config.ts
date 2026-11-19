@@ -62,7 +62,7 @@ const REQUIRED = [
  */
 export function readJobEmailConfig(env: JobEmailEnv): JobEmailConfigResult {
   const value = (key: JobEmailEnvKey): string | undefined => present(env[key]);
-  const mail = chooseMailTransport({ RESEND_API_KEY: env.RESEND_API_KEY, MAILPIT_URL: env.MAILPIT_URL });
+  const mail = chooseMailTransport(env);
   const mailProblem = mail.ok ? null : mail.problem;
   const missing = [
     ...REQUIRED.filter((key) => value(key) === undefined),

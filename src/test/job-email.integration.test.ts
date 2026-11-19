@@ -63,7 +63,8 @@ type Settled = { emailed_at: string | null; email_outcome: string | null; email_
   let notifier: SignedInMachineUser;
   let transport: MailTransport;
 
-  const sweep = () => sweepJobEmails(notifier.client, transport, { origin: ORIGIN, nowMs: Date.now() });
+  const sweep = (via: MailTransport = transport) =>
+    sweepJobEmails(notifier.client, via, { origin: ORIGIN, nowMs: Date.now() });
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
@@ -284,21 +285,13 @@ type Settled = { emailed_at: string | null; email_outcome: string | null; email_
     const [first, second] = await Promise.all([person(), person()]);
     const failing = await optedInJob({ requestedBy: first.id });
 
-    const failed = await sweepJobEmails(
-      notifier.client,
-      { send: answering({ kind: "failed", status: 422, name: "validation_error" }) },
-      { origin: ORIGIN, nowMs: Date.now() },
-    );
+    const failed = await sweep({ send: answering({ kind: "failed", status: 422, name: "validation_error" }) });
     expect(failed.failures).toContainEqual({ status: 422, name: "validation_error" });
     // Its claim is left to expire: the backoff. The job is still due.
     expect(await settledOf(failing.jobId)).toMatchObject({ emailed_at: null, email_outcome: null });
 
     await optedInJob({ requestedBy: second.id });
-    const stopped = await sweepJobEmails(
-      notifier.client,
-      { send: answering({ kind: "stop-tick", reason: "credential" }) },
-      { origin: ORIGIN, nowMs: Date.now() },
-    );
+    const stopped = await sweep({ send: answering({ kind: "stop-tick", reason: "credential" }) });
     expect(stopped.stoppedBy).toBe("credential");
     expect(stopped.deferred).toBeGreaterThanOrEqual(1);
     expect(JSON.stringify([failed, stopped])).not.toMatch(/@/);

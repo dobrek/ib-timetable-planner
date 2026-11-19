@@ -33,7 +33,6 @@ export {
   createMailTransport,
   createMailpitTransport,
   createResendTransport,
-  selectMailTransport,
   type FetchLike,
   type MailSender,
   type MailTransport,

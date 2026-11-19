@@ -1,6 +1,5 @@
+import { isLoopbackHost } from "@/shared/config";
 import { readPublishableKey } from "@/test/publishable-key";
-
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 /**
  * The local stack's URL, refused unless it names a loopback host. The factories that sign users in
@@ -10,7 +9,7 @@ export const requireLoopbackUrl = (caller: string): string => {
   const url = process.env.SUPABASE_URL;
   if (!url) throw new Error(`${caller}: SUPABASE_URL is not set`);
   const { hostname } = new URL(url);
-  if (!LOOPBACK_HOSTS.has(hostname)) {
+  if (!isLoopbackHost(hostname)) {
     throw new Error(`${caller}: refusing non-loopback host "${hostname}" — signed-in users are local-only`);
   }
   return url;

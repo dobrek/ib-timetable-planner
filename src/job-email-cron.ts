@@ -50,7 +50,7 @@ export function createJobEmailCron(deps: JobEmailCronDeps = DEFAULT_DEPS): JobEm
   let session: CachedSession | null = null;
 
   const signedIn = async (config: JobEmailConfig, nowMs: number): Promise<SupabaseClient | null> => {
-    if (session !== null && isReusable(session, config, nowMs)) return session.client;
+    if (session !== null && isFresh(session, nowMs)) return session.client;
     session = null;
     const client = deps.createClient(config.supabaseUrl, config.supabaseKey);
     // One password grant per run at most, never retried within it. It counts against GoTrue's
@@ -68,11 +68,7 @@ export function createJobEmailCron(deps: JobEmailCronDeps = DEFAULT_DEPS): JobEm
       );
       return null;
     }
-    session = {
-      client,
-      identity: identityOf(config),
-      expiresAtMs: (data.session.expires_at ?? 0) * 1000,
-    };
+    session = { client, expiresAtMs: (data.session.expires_at ?? 0) * 1000 };
     return client;
   };
 
@@ -101,12 +97,11 @@ export function createJobEmailCron(deps: JobEmailCronDeps = DEFAULT_DEPS): JobEm
   };
 }
 
-type CachedSession = { client: SupabaseClient; identity: string; expiresAtMs: number };
+/** The isolate's signed-in client. Its env, and so who it signed in as, never changes within an isolate. */
+type CachedSession = { client: SupabaseClient; expiresAtMs: number };
 
-const identityOf = (config: JobEmailConfig): string => `${config.supabaseUrl} ${config.notifierEmail}`;
-
-const isReusable = (cached: CachedSession, config: JobEmailConfig, nowMs: number): boolean =>
-  cached.identity === identityOf(config) && cached.expiresAtMs - SESSION_REFRESH_MARGIN_MS > nowMs;
+const isFresh = (cached: CachedSession, nowMs: number): boolean =>
+  cached.expiresAtMs - SESSION_REFRESH_MARGIN_MS > nowMs;
 
 /**
  * One line per run: the counts, and after `deferred` and `failed` why, when there is a why. Failures

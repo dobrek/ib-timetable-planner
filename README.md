@@ -41,12 +41,17 @@ SUPABASE_KEY=<Publishable key from supabase start>
 SOLVER_URL=http://127.0.0.1:8000
 TURNSTILE_SITE_KEY=1x00000000000000000000AA
 TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+MAILPIT_URL=http://127.0.0.1:54324
+APP_ORIGIN=http://localhost:4321
+NOTIFIER_MACHINE_PASSWORD=<what you give provision-notifier-user.mjs in step 7>
 EOF
 ```
 
 > `.envs/` is gitignored, so these files are per-machine — this snippet is the only place their contents are specified. `SOLVER_URL` is optional: leave it out and generation dispatch is simply unavailable (`getSolverTransport()` returns `null`). See [Running the solver service](#running-the-solver-service-dev).
 >
 > The two `TURNSTILE_*` values are Cloudflare's **public** always-pass test keys, for the bot check on `/auth/forgot`. Leave them out and password reset renders "unavailable" (it fails closed). The app accepts a test key only on a loopback host, so they cannot switch the check off anywhere else; production uses a real widget ([`docs/runbooks/email-delivery.md`](docs/runbooks/email-delivery.md)).
+>
+> The last three turn on the job email (S-310): locally it goes to Mailpit, links to `localhost`, and is sent by a cron signed in as the notifier's machine user. Leave `NOTIFIER_MACHINE_PASSWORD` out and the job email is off: the Generate dialog offers no checkbox and the cron logs `disabled`. **Never put `RESEND_API_KEY` in any `.envs` profile**: it is a production Worker secret, and setting it beside `MAILPIT_URL` is refused. See [Job emails](#job-emails-dev).
 
 4. Activate the local environment profile:
 
@@ -68,7 +73,13 @@ The app is served at `http://localhost:4321`. Local Supabase Studio is at `http:
 node scripts/assign-role.mjs <email> admin
 ```
 
-> Repeat both after every `pnpm exec supabase db reset`: a reset leaves no users and no roles. From then on, invite other people from the Users page (`/users`; locally their email lands in Mailpit) and change roles there; the script stays for bootstrap and recovery. It needs the local **Secret** key; it takes `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, or falls back to `.env.test.local`. Since S-403, an account without a role sees only a "no access yet" notice and its own account page.
+7. Create the job-email notifier's machine user, with the password you put in `.envs/local.vars` (at least 15 characters):
+
+```bash
+NOTIFIER_MACHINE_PASSWORD='<at least 15 characters>' node scripts/provision-notifier-user.mjs
+```
+
+> Repeat steps 6 and 7 after every `pnpm exec supabase db reset`: a reset leaves no users and no roles. From then on, invite other people from the Users page (`/users`; locally their email lands in Mailpit) and change roles there; the script stays for bootstrap and recovery. It needs the local **Secret** key; it takes `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from your shell, or falls back to `.env.test.local`. Since S-403, an account without a role sees only a "no access yet" notice and its own account page.
 
 ## Available Scripts
 
@@ -310,6 +321,18 @@ mise run solver:campaign -- run        # prompts before writing to production
 
 It reads `.envs/campaign.vars` (never copied by a `pnpm env:*` script), drives production only through the app's own actions, switches cells through `CALIBRATION_*` Worker secrets, and keeps a write-ahead journal under `.campaign/` (gitignored) so a closed lid costs nothing. `CAMPAIGN_TARGET=local` in the same file rehearses every path against the local stack. The two-day schedule, the setup it needs (a dedicated account, the operator allowlist, an observability API token) and halt recovery are in [`docs/runbooks/calibration-campaign.md`](docs/runbooks/calibration-campaign.md).
 
+## Job emails (dev)
+
+An author who ticks **Email me when it finishes** at Generate gets one email when the job ends, stalls, or is stopped by someone else (S-310). A Worker Cron Trigger (`wrangler.jsonc` `triggers.crons`, every minute) runs `src/job-email-cron.ts`. It signs in as the `job_notifier` machine user and sweeps `generation_jobs` for opted-in jobs whose email is due, then sends each one once. It sends through Resend in production and through Mailpit locally and in CI.
+
+Locally, steps 3 and 7 of [Getting Started](#getting-started) are the whole setup. **Nothing fires the cron locally on its own**: after `pnpm env:local`, a rebuild and a fresh `pnpm preview` (`.dev.vars` is snapshotted into `dist/server/` at build time), fire one run by hand:
+
+```bash
+curl 'http://localhost:4321/cdn-cgi/local/scheduled?cron=*+*+*+*+*'
+```
+
+The run logs one line to the preview's output: `[job-email] sent=… skipped=… waiting=… deferred=… failed=…`, or `[job-email] disabled: missing …` (once per isolate) when the configuration is incomplete. A sent email lands in Mailpit at `http://127.0.0.1:54324`. Integration tests call the sweep directly (`src/test/job-email.integration.test.ts`), so no test needs the cron.
+
 ## Deployment
 
 The app deploys to **Cloudflare Workers**. The full deployment plan is in [`context/deployment/deploy-plan.md`](context/deployment/deploy-plan.md).
@@ -348,19 +371,23 @@ The same flag is the only way to make `--dry-run` Docker-free: a plain `wrangler
 
 Production secrets are stored on the Worker via `pnpm exec wrangler secret put`:
 
-| Worker secret                 | Used by                                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `SUPABASE_URL`                | the Worker, and forwarded to the container                                                                   |
-| `SUPABASE_KEY`                | the Worker (publishable), and forwarded to the container                                                     |
-| `SOLVER_MACHINE_PASSWORD`     | **the container only** — the Worker is a courier and never uses it itself                                    |
-| `TURNSTILE_SITE_KEY`          | the Worker — rendered into `/auth/forgot`'s bot-check widget (public, but read at runtime)                   |
-| `TURNSTILE_SECRET_KEY`        | the Worker — verifies the widget's token before a password reset; missing either key makes reset unavailable |
-| `CALIBRATION_WORKERS`         | **campaign-only, normally unset** — overrides `CONTAINER_WORKERS`                                            |
-| `CALIBRATION_STAGE_BUDGET_S`  | **campaign-only, normally unset** — overrides `CONTAINER_STAGE_BUDGET_S`                                     |
-| `CALIBRATION_MODE_A_BUDGET_S` | **campaign-only, normally unset** — overrides `CONTAINER_MODE_A_BUDGET_S`                                    |
-| `SOLVER_OPS_ALLOWED_EMAILS`   | **campaign-only, normally unset** — who may call `/api/solver/container`                                     |
+| Worker secret                 | Used by                                                                                                                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`                | the Worker, and forwarded to the container                                                                                                                                    |
+| `SUPABASE_KEY`                | the Worker (publishable), and forwarded to the container                                                                                                                      |
+| `SOLVER_MACHINE_PASSWORD`     | **the container only** — the Worker is a courier and never uses it itself                                                                                                     |
+| `TURNSTILE_SITE_KEY`          | the Worker — rendered into `/auth/forgot`'s bot-check widget (public, but read at runtime)                                                                                    |
+| `TURNSTILE_SECRET_KEY`        | the Worker — verifies the widget's token before a password reset; missing either key makes reset unavailable                                                                  |
+| `CALIBRATION_WORKERS`         | **campaign-only, normally unset** — overrides `CONTAINER_WORKERS`                                                                                                             |
+| `CALIBRATION_STAGE_BUDGET_S`  | **campaign-only, normally unset** — overrides `CONTAINER_STAGE_BUDGET_S`                                                                                                      |
+| `CALIBRATION_MODE_A_BUDGET_S` | **campaign-only, normally unset** — overrides `CONTAINER_MODE_A_BUDGET_S`                                                                                                     |
+| `SOLVER_OPS_ALLOWED_EMAILS`   | **campaign-only, normally unset** — who may call `/api/solver/container`                                                                                                      |
+| `NOTIFIER_MACHINE_PASSWORD`   | the Worker's job-email cron (S-310) — it signs in as the `job_notifier` machine user with it                                                                                  |
+| `RESEND_API_KEY`              | the Worker's job-email cron — a sending-only Resend key for this domain, separate from the SMTP key; deleting it is the job email's kill switch. Never in any `.envs` profile |
 
 > The Worker gains no new privilege by carrying the third one: a Cloudflare container cannot read Worker secrets on its own (there is no `containers[].configuration.secrets`), so `SolverContainer` reads them and passes them down through `envVars`. **If `SOLVER_MACHINE_PASSWORD` is missing, every generation fails** — the container still boots (`/health` must answer on a bare container, so its credential check skips itself) but `solve` refuses work with a 503, so the row is marked `failed` and the clone deleted. Loud, but every Generate fails until the secret is set — setting it is a gate in [`docs/runbooks/solver-credential.md`](docs/runbooks/solver-credential.md).
+
+> The job email's origin, `APP_ORIGIN`, is not a secret: it is a `vars` entry in `wrangler.jsonc`. Until both job-email secrets are set, the cron logs `[job-email] disabled` once per isolate and the Generate dialog offers no checkbox. Provisioning, rotation and the kill switch are in [`docs/runbooks/job-email.md`](docs/runbooks/job-email.md).
 
 > **While a `CALIBRATION_*` secret is set, production is not what `main` says.** The overrides exist so S-308's calibration campaign can switch a cell in seconds without a merge (a merge rolls the container). `src/solver-container-env.ts` still pins the production defaults, and an override outside its bounds is ignored. To see what is live: `GET /api/solver/container` as an allowlisted operator reports `effectiveTuning.overridden`, and every job row's `solver_config` records the values that actually solved it. The campaign runner (`mise run solver:campaign -- park` / `cleanup`, [runbook](docs/runbooks/calibration-campaign.md)) deletes the overrides when it parks or cleans up; whenever one outlives the campaign, `pnpm exec wrangler secret delete <name>` removes it. With `SOLVER_OPS_ALLOWED_EMAILS` unset, the route answers 404 to everyone.
 

@@ -2,6 +2,7 @@ import type { SupabaseClient as SupabaseClientGeneric } from "@supabase/supabase
 import type { Database } from "./database.types";
 
 export { createClient, createSessionlessClient } from "./supabase";
+export { createMachineClient } from "./machine-client";
 export { isPendingProposal, isPlanId, isUuid, loadPlanSummary, type PlanSummary } from "./load-plan-summary";
 export { loadCohortCourses } from "./load-cohort-courses";
 export { clonePlan, type ClonePlanParams } from "./clone-plan";

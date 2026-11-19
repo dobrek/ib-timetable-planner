@@ -12,7 +12,8 @@
  * Object), `src/entities/timetable/api/solver-config.ts` (the transport selector), its sibling
  * `solver-container-control.ts` (the operator route's binding access, 2026-09), and the job email's
  * `job-email-availability.ts` (whether the Generate dialog offers it, S-310), whose pure reader
- * `job-email-config.ts` types the same keys. Nothing else should need Workers types; if another
+ * `job-email-config.ts` types the same keys, and `src/job-email-cron.ts` (the Worker's `scheduled`
+ * handler, which reads the same keys from its own `env` argument). Nothing else should need Workers types; if another
  * consumer appears, ask whether it belongs at the edge.
  *
  * The models below are **minimal, not complete**. Each is trimmed to the surface we actually call,
@@ -91,13 +92,25 @@ interface ExecutionContext {
 /**
  * The default-export shape of a Worker entry module.
  *
- * Only `fetch` is modelled, and its return type is load-bearing beyond this file: the adapter
- * derives its own `CfResponse` as `Awaited<ReturnType<Required<ExportedHandler<Env>>['fetch']>>`
+ * `fetch` and `scheduled` are modelled. `fetch`'s return type is load-bearing beyond this file: the
+ * adapter derives its own `CfResponse` as `Awaited<ReturnType<Required<ExportedHandler<Env>>['fetch']>>`
  * (`@astrojs/cloudflare/dist/utils/handler.d.ts`), so declaring `fetch` to return `Response` here is
- * what makes `{ fetch: handle } satisfies ExportedHandler<Env>` typecheck in `src/worker.ts`.
+ * what makes `{ fetch: handle, scheduled } satisfies ExportedHandler<Env>` typecheck in
+ * `src/worker.ts`. `scheduled` is the job-email cron (S-310), fired by `triggers.crons`.
  */
 interface ExportedHandler<E = unknown> {
   fetch?: (request: Request, env: E, ctx: ExecutionContext) => Response | Promise<Response>;
+  scheduled?: (controller: ScheduledController, env: E, ctx: ExecutionContext) => void | Promise<void>;
+}
+
+/**
+ * What a Cron Trigger hands `scheduled`. Minimal: `scheduledTime` (epoch ms) is the run's clock, and
+ * `cron` the pattern that fired. `noRetry` is modelled because it is part of the shape; nothing calls it.
+ */
+interface ScheduledController {
+  readonly scheduledTime: number;
+  readonly cron: string;
+  noRetry(): void;
 }
 
 interface DurableObjectId {

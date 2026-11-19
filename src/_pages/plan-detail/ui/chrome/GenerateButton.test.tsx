@@ -7,7 +7,8 @@ import GenerateButton from "./GenerateButton";
 
 /**
  * Two halves (S-307). The TRIGGER keeps every state it had — the disable reasons, the tooltips, the
- * "Starting…" inertness — and the DIALOG behind it is where the policy is chosen. Copy is a tested
+ * "Starting…" inertness — and the DIALOG behind it is where the policy is chosen, and, while the
+ * job-email cron is configured, whether to be emailed when the job ends (S-310). Copy is a tested
  * contract here as it is in `StopAndKeep.test.tsx`: each option's sentence is what the author reads
  * before deciding, and it must state a consequence rather than a verdict.
  */
@@ -56,7 +57,7 @@ const radio = (name: string) => screen.getByRole("radio", { name });
 describe("GenerateButton — the trigger", () => {
   it("idle: enabled, and a click opens the confirm dialog rather than launching", () => {
     const generation = controls();
-    render(<GenerateButton generation={generation} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={generation} />);
 
     const button = screen.getByRole("button", { name: "Generate plan" });
     expect(button).toBeEnabled();
@@ -67,7 +68,7 @@ describe("GenerateButton — the trigger", () => {
   });
 
   it("blocking violations disable with the block-until-clean tooltip", () => {
-    render(<GenerateButton generation={controls({ disabledReason: "violations" })} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls({ disabledReason: "violations" })} />);
 
     const button = screen.getByRole("button", { name: "Generate plan" });
     expect(button).toBeDisabled();
@@ -75,13 +76,13 @@ describe("GenerateButton — the trigger", () => {
   });
 
   it("a complete plan disables with its own tooltip", () => {
-    render(<GenerateButton generation={controls({ disabledReason: "complete" })} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls({ disabledReason: "complete" })} />);
 
     expect(screen.getByRole("button", { name: "Generate plan" })).toHaveAttribute("title", "Plan is complete");
   });
 
   it("board busy disables with the settle tooltip", () => {
-    render(<GenerateButton generation={controls({ busy: true })} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls({ busy: true })} />);
 
     const button = screen.getByRole("button", { name: "Generate plan" });
     expect(button).toBeDisabled();
@@ -89,7 +90,7 @@ describe("GenerateButton — the trigger", () => {
   });
 
   it("launching: inert and labelled, so a double click cannot enqueue twice", () => {
-    render(<GenerateButton generation={controls({ state: { status: "launching" } })} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls({ state: { status: "launching" } })} />);
 
     expect(screen.getByRole("button", { name: "Generate plan" })).toBeDisabled();
     expect(screen.getByText("Starting…")).toBeInTheDocument();
@@ -101,6 +102,7 @@ describe("GenerateButton — the trigger", () => {
     // this pins is the button's half of the contract.
     render(
       <GenerateButton
+        jobEmailAvailable={false}
         generation={controls({
           state: { status: "tracking", job: trackedJob("running") },
           disabledReason: "generating",
@@ -118,7 +120,10 @@ describe("GenerateButton — the trigger", () => {
     // disabled after delivery would be stricter than the database and strand the author.
     for (const status of ["succeeded", "failed"] as const) {
       const { unmount } = render(
-        <GenerateButton generation={controls({ state: { status: "tracking", job: trackedJob(status) } })} />,
+        <GenerateButton
+          jobEmailAvailable={false}
+          generation={controls({ state: { status: "tracking", job: trackedJob(status) } })}
+        />,
       );
       expect(screen.getByRole("button", { name: "Generate plan" }), status).toBeEnabled();
       unmount();
@@ -126,7 +131,12 @@ describe("GenerateButton — the trigger", () => {
   });
 
   it("errors surface inline with role=alert", () => {
-    render(<GenerateButton generation={controls({ error: "A generation is already running for this plan." })} />);
+    render(
+      <GenerateButton
+        jobEmailAvailable={false}
+        generation={controls({ error: "A generation is already running for this plan." })}
+      />,
+    );
 
     expect(screen.getByRole("alert")).toHaveTextContent("A generation is already running for this plan.");
   });
@@ -134,7 +144,7 @@ describe("GenerateButton — the trigger", () => {
 
 describe("GenerateButton — the dialog", () => {
   it("pre-selects the default policy when the plan has no previous job", () => {
-    render(<GenerateButton generation={controls()} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls()} />);
     openDialog();
 
     expect(screen.getByRole("radiogroup", { name: "Solve policy" })).toBeInTheDocument();
@@ -145,7 +155,7 @@ describe("GenerateButton — the dialog", () => {
 
   it("pre-selects the previous job's policy — the audit column earning its keep", () => {
     const job = trackedJob("succeeded", { preset: "student-first" });
-    render(<GenerateButton generation={controls({ state: { status: "tracking", job } })} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls({ state: { status: "tracking", job } })} />);
     openDialog();
 
     expect(radio("student-first")).toHaveAttribute("aria-checked", "true");
@@ -153,17 +163,19 @@ describe("GenerateButton — the dialog", () => {
   });
 
   it("seeds on OPEN, not on mount, so a job read back after a launch seeds the next open", () => {
-    const { rerender } = render(<GenerateButton generation={controls()} />);
+    const { rerender } = render(<GenerateButton jobEmailAvailable={false} generation={controls()} />);
     // The component mounted with no job; the job arrives later (a launch, then the re-read).
     const job = trackedJob("succeeded", { preset: "canonical" });
-    rerender(<GenerateButton generation={controls({ state: { status: "tracking", job } })} />);
+    rerender(
+      <GenerateButton jobEmailAvailable={false} generation={controls({ state: { status: "tracking", job } })} />,
+    );
     openDialog();
 
     expect(radio("canonical order")).toHaveAttribute("aria-checked", "true");
   });
 
   it("shows each option's consequence when it is selected, and the confirm follows the selection", () => {
-    render(<GenerateButton generation={controls()} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls()} />);
     openDialog();
 
     expect(screen.getByText(/no new lesson lands on a period they would rather not teach/)).toBeInTheDocument();
@@ -179,7 +191,7 @@ describe("GenerateButton — the dialog", () => {
   });
 
   it("states consequences only — no option is ranked, compared, or given a number", () => {
-    render(<GenerateButton generation={controls()} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls()} />);
     const dialog = openDialog();
 
     for (const name of ["clean", "canonical order", "student-first"]) {
@@ -196,26 +208,26 @@ describe("GenerateButton — the dialog", () => {
   });
 
   it("quotes the run's ceiling rather than a typical duration", () => {
-    render(<GenerateButton generation={controls()} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls()} />);
 
     expect(openDialog()).toHaveTextContent(`up to about ${String(LADDER_CEILING_MINUTES)} minutes`);
   });
 
   it("confirm launches with the chosen policy and closes the dialog", () => {
     const generation = controls();
-    render(<GenerateButton generation={generation} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={generation} />);
     openDialog();
 
     fireEvent.click(radio("student-first"));
     fireEvent.click(screen.getByRole("button", { name: "Generate — student-first" }));
 
-    expect(generation.launch).toHaveBeenCalledExactlyOnceWith({ preset: "student-first" });
+    expect(generation.launch).toHaveBeenCalledExactlyOnceWith({ preset: "student-first" }, { emailOnFinish: false });
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
   it("cancel closes without launching", () => {
     const generation = controls();
-    render(<GenerateButton generation={generation} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={generation} />);
     openDialog();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -228,24 +240,78 @@ describe("GenerateButton — the dialog", () => {
     // The live re-gate: the board became complete (or gained a blocking violation) in another tab
     // while the author was deciding. The trigger's `title` cannot be read from inside a modal, so
     // the reason has to appear in the dialog, as a live region.
-    const { rerender } = render(<GenerateButton generation={controls()} />);
+    const { rerender } = render(<GenerateButton jobEmailAvailable={false} generation={controls()} />);
     openDialog();
     expect(screen.getByRole("button", { name: "Generate — clean" })).toBeEnabled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
-    rerender(<GenerateButton generation={controls({ disabledReason: "complete" })} />);
+    rerender(<GenerateButton jobEmailAvailable={false} generation={controls({ disabledReason: "complete" })} />);
 
     expect(screen.getByRole("button", { name: "Generate — clean" })).toBeDisabled();
     expect(screen.getByRole("status")).toHaveTextContent("Plan is complete");
   });
 
   it("ignores the empty value Radix emits on re-press — a policy is never cleared", () => {
-    render(<GenerateButton generation={controls()} />);
+    render(<GenerateButton jobEmailAvailable={false} generation={controls()} />);
     openDialog();
 
     fireEvent.click(radio("clean"));
 
     expect(radio("clean")).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("button", { name: "Generate — clean" })).toBeInTheDocument();
+  });
+});
+
+describe("GenerateButton — the email choice (S-310)", () => {
+  const emailBox = () => screen.getByRole("checkbox", { name: "Email me when it finishes" });
+
+  it("is ticked when the dialog opens, and says where the email goes", () => {
+    render(<GenerateButton jobEmailAvailable generation={controls()} />);
+    openDialog();
+
+    expect(emailBox()).toBeChecked();
+    expect(emailBox()).toHaveAccessibleDescription(
+      /your account's email address, and can't be changed once the job starts/,
+    );
+  });
+
+  it("is ticked again on the next open after the author unticked it — never seeded from before", () => {
+    render(<GenerateButton jobEmailAvailable generation={controls()} />);
+    openDialog();
+    fireEvent.click(emailBox());
+    expect(emailBox()).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    openDialog();
+
+    expect(emailBox()).toBeChecked();
+  });
+
+  it("launches with the box's current value", () => {
+    const ticked = controls();
+    const { unmount } = render(<GenerateButton jobEmailAvailable generation={ticked} />);
+    openDialog();
+    fireEvent.click(screen.getByRole("button", { name: "Generate — clean" }));
+    expect(ticked.launch).toHaveBeenCalledExactlyOnceWith({ preset: "clean" }, { emailOnFinish: true });
+    unmount();
+
+    const unticked = controls();
+    render(<GenerateButton jobEmailAvailable generation={unticked} />);
+    openDialog();
+    fireEvent.click(emailBox());
+    fireEvent.click(screen.getByRole("button", { name: "Generate — clean" }));
+    expect(unticked.launch).toHaveBeenCalledExactlyOnceWith({ preset: "clean" }, { emailOnFinish: false });
+  });
+
+  it("is absent, not disabled, while the job email is off, and the launch then opts out", () => {
+    const generation = controls();
+    render(<GenerateButton jobEmailAvailable={false} generation={generation} />);
+    openDialog();
+
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Email me/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate — clean" }));
+    expect(generation.launch).toHaveBeenCalledExactlyOnceWith({ preset: "clean" }, { emailOnFinish: false });
   });
 });

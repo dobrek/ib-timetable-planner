@@ -7,6 +7,7 @@ import PlanDetailError from "@/_pages/plan-detail/ui/PlanDetailError.astro";
 import PendingProposalPage from "@/_pages/plan-detail/ui/PendingProposalPage";
 import { createClient, isPendingProposal, isPlanId, loadPlanSummary } from "@/shared/api";
 import { loadCredit } from "@/entities/user";
+import { isJobEmailAvailable } from "@/entities/timetable/api/job-email-availability";
 import { allows } from "@/shared/config";
 import {
   checkPlan,
@@ -30,6 +31,10 @@ const canEdit = allows(Astro.locals.access, "edit");
 // they may stop anyone's job. The database's stop guard is the enforcement; these only shape the page.
 const viewerId = Astro.locals.user?.id ?? null;
 const canStopAnyJob = allows(Astro.locals.access, "stop_any_job");
+// Whether the Generate dialog offers "Email me when it finishes" (S-310): only while the job-email
+// cron is configured, read by the same reader the cron uses, so the page never promises an email
+// nothing will send. Computed here and passed down, like `canEdit`: islands never read env.
+const jobEmailAvailable = isJobEmailAvailable();
 
 /*
  * The plans row FIRST, then the generation check, then — only if this is not a pending proposal —
@@ -184,6 +189,7 @@ const initialPaletteCohort = parsePaletteCohort(Astro.cookies.get(PALETTE_COHORT
         generationJob={generationJob}
         canEdit={canEdit}
         viewerId={viewerId}
+        jobEmailAvailable={jobEmailAvailable}
       />
     </SidebarLayout>
   ) : (

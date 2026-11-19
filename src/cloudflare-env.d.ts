@@ -9,9 +9,11 @@
  * no `Request`, no `Response`, no `Headers`, no `fetch`. That is what keeps `pnpm check` at 0/0.
  *
  * Consumers: `src/worker.ts` (the Worker entry), `src/solver-container.ts` (the container's Durable
- * Object), `src/entities/timetable/api/solver-config.ts` (the transport selector) and its sibling
- * `solver-container-control.ts` (the operator route's binding access, 2026-09). Nothing else should
- * need Workers types; if another consumer appears, ask whether it belongs at the edge.
+ * Object), `src/entities/timetable/api/solver-config.ts` (the transport selector), its sibling
+ * `solver-container-control.ts` (the operator route's binding access, 2026-09), and the job email's
+ * `job-email-availability.ts` (whether the Generate dialog offers it, S-310), whose pure reader
+ * `job-email-config.ts` types the same keys. Nothing else should need Workers types; if another
+ * consumer appears, ask whether it belongs at the edge.
  *
  * The models below are **minimal, not complete**. Each is trimmed to the surface we actually call,
  * and says so where the simplification is load-bearing.
@@ -55,6 +57,22 @@ declare namespace Cloudflare {
     /** Comma-separated emails allowed to use `/api/solver/container`. Unset or empty allows nobody,
      *  and the route then answers 404 to everyone. */
     SOLVER_OPS_ALLOWED_EMAILS?: string;
+    /** The job-email notifier's machine password (S-310), a Worker secret. The cron signs in with it
+     *  as `job_notifier`. Unset, the job email is off: the cron logs `disabled` and the Generate dialog
+     *  offers no checkbox (`job-email-config.ts`). */
+    NOTIFIER_MACHINE_PASSWORD?: string;
+    /** The notifier's Auth email. Optional: defaults to `notifier@ib-timetable-planner.dev`, the
+     *  provisioning script's default. */
+    NOTIFIER_MACHINE_EMAIL?: string;
+    /** Resend's sending-only API key for job emails, a Worker secret, separate from the SMTP key that
+     *  only Supabase holds. Deleting it is the job email's kill switch. Never set with `MAILPIT_URL`. */
+    RESEND_API_KEY?: string;
+    /** **Local and CI only.** Mailpit's HTTP API (`http://127.0.0.1:54324`), the job email's transport
+     *  where Resend must not be called. Refused unless it names a loopback host. */
+    MAILPIT_URL?: string;
+    /** The origin every job email's one link is built on: a `wrangler.jsonc` var in production,
+     *  `http://localhost:4321` in `.dev.vars`. A cron has no request to take one from. */
+    APP_ORIGIN?: string;
   }
 }
 

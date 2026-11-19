@@ -724,31 +724,31 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Automated
 
-- [x] 1.1 The notifier credential suite and the guard freeze cases fail before the migration (red recorded in the commit message or PR)
-- [x] 1.2 Migration applies cleanly from scratch: `pnpm exec supabase db reset`
-- [x] 1.3 Notifier credential suite passes
-- [x] 1.4 Solver credential, job attribution and role matrix suites pass
-- [x] 1.5 Generated types regenerated and diff limited to the four columns
-- [x] 1.6 Type check passes: `pnpm check`
-- [x] 1.7 Lint and FSD gates pass
+- [x] 1.1 The notifier credential suite and the guard freeze cases fail before the migration (red recorded in the commit message or PR) — c8428455
+- [x] 1.2 Migration applies cleanly from scratch: `pnpm exec supabase db reset` — c8428455
+- [x] 1.3 Notifier credential suite passes — c8428455
+- [x] 1.4 Solver credential, job attribution and role matrix suites pass — c8428455
+- [x] 1.5 Generated types regenerated and diff limited to the four columns — c8428455
+- [x] 1.6 Type check passes: `pnpm check` — c8428455
+- [x] 1.7 Lint and FSD gates pass — c8428455
 
 #### Manual
 
-- [x] 1.8 Notifier provisioning creates and rotates; solver provisioning unchanged
-- [x] 1.9 Grant posture read live matches the suite's lists
+- [x] 1.8 Notifier provisioning creates and rotates; solver provisioning unchanged — c8428455
+- [x] 1.9 Grant posture read live matches the suite's lists — c8428455
 
 ### Phase 2: Opt-in at Generate
 
 #### Automated
 
-- [ ] 2.1 Dialog and hook unit tests pass
-- [ ] 2.2 Enqueue integration passes
-- [ ] 2.3 Type check passes: `pnpm check`
-- [ ] 2.4 Lint and FSD gates pass
+- [x] 2.1 Dialog and hook unit tests pass
+- [x] 2.2 Enqueue integration passes
+- [x] 2.3 Type check passes: `pnpm check`
+- [x] 2.4 Lint and FSD gates pass
 
 #### Manual
 
-- [ ] 2.5 Dialog shows the ticked checkbox on every open; an opted-out launch writes false
+- [x] 2.5 Dialog shows the ticked checkbox on every open; an opted-out launch writes false
 
 ### Phase 3: Email decision, content and transport
 

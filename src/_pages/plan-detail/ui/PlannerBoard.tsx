@@ -65,6 +65,9 @@ type Props = {
   canEdit: boolean;
   /** The signed-in user's id (S-407), so the strip says "You stopped" only to whoever did. */
   viewerId: string | null;
+  /** Whether the job-email cron is configured (S-310), computed by the route: Generate offers
+   *  "Email me when it finishes" only then. */
+  jobEmailAvailable: boolean;
 };
 
 /**
@@ -95,6 +98,7 @@ export default function PlannerBoard({
   generationJob,
   canEdit,
   viewerId,
+  jobEmailAvailable,
 }: Props) {
   const { planId, days, periods } = shared;
   // Lens criteria are created ABOVE the board state so the (preview-merged) selection can feed the
@@ -332,7 +336,7 @@ export default function PlannerBoard({
             undoRedo={canEdit ? history : undefined}
             trailing={
               <>
-                {canEdit && <GenerateButton generation={generation} />}
+                {canEdit && <GenerateButton generation={generation} jobEmailAvailable={jobEmailAvailable} />}
                 <LensPicker
                   open={lens.open}
                   setOpen={lens.setOpen}

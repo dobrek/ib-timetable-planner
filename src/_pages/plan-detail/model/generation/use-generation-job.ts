@@ -36,6 +36,10 @@ import {
  */
 export type GenerationJob = { jobId: string; proposalPlanId: string };
 
+/** What the author chose at launch beside the policy: whether to be emailed when the job ends (S-310).
+ *  Written once onto the job row; nobody can change it afterwards. */
+export type LaunchOptions = { emailOnFinish: boolean };
+
 export type GenerationJobState =
   | { status: "idle" }
   | { status: "launching" }
@@ -52,7 +56,7 @@ export type UseGenerationJobDeps = {
   canEdit: boolean;
   /** Injectable for tests; default to the Astro Action clients (`check`: `checkPlan` for an editor,
    *  `readPlanJob` for everyone else). */
-  start?: (planId: string, policy: SolvePolicy) => Promise<GenerationJob>;
+  start?: (planId: string, policy: SolvePolicy, options: LaunchOptions) => Promise<GenerationJob>;
   check?: (planId: string) => Promise<GenerationJobView | null>;
 };
 
@@ -61,8 +65,9 @@ export type GenerationJobControls = {
   error: string | null;
   /** True while a check/delivery round-trip is in flight — the strip's Refresh shows it. */
   checking: boolean;
-  /** Enqueue under the author's chosen policy (S-307) — the dialog's confirm is the caller. */
-  launch: (policy: SolvePolicy) => void;
+  /** Enqueue under the author's chosen policy (S-307) and email choice (S-310) — the dialog's confirm
+   *  is the caller. */
+  launch: (policy: SolvePolicy, options: LaunchOptions) => void;
   refresh: () => void;
 };
 
@@ -96,13 +101,13 @@ export function useGenerationJob({
     }
   }
 
-  function launch(policy: SolvePolicy) {
+  function launch(policy: SolvePolicy, options: LaunchOptions) {
     // The same guard the greedy hook used: an unsettled board would be hashed mid-write, and the
     // snapshot the solver is judged against has to be a state that actually exists.
     if (busy || state.status === "launching") return;
     setError(null);
     setState({ status: "launching" });
-    void start(planId, policy).then(
+    void start(planId, policy, options).then(
       // Read the row straight back rather than synthesising a view from the launch result: one shape
       // for the strip, and `createdAt` comes from the database rather than the browser clock.
       () => runCheck(),

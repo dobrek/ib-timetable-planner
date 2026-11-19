@@ -59,10 +59,16 @@ export type GenerationDeps = {
 /**
  * `policy` defaults so every existing caller stays valid; the launch dialog (S-307) is the one that
  * sends a non-default. Its schema is the SAME object the form uses — one vocabulary, validated once.
+ *
+ * `emailOnFinish` (S-310) defaults to false, so a caller that omits it never opts anyone in. The
+ * dialog sends it only while the job-email cron is configured. The server does not re-check that: a
+ * crafted call can only opt in the caller's own job (the guard stamps the requester), which is then
+ * emailed once the notifier is configured, within its 24 h lookback.
  */
 export const startGenerationInput = z.object({
   planId: z.uuid(),
   policy: solvePolicySchema.default(DEFAULT_SOLVE_POLICY),
+  emailOnFinish: z.boolean().default(false),
 });
 
 /** The INPUT side of the schema: `policy` is optional to callers and defaulted here, so the action
@@ -102,6 +108,7 @@ export const startGeneration = async (
     snapshot,
     snapshotHash,
     policy,
+    emailRequested: input.emailOnFinish ?? false,
   }).catch(async (error: unknown) => {
     await deleteOrphanClone(supabase, proposalPlanId);
     throw error;
@@ -176,6 +183,8 @@ const insertJob = async (
     snapshot: GeneratorSnapshot;
     snapshotHash: string;
     policy: SolvePolicy;
+    /** The author's "Email me when it finishes" (S-310). The guard freezes it once written. */
+    emailRequested: boolean;
   },
   { recover = true }: { recover?: boolean } = {},
 ): Promise<string> => {
@@ -191,6 +200,7 @@ const insertJob = async (
       // `startGeneration` resolved — at that call site and nowhere else. The service never reads the
       // column; the app never reads the body. Nothing else may write either.
       policy: row.policy,
+      email_requested: row.emailRequested,
     })
     .select("id")
     .single();

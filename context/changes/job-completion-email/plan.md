@@ -234,18 +234,18 @@ Assertions:
 
 #### Automated Verification:
 
-- [ ] The notifier credential suite and the guard freeze cases fail before the migration (red recorded in the commit message or PR). The credential suite runs red with no migration applied. The guard freeze cases run red with the migration's columns applied but the guard re-create held back, so their red is the guard's own and not "column missing"
-- [ ] Migration applies cleanly from scratch: `pnpm exec supabase db reset`
-- [ ] Notifier credential suite passes: `pnpm test:integration src/test/job-notifier-credential.integration.test.ts`
-- [ ] Solver credential, job attribution and role matrix suites pass: `pnpm test:integration src/test/solver-credential.integration.test.ts src/test/job-attribution.integration.test.ts src/test/role-matrix.integration.test.ts`
-- [ ] Generated types regenerated and diff limited to the four columns: `pnpm db:types`
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
+- [x] The notifier credential suite and the guard freeze cases fail before the migration (red recorded in the commit message or PR). The credential suite runs red with no migration applied. The guard freeze cases run red with the migration's columns applied but the guard re-create held back, so their red is the guard's own and not "column missing"
+- [x] Migration applies cleanly from scratch: `pnpm exec supabase db reset`
+- [x] Notifier credential suite passes: `pnpm test:integration src/test/job-notifier-credential.integration.test.ts`
+- [x] Solver credential, job attribution and role matrix suites pass: `pnpm test:integration src/test/solver-credential.integration.test.ts src/test/job-attribution.integration.test.ts src/test/role-matrix.integration.test.ts`
+- [x] Generated types regenerated and diff limited to the four columns: `pnpm db:types`
+- [x] Type check passes: `pnpm check`
+- [x] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
 
 #### Manual Verification:
 
-- [ ] `node scripts/provision-notifier-user.mjs` creates the local notifier user, a second run rotates it, and `node scripts/provision-solver-user.mjs` still behaves exactly as before
-- [ ] Grant posture read live, not from the migration: `has_table_privilege`/`has_column_privilege` for `job_notifier` matches the suite's lists
+- [x] `node scripts/provision-notifier-user.mjs` creates the local notifier user, a second run rotates it, and `node scripts/provision-solver-user.mjs` still behaves exactly as before
+- [x] Grant posture read live, not from the migration: `has_table_privilege`/`has_column_privilege` for `job_notifier` matches the suite's lists
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -315,14 +315,14 @@ Semantic tokens only (lessons.md). The server does not re-check availability: a 
 
 #### Automated Verification:
 
-- [ ] Dialog, hook and config-reader unit tests pass: `pnpm test src/_pages/plan-detail src/entities/timetable/api/job-email-config.test.ts`
-- [ ] Enqueue integration passes: `pnpm test:integration src/_pages/plan-detail/api/generation-enqueue.integration.test.ts`
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
+- [x] Dialog, hook and config-reader unit tests pass: `pnpm test src/_pages/plan-detail src/entities/timetable/api/job-email-config.test.ts`
+- [x] Enqueue integration passes: `pnpm test:integration src/_pages/plan-detail/api/generation-enqueue.integration.test.ts`
+- [x] Type check passes: `pnpm check`
+- [x] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
 
 #### Manual Verification:
 
-- [ ] In `pnpm build && pnpm preview`, with the job-email keys in `.dev.vars` (presence is enough; the notifier need not exist yet), the dialog shows the ticked checkbox on every open in light and dark themes, and an opted-out launch writes `email_requested = false` (checked in Studio). After removing `NOTIFIER_MACHINE_PASSWORD` and rebuilding, the checkbox is absent and a launch writes `false`
+- [x] In `pnpm build && pnpm preview`, with the job-email keys in `.dev.vars` (presence is enough; the notifier need not exist yet), the dialog shows the ticked checkbox on every open in light and dark themes, and an opted-out launch writes `email_requested = false` (checked in Studio). After removing `NOTIFIER_MACHINE_PASSWORD` and rebuilding, the checkbox is absent and a launch writes `false`
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -419,9 +419,9 @@ Everything that decides and says, plus the two ways to send, built as pure or fe
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `pnpm test src/entities/timetable src/shared src/_pages/password-recovery` (the last for Turnstile on the moved loopback check)
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
+- [x] Unit tests pass: `pnpm test src/entities/timetable src/shared src/_pages/password-recovery` (the last for Turnstile on the moved loopback check)
+- [x] Type check passes: `pnpm check`
+- [x] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human before proceeding to the next phase.
 
@@ -498,16 +498,16 @@ The orchestration that reads due jobs under the notifier's own session, decides,
 
 #### Automated Verification:
 
-- [ ] Mailpit send API probe answered 200 on the local stack (recorded)
-- [ ] Sweep suite passes: `pnpm test:integration src/test/job-email.integration.test.ts`
-- [ ] Full integration lane passes: `pnpm test:integration` (a known ~1-in-5 parallel flake on `main` is not this diff's failure; rerun before blaming it)
-- [ ] Unit tests pass: `pnpm test`
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
+- [x] Mailpit send API probe answered 200 on the local stack (recorded)
+- [x] Sweep suite passes: `pnpm test:integration src/test/job-email.integration.test.ts`
+- [x] Full integration lane passes: `pnpm test:integration` (a known ~1-in-5 parallel flake on `main` is not this diff's failure; rerun before blaming it)
+- [x] Unit tests pass: `pnpm test`
+- [x] Type check passes: `pnpm check`
+- [x] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
 
 #### Manual Verification:
 
-- [ ] A sweep-sent message, opened in Mailpit's UI (`http://127.0.0.1:54324`), reads well as plain text and as HTML in both outcomes checked (`succeeded`, `stalled`)
+- [x] A sweep-sent message, opened in Mailpit's UI (`http://127.0.0.1:54324`), reads well as plain text and as HTML in both outcomes checked (`succeeded`, `stalled`)
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -581,19 +581,19 @@ The Worker gains its `scheduled` entry and its cron. It signs in as the notifier
 
 #### Automated Verification:
 
-- [ ] Cron config tests pass: `pnpm test src/job-email-cron.test.ts`
-- [ ] Type check passes: `pnpm check`
-- [ ] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
-- [ ] Build passes and keeps the cron: `pnpm build && node -e "const c=require('./dist/server/wrangler.json'); if(!c.triggers?.crons?.includes('* * * * *')) process.exit(1)"`
-- [ ] The built entry's default export carries `scheduled`: `grep -rl '\[job-email\]' dist/server/` finds the cron module's log tag, so the handler was not tree-shaken away. A bare `grep scheduled` matches the word anywhere in the bundle and proves nothing. The export itself is proven by 5.6: `/cdn-cgi/local/scheduled` (confirmed in `@cloudflare/vite-plugin` 1.54.6, no flag needed) reaches `scheduled` only through the default export
+- [x] Cron config tests pass: `pnpm test src/job-email-cron.test.ts`
+- [x] Type check passes: `pnpm check`
+- [x] Lint and FSD gates pass: `pnpm lint && pnpm steiger`
+- [x] Build passes and keeps the cron: `pnpm build && node -e "const c=require('./dist/server/wrangler.json'); if(!c.triggers?.crons?.includes('* * * * *')) process.exit(1)"`
+- [x] The built entry's default export carries `scheduled`: `grep -rl '\[job-email\]' dist/server/` finds the cron module's log tag, so the handler was not tree-shaken away. A bare `grep scheduled` matches the word anywhere in the bundle and proves nothing. The export itself is proven by 5.6: `/cdn-cgi/local/scheduled` (confirmed in `@cloudflare/vite-plugin` 1.54.6, no flag needed) reaches `scheduled` only through the default export
 
 #### Manual Verification:
 
-- [ ] Local smoke:
+- [x] Local smoke:
   - with the stack up, the notifier provisioned, the env profile rebuilt and `pnpm preview` (re)started, an opted-in job is finished by a real `mise run solver:dev` solve or set terminal in Studio;
   - `curl 'http://localhost:4321/cdn-cgi/local/scheduled?cron=*+*+*+*+*'` returns 200;
   - one email appears in Mailpit, with a `http://localhost:4321/plans/…` link that opens the right plan.
-- [ ] Unconfigured smoke: with `NOTIFIER_MACHINE_PASSWORD` removed from `.dev.vars` and a rebuild, the same curl returns 200, logs `[job-email] disabled: missing NOTIFIER_MACHINE_PASSWORD` once, and sends nothing
+- [x] Unconfigured smoke: with `NOTIFIER_MACHINE_PASSWORD` removed from `.dev.vars` and a rebuild, the same curl returns 200, logs `[job-email] disabled: missing NOTIFIER_MACHINE_PASSWORD` once, and sends nothing
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -656,8 +656,8 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Automated Verification:
 
-- [ ] Formatting passes for the docs: `pnpm exec prettier --check docs/runbooks/job-email.md docs/runbooks/email-delivery.md README.md CLAUDE.md`
-- [ ] The full local CI gate passes before merge: `/verify`
+- [x] Formatting passes for the docs: `pnpm exec prettier --check docs/runbooks/job-email.md docs/runbooks/email-delivery.md README.md CLAUDE.md`
+- [x] The full local CI gate passes before merge: `/verify`
 
 #### Manual Verification:
 
@@ -777,23 +777,23 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Automated
 
-- [x] 5.1 Cron config tests pass
-- [x] 5.2 Type check passes: `pnpm check`
-- [x] 5.3 Lint and FSD gates pass
-- [x] 5.4 Build passes and keeps the cron in `dist/server/wrangler.json`
-- [x] 5.5 The built entry's default export carries `scheduled`
+- [x] 5.1 Cron config tests pass — 8743da93
+- [x] 5.2 Type check passes: `pnpm check` — 8743da93
+- [x] 5.3 Lint and FSD gates pass — 8743da93
+- [x] 5.4 Build passes and keeps the cron in `dist/server/wrangler.json` — 8743da93
+- [x] 5.5 The built entry's default export carries `scheduled` — 8743da93
 
 #### Manual
 
-- [x] 5.6 Local cron smoke sends one email through Mailpit with a localhost link
-- [x] 5.7 Unconfigured smoke logs `disabled` once and sends nothing
+- [x] 5.6 Local cron smoke sends one email through Mailpit with a localhost link — 8743da93
+- [x] 5.7 Unconfigured smoke logs `disabled` once and sends nothing — 8743da93
 
 ### Phase 6: Runbook, docs and hosted rollout
 
 #### Automated
 
-- [ ] 6.1 Formatting passes for the docs
-- [ ] 6.2 The full local CI gate passes before merge: `/verify`
+- [x] 6.1 Formatting passes for the docs
+- [x] 6.2 The full local CI gate passes before merge: `/verify`
 
 #### Manual
 

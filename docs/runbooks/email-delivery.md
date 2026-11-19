@@ -5,8 +5,9 @@ hand — Resend, Cloudflare DNS, Supabase custom SMTP, the Turnstile widget — 
 change finds it. The hosted Auth values that sit on top of it (Site URL, templates, the resend
 interval) are in [`hosted-auth-settings.md`](hosted-auth-settings.md).
 
-The first sender is S-402 (password reset); S-410 (invitations) reuses it, and S-310 (job emails)
-will.
+The first sender is S-402 (password reset), and S-410 (invitations) reuses it, both through GoTrue.
+S-310 (job emails) sends from the same domain and sender, through Resend's HTTP API with a
+sending-only key of its own that the Worker holds ([`job-email.md`](job-email.md)).
 
 ## Provider: Resend, through Supabase custom SMTP
 
@@ -20,7 +21,8 @@ on 2026-10-20.
 - **Click and open tracking: off.** Tracking rewrites links through a redirect host, which breaks the
   one-link-on-our-domain rule and looks like phishing to scanners.
 - **The SMTP password is a sending-only Resend API key** scoped to this domain. It lives only in
-  Supabase's `smtp_pass`; it is never committed and never reaches the Worker.
+  Supabase's `smtp_pass`; it is never committed and never reaches the Worker. The job email's key
+  (`RESEND_API_KEY`, a Worker secret) is a second, separate one, so each can be revoked alone.
 
 ### DNS (Cloudflare zone `ib-timetable-planner.dev`)
 
@@ -70,14 +72,17 @@ where older domains got TXT and MX, and the values can change.
 
 Supabase's own project-wide email cap is dormant while `mailer_autoconfirm` is on
 ([`hosted-auth-settings.md`](hosted-auth-settings.md)), so **Resend Free's 100 emails per UTC day is
-the effective global cap**, shared by resets, password-changed notifications and invitations (S-410).
+the effective global cap**, shared by resets, password-changed notifications, invitations (S-410)
+and job emails (S-310).
 Reaching it fails every send until midnight UTC: behind the reset page's neutral notice (Workers Logs
 show `[forgot-password] outcome=send-failed`), and as "Couldn't send the invitation" on the Users page
 (the `admin-users` function logs `op=invite step=send:…`, and deletes the half-made account). The
 flood guard below protects it from resets; GoTrue throttles neither invites nor re-sends, so the
 function refuses a second invitation email to one address within 60 seconds. An invitation's first
-password also sends a password-changed notification. The
-fallback is Resend Pro (no daily limit); AWS SES eu-central-1 is the standby provider.
+password also sends a password-changed notification. Job emails have no app-side cap: a 429 ends
+the cron's run with the job still due, and it goes out on a later run within its 24-hour window
+([`job-email.md`](job-email.md) § The shared quota). The fallback is Resend Pro (no daily limit); AWS
+SES eu-central-1 is the standby provider.
 
 ## The reset flood guard: Cloudflare Turnstile
 

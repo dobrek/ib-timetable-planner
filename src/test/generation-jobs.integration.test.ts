@@ -19,7 +19,7 @@ import { connectPostgres, heldPrivileges } from "./postgres-client";
  *     is what lets its header claim full anon exclusion honestly — so the assertion is an exact set
  *     equality, not a subset check.
  *
- *   • The three behaviours S-303 -> S-310 build on: one active job per plan, `updated_at` moving on
+ *   • The three behaviours S-303 onward build on: one active job per plan, `updated_at` moving on
  *     its own, and the FK semantics (source cascades, produced plans set null). Each of those is a
  *     forward-designed decision that a later slice would otherwise have to rediscover.
  */

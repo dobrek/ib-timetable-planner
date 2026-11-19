@@ -1,9 +1,9 @@
 ---
 change_id: job-completion-email
 title: Job-completion email (S-310)
-status: plan_reviewed
+status: implementing
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-19
 archived_at: null
 ---
 

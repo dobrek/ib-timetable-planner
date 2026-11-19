@@ -112,7 +112,9 @@ export const checkPlan = async (supabase: SupabaseClient, input: CheckPlanInput)
  * **The event this closes is a row transition, not a render** — `delivered_plan_id is not null and
  * notified_at is null` means "there is a result and nobody has been told". The hub reads that pair
  * to keep "Ready — open" on the badge across reloads; without a writer the badge would never clear.
- * S-310's emailer is the intended SECOND writer and must skip rows that already carry a value.
+ * It is the badge's marker alone. The job-email notifier (S-310) neither reads nor writes it: a
+ * walk-away job is never delivered, so it keys on the solver's terminal write instead, and keeps its
+ * own record in `emailed_at` and `email_outcome`.
  *
  * Only on the PROPOSAL role, and deliberately: the author has to have opened the plan the board
  * landed on for the announcement to have been made. Visiting the source tells them nothing about it —

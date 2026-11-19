@@ -724,18 +724,18 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Automated
 
-- [ ] 1.1 The notifier credential suite and the guard freeze cases fail before the migration (red recorded in the commit message or PR)
-- [ ] 1.2 Migration applies cleanly from scratch: `pnpm exec supabase db reset`
-- [ ] 1.3 Notifier credential suite passes
-- [ ] 1.4 Solver credential, job attribution and role matrix suites pass
-- [ ] 1.5 Generated types regenerated and diff limited to the four columns
-- [ ] 1.6 Type check passes: `pnpm check`
-- [ ] 1.7 Lint and FSD gates pass
+- [x] 1.1 The notifier credential suite and the guard freeze cases fail before the migration (red recorded in the commit message or PR)
+- [x] 1.2 Migration applies cleanly from scratch: `pnpm exec supabase db reset`
+- [x] 1.3 Notifier credential suite passes
+- [x] 1.4 Solver credential, job attribution and role matrix suites pass
+- [x] 1.5 Generated types regenerated and diff limited to the four columns
+- [x] 1.6 Type check passes: `pnpm check`
+- [x] 1.7 Lint and FSD gates pass
 
 #### Manual
 
-- [ ] 1.8 Notifier provisioning creates and rotates; solver provisioning unchanged
-- [ ] 1.9 Grant posture read live matches the suite's lists
+- [x] 1.8 Notifier provisioning creates and rotates; solver provisioning unchanged
+- [x] 1.9 Grant posture read live matches the suite's lists
 
 ### Phase 2: Opt-in at Generate
 

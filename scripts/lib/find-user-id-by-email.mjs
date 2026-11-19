@@ -1,5 +1,5 @@
-// Resolves an Auth user's email to its id, for the operator scripts (provision-solver-user,
-// provision-e2e-author, assign-role). GoTrue's admin API has no lookup by email, so this pages
+// Resolves an Auth user's email to its id, for the operator scripts (provision-machine-user, behind
+// provision-solver-user and provision-notifier-user; provision-e2e-author; assign-role). GoTrue's admin API has no lookup by email, so this pages
 // through the user list. It throws rather than exiting: each caller reports through its own `fail()`.
 
 const PAGE_SIZE = 200;

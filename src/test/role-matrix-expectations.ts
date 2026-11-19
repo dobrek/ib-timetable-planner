@@ -58,6 +58,16 @@ import type { TablePrivilege } from "./postgres-client";
  */
 
 /**
+ * Every machine role the token hook maps a machine user's token to: the solver's (S-301) and the
+ * job-email notifier's (S-310). No human session holds one, so the matrix's structural checks leave
+ * out a policy that names only these roles. Each role's own credential suite pins its policies
+ * instead (`solver-credential`, `job-notifier-credential`).
+ */
+export const MACHINE_ROLES = ["solver_job_writer", "job_notifier"] as const;
+
+export type MachineRole = (typeof MACHINE_ROLES)[number];
+
+/**
  * Who attempts the access: no session, a session without a role, an admin whose temporary password is
  * still pending (S-409), an admin an admin has deactivated (S-408), and a session per app role.
  */
@@ -498,8 +508,8 @@ const LISTED_TARGET = `(${CAN_MANAGE_USERS} AND (EXISTS ( SELECT 1 FROM user_dir
  * Every policy on each user-keyed table, whatever role it names, as `pg_policies` deparses it and
  * sorted by command, then name. These tables do not fit the four capability policies: a user owns
  * their row whatever their role. The structural check compares the live catalog against this map,
- * so a new policy, a drifted predicate or a widened role list fails it. Only the solver's
- * `to solver_job_writer` policies, which no human session holds, are left out.
+ * so a new policy, a drifted predicate or a widened role list fails it. Only policies naming machine
+ * roles alone (`MACHINE_ROLES`), which no human session holds, are left out.
  *
  * `user_directory`'s mirror policy names `supabase_auth_admin`, the role GoTrue writes `auth.users`
  * as and the Auth trigger therefore runs as: the recorded exception to "every policy names

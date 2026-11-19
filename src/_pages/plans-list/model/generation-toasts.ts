@@ -17,7 +17,8 @@ import type { IndicatorsByPlan } from "./job-progress-store";
  *
  * S-306 calls this the in-app half of FR-309. The durable half is the row transition the hub's
  * badge reads (`delivered_plan_id` set, `notified_at` still null); a toast is the free by-product of a
- * poll that is already running, and S-310's emailer is a third reader of the same event.
+ * poll that is already running. The email half (S-310) keys on the solver's terminal write instead,
+ * since a walk-away job is never delivered, and never reads `notified_at`.
  */
 export type GenerationAnnouncement = {
   jobId: string;

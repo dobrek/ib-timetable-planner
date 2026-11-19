@@ -4,18 +4,19 @@ import type { GenerationJobView } from "./generation-read";
 import type { StopGenerationResult } from "./generation-stop";
 import { callActionData } from "./call-action";
 
-/** Enqueue a CP-SAT generation job for this plan under the author's chosen policy (S-307). Resolves
- *  once the solver has ACCEPTED the dispatch (202); the solve itself lands minutes later on
- *  `generation_jobs`, and the strip reports it. */
+/** Enqueue a CP-SAT generation job for this plan under the author's chosen policy (S-307), recording
+ *  whether they asked to be emailed when it ends (S-310). Resolves once the solver has ACCEPTED the
+ *  dispatch (202); the solve itself lands minutes later on `generation_jobs`, and the strip reports it. */
 export function startGeneration(
   planId: string,
   policy: SolvePolicy,
+  { emailOnFinish }: { emailOnFinish: boolean },
 ): Promise<{
   jobId: string;
   proposalPlanId: string;
   autoParked: { cohort: string; courseId: string; hoursParked: number }[];
 }> {
-  return callActionData(actions.startGeneration, { planId, policy });
+  return callActionData(actions.startGeneration, { planId, policy, emailOnFinish });
 }
 
 /**

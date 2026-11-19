@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Loader2, Wand2 } from "lucide-react";
 import {
   DEFAULT_SOLVE_POLICY,
@@ -18,6 +18,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
   Button,
+  Checkbox,
+  Label,
   ToggleGroup,
   ToggleGroupItem,
 } from "@/shared/ui";
@@ -25,6 +27,8 @@ import type { GenerationControls } from "../../model/use-cohort-board-state";
 
 type Props = {
   generation: GenerationControls;
+  /** Whether the job-email cron is configured (S-310), computed by the route. */
+  jobEmailAvailable: boolean;
 };
 
 /**
@@ -51,13 +55,21 @@ type Props = {
  * shows the reason as visible text with `role="status"` — the screen-reader-perceivable reason the
  * trigger's `title` alone never gave.
  *
+ * **"Email me when it finishes" (S-310)** sits under the policy choice, ticked on EVERY open and never
+ * seeded from a previous job: the author decides per run, and the default is to be told. It is
+ * absent, never disabled, while the job-email cron is not configured, and the launch then carries
+ * `emailOnFinish: false`, so the page never promises an email that nothing will send. The choice is
+ * written once onto the job row; nobody can change it after the job starts.
+ *
  * The button's job still ENDS at dispatch (S-301): what the job does next is the status strip's story,
  * read back from `generation_jobs`, and Stop & keep lives on the proposal's own page (S-305).
  */
-export default function GenerateButton({ generation }: Props) {
+export default function GenerateButton({ generation, jobEmailAvailable }: Props) {
   const { state, error, disabledReason, busy, launch } = generation;
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<SolvePolicyPreset>(DEFAULT_SOLVE_POLICY.preset);
+  const [emailOnFinish, setEmailOnFinish] = useState(true);
+  const emailId = useId();
 
   const launching = state.status === "launching";
   // Only a LIVE job blocks a new one, matching the partial unique index that enforces it server-side:
@@ -80,12 +92,15 @@ export default function GenerateButton({ generation }: Props) {
   const seed = state.status === "tracking" ? state.job.policy.preset : DEFAULT_SOLVE_POLICY.preset;
 
   const onOpenChange = (next: boolean): void => {
-    if (next) setPreset(seed);
+    if (next) {
+      setPreset(seed);
+      setEmailOnFinish(true);
+    }
     setOpen(next);
   };
 
   const confirm = (): void => {
-    launch({ preset });
+    launch({ preset }, { emailOnFinish: jobEmailAvailable && emailOnFinish });
     setOpen(false);
   };
 
@@ -138,6 +153,25 @@ export default function GenerateButton({ generation }: Props) {
             </ToggleGroup>
             <p className="text-muted-foreground text-sm">{POLICY_CONSEQUENCE[preset]}</p>
           </div>
+          {jobEmailAvailable && (
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id={emailId}
+                checked={emailOnFinish}
+                onCheckedChange={(checked) => {
+                  setEmailOnFinish(checked === true);
+                }}
+                aria-describedby={`${emailId}-note`}
+                className="mt-0.5"
+              />
+              <div className="space-y-1">
+                <Label htmlFor={emailId}>Email me when it finishes</Label>
+                <p id={`${emailId}-note`} className="text-muted-foreground text-sm">
+                  It goes to your account&apos;s email address, and can&apos;t be changed once the job starts.
+                </p>
+              </div>
+            </div>
+          )}
           {/* Inside the dialog and as a live region: the trigger's `title` is invisible to a screen
               reader, and a reason that arrives while the author is deciding has to be perceivable
               where their focus is. */}

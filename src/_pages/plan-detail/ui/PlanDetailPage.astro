@@ -26,6 +26,8 @@ type Props = {
   canEdit: boolean;
   /** The signed-in user's id (S-407), for the strip's stopper copy. */
   viewerId: string | null;
+  /** The route's `isJobEmailAvailable()` (S-310): whether Generate offers the job email. */
+  jobEmailAvailable: boolean;
 };
 
 const {
@@ -42,6 +44,7 @@ const {
   generationJob,
   canEdit,
   viewerId,
+  jobEmailAvailable,
 } = Astro.props;
 ---
 
@@ -60,6 +63,7 @@ const {
     generationJob={generationJob}
     canEdit={canEdit}
     viewerId={viewerId}
+    jobEmailAvailable={jobEmailAvailable}
     client:load
   />
 </div>

@@ -147,6 +147,33 @@ const deps = (transport: SolverTransport | null): GenerationDeps => ({ getTransp
     expect(calls[0].policy).toEqual(job.policy);
   });
 
+  describe("the email choice (S-310)", () => {
+    const emailRequestedOf = async (jobId: string): Promise<boolean | undefined> =>
+      (await supabase.from("generation_jobs").select("email_requested").eq("id", jobId).single()).data?.email_requested;
+
+    it("records the author's choice on the row when asked", async () => {
+      const source = await seededPlan("email on");
+
+      const result = await startGeneration(
+        supabase,
+        { planId: source.id, emailOnFinish: true },
+        deps(recordingTransport().transport),
+      );
+      registerPlan(result.proposalPlanId);
+
+      expect(await emailRequestedOf(result.jobId)).toBe(true);
+    });
+
+    it("opts nobody in when the caller omits it", async () => {
+      const source = await seededPlan("email omitted");
+
+      const result = await startGeneration(supabase, { planId: source.id }, deps(recordingTransport().transport));
+      registerPlan(result.proposalPlanId);
+
+      expect(await emailRequestedOf(result.jobId)).toBe(false);
+    });
+  });
+
   it("leaves an ordinary clonePlan un-pending — the hub's Clone dialog shares that RPC", async () => {
     // The reason `pending_proposal` is a separate update in `startGeneration` rather than an argument
     // to `clone_plan`: the same RPC backs the hub's Clone dialog, which must keep producing plans the

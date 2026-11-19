@@ -1,3 +1,5 @@
+import { isLoopbackHost } from "@/shared/config";
+
 /**
  * The Cloudflare Turnstile check in front of the public reset request, as pure rules. It fails
  * closed: only `pass` lets a request through.
@@ -34,7 +36,7 @@ export function preflightTurnstile({
   requestHost: string;
 }): TurnstileVerdict | SiteverifyRequest {
   if (!secret) return "misconfigured";
-  if (TEST_SECRETS.has(secret) && !isLoopback(requestHost)) return "misconfigured";
+  if (TEST_SECRETS.has(secret) && !isLoopbackHost(requestHost)) return "misconfigured";
   if (typeof token !== "string" || token === "" || token.length > MAX_TOKEN_LENGTH) return "refused";
   return { token, secret };
 }
@@ -56,7 +58,7 @@ export function judgeSiteverify(
   if (errorCodes.some((code) => SECRET_ERRORS.has(code))) return "misconfigured";
   if (status >= 500 || errorCodes.includes("internal-error")) return "transient";
   if (body.success !== true) return "refused";
-  if (body.metadata?.result_with_testing_key === true) return isLoopback(requestHost) ? "pass" : "misconfigured";
+  if (body.metadata?.result_with_testing_key === true) return isLoopbackHost(requestHost) ? "pass" : "misconfigured";
   return body.action === TURNSTILE_ACTION && body.hostname === requestHost ? "pass" : "refused";
 }
 
@@ -71,11 +73,6 @@ const TEST_SECRETS = new Set([
 ]);
 
 const SECRET_ERRORS = new Set(["missing-input-secret", "invalid-input-secret"]);
-
-// `URL.hostname` keeps the brackets on an IPv6 literal.
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
-
-const isLoopback = (host: string): boolean => LOOPBACK_HOSTS.has(host);
 
 type SiteverifyBody = {
   success?: unknown;

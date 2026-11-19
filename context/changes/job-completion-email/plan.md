@@ -741,22 +741,22 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Automated
 
-- [x] 2.1 Dialog and hook unit tests pass
-- [x] 2.2 Enqueue integration passes
-- [x] 2.3 Type check passes: `pnpm check`
-- [x] 2.4 Lint and FSD gates pass
+- [x] 2.1 Dialog and hook unit tests pass — 9086cf05
+- [x] 2.2 Enqueue integration passes — 9086cf05
+- [x] 2.3 Type check passes: `pnpm check` — 9086cf05
+- [x] 2.4 Lint and FSD gates pass — 9086cf05
 
 #### Manual
 
-- [x] 2.5 Dialog shows the ticked checkbox on every open; an opted-out launch writes false
+- [x] 2.5 Dialog shows the ticked checkbox on every open; an opted-out launch writes false — 9086cf05
 
 ### Phase 3: Email decision, content and transport
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass for entities and shared
-- [ ] 3.2 Type check passes: `pnpm check`
-- [ ] 3.3 Lint and FSD gates pass
+- [x] 3.1 Unit tests pass for entities and shared
+- [x] 3.2 Type check passes: `pnpm check`
+- [x] 3.3 Lint and FSD gates pass
 
 ### Phase 4: The sweep
 

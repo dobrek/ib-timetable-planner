@@ -41,7 +41,9 @@ export {
   type MailTransportKeys,
   type MailTransportProblem,
   type OutgoingMail,
+  type SendFailure,
   type SendOutcome,
+  type SendStopReason,
 } from "./mail";
 export type { Database, Json } from "./database.types";
 

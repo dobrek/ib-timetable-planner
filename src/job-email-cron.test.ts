@@ -15,7 +15,15 @@ const configured: JobEmailEnv = {
   MAILPIT_URL: "http://127.0.0.1:54324",
 };
 
-const REPORT: JobEmailSweepReport = { sent: 1, skipped: 2, waiting: 0, deferred: 0, failed: 0 };
+const REPORT: JobEmailSweepReport = {
+  sent: 1,
+  skipped: 2,
+  waiting: 0,
+  deferred: 0,
+  stoppedBy: null,
+  failed: 0,
+  failures: [],
+};
 
 type SignIn = SupabaseClient["auth"]["signInWithPassword"];
 
@@ -93,6 +101,27 @@ describe("the job-email cron", () => {
       nowMs: NOW,
     });
     expect(info.mock.calls).toEqual([["[job-email] sent=1 skipped=2 waiting=0 deferred=0 failed=0"]]);
+  });
+
+  it("says why a run stopped sending and why sends failed, each distinct reason once", async () => {
+    const stopped: JobEmailSweepReport = {
+      ...REPORT,
+      deferred: 2,
+      stoppedBy: "credential",
+      failed: 3,
+      failures: [
+        { status: 0, name: "no-answer" },
+        { status: 422, name: "validation_error" },
+        { status: 0, name: "no-answer" },
+      ],
+    };
+    const { tick, info } = harness({ sweep: vi.fn<JobEmailCronDeps["sweep"]>(() => Promise.resolve(stopped)) });
+
+    await tick();
+
+    expect(info.mock.calls).toEqual([
+      ["[job-email] sent=1 skipped=2 waiting=0 deferred=2 (credential) failed=3 (0 no-answer, 422 validation_error)"],
+    ]);
   });
 
   it("reuses the session across runs, and signs in again only as the token nears expiry", async () => {

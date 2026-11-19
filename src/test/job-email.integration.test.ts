@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sweepJobEmails } from "@/entities/timetable/api/job-email-sweep";
-import { createMailpitTransport, type Database, type MailTransport, type SupabaseClient } from "@/shared/api";
+import {
+  createMailpitTransport,
+  type Database,
+  type MailTransport,
+  type SendOutcome,
+  type SupabaseClient,
+} from "@/shared/api";
 import { JOB_EMAIL_FROM, type AppRole } from "@/shared/config";
 import {
   addGenerationJob,
@@ -204,6 +210,24 @@ type Settled = { emailed_at: string | null; email_outcome: string | null; email_
     expect(await settledOf(byAdmin.jobId)).toMatchObject({ email_outcome: "sent" });
   });
 
+  it("skips a job whose dispatch was refused, and emails one that failed after it started", async () => {
+    const [refusedRequester, failedRequester] = await Promise.all([person(), person()]);
+    const failed = { status: "failed" as const, result: null };
+    const [refused, ranAndFailed] = await Promise.all([
+      // What markDispatchFailed leaves: failed and finished, never claimed by the solver.
+      optedInJob({ ...failed, requestedBy: refusedRequester.id, startedAt: null }),
+      optedInJob({ ...failed, requestedBy: failedRequester.id }),
+    ]);
+
+    await sweep();
+
+    expect(await settledOf(refused.jobId)).toMatchObject({ email_outcome: "dispatch_refused" });
+    expect(await messagesTo(refusedRequester.email)).toEqual([]);
+    const message = await waitForMessageTo(failedRequester.email);
+    expect(message.Subject).toMatch(/^IB Planner: generation failed for /);
+    expect(await settledOf(ranAndFailed.jobId)).toMatchObject({ email_outcome: "sent" });
+  });
+
   it("sends one stalled email for a job that went quiet, and nothing more once it is reclaimed", async () => {
     const requester = await person();
     const { jobId, planId } = await optedInJob({
@@ -250,6 +274,34 @@ type Settled = { emailed_at: string | null; email_outcome: string | null; email_
 
     await waitForMessageTo(viewer.email);
     expect(await settledOf(jobId)).toMatchObject({ email_outcome: "sent" });
+  });
+
+  it("reports why a send failed, and why a run stopped sending, without an address", async () => {
+    const answering =
+      (outcome: SendOutcome): MailTransport["send"] =>
+      () =>
+        Promise.resolve(outcome);
+    const [first, second] = await Promise.all([person(), person()]);
+    const failing = await optedInJob({ requestedBy: first.id });
+
+    const failed = await sweepJobEmails(
+      notifier.client,
+      { send: answering({ kind: "failed", status: 422, name: "validation_error" }) },
+      { origin: ORIGIN, nowMs: Date.now() },
+    );
+    expect(failed.failures).toContainEqual({ status: 422, name: "validation_error" });
+    // Its claim is left to expire: the backoff. The job is still due.
+    expect(await settledOf(failing.jobId)).toMatchObject({ emailed_at: null, email_outcome: null });
+
+    await optedInJob({ requestedBy: second.id });
+    const stopped = await sweepJobEmails(
+      notifier.client,
+      { send: answering({ kind: "stop-tick", reason: "credential" }) },
+      { origin: ORIGIN, nowMs: Date.now() },
+    );
+    expect(stopped.stoppedBy).toBe("credential");
+    expect(stopped.deferred).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify([failed, stopped])).not.toMatch(/@/);
   });
 
   it("sends exactly one message when two sweeps run over the same job at once", async () => {

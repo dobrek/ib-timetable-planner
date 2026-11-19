@@ -98,10 +98,13 @@ const SIGNATURE = "IB Planner";
 /**
  * Whether a board is on its way to the proposal: a succeeded job's is its `result`, and a halted job
  * keeps one in its `checkpoint` exactly when `checkpoint_stage_index` is set (`isDeliverableJob`).
- * The link goes to the proposal then, and to the plan Generate was pressed on otherwise.
+ * Only while the proposal plan still exists: once it is deleted there is nothing to open, so the email
+ * neither claims a kept board nor counts it. The link goes to the proposal then, and to the plan
+ * Generate was pressed on otherwise.
  */
 const hasBoard = (kind: JobEmailKind, facts: JobEmailContentFacts): boolean =>
-  kind === "finished" || ((kind === "interrupted" || kind === "stopped") && facts.checkpointStageIndex !== null);
+  facts.proposalPlanId !== null &&
+  (kind === "finished" || ((kind === "interrupted" || kind === "stopped") && facts.checkpointStageIndex !== null));
 
 /** The call to action, split so the HTML can make `open` the email's one anchor. */
 type NextStep = { lead: string; open: string; rest: string };

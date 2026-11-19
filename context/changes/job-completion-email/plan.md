@@ -26,6 +26,7 @@ Roadmap slice S-310 (issue [#107](https://github.com/dobrek/ib-timetable-planner
 - The email names the plan, the outcome, how long it ran, the policy, and (when a board exists) how many course groups could not be placed. It has one link to the plan to open, and nothing else.
 - No email is sent when:
   - the requester stopped the job themselves;
+  - the dispatch was refused, so the author saw the error at Generate (impl review F1);
   - the requester is gone, pending, deactivated, or has no role;
   - the event is more than 24 h old.
 - The skip is recorded on the row (`email_outcome`), and no job is ever emailed twice.
@@ -105,6 +106,7 @@ The job row is the only status channel, so a poll with marker columns is the nat
 | Event instant older than 24 h (terminal: `finished_at ?? created_at`; active: `heartbeat_at ?? created_at`)     | skip `expired`                           |
 | Active (`queued`/`running`) and not `isStaleActiveJob`                                                          | wait                                     |
 | `stop_requested_by` non-null and equal to `requested_by`                                                        | skip `stopped_by_requester`              |
+| `failed` with `started_at` null (the dispatch was refused; added by impl review F1, 2026-11-19)                | skip `dispatch_refused`                  |
 | `requested_by` null, or no directory row                                                                        | skip `no_recipient`                      |
 | `must_change_password`, no `user_roles` row, or `deactivated_at` set                                            | skip `recipient_fenced`                  |
 | Active and stale                                                                                                | send `stalled` → outcome `sent_stalled`  |
@@ -151,7 +153,7 @@ Assertions:
   - it sees opted-in jobs, settled ones included (see the SELECT policy note in §3), but never a job that never opted in;
   - a settle write (`emailed_at` + `email_outcome` on an unsettled opted-in row) succeeds under the notifier's own session, which pins the new-row check;
   - it sees the directory and role rows of the requester of an opted-in job whose email is still unsettled, but not another user's;
-  - it sees that job's source and proposal plans only.
+  - it sees that job's source plan only (narrowed from "source and proposal" by impl review F6).
 - Writing `status` or `notified_at` is refused. INSERT and DELETE are refused. `rolbypassrls = false`, `rolcanlogin = false`.
 - Every `to job_notifier` policy's name and predicate is pinned from `pg_policies`, as the solver suite pins its own (`:144-170`). The role matrix filters machine policies out, so this suite is where they're held.
 
@@ -173,13 +175,13 @@ Assertions:
 - `generation_jobs` gains:
   - `email_requested boolean not null default false`. Existing rows read false, so the first deploy cannot flood. No backfill.
   - `email_claimed_at timestamptz`, `emailed_at timestamptz`, `email_outcome text`.
-  - A check constraint keeping `email_outcome` in (`sent`, `sent_stalled`, `no_recipient`, `recipient_fenced`, `stopped_by_requester`, `expired`), and `(emailed_at is null) = (email_outcome is null)`.
+  - A check constraint keeping `email_outcome` in (`sent`, `sent_stalled`, `no_recipient`, `recipient_fenced`, `stopped_by_requester`, `dispatch_refused` (impl review F1), `expired`), and `(emailed_at is null) = (email_outcome is null)`.
   - A partial index for the due set (`where email_requested and emailed_at is null`).
 - Role `job_notifier`, built like `solver_job_writer`: `nologin`, granted to `authenticator`, `usage` on `public`, no BYPASSRLS, no default privileges, no table-wide grant. Column grants exactly as the suite pins them.
 - `to job_notifier` policies:
   - `generation_jobs` SELECT `using (email_requested)`. The row predicate cannot also say `emailed_at is null`: PostgREST's UPDATE always carries a RETURNING, and Postgres checks the NEW row against SELECT policies, so every settle write would fail 42501 (measured for the solver, `20260812141459:16-29`). The narrowing lives in the column grants, as it does for the solver, and the header says so;
   - UPDATE `using (email_requested and emailed_at is null)` and `with check (email_requested)`;
-  - `plans` / `user_directory` / `user_roles` SELECT whose USING admits only ids referenced by such a job (`plan_id`/`proposal_plan_id`, `requested_by`).
+  - `plans` / `user_directory` / `user_roles` SELECT whose USING admits only ids referenced by such a job (`plan_id`, `requested_by`; `proposal_plan_id` dropped by impl review F6).
 - `public.custom_access_token_hook` re-created from its live body. The allowlist becomes exactly {`solver_job_writer`, `job_notifier`}, and a null or unknown value still passes the event through. Execute is still granted to `supabase_auth_admin` only.
 - `private.guard_job_attribution()` re-created from its live body:
   - for `authenticated`, an INSERT forces `email_claimed_at`, `emailed_at` and `email_outcome` to null;
@@ -715,6 +717,22 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 - Email-content test pattern: `src/test/password-recovery.integration.test.ts:70-82`, `src/test/mailpit.ts`
 - Staleness: `src/entities/timetable/model/generation/job-staleness.ts:23-57`
 - Hosted-check precedent: `context/archive/2026-11-10-invite-by-email/hosted-check.md`
+
+## Implementation Addenda (2026-11-19)
+
+Recorded by the implementation review (`reviews/impl-review.md`). The phase commits already record the other departures: `isLoopbackHost` in `shared/config`, `MailTransport` as a `type`, the counts wording, `chooseMailTransport`, skips honouring a live claim, and `job-email-availability.ts`.
+
+**Departures no commit recorded:**
+- `readJobEmailConfig` returns `{ ok: false; problems: string[] }`, not `missing`. It also parses `APP_ORIGIN`: it must be http(s), and only its origin is kept. Phase 2 said "presence only"; this fails closed and is tested.
+- Every Resend 429 whose `name` is not a quota name maps to `stop-tick(rate-limited)`, not only `rate_limit_exceeded`.
+- The decision uses `isActiveJobStatus`, the exact inverse of `isTerminalJobStatus`.
+
+**Review fixes:**
+- **F1:** a `failed` job with `started_at` null (its dispatch was refused, so the author saw the error at Generate) skips with the new outcome `dispatch_refused`. The decision table and the check constraint above show it, and the migration was edited in place before merge.
+- **F2:** claims are dated and judged by the live clock, not the run's `nowMs`, so a long run's later claims cannot look expired to an overlapping run.
+- **F3:** the sweep report carries `stoppedBy` and each failure's status and name, and the cron's counts line prints them: `deferred=… (credential)`, `failed=… (422 validation_error)`.
+- **F5:** a halted email claims a kept board, and counts it, only while the proposal plan still exists.
+- **F6:** the notifier's `plans` policy admits only a due job's source plan, not its proposal plan. The sweep reads only the source plan's name, and the link uses the id from the job row. The migration was edited in place before merge.
 
 ## Progress
 

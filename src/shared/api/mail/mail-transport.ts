@@ -39,6 +39,12 @@ export type SendOutcome =
   | { kind: "stop-tick"; reason: "quota" | "rate-limited" | "credential" }
   | { kind: "failed"; status: number; name: string };
 
+/** Why the provider refused every send for now: what a `stop-tick` names. */
+export type SendStopReason = Extract<SendOutcome, { kind: "stop-tick" }>["reason"];
+
+/** What a `failed` send says about itself: a status and a short error name, never a body. */
+export type SendFailure = Omit<Extract<SendOutcome, { kind: "failed" }>, "kind">;
+
 /** Who an email is from: a display name and an address on a verified sending domain. */
 export type MailSender = { name: string; address: string };
 

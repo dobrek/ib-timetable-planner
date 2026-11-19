@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@/shared/api";
 import type { AppRole } from "@/shared/config";
 import { createPublishableClient } from "@/test/publishable-client";
-import { readPublishableKey } from "@/test/publishable-key";
+import { requireLoopbackUrl, requirePublishableKey } from "./local-sign-in";
 import { strongPassword } from "./strong-password";
 import { registerUser } from "./teardown";
 
@@ -48,8 +48,8 @@ export async function createSignedInUser(
   }: { role?: AppRole; mustChangePassword?: boolean; deactivated?: boolean } = {},
 ): Promise<SignedInUser> {
   if (deactivated && !role) throw new Error("createSignedInUser: deactivated needs a role to deactivate");
-  const url = requireLoopbackUrl();
-  const publishableKey = requirePublishableKey();
+  const url = requireLoopbackUrl("createSignedInUser");
+  const publishableKey = requirePublishableKey("createSignedInUser");
   const email = `signed-in-${randomUUID()}@example.test`;
   const password = strongPassword();
 
@@ -84,22 +84,4 @@ const assignRole = async (
 const markPending = async (admin: SupabaseClient, userId: string): Promise<void> => {
   const { error } = await admin.from("user_directory").update({ must_change_password: true }).eq("user_id", userId);
   if (error) throw new Error(`createSignedInUser: mark pending: ${error.message}`);
-};
-
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
-
-const requireLoopbackUrl = (): string => {
-  const url = process.env.SUPABASE_URL;
-  if (!url) throw new Error("createSignedInUser: SUPABASE_URL is not set");
-  const { hostname } = new URL(url);
-  if (!LOOPBACK_HOSTS.has(hostname)) {
-    throw new Error(`createSignedInUser: refusing non-loopback host "${hostname}" — signed-in users are local-only`);
-  }
-  return url;
-};
-
-const requirePublishableKey = (): string => {
-  const key = readPublishableKey();
-  if (!key) throw new Error("createSignedInUser: no publishable key (SUPABASE_KEY, .dev.vars or .env.local)");
-  return key;
 };

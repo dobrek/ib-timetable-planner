@@ -363,6 +363,10 @@ export type Database = {
           created_at: string
           delivered_plan_id: string | null
           delivery: string | null
+          email_claimed_at: string | null
+          email_outcome: string | null
+          email_requested: boolean
+          emailed_at: string | null
           error: string | null
           finished_at: string | null
           heartbeat_at: string | null
@@ -391,6 +395,10 @@ export type Database = {
           created_at?: string
           delivered_plan_id?: string | null
           delivery?: string | null
+          email_claimed_at?: string | null
+          email_outcome?: string | null
+          email_requested?: boolean
+          emailed_at?: string | null
           error?: string | null
           finished_at?: string | null
           heartbeat_at?: string | null
@@ -419,6 +427,10 @@ export type Database = {
           created_at?: string
           delivered_plan_id?: string | null
           delivery?: string | null
+          email_claimed_at?: string | null
+          email_outcome?: string | null
+          email_requested?: boolean
+          emailed_at?: string | null
           error?: string | null
           finished_at?: string | null
           heartbeat_at?: string | null

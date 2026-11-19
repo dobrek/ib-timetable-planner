@@ -31,6 +31,10 @@ import {
  * - **Deleting a user clears their credit and nothing else.** The FK's set-null cascade runs as the
  *   table owner, so the guard lets it through, and `plans_updated_at` skips it, so "Last updated"
  *   stays put.
+ * - **The email choice is the launch's, and its record the notifier's (S-310).** A signed-in insert
+ *   keeps `email_requested` and clears the three markers, and no signed-in session changes any of
+ *   the four afterwards: `authenticated` holds table-wide UPDATE, so without the guard an editor
+ *   could silence or re-arm someone else's email.
  *
  * The solver is faked at the transport seam, as in the enqueue suite: only the job row matters here.
  */
@@ -46,12 +50,14 @@ const acceptingTransport: SolverTransport = {
 (hasEnv ? describe : describe.skip)("job and plan attribution (local Supabase)", () => {
   let admin: SupabaseClient;
   let author: SignedInUser;
+  let otherEditor: SignedInUser;
   let schoolAdmin: SignedInUser;
 
   beforeAll(async () => {
     if (!SUPABASE_URL || !SERVICE_KEY) return;
     admin = createClient<Database>(SUPABASE_URL, SERVICE_KEY);
-    [author, schoolAdmin] = await Promise.all([
+    [author, otherEditor, schoolAdmin] = await Promise.all([
+      createSignedInUser(admin, { role: "author" }),
       createSignedInUser(admin, { role: "author" }),
       createSignedInUser(admin, { role: "admin" }),
     ]);
@@ -206,6 +212,72 @@ const acceptingTransport: SolverTransport = {
     });
   });
 
+  describe("the email choice and its record (S-310)", () => {
+    const emailOf = async (jobId: string) =>
+      readBack(
+        await admin
+          .from("generation_jobs")
+          .select("email_requested, email_claimed_at, emailed_at, email_outcome")
+          .eq("id", jobId)
+          .single(),
+      );
+
+    it("keeps the choice a signed-in insert makes, and clears the three markers it sends", async () => {
+      const jobId = randomUUID();
+      const forged = new Date().toISOString();
+      setUp(
+        await author.client.from("generation_jobs").insert({
+          id: jobId,
+          ...(await generationJobRow(await createPlan(admin))),
+          email_requested: true,
+          email_claimed_at: forged,
+          emailed_at: forged,
+          email_outcome: "sent",
+        }),
+      );
+
+      expect(await emailOf(jobId)).toEqual({
+        email_requested: true,
+        email_claimed_at: null,
+        emailed_at: null,
+        email_outcome: null,
+      });
+    });
+
+    // Each write is valid against the table's checks, so only the guard can refuse it. The job is
+    // `running` with a fresh heartbeat and already settled, so the sweep suite never touches it.
+    const rewrites: Record<string, Database["public"]["Tables"]["generation_jobs"]["Update"]> = {
+      email_requested: { email_requested: false },
+      email_claimed_at: { email_claimed_at: "2026-01-01T00:00:00+00:00" },
+      emailed_at: { emailed_at: "2026-01-01T00:00:00+00:00" },
+      email_outcome: { email_outcome: "expired" },
+    };
+
+    it.each(Object.entries(rewrites))(
+      "refuses every signed-in session a change to %s, the requester's included",
+      async (_column, rewrite) => {
+        const jobId = await settledEmailJobOf(admin, author.id);
+        const before = await emailOf(jobId);
+
+        const callers = { requester: author, "other editor": otherEditor, admin: schoolAdmin };
+        for (const [who, caller] of Object.entries(callers)) {
+          const { error } = await caller.client.from("generation_jobs").update(rewrite).eq("id", jobId);
+          expect(error?.code, who).toBe("42501");
+        }
+
+        expect(await emailOf(jobId)).toEqual(before);
+      },
+    );
+
+    it("lets the service role write them: the guard judges signed-in sessions only", async () => {
+      const jobId = await settledEmailJobOf(admin, author.id);
+
+      setUp(await admin.from("generation_jobs").update({ email_outcome: "expired" }).eq("id", jobId));
+
+      expect(await emailOf(jobId)).toMatchObject({ email_outcome: "expired" });
+    });
+  });
+
   it("deleting a user clears their credit and nothing else, and leaves Last updated alone", async () => {
     const leaver = await createSignedInUser(admin, { role: "author" });
     const plan = await createPlanAs(leaver.client, { name: `Attribution ${randomUUID()}`, slotGridPreset: "5x10" });
@@ -239,6 +311,30 @@ const acceptingTransport: SolverTransport = {
 /** A running job on a fresh plan of its own, recording `requestedBy` as its requester. */
 const runningJobOf = async (admin: SupabaseClient, requestedBy: string): Promise<string> =>
   addGenerationJob(admin, { planId: await createPlan(admin), status: "running", requestedBy });
+
+/**
+ * A `running` job with a fresh heartbeat on a fresh plan, opted in to the job email and already
+ * settled by the service role: every email column holds a value a rewrite can visibly change.
+ */
+const settledEmailJobOf = async (admin: SupabaseClient, requestedBy: string): Promise<string> => {
+  const now = new Date().toISOString();
+  const jobId = randomUUID();
+  setUp(
+    await admin.from("generation_jobs").insert({
+      id: jobId,
+      ...(await generationJobRow(await createPlan(admin))),
+      status: "running",
+      started_at: now,
+      heartbeat_at: now,
+      requested_by: requestedBy,
+      email_requested: true,
+      email_claimed_at: now,
+      emailed_at: now,
+      email_outcome: "sent",
+    }),
+  );
+  return jobId;
+};
 
 /** A setup write. It throws on any error: a failed setup must never read as a result. */
 const setUp = ({ error }: { error: { message: string } | null }): void => {

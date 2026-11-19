@@ -288,13 +288,17 @@ max_frequency = "5s"
 # uri = "pg-functions://postgres/auth/before-user-created-hook"
 
 # This hook runs before a token is issued and allows you to add additional claims based on the authentication method used.
-# Enabled: the solver's machine user gets `role: solver_job_writer` instead of `authenticated`, so the
-# CP-SAT container reaches exactly one table (see 20260810200934_custom_access_token_hook.sql). Every
-# other user's event passes through untouched. Repo-declared on purpose — hook config is NOT carried by
-# `db push`, so the hosted hook is enabled by hand in the dashboard, never via `config push`
-# (docs/runbooks/solver-credential.md). Disabling this is a silent escalation, not a degradation: the
-# machine user falls back to `authenticated`, which reaches the whole database. The guard test in
-# src/test/solver-credential.integration.test.ts turns that into a red build.
+# Enabled: it maps exactly two machine users. The solver's gets `role: solver_job_writer` instead of
+# `authenticated`, so the CP-SAT container reaches exactly one table (see
+# 20260810200934_custom_access_token_hook.sql). The job-email notifier's gets `role: job_notifier`,
+# reaching only the job-email columns and rows (S-310, 20261119134333_job_completion_email.sql, which
+# re-creates the hook's body). Every other user's event passes through untouched. Repo-declared on
+# purpose — hook config is NOT carried by `db push`, so the hosted hook is enabled by hand in the
+# dashboard, never via `config push` (docs/runbooks/solver-credential.md). If this is disabled, a
+# machine user falls back to `authenticated`, which since S-403 reaches no data at all, so the solver
+# and the notifier both stop working. The guard tests in
+# src/test/solver-credential.integration.test.ts and src/test/job-notifier-credential.integration.test.ts
+# turn that into a red build.
 [auth.hook.custom_access_token]
 enabled = true
 uri = "pg-functions://postgres/public/custom_access_token_hook"

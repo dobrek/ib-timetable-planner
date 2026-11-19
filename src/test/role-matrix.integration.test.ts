@@ -53,6 +53,7 @@ import {
   JOB_STOPS,
   MACHINE_DIRECTORY_READ,
   MACHINE_ROLE_GRANT,
+  MACHINE_ROLES,
   PRINCIPAL_NOTES,
   PROFILE_REKEY,
   PROFILE_WRITES,
@@ -298,7 +299,7 @@ const ATTRIBUTION_COLUMNS = Object.keys(JOB_ATTRIBUTION_REWRITES) as JobAttribut
           and (qual = 'true' or with_check = 'true')
         order by tablename, policyname`,
     );
-    // The solver's `to solver_job_writer` policies are out of scope: no human session holds that role.
+    // Machine-only policies (`MACHINE_ROLES`) are out of scope: no human session holds those roles.
     expect(rows.map(({ policy }) => policy)).toEqual([]);
   });
 
@@ -643,8 +644,9 @@ const livePosture = async (pg: Client): Promise<Record<string, TablePosture>> =>
 
 /**
  * Every RLS table in `public` but the user-keyed ones, with each policy a human session can fall
- * under, as `pg_policies` states it and sorted by command. The solver's `to solver_job_writer`
- * policies are left out, since no human session holds that role. A table with no policy lists none.
+ * under, as `pg_policies` states it and sorted by command. A policy naming only machine roles
+ * (`MACHINE_ROLES`) is left out, since no human session holds one; one naming a machine role beside
+ * a human one still counts. A table with no policy lists none.
  */
 const humanPolicies = async (pg: Client): Promise<Record<string, PolicyShape[]>> => {
   const { rows } = await pg.query<{ relname: string; policies: PolicyShape[] }>(
@@ -661,20 +663,20 @@ const humanPolicies = async (pg: Client): Promise<Record<string, PolicyShape[]>>
        from pg_class c
        join pg_namespace n on n.oid = c.relnamespace
        left join pg_policies p
-         on p.schemaname = n.nspname and p.tablename = c.relname and p.roles <> '{solver_job_writer}'
+         on p.schemaname = n.nspname and p.tablename = c.relname and not (p.roles <@ $2::name[])
       where n.nspname = 'public'
         and c.relkind in ('r', 'p')
         and c.relrowsecurity
         and c.relname <> all ($1::text[])
       group by c.relname`,
-    [USER_KEYED_TABLES],
+    [USER_KEYED_TABLES, MACHINE_ROLES],
   );
   return Object.fromEntries(rows.map(({ relname, policies }) => [relname, policies]));
 };
 
 /**
  * Every policy on each user-keyed table, whatever role it names, sorted by command and then name.
- * Only the solver's `to solver_job_writer` policies are left out, as everywhere in this suite.
+ * Only policies naming machine roles alone (`MACHINE_ROLES`) are left out, as everywhere in this suite.
  * Predicates have each run of whitespace collapsed to one space: a subquery deparses over lines.
  */
 const userKeyedPolicies = async (pg: Client): Promise<Record<string, PolicyShape[]>> => {
@@ -694,12 +696,12 @@ const userKeyedPolicies = async (pg: Client): Promise<Record<string, PolicyShape
        from pg_class c
        join pg_namespace n on n.oid = c.relnamespace
        left join pg_policies p
-         on p.schemaname = n.nspname and p.tablename = c.relname and p.roles <> '{solver_job_writer}'
+         on p.schemaname = n.nspname and p.tablename = c.relname and not (p.roles <@ $2::name[])
       where n.nspname = 'public'
         and c.relkind in ('r', 'p')
         and c.relname = any ($1::text[])
       group by c.relname`,
-    [USER_KEYED_TABLES],
+    [USER_KEYED_TABLES, MACHINE_ROLES],
   );
   return Object.fromEntries(rows.map(({ relname, policies }) => [relname, policies]));
 };

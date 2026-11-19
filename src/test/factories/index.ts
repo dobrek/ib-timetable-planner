@@ -15,6 +15,7 @@ export { shelveCourses, type ShelveCoursesFactoryInput } from "./shelve-courses"
 export { generationJobRow } from "./generation-job-row";
 export { addGenerationJob, type AddGenerationJobInput } from "./add-generation-job";
 export { createSignedInUser, type SignedInUser } from "./create-signed-in-user";
+export { createSignedInMachineUser, type SignedInMachineUser } from "./create-signed-in-machine-user";
 export { createAuthUser, type AuthUser, type CreateAuthUserOptions } from "./create-auth-user";
 export { createInvitedUser, type InvitedUser } from "./create-invited-user";
 export { strongPassword } from "./strong-password";

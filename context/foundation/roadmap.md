@@ -3,7 +3,7 @@ project: ib-timetable-planner
 version: 1
 status: draft
 created: 2026-10-10
-updated: 2026-11-19
+updated: 2026-11-20
 prd_version: 1
 main_goal: quality
 top_blocker: external
@@ -56,7 +56,7 @@ The planner is being put forward to more staff at the same school, with ownershi
 | S-409 | create-account-fallback      | (admin) create an account with a temporary password that must be changed at first sign-in              | S-401, S-406, F-402 | FR-403                                                                         | done        |
 | S-410 | invite-by-email              | (admin) invite a colleague by email; the colleague confirms, sets a password and lands with that role  | S-402, S-405, S-409 | FR-401, FR-402, FR-404, FR-418, US-401, §NFG (invite lifetime, inbox delivery, no student data) | done |
 | S-411 | remove-and-correct-accounts  | (admin) ban or delete an account and change a user's email; access ends within an hour                 | S-409              | FR-404, FR-414, §NFG (removal ≤ 1 h, access changes traceable)                 | in-progress |
-| S-310 | job-completion-email         | get notified of job completion by email as well as in-app                                              | S-402, S-407       | FR-309 (archived CP-SAT PRD), §NFG (no student data)                           | in-progress |
+| S-310 | job-completion-email         | get notified of job completion by email as well as in-app                                              | S-402, S-407       | FR-309 (archived CP-SAT PRD), §NFG (no student data)                           | done        |
 
 ## Streams
 
@@ -287,7 +287,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Unknowns:**
   - A trigger that fires with no tab open (carried from M-01): nothing today notices a completed job without a browser, and the Worker's only database client is bound to a request's cookies. Under fail-closed roles the notifier also needs its own narrow read identity — never the secret key in the Worker. — Owner: plan phase. Block: no. **Resolved** by `context/archive/2026-11-16-job-completion-email/plan.md` (2026-11-16): a Worker Cron Trigger, once a minute, signed in as a new narrow `job_notifier` machine role through the token hook; no secret key, no second `SECURITY DEFINER`, no Supabase extension.
 - **Risk:** Nice-to-have, last, and skippable without touching either milestone's success criteria. Moved here from M-01 because it now shares this milestone's sending provider and domain (S-402) and needs the job's recorded requester as its recipient (S-407).
-- **Status:** in-progress
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -347,3 +347,4 @@ Handed off to GitHub 2026-10-10: milestone **"User management & privileges"**, t
 - **S-407: Any user can see who created each plan and proposal — a proposal is credited to whoever pressed Generate, and plans that predate the change show "unknown" — and a running generation job can be stopped only by the person who requested it or an admin; jobs that predate the change stay stoppable by any author.** — Archived 2026-11-07 → `context/archive/2026-11-06-created-by-and-job-ownership/`. Lesson: —.
 - **S-409: As a fallback when an invitation cannot reach someone, an admin can create an account with a temporary password from the Users page; the person must change it at first sign-in, and the new account appears in the Users list.** — Archived 2026-11-10 → `context/archive/2026-11-08-create-account-fallback/`. Lesson: —.
 - **S-410: An admin invites a colleague by email with a role chosen up front; the colleague receives the invitation, confirms on a page that needs a deliberate click (a mail scanner opening the link does not consume it), sets a password and lands with that role — read-only for a viewer — and the admin sees them in the Users list. The admin can re-send or revoke a pending invitation; an expired or used link says "ask your admin to re-send"; inviting an address that already has an account is refused with a clear message and creates no duplicate.** — Archived 2026-11-12 → `context/archive/2026-11-10-invite-by-email/`. Lesson: —.
+- **S-310: An author is notified on job completion with the result information by email as well as in-app, so "kick it off and walk away" works for a long solve; the email carries no student data.** — Archived 2026-11-20 → `context/archive/2026-11-16-job-completion-email/`. Lesson: —.

@@ -1,10 +1,10 @@
 ---
 change_id: job-completion-email
 title: Job-completion email (S-310)
-status: impl_reviewed
+status: archived
 created: 2026-11-16
-updated: 2026-11-19
-archived_at: null
+updated: 2026-11-20
+archived_at: 2026-11-20T22:10:05Z
 ---
 
 ## Notes

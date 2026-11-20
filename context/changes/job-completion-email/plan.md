@@ -663,8 +663,8 @@ Write down how the notifier is provisioned, rotated and switched off, correct th
 
 #### Manual Verification:
 
-- [ ] Hosted notifier provisioned, Resend key created, both Worker secrets set, and Workers Logs show the cron running (recorded in `hosted-check.md`)
-- [ ] One real hosted job email received in Gmail's Inbox with SPF and DKIM passing and a working link (recorded in `hosted-check.md`)
+- [x] Hosted notifier provisioned, Resend key created, both Worker secrets set, and Workers Logs show the cron running (recorded in `hosted-check.md`)
+- [x] One real hosted job email received in Gmail's Inbox with SPF and DKIM passing and a working link (recorded in `hosted-check.md`)
 
 **Implementation Note**: The two manual items happen after merge. Record them in `hosted-check.md` before archiving the change.
 
@@ -821,5 +821,5 @@ Recorded by the implementation review (`reviews/impl-review.md`). The phase comm
 
 #### Manual
 
-- [ ] 6.3 Hosted notifier provisioned, Resend key created, secrets set, cron running (recorded)
-- [ ] 6.4 One real hosted job email received in Gmail with SPF and DKIM passing (recorded)
+- [x] 6.3 Hosted notifier provisioned, Resend key created, secrets set, cron running (recorded) — 7b820861
+- [x] 6.4 One real hosted job email received in Gmail with SPF and DKIM passing (recorded) — 7b820861

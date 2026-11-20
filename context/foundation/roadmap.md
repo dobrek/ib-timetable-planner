@@ -285,7 +285,7 @@ A foundation was considered for each of those and rejected: postponing none of t
 - **Parallel with:** S-404, S-405, S-408, S-409, S-410, S-411
 - **Blockers:** —
 - **Unknowns:**
-  - A trigger that fires with no tab open (carried from M-01): nothing today notices a completed job without a browser, and the Worker's only database client is bound to a request's cookies. Under fail-closed roles the notifier also needs its own narrow read identity — never the secret key in the Worker. — Owner: plan phase. Block: no. **Resolved** by `context/changes/job-completion-email/plan.md` (2026-11-16): a Worker Cron Trigger, once a minute, signed in as a new narrow `job_notifier` machine role through the token hook; no secret key, no second `SECURITY DEFINER`, no Supabase extension.
+  - A trigger that fires with no tab open (carried from M-01): nothing today notices a completed job without a browser, and the Worker's only database client is bound to a request's cookies. Under fail-closed roles the notifier also needs its own narrow read identity — never the secret key in the Worker. — Owner: plan phase. Block: no. **Resolved** by `context/archive/2026-11-16-job-completion-email/plan.md` (2026-11-16): a Worker Cron Trigger, once a minute, signed in as a new narrow `job_notifier` machine role through the token hook; no secret key, no second `SECURITY DEFINER`, no Supabase extension.
 - **Risk:** Nice-to-have, last, and skippable without touching either milestone's success criteria. Moved here from M-01 because it now shares this milestone's sending provider and domain (S-402) and needs the job's recorded requester as its recipient (S-407).
 - **Status:** in-progress
 

@@ -181,8 +181,8 @@ minutes for one job is a permanent refusal that will repeat until the job expire
 
 ## The hosted check
 
-Recorded in `context/changes/job-completion-email/hosted-check.md` (archived with the change), after
-merge, with no secrets and no real names:
+Recorded in `context/archive/2026-11-16-job-completion-email/hosted-check.md`, after merge, with no
+secrets and no real names:
 
 1. Confirm the migration landed: `job_notifier`'s grants read live with `has_column_privilege`.
 2. Provision the hosted notifier (above).
